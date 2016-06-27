@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -119,7 +119,7 @@ public class InputChannelTest {
 				ResultPartitionID partitionId,
 				Tuple2<Integer, Integer> initialAndMaxBackoff) {
 
-			super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, new Counter());
+			super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, new SimpleCounter());
 		}
 
 		@Override

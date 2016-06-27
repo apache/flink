@@ -66,7 +66,7 @@ import java.util.UUID;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ResultPartitionWriter.class)
-@PowerMockIgnore("javax.management.*")
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String, Integer, Integer>, CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorTest.class);
 	private static File tmpDir;

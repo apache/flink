@@ -891,7 +891,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		@Override
 		public <K> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
 			TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
-			return new JoinOperatorSetsPredicate(new SelectorFunctionKeys<>(keySelector, input1.getType(), keyType));
+			return new JoinOperatorSetsPredicate(new SelectorFunctionKeys<>(input1.clean(keySelector), input1.getType(), keyType));
 		}
 
 
@@ -956,7 +956,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			@Override
 			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
 				TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
-				return createDefaultJoin(new SelectorFunctionKeys<>(keySelector, input2.getType(), keyType));
+				return createDefaultJoin(new SelectorFunctionKeys<>(input2.clean(keySelector), input2.getType(), keyType));
 			}
 		}
 	}

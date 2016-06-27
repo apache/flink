@@ -117,7 +117,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.25, 64, 0.7f, false);
+				0.25, 64, 0.7f, true /* use large record handler */, false);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -156,7 +156,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.01, 64, 0.005f, true);
+				0.01, 64, 0.005f, true /* use large record handler */, true);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -203,7 +203,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Tuple2<Integer, String>> merger = new CombiningUnilateralSortMerger<>(comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory1, this.comparator1,
-				0.25, 2, 0.7f, false);
+				0.25, 2, 0.7f, true /* use large record handler */, false);
 
 		// emit data
 		LOG.debug("emitting data");

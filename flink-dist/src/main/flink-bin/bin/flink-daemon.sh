@@ -23,7 +23,6 @@ USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (jobmanager|taskmanager|zook
 STARTSTOP=$1
 DAEMON=$2
 ARGS=("${@:3}") # get remaining arguments as array
-JMX_ARGS=""
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -33,14 +32,10 @@ bin=`cd "$bin"; pwd`
 case $DAEMON in
     (jobmanager)
         CLASS_TO_RUN=org.apache.flink.runtime.jobmanager.JobManager
-        if [ "${ARGS[3]}" == "local" ]; then
-            JMX_ARGS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=${JMX_PORT} -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
-        fi
     ;;
 
     (taskmanager)
         CLASS_TO_RUN=org.apache.flink.runtime.taskmanager.TaskManager
-        JMX_ARGS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=${JMX_PORT} -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
     ;;
 
     (zookeeper)
@@ -101,13 +96,12 @@ case $STARTSTOP in
           count="${#active[@]}"
 
           if [ ${count} -gt 0 ]; then
-            JMX_ARGS=""
             echo "[INFO] $count instance(s) of $DAEMON are already running on $HOSTNAME."
           fi
         fi
 
         echo "Starting $DAEMON daemon on host $HOSTNAME."
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} ${JMX_ARGS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 2>&1 < /dev/null &
 
         mypid=$!
 

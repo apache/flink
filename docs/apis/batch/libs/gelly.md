@@ -2112,8 +2112,9 @@ divided by the number of potential edges between neighbors.
 See the [Triangle Enumeration](#triangle-enumeration) library method for a detailed explanation of triangle enumeration.
 
 #### Usage
-The algorithm takes a simple, undirected graph as input and outputs a `DataSet` of tuples containing the vertex ID,
-vertex degree, and number of triangles containing the vertex. The graph ID type must be `Comparable` and `Copyable`.
+Directed and undirected variants are provided. The algorithms take a simple graph as input and output a `DataSet` of
+tuples containing the vertex ID, vertex degree, and number of triangles containing the vertex. The graph ID type must be
+`Comparable` and `Copyable`.
 
 ### Global Clustering Coefficient
 
@@ -2126,8 +2127,9 @@ See the [Local Clustering Coefficient](#local-clustering-coefficient) library me
 clustering coefficient.
 
 #### Usage
-The algorithm takes a simple, undirected graph as input and outputs a result containing the total number of triplets and
-triangles in the graph. The graph ID type must be `Comparable` and `Copyable`.
+Directed and undirected variants are provided. The algorithm takes a simple graph as input and outputs a result
+containing the total number of triplets and triangles in the graph. The graph ID type must be `Comparable` and
+`Copyable`.
 
 
 {% top %}

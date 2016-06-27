@@ -21,7 +21,6 @@ import akka.actor.ActorRef;
 
 import static akka.pattern.Patterns.ask;
 
-import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
@@ -72,7 +71,7 @@ public class YarnClusterClient extends ClusterClient {
 	private static final int POLLING_THREAD_INTERVAL_MS = 1000;
 
 	private YarnClient yarnClient;
-	private Thread actorRunner;
+
 	private Thread clientShutdownHook = new ClientShutdownHook();
 	private PollingThread pollingRunner;
 	private final Configuration hadoopConfig;
@@ -144,36 +143,6 @@ public class YarnClusterClient extends ClusterClient {
 				leaderRetrievalService),
 			"applicationClient");
 
-		actorRunner = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				// blocks until ApplicationClient has been stopped
-				actorSystem.awaitTermination();
-
-				// get final application report
-				try {
-					ApplicationReport appReport = yarnClient.getApplicationReport(appId);
-
-					LOG.info("Application " + appId + " finished with state " + appReport
-						.getYarnApplicationState() + " and final state " + appReport
-						.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
-
-					if (appReport.getYarnApplicationState() == YarnApplicationState.FAILED || appReport.getYarnApplicationState()
-						== YarnApplicationState.KILLED) {
-						LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
-						LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
-							+ "the full application log using this command:\n"
-							+ "\tyarn logs -applicationId " + appReport.getApplicationId() + "\n"
-							+ "(It sometimes takes a few seconds until the logs are aggregated)");
-					}
-				} catch (Exception e) {
-					LOG.warn("Error while getting final application report", e);
-				}
-			}
-		});
-		actorRunner.setDaemon(true);
-		actorRunner.start();
-
 		pollingRunner = new PollingThread(yarnClient, appId);
 		pollingRunner.setDaemon(true);
 		pollingRunner.start();
@@ -186,22 +155,21 @@ public class YarnClusterClient extends ClusterClient {
 
 			logAndSysout("Waiting until all TaskManagers have connected");
 
-			while (true) {
-				GetClusterStatusResponse status = getClusterStatus();
-				if (status != null) {
-					if (status.numRegisteredTaskManagers() < clusterDescriptor.getTaskManagerCount()) {
-						logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
-							+ clusterDescriptor.getTaskManagerCount() + ")");
-					} else {
+			for (GetClusterStatusResponse currentStatus, lastStatus = null;; lastStatus = currentStatus) {
+				currentStatus = getClusterStatus();
+				if (currentStatus != null && !currentStatus.equals(lastStatus)) {
+					logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"
+						+ clusterDescriptor.getTaskManagerCount() + ")");
+					if (currentStatus.numRegisteredTaskManagers() >= clusterDescriptor.getTaskManagerCount()) {
 						logAndSysout("All TaskManagers are connected");
 						break;
 					}
-				} else {
+				} else if (lastStatus == null) {
 					logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
 				}
 
 				try {
-					Thread.sleep(500);
+					Thread.sleep(250);
 				} catch (InterruptedException e) {
 					LOG.error("Interrupted while waiting for TaskManagers");
 					System.err.println("Thread is interrupted");
@@ -211,10 +179,19 @@ public class YarnClusterClient extends ClusterClient {
 		}
 	}
 
+	/**
+	 * Disconnect from the Yarn cluster
+	 */
 	public void disconnect() {
+
+		if (hasBeenShutDown.getAndSet(true)) {
+			return;
+		}
+
 		if(!isConnected) {
 			throw new IllegalStateException("Can not disconnect from an unconnected cluster.");
 		}
+
 		LOG.info("Disconnecting YarnClusterClient from ApplicationMaster");
 
 		try {
@@ -223,15 +200,6 @@ public class YarnClusterClient extends ClusterClient {
 			// we are already in the shutdown hook
 		}
 
-		// tell the actor to shut down.
-		applicationClient.tell(PoisonPill.getInstance(), applicationClient);
-
-		try {
-			actorRunner.join(1000); // wait for 1 second
-		} catch (InterruptedException e) {
-			LOG.warn("Shutdown of the actor runner was interrupted", e);
-			Thread.currentThread().interrupt();
-		}
 		try {
 			pollingRunner.stopRunner();
 			pollingRunner.join(1000);
@@ -239,6 +207,7 @@ public class YarnClusterClient extends ClusterClient {
 			LOG.warn("Shutdown of the polling runner was interrupted", e);
 			Thread.currentThread().interrupt();
 		}
+
 		isConnected = false;
 	}
 
@@ -278,23 +247,7 @@ public class YarnClusterClient extends ClusterClient {
 		if (isDetached()) {
 			return super.runDetached(jobGraph, classLoader);
 		} else {
-			try {
-				return super.run(jobGraph, classLoader);
-			} finally {
-				// show cluster status
-				List<String> msgs = getNewMessages();
-				if (msgs != null && msgs.size() > 1) {
-
-					logAndSysout("The following messages were created by the YARN cluster while running the Job:");
-					for (String msg : msgs) {
-						logAndSysout(msg);
-					}
-				}
-				if (getApplicationStatus() != ApplicationStatus.SUCCEEDED) {
-					logAndSysout("YARN cluster is in non-successful state " + getApplicationStatus());
-					logAndSysout("YARN Diagnostics: " + getDiagnostics());
-				}
-			}
+			return super.run(jobGraph, classLoader);
 		}
 	}
 
@@ -345,11 +298,13 @@ public class YarnClusterClient extends ClusterClient {
 		if(!isConnected) {
 			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
 		}
+		ApplicationReport lastReport = null;
 		if(pollingRunner == null) {
 			LOG.warn("YarnClusterClient.getApplicationStatus() has been called on an uninitialized cluster." +
 					"The system might be in an erroneous state");
+		} else {
+			lastReport = pollingRunner.getLastReport();
 		}
-		ApplicationReport lastReport = pollingRunner.getLastReport();
 		if(lastReport == null) {
 			LOG.warn("YarnClusterClient.getApplicationStatus() has been called on a cluster that didn't receive a status so far." +
 					"The system might be in an erroneous state");
@@ -367,35 +322,18 @@ public class YarnClusterClient extends ClusterClient {
 		}
 	}
 
-
-	private String getDiagnostics() {
-		if(!isConnected) {
-			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
-		}
-
-		if (getApplicationStatus() == ApplicationStatus.SUCCEEDED) {
-			LOG.warn("getDiagnostics() called for cluster which is not in failed state");
-		}
-		ApplicationReport lastReport = pollingRunner.getLastReport();
-		if (lastReport == null) {
-			LOG.warn("Last report is null");
-			return null;
-		} else {
-			return lastReport.getDiagnostics();
-		}
-	}
-
 	@Override
 	public List<String> getNewMessages() {
-		if(!isConnected) {
-			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
-		}
 
 		if(hasBeenShutdown()) {
 			throw new RuntimeException("The YarnClusterClient has already been stopped");
 		}
-		List<String> ret = new ArrayList<String>();
 
+		if(!isConnected) {
+			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
+		}
+
+		List<String> ret = new ArrayList<String>();
 		// get messages from ApplicationClient (locally)
 		while(true) {
 			Object result;
@@ -441,7 +379,6 @@ public class YarnClusterClient extends ClusterClient {
 	 */
 	@Override
 	public void finalizeCluster() {
-
 		if (isDetached() || !perJobCluster) {
 			// only disconnect if we are not running a per job cluster
 			disconnect();
@@ -450,14 +387,17 @@ public class YarnClusterClient extends ClusterClient {
 		}
 	}
 
+	/**
+	 * Shuts down the Yarn application
+	 */
 	public void shutdownCluster() {
+
+		if (hasBeenShutDown.getAndSet(true)) {
+			return;
+		}
 
 		if (!isConnected) {
 			throw new IllegalStateException("The cluster has been not been connected to the ApplicationMaster.");
-		}
-
-		if(hasBeenShutDown.getAndSet(true)) {
-			return;
 		}
 
 		try {
@@ -479,9 +419,6 @@ public class YarnClusterClient extends ClusterClient {
 					LOG.warn("Error while stopping YARN Application Client", e);
 				}
 			}
-
-			actorSystem.shutdown();
-			actorSystem.awaitTermination();
 		}
 
 		try {
@@ -511,17 +448,30 @@ public class YarnClusterClient extends ClusterClient {
 		}
 
 		try {
-			actorRunner.join(1000); // wait for 1 second
-		} catch (InterruptedException e) {
-			LOG.warn("Shutdown of the actor runner was interrupted", e);
-			Thread.currentThread().interrupt();
-		}
-		try {
 			pollingRunner.stopRunner();
 			pollingRunner.join(1000);
 		} catch(InterruptedException e) {
 			LOG.warn("Shutdown of the polling runner was interrupted", e);
 			Thread.currentThread().interrupt();
+		}
+
+		try {
+			ApplicationReport appReport = yarnClient.getApplicationReport(appId);
+
+			LOG.info("Application " + appId + " finished with state " + appReport
+				.getYarnApplicationState() + " and final state " + appReport
+				.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
+
+			if (appReport.getYarnApplicationState() == YarnApplicationState.FAILED || appReport.getYarnApplicationState()
+				== YarnApplicationState.KILLED) {
+				LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
+				LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
+					+ "the full application log using this command:\n"
+					+ "\tyarn logs -applicationId " + appReport.getApplicationId() + "\n"
+					+ "(It sometimes takes a few seconds until the logs are aggregated)");
+			}
+		} catch (Exception e) {
+			LOG.warn("Couldn't get final report", e);
 		}
 
 		LOG.info("YARN Client is shutting down");

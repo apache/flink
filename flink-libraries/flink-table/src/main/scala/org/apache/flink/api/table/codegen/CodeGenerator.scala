@@ -18,10 +18,12 @@
 
 package org.apache.flink.api.table.codegen
 
+import java.math.{BigDecimal => JBigDecimal}
+
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlLiteral, SqlOperator}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.{SqlLiteral, SqlOperator}
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -32,8 +34,9 @@ import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.calls.ScalarFunctions
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
-import org.apache.flink.api.table.typeutils.{TypeConverter, RowTypeInfo}
-import TypeConverter.sqlTypeToTypeInfo
+import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isNumeric, isString}
+import org.apache.flink.api.table.typeutils.TypeConverter.sqlTypeToTypeInfo
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -542,7 +545,7 @@ class CodeGenerator(
       case BOOLEAN =>
         generateNonNullLiteral(resultType, literal.getValue3.toString)
       case TINYINT =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidByte) {
           generateNonNullLiteral(resultType, decimal.byteValue().toString)
         }
@@ -550,7 +553,7 @@ class CodeGenerator(
           throw new CodeGenException("Decimal can not be converted to byte.")
         }
       case SMALLINT =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidShort) {
           generateNonNullLiteral(resultType, decimal.shortValue().toString)
         }
@@ -558,7 +561,7 @@ class CodeGenerator(
           throw new CodeGenException("Decimal can not be converted to short.")
         }
       case INTEGER =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidInt) {
           generateNonNullLiteral(resultType, decimal.intValue().toString)
         }
@@ -566,29 +569,36 @@ class CodeGenerator(
           throw new CodeGenException("Decimal can not be converted to integer.")
         }
       case BIGINT =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidLong) {
-          generateNonNullLiteral(resultType, decimal.longValue().toString)
+          generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
         }
         else {
           throw new CodeGenException("Decimal can not be converted to long.")
         }
       case FLOAT =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
-        if (decimal.isValidFloat) {
-          generateNonNullLiteral(resultType, decimal.floatValue().toString + "f")
-        }
-        else {
-          throw new CodeGenException("Decimal can not be converted to float.")
+        val floatValue = value.asInstanceOf[JBigDecimal].floatValue()
+        floatValue match {
+          case Float.NaN => generateNonNullLiteral(resultType, "java.lang.Float.NaN")
+          case Float.NegativeInfinity =>
+            generateNonNullLiteral(resultType, "java.lang.Float.NEGATIVE_INFINITY")
+          case Float.PositiveInfinity =>
+            generateNonNullLiteral(resultType, "java.lang.Float.POSITIVE_INFINITY")
+          case _ => generateNonNullLiteral(resultType, floatValue.toString + "f")
         }
       case DOUBLE =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
-        if (decimal.isValidDouble) {
-          generateNonNullLiteral(resultType, decimal.doubleValue().toString)
+        val doubleValue = value.asInstanceOf[JBigDecimal].doubleValue()
+        doubleValue match {
+          case Double.NaN => generateNonNullLiteral(resultType, "java.lang.Double.NaN")
+          case Double.NegativeInfinity =>
+            generateNonNullLiteral(resultType, "java.lang.Double.NEGATIVE_INFINITY")
+          case Double.PositiveInfinity =>
+            generateNonNullLiteral(resultType, "java.lang.Double.POSITIVE_INFINITY")
+          case _ => generateNonNullLiteral(resultType, doubleValue.toString + "d")
         }
-        else {
-          throw new CodeGenException("Decimal can not be converted to double.")
-        }
+      case DECIMAL =>
+        val decimalField = addReusableDecimal(value.asInstanceOf[JBigDecimal])
+        generateNonNullLiteral(resultType, decimalField)
       case VARCHAR | CHAR =>
         generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
       case SYMBOL =>
@@ -630,7 +640,7 @@ class CodeGenerator(
         val left = operands.head
         val right = operands(1)
         requireString(left)
-        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+        generateStringConcatOperator(nullCheck, left, right)
 
       case MINUS if isNumeric(resultType) =>
         val left = operands.head
@@ -674,37 +684,39 @@ class CodeGenerator(
       case EQUALS =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
         generateEquals(nullCheck, left, right)
 
       case NOT_EQUALS =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
         generateNotEquals(nullCheck, left, right)
 
       case GREATER_THAN =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison(">", nullCheck, left, right)
 
       case GREATER_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison(">=", nullCheck, left, right)
 
       case LESS_THAN =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison("<", nullCheck, left, right)
 
       case LESS_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison("<=", nullCheck, left, right)
 
       case IS_NULL =>
@@ -774,14 +786,6 @@ class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
   // ----------------------------------------------------------------------------------------------
-
-  def checkNumericOrString(left: GeneratedExpression, right: GeneratedExpression): Unit = {
-    if (isNumeric(left)) {
-      requireNumeric(right)
-    } else if (isString(left)) {
-      requireString(right)
-    }
-  }
 
   private def generateInputAccess(
       inputType: TypeInformation[Any],
@@ -1036,4 +1040,18 @@ class CodeGenerator(
     fieldTerm
   }
 
+  def addReusableDecimal(decimal: JBigDecimal): String = decimal match {
+    case JBigDecimal.ZERO => "java.math.BigDecimal.ZERO"
+    case JBigDecimal.ONE => "java.math.BigDecimal.ONE"
+    case JBigDecimal.TEN => "java.math.BigDecimal.TEN"
+    case _ =>
+      val fieldTerm = newName("decimal")
+      val fieldDecimal =
+        s"""
+          |transient java.math.BigDecimal $fieldTerm =
+          |    new java.math.BigDecimal("${decimal.toString}");
+          |""".stripMargin
+      reusableMemberStatements.add(fieldDecimal)
+      fieldTerm
+  }
 }

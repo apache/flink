@@ -70,9 +70,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// A sane default for most operators
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
-	
-	private boolean inputCopyDisabled = false;
-	
+
 	// ---------------- runtime fields ------------------
 
 	/** The task that contains this operator (and other operators in the same chain) */
@@ -252,14 +250,18 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Register a timer callback. At the specified time the {@link Triggerable} will be invoked.
-	 * This call is guaranteed to not happen concurrently with method calls on the operator.
+	 * Register a timer callback. At the specified time the provided {@link Triggerable} will
+	 * be invoked. This call is guaranteed to not happen concurrently with method calls on the operator.
 	 *
 	 * @param time The absolute time in milliseconds.
 	 * @param target The target to be triggered.
 	 */
 	protected ScheduledFuture<?> registerTimer(long time, Triggerable target) {
 		return container.registerTimer(time, target);
+	}
+
+	protected long getCurrentProcessingTime() {
+		return container.getCurrentProcessingTime();
 	}
 
 	/**
@@ -322,19 +324,6 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public final ChainingStrategy getChainingStrategy() {
 		return chainingStrategy;
-	}
-	
-	@Override
-	public boolean isInputCopyingDisabled() {
-		return inputCopyDisabled;
-	}
-
-	/**
-	 * Enable object-reuse for this operator instance. This overrides the setting in
-	 * the {@link org.apache.flink.api.common.ExecutionConfig}
-	 */
-	public void disableInputCopy() {
-		this.inputCopyDisabled = true;
 	}
 
 	public class CountingOutput implements Output<StreamRecord<OUT>> {

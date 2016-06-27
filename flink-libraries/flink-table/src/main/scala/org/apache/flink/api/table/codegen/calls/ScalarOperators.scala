@@ -18,11 +18,22 @@
 package org.apache.flink.api.table.codegen.calls
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression}
+import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isBoolean, isComparable, isDecimal, isNumeric}
 
 object ScalarOperators {
+
+  def generateStringConcatOperator(
+      nullCheck: Boolean,
+      left: GeneratedExpression,
+      right: GeneratedExpression)
+    : GeneratedExpression = {
+    generateOperatorIfNotNull(nullCheck, STRING_TYPE_INFO, left, right) {
+      (leftTerm, rightTerm) => s"$leftTerm + $rightTerm"
+    }
+  }
 
   def generateArithmeticOperator(
       operator: String,
@@ -31,40 +42,17 @@ object ScalarOperators {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    // String arithmetic // TODO rework
-    if (isString(left)) {
-      generateOperatorIfNotNull(nullCheck, resultType, left, right) {
-      (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
-      }
-    }
-    // Numeric arithmetic
-    else if (isNumeric(left) && isNumeric(right)) {
-      val leftType = left.resultType.asInstanceOf[NumericTypeInfo[_]]
-      val rightType = right.resultType.asInstanceOf[NumericTypeInfo[_]]
-      val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+    val leftCasting = numericCasting(left.resultType, resultType)
+    val rightCasting = numericCasting(right.resultType, resultType)
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
 
-      generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+    generateOperatorIfNotNull(nullCheck, resultType, left, right) {
       (leftTerm, rightTerm) =>
-        // no casting required
-        if (leftType == resultType && rightType == resultType) {
-          s"$leftTerm $operator $rightTerm"
+        if (isDecimal(resultType)) {
+          s"${leftCasting(leftTerm)}.${arithOpToDecMethod(operator)}(${rightCasting(rightTerm)})"
+        } else {
+          s"($resultTypeTerm) (${leftCasting(leftTerm)} $operator ${rightCasting(rightTerm)})"
         }
-        // left needs casting
-        else if (leftType != resultType && rightType == resultType) {
-          s"(($resultTypeTerm) $leftTerm) $operator $rightTerm"
-        }
-        // right needs casting
-        else if (leftType == resultType && rightType != resultType) {
-          s"$leftTerm $operator (($resultTypeTerm) $rightTerm)"
-        }
-        // both sides need casting
-        else {
-          s"(($resultTypeTerm) $leftTerm) $operator (($resultTypeTerm) $rightTerm)"
-        }
-      }
-    }
-    else {
-      throw new CodeGenException("Unsupported arithmetic operation.")
     }
   }
 
@@ -75,7 +63,16 @@ object ScalarOperators {
       operand: GeneratedExpression)
     : GeneratedExpression = {
     generateUnaryOperatorIfNotNull(nullCheck, resultType, operand) {
-      (operandTerm) => s"$operator($operandTerm)"
+      (operandTerm) =>
+        if (isDecimal(operand.resultType) && operator == "-") {
+          s"$operandTerm.negate()"
+        } else if (isDecimal(operand.resultType) && operator == "+") {
+          s"$operandTerm"
+        } else if (isNumeric(operand.resultType)) {
+          s"$operator($operandTerm)"
+        }  else {
+          throw new CodeGenException("Unsupported unary operator.")
+        }
     }
   }
 
@@ -84,15 +81,27 @@ object ScalarOperators {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
-      if (isReference(left)) {
-        (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
-      }
-      else if (isReference(right)) {
-        (leftTerm, rightTerm) => s"$rightTerm.equals($leftTerm)"
-      }
-      else {
-        (leftTerm, rightTerm) => s"$leftTerm == $rightTerm"
+    // numeric types
+    if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
+      generateComparison("==", nullCheck, left, right)
+    }
+    // comparable types of same type
+    else if (isComparable(left.resultType) && left.resultType == right.resultType) {
+      generateComparison("==", nullCheck, left, right)
+    }
+    // non comparable types
+    else {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        if (isReference(left)) {
+          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
+        }
+        else if (isReference(right)) {
+          (leftTerm, rightTerm) => s"$rightTerm.equals($leftTerm)"
+        }
+        else {
+          throw new CodeGenException(s"Incomparable types: ${left.resultType} and " +
+            s"${right.resultType}")
+        }
       }
     }
   }
@@ -102,19 +111,34 @@ object ScalarOperators {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
-      if (isReference(left)) {
-        (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
-      }
-      else if (isReference(right)) {
-        (leftTerm, rightTerm) => s"!($rightTerm.equals($leftTerm))"
-      }
-      else {
-        (leftTerm, rightTerm) => s"$leftTerm != $rightTerm"
+    // numeric types
+    if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
+      generateComparison("!=", nullCheck, left, right)
+    }
+    // comparable types
+    else if (isComparable(left.resultType) && left.resultType == right.resultType) {
+      generateComparison("!=", nullCheck, left, right)
+    }
+    // non comparable types
+    else {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        if (isReference(left)) {
+          (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
+        }
+        else if (isReference(right)) {
+          (leftTerm, rightTerm) => s"!($rightTerm.equals($leftTerm))"
+        }
+        else {
+          throw new CodeGenException(s"Incomparable types: ${left.resultType} and " +
+            s"${right.resultType}")
+        }
       }
     }
   }
 
+  /**
+    * Generates comparison code for numeric types and comparable types of same type.
+    */
   def generateComparison(
       operator: String,
       nullCheck: Boolean,
@@ -122,14 +146,38 @@ object ScalarOperators {
       right: GeneratedExpression)
     : GeneratedExpression = {
     generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
-      if (isString(left) && isString(right)) {
-        (leftTerm, rightTerm) => s"$leftTerm.compareTo($rightTerm) $operator 0"
+      // left is decimal or both sides are decimal
+      if (isDecimal(left.resultType) && isNumeric(right.resultType)) {
+        (leftTerm, rightTerm) => {
+          val operandCasting = numericCasting(right.resultType, left.resultType)
+          s"$leftTerm.compareTo(${operandCasting(rightTerm)}) $operator 0"
+        }
       }
-      else if (isNumeric(left) && isNumeric(right)) {
+      // right is decimal
+      else if (isNumeric(left.resultType) && isDecimal(right.resultType)) {
+        (leftTerm, rightTerm) => {
+          val operandCasting = numericCasting(left.resultType, right.resultType)
+          s"${operandCasting(leftTerm)}.compareTo($rightTerm) $operator 0"
+        }
+      }
+      // both sides are numeric
+      else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
         (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
       }
+      // both sides are boolean
+      else if (isBoolean(left.resultType) && left.resultType == right.resultType) {
+        operator match {
+          case "==" | "!=" => (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+          case _ => throw new CodeGenException(s"Unsupported boolean comparison '$operator'.")
+        }
+      }
+      // both sides are same comparable type
+      else if (isComparable(left.resultType) && left.resultType == right.resultType) {
+        (leftTerm, rightTerm) => s"$leftTerm.compareTo($rightTerm) $operator 0"
+      }
       else {
-        throw new CodeGenException("Comparison is only supported for Strings and numeric types.")
+        throw new CodeGenException(s"Incomparable types: ${left.resultType} and " +
+            s"${right.resultType}")
       }
     }
   }
@@ -147,7 +195,7 @@ object ScalarOperators {
         |boolean $nullTerm = false;
         |""".stripMargin
     }
-    else if (!nullCheck && isReference(operand.resultType)) {
+    else if (!nullCheck && isReference(operand)) {
       s"""
         |${operand.code}
         |boolean $resultTerm = ${operand.resultTerm} == null;
@@ -177,7 +225,7 @@ object ScalarOperators {
         |boolean $nullTerm = false;
         |""".stripMargin
     }
-    else if (!nullCheck && isReference(operand.resultType)) {
+    else if (!nullCheck && isReference(operand)) {
       s"""
         |${operand.code}
         |boolean $resultTerm = ${operand.resultTerm} != null;
@@ -326,63 +374,72 @@ object ScalarOperators {
       nullCheck: Boolean,
       operand: GeneratedExpression,
       targetType: TypeInformation[_])
-    : GeneratedExpression = {
-    targetType match {
-      // identity casting
-      case operand.resultType =>
-        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-          (operandTerm) => s"$operandTerm"
-        }
+    : GeneratedExpression = (operand.resultType, targetType) match {
+    // identity casting
+    case (fromTp, toTp) if fromTp == toTp =>
+      operand
 
-      // * -> String
-      case STRING_TYPE_INFO =>
-        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-          (operandTerm) => s""" "" + $operandTerm"""
-        }
+    // * -> String
+    case (_, STRING_TYPE_INFO) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s""" "" + $operandTerm"""
+      }
 
-      // * -> Date
-      case DATE_TYPE_INFO =>
-        throw new CodeGenException("Date type not supported yet.")
+    // * -> Character
+    case (_, CHAR_TYPE_INFO) =>
+      throw new CodeGenException("Character type not supported.")
 
-      // * -> Void
-      case VOID_TYPE_INFO =>
-        throw new CodeGenException("Void type not supported.")
+    // String -> NUMERIC TYPE (not Character), Boolean
+    case (STRING_TYPE_INFO, _: NumericTypeInfo[_])
+        | (STRING_TYPE_INFO, BOOLEAN_TYPE_INFO) =>
+      val wrapperClass = targetType.getTypeClass.getCanonicalName
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"$wrapperClass.valueOf($operandTerm)"
+      }
 
-      // * -> Character
-      case CHAR_TYPE_INFO =>
-        throw new CodeGenException("Character type not supported.")
+    // String -> BigDecimal
+    case (STRING_TYPE_INFO, BIG_DEC_TYPE_INFO) =>
+      val wrapperClass = targetType.getTypeClass.getCanonicalName
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"new $wrapperClass($operandTerm)"
+      }
 
-      // NUMERIC TYPE -> Boolean
-      case BOOLEAN_TYPE_INFO if isNumeric(operand) =>
-        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-          (operandTerm) => s"$operandTerm != 0"
-        }
+    // Boolean -> NUMERIC TYPE
+    case (BOOLEAN_TYPE_INFO, nti: NumericTypeInfo[_]) =>
+      val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"($targetTypeTerm) ($operandTerm ? 1 : 0)"
+      }
 
-      // String -> BASIC TYPE (not String, Date, Void, Character)
-      case ti: BasicTypeInfo[_] if isString(operand) =>
-        val wrapperClass = targetType.getTypeClass.getCanonicalName
-        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-          (operandTerm) => s"$wrapperClass.valueOf($operandTerm)"
-        }
+    // Boolean -> BigDecimal
+    case (BOOLEAN_TYPE_INFO, BIG_DEC_TYPE_INFO) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"$operandTerm ? java.math.BigDecimal.ONE : java.math.BigDecimal.ZERO"
+      }
 
-      // NUMERIC TYPE -> NUMERIC TYPE
-      case nti: NumericTypeInfo[_] if isNumeric(operand) =>
-        val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
-        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-          (operandTerm) => s"($targetTypeTerm) $operandTerm"
-        }
+    // NUMERIC TYPE -> Boolean
+    case (_: NumericTypeInfo[_], BOOLEAN_TYPE_INFO) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"$operandTerm != 0"
+      }
 
-      // Boolean -> NUMERIC TYPE
-      case nti: NumericTypeInfo[_] if isBoolean(operand) =>
-        val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
-        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-          (operandTerm) => s"($targetTypeTerm) ($operandTerm ? 1 : 0)"
-        }
+    // BigDecimal -> Boolean
+    case (BIG_DEC_TYPE_INFO, BOOLEAN_TYPE_INFO) =>
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"$operandTerm.compareTo(java.math.BigDecimal.ZERO) != 0"
+      }
 
-      case _ =>
-        throw new CodeGenException(s"Unsupported cast from '${operand.resultType}'" +
-          s"to '$targetType'.")
-    }
+    // NUMERIC TYPE, BigDecimal -> NUMERIC TYPE, BigDecimal
+    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_])
+        | (BIG_DEC_TYPE_INFO, _: NumericTypeInfo[_])
+        | (_: NumericTypeInfo[_], BIG_DEC_TYPE_INFO) =>
+      val operandCasting = numericCasting(operand.resultType, targetType)
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"${operandCasting(operandTerm)}"
+      }
+
+    case (from, to) =>
+      throw new CodeGenException(s"Unsupported cast from '$from' to '$to'.")
   }
 
   def generateIfElse(
@@ -519,4 +576,51 @@ object ScalarOperators {
     GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
   }
 
+  private def arithOpToDecMethod(operator: String): String = operator match {
+    case "+" => "add"
+    case "-" => "subtract"
+    case "*" => "multiply"
+    case "/" => "divide"
+    case "%" => "remainder"
+    case _ => throw new CodeGenException("Unsupported decimal arithmetic operator.")
+  }
+
+  private def numericCasting(
+      operandType: TypeInformation[_],
+      resultType: TypeInformation[_])
+    : (String) => String = {
+
+    def decToPrimMethod(targetType: TypeInformation[_]): String = targetType match {
+      case BYTE_TYPE_INFO => "byteValueExact"
+      case SHORT_TYPE_INFO => "shortValueExact"
+      case INT_TYPE_INFO => "intValueExact"
+      case LONG_TYPE_INFO => "longValueExact"
+      case FLOAT_TYPE_INFO => "floatValue"
+      case DOUBLE_TYPE_INFO => "doubleValue"
+      case _ => throw new CodeGenException("Unsupported decimal casting type.")
+    }
+
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+    // no casting necessary
+    if (operandType == resultType) {
+      (operandTerm) => s"$operandTerm"
+    }
+    // result type is decimal but numeric operand is not
+    else if (isDecimal(resultType) && !isDecimal(operandType) && isNumeric(operandType)) {
+      (operandTerm) =>
+        s"java.math.BigDecimal.valueOf((${superPrimitive(operandType)}) $operandTerm)"
+    }
+    // numeric result type is not decimal but operand is
+    else if (isNumeric(resultType) && !isDecimal(resultType) && isDecimal(operandType) ) {
+      (operandTerm) => s"$operandTerm.${decToPrimMethod(resultType)}()"
+    }
+    // result type and operand type are numeric but not decimal
+    else if (isNumeric(operandType) && isNumeric(resultType)
+        && !isDecimal(operandType) && !isDecimal(resultType)) {
+      (operandTerm) => s"(($resultTypeTerm) $operandTerm)"
+    }
+    else {
+      throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
+    }
+  }
 }

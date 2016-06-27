@@ -168,7 +168,11 @@ public class TaskConfig implements Serializable {
 	private static final String SORT_SPILLING_THRESHOLD_DRIVER = "sort-spill-threshold.driver";
 	
 	private static final String SORT_SPILLING_THRESHOLD_INPUT_PREFIX = "sort-spill-threshold.input.";
-	
+
+	private static final String USE_LARGE_RECORD_HANDLER = "sort-spill.large-record-handler";
+
+	private static final boolean USE_LARGE_RECORD_HANDLER_DEFAULT = false;
+
 	// ----------------------------------- Iterations ---------------------------------------------
 	
 	private static final String NUMBER_OF_ITERATIONS = "iterative.num-iterations";
@@ -691,6 +695,14 @@ public class TaskConfig implements Serializable {
 
 	public float getSpillingThresholdInput(int inputNum) {
 		return this.config.getFloat(SORT_SPILLING_THRESHOLD_INPUT_PREFIX + inputNum, 0.7f);
+	}
+
+	public void setUseLargeRecordHandler(boolean useLargeRecordHandler) {
+		this.config.setBoolean(USE_LARGE_RECORD_HANDLER, useLargeRecordHandler);
+	}
+
+	public boolean getUseLargeRecordHandler() {
+		return this.config.getBoolean(USE_LARGE_RECORD_HANDLER, USE_LARGE_RECORD_HANDLER_DEFAULT);
 	}
 	
 	// --------------------------------------------------------------------------------------------

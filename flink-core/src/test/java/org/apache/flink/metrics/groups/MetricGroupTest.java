@@ -24,15 +24,29 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.MetricRegistry;
 
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 public class MetricGroupTest {
 	
-	private final MetricRegistry registry = new MetricRegistry(new Configuration());
+	private MetricRegistry registry;
 
 	private final MetricRegistry exceptionOnRegister = new ExceptionOnRegisterRegistry();
+
+	@Before
+	public void createRegistry() {
+		this.registry = new MetricRegistry(new Configuration());
+	}
+
+	@After
+	public void shutdownRegistry() {
+		this.registry.shutdown();
+		this.registry = null;
+	}
 
 	@Test
 	public void sameGroupOnNameCollision() {

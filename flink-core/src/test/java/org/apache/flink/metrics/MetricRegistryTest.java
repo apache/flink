@@ -25,12 +25,13 @@ import org.apache.flink.metrics.groups.scope.ScopeFormats;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.metrics.util.TestReporter;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class MetricRegistryTest {
+public class MetricRegistryTest extends TestLogger {
 	
 	/**
 	 * Verifies that the reporter class argument is correctly used to instantiate and open the reporter.

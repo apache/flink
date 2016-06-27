@@ -79,7 +79,7 @@ public class JobManagerActorTestUtils {
 				if (jobStatus == expectedJobStatus) {
 					return;
 				}
-				else if (jobStatus.isTerminalState()) {
+				else if (jobStatus.isGloballyTerminalState()) {
 					throw new IllegalStateException("Job is in terminal state " + jobStatus + ", "
 							+ "but was waiting for " + expectedJobStatus + ".");
 				}

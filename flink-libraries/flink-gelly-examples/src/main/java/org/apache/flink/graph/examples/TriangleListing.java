@@ -18,6 +18,8 @@
 
 package org.apache.flink.graph.examples;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.DataSet;
@@ -41,9 +43,11 @@ import java.text.NumberFormat;
 /**
  * Driver for the library implementation of Triangle Listing.
  *
- * This example generates an undirected RMat graph with the given scale
- * and edge factor then lists all triangles.
+ * This example reads a simple directed or undirected graph from a CSV file or
+ * generates an RMat graph with the given scale and edge factor then lists
+ * all triangles.
  *
+ * @see org.apache.flink.graph.library.clustering.directed.TriangleListing
  * @see org.apache.flink.graph.library.clustering.undirected.TriangleListing
  */
 public class TriangleListing {
@@ -54,68 +58,142 @@ public class TriangleListing {
 
 	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
+	private static void printUsage() {
+		System.out.println(WordUtils.wrap("Lists all triangles in a graph.", 80));
+		System.out.println();
+		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex IDs for each triangle and" +
+			" for directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80));
+		System.out.println();
+		System.out.println("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println();
+		System.out.println("options:");
+		System.out.println("  --input csv --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
+		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
+		System.out.println();
+		System.out.println("  --output print");
+		System.out.println("  --output hash");
+		System.out.println("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
+	}
+
 	public static void main(String[] args) throws Exception {
 		// Set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
-
-		// Generate RMat graph
-		int scale = parameters.getInt("scale", DEFAULT_SCALE);
-		int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
-
-		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
-
-		long vertexCount = 1L << scale;
-		long edgeCount = vertexCount * edgeFactor;
-
-		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
-
-		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.generate()
-			.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+		if (! parameters.has("directed")) {
+			printUsage();
+			return;
+		}
+		boolean directedAlgorithm = parameters.getBoolean("directed");
 
 		DataSet tl;
 
-		if (scale > 32) {
-			tl = graph
-				.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
-		} else {
-			tl = graph
-				.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-				.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>());
+		switch (parameters.get("input", "")) {
+			case "csv": {
+				String lineDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("input_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
+
+				String fieldDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
+
+				Graph<LongValue, NullValue, NullValue> graph = Graph
+					.fromCsvReader(parameters.get("input_filename"), env)
+						.ignoreCommentsEdges("#")
+						.lineDelimiterEdges(lineDelimiter)
+						.fieldDelimiterEdges(fieldDelimiter)
+						.keyType(LongValue.class);
+
+				if (directedAlgorithm) {
+					tl = graph
+						.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>());
+				} else {
+					tl = graph
+						.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
+				}
+
+			} break;
+
+			case "rmat": {
+				int scale = parameters.getInt("scale", DEFAULT_SCALE);
+				int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
+
+				RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+
+				long vertexCount = 1L << scale;
+				long edgeCount = vertexCount * edgeFactor;
+
+				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+					.generate();
+
+				if (directedAlgorithm) {
+					if (scale > 32) {
+						tl = graph
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>())
+							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>());
+					} else {
+						tl = graph
+							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>())
+							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<IntValue, NullValue, NullValue>());
+					}
+				} else {
+					boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
+
+					graph = graph
+						.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+
+					if (scale > 32) {
+						tl = graph
+							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip))
+							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
+					} else {
+						tl = graph
+							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip))
+							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>());
+					}
+				}
+			} break;
+
+			default:
+				printUsage();
+				return;
 		}
 
 		switch (parameters.get("output", "")) {
-		case "print":
-			tl.print();
-			break;
+			case "print":
+				if (directedAlgorithm) {
+					for (Object e: tl.collect()) {
+						org.apache.flink.graph.library.clustering.directed.TriangleListing.Result result =
+							(org.apache.flink.graph.library.clustering.directed.TriangleListing.Result) e;
+						System.out.println(result.toVerboseString());
+					}
+				} else {
+					tl.print();
+				}
+				break;
 
-		case "hash":
-			System.out.println(DataSetUtils.checksumHashCode(tl));
-			break;
+			case "hash":
+				System.out.println(DataSetUtils.checksumHashCode(tl));
+				break;
 
-		case "csv":
-			String filename = parameters.get("filename");
+			case "csv":
+				String filename = parameters.get("output_filename");
 
-			String row_delimiter = parameters.get("row_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER);
-			String field_delimiter = parameters.get("field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+				String lineDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
 
-			tl.writeAsCsv(filename, row_delimiter, field_delimiter);
+				String fieldDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-			env.execute();
-			break;
-		default:
-			System.out.println("Lists all distinct triangles in the generated RMat graph.");
-			System.out.println();
-			System.out.println("usage:");
-			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
-			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
-			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
-				" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
+				tl.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
-			return;
+				env.execute();
+				break;
+			default:
+				printUsage();
+				return;
 		}
 
 		JobExecutionResult result = env.getLastJobExecutionResult();

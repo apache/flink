@@ -115,7 +115,10 @@ public interface RuntimeContext {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Add this accumulator. Throws an exception if the accumulator already exists.
+	 * Add this accumulator. Throws an exception if the accumulator already exists in the same Task.
+	 * Note that the Accumulator name must have an unique name across the Flink job. Otherwise you will
+	 * get an error when incompatible accumulators from different Tasks are combined at the JobManager
+	 * upon job completion.
 	 */
 	<V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator);
 

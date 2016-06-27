@@ -21,7 +21,9 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.SimpleCounter;
 
 /**
  * A special {@link MetricGroup} that does not register any metrics at the metrics registry
@@ -42,25 +44,44 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 
 	@Override
 	public Counter counter(int name) {
-		return new Counter();
+		return new SimpleCounter();
 	}
 
 	@Override
 	public Counter counter(String name) {
-		return new Counter();
+		return new SimpleCounter();
 	}
 
 	@Override
-	public <T> Gauge<T> gauge(int name, Gauge<T> gauge) {
+	public <C extends Counter> C counter(int name, C counter) {
+		return counter;
+	}
+
+	@Override
+	public <C extends Counter> C counter(String name, C counter) {
+		return counter;
+	}
+
+	@Override
+	public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
 		return gauge;
 	}
 
 	@Override
-	public <T> Gauge<T> gauge(String name, Gauge<T> gauge) {
+	public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
 		return gauge;
 	}
 
-	
+	@Override
+	public <H extends Histogram> H histogram(int name, H histogram) {
+		return histogram;
+	}
+
+	@Override
+	public <H extends Histogram> H histogram(String name, H histogram) {
+		return histogram;
+	}
+
 	@Override
 	public MetricGroup addGroup(int name) {
 		return addGroup(String.valueOf(name));

@@ -220,6 +220,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 *
 	 * @param <T> ID type
 	 */
+	@ForwardedFields("0")
 	private static final class GenerateTriplets<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple2<T, T>, Tuple3<T, T, T>> {
 		private Tuple3<T, T, T> output = new Tuple3<>();
@@ -269,9 +270,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	private static final class ProjectTriangles<T>
 	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Tuple3<T, T, T>> {
 		@Override
-		public Tuple3<T, T, T> join(Tuple3<T, T, T> first, Tuple2<T, T> second)
+		public Tuple3<T, T, T> join(Tuple3<T, T, T> triplet, Tuple2<T, T> edge)
 				throws Exception {
-			return first;
+			return triplet;
 		}
 	}
 

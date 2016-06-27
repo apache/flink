@@ -69,6 +69,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     .defaultSchema(tables)
     .parserConfig(parserConfig)
     .costFactory(new DataSetCostFactory)
+    .typeSystem(new FlinkTypeSystem)
     .build
 
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.

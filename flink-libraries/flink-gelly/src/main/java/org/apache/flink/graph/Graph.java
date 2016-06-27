@@ -1797,8 +1797,9 @@ public class Graph<K, VV, EV> {
 	 * @param <T> the result type
 	 * @throws Exception
 	 */
-	public <T> void run(GraphAnalytic<K, VV, EV, T> analytic) throws Exception {
+	public <T> GraphAnalytic<K, VV, EV, T> run(GraphAnalytic<K, VV, EV, T> analytic) throws Exception {
 		analytic.run(this);
+		return analytic;
 	}
 
 	/**

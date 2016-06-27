@@ -64,11 +64,11 @@ public class AsmTestBase {
 		Object[][] edges = new Object[][] {
 			new Object[]{0, 1},
 			new Object[]{0, 2},
-			new Object[]{1, 2},
-			new Object[]{1, 3},
+			new Object[]{2, 1},
 			new Object[]{2, 3},
+			new Object[]{3, 1},
 			new Object[]{3, 4},
-			new Object[]{3, 5},
+			new Object[]{5, 3},
 		};
 
 		List<Edge<IntValue,NullValue>> directedEdgeList = new LinkedList<>();

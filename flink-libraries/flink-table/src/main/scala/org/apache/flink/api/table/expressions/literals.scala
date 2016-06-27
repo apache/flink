@@ -20,6 +20,7 @@ package org.apache.flink.api.table.expressions
 import java.util.Date
 
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.typeutils.TypeConverter
@@ -35,6 +36,9 @@ object Literal {
     case str: String => Literal(str, BasicTypeInfo.STRING_TYPE_INFO)
     case bool: Boolean => Literal(bool, BasicTypeInfo.BOOLEAN_TYPE_INFO)
     case date: Date => Literal(date, BasicTypeInfo.DATE_TYPE_INFO)
+    case javaDec: java.math.BigDecimal => Literal(javaDec, BasicTypeInfo.BIG_DEC_TYPE_INFO)
+    case scalaDec: scala.math.BigDecimal =>
+      Literal(scalaDec.bigDecimal, BasicTypeInfo.BIG_DEC_TYPE_INFO)
   }
 }
 
@@ -42,7 +46,13 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
   override def toString = s"$value"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.literal(value)
+    resultType match {
+      case BasicTypeInfo.BIG_DEC_TYPE_INFO =>
+        val bigDecValue = value.asInstanceOf[java.math.BigDecimal]
+        val decType = relBuilder.getTypeFactory.createSqlType(SqlTypeName.DECIMAL)
+        relBuilder.getRexBuilder.makeExactLiteral(bigDecValue, decType)
+      case _ => relBuilder.literal(value)
+    }
   }
 }
 

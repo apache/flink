@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.math.BigDecimal
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
 
@@ -124,4 +126,46 @@ class BooleanMaxAggregate extends MaxAggregate[Boolean] {
 
   override def intermediateDataType = Array(BasicTypeInfo.BOOLEAN_TYPE_INFO)
 
+}
+
+class DecimalMaxAggregate extends Aggregate[BigDecimal] {
+
+  protected var minIndex: Int = _
+
+  override def intermediateDataType = Array(BasicTypeInfo.BIG_DEC_TYPE_INFO)
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(minIndex, null)
+  }
+
+  override def prepare(value: Any, partial: Row): Unit = {
+    if (value == null) {
+      initiate(partial)
+    } else {
+      partial.setField(minIndex, value)
+    }
+  }
+
+  override def merge(partial: Row, buffer: Row): Unit = {
+    val partialValue = partial.productElement(minIndex).asInstanceOf[BigDecimal]
+    if (partialValue != null) {
+      val bufferValue = buffer.productElement(minIndex).asInstanceOf[BigDecimal]
+      if (bufferValue != null) {
+        val min = if (partialValue.compareTo(bufferValue) > 0) partialValue else bufferValue
+        buffer.setField(minIndex, min)
+      } else {
+        buffer.setField(minIndex, partialValue)
+      }
+    }
+  }
+
+  override def evaluate(buffer: Row): BigDecimal = {
+    buffer.productElement(minIndex).asInstanceOf[BigDecimal]
+  }
+
+  override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggOffset: Int): Unit = {
+    minIndex = aggOffset
+  }
 }

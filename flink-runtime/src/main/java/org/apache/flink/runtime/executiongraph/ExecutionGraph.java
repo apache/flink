@@ -797,21 +797,60 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	public void fail(Throwable t) {
-		if (t instanceof SuppressRestartsException) {
-			if (restartStrategy != null) {
-				// disable the restart strategy in case that we have seen a SuppressRestartsException
-				// it basically overrides the restart behaviour of a the root cause
-				restartStrategy.disable();
-			}
-		}
-
+	/**
+	 * Suspends the current ExecutionGraph.
+	 *
+	 * The JobStatus will be directly set to SUSPENDED iff the current state is not a terminal
+	 * state. All ExecutionJobVertices will be canceled and the postRunCleanup is executed.
+	 *
+	 * The SUSPENDED state is a local terminal state which stops the execution of the job but does
+	 * not remove the job from the HA job store so that it can be recovered by another JobManager.
+	 *
+	 * @param suspensionCause Cause of the suspension
+	 */
+	public void suspend(Throwable suspensionCause) {
 		while (true) {
-			JobStatus current = state;
-			if (current == JobStatus.FAILING || current.isTerminalState()) {
+			JobStatus currentState = state;
+
+			if (currentState.isGloballyTerminalState()) {
+				// stay in a terminal state
+				return;
+			} else if (transitionState(currentState, JobStatus.SUSPENDED, suspensionCause)) {
+				this.failureCause = suspensionCause;
+
+				for (ExecutionJobVertex ejv: verticesInCreationOrder) {
+					ejv.cancel();
+				}
+
+				synchronized (progressLock) {
+						postRunCleanup();
+						progressLock.notifyAll();
+
+						LOG.info("Job {} has been suspended.", getJobID());
+				}
+
 				return;
 			}
-			else if (transitionState(current, JobStatus.FAILING, t)) {
+		}
+	}
+
+	public void fail(Throwable t) {
+		while (true) {
+			JobStatus current = state;
+			// stay in these states
+			if (current == JobStatus.FAILING ||
+				current == JobStatus.SUSPENDED ||
+				current.isGloballyTerminalState()) {
+				return;
+			} else if (current == JobStatus.RESTARTING && transitionState(current, JobStatus.FAILED, t)) {
+				synchronized (progressLock) {
+					postRunCleanup();
+					progressLock.notifyAll();
+
+					LOG.info("Job {} failed during restart.", getJobID());
+					return;
+				}
+			} else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
 				if (!verticesInCreationOrder.isEmpty()) {
@@ -839,8 +878,13 @@ public class ExecutionGraph implements Serializable {
 				if (current == JobStatus.CANCELED) {
 					LOG.info("Canceled job during restart. Aborting restart.");
 					return;
-				}
-				else if (current != JobStatus.RESTARTING) {
+				} else if (current == JobStatus.FAILED) {
+					LOG.info("Failed job during restart. Aborting restart.");
+					return;
+				} else if (current == JobStatus.SUSPENDED) {
+					LOG.info("Suspended job during restart. Aborting restart.");
+					return;
+				} else if (current != JobStatus.RESTARTING) {
 					throw new IllegalStateException("Can only restart job from state restarting.");
 				}
 
@@ -938,7 +982,7 @@ public class ExecutionGraph implements Serializable {
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
 	public void prepareForArchiving() {
-		if (!state.isTerminalState()) {
+		if (!state.isGloballyTerminalState()) {
 			throw new IllegalStateException("Can only archive the job from a terminal state");
 		}
 
@@ -975,7 +1019,7 @@ public class ExecutionGraph implements Serializable {
 	 */
 	public void waitUntilFinished() throws InterruptedException {
 		synchronized (progressLock) {
-			while (!state.isTerminalState()) {
+			while (!state.isGloballyTerminalState()) {
 				progressLock.wait();
 			}
 		}
@@ -1028,23 +1072,28 @@ public class ExecutionGraph implements Serializable {
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						if (restartStrategy.canRestart() && transitionState(current, JobStatus.RESTARTING)) {
-							// double check in case that in the meantime a SuppressRestartsException was thrown
-							if (restartStrategy.canRestart()) {
-								restartStrategy.restart(this);
-								break;
-							} else {
-								fail(new Exception("ExecutionGraph went into RESTARTING state but " +
-									"then the restart strategy was disabled."));
-							}
+						boolean allowRestart = !(failureCause instanceof SuppressRestartsException);
 
-						} else if (!restartStrategy.canRestart() && transitionState(current, JobStatus.FAILED, failureCause)) {
+						if (allowRestart && restartStrategy.canRestart() && transitionState(current, JobStatus.RESTARTING)) {
+							restartStrategy.restart(this);
+							break;
+						} else if ((!allowRestart || !restartStrategy.canRestart()) && transitionState(current, JobStatus.FAILED, failureCause)) {
 							postRunCleanup();
 							break;
 						}
 					}
+					else if (current == JobStatus.SUSPENDED) {
+						// we've already cleaned up when entering the SUSPENDED state
+						break;
+					}
+					else if (current.isGloballyTerminalState()) {
+						LOG.warn("Job has entered globally terminal state without waiting for all " +
+							"job vertices to reach final state.");
+						break;
+					}
 					else {
 						fail(new Exception("ExecutionGraph went into final state from state " + current));
+						break;
 					}
 				}
 				// done transitioning the state

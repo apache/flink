@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -250,6 +252,11 @@ public class InputFormatSourceFunctionTest {
 
 			this.noOfSplits = noOfSplits;
 			this.format = format;
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return new UnregisteredMetricsGroup();
 		}
 
 		@Override

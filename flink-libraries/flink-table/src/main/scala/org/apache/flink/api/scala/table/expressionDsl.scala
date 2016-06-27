@@ -220,6 +220,14 @@ trait ImplicitExpressionConversions {
     def expr = Literal(l)
   }
 
+  implicit class LiteralByteExpression(b: Byte) extends ImplicitExpressionOperations {
+    def expr = Literal(b)
+  }
+
+  implicit class LiteralShortExpression(s: Short) extends ImplicitExpressionOperations {
+    def expr = Literal(s)
+  }
+
   implicit class LiteralIntExpression(i: Int) extends ImplicitExpressionOperations {
     def expr = Literal(i)
   }
@@ -240,11 +248,26 @@ trait ImplicitExpressionConversions {
     def expr = Literal(bool)
   }
 
+  implicit class LiteralJavaDecimalExpression(javaDecimal: java.math.BigDecimal)
+      extends ImplicitExpressionOperations {
+    def expr = Literal(javaDecimal)
+  }
+
+  implicit class LiteralScalaDecimalExpression(scalaDecimal: scala.math.BigDecimal)
+      extends ImplicitExpressionOperations {
+    def expr = Literal(scalaDecimal.bigDecimal)
+  }
+
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
+  implicit def byte2Literal(b: Byte): Expression = Literal(b)
+  implicit def short2Literal(s: Short): Expression = Literal(s)
   implicit def int2Literal(i: Int): Expression = Literal(i)
   implicit def long2Literal(l: Long): Expression = Literal(l)
   implicit def double2Literal(d: Double): Expression = Literal(d)
   implicit def float2Literal(d: Float): Expression = Literal(d)
   implicit def string2Literal(str: String): Expression = Literal(str)
   implicit def boolean2Literal(bool: Boolean): Expression = Literal(bool)
+  implicit def javaDec2Literal(javaDec: java.math.BigDecimal): Expression = Literal(javaDec)
+  implicit def scalaDec2Literal(scalaDec: scala.math.BigDecimal): Expression =
+    Literal(scalaDec.bigDecimal)
 }

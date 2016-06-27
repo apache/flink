@@ -141,12 +141,6 @@ public interface StreamOperator<OUT> extends Serializable {
 
 	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
 
-	/**
-	 * An operator can return true here to disable copying of its input elements. This overrides
-	 * the object-reuse setting on the {@link org.apache.flink.api.common.ExecutionConfig}
-	 */
-	boolean isInputCopyingDisabled();
-	
 	ChainingStrategy getChainingStrategy();
 
 	void setChainingStrategy(ChainingStrategy strategy);

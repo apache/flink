@@ -47,5 +47,7 @@ public class OperatorGroupTest {
 		assertEquals(
 				"theHostName.taskmanager.test-tm-id.myJobName.myOpName.11",
 				opGroup.getScopeString());
+
+		registry.shutdown();
 	}
 }

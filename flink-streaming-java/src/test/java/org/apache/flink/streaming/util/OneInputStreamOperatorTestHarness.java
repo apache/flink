@@ -35,13 +35,16 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -69,6 +72,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	
 	final Object checkpointLock;
 
+	final TimeServiceProvider timeServiceProvider;
+
 	StreamTask<?, ?> mockTask;
 
 	/**
@@ -80,8 +85,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
 		this(operator, new ExecutionConfig());
 	}
-	
+
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator, ExecutionConfig executionConfig) {
+		this(operator, executionConfig, DefaultTimeServiceProvider.create(Executors.newSingleThreadScheduledExecutor()));
+	}
+
+	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator, ExecutionConfig executionConfig,
+											TimeServiceProvider testTimeProvider) {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<Object>();
 		this.config = new StreamConfig(new Configuration());
@@ -90,6 +100,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
 		mockTask = mock(StreamTask.class);
+		timeServiceProvider = testTimeProvider;
+
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
@@ -116,29 +128,19 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			public Void answer(InvocationOnMock invocation) throws Throwable {
 				final long execTime = (Long) invocation.getArguments()[0];
 				final Triggerable target = (Triggerable) invocation.getArguments()[1];
-				
-				Thread caller = new Thread() {
-					@Override
-					public void run() {
-						final long delay = execTime - System.currentTimeMillis();
-						if (delay > 0) {
-							try {
-								Thread.sleep(delay);
-							} catch (InterruptedException ignored) {}
-						}
-						
-						synchronized (checkpointLock) {
-							try {
-								target.trigger(execTime);
-							} catch (Exception ignored) {}
-						}
-					}
-				};
-				caller.start();
-				
+
+				timeServiceProvider.registerTimer(
+						execTime, new TriggerTask(checkpointLock, target, execTime));
 				return null;
 			}
 		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
+
+		doAnswer(new Answer<Long>() {
+			@Override
+			public Long answer(InvocationOnMock invocation) throws Throwable {
+				return timeServiceProvider.getCurrentProcessingTime();
+			}
+		}).when(mockTask).getCurrentProcessingTime();
 	}
 
 	public Object getCheckpointLock() {
@@ -201,6 +203,9 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public void close() throws Exception {
 		operator.close();
 		operator.dispose();
+		if (timeServiceProvider != null) {
+			timeServiceProvider.shutdownService();
+		}
 		setupCalled = false;
 	}
 
@@ -241,6 +246,34 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		@Override
 		public void close() {
 			// ignore
+		}
+	}
+
+	private static final class TriggerTask implements Runnable {
+
+		private final Object lock;
+		private final Triggerable target;
+		private final long timestamp;
+
+		TriggerTask(final Object lock, Triggerable target, long timestamp) {
+			this.lock = lock;
+			this.target = target;
+			this.timestamp = timestamp;
+		}
+
+		@Override
+		public void run() {
+			synchronized (lock) {
+				try {
+					target.trigger(timestamp);
+				} catch (Throwable t) {
+					try {
+						throw t;
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}
 		}
 	}
 }

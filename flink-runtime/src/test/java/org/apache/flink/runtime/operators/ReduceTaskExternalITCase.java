@@ -136,7 +136,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
 				getOwningNepheleTask(), RecordSerializerFactory.get(), this.comparator.duplicate(),
 					this.perSortFractionMem,
-					2, 0.8f, true);
+					2, 0.8f, true /* use large record handler */, true);
 			addInput(sorter.getIterator());
 			
 			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();
@@ -182,7 +182,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
 				getOwningNepheleTask(), RecordSerializerFactory.get(), this.comparator.duplicate(),
 					this.perSortFractionMem,
-					2, 0.8f, false);
+					2, 0.8f, true /* use large record handler */, false);
 			addInput(sorter.getIterator());
 			
 			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();

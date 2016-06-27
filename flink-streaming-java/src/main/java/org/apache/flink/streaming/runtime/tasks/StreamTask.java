@@ -56,13 +56,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
  * and executed by the TaskManagers. Each task runs one or more {@link StreamOperator}s which form
  * the Task's operator chain. Operators that are chained together execute synchronously in the
- * same thread and hence on the same stream partition. A common case for these chaines
+ * same thread and hence on the same stream partition. A common case for these chains
  * are successive map/flatmap/filter tasks.
  * 
  * <p>The task chain contains one "head" operator and multiple chained operators. 
@@ -127,10 +126,14 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	/** The class loader used to load dynamic classes of a job */
 	private ClassLoader userClassLoader;
-	
-	/** The executor service that schedules and calls the triggers of this task*/
-	private ScheduledThreadPoolExecutor timerService;
-	
+
+	/**
+	 * The internal {@link TimeServiceProvider} used to define the current
+	 * processing time (default = {@code System.currentTimeMillis()}) and
+	 * register timers for tasks to be executed in the future.
+	 */
+	private TimeServiceProvider timerService;
+
 	/** The map of user-defined accumulators of this task */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
 	
@@ -172,7 +175,25 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	//  Core work methods of the Stream Task
 	// ------------------------------------------------------------------------
-	
+
+	/**
+	 * Allows the user to specify his own {@link TimeServiceProvider TimerServiceProvider}.
+	 * By default a {@link DefaultTimeServiceProvider DefaultTimerService} is going to be provided.
+	 * Changing it can be useful for testing processing time functionality, such as
+	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner WindowAssigners}
+	 * and {@link org.apache.flink.streaming.api.windowing.triggers.Trigger Triggers}.
+	 * */
+	public void setTimeService(TimeServiceProvider timeProvider) {
+		if (timeProvider == null) {
+			throw new RuntimeException("The timeProvider cannot be set to null.");
+		}
+		timerService = timeProvider;
+	}
+
+	public long getCurrentProcessingTime() {
+		return timerService.getCurrentProcessingTime();
+	}
+
 	@Override
 	public final void invoke() throws Exception {
 
@@ -185,6 +206,19 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			configuration = new StreamConfig(getTaskConfiguration());
 			accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 
+			// if the clock is not already set, then assign a default TimeServiceProvider
+			if (timerService == null) {
+
+				ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
+					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName()));
+
+				// allow trigger tasks to be removed if all timers for
+				// that timestamp are removed by user
+				executor.setRemoveOnCancelPolicy(true);
+
+				timerService = DefaultTimeServiceProvider.create(executor);
+			}
+
 			headOperator = configuration.getStreamOperator(userClassLoader);
 			operatorChain = new OperatorChain<>(this, headOperator, 
 						getEnvironment().getAccumulatorRegistry().getReadWriteReporter());
@@ -192,10 +226,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			if (headOperator != null) {
 				headOperator.setup(this, configuration, operatorChain.getChainEntryPoint());
 			}
-
-			timerService =new ScheduledThreadPoolExecutor(1, new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName()));
-			// allow trigger tasks to be removed if all timers for that timestamp are removed by user
-			timerService.setRemoveOnCancelPolicy(true);
 
 			getEnvironment().getMetricGroup().gauge("lastCheckpointSize", new Gauge<Long>() {
 				@Override
@@ -265,7 +295,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// stop all timers and threads
 			if (timerService != null) {
 				try {
-					timerService.shutdownNow();
+					timerService.shutdownService();
 				}
 				catch (Throwable t) {
 					// catch and log the exception to not replace the original exception
@@ -333,7 +363,14 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	public final boolean isCanceled() {
 		return canceled;
 	}
-	
+
+	/**
+	 * Execute the operator-specific {@link StreamOperator#open()} method in each
+	 * of the operators in the chain of this {@link StreamTask}. </b> Opening happens
+	 * from <b>tail to head</b> operator in the chain, contrary to
+	 * {@link StreamOperator#close()} which happens <b>head to tail</b>
+	 * operator (see {@link #closeAllOperators()}.
+	 */
 	private void openAllOperators() throws Exception {
 		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
 			if (operator != null) {
@@ -342,6 +379,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		}
 	}
 
+	/**
+	 * Execute the operator-specific {@link StreamOperator#close()} method in each
+	 * of the operators in the chain of this {@link StreamTask}. </b> Closing happens
+	 * from <b>head to tail</b> operator in the chain, contrary to
+	 * {@link StreamOperator#open()} which happens <b>tail to head</b> operator
+	 * (see {@link #openAllOperators()}.
+	 */
 	private void closeAllOperators() throws Exception {
 		// We need to close them first to last, since upstream operators in the chain might emit
 		// elements in their close methods.
@@ -354,6 +398,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		}
 	}
 
+	/**
+	 * Execute the operator-specific {@link StreamOperator#dispose()} method in each
+	 * of the operators in the chain of this {@link StreamTask}. </b> Disposing happens
+	 * from <b>tail to head</b> operator in the chain.
+	 */
 	private void tryDisposeAllOperators() throws Exception {
 		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
 			if (operator != null) {
@@ -361,7 +410,15 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			}
 		}
 	}
-	
+
+	/**
+	 * Execute the operator-specific {@link StreamOperator#dispose()} method in each
+	 * of the operators in the chain of this {@link StreamTask}. </b> Disposing happens
+	 * from <b>tail to head</b> operator in the chain.
+	 *
+	 * The difference with the {@link #tryDisposeAllOperators()} is that in case of an
+	 * exception, this method catches it and logs the message.
+	 */
 	private void disposeAllOperators() {
 		if (operatorChain != null) {
 			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
@@ -389,10 +446,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	protected void finalize() throws Throwable {
 		super.finalize();
 		if (timerService != null) {
-			if (!timerService.isTerminated()) {
-				LOG.warn("Timer service was not shut down. Shutting down in finalize().");
-			}
-			timerService.shutdownNow();
+			timerService.shutdownService();
 		}
 
 		for (Thread checkpointThread : asyncCheckpointThreads) {
@@ -418,8 +472,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Gets the lock object on which all operations that involve data and state mutation have to lock. 
-	 
+	 * Gets the lock object on which all operations that involve data and state mutation have to lock.
 	 * @return The checkpoint lock object.
 	 */
 	public Object getCheckpointLock() {
@@ -503,10 +556,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		synchronized (lock) {
 			if (isRunning) {
 
-				// since both state checkpointing and downstream barrier emission occurs in this
-				// lock scope, they are an atomic operation regardless of the order in which they occur
-				// we immediately emit the checkpoint barriers, so the downstream operators can start
-				// their checkpoint work as soon as possible
+				// Since both state checkpointing and downstream barrier emission occurs in this
+				// lock scope, they are an atomic operation regardless of the order in which they occur.
+				// Given this, we immediately emit the checkpoint barriers, so the downstream operators
+				// can start their checkpoint work as soon as possible
 				operatorChain.broadcastCheckpointBarrier(checkpointId, timestamp);
 				
 				// now draw the state snapshot
@@ -689,18 +742,16 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	 * Registers a timer.
 	 */
 	public ScheduledFuture<?> registerTimer(final long timestamp, final Triggerable target) {
-		long delay = Math.max(timestamp - System.currentTimeMillis(), 0);
-
-		return timerService.schedule(
-			new TriggerTask(this, lock, target, timestamp),
-			delay,
-			TimeUnit.MILLISECONDS);
+		if (timerService == null) {
+			throw new IllegalStateException("The timer service has not been initialized.");
+		}
+		return timerService.registerTimer(timestamp, new TriggerTask(this, lock, target, timestamp));
 	}
 
 	/**
 	 * Check whether an exception was thrown in a Thread other than the main Thread. (For example
 	 * in the processing-time trigger Thread). This will rethrow that exception in case on
-	 * occured.
+	 * occurred.
 	 *
 	 * <p>This must be called in the main loop of {@code StreamTask} subclasses to ensure
 	 * that we propagate failures.

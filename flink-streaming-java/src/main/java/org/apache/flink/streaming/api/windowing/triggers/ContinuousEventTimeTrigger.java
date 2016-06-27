@@ -89,6 +89,8 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	@Override
 	public void clear(W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+		long timestamp = fireTimestamp.get();
+		ctx.deleteEventTimeTimer(timestamp);
 		fireTimestamp.clear();
 	}
 

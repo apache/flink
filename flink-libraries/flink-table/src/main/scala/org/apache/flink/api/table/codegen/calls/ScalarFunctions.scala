@@ -143,13 +143,28 @@ object ScalarFunctions {
     new MultiTypeMethodCallGen(BuiltInMethods.ABS))
 
   addSqlFunction(
+    ABS,
+    Seq(BIG_DEC_TYPE_INFO),
+    new MultiTypeMethodCallGen(BuiltInMethods.ABS_DEC))
+
+  addSqlFunction(
     FLOOR,
     Seq(DOUBLE_TYPE_INFO),
     new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
 
   addSqlFunction(
+    FLOOR,
+    Seq(BIG_DEC_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
+
+  addSqlFunction(
     CEIL,
     Seq(DOUBLE_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.CEIL.method))
+
+  addSqlFunction(
+    CEIL,
+    Seq(BIG_DEC_TYPE_INFO),
     new FloorCeilCallGen(BuiltInMethod.CEIL.method))
 
 

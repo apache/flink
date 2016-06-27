@@ -38,15 +38,16 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("deprecation")
 public class MockRuntimeContext extends StreamingRuntimeContext {
@@ -57,16 +58,27 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	private final ExecutionConfig execConfig;
 	private final Object checkpointLock;
 
-	private ScheduledExecutorService timer;
-	
+	private final TimeServiceProvider timerService;
+
 	public MockRuntimeContext(int numberOfParallelSubtasks, int indexOfThisSubtask) {
 		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig(), null);
 	}
-	
+
 	public MockRuntimeContext(
-			int numberOfParallelSubtasks, int indexOfThisSubtask, 
+		int numberOfParallelSubtasks, int indexOfThisSubtask,
+		ExecutionConfig execConfig,
+		Object checkpointLock) {
+
+		this(numberOfParallelSubtasks, indexOfThisSubtask, execConfig, checkpointLock,
+			DefaultTimeServiceProvider.create(Executors.newSingleThreadScheduledExecutor()));
+	}
+
+	public MockRuntimeContext(
+			int numberOfParallelSubtasks, int indexOfThisSubtask,
 			ExecutionConfig execConfig,
-			Object checkpointLock) {
+			Object checkpointLock,
+			TimeServiceProvider timerService) {
+
 		super(new MockStreamOperator(),
 				new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
@@ -75,6 +87,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 		this.indexOfThisSubtask = indexOfThisSubtask;
 		this.execConfig = execConfig;
 		this.checkpointLock = checkpointLock;
+		this.timerService = timerService;
 	}
 
 	@Override
@@ -186,16 +199,17 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException();
 	}
-	
+
+	public long getCurrentProcessingTime() {
+		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
+		return timerService.getCurrentProcessingTime();
+	}
+
 	@Override
 	public ScheduledFuture<?> registerTimer(final long time, final Triggerable target) {
-		if (timer == null) {
-			timer = Executors.newSingleThreadScheduledExecutor();
-		}
+		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
 		
-		final long delay = Math.max(time - System.currentTimeMillis(), 0);
-
-		return timer.schedule(new Runnable() {
+		return timerService.registerTimer(time, new Runnable() {
 			@Override
 			public void run() {
 				synchronized (checkpointLock) {
@@ -207,7 +221,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 					}
 				}
 			}
-		}, delay, TimeUnit.MILLISECONDS);
+		});
 	}
 
 	// ------------------------------------------------------------------------

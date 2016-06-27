@@ -58,7 +58,7 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
+	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		if (timestamp > Long.MIN_VALUE) {
 			List<TimeWindow> windows = new ArrayList<>((int) (size / slide));
 			long lastStart = timestamp - timestamp % slide;
@@ -108,5 +108,10 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 	@Override
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
+	}
+
+	@Override
+	public boolean isEventTime() {
+		return true;
 	}
 }

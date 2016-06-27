@@ -1,5 +1,9 @@
 ---
 title: "Table API and SQL"
+# Top-level navigation
+top-nav-group: libs
+top-nav-pos: 4
+redirect: apis/table.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -58,6 +58,13 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		return this;
 	}
 
+	/*
+	 * Implementation notes:
+	 *
+	 * The requirement that "K extends CopyableValue<K>" can be removed when
+	 *   removed from TriangleListing.
+	 */
+
 	@Override
 	public GlobalClusteringCoefficient<K, VV, EV> run(Graph<K, VV, EV> input)
 			throws Exception {
@@ -78,7 +85,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	@Override
 	public Result getResult() {
-		return new Result(vertexMetrics.getResult().getNumberOfTriplets(), 3 * triangleCount.getResult());
+		// each triangle is counted from each of the three vertices
+		long numberOfTriangles = 3 * triangleCount.getResult();
+
+		return new Result(vertexMetrics.getResult().getNumberOfTriplets(), numberOfTriangles);
 	}
 
 	/**
@@ -86,8 +96,15 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 */
 	public static class Result {
 		private long tripletCount;
+
 		private long triangleCount;
 
+		/**
+		 * Instantiate an immutable result.
+		 *
+		 * @param tripletCount triplet count
+		 * @param triangleCount triangle count
+		 */
 		public Result(long tripletCount, long triangleCount) {
 			this.tripletCount = tripletCount;
 			this.triangleCount = triangleCount;
@@ -121,13 +138,15 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		 *
 		 * @return global clustering coefficient score
 		 */
-		public double getLocalClusteringCoefficientScore() {
+		public double getGlobalClusteringCoefficientScore() {
 			return (tripletCount == 0) ? Double.NaN : triangleCount / (double)tripletCount;
 		}
 
 		@Override
 		public String toString() {
-			return "triplet count: " + tripletCount + ", triangle count:" + triangleCount;
+			return "triplet count: " + tripletCount
+				+ ", triangle count: " + triangleCount
+				+ ", global clustering coefficient: " + getGlobalClusteringCoefficientScore();
 		}
 
 		@Override

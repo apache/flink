@@ -196,7 +196,73 @@ public class ExecutionGraphSignalsTest {
 		for (int i = 0; i < mockEJV.length; ++i) {
 			verify(mockEJV[i], times(times)).cancel();
 		}
+	}
 
+	/**
+	 * Tests that suspend cancels the ExecutionJobVertices and transitions to SUSPENDED state.
+	 * Tests also that one cannot leave the SUSPENDED state to enter a terminal state.
+	 */
+	@Test
+	public void testSuspend() throws Exception {
+		Assert.assertEquals(JobStatus.CREATED, eg.getState());
+		Exception testException = new Exception("Test exception");
+
+		eg.suspend(testException);
+
+		verifyCancel(1);
+		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+
+		f.set(eg, JobStatus.RUNNING);
+
+		eg.suspend(testException);
+
+		verifyCancel(2);
+		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+
+		f.set(eg, JobStatus.FAILING);
+
+		eg.suspend(testException);
+
+		verifyCancel(3);
+		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+
+		f.set(eg, JobStatus.CANCELLING);
+
+		eg.suspend(testException);
+
+		verifyCancel(4);
+		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+
+		f.set(eg, JobStatus.FAILED);
+
+		eg.suspend(testException);
+
+		verifyCancel(4);
+		Assert.assertEquals(JobStatus.FAILED, eg.getState());
+
+		f.set(eg, JobStatus.FINISHED);
+
+		eg.suspend(testException);
+
+		verifyCancel(4);
+		Assert.assertEquals(JobStatus.FINISHED, eg.getState());
+
+		f.set(eg, JobStatus.CANCELED);
+
+		eg.suspend(testException);
+
+		verifyCancel(4);
+		Assert.assertEquals(JobStatus.CANCELED, eg.getState());
+
+		f.set(eg, JobStatus.SUSPENDED);
+
+		eg.fail(testException);
+
+		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
+
+		eg.cancel();
+
+		Assert.assertEquals(JobStatus.SUSPENDED, eg.getState());
 	}
 
 	// test that all source tasks receive STOP signal

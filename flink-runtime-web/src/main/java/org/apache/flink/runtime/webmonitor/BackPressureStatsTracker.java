@@ -163,7 +163,7 @@ public class BackPressureStatsTracker {
 			}
 
 			if (!pendingStats.contains(vertex) &&
-					!vertex.getGraph().getState().isTerminalState()) {
+					!vertex.getGraph().getState().isGloballyTerminalState()) {
 
 				ExecutionContext executionContext = vertex.getGraph().getExecutionContext();
 
@@ -245,7 +245,7 @@ public class BackPressureStatsTracker {
 
 					// Job finished, ignore.
 					JobStatus jobState = vertex.getGraph().getState();
-					if (jobState.isTerminalState()) {
+					if (jobState.isGloballyTerminalState()) {
 						LOG.debug("Ignoring sample, because job is in state " + jobState + ".");
 					} else if (success != null) {
 						OperatorBackPressureStats stats = createStatsFromSample(success);

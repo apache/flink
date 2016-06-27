@@ -63,7 +63,7 @@ public interface MetricGroup {
 	 * Creates and registers a new {@link org.apache.flink.metrics.Counter} with Flink.
 	 *
 	 * @param name name of the counter
-	 * @return the registered counter
+	 * @return the created counter
 	 */
 	Counter counter(int name);
 
@@ -71,19 +71,39 @@ public interface MetricGroup {
 	 * Creates and registers a new {@link org.apache.flink.metrics.Counter} with Flink.
 	 *
 	 * @param name name of the counter
-	 * @return the registered counter
+	 * @return the created counter
 	 */
 	Counter counter(String name);
 
 	/**
+	 * Registers a {@link org.apache.flink.metrics.Counter} with Flink.
+	 *
+	 * @param name    name of the counter
+	 * @param counter counter to register
+	 * @param <C>     counter type
+	 * @return the given counter
+	 */
+	<C extends Counter> C counter(int name, C counter);
+
+	/**
+	 * Registers a {@link org.apache.flink.metrics.Counter} with Flink.
+	 *
+	 * @param name    name of the counter
+	 * @param counter counter to register
+	 * @param <C>     counter type
+	 * @return the given counter
+	 */
+	<C extends Counter> C counter(String name, C counter);
+	
+	/**
 	 * Registers a new {@link org.apache.flink.metrics.Gauge} with Flink.
 	 *
 	 * @param name  name of the gauge
 	 * @param gauge gauge to register
 	 * @param <T>   return type of the gauge
-	 * @return the registered gauge
+	 * @return the given gauge
 	 */
-	<T> Gauge<T> gauge(int name, Gauge<T> gauge);
+	<T, G extends Gauge<T>> G gauge(int name, G gauge);
 
 	/**
 	 * Registers a new {@link org.apache.flink.metrics.Gauge} with Flink.
@@ -91,9 +111,29 @@ public interface MetricGroup {
 	 * @param name  name of the gauge
 	 * @param gauge gauge to register
 	 * @param <T>   return type of the gauge
-	 * @return the registered gauge
+	 * @return the given gauge
 	 */
-	<T> Gauge<T> gauge(String name, Gauge<T> gauge);
+	<T, G extends Gauge<T>> G gauge(String name, G gauge);
+
+	/**
+	 * Registers a new {@link Histogram} with Flink.
+	 *
+	 * @param name name of the histogram
+	 * @param histogram histogram to register
+	 * @param <H> histogram type   
+	 * @return the registered histogram
+	 */
+	<H extends Histogram> H histogram(String name, H histogram);
+
+	/**
+	 * Registers a new {@link Histogram} with Flink.
+	 *
+	 * @param name name of the histogram
+	 * @param histogram histogram to register
+	 * @param <H> histogram type   
+	 * @return the registered histogram
+	 */
+	<H extends Histogram> H histogram(int name, H histogram);
 
 	// ------------------------------------------------------------------------
 	// Groups

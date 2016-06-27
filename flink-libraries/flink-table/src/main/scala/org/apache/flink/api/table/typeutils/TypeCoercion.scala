@@ -37,10 +37,13 @@ object TypeCoercion {
 
   def widerTypeOf(tp1: TypeInformation[_], tp2: TypeInformation[_]): Option[TypeInformation[_]] = {
     (tp1, tp2) match {
-      case (tp1, tp2) if tp1 == tp2 => Some(tp1)
+      case (ti1, ti2) if ti1 == ti2 => Some(ti1)
 
       case (_, STRING_TYPE_INFO) => Some(STRING_TYPE_INFO)
       case (STRING_TYPE_INFO, _) => Some(STRING_TYPE_INFO)
+
+      case (_, BIG_DEC_TYPE_INFO) => Some(BIG_DEC_TYPE_INFO)
+      case (BIG_DEC_TYPE_INFO, _) => Some(BIG_DEC_TYPE_INFO)
 
       case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
         val higherIndex = numericWideningPrecedence.lastIndexWhere(t => t == tp1 || t == tp2)
@@ -55,6 +58,8 @@ object TypeCoercion {
     */
   def canSafelyCast(from: TypeInformation[_], to: TypeInformation[_]): Boolean = (from, to) match {
     case (_, STRING_TYPE_INFO) => true
+
+    case (_: NumericTypeInfo[_], BIG_DEC_TYPE_INFO) => true
 
     case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
       if (numericWideningPrecedence.indexOf(from) < numericWideningPrecedence.indexOf(to)) {
@@ -71,21 +76,24 @@ object TypeCoercion {
     * Note: This may lose information during the cast.
     */
   def canCast(from: TypeInformation[_], to: TypeInformation[_]): Boolean = (from, to) match {
-    case (from, to) if from == to => true
+    case (fromTp, toTp) if fromTp == toTp => true
 
     case (_, STRING_TYPE_INFO) => true
 
-    case (_, DATE_TYPE_INFO) => false // Date type not supported yet.
-    case (_, VOID_TYPE_INFO) => false // Void type not supported
     case (_, CHAR_TYPE_INFO) => false // Character type not supported.
 
     case (STRING_TYPE_INFO, _: NumericTypeInfo[_]) => true
     case (STRING_TYPE_INFO, BOOLEAN_TYPE_INFO) => true
+    case (STRING_TYPE_INFO, BIG_DEC_TYPE_INFO) => true
 
     case (BOOLEAN_TYPE_INFO, _: NumericTypeInfo[_]) => true
+    case (BOOLEAN_TYPE_INFO, BIG_DEC_TYPE_INFO) => true
     case (_: NumericTypeInfo[_], BOOLEAN_TYPE_INFO) => true
+    case (BIG_DEC_TYPE_INFO, BOOLEAN_TYPE_INFO) => true
 
     case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => true
+    case (BIG_DEC_TYPE_INFO, _: NumericTypeInfo[_]) => true
+    case (_: NumericTypeInfo[_], BIG_DEC_TYPE_INFO) => true
 
     case _ => false
   }

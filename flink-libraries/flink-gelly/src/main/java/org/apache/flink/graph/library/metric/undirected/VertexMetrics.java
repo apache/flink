@@ -111,7 +111,9 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 				.setReduceOnTargetId(reduceOnTargetId)
 				.setParallelism(parallelism));
 
-		vertexDegree.output(new VertexMetricsHelper<K>(id)).name("Vertex metrics");
+		vertexDegree
+			.output(new VertexMetricsHelper<K>(id))
+				.name("Vertex metrics");
 
 		return this;
 	}

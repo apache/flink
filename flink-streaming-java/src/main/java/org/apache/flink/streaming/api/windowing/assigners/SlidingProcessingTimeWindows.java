@@ -55,8 +55,8 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
-		timestamp = System.currentTimeMillis();
+	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
+		timestamp = context.getCurrentProcessingTime();
 		List<TimeWindow> windows = new ArrayList<>((int) (size / slide));
 		long lastStart = timestamp - timestamp % slide;
 		for (long start = lastStart;
@@ -100,5 +100,10 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 	@Override
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
+	}
+
+	@Override
+	public boolean isEventTime() {
+		return false;
 	}
 }

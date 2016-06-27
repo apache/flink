@@ -51,8 +51,8 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
-		final long now = System.currentTimeMillis();
+	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
+		final long now = context.getCurrentProcessingTime();
 		long start = now - (now % size);
 		return Collections.singletonList(new TimeWindow(start, start + size));
 	}
@@ -85,5 +85,10 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	@Override
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
+	}
+
+	@Override
+	public boolean isEventTime() {
+		return false;
 	}
 }

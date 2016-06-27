@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import java.io.{File, IOException}
 import java.net.{BindException, ServerSocket, UnknownHostException, InetAddress, InetSocketAddress}
 import java.util.UUID
-import java.util.concurrent.{TimeUnit, ExecutorService}
+import java.util.concurrent.{ExecutorService, TimeUnit, TimeoutException}
 
 import akka.actor.Status.Failure
 import akka.actor._
@@ -210,8 +210,7 @@ class JobManager(
     log.info(s"Stopping JobManager $getAddress.")
 
     val newFuturesToComplete = cancelAndClearEverything(
-      new Exception("The JobManager is shutting down."),
-      removeJobFromStateBackend = true)
+      new Exception("The JobManager is shutting down."))
 
     implicit val executionContext = context.dispatcher
 
@@ -307,8 +306,7 @@ class JobManager(
       log.info(s"JobManager ${self.path.toSerializationFormat} was revoked leadership.")
 
       val newFuturesToComplete = cancelAndClearEverything(
-        new Exception("JobManager is no longer the leader."),
-        removeJobFromStateBackend = false)
+        new Exception("JobManager is no longer the leader."))
 
       futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) ++ newFuturesToComplete)
 
@@ -384,7 +382,12 @@ class JobManager(
               // the resource manager is available and answered
               self ! response
             case scala.util.Failure(t) =>
-              log.error("Failure while asking ResourceManager for RegisterResource", t)
+              t match {
+                case _: TimeoutException =>
+                  log.info("Attempt to register resource at ResourceManager timed out. Retrying")
+                case _ =>
+                  log.warn("Failure while asking ResourceManager for RegisterResource. Retrying", t)
+              }
               // slow or unreachable resource manager, register anyway and let the rm reconnect
               self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
               self ! decorateMessage(new ReconnectResourceManager(rm))
@@ -746,7 +749,7 @@ class JobManager(
             s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus.",
             error)
 
-          if (newJobStatus.isTerminalState()) {
+          if (newJobStatus.isGloballyTerminalState()) {
             jobInfo.end = timeStamp
 
             future{
@@ -951,7 +954,7 @@ class JobManager(
     case RemoveCachedJob(jobID) =>
       currentJobs.get(jobID) match {
         case Some((graph, info)) =>
-          if (graph.getState.isTerminalState) {
+          if (graph.getState.isGloballyTerminalState) {
             removeJob(graph.getJobID, removeJobFromStateBackend = true) match {
               case Some(futureToComplete) =>
                 futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) :+ futureToComplete)
@@ -1632,23 +1635,11 @@ class JobManager(
     *
     * @param cause Cause for the cancelling.
     */
-  private def cancelAndClearEverything(
-      cause: Throwable,
-      removeJobFromStateBackend: Boolean)
+  private def cancelAndClearEverything(cause: Throwable)
     : Seq[Future[Unit]] = {
     val futures = for ((jobID, (eg, jobInfo)) <- currentJobs) yield {
       future {
-        if (removeJobFromStateBackend) {
-          try {
-            submittedJobGraphs.removeJobGraph(jobID)
-          }
-          catch {
-            case t: Throwable =>
-              log.error("Error during submitted job graph clean up.", t)
-          }
-        }
-
-        eg.fail(cause)
+        eg.suspend(cause)
 
         if (jobInfo.listeningBehaviour != ListeningBehaviour.DETACHED) {
           jobInfo.client ! decorateMessage(
@@ -1667,7 +1658,6 @@ class JobManager(
   }
 
   override def revokeLeadership(): Unit = {
-    leaderSessionID = None
     self ! decorateMessage(RevokeLeadership)
   }
 

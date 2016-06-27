@@ -292,6 +292,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 
 	@Override
 	public void dispose() {
+		super.dispose();
 		this.bolt.cleanup();
 	}
 

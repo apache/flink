@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> Type of state
  */
-class HeapStateStore<T extends Serializable> implements StateStore<T> {
+public class HeapStateStore<T extends Serializable> implements StateStore<T> {
 
 	private final ConcurrentMap<String, T> stateMap = new ConcurrentHashMap<>();
 

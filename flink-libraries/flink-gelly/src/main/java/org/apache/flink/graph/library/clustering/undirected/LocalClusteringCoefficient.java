@@ -102,7 +102,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		// u, triangle count
 		DataSet<Tuple2<K, LongValue>> vertexTriangleCount = triangleVertices
 			.groupBy(0)
-			.reduce(new CountVertices<K>())
+			.reduce(new CountTriangles<K>())
 				.name("Count triangles");
 
 		// u, deg(u)
@@ -145,12 +145,12 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	}
 
 	/**
-	 * Combines the count of each vertex ID.
+	 * Sums the triangle count for each vertex ID.
 	 *
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0")
-	private static class CountVertices<T>
+	private static class CountTriangles<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
 		@Override
 		public Tuple2<T, LongValue> reduce(Tuple2<T, LongValue> left, Tuple2<T, LongValue> right)
@@ -185,7 +185,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the local clustering coefficient algorithm.
+	 * Wraps the vertex type to encapsulate results from the Local Clustering Coefficient algorithm.
 	 *
 	 * @param <T> ID type
 	 */
@@ -195,9 +195,6 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
-		/**
-		 * The no-arg constructor instantiates contained objects.
-		 */
 		public Result() {
 			f1 = new Tuple2<>();
 		}
@@ -238,6 +235,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 			return (neighborPairs == 0) ? Double.NaN : getTriangleCount().getValue() / (double)neighborPairs;
 		}
 
+		/**
+		 * Format values into a human-readable string.
+		 *
+		 * @return verbose string
+		 */
 		public String toVerboseString() {
 			return "Vertex ID: " + f0
 				+ ", vertex degree: " + getDegree()

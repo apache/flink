@@ -150,7 +150,7 @@ class YarnJobManager(
           log.warn(s"Received job status for job ${jobStatus.jobID} but expected status for " +
             s"job $stopWhenJobFinished")
         } else {
-          if (jobStatus.status.isTerminalState) {
+          if (jobStatus.status.isGloballyTerminalState) {
             log.info(s"Job with ID ${jobStatus.jobID} is in terminal state ${jobStatus.status}. " +
               s"Shutting down YARN session")
             if (jobStatus.status == JobStatus.FINISHED) {

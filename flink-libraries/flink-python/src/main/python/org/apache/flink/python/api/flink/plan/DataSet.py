@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import copy
+import collections
 import types as TYPES
 
 from flink.plan.Constants import _Identifier, WriteMode, _createKeyValueTypeInfo, _createArrayTypeInfo
@@ -35,7 +35,7 @@ from flink.functions.KeySelectorFunction import KeySelectorFunction
 class Stringify(MapFunction):
     def map(self, value):
         if isinstance(value, (tuple, list)):
-            return "(" + b", ".join([self.map(x) for x in value]) + ")"
+            return "(" + ", ".join([self.map(x) for x in value]) + ")"
         else:
             return str(value)
 
@@ -571,6 +571,48 @@ class DataSet(object):
     def set_parallelism(self, parallelism):
         self._info.parallelism.value = parallelism
         return self
+
+    def count_elements_per_partition(self):
+        """
+        Method that goes over all the elements in each partition in order to retrieve the total number of elements.
+        :return: A DataSet containing Tuples of subtask index, number of elements mappings.
+        """
+        class CountElementsPerPartitionMapper(MapPartitionFunction):
+            def map_partition(self, iterator, collector):
+                counter = 0
+                for x in iterator:
+                    counter += 1
+
+                collector.collect((self.context.get_index_of_this_subtask(), counter))
+        return self.map_partition(CountElementsPerPartitionMapper())
+
+    def zip_with_index(self):
+        """
+        Method that assigns a unique Long value to all elements of the DataSet. The generated values are consecutive.
+        :return: A DataSet of Tuples consisting of consecutive ids and initial values.
+        """
+        element_count = self.count_elements_per_partition()
+        class ZipWithIndexMapper(MapPartitionFunction):
+            start = -1
+
+            def _run(self):
+                offsets = self.context.get_broadcast_variable("counts")
+                offsets = sorted(offsets, key=lambda t: t[0]) # sort by task ID
+                offsets = collections.deque(offsets)
+
+                # compute the offset for each partition
+                for i in range(self.context.get_index_of_this_subtask()):
+                    self.start += offsets[i][1]
+
+                super(ZipWithIndexMapper, self)._run()
+
+            def map_partition(self, iterator, collector):
+                for value in iterator:
+                    self.start += 1
+                    collector.collect((self.start, value))
+        return self\
+            .map_partition(ZipWithIndexMapper())\
+            .with_broadcast_set("counts", element_count)
 
 
 class OperatorSet(DataSet):

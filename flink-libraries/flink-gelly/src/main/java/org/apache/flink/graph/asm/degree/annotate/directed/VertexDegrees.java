@@ -142,7 +142,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Degrees>>> {
 	}
 
 	/**
-	 * Combine mutual edges.
+	 * Reduce bitmasks to a single value using bitwise-or.
 	 *
 	 * @param <T> ID type
 	 */

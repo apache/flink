@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -235,6 +236,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		public void run() {
 			try {
 
+				Counter completedSplitsCounter = getMetricGroup().counter("numSplitsProcessed");
 				this.format.openInputFormat();
 
 				while (this.isRunning) {
@@ -290,6 +292,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 								}
 							}
 						}
+						completedSplitsCounter.inc();
 
 					} finally {
 						// close and prepare for the next iteration

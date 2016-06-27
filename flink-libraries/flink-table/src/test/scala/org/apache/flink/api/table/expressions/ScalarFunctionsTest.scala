@@ -20,15 +20,13 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.expressions.utils.ExpressionEvaluator
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class ScalarFunctionsTest {
+class ScalarFunctionsTest extends ExpressionTestBase {
 
   // ----------------------------------------------------------------------------------------------
   // String functions
@@ -36,19 +34,19 @@ class ScalarFunctionsTest {
 
   @Test
   def testSubstring(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.substring(2),
       "f0.substring(2)",
       "SUBSTRING(f0, 2)",
       "his is a test String.")
 
-    testFunction(
+    testAllApis(
       'f0.substring(2, 5),
       "f0.substring(2, 5)",
       "SUBSTRING(f0, 2, 5)",
       "his i")
 
-    testFunction(
+    testAllApis(
       'f0.substring(1, 'f7),
       "f0.substring(1, f7)",
       "SUBSTRING(f0, 1, f7)",
@@ -57,25 +55,25 @@ class ScalarFunctionsTest {
 
   @Test
   def testTrim(): Unit = {
-    testFunction(
+    testAllApis(
       'f8.trim(),
       "f8.trim()",
       "TRIM(f8)",
       "This is a test String.")
 
-    testFunction(
+    testAllApis(
       'f8.trim(removeLeading = true, removeTrailing = true, " "),
       "trim(f8)",
       "TRIM(f8)",
       "This is a test String.")
 
-    testFunction(
+    testAllApis(
       'f8.trim(removeLeading = false, removeTrailing = true, " "),
       "f8.trim(TRAILING, ' ')",
       "TRIM(TRAILING FROM f8)",
       " This is a test String.")
 
-    testFunction(
+    testAllApis(
       'f0.trim(removeLeading = true, removeTrailing = true, "."),
       "trim(BOTH, '.', f0)",
       "TRIM(BOTH '.' FROM f0)",
@@ -84,13 +82,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testCharLength(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.charLength(),
       "f0.charLength()",
       "CHAR_LENGTH(f0)",
       "22")
 
-    testFunction(
+    testAllApis(
       'f0.charLength(),
       "charLength(f0)",
       "CHARACTER_LENGTH(f0)",
@@ -99,7 +97,7 @@ class ScalarFunctionsTest {
 
   @Test
   def testUpperCase(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.upperCase(),
       "f0.upperCase()",
       "UPPER(f0)",
@@ -108,7 +106,7 @@ class ScalarFunctionsTest {
 
   @Test
   def testLowerCase(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.lowerCase(),
       "f0.lowerCase()",
       "LOWER(f0)",
@@ -117,7 +115,7 @@ class ScalarFunctionsTest {
 
   @Test
   def testInitCap(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.initCap(),
       "f0.initCap()",
       "INITCAP(f0)",
@@ -126,7 +124,7 @@ class ScalarFunctionsTest {
 
   @Test
   def testConcat(): Unit = {
-    testFunction(
+    testAllApis(
       'f0 + 'f0,
       "f0 + f0",
       "f0||f0",
@@ -135,13 +133,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testLike(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.like("Th_s%"),
       "f0.like('Th_s%')",
       "f0 LIKE 'Th_s%'",
       "true")
 
-    testFunction(
+    testAllApis(
       'f0.like("%is a%"),
       "f0.like('%is a%')",
       "f0 LIKE '%is a%'",
@@ -150,13 +148,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testNotLike(): Unit = {
-    testFunction(
+    testAllApis(
       !'f0.like("Th_s%"),
       "!f0.like('Th_s%')",
       "f0 NOT LIKE 'Th_s%'",
       "false")
 
-    testFunction(
+    testAllApis(
       !'f0.like("%is a%"),
       "!f0.like('%is a%')",
       "f0 NOT LIKE '%is a%'",
@@ -165,13 +163,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testSimilar(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.similar("_*"),
       "f0.similar('_*')",
       "f0 SIMILAR TO '_*'",
       "true")
 
-    testFunction(
+    testAllApis(
       'f0.similar("This (is)? a (test)+ Strin_*"),
       "f0.similar('This (is)? a (test)+ Strin_*')",
       "f0 SIMILAR TO 'This (is)? a (test)+ Strin_*'",
@@ -180,13 +178,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testNotSimilar(): Unit = {
-    testFunction(
+    testAllApis(
       !'f0.similar("_*"),
       "!f0.similar('_*')",
       "f0 NOT SIMILAR TO '_*'",
       "false")
 
-    testFunction(
+    testAllApis(
       !'f0.similar("This (is)? a (test)+ Strin_*"),
       "!f0.similar('This (is)? a (test)+ Strin_*')",
       "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*'",
@@ -195,19 +193,19 @@ class ScalarFunctionsTest {
 
   @Test
   def testMod(): Unit = {
-    testFunction(
+    testAllApis(
       'f4.mod('f7),
       "f4.mod(f7)",
       "MOD(f4, f7)",
       "2")
 
-    testFunction(
+    testAllApis(
       'f4.mod(3),
       "mod(f4, 3)",
       "MOD(f4, 3)",
       "2")
 
-    testFunction(
+    testAllApis(
       'f4 % 3,
       "mod(44, 3)",
       "MOD(44, 3)",
@@ -217,37 +215,43 @@ class ScalarFunctionsTest {
 
   @Test
   def testExp(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.exp(),
       "f2.exp()",
       "EXP(f2)",
       math.exp(42.toByte).toString)
 
-    testFunction(
+    testAllApis(
       'f3.exp(),
       "f3.exp()",
       "EXP(f3)",
       math.exp(43.toShort).toString)
 
-    testFunction(
+    testAllApis(
       'f4.exp(),
       "f4.exp()",
       "EXP(f4)",
       math.exp(44.toLong).toString)
 
-    testFunction(
+    testAllApis(
       'f5.exp(),
       "f5.exp()",
       "EXP(f5)",
       math.exp(4.5.toFloat).toString)
 
-    testFunction(
+    testAllApis(
       'f6.exp(),
       "f6.exp()",
       "EXP(f6)",
       math.exp(4.6).toString)
 
-    testFunction(
+    testAllApis(
+      'f7.exp(),
+      "exp(3)",
+      "EXP(3)",
+      math.exp(3).toString)
+
+    testAllApis(
       'f7.exp(),
       "exp(3)",
       "EXP(3)",
@@ -256,31 +260,31 @@ class ScalarFunctionsTest {
 
   @Test
   def testLog10(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.log10(),
       "f2.log10()",
       "LOG10(f2)",
       math.log10(42.toByte).toString)
 
-    testFunction(
+    testAllApis(
       'f3.log10(),
       "f3.log10()",
       "LOG10(f3)",
       math.log10(43.toShort).toString)
 
-    testFunction(
+    testAllApis(
       'f4.log10(),
       "f4.log10()",
       "LOG10(f4)",
       math.log10(44.toLong).toString)
 
-    testFunction(
+    testAllApis(
       'f5.log10(),
       "f5.log10()",
       "LOG10(f5)",
       math.log10(4.5.toFloat).toString)
 
-    testFunction(
+    testAllApis(
       'f6.log10(),
       "f6.log10()",
       "LOG10(f6)",
@@ -289,19 +293,25 @@ class ScalarFunctionsTest {
 
   @Test
   def testPower(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.power('f7),
       "f2.power(f7)",
       "POWER(f2, f7)",
       math.pow(42.toByte, 3).toString)
 
-    testFunction(
+    testAllApis(
       'f3.power('f6),
       "f3.power(f6)",
       "POWER(f3, f6)",
       math.pow(43.toShort, 4.6D).toString)
 
-    testFunction(
+    testAllApis(
+      'f4.power('f5),
+      "f4.power(f5)",
+      "POWER(f4, f5)",
+      math.pow(44.toLong, 4.5.toFloat).toString)
+
+    testAllApis(
       'f4.power('f5),
       "f4.power(f5)",
       "POWER(f4, f5)",
@@ -310,31 +320,31 @@ class ScalarFunctionsTest {
 
   @Test
   def testLn(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.ln(),
       "f2.ln()",
       "LN(f2)",
       math.log(42.toByte).toString)
 
-    testFunction(
+    testAllApis(
       'f3.ln(),
       "f3.ln()",
       "LN(f3)",
       math.log(43.toShort).toString)
 
-    testFunction(
+    testAllApis(
       'f4.ln(),
       "f4.ln()",
       "LN(f4)",
       math.log(44.toLong).toString)
 
-    testFunction(
+    testAllApis(
       'f5.ln(),
       "f5.ln()",
       "LN(f5)",
       math.log(4.5.toFloat).toString)
 
-    testFunction(
+    testAllApis(
       'f6.ln(),
       "f6.ln()",
       "LN(f6)",
@@ -343,102 +353,116 @@ class ScalarFunctionsTest {
 
   @Test
   def testAbs(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.abs(),
       "f2.abs()",
       "ABS(f2)",
       "42")
 
-    testFunction(
+    testAllApis(
       'f3.abs(),
       "f3.abs()",
       "ABS(f3)",
       "43")
 
-    testFunction(
+    testAllApis(
       'f4.abs(),
       "f4.abs()",
       "ABS(f4)",
       "44")
 
-    testFunction(
+    testAllApis(
       'f5.abs(),
       "f5.abs()",
       "ABS(f5)",
       "4.5")
 
-    testFunction(
+    testAllApis(
       'f6.abs(),
       "f6.abs()",
       "ABS(f6)",
       "4.6")
 
-    testFunction(
+    testAllApis(
       'f9.abs(),
       "f9.abs()",
       "ABS(f9)",
       "42")
 
-    testFunction(
+    testAllApis(
       'f10.abs(),
       "f10.abs()",
       "ABS(f10)",
       "43")
 
-    testFunction(
+    testAllApis(
       'f11.abs(),
       "f11.abs()",
       "ABS(f11)",
       "44")
 
-    testFunction(
+    testAllApis(
       'f12.abs(),
       "f12.abs()",
       "ABS(f12)",
       "4.5")
 
-    testFunction(
+    testAllApis(
       'f13.abs(),
       "f13.abs()",
       "ABS(f13)",
       "4.6")
+
+    testAllApis(
+      'f15.abs(),
+      "f15.abs()",
+      "ABS(f15)",
+      "1231.1231231321321321111")
   }
 
   @Test
   def testArithmeticFloorCeil(): Unit = {
-    testFunction(
+    testAllApis(
       'f5.floor(),
       "f5.floor()",
       "FLOOR(f5)",
       "4.0")
 
-    testFunction(
+    testAllApis(
      'f5.ceil(),
       "f5.ceil()",
       "CEIL(f5)",
       "5.0")
 
-    testFunction(
+    testAllApis(
       'f3.floor(),
       "f3.floor()",
       "FLOOR(f3)",
       "43")
 
-    testFunction(
+    testAllApis(
       'f3.ceil(),
       "f3.ceil()",
       "CEIL(f3)",
       "43")
+
+    testAllApis(
+      'f15.floor(),
+      "f15.floor()",
+      "FLOOR(f15)",
+      "-1232")
+
+    testAllApis(
+      'f15.ceil(),
+      "f15.ceil()",
+      "CEIL(f15)",
+      "-1231")
   }
 
   // ----------------------------------------------------------------------------------------------
 
-  def testFunction(
-      expr: Expression,
-      exprString: String,
-      sqlExpr: String,
-      expected: String): Unit = {
-    val testData = new Row(15)
+  def testData = {
+    val testData = new Row(16)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -454,8 +478,12 @@ class ScalarFunctionsTest {
     testData.setField(12, -4.5.toFloat)
     testData.setField(13, -4.6)
     testData.setField(14, -3)
+    testData.setField(15, BigDecimal("-1231.1231231321321321111").bigDecimal)
+    testData
+  }
 
-    val typeInfo = new RowTypeInfo(Seq(
+  def typeInfo = {
+    new RowTypeInfo(Seq(
       STRING_TYPE_INFO,
       BOOLEAN_TYPE_INFO,
       BYTE_TYPE_INFO,
@@ -470,21 +498,7 @@ class ScalarFunctionsTest {
       LONG_TYPE_INFO,
       FLOAT_TYPE_INFO,
       DOUBLE_TYPE_INFO,
-      INT_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
-
-    val exprResult = ExpressionEvaluator.evaluate(testData, typeInfo, expr)
-    assertEquals(expected, exprResult)
-
-    val exprStringResult = ExpressionEvaluator.evaluate(
-      testData,
-      typeInfo,
-      ExpressionParser.parseExpression(exprString))
-    assertEquals(expected, exprStringResult)
-
-    val exprSqlResult = ExpressionEvaluator.evaluate(testData, typeInfo, sqlExpr)
-    assertEquals(expected, exprSqlResult)
+      INT_TYPE_INFO,
+      BIG_DEC_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
   }
-
-
-
 }

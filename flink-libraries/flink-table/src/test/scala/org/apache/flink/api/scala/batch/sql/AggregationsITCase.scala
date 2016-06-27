@@ -98,7 +98,9 @@ class AggregationsITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT avg(_1), avg(_2), avg(_3), avg(_4), avg(_5), avg(_6), count(_7)" +
+    val sqlQuery =
+      "SELECT avg(_1), avg(_2), avg(_3), avg(_4), avg(_5), avg(_6), count(_7), " +
+      "  sum(CAST(_6 AS DECIMAL))" +
       "FROM MyTable"
 
     val ds = env.fromElements(
@@ -108,7 +110,7 @@ class AggregationsITCase(
 
     val result = tEnv.sql(sqlQuery)
 
-    val expected = "1,1,1,1,1.5,1.5,2"
+    val expected = "1,1,1,1,1.5,1.5,2,3.0"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

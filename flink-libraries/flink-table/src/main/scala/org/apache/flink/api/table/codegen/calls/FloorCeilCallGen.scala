@@ -20,7 +20,8 @@ package org.apache.flink.api.table.codegen.calls
 
 import java.lang.reflect.Method
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, FLOAT_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.
+  {DOUBLE_TYPE_INFO, FLOAT_TYPE_INFO,BIG_DEC_TYPE_INFO}
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
@@ -33,7 +34,7 @@ class FloorCeilCallGen(method: Method) extends MultiTypeMethodCallGen(method) {
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     operands.head.resultType match {
-      case FLOAT_TYPE_INFO | DOUBLE_TYPE_INFO =>
+      case FLOAT_TYPE_INFO | DOUBLE_TYPE_INFO | BIG_DEC_TYPE_INFO =>
         super.generate(codeGenerator, operands)
       case _ =>
         operands.head // no floor/ceil necessary

@@ -31,6 +31,7 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,12 +53,9 @@ public class CassandraInputFormat<OUT extends Tuple> extends RichInputFormat<OUT
 	private transient ResultSet resultSet;
 
 	public CassandraInputFormat(String query, ClusterBuilder builder) {
-		if (Strings.isNullOrEmpty(query)) {
-			throw new IllegalArgumentException("Query cannot be null or empty");
-		}
-		if (builder == null) {
-			throw new IllegalArgumentException("Builder cannot be null.");
-		}
+		Preconditions.checkArgument(!Strings.isNullOrEmpty(query), "Query cannot be null or empty");
+		Preconditions.checkArgument(builder != null, "Builder cannot be null");
+
 		this.query = query;
 		this.builder = builder;
 	}
@@ -115,15 +113,19 @@ public class CassandraInputFormat<OUT extends Tuple> extends RichInputFormat<OUT
 	@Override
 	public void close() throws IOException {
 		try {
-			session.close();
+			if (session != null) {
+				session.close();
+			}
 		} catch (Exception e) {
-			LOG.info("Inputformat couldn't be closed." + e.getMessage(), e);
+			LOG.error("Error while closing session.", e);
 		}
 
 		try {
-			cluster.close();
+			if (cluster != null ) {
+				cluster.close();
+			}
 		} catch (Exception e) {
-			LOG.info("Inputformat couldn't be closed." + e.getMessage(), e);
+			LOG.error("Error while closing cluster.", e);
 		}
 	}
 }
