@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
-import org.apache.flink.types.Either;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -424,87 +423,71 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		env.execute();
 	}
 
+	/**
+	 * Checks that a certain event sequence is recognized with an OR filter
+	 * @throws Exception
+	 */
 	@Test
-	public void testTimeoutHandling() throws Exception {
+	public void testSimpleOrFilterPatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
-			Tuple2.of(new Event(1, "start", 1.0), 1L),
-			Tuple2.of(new Event(1, "middle", 2.0), 5L),
-			Tuple2.of(new Event(1, "start", 2.0), 4L),
-			Tuple2.of(new Event(1, "end", 2.0), 6L)
-		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
+				new Event(1, "start", 1.0),
+				new Event(2, "middle", 2.0),
+				new Event(3, "end", 3.0),
+				new Event(4, "start", 4.0),
+				new Event(5, "middle", 5.0),
+				new Event(6, "end", 6.0)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+				.where(new FilterFunction<Event>() {
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("start");
+					}
+				})
+				.followedBy("middle")
+				.where(new FilterFunction<Event>() {
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getPrice() == 2.0;
+					}
+				})
+				.or(new FilterFunction<Event>() {
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getPrice() == 5.0;
+					}
+				})
+				.followedBy("end").where(new FilterFunction<Event>() {
+
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("end");
+					}
+				});
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
 			@Override
-			public long extractTimestamp(Tuple2<Event, Long> element, long currentTimestamp) {
-				return element.f1;
-			}
+			public String select(Map<String, Event> pattern) {
+				StringBuilder builder = new StringBuilder();
 
-			@Override
-			public Watermark checkAndGetNextWatermark(Tuple2<Event, Long> lastElement, long extractedTimestamp) {
-				return new Watermark(lastElement.f1 - 5);
-			}
+				builder.append(pattern.get("start").getId()).append(",")
+						.append(pattern.get("middle").getId()).append(",")
+						.append(pattern.get("end").getId());
 
-		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
-
-			@Override
-			public Event map(Tuple2<Event, Long> value) throws Exception {
-				return value.f0;
+				return builder.toString();
 			}
 		});
 
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("start");
-			}
-		}).followedBy("middle").where(new FilterFunction<Event>() {
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("middle");
-			}
-		}).followedBy("end").where(new FilterFunction<Event>() {
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("end");
-			}
-		}).within(Time.milliseconds(3));
-
-		DataStream<Either<String, String>> result = CEP.pattern(input, pattern).select(
-			new PatternTimeoutFunction<Event, String>() {
-				@Override
-				public String timeout(Map<String, Event> pattern, long timeoutTimestamp) throws Exception {
-					return pattern.get("start").getPrice() + "";
-				}
-			},
-			new PatternSelectFunction<Event, String>() {
-
-				@Override
-				public String select(Map<String, Event> pattern) {
-					StringBuilder builder = new StringBuilder();
-
-					builder.append(pattern.get("start").getPrice()).append(",")
-						.append(pattern.get("middle").getPrice()).append(",")
-						.append(pattern.get("end").getPrice());
-
-					return builder.toString();
-				}
-			}
-		);
-
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
-		// the expected sequences of matching event ids
-		expected = "Left(1.0)\nRight(2.0,2.0,2.0)";
+		// expected sequence of matching event ids
+		expected = "1,5,6\n1,2,3\n4,5,6\n1,2,6";
 
 		env.execute();
-
-
 	}
+
 }
