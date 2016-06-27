@@ -508,6 +508,26 @@ object ScalarOperators {
             s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
       }
 
+    // Date -> Integer, Time -> Integer
+    case (SqlTimeTypeInfo.DATE, INT_TYPE_INFO) | (SqlTimeTypeInfo.TIME, INT_TYPE_INFO) =>
+      internalExprCasting(operand, INT_TYPE_INFO)
+
+    // Timestamp -> Long
+    case (SqlTimeTypeInfo.TIMESTAMP, LONG_TYPE_INFO) =>
+      internalExprCasting(operand, LONG_TYPE_INFO)
+
+    // Integer -> Date
+    case (INT_TYPE_INFO, SqlTimeTypeInfo.DATE) =>
+      internalExprCasting(operand, SqlTimeTypeInfo.DATE)
+
+    // Integer -> Time
+    case (INT_TYPE_INFO, SqlTimeTypeInfo.TIME) =>
+      internalExprCasting(operand, SqlTimeTypeInfo.TIME)
+
+    // Long -> Timestamp
+    case (LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) =>
+      internalExprCasting(operand, SqlTimeTypeInfo.TIMESTAMP)
+
     case (from, to) =>
       throw new CodeGenException(s"Unsupported cast from '$from' to '$to'.")
   }
@@ -644,6 +664,13 @@ object ScalarOperators {
     }
 
     GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
+  }
+
+  private def internalExprCasting(
+      expr: GeneratedExpression,
+      typeInfo: TypeInformation[_])
+    : GeneratedExpression = {
+    GeneratedExpression(expr.resultTerm, expr.nullTerm, expr.code, typeInfo)
   }
 
   private def arithOpToDecMethod(operator: String): String = operator match {

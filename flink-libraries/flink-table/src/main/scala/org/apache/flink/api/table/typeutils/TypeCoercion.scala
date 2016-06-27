@@ -97,10 +97,16 @@ object TypeCoercion {
     case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => true
     case (BIG_DEC_TYPE_INFO, _: NumericTypeInfo[_]) => true
     case (_: NumericTypeInfo[_], BIG_DEC_TYPE_INFO) => true
+    case (INT_TYPE_INFO, SqlTimeTypeInfo.DATE) => true
+    case (INT_TYPE_INFO, SqlTimeTypeInfo.TIME) => true
+    case (LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) => true
 
     case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIME) => false
     case (SqlTimeTypeInfo.TIME, SqlTimeTypeInfo.DATE) => false
     case (_: SqlTimeTypeInfo[_], _: SqlTimeTypeInfo[_]) => true
+    case (SqlTimeTypeInfo.DATE, INT_TYPE_INFO) => true
+    case (SqlTimeTypeInfo.TIME, INT_TYPE_INFO) => true
+    case (SqlTimeTypeInfo.TIMESTAMP, LONG_TYPE_INFO) => true
 
     case _ => false
   }

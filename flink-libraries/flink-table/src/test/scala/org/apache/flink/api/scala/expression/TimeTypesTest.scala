@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.expression
 
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
@@ -129,6 +129,42 @@ class TimeTypesTest extends ExpressionTestBase {
       "f2.cast(TIME)",
       "CAST(f2 AS TIME)",
       "10:20:45")
+
+    testAllApis(
+      'f2.cast(SqlTimeTypeInfo.TIME),
+      "f2.cast(TIME)",
+      "CAST(f2 AS TIME)",
+      "10:20:45")
+
+    testTableApi(
+      'f7.cast(SqlTimeTypeInfo.DATE),
+      "f7.cast(DATE)",
+      "2002-11-09")
+
+    testTableApi(
+      'f7.cast(SqlTimeTypeInfo.DATE).cast(BasicTypeInfo.INT_TYPE_INFO),
+      "f7.cast(DATE).cast(INT)",
+      "12000")
+
+    testTableApi(
+      'f7.cast(SqlTimeTypeInfo.TIME),
+      "f7.cast(TIME)",
+      "00:00:12")
+
+    testTableApi(
+      'f7.cast(SqlTimeTypeInfo.TIME).cast(BasicTypeInfo.INT_TYPE_INFO),
+      "f7.cast(TIME).cast(INT)",
+      "12000")
+
+    testTableApi(
+      'f8.cast(SqlTimeTypeInfo.TIMESTAMP),
+      "f8.cast(TIMESTAMP)",
+      "2016-06-27 07:23:33.0")
+
+    testTableApi(
+      'f8.cast(SqlTimeTypeInfo.TIMESTAMP).cast(BasicTypeInfo.LONG_TYPE_INFO),
+      "f8.cast(TIMESTAMP).cast(LONG)",
+      "1467012213000")
   }
 
   @Test
@@ -167,7 +203,7 @@ class TimeTypesTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(7)
+    val testData = new Row(9)
     testData.setField(0, Date.valueOf("1990-10-14"))
     testData.setField(1, Time.valueOf("10:20:45"))
     testData.setField(2, Timestamp.valueOf("1990-10-14 10:20:45.123"))
@@ -175,6 +211,8 @@ class TimeTypesTest extends ExpressionTestBase {
     testData.setField(4, Date.valueOf("1990-10-15"))
     testData.setField(5, Time.valueOf("00:00:00"))
     testData.setField(6, Timestamp.valueOf("1990-10-14 00:00:00.0"))
+    testData.setField(7, 12000)
+    testData.setField(8, 1467012213000L)
     testData
   }
 
@@ -186,6 +224,8 @@ class TimeTypesTest extends ExpressionTestBase {
       SqlTimeTypeInfo.DATE,
       SqlTimeTypeInfo.DATE,
       SqlTimeTypeInfo.TIME,
-      SqlTimeTypeInfo.TIMESTAMP)).asInstanceOf[TypeInformation[Any]]
+      SqlTimeTypeInfo.TIMESTAMP,
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.LONG_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
   }
 }

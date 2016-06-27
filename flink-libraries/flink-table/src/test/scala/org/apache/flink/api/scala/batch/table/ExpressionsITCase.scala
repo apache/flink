@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.scala.batch.table
 
+import java.sql.{Date, Time, Timestamp}
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
@@ -156,18 +158,24 @@ class ExpressionsITCase(
   }
 
   @Test
-  def testDecimalLiteral(): Unit = {
+  def testAdvancedDataTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = env
-      .fromElements(
-        (BigDecimal("78.454654654654654").bigDecimal, BigDecimal("4E+9999").bigDecimal)
-      )
-      .toTable(tEnv, 'a, 'b)
-      .select('a, 'b, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal)
+      .fromElements((
+        BigDecimal("78.454654654654654").bigDecimal,
+        BigDecimal("4E+9999").bigDecimal,
+        Date.valueOf("1984-07-12"),
+        Time.valueOf("14:34:24"),
+        Timestamp.valueOf("1984-07-12 14:34:24")))
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .select('a, 'b, 'c, 'd, 'e, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
+        Date.valueOf("1984-07-12"), Time.valueOf("14:34:24"),
+        Timestamp.valueOf("1984-07-12 14:34:24"))
 
-    val expected = "78.454654654654654,4E+9999,11.2,11.2"
+    val expected = "78.454654654654654,4E+9999,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
+      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
