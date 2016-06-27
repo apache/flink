@@ -593,7 +593,12 @@ public abstract class YarnTestBase extends TestLogger {
 	// -------------------------- Tear down -------------------------- //
 
 	@AfterClass
-	public static void copyOnTravis() {
+	public static void teardown() {
+		// Unset FLINK_CONF_DIR, as it might change the behavior of other tests
+		Map<String, String> map = new HashMap<>(System.getenv());
+		map.remove("FLINK_CONF_DIR");
+		TestBaseUtils.setEnv(map);
+
 		// When we are on travis, we copy the tmp files of JUnit (containing the MiniYARNCluster log files)
 		// to <flinkRoot>/target/flink-yarn-tests-*.
 		// The files from there are picked up by the ./tools/travis_watchdog.sh script
