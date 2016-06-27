@@ -43,7 +43,7 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindow
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.WindowAssignerContext;
+import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
@@ -958,7 +958,7 @@ public class WindowOperatorTest {
 
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
-		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
@@ -966,23 +966,25 @@ public class WindowOperatorTest {
 
 		// timestamp is ignored in processing time
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), Long.MAX_VALUE));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 7000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
 
 		testTimeProvider.setCurrentTime(5000);
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 7000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 7000));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 2999));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 7000));
 
 		testTimeProvider.setCurrentTime(7000);
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 2999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 5999));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
@@ -1018,6 +1020,8 @@ public class WindowOperatorTest {
 
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
 		testHarness.open();
 
 		// timestamp is ignored in processing time
@@ -1025,27 +1029,36 @@ public class WindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), Long.MAX_VALUE));
 
 		testTimeProvider.setCurrentTime(1000);
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 1), 999));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), Long.MAX_VALUE));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), Long.MAX_VALUE));
 
 		testTimeProvider.setCurrentTime(2000);
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 1999));
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), Long.MAX_VALUE));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), Long.MAX_VALUE));
 
 		testTimeProvider.setCurrentTime(3000);
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 2999));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), Long.MAX_VALUE));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), Long.MAX_VALUE));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), Long.MAX_VALUE));
 
 		testTimeProvider.setCurrentTime(7000);
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 1), 999));
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 1999));
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
-
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 2999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 5), 3999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 5), 4999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 5999));
@@ -1082,6 +1095,8 @@ public class WindowOperatorTest {
 
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
 		testHarness.open();
 
 		// timestamp is ignored in processing time
@@ -1092,6 +1107,11 @@ public class WindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1002));//Long.MAX_VALUE));
 
 		testTimeProvider.setCurrentTime(5000);
+
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 5000));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 5000));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 5000));
@@ -1100,13 +1120,10 @@ public class WindowOperatorTest {
 
 		testTimeProvider.setCurrentTime(10000);
 
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 7999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 7999));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
-
 
 		assertEquals(expectedOutput.size(), testHarness.getOutput().size());
 		for (Object elem : testHarness.getOutput()) {
@@ -1214,7 +1231,7 @@ public class WindowOperatorTest {
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		long timestamp = Long.MAX_VALUE - 1750;
-		Collection<TimeWindow> windows = windowAssigner.assignWindows(new Tuple2<>("key2", 1), timestamp, new WindowAssignerContext() {
+		Collection<TimeWindow> windows = windowAssigner.assignWindows(new Tuple2<>("key2", 1), timestamp, new WindowAssigner.WindowAssignerContext() {
 			@Override
 			public long getCurrentProcessingTime() {
 				return operator.windowAssignerContext.getCurrentProcessingTime();

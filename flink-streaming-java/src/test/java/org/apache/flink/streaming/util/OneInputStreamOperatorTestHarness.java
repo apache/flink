@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
@@ -43,6 +44,7 @@ import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -85,7 +87,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator, ExecutionConfig executionConfig) {
-		this(operator, executionConfig, null);
+		this(operator, executionConfig, DefaultTimeServiceProvider.create(Executors.newSingleThreadScheduledExecutor()));
 	}
 
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator, ExecutionConfig executionConfig,
@@ -127,31 +129,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				final long execTime = (Long) invocation.getArguments()[0];
 				final Triggerable target = (Triggerable) invocation.getArguments()[1];
 
-				if (timeServiceProvider == null) {
-					Thread caller = new Thread() {
-						@Override
-						public void run() {
-							final long delay = execTime - mockTask.getCurrentProcessingTime();
-							if (delay > 0) {
-								try {
-									Thread.sleep(delay);
-								} catch (InterruptedException ignored) {
-								}
-							}
-
-							synchronized (checkpointLock) {
-								try {
-									target.trigger(execTime);
-								} catch (Exception ignored) {
-								}
-							}
-						}
-					};
-					caller.start();
-				} else {
-					timeServiceProvider.registerTimer(
+				timeServiceProvider.registerTimer(
 						execTime, new TriggerTask(checkpointLock, target, execTime));
-				}
 				return null;
 			}
 		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
@@ -159,9 +138,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		doAnswer(new Answer<Long>() {
 			@Override
 			public Long answer(InvocationOnMock invocation) throws Throwable {
-				return timeServiceProvider == null ?
-					System.currentTimeMillis() :
-					timeServiceProvider.getCurrentProcessingTime();
+				return timeServiceProvider.getCurrentProcessingTime();
 			}
 		}).when(mockTask).getCurrentProcessingTime();
 	}
