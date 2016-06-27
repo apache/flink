@@ -1354,14 +1354,14 @@ the execution plan before executing the Flink job.
 Metrics
 -------------------
 
-Flink exposes a metric system that allows users gather and expose metrics to external systems.
+Flink exposes a metric system that allows gathering and exposing metrics to external systems.
 
 ### Registering metrics
 
-You can access the metric system from any user function that extends [RichFunction]({{ site.baseurl }}/apis/common/index.html#rich-functions) by calling getRuntimeContext().getMetricGroup().
-This method returns a MetricGroup object on which you can create and register new metrics.
+You can access the metric system from any user function that extends [RichFunction]({{ site.baseurl }}/apis/common/index.html#rich-functions) by calling `getRuntimeContext().getMetricGroup()`.
+This method returns a `MetricGroup` object on which you can create and register new metrics.
 
-If you want to count the number of records your user function has received you could use a Counter like this:
+If you want to count the number of records your user function has received you could use a `Counter` like this:
 
 {% highlight java %}
 
@@ -1386,12 +1386,12 @@ public class MyMapper extends RichMapFunction<String, Integer> {
 
 ### Metric types
 
-Flink supports Counters, Gauges and Histograms.
+Flink supports `Counters`, `Gauges` and `Histograms`.
 
-A Counter is used to count something. The current value can be in- or decremented using `inc([long n])` or `dec([long n])`.
-You can create and registers a Counter by calling `counter(String name)` on a MetricGroup. Alternatively, you can pass an instance of your own Counter implementation along with the name.
+A `Counter` is used to count something. The current value can be in- or decremented using `inc()/inc(long n)` or `dec()/dec(long n)`.
+You can create and register a `Counter` by calling `counter(String name)` on a MetricGroup. Alternatively, you can pass an instance of your own `Counter` implementation along with the name.
 
-A Gauge provides a value of any type on demand. In order to use a Gauge you must first create a class that implements the `org.apache.flink.metrics.Gauge` interface.
+A `Gauge` provides a value of any type on demand. In order to use a `Gauge` you must first create a class that implements the `org.apache.flink.metrics.Gauge` interface.
 There is not restriction for the type of the returned value.
 You can register a gauge by calling `gauge(String name, Gauge gauge)` on a MetricGroup.
 
@@ -1402,9 +1402,9 @@ Flink only provides an interface for Histograms, but offers a Wrapper that allow
 
 ### Scope
 
-Every registered metric has an automatically assigned scope which represent the entities it is tied to. By default a metric that is registered in a user function will be scoped to the Operator in which the function runs, the Task/Job it belongs to and the TaskManager/Host it is executed on. This is referred to as the "system scope".
+Every registered metric has an automatically assigned scope which represents the entities it is tied to. By default a metric that is registered in a user function will be scoped to the operator in which the function runs, the task/job it belongs to and the taskManager/host it is executed on. This is referred to as the "system scope".
 
-You can define an additonal "user scope" by calling the MetricGroup#addGroup((int/String) name) method.
+You can define an additonal "user scope" by calling the either `MetricGroup#addGroup(String name)` or `MetricGroup#addGroup(int name)`.
 
 {% highlight java %}
 
@@ -1412,7 +1412,7 @@ counter2 = getRuntimeContext().getMetricGroup().addGroup("MyMetrics").counter("m
 
 {% endhighlight %}
 
-The name under which a metric is exported is based on both scopes and the name passed in the `counter() call. The order is always \<system_scope>\<user_scope>\<name>.
+The name under which a metric is exported is based on both scopes and the name passed in the `counter()` call. The order is always \<system_scope>\<user_scope>\<name>.
 
 The system scope allows the reported name to contain contextual information like the name of job it was registered in without requiring the user to pass this information manually.
 
@@ -1443,8 +1443,8 @@ The following is a list of all variables available:
 There is no restriction on the order of variables.
 
 Which format is applied to a metric depends on which entities it was scoped to.
-The `metrics.scope.operator` format will be applied to all metrics that were scoped to an Operator.
-The `metrics.scope.tm.job` format will be applied to all metrics that were only scoped to a Job and a TaskManager.
+The `metrics.scope.operator` format will be applied to all metrics that were scoped to an operator.
+The `metrics.scope.tm.job` format will be applied to all metrics that were only scoped to a job and a taskmanager.
 
 This allows you to define explicitly how metrics on every level should be reported.
 
@@ -1464,7 +1464,7 @@ By default Flink uses JMX to expose metrics.
 The port for JMX can be configured by setting the `metrics.jmx.port` key. This parameter expects either a single port
 or a port range, with the default being 9010-9025. Which port is used in the end is shown in the relevant Job-/TaskManager log.
 
-All non-JMXReporters are not part of the distribution and have to be added to the classpath manually. (usually by putting the jar into /lib)
+All non-JMXReporters are not part of the distribution and have to be added to the classpath manually, usually by putting the jar into /lib.
 
 You can write your own Reporter by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the Scheduled interface as well.
