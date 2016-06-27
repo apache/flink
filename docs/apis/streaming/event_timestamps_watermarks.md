@@ -57,6 +57,7 @@ timestamp from some field in the element.
 
 Timestamp assignment goes hand-in-hand with generating watermarks, which tell the system about 
 the progress in event time.
+Timestamps and watermarks are thereby always specified in milliseconds.
 
 There are two ways to assign timestamps and generate Watermarks:
 
@@ -71,6 +72,7 @@ no Timestamp Assigner is needed.
 
 To assign a timestamp to an element in the source directly, the source must use the `collectWithTimestamp(...)`
 method on the `SourceContext`. To generate Watermarks, the source must call the `emitWatermark(Watermark)` function.
+Timestamps and watermarks are thereby always specified in milliseconds.
 
 Below is a simple example of a source *(non-checkpointed)* that assigns timestamps and generates Watermarks
 depending on special events:
@@ -178,6 +180,7 @@ withTimestampsAndWatermarks
 
 The `AssignerWithPeriodicWatermarks` assigns timestamps and generates watermarks periodically (possibly depending 
 on the stream elements, or purely based on processing time).
+Timestamps and watermarks are thereby always specified in milliseconds.
 
 The interval (every *n* milliseconds) in which the watermark will be generated is defined via
 `ExecutionConfig.setAutoWatermarkInterval(...)`. Each time, the assigner's `getCurrentWatermark()` method will be
@@ -292,6 +295,7 @@ The `checkAndGetNextWatermark(...)` method gets the timestamp that was assigned 
 method, and can decide whether it wants to generate a Watermark. Whenever the `checkAndGetNextWatermark(...)`
 method returns a non-null Watermark, and that Watermark is larger than the latest previous Watermark, that
 new Watermark will be emitted.
+Timestamps and watermarks are thereby always specified in milliseconds.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
