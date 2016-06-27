@@ -1,23 +1,14 @@
-# Apache Flink cluster deployment on Docker using Docker-Compose
+Apache Flink cluster deployment on Docker using Docker-Compose
 
-## Installation
-### Install Docker
+# Installation
 
+Install the most recent stable version of docker
 https://docs.docker.com/installation/
 
-if you have issues with Docker-Compose versions incompatible with your version
-of Docker try:
+Install the most recent stable version of docker-compose
+https://docs.docker.com/compose/install/
 
-    curl -sSL https://get.docker.com/ubuntu/ | sudo sh
-
-### Install Docker-Compose
-
-    curl -L https://github.com/docker/compose/releases/download/1.1.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-
-### Get the repo
-
-### Build the images
+# Build
 
 Images are based on the official Java Alpine (OpenJDK 8) image and run
 supervisord to stay alive when running containers. If you want to build the
@@ -25,12 +16,16 @@ flink image run:
 
     sh build.sh
 
-If you want to build a specific version of flink/hadoop/scala you can configure
-the respective args:
+or
+
+    docker build -t "flink" flink
+
+If you want to build the container for a specific version of flink/hadoop/scala
+you can configure it in the respective args:
 
     docker build --build-arg FLINK_VERSION=1.0.3 --build-arg HADOOP_VERSION=26 --build-arg SCALA_VERSION=2.10 -t "flink:1.0.3-hadoop2.6-scala_2.10" flink
 
-### Deploy
+# Deploy
 
 - Deploy cluster and see config/setup log output (best run in a screen session)
 
