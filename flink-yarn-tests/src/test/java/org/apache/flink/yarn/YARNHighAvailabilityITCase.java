@@ -45,7 +45,6 @@ import org.junit.rules.TemporaryFolder;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -79,7 +78,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	}
 
 	@AfterClass
-	public static void teardown() throws IOException {
+	public static void teardown() throws Exception {
 		if(zkServer != null) {
 			zkServer.stop();
 		}
