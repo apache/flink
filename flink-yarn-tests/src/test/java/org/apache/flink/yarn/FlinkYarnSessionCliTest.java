@@ -20,9 +20,9 @@ package org.apache.flink.yarn;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
-
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
 
@@ -48,14 +48,14 @@ public class FlinkYarnSessionCliTest {
 		File tmpFolder = tmp.newFolder();
 		File fakeConf = new File(tmpFolder, "flink-conf.yaml");
 		fakeConf.createNewFile();
-		map.put("FLINK_CONF_DIR", tmpFolder.getAbsolutePath());
+		map.put(ConfigConstants.ENV_FLINK_CONF_DIR, tmpFolder.getAbsolutePath());
 		TestBaseUtils.setEnv(map);
 		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", "", false);
 		Options options = new Options();
 		cli.addGeneralOptions(options);
 		cli.addRunOptions(options);
 
-		CommandLineParser parser = new PosixParser();
+		CommandLineParser parser = new DefaultParser();
 		CommandLine cmd = null;
 		try {
 			cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15", "-D", "akka.ask.timeout=5 min"});

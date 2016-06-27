@@ -505,7 +505,7 @@ under the License.
 		<profile>
 			<!-- used for aggregating  ScalaDoc with JavaDoc -->
 			<id>aggregate-scaladoc</id>
-                        <dependencies>
+			<dependencies>
 				<dependency>
 					<!--
 					This is necessary for building the java docs using Java 8. Otherwise the javadoc
