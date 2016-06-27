@@ -132,8 +132,8 @@ public class JMXReporterTest {
 		JMXReporter rep1 = new JMXReporter();
 		JMXReporter rep2 = new JMXReporter();
 
-		int port1 = 9010;
-		int port2 = 9011;
+		int port1 = 9020;
+		int port2 = 9025;
 
 		Configuration cfg1 = new Configuration();
 		cfg1.setString(KEY_METRICS_JMX_PORT, String.valueOf(port1));
