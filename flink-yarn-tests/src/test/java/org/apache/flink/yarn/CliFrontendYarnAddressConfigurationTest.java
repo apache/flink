@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -53,8 +54,10 @@ import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -80,6 +83,11 @@ public class CliFrontendYarnAddressConfigurationTest {
 		PrintStream nullPrinter = new PrintStream(new NullPrint());
 		System.setOut(nullPrinter);
 		System.setErr(nullPrinter);
+
+		// Unset FLINK_CONF_DIR, as this is a precondition for this test to work properly
+		Map<String, String> map = new HashMap<>(System.getenv());
+		map.remove(CliFrontend.ENV_CONFIG_DIRECTORY);
+		TestBaseUtils.setEnv(map);
 	}
 
 	@AfterClass
