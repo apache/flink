@@ -113,7 +113,7 @@ public class CliFrontend {
 	private static final String ACTION_SAVEPOINT = "savepoint";
 
 	// config dir parameters
-	private static final String ENV_CONFIG_DIRECTORY = "FLINK_CONF_DIR";
+	public static final String ENV_CONFIG_DIRECTORY = "FLINK_CONF_DIR";
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
 
