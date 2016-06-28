@@ -179,7 +179,7 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 					double previousAuthAverage = ((DoubleValue) getPreviousIterationAggregate("authorityValueSum")).getValue() / getNumberOfVertices();
 
 					// count the diff value of sum of authority scores
-					diffSumAggregator.aggregate(Math.abs(previousAuthAverage - newAuthorityValue.getValue()));
+					diffSumAggregator.aggregate(previousAuthAverage - newAuthorityValue.getValue());
 				}
 				setNewVertexValue(new Tuple2<>(newHubValue, newAuthorityValue));
 			} else if (getSuperstepNumber() == maxIteration) {
