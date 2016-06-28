@@ -93,7 +93,7 @@ class MatrixConversionsSuite
     val data2 = (39, 39, 123.0) :: (5, 30, 42.0) :: rawSampleData
     val d2 = DistributedRowMatrix.fromCOO(env.fromCollection(data2), 40, 40)
     val blockMatrix2 = d2.toBlockMatrix(3, 20)
-    val dataMap = blockMatrix2.getDataset.collect().toMap
+    val dataMap = blockMatrix2.data.collect().toMap
 
     dataMap(3).getBlockData(2, 10) shouldBe 42.0
 

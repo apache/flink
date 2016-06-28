@@ -39,12 +39,11 @@ import scala.collection.JavaConversions._
   * @param blockMapper
   */
 class BlockMatrix(
-    data: DataSet[(BlockID, Block)],
+    val data: DataSet[(BlockID, Block)],
     blockMapper: BlockMapper
 )
     extends DistributedMatrix {
 
-  val getDataset = data
 
   val numCols = blockMapper.numCols
   val numRows = blockMapper.numRows
@@ -82,7 +81,7 @@ class BlockMatrix(
     the sparse nature of the matrix.
     Matching blocks may be missing and a block of zeros is used instead.*/
     val processedBlocks =
-      this.getDataset.fullOuterJoin(other.getDataset).where(0).equalTo(0) {
+      this.data.fullOuterJoin(other.data).where(0).equalTo(0) {
         (left: (BlockID, Block), right: (BlockID, Block)) =>
           {
 
@@ -155,7 +154,7 @@ class BlockMatrix(
     /*BlockID is converted to mapped coordinates that will be required to
       group blocks together.*/
     val otherWithCoord =
-      other.getDataset.map(new MapToMappedCoord(blockMapper))
+      other.data.map(new MapToMappedCoord(blockMapper))
 
     val dataWithCoord = data.map(new MapToMappedCoord(blockMapper))
 
