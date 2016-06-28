@@ -18,7 +18,7 @@
 
 package org.apache.flink.ml.math.distributed
 
-import java.lang
+import java.lang.Iterable
 
 import breeze.linalg.{CSCMatrix => BreezeSparseMatrix, Matrix => BreezeMatrix, Vector => BreezeVector}
 import org.apache.flink.api.common.functions.{RichFlatMapFunction, RichGroupReduceFunction}
@@ -199,7 +199,7 @@ case class IndexedRow(rowIndex: MatrixRowIndex, values: Vector)
 class RowGroupReducer(blockMapper: BlockMapper)
     extends RichGroupReduceFunction[(Int, Int, Vector), (Int, Block)] {
 
-  override def reduce(values: lang.Iterable[(Int, Int, Vector)],
+  override def reduce(values: Iterable[(Int, Int, Vector)],
                       out: Collector[(Int, Block)]): Unit = {
 
     val sortedRows = values.toList.sortBy(_._2)
