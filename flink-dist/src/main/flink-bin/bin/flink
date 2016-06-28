@@ -23,18 +23,18 @@
 # compatible.
 followSymLink() {
     local iteration=0
-    local bar=$1
-    while [ -L "$bar" ]; do
+    local target=$1
+    while [ -L "$target" ]; do
         if [ "$iteration" -gt 100 ]; then
-            echo "Cannot resolve path: You have a cyclic symlink in $bar."
+            echo "Cannot resolve path: You have a cyclic symlink in $target."
             break
         fi
-        ls=`ls -ld -- "$bar"`
-        bar=`expr "$ls" : '.* -> \(.*\)$'`
+        ls=`ls -ld -- "$target"`
+        target=`expr "$ls" : '.* -> \(.*\)$'`
         iteration=$((iteration + 1))
     done
 
-    echo "$bar"
+    echo "$target"
 }
 
 target=$(followSymLink "$0")
@@ -43,7 +43,7 @@ target=$(followSymLink "$0")
 args=("$@")
 for i in "${!args[@]}"; do
     if [ ${args[$i]} = "--configDir" ]; then
-        dir=$(followSymLink "${args[$(($i+1))]}" )
+        dir=$( followSymLink "${args[$(($i+1))]}" )
         if [ -d "$dir" ]; then
             FLINK_CONF_DIR=`cd "${dir}"; pwd -P`
         else
