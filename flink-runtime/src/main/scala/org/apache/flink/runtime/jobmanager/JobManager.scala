@@ -1849,44 +1849,34 @@ class JobManager(
     val directObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
 
     val direct = metrics.addGroup("Direct")
-    try {
-      direct.gauge("Count", new Gauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "Count").asInstanceOf[Long]
-      })
-      direct.gauge("MemoryUsed", new Gauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
-      })
-      direct.gauge("TotalCapacity", new Gauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
-      })
-    } catch {
-      case e: Exception =>
-      log.debug("Failed to add TaskManager metric.", e);
-    }
+    direct.gauge("Count", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "Count").asInstanceOf[Long]
+    })
+    direct.gauge("MemoryUsed", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
+    })
+    direct.gauge("TotalCapacity", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
+    })
 
     val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=mapped")
 
     val mapped = metrics.addGroup("Mapped")
-    try {
-      mapped.gauge("Count", new Gauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
-      })
-      mapped.gauge("MemoryUsed", new Gauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
-      })
-      mapped.gauge("TotalCapacity", new Gauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
-      })
-    } catch {
-      case e: Exception =>
-        log.debug("Failed to add TaskManager metric.", e);
-    }
+    mapped.gauge("Count", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
+    })
+    mapped.gauge("MemoryUsed", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
+    })
+    mapped.gauge("TotalCapacity", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
+    })
   }
 
   private def instantiateThreadMetrics(metrics: MetricGroup): Unit = {
