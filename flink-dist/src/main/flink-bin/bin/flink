@@ -45,7 +45,7 @@ for i in "${!args[@]}"; do
     if [ ${args[$i]} = "--configDir" ]; then
         dir=$( followSymLink "${args[$(($i+1))]}" )
         if [ -d "$dir" ]; then
-            FLINK_CONF_DIR=`cd "${dir}"; pwd -P`
+            FLINK_CONF_DIR=`cd "${dir}" && pwd -P`
         else
             echo "ERROR: --configDir is not a directory"
             exit 1
