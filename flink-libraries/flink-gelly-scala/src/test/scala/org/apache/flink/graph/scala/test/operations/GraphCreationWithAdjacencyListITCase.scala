@@ -19,6 +19,7 @@
 package org.apache.flink.graph.scala.test.operations
 
 import java.io.{File, FileOutputStream, IOException, OutputStreamWriter}
+import java.nio.file.Files
 
 import com.google.common.base.Charsets
 import org.apache.flink.api.common.functions.MapFunction
@@ -166,7 +167,7 @@ class GraphCreationWithAdjacencyListITCase(mode: MultipleProgramsTestBase.TestEx
       vertexValueDelimiter = ":",
       env = env)
 
-    val tempFile = System.getProperty("java.io.tmpdir") + "tempGraph.txt"
+    val tempFile = Files.createTempDirectory("tempDir").toString + "tempGraph.txt"
 
     graph.writeAsAdjacencyList(tempFile, "#", "$", ":");
 

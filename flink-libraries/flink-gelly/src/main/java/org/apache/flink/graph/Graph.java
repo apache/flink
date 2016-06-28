@@ -435,21 +435,21 @@ public class Graph<K, VV, EV> {
 
 		final String VERTICES_DELIMITER = delimiters.length > 1 ? delimiters[1] : ",";
 
-		final String VERTEX_VALUE_DELIMITER = delimiters.length > 1 ? delimiters[2] : "-";
+		final String VERTEX_VALUE_DELIMITER = delimiters.length > 2 ? delimiters[2] : "-";
 
 
-		DataSet<Tuple2<K, VV>> vertices = this.getVerticesAsTuple2();
+		DataSet<Vertex<K, VV>> vertices = this.getVertices();
 
 		DataSet<Tuple3<K, K, EV>> edgesNValues = this.getEdgesAsTuple3();
 
 		DataSet<String> adjacencyList = vertices.coGroup(edgesNValues).where(0).equalTo(0).
-				with(new CoGroupFunction<Tuple2<K, VV>, Tuple3<K, K, EV>, String>() {
+				with(new CoGroupFunction<Vertex<K, VV>, Tuple3<K, K, EV>, String>() {
 					@Override
-					public void coGroup(Iterable<Tuple2<K, VV>> srcVertex, Iterable<Tuple3<K, K, EV>> edges,
+					public void coGroup(Iterable<Vertex<K, VV>> srcVertex, Iterable<Tuple3<K, K, EV>> edges,
 							Collector<String> out) throws Exception {
 
 						String adjacencyLine;
-						for (Tuple2<K, VV> src : srcVertex) {
+						for (Vertex<K, VV> src : srcVertex) {
 							String sourceValue = src.f1 instanceof NullValue ? "" : VERTEX_VALUE_DELIMITER + src.f1
 									.toString();
 							adjacencyLine = src.f0.toString() + sourceValue;
