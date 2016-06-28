@@ -16,7 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.mapper;
 
-import org.apache.flink.streaming.connectors.redis.RedisSinkTest;
+import org.apache.flink.streaming.connectors.redis.RedisSinkITCase;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -27,17 +27,15 @@ public class RedisDataTypeDescriptionTest extends TestLogger {
 
 	@Test(expected=IllegalArgumentException.class)
 	public void shouldThrowExceptionIfAdditionalKeyIsNotGivenForHashDataType(){
-		RedisSinkTest.RedisDataMapper redisDataMapper = new RedisSinkTest
-			.RedisDataMapper(RedisDataType.HASH);
-		redisDataMapper.getDataTypeDescription();
+		RedisSinkITCase.RedisCommandMapper redisCommandMapper = new RedisSinkITCase.RedisCommandMapper(RedisCommand.HSET);
+		redisCommandMapper.getDataTypeDescription();
 	}
 
 	@Test
 	public void shouldReturnNullForAdditionalDataType(){
-		RedisSinkTest.RedisDataMapper redisDataMapper = new RedisSinkTest
-			.RedisDataMapper(RedisDataType.LIST);
-		RedisDataTypeDescription redisDataTypeDescription = redisDataMapper.getDataTypeDescription();
-		assertEquals(RedisDataType.LIST, redisDataTypeDescription.getDataType());
+		RedisSinkITCase.RedisCommandMapper redisCommandMapper = new RedisSinkITCase.RedisCommandMapper(RedisCommand.LPUSH);
+		RedisCommandDescription redisDataTypeDescription = redisCommandMapper.getDataTypeDescription();
+		assertEquals(RedisDataType.LIST, redisDataTypeDescription.getCommand().getRedisDataType());
 		assertNull(redisDataTypeDescription.getAdditionalKey());
 	}
 }

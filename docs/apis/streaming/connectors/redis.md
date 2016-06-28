@@ -57,8 +57,8 @@ This code shows how to create a sink that communicate to a single redis server:
 public static class RedisExampleMapper implements RedisMapper<Tuple2<String, String>>{
 
     @Override
-    public RedisDataTypeDescription getDataTypeDescription() {
-        return new RedisDataTypeDescription(RedisDataType.HASH, "HASH_NAME");
+    public RedisCommandDescription getDataTypeDescription() {
+        return new RedisDataTypeDescription(RedisCommand.HSET, "HASH_NAME");
     }
 
     @Override
@@ -71,7 +71,7 @@ public static class RedisExampleMapper implements RedisMapper<Tuple2<String, Str
         return data.f1;
     }
 }
-JedisPoolConfig conf = new JedisPoolConfig.Builder().setHost("127.0.0.1").build();
+FlinkJedisPoolConfig conf = new FlinkJedisPoolConfig.Builder().setHost("127.0.0.1").build();
 
 DataStream<String> stream = ...;
 stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMapper());
@@ -81,14 +81,14 @@ stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMappe
 {% highlight scala %}
 class RedisExampleMapper extends RedisMapper[(String, String)]{
   override def getDataTypeDescription: RedisDataTypeDescription = {
-    new RedisDataTypeDescription(RedisDataType.HASH, "HASH_NAME")
+    new RedisDataTypeDescription(RedisCommand.HSET, "HASH_NAME")
   }
 
   override def getKeyFromData(data: (String, String)): String = data._1
 
   override def getValueFromData(data: (String, String)): String = data._2
 }
-val conf = new JedisPoolConfig.Builder().setHost("127.0.0.1").build()
+val conf = new FlinkJedisPoolConfig.Builder().setHost("127.0.0.1").build()
 stream.addSink(new RedisSink[(String, String)](conf, new RedisExampleMapper))
 {% endhighlight %}
 </div>
@@ -100,7 +100,7 @@ This example code does the same, but for Redis Cluster:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-JedisPoolConfig conf = new JedisClusterConfig.Builder()
+FlinkJedisPoolConfig conf = new FlinkJedisPoolConfig.Builder()
     .setNodes(new HashSet<InetSocketAddress>(Arrays.asList(new InetSocketAddress(5601)))).build();
 
 DataStream<String> stream = ...;
@@ -109,7 +109,7 @@ stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMappe
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val conf = new JedisClusterConfig.Builder().setNodes(...).build()
+val conf = new FlinkJedisPoolConfig.Builder().setNodes(...).build()
 stream.addSink(new RedisSink[(String, String)](conf, new RedisExampleMapper))
 {% endhighlight %}
 </div>
@@ -121,7 +121,8 @@ This example shows when the Redis environment is with Sentinels:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-JedisSentinelConfig conf = new JedisSentinelConfig.Builder().setMasterName("master").setSentinels(...).build();
+FlinkJedisSentinelConfig conf = new FlinkJedisSentinelConfig.Builder()
+    .setMasterName("master").setSentinels(...).build();
 
 DataStream<String> stream = ...;
 stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMapper());
@@ -129,7 +130,7 @@ stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMappe
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val conf = new JedisSentinelConfig.Builder().setMasterName("master").setSentinels(...).build()
+val conf = new FlinkJedisSentinelConfig.Builder().setMasterName("master").setSentinels(...).build()
 stream.addSink(new RedisSink[(String, String)](conf, new RedisExampleMapper))
 {% endhighlight %}
 </div>
@@ -150,7 +151,10 @@ This section gives a description of all the available data types and what redis 
             <td>HASH</td><td><a href="http://redis.io/commands/hset"> HSET</a></td><td>--NA--</td>
         </tr>
         <tr>
-            <td>LIST</td><td><a href="http://redis.io/commands/rpush"> RPUSH </a></td><td>--NA--</td>
+            <td>LIST</td><td>
+                <a href="http://redis.io/commands/rpush"> RPUSH </a>,
+                <a href="http://redis.io/commands/lpush"> LPUSH </a>
+            </td><td>--NA--</td>
         </tr>
         <tr>
             <td>SET</td><td><a href="http://redis.io/commands/rpush"> SADD</a></td><td>--NA--</td>

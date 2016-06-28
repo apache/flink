@@ -25,7 +25,7 @@ import java.io.Serializable;
 /**
  * Configuration for Jedis Pool.
  */
-public class JedisPoolConfig implements Serializable {
+public class FlinkJedisPoolConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -52,8 +52,8 @@ public class JedisPoolConfig implements Serializable {
 	 * @param minIdle the minimum number of idle objects to maintain in the pool, default value is 0
 	 * @throws NullPointerException if parameter {@code host} is {@code null}
 	 */
-	private JedisPoolConfig(String host, int port, int timeout, String password, int database,
-							int maxTotal, int maxIdle, int minIdle) {
+	private FlinkJedisPoolConfig(String host, int port, int timeout, String password, int database,
+								int maxTotal, int maxIdle, int minIdle) {
 		Preconditions.checkNotNull(host, "Host information should be presented");
 		this.host = host;
 		this.port = port;
@@ -147,7 +147,7 @@ public class JedisPoolConfig implements Serializable {
 	}
 
 	/**
-	 * Builder for initializing  {@link JedisPoolConfig}.
+	 * Builder for initializing  {@link FlinkJedisPoolConfig}.
 	 */
 	public static class Builder {
 		private String host;
@@ -256,8 +256,8 @@ public class JedisPoolConfig implements Serializable {
 		 *
 		 * @return JedisPoolConfig
 		 */
-		public JedisPoolConfig build() {
-			return new JedisPoolConfig(host, port, timeout, password, database, maxTotal, maxIdle, minIdle);
+		public FlinkJedisPoolConfig build() {
+			return new FlinkJedisPoolConfig(host, port, timeout, password, database, maxTotal, maxIdle, minIdle);
 		}
 	}
 

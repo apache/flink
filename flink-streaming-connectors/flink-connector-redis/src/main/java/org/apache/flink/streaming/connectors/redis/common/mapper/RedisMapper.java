@@ -26,7 +26,7 @@ import java.io.Serializable;
  *<pre>{@code
  *private static class RedisTestMapper implements RedisMapper<Tuple2<String, String>> {
  *    public RedisDataTypeDescription getDataTypeDescription() {
- *        return new RedisDataTypeDescription(RedisDataType.PUBSUB);
+ *        return new RedisDataTypeDescription(RedisCommand.PUBLISH);
  *    }
  *    public String getKeyFromData(Tuple2<String, String> data) {
  *        return data.f0;
@@ -46,7 +46,7 @@ public interface RedisMapper<T> extends Function, Serializable {
 	 *
 	 * @return data type descriptor
 	 */
-	RedisDataTypeDescription getDataTypeDescription();
+	RedisCommandDescription getDataTypeDescription();
 
 	/**
 	 * Extracts key from data.

@@ -23,7 +23,7 @@ public class JedisClusterConfigTest extends TestLogger {
 
 	@Test(expected = NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfNodeValueIsNull(){
-		JedisClusterConfig.Builder builder = new JedisClusterConfig.Builder();
+		FlinkJedisClusterConfig.Builder builder = new FlinkJedisClusterConfig.Builder();
 		builder.build();
 	}
 }

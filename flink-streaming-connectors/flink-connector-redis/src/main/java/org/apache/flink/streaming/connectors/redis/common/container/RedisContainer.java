@@ -28,8 +28,8 @@ import java.io.IOException;
 
 /**
  * Redis command container if we want to connect to a single Redis server or to Redis sentinels
- * If want to connect to a single Redis server, plz use the first constructor {@link #RedisContainer(JedisPool)}.
- * If want to connect to a Redis sentinels, Plz use the second constructor {@link #RedisContainer(JedisSentinelPool)}
+ * If want to connect to a single Redis server, please use the first constructor {@link #RedisContainer(JedisPool)}.
+ * If want to connect to a Redis sentinels, Please use the second constructor {@link #RedisContainer(JedisSentinelPool)}
  */
 public class RedisContainer implements RedisCommandsContainer, Closeable {
 
@@ -75,15 +75,15 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	}
 
 	@Override
-	public void hset(final String hashName, final String key, final String value) {
+	public void hset(final String key, final String hashField, final String value) {
 		Jedis jedis = null;
 		try {
 			jedis = getInstance();
-			jedis.hset(hashName, key, value);
+			jedis.hset(key, hashField, value);
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot send Redis message with command HSET to key {} and field {} error message {}",
-					key, key, e.getMessage());
+				LOG.error("Cannot send Redis message with command HSET to key {} and hashField {} error message {}",
+					key, hashField, e.getMessage());
 			}
 		} finally {
 			releaseInstance(jedis);
@@ -99,6 +99,22 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command RPUSH to list {} error message {}",
+					listName, e.getMessage());
+			}
+		} finally {
+			releaseInstance(jedis);
+		}
+	}
+
+	@Override
+	public void lpush(String listName, String value) {
+		Jedis jedis = null;
+		try {
+			jedis = getInstance();
+			jedis.lpush(listName, value);
+		} catch (Exception e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Cannot send Redis message with command LUSH to list {} error message {}",
 					listName, e.getMessage());
 			}
 		} finally {
@@ -171,15 +187,15 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	}
 
 	@Override
-	public void zadd(final String setName, final String element, final String score) {
+	public void zadd(final String key, final String score, final String element) {
 		Jedis jedis = null;
 		try {
 			jedis = getInstance();
-			jedis.zadd(setName, Double.valueOf(score), element);
+			jedis.zadd(key, Double.valueOf(score), element);
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command ZADD to set {} error message {}",
-					setName, e.getMessage());
+					key, e.getMessage());
 			}
 		} finally {
 			releaseInstance(jedis);

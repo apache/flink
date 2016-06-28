@@ -47,13 +47,13 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	@Override
-	public void hset(final String hashName, final String key, final String value) {
+	public void hset(final String key, final String hashField, final String value) {
 		try {
-			jedisCluster.hset(hashName, key, value);
+			jedisCluster.hset(key, hashField, value);
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command HSET to hash {} error message {}",
-					hashName, key, e.getMessage());
+					key, hashField, e.getMessage());
 			}
 		}
 	}
@@ -65,6 +65,18 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command RPUSH to list {} error message: {}",
+					listName, e.getMessage());
+			}
+		}
+	}
+
+	@Override
+	public void lpush(String listName, String value) {
+		try {
+			jedisCluster.lpush(listName, value);
+		} catch (Exception e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Cannot send Redis message with command LPUSH to list {} error message: {}",
 					listName, e.getMessage());
 			}
 		}
@@ -119,13 +131,13 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	@Override
-	public void zadd(final String setName, final String element, final String score) {
+	public void zadd(final String key, final String score, final String element) {
 		try {
-			jedisCluster.zadd(setName, Double.valueOf(score), element);
+			jedisCluster.zadd(key, Double.valueOf(score), element);
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command ZADD to set {} error message {}",
-					setName, e.getMessage());
+					key, e.getMessage());
 			}
 		}
 	}

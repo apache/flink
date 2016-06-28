@@ -28,10 +28,10 @@ import java.util.Set;
 /**
  * Configuration for Jedis Sentinel Pool.
  */
-public class JedisSentinelConfig implements Serializable {
+public class FlinkJedisSentinelConfig implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(JedisSentinelConfig.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkJedisSentinelConfig.class);
 
 	private String masterName;
 	private Set<String> sentinels;
@@ -60,10 +60,10 @@ public class JedisSentinelConfig implements Serializable {
 	 * @throws NullPointerException if {@code masterName} or {@code sentinels} is {@code null}
 	 * @throws IllegalArgumentException if {@code sentinels} are empty
 	 */
-	private JedisSentinelConfig(String masterName, Set<String> sentinels,
-								int connectionTimeout, int soTimeout,
-								String password, int database,
-								int maxTotal, int maxIdle, int minIdle) {
+	private FlinkJedisSentinelConfig(String masterName, Set<String> sentinels,
+									int connectionTimeout, int soTimeout,
+									String password, int database,
+									int maxTotal, int maxIdle, int minIdle) {
 		Preconditions.checkNotNull(masterName, "Master name should be presented");
 		Preconditions.checkNotNull(sentinels, "Sentinels information should be presented");
 		Preconditions.checkArgument(!sentinels.isEmpty(), "Sentinel hosts should not be empty");
@@ -170,7 +170,7 @@ public class JedisSentinelConfig implements Serializable {
 	}
 
 	/**
-	 * Builder for initializing {@link JedisSentinelConfig}.
+	 * Builder for initializing {@link FlinkJedisSentinelConfig}.
 	 */
 	public static class Builder {
 		private String masterName;
@@ -290,8 +290,8 @@ public class JedisSentinelConfig implements Serializable {
 		 *
 		 * @return JedisSentinelConfig
 		 */
-		public JedisSentinelConfig build(){
-			return new JedisSentinelConfig(masterName, sentinels, connectionTimeout, soTimeout,
+		public FlinkJedisSentinelConfig build(){
+			return new FlinkJedisSentinelConfig(masterName, sentinels, connectionTimeout, soTimeout,
 				password, database, maxTotal, maxIdle, minIdle);
 		}
 	}

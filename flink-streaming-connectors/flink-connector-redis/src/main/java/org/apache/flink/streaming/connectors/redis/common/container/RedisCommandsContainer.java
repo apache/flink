@@ -29,11 +29,11 @@ public interface RedisCommandsContainer extends Serializable {
 	 * If key does not exist, a new key holding a hash is created.
 	 * If field already exists in the hash, it is overwritten.
 	 *
-	 * @param hashName Hash name
-	 * @param key Hash key name
+	 * @param key Hash name
+	 * @param hashField Hash field
 	 * @param value Hash value
 	 */
-	void hset(String hashName, String key, String value);
+	void hset(String key, String hashField, String value);
 
 	/**
 	 * Insert the specified value at the tail of the list stored at key.
@@ -43,6 +43,15 @@ public interface RedisCommandsContainer extends Serializable {
 	 * @param value  Value to be added
 	 */
 	void rpush(String listName, String value);
+
+	/**
+	 * Insert the specified value at the head of the list stored at key.
+	 * If key does not exist, it is created as empty list before performing the push operation.
+	 *
+	 * @param listName Name of the List
+	 * @param value  Value to be added
+	 */
+	void lpush(String listName, String value);
 
 	/**
 	 * Add the specified member to the set stored at key.
@@ -84,11 +93,11 @@ public interface RedisCommandsContainer extends Serializable {
 	/**
 	 * Adds the specified member with the specified scores to the sorted set stored at key.
 	 *
-	 * @param setName The name of the Sorted Set
-	 * @param element  element to be added
+	 * @param key The name of the Sorted Set
 	 * @param score Score of the element
+	 * @param element  element to be added
 	 */
-	void zadd(String setName, String element, String score);
+	void zadd(String key, String score, String element);
 
 	/**
 	 * Close the Jedis container.

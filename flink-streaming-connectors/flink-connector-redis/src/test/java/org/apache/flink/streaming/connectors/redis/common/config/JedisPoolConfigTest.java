@@ -23,7 +23,7 @@ public class JedisPoolConfigTest extends TestLogger {
 
 	@Test(expected = NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfHostValueIsNull(){
-		JedisPoolConfig.Builder builder = new JedisPoolConfig.Builder();
+		FlinkJedisPoolConfig.Builder builder = new FlinkJedisPoolConfig.Builder();
 		builder.build();
 	}
 }

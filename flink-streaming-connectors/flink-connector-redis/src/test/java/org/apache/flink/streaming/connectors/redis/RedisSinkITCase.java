@@ -20,10 +20,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.redis.common.config.JedisClusterConfig;
-import org.apache.flink.streaming.connectors.redis.common.config.JedisPoolConfig;
-import org.apache.flink.streaming.connectors.redis.common.mapper.RedisDataType;
-import org.apache.flink.streaming.connectors.redis.common.mapper.RedisDataTypeDescription;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisClusterConfig;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
+import org.apache.flink.streaming.connectors.redis.common.mapper.RedisCommand;
+import org.apache.flink.streaming.connectors.redis.common.mapper.RedisCommandDescription;
 import org.apache.flink.streaming.connectors.redis.common.mapper.RedisMapper;
 import org.junit.After;
 import org.junit.Before;
@@ -33,9 +33,9 @@ import redis.clients.jedis.Jedis;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-public class RedisSinkTest extends RedisTestBase {
+public class RedisSinkITCase extends RedisITCaseBase {
 
-	private JedisPoolConfig jedisPoolConfig;
+	private FlinkJedisPoolConfig jedisPoolConfig;
 	private static final Long NUM_ELEMENTS = 20L;
 	private static final String REDIS_KEY = "TEST_KEY";
 	private static final String REDIS_ADDITIONAL_KEY = "TEST_ADDITIONAL_KEY";
@@ -47,7 +47,7 @@ public class RedisSinkTest extends RedisTestBase {
 
 	@Before
 	public void setUp(){
-		jedisPoolConfig = new JedisPoolConfig.Builder()
+		jedisPoolConfig = new FlinkJedisPoolConfig.Builder()
 			.setHost(REDIS_HOST)
 			.setPort(REDIS_PORT).build();
 		jedis = new Jedis(REDIS_HOST, REDIS_PORT);
@@ -58,7 +58,7 @@ public class RedisSinkTest extends RedisTestBase {
 	public void testRedisListDataType() throws Exception {
 		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunction());
 		RedisSink<Tuple2<String, String>> redisSink = new RedisSink<>(jedisPoolConfig,
-			new RedisDataMapper(RedisDataType.LIST));
+			new RedisCommandMapper(RedisCommand.LPUSH));
 
 		source.addSink(redisSink);
 		env.execute("Test Redis List Data Type");
@@ -72,7 +72,7 @@ public class RedisSinkTest extends RedisTestBase {
 	public void testRedisSetDataType() throws Exception {
 		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunction());
 		RedisSink<Tuple2<String, String>> redisSink = new RedisSink<>(jedisPoolConfig,
-			new RedisDataMapper(RedisDataType.SET));
+			new RedisCommandMapper(RedisCommand.SADD));
 
 		source.addSink(redisSink);
 		env.execute("Test Redis Set Data Type");
@@ -86,7 +86,7 @@ public class RedisSinkTest extends RedisTestBase {
 	public void testRedisHyperLogLogDataType() throws Exception {
 		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunction());
 		RedisSink<Tuple2<String, String>> redisSink = new RedisSink<>(jedisPoolConfig,
-			new RedisDataMapper(RedisDataType.HYPER_LOG_LOG));
+			new RedisCommandMapper(RedisCommand.PFADD));
 
 		source.addSink(redisSink);
 		env.execute("Test Redis Hyper Log Log Data Type");
@@ -98,9 +98,9 @@ public class RedisSinkTest extends RedisTestBase {
 
 	@Test
 	public void testRedisSortedSetDataType() throws Exception {
-		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunctionAdditionalKey());
+		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunctionSortedSet());
 		RedisSink<Tuple2<String, String>> redisSink = new RedisSink<>(jedisPoolConfig,
-			new RedisAdditionalDataMapper(RedisDataType.SORTED_SET));
+			new RedisAdditionalDataMapper(RedisCommand.ZADD));
 
 		source.addSink(redisSink);
 		env.execute("Test Redis Sorted Set Data Type");
@@ -112,9 +112,9 @@ public class RedisSinkTest extends RedisTestBase {
 
 	@Test
 	public void testRedisHashDataType() throws Exception {
-		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunctionAdditionalKey());
+		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunctionHash());
 		RedisSink<Tuple2<String, String>> redisSink = new RedisSink<>(jedisPoolConfig,
-			new RedisAdditionalDataMapper(RedisDataType.HASH));
+			new RedisAdditionalDataMapper(RedisCommand.HSET));
 
 		source.addSink(redisSink);
 		env.execute("Test Redis Hash Data Type");
@@ -126,7 +126,7 @@ public class RedisSinkTest extends RedisTestBase {
 
 	@Test(expected=NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfDataMapperIsNull(){
-		new RedisSink(new JedisClusterConfig.Builder().build(), null);
+		new RedisSink(new FlinkJedisClusterConfig.Builder().build(), null);
 	}
 
 	@After
@@ -154,7 +154,7 @@ public class RedisSinkTest extends RedisTestBase {
 		}
 	}
 
-	private static class TestSourceFunctionAdditionalKey implements SourceFunction<Tuple2<String, String>> {
+	private static class TestSourceFunctionHash implements SourceFunction<Tuple2<String, String>> {
 		private static final long serialVersionUID = 1L;
 
 		private volatile boolean running = true;
@@ -172,16 +172,34 @@ public class RedisSinkTest extends RedisTestBase {
 		}
 	}
 
-	public static class RedisDataMapper implements RedisMapper<Tuple2<String, String>>{
+	private static class TestSourceFunctionSortedSet implements SourceFunction<Tuple2<String, String>> {
+		private static final long serialVersionUID = 1L;
 
-		private RedisDataType dataType;
+		private volatile boolean running = true;
 
-		public RedisDataMapper(RedisDataType dataType){
-			this.dataType = dataType;
+		@Override
+		public void run(SourceContext<Tuple2<String, String>> ctx) throws Exception {
+			for (int i = 0; i < NUM_ELEMENTS && running; i++) {
+				ctx.collect(new Tuple2<>( "message #" + i, "" + i));
+			}
+		}
+
+		@Override
+		public void cancel() {
+			running = false;
+		}
+	}
+
+	public static class RedisCommandMapper implements RedisMapper<Tuple2<String, String>>{
+
+		private RedisCommand redisCommand;
+
+		public RedisCommandMapper(RedisCommand redisCommand){
+			this.redisCommand = redisCommand;
 		}
 		@Override
-		public RedisDataTypeDescription getDataTypeDescription() {
-			return new RedisDataTypeDescription(dataType);
+		public RedisCommandDescription getDataTypeDescription() {
+			return new RedisCommandDescription(redisCommand);
 		}
 
 		@Override
@@ -197,15 +215,15 @@ public class RedisSinkTest extends RedisTestBase {
 
 	public static class RedisAdditionalDataMapper implements RedisMapper<Tuple2<String, String>>{
 
-		private RedisDataType dataType;
+		private RedisCommand redisCommand;
 
-		public RedisAdditionalDataMapper(RedisDataType dataType){
-			this.dataType = dataType;
+		public RedisAdditionalDataMapper(RedisCommand redisCommand){
+			this.redisCommand = redisCommand;
 		}
 
 		@Override
-		public RedisDataTypeDescription getDataTypeDescription() {
-			return new RedisDataTypeDescription(dataType, REDIS_ADDITIONAL_KEY);
+		public RedisCommandDescription getDataTypeDescription() {
+			return new RedisCommandDescription(redisCommand, REDIS_ADDITIONAL_KEY);
 		}
 
 		@Override

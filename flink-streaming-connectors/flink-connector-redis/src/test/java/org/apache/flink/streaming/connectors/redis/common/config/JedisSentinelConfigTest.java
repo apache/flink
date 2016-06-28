@@ -28,7 +28,7 @@ public class JedisSentinelConfigTest extends TestLogger {
 
 	@Test(expected = NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfMasterValueIsNull(){
-		JedisSentinelConfig.Builder builder = new JedisSentinelConfig.Builder();
+		FlinkJedisSentinelConfig.Builder builder = new FlinkJedisSentinelConfig.Builder();
 		Set<String> sentinels = new HashSet<>();
 		sentinels.add("127.0.0.1");
 		builder.setSentinels(sentinels).build();
@@ -36,13 +36,13 @@ public class JedisSentinelConfigTest extends TestLogger {
 
 	@Test(expected = NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfSentinelsValueIsNull(){
-		JedisSentinelConfig.Builder builder = new JedisSentinelConfig.Builder();
+		FlinkJedisSentinelConfig.Builder builder = new FlinkJedisSentinelConfig.Builder();
 		builder.setMasterName(MASTER_NAME).build();
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void shouldThrowNullPointExceptionIfSentinelsValueIsEmpty(){
-		JedisSentinelConfig.Builder builder = new JedisSentinelConfig.Builder();
+		FlinkJedisSentinelConfig.Builder builder = new FlinkJedisSentinelConfig.Builder();
 		Set<String> sentinels = new HashSet<>();
 		builder.setMasterName(MASTER_NAME).setSentinels(sentinels).build();
 	}

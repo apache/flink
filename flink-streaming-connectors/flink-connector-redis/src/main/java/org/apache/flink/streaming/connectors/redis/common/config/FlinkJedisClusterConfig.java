@@ -30,7 +30,7 @@ import java.util.Set;
 /**
  * Configuration for Jedis Cluster.
  */
-public class JedisClusterConfig implements Serializable {
+public class FlinkJedisClusterConfig implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private Set<InetSocketAddress> nodes;
@@ -52,8 +52,8 @@ public class JedisClusterConfig implements Serializable {
 	 * @param minIdle the minimum number of idle objects to maintain in the pool
 	 * @throws NullPointerException if parameter {@code nodes} is {@code null}
 	 */
-	private JedisClusterConfig(Set<InetSocketAddress> nodes, int timeout, int maxRedirections,
-								int maxTotal, int maxIdle, int minIdle) {
+	private FlinkJedisClusterConfig(Set<InetSocketAddress> nodes, int timeout, int maxRedirections,
+									int maxTotal, int maxIdle, int minIdle) {
 
 		Preconditions.checkNotNull(nodes, "Node information should be presented");
 
@@ -134,7 +134,7 @@ public class JedisClusterConfig implements Serializable {
 
 
 	/**
-	 * Builder for initializing  {@link JedisClusterConfig}.
+	 * Builder for initializing  {@link FlinkJedisClusterConfig}.
 	 */
 	public static class Builder {
 		private Set<InetSocketAddress> nodes;
@@ -218,8 +218,8 @@ public class JedisClusterConfig implements Serializable {
 		 *
 		 * @return JedisClusterConfig
 		 */
-		public JedisClusterConfig build() {
-			return new JedisClusterConfig(nodes, timeout, maxRedirections, maxTotal, maxIdle, minIdle);
+		public FlinkJedisClusterConfig build() {
+			return new FlinkJedisClusterConfig(nodes, timeout, maxRedirections, maxTotal, maxIdle, minIdle);
 		}
 	}
 

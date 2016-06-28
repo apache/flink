@@ -20,9 +20,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.redis.common.config.JedisPoolConfig;
-import org.apache.flink.streaming.connectors.redis.common.mapper.RedisDataType;
-import org.apache.flink.streaming.connectors.redis.common.mapper.RedisDataTypeDescription;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
+import org.apache.flink.streaming.connectors.redis.common.mapper.RedisCommand;
+import org.apache.flink.streaming.connectors.redis.common.mapper.RedisCommandDescription;
 import org.apache.flink.streaming.connectors.redis.common.mapper.RedisMapper;
 
 import redis.clients.jedis.JedisPool;
@@ -37,7 +37,7 @@ import redis.clients.jedis.JedisPubSub;
 
 import static org.junit.Assert.assertEquals;
 
-public class RedisSinkPublishTest extends RedisTestBase {
+public class RedisSinkPublishITCase extends RedisITCaseBase {
 
 	private static final int NUM_ELEMENTS = 20;
 	private static final String REDIS_CHANNEL = "CHANNEL";
@@ -56,7 +56,7 @@ public class RedisSinkPublishTest extends RedisTestBase {
 	public void redisSinkTest() throws Exception {
 		sinkThread.start();
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		JedisPoolConfig jedisPoolConfig = new JedisPoolConfig.Builder()
+		FlinkJedisPoolConfig jedisPoolConfig = new FlinkJedisPoolConfig.Builder()
 			.setHost(REDIS_HOST)
 			.setPort(REDIS_PORT).build();
 		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunction());
@@ -120,8 +120,8 @@ public class RedisSinkPublishTest extends RedisTestBase {
 	private static class RedisTestMapper implements RedisMapper<Tuple2<String, String>>{
 
 		@Override
-		public RedisDataTypeDescription getDataTypeDescription() {
-			return new RedisDataTypeDescription(RedisDataType.PUBSUB);
+		public RedisCommandDescription getDataTypeDescription() {
+			return new RedisCommandDescription(RedisCommand.PUBLISH);
 		}
 
 		@Override

@@ -25,7 +25,7 @@ import java.io.IOException;
 
 import static org.apache.flink.util.NetUtils.getAvailablePort;
 
-public abstract class RedisTestBase extends StreamingMultipleProgramsTestBase {
+public abstract class RedisITCaseBase extends StreamingMultipleProgramsTestBase {
 
 	public static final int REDIS_PORT = getAvailablePort();
 	public static final String REDIS_HOST = "127.0.0.1";

@@ -17,9 +17,9 @@
 package org.apache.flink.streaming.connectors.redis.common.container;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.apache.flink.streaming.connectors.redis.common.config.JedisClusterConfig;
-import org.apache.flink.streaming.connectors.redis.common.config.JedisPoolConfig;
-import org.apache.flink.streaming.connectors.redis.common.config.JedisSentinelConfig;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisClusterConfig;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisSentinelConfig;
 import org.apache.flink.util.Preconditions;
 import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisPool;
@@ -37,7 +37,7 @@ public class RedisCommandsContainerBuilder {
 	 * @return container for single Redis environment
 	 * @throws NullPointerException if jedisPoolConfig is null
 	 */
-	public static RedisCommandsContainer build(JedisPoolConfig jedisPoolConfig) {
+	public static RedisCommandsContainer build(FlinkJedisPoolConfig jedisPoolConfig) {
 		Preconditions.checkNotNull(jedisPoolConfig, "Redis pool config should not be Null");
 
 		GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
@@ -58,7 +58,7 @@ public class RedisCommandsContainerBuilder {
 	 * @return container for Redis Cluster environment
 	 * @throws NullPointerException if jedisClusterConfig is null
 	 */
-	public static RedisCommandsContainer build(JedisClusterConfig jedisClusterConfig) {
+	public static RedisCommandsContainer build(FlinkJedisClusterConfig jedisClusterConfig) {
 		Preconditions.checkNotNull(jedisClusterConfig, "Redis cluster config should not be Null");
 
 		GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
@@ -78,7 +78,7 @@ public class RedisCommandsContainerBuilder {
 	 * @return container for Redis sentinel environment
 	 * @throws NullPointerException if jedisSentinelConfig is null
 	 */
-	public static RedisCommandsContainer build(JedisSentinelConfig jedisSentinelConfig) {
+	public static RedisCommandsContainer build(FlinkJedisSentinelConfig jedisSentinelConfig) {
 		Preconditions.checkNotNull(jedisSentinelConfig, "Redis sentinel config should not be Null");
 
 		GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();

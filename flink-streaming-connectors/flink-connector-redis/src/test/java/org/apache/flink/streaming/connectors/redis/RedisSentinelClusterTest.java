@@ -16,7 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.redis;
 
-import org.apache.flink.streaming.connectors.redis.common.config.JedisSentinelConfig;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisSentinelConfig;
 import org.apache.flink.streaming.connectors.redis.common.container.RedisCommandsContainer;
 import org.apache.flink.streaming.connectors.redis.common.container.RedisCommandsContainerBuilder;
 import org.apache.flink.util.TestLogger;
@@ -49,7 +49,7 @@ public class RedisSentinelClusterTest extends TestLogger {
 	private static final List<Integer> group1 = Arrays.asList(getAvailablePort(), getAvailablePort());
 
 	private JedisSentinelPool jedisSentinelPool;
-	private JedisSentinelConfig jedisSentinelConfig;
+	private FlinkJedisSentinelConfig jedisSentinelConfig;
 
 	@BeforeClass
 	public static void setUpCluster(){
@@ -62,7 +62,7 @@ public class RedisSentinelClusterTest extends TestLogger {
 	@Before
 	public void setUp() {
 		Set<String> hosts = JedisUtil.sentinelHosts(cluster);
-		jedisSentinelConfig = new JedisSentinelConfig.Builder().setMasterName(REDIS_MASTER)
+		jedisSentinelConfig = new FlinkJedisSentinelConfig.Builder().setMasterName(REDIS_MASTER)
 			.setSentinels(hosts).build();
 		jedisSentinelPool = new JedisSentinelPool(jedisSentinelConfig.getMasterName(),
 			jedisSentinelConfig.getSentinels());
@@ -76,8 +76,8 @@ public class RedisSentinelClusterTest extends TestLogger {
 			jedis = jedisSentinelPool.getResource();
 			redisContainer.set(TEST_KEY, TEST_VALUE);
 			assertEquals(TEST_VALUE, jedis.get(TEST_KEY));
-		}catch (Exception ignore){
-
+		}catch (Exception ex){
+			log.warn("Failed to get jedis resource {}", ex.getMessage());
 		}finally {
 			if (jedis != null){
 				jedis.close();
@@ -87,13 +87,15 @@ public class RedisSentinelClusterTest extends TestLogger {
 
 	@After
 	public void tearDown() throws IOException {
-		if (jedisSentinelPool != null)
+		if (jedisSentinelPool != null){
 			jedisSentinelPool.close();
+		}
 	}
 
 	@AfterClass
 	public static void tearDownCluster() throws IOException {
-		if (!cluster.isActive())
+		if (!cluster.isActive()) {
 			cluster.stop();
+		}
 	}
 }

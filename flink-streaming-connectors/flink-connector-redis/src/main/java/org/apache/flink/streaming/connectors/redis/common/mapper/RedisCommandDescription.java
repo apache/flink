@@ -21,22 +21,22 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 
 /**
- * The description of the data type. This must be passed while creating new {@link RedisMapper}.
- * <p>When creating descriptor for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET},
- * you need to use first constructor {@link #RedisDataTypeDescription(RedisDataType, String)}.
+ * The description of the command type. This must be passed while creating new {@link RedisMapper}.
+ * <p>When creating descriptor for the group of {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET},
+ * you need to use first constructor {@link #RedisCommandDescription(RedisCommand, String)}.
  * If the {@code additionalKey} is {@code null} it will throw {@code IllegalArgumentException}
  *
- * <p>When {@link RedisDataType} is not {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}
- * you can use second constructor {@link #RedisDataTypeDescription(RedisDataType)}
+ * <p>When {@link RedisCommand} is not in group of {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}
+ * you can use second constructor {@link #RedisCommandDescription(RedisCommand)}
  */
-public class RedisDataTypeDescription implements Serializable {
+public class RedisCommandDescription implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private RedisDataType dataType;
+	private RedisCommand redisCommand;
 
 	/**
-	 * This additional key is needed for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}.
+	 * This additional key is needed for the group {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}.
 	 * Other {@link RedisDataType} works only with two variable i.e. name of the list and value to be added.
 	 * But for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET} we need three variables.
 	 * <p>For {@link RedisDataType#HASH} we need hash name, hash key and element.
@@ -49,15 +49,15 @@ public class RedisDataTypeDescription implements Serializable {
 	/**
 	 * Use this constructor when data type is {@link RedisDataType#HASH} or {@link RedisDataType#SORTED_SET}.
 	 * If different data type is specified, {@code additionalKey} is ignored.
-	 * @param dataType the redis data type {@link RedisDataType}
+	 * @param redisCommand the redis command type {@link RedisCommand}
 	 * @param additionalKey additional key for Hash and Sorted set data type
 	 */
-	public RedisDataTypeDescription(RedisDataType dataType, String additionalKey) {
-		Preconditions.checkNotNull(dataType, "Redis data type can not be null");
-		this.dataType = dataType;
+	public RedisCommandDescription(RedisCommand redisCommand, String additionalKey) {
+		Preconditions.checkNotNull(redisCommand, "Redis command type can not be null");
+		this.redisCommand = redisCommand;
 		this.additionalKey = additionalKey;
 
-		if (dataType == RedisDataType.HASH || dataType == RedisDataType.SORTED_SET) {
+		if (redisCommand.isInRedisDataType(RedisDataType.HASH) || redisCommand.isInRedisDataType(RedisDataType.SORTED_SET)) {
 			if (additionalKey == null) {
 				throw new IllegalArgumentException("Hash and Sorted Set should have additional key");
 			}
@@ -65,21 +65,21 @@ public class RedisDataTypeDescription implements Serializable {
 	}
 
 	/**
-	 * Use this constructor when data type is not HASH or SORTED_SET.
+	 * Use this constructor when command type is not in group {@link RedisDataType#HASH} or {@link RedisDataType#SORTED_SET}.
 	 *
-	 * @param dataType the redis data type {@link RedisDataType}
+	 * @param redisCommand the redis data type {@link RedisCommand}
 	 */
-	public RedisDataTypeDescription(RedisDataType dataType) {
-		this(dataType, null);
+	public RedisCommandDescription(RedisCommand redisCommand) {
+		this(redisCommand, null);
 	}
 
 	/**
-	 * Returns the {@link RedisDataType}.
+	 * Returns the {@link RedisCommand}.
 	 *
-	 * @return the data type of the mapping
+	 * @return the command type of the mapping
 	 */
-	public RedisDataType getDataType() {
-		return dataType;
+	public RedisCommand getCommand() {
+		return redisCommand;
 	}
 
 	/**
