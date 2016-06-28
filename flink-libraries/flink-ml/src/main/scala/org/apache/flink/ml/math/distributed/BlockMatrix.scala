@@ -85,11 +85,15 @@ class BlockMatrix(
         (left: (BlockID, Block), right: (BlockID, Block)) =>
           {
 
-            val (id1, block1) = Option(left).getOrElse(
-                (right._1, Block.zero(right._2.getRows, right._2.getCols)))
+            val (id1, block1) = Option(left) match {
+              case Some((id, block)) => (id, block)
+              case None => (right._1, Block.zero(right._2.getRows, right._2.getCols))
+            }
 
-            val (id2, block2) = Option(right).getOrElse(
-                (left._1, Block.zero(left._2.getRows, left._2.getCols)))
+            val (id2, block2) = Option(right) match {
+              case Some((id,block)) => (id,block)
+              case None =>  (left._1, Block.zero(left._2.getRows, left._2.getCols))
+            }
 
             require(id1 == id2)
             (id1, fun(block1, block2))
