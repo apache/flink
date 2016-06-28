@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.ClientConfigurationFactory;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
@@ -29,6 +31,7 @@ import com.amazonaws.services.kinesis.model.LimitExceededException;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.StreamStatus;
 import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
@@ -73,7 +76,14 @@ public class KinesisProxy {
 		this.configProps = checkNotNull(configProps);
 
 		this.regionId = configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION);
+		ClientConfigurationFactory configurationFactory = new ClientConfigurationFactory();
+		ClientConfiguration config = configurationFactory.getConfig();
+		if(config.getUserAgent().equals(ClientConfiguration.DEFAULT_USER_AGENT)) {
+			// set specific user agent
+			config.setUserAgent("Apache Flink " + EnvironmentInformation.getVersion() + " (" + EnvironmentInformation.getRevisionInformation().commitId + ") Kinesis Connector");
+		}
 		AmazonKinesisClient client = new AmazonKinesisClient(AWSUtil.getCredentialsProvider(configProps).getCredentials());
+
 		client.setRegion(Region.getRegion(Regions.fromName(this.regionId)));
 
 		this.kinesisClient = client;
