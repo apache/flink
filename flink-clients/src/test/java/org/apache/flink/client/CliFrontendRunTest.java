@@ -102,7 +102,7 @@ public class CliFrontendRunTest {
 			// test jar arguments
             {
                 String[] parameters =
-                        {"-m", "localhost:6123", getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"};
+                    {"-m", "localhost:6123", getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"};
                 RunOptions options = CliFrontendParser.parseRunCommand(parameters);
                 assertEquals("-arg1", options.getProgramArgs()[0]);
                 assertEquals("value1", options.getProgramArgs()[1]);
