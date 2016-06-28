@@ -76,7 +76,7 @@ case class Or(left: Expression, right: Expression) extends BinaryPredicate {
   }
 }
 
-case class Eval(
+case class If(
     condition: Expression,
     ifTrue: Expression,
     ifFalse: Expression)
@@ -100,7 +100,7 @@ case class Eval(
       ValidationSuccess
     } else {
       ValidationFailure(
-        s"Eval should have boolean condition and same type of ifTrue and ifFalse, get " +
+        s"If should have boolean condition and same type of ifTrue and ifFalse, get " +
           s"(${condition.resultType}, ${ifTrue.resultType}, ${ifFalse.resultType})")
     }
   }

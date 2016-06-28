@@ -748,7 +748,7 @@ unary = [ "!" | "-" ] , composite ;
 
 composite = suffixed | atom ;
 
-suffixed = cast | as | aggregation | nullCheck | evaluate | functionCall ;
+suffixed = cast | as | aggregation | nullCheck | if | functionCall ;
 
 cast = composite , ".cast(" , dataType , ")" ;
 
@@ -760,7 +760,7 @@ aggregation = composite , ( ".sum" | ".min" | ".max" | ".count" | ".avg" ) , [ "
 
 nullCheck = composite , ( ".isNull" | ".isNotNull" ) , [ "()" ] ;
 
-evaluate = composite , ".eval(" , expression , "," , expression , ")" ;
+if = composite , ".?(" , expression , "," , expression , ")" ;
 
 functionCall = composite , "." , functionIdentifier , "(" , [ expression , { "," , expression } ] , ")"
 
