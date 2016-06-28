@@ -78,10 +78,10 @@ public class CliFrontendAddressConfigurationTest {
 
 	@Test(expected = IllegalConfigurationException.class)
 	public void testInvalidConfigAndNoOption() throws Exception {
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getInvalidConfigDir());
-			RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
+		CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getInvalidConfigDir());
+		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
 
-			frontend.retrieveClient(options);
+		frontend.retrieveClient(options);
 	}
 
 	@Test

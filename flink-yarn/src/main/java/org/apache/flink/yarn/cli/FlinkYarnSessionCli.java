@@ -30,6 +30,7 @@ import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterClient;
@@ -332,12 +333,13 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		int yarnTmSlots = yarnClusterDescriptor.getTaskManagerSlots();
 		if (yarnTmSlots == -1) {
 			yarnTmSlots = 1;
+			yarnClusterDescriptor.setTaskManagerSlots(yarnTmSlots);
 		}
 
 		int maxSlots = yarnTmSlots * yarnClusterDescriptor.getTaskManagerCount();
 		int userParallelism = Integer.valueOf(cmd.getOptionValue(CliFrontendParser.PARALLELISM_OPTION.getOpt(), "-1"));
 		if (userParallelism != -1) {
-			int slotsPerTM = userParallelism / yarnClusterDescriptor.getTaskManagerCount();
+			int slotsPerTM = (int) Math.ceil((double) userParallelism / yarnClusterDescriptor.getTaskManagerCount());
 			String message = "The YARN cluster has " + maxSlots + " slots available, " +
 				"but the user requested a parallelism of " + userParallelism + " on YARN. " +
 				"Each of the " + yarnClusterDescriptor.getTaskManagerCount() + " TaskManagers " +

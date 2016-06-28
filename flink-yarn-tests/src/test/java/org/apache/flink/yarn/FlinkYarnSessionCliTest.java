@@ -18,21 +18,34 @@
 
 package org.apache.flink.yarn;
 
+import akka.actor.ActorSystem;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 
+import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.RunOptions;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
 
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -72,5 +85,87 @@ public class FlinkYarnSessionCliTest {
 			FlinkYarnSessionCli.getDynamicProperties(flinkYarnDescriptor.getDynamicPropertiesEncoded());
 		Assert.assertEquals(1, dynProperties.size());
 		Assert.assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
+	}
+
+	@Test
+	public void testNotEnoughTaskSlots() throws Exception {
+
+		File confFile = tmp.newFile("flink-conf.yaml");
+		File jarFile = tmp.newFile("test.jar");
+		new CliFrontend(tmp.getRoot().getAbsolutePath());
+
+		String[] params =
+			new String[] {"-yn", "2", "-ys", "3", "-p", "7", jarFile.getAbsolutePath()};
+
+		RunOptions runOptions = CliFrontendParser.parseRunCommand(params);
+
+		FlinkYarnSessionCli yarnCLI = new TestCLI("y", "yarn");
+
+		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor("", runOptions.getCommandLine());
+
+		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
+		Assert.assertEquals(4, descriptor.getTaskManagerSlots());
+		Assert.assertEquals(2, descriptor.getTaskManagerCount());
+	}
+
+	@Test
+	public void testCorrectSettingOfMaxSlots() throws Exception {
+
+		File confFile = tmp.newFile("flink-conf.yaml");
+		File jarFile = tmp.newFile("test.jar");
+		new CliFrontend(tmp.getRoot().getAbsolutePath());
+
+		String[] params =
+			new String[] {"-yn", "2", "-ys", "3", jarFile.getAbsolutePath()};
+
+		RunOptions runOptions = CliFrontendParser.parseRunCommand(params);
+
+		FlinkYarnSessionCli yarnCLI = new TestCLI("y", "yarn");
+
+		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor("", runOptions.getCommandLine());
+
+		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
+		Assert.assertEquals(3, descriptor.getTaskManagerSlots());
+		Assert.assertEquals(2, descriptor.getTaskManagerCount());
+
+		Configuration config = new Configuration();
+		CliFrontend.setJobManagerAddressInConfig(config, new InetSocketAddress("test", 9000));
+		ClusterClient client = new TestingYarnClusterClient(descriptor, config);
+		Assert.assertEquals(6, client.getMaxSlots());
+	}
+
+	private static class TestCLI extends FlinkYarnSessionCli {
+
+		public TestCLI(String shortPrefix, String longPrefix) {
+			super(shortPrefix, longPrefix);
+		}
+
+		private static class JarAgnosticClusterDescriptor extends YarnClusterDescriptor {
+			@Override
+			public void setLocalJarPath(Path localJarPath) {
+//				setLocalJarPath("/tmp");
+			}
+		}
+
+		@Override
+		protected AbstractYarnClusterDescriptor getClusterDescriptor() {
+			return new JarAgnosticClusterDescriptor();
+		}
+	}
+
+	private static class TestingYarnClusterClient extends YarnClusterClient {
+
+		public TestingYarnClusterClient(AbstractYarnClusterDescriptor descriptor, Configuration config) throws IOException, YarnException {
+			super(descriptor,
+				Mockito.mock(YarnClient.class),
+				Mockito.mock(ApplicationReport.class),
+				config,
+				new Path("/tmp"), true);
+		}
+
+		@Override
+		protected ActorSystem createActorSystem() throws IOException {
+			return Mockito.mock(ActorSystem.class);
+		}
 	}
 }
