@@ -538,7 +538,7 @@ val network: Graph[Long, Double, Double] = ...
 val vertexOutDegrees: DataSet[(Long, LongValue)] = network.outDegrees
 
 // assign the transition probabilities as the edge weights
-val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Double, v2: LongValue) => v1 / v2.getValue())
+val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Double, v2: LongValue) => v1 / v2.getValue)
 {% endhighlight %}
 </div>
 </div>

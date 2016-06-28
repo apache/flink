@@ -877,7 +877,7 @@ public class Graph<K, VV, EV> {
 			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, LongValue>> {
 		private LongValue degree = new LongValue();
 
-		private Tuple2<K, LongValue> vertex_degree = new Tuple2<>(null, degree);
+		private Tuple2<K, LongValue> vertexDegree = new Tuple2<>(null, degree);
 
 		@SuppressWarnings("unused")
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,	Iterable<Edge<K, EV>> outEdges,
@@ -891,8 +891,8 @@ public class Graph<K, VV, EV> {
 			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
 
 			if(vertexIterator.hasNext()) {
-				vertex_degree.f0 = vertexIterator.next().f0;
-				out.collect(vertex_degree);
+				vertexDegree.f0 = vertexIterator.next().f0;
+				out.collect(vertexDegree);
 			} else {
 				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
 			}
