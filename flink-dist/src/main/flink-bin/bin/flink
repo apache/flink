@@ -42,7 +42,7 @@ target=$(followSymLink "$0")
 #Search --configDir into the parameters and set it as FLINK_CONF_DIR
 args=("$@")
 for i in "${!args[@]}"; do
-    if [[ ${args[$i]} = "--configDir" || ${args[$i]} = "-D" ]]; then
+    if [ ${args[$i]} = "--configDir" ]; then
         dir=$(followSymLink "${args[$(($i+1))]}" )
         if [ -d "$dir" ]; then
             FLINK_CONF_DIR=`cd "${dir}"; pwd -P`
