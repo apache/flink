@@ -291,6 +291,73 @@ object Graph {
     }
   }
   // scalastyle:on
+
+  /** Creates a Graph from an Adjacency List formatted text file.
+    *
+    * The edge value is read from the file if [[EV]] is not of type [[NullValue]]. Otherwise the
+    * edge value is set to [[NullValue]].
+    *
+    * If the vertex value type [[VV]] is specified (unequal [[NullValue]]), then the vertex values
+    * are read from the file.
+    *
+    * @param env The Execution Environment.
+    * @param filePath The Adjacency formatted text file path.
+    * @param sourceNeighborsDelimiter The string that separates source vertex from its neighbors
+    *                                 in the file. It defaults to tab.
+    * @param vertexValueDelimiter The string that separates vertex Ids from vertex and edge
+    *                             values in the Adjacency List formatted text file. It defaults
+    *                             to "_".
+    * @param verticesDelimiter The string that separates different neighbor vertices of a source
+    *                          vertex in the edges file. It defaults to ",".
+    * @tparam K Vertex key type
+    * @tparam VV Vertex value type
+    * @tparam EV Edge value type
+    * @return Graph with vertices and edges read from the given file.
+    */
+  def fromAdjacencyListFile[
+  K : TypeInformation: ClassTag,
+  VV: TypeInformation: ClassTag,
+  EV: TypeInformation: ClassTag](
+    env: ExecutionEnvironment,
+    filePath: String,
+    sourceNeighborsDelimiter: String = "\\s+",
+    vertexValueDelimiter: String = "-",
+    verticesDelimiter: String = ",")
+  : Graph[K, VV, EV] = {
+
+    Preconditions.checkNotNull(filePath)
+
+    val vkClassTag = implicitly[TypeInformation[K]]
+    val vvClassTag = implicitly[TypeInformation[VV]]
+    val evClassTag = implicitly[TypeInformation[EV]]
+
+    val adjReader = jg.Graph.fromAdjacencyListFile(filePath, env.getJavaEnv).
+      vertexValueDelimiter(vertexValueDelimiter).
+      verticesDelimiter(verticesDelimiter).
+      sourceNeighborsDelimiter(sourceNeighborsDelimiter)
+
+    if (evClassTag.getTypeClass.equals(classOf[NullValue])) {
+      //edge value equals null
+      if (vvClassTag.getTypeClass.equals(classOf[NullValue])) {
+        // vertex value equals null
+        wrapGraph(adjReader.keyType(vkClassTag.getTypeClass)).asInstanceOf[Graph[K, VV, EV]]
+      } else {
+        //vertex value does not equal null and edge value equals null
+        wrapGraph(adjReader.vertexTypes(vkClassTag.getTypeClass, vvClassTag.getTypeClass))
+          .asInstanceOf[Graph[K, VV, EV]]
+      }
+    } else {
+      //edge value does not equal null
+      if (vvClassTag.getTypeClass.equals(classOf[NullValue])) {
+        //vertex value equals null
+        wrapGraph(adjReader.edgeTypes(vkClassTag.getTypeClass, evClassTag.getTypeClass))
+          .asInstanceOf[Graph[K, VV, EV]]
+      } else {
+        wrapGraph(adjReader.types(vkClassTag.getTypeClass, vvClassTag.getTypeClass, evClassTag
+          .getTypeClass))
+      }
+    }
+  }
 }
 
 /**
@@ -1123,8 +1190,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    *
    * @param analytic the analytic to run on the Graph
    */
-  def run[T: TypeInformation : ClassTag](analytic: GraphAnalytic[K, VV, EV, T]):
-  GraphAnalytic[K, VV, EV, T] = {
+  def run[T: TypeInformation : ClassTag](analytic: GraphAnalytic[K, VV, EV, T])= {
     jgraph.run(analytic)
     analytic
   }
@@ -1241,6 +1307,13 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
 
   def validate(validator: GraphValidator[K, VV, EV]): Boolean = {
     jgraph.validate(validator)
+  }
+
+  /**
+   * Writes the Graph in an Adjacency List formatted text in the specified file path
+   */
+  def writeAsAdjacencyList(filePath: String, delimiters: String*): Unit = {
+    jgraph.writeAsAdjacencyList(filePath, delimiters: _*)
   }
 
 }

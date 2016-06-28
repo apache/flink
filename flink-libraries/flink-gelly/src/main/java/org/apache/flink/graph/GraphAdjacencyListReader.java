@@ -42,7 +42,7 @@ public class GraphAdjacencyListReader {
 
 	private final String fileName;
 	private final ExecutionEnvironment executionContext;
-	protected String SOURCE_NEIGHBOR_DELIMITER = "\\s+";
+	protected String SOURCE_NEIGHBORS_DELIMITER = "\\s+";
 	protected String VERTEX_VALUE_DELIMITER = "-";
 	protected String VERTICES_DELIMITER = ",";
 
@@ -62,11 +62,11 @@ public class GraphAdjacencyListReader {
 	 * @param delimiter The delimiter that separates the source node its neighbors.
 	 * @return The GraphAdjacencyListReader instance itself, to allow for fluent function chaining.
 	 */
-	public GraphAdjacencyListReader vertexNeighborsDelimiter(String delimiter) {
+	public GraphAdjacencyListReader sourceNeighborsDelimiter(String delimiter) {
 		if (delimiter == null || delimiter.length() == 0) {
 			throw new IllegalArgumentException("The delimiter must not be null or an empty string");
 		}
-		this.SOURCE_NEIGHBOR_DELIMITER = checkDelimiterSpecialChar(delimiter);
+		this.SOURCE_NEIGHBORS_DELIMITER = checkDelimiterSpecialChar(delimiter);
 		return this;
 	}
 
@@ -112,7 +112,7 @@ public class GraphAdjacencyListReader {
 
 		final Class<K> vertexKeyClass = vertexKey;
 
-		final String source_neigh_del = SOURCE_NEIGHBOR_DELIMITER;
+		final String source_neigh_del = SOURCE_NEIGHBORS_DELIMITER;
 		final String vertices_del = VERTICES_DELIMITER;
 
 		DataSet<String> edgesString = this.executionContext.readTextFile(this.fileName);
@@ -128,8 +128,8 @@ public class GraphAdjacencyListReader {
 					String[] neighbors = sourceNeighbors[1].split(vertices_del);
 
 					for (int i = 0; i < neighbors.length; i++) {
-						Tuple3<K, K, NullValue> temp = new Tuple3<K, K, NullValue>(fromString(sourceNeighbors[0].trim
-								(), vertexKeyClass),
+						Tuple3<K, K, NullValue> temp = new Tuple3<K, K, NullValue>(
+								fromString(sourceNeighbors[0].trim(), vertexKeyClass),
 								fromString(neighbors[i].trim(), vertexKeyClass), NullValue.getInstance());
 						out.collect(temp);
 					}
@@ -158,7 +158,7 @@ public class GraphAdjacencyListReader {
 		final Class<K> vertexKeyClass = vertexKey;
 		final Class<VV> vertexValueClass = vertexValue;
 
-		final String source_neigh_del = SOURCE_NEIGHBOR_DELIMITER;
+		final String source_neigh_del = SOURCE_NEIGHBORS_DELIMITER;
 		final String vertex_value_del = VERTEX_VALUE_DELIMITER;
 		final String vertices_del = VERTICES_DELIMITER;
 
@@ -188,7 +188,7 @@ public class GraphAdjacencyListReader {
 					String[] neighbors = sourceNeighbors[1].split(vertices_del);
 					for (int i = 0; i < neighbors.length; i++) {
 						out.collect(new Tuple3<K, K, NullValue>(fromString(sourceNValue[0].trim(), vertexKeyClass),
-								fromString(neighbors[0].trim(), vertexKeyClass), NullValue.getInstance()));
+								fromString(neighbors[i].trim(), vertexKeyClass), NullValue.getInstance()));
 					}
 				}
 			}
@@ -210,7 +210,7 @@ public class GraphAdjacencyListReader {
 		final Class<K> vertexKeyClass = vertexKey;
 		final Class<EV> edgeValueClass = edgeValue;
 
-		final String source_neigh_del = SOURCE_NEIGHBOR_DELIMITER;
+		final String source_neigh_del = SOURCE_NEIGHBORS_DELIMITER;
 		final String vertex_value_del = VERTEX_VALUE_DELIMITER;
 		final String vertices_del = VERTICES_DELIMITER;
 
@@ -255,7 +255,7 @@ public class GraphAdjacencyListReader {
 		final Class<VV> vertexValueClass = vertexValue;
 		final Class<EV> edgeValueClass = edgeValue;
 
-		final String source_neigh_del = SOURCE_NEIGHBOR_DELIMITER;
+		final String source_neigh_del = SOURCE_NEIGHBORS_DELIMITER;
 		final String vertex_value_del = VERTEX_VALUE_DELIMITER;
 		final String vertices_del = VERTICES_DELIMITER;
 
@@ -265,7 +265,6 @@ public class GraphAdjacencyListReader {
 			@Override
 			public void flatMap(String adjacencyLine, Collector<Tuple2<K, VV>> out) throws Exception {
 				String[] vertexNeighbors = adjacencyLine.split(source_neigh_del);
-
 				String[] sourceNValue = vertexNeighbors[0].split(vertex_value_del);
 
 				out.collect(new Tuple2<K, VV>(fromString(sourceNValue[0].trim(), vertexKeyClass),
@@ -326,6 +325,8 @@ public class GraphAdjacencyListReader {
 			return "\\.";
 		} else if (delimiter.equals("|")) {
 			return "\\|";
+		} else if(delimiter.equals("$")){
+			return "\\$";
 		} else {
 			return delimiter;
 		}
