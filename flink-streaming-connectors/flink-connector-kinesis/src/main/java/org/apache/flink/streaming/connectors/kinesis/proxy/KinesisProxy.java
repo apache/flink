@@ -61,9 +61,6 @@ public class KinesisProxy {
 	/** The actual Kinesis client from the AWS SDK that we will be using to make calls */
 	private final AmazonKinesisClient kinesisClient;
 
-	/** The AWS region that this proxy will be making calls to */
-	private final String regionId;
-
 	/** Configuration properties of this Flink Kinesis Connector */
 	private final Properties configProps;
 
@@ -75,16 +72,14 @@ public class KinesisProxy {
 	public KinesisProxy(Properties configProps) {
 		this.configProps = checkNotNull(configProps);
 
-		this.regionId = configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION);
-		ClientConfigurationFactory configurationFactory = new ClientConfigurationFactory();
-		ClientConfiguration config = configurationFactory.getConfig();
-		if(config.getUserAgent().equals(ClientConfiguration.DEFAULT_USER_AGENT)) {
-			// set specific user agent
-			config.setUserAgent("Apache Flink " + EnvironmentInformation.getVersion() + " (" + EnvironmentInformation.getRevisionInformation().commitId + ") Kinesis Connector");
-		}
-		AmazonKinesisClient client = new AmazonKinesisClient(AWSUtil.getCredentialsProvider(configProps).getCredentials());
+		/* The AWS region that this proxy will be making calls to */
+		String regionId = configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION);
+		// set Flink as a user agent
+		ClientConfiguration config = new ClientConfigurationFactory().getConfig();
+		config.setUserAgent("Apache Flink " + EnvironmentInformation.getVersion() + " (" + EnvironmentInformation.getRevisionInformation().commitId + ") Kinesis Connector");
+		AmazonKinesisClient client = new AmazonKinesisClient(AWSUtil.getCredentialsProvider(configProps).getCredentials(), config);
 
-		client.setRegion(Region.getRegion(Regions.fromName(this.regionId)));
+		client.setRegion(Region.getRegion(Regions.fromName(regionId)));
 
 		this.kinesisClient = client;
 	}
