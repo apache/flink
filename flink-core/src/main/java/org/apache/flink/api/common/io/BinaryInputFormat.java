@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -373,6 +374,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	//  Checkpointing
 	// --------------------------------------------------------------------------------------------
 
+	@PublicEvolving
 	@Override
 	public Tuple2<Long, Long> getCurrentState() throws IOException {
 		if (this.blockBasedInput == null) {
@@ -385,6 +387,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 		);
 	}
 
+	@PublicEvolving
 	@Override
 	public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
