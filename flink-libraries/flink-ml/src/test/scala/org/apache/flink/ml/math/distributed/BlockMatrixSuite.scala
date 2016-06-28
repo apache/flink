@@ -97,7 +97,7 @@ class BlockMatrixSuite
                                             (7, 4, 3.0)
                                         ))
     val result =
-      sumBlockMatrix1.sum(sumBlockMatrix2).toRowMatrix.toLocalDenseMatrix
+      sumBlockMatrix1.add(sumBlockMatrix2).toRowMatrix.toLocalDenseMatrix
 
     result shouldBe expected.toDenseMatrix
     result.numRows shouldBe sumBlockMatrix1.numRows

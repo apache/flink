@@ -107,7 +107,7 @@ class BlockMatrix(
     * @param other
     * @return
     */
-  def sum(other: BlockMatrix): BlockMatrix = {
+  def add(other: BlockMatrix): BlockMatrix = {
     val sumFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
       Block((b1.toBreeze + b2.toBreeze).fromBreeze)
 
