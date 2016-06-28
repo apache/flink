@@ -104,12 +104,13 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		this.collector = new TimestampedCollector<>(output);
 		this.checkpointLock = getContainingTask().getCheckpointLock();
 
-		Preconditions.checkArgument(reader == null, "The reader is already initialized.");
+		Preconditions.checkState(reader == null, "The reader is already initialized.");
 
 		this.reader = new SplitReader<>(format, serializer, collector, checkpointLock, readerState);
 
-		// after initializing the reader, set the state to recovered state
-		// (in case of recovering after a failure) to null and start the reader thread
+		// the readerState is needed for the initialization of the reader
+		// when recovering from a failure. So after the initialization,
+		// we can set it to null.
 		this.readerState = null;
 		this.reader.start();
 	}
@@ -201,7 +202,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 					TypeSerializer<OT> serializer,
 					TimestampedCollector<OT> collector,
 					Object checkpointLock,
-					Tuple3<List<FileInputSplit>, FileInputSplit, S> recoveredState) {
+					Tuple3<List<FileInputSplit>, FileInputSplit, S> restoredState) {
 
 			this.format = checkNotNull(format, "Unspecified FileInputFormat.");
 			this.serializer = checkNotNull(serializer, "Unspecified Serialized.");
@@ -212,10 +213,10 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			this.isRunning = true;
 
 			// this is the case where a task recovers from a previous failed attempt
-			if (recoveredState != null) {
-				List<FileInputSplit> pending = recoveredState.f0;
-				FileInputSplit current = recoveredState.f1;
-				S formatState = recoveredState.f2;
+			if (restoredState != null) {
+				List<FileInputSplit> pending = restoredState.f0;
+				FileInputSplit current = restoredState.f1;
+				S formatState = restoredState.f2;
 
 				for (FileInputSplit split : pending) {
 					Preconditions.checkArgument(!pendingSplits.contains(split), "Duplicate split entry to read: " + split + ".");
@@ -414,7 +415,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		S formatState = (S) ois.readObject();
 
 		// set the whole reader state for the open() to find.
-		Preconditions.checkArgument(this.readerState == null,
+		Preconditions.checkState(this.readerState == null,
 			"The reader state has already been initialized.");
 
 		this.readerState = new Tuple3<>(pendingSplits, currSplit, formatState);

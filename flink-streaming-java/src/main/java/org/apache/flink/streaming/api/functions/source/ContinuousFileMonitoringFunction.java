@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
@@ -53,7 +52,7 @@ import java.util.Map;
  */
 @Internal
 public class ContinuousFileMonitoringFunction<OUT>
-	extends RichSourceFunction<FileInputSplit> implements Checkpointed<Tuple3<List<Tuple2<Long, List<FileInputSplit>>>, Tuple2<Long, List<FileInputSplit>>, Long>> {
+	extends RichSourceFunction<FileInputSplit> implements Checkpointed<Long> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -80,11 +79,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	/** Which new data to process (see {@link FileProcessingMode}. */
 	private final FileProcessingMode watchType;
 
-	private List<Tuple2<Long, List<FileInputSplit>>> splitsToFwdOrderedAscByModTime;
-
-	private Tuple2<Long, List<FileInputSplit>> currentSplitsToFwd;
-
-	private long globalModificationTime;
+	private Long globalModificationTime;
 
 	private FilePathFilter pathFilter;
 
@@ -133,13 +128,19 @@ public class ContinuousFileMonitoringFunction<OUT>
 					}
 					Thread.sleep(interval);
 				}
-				isRunning = false;
+
+				// here we do not need to set the running to false and the
+				// globalModificationTime to Long.MAX_VALUE because to arrive here,
+				// either close() or cancel() have already been called, so this
+				// is already done.
+
 				break;
 			case PROCESS_ONCE:
 				synchronized (lock) {
 					monitorDirAndForwardSplits(fileSystem, context);
+					globalModificationTime = Long.MAX_VALUE;
+					isRunning = false;
 				}
-				isRunning = false;
 				break;
 			default:
 				isRunning = false;
@@ -150,38 +151,20 @@ public class ContinuousFileMonitoringFunction<OUT>
 	private void monitorDirAndForwardSplits(FileSystem fs, SourceContext<FileInputSplit> context) throws IOException, JobException {
 		assert (Thread.holdsLock(lock));
 
-		// it may be non-null in the case of a recovery after a failure.
-		if (currentSplitsToFwd != null) {
-			forwardSplits(currentSplitsToFwd, context);
-			currentSplitsToFwd = null;
-		}
+		List<Tuple2<Long, List<FileInputSplit>>> splitsByModTime = getInputSplitSortedOnModTime(fs);
 
-		// it may be non-null in the case of a recovery after a failure.
-		if (splitsToFwdOrderedAscByModTime == null) {
-			splitsToFwdOrderedAscByModTime = getInputSplitSortedOnModTime(fs);
-		}
-
-		Iterator<Tuple2<Long, List<FileInputSplit>>> it =
-			splitsToFwdOrderedAscByModTime.iterator();
-
+		Iterator<Tuple2<Long, List<FileInputSplit>>> it = splitsByModTime.iterator();
 		while (it.hasNext()) {
-			currentSplitsToFwd = it.next();
+			forwardSplits(it.next(), context);
 			it.remove();
-			forwardSplits(currentSplitsToFwd, context);
 		}
-
-		// set them to null to distinguish from a restore.
-		splitsToFwdOrderedAscByModTime = null;
-		currentSplitsToFwd = null;
 	}
 
 	private void forwardSplits(Tuple2<Long, List<FileInputSplit>> splitsToFwd, SourceContext<FileInputSplit> context) {
+		assert (Thread.holdsLock(lock));
 
-		assert (Thread.holdsLock(context.getCheckpointLock()));
-
-		currentSplitsToFwd = splitsToFwd;
-		Long modTime = currentSplitsToFwd.f0;
-		List<FileInputSplit> splits = currentSplitsToFwd.f1;
+		Long modTime = splitsToFwd.f0;
+		List<FileInputSplit> splits = splitsToFwd.f1;
 
 		Iterator<FileInputSplit> it = splits.iterator();
 		while (it.hasNext()) {
@@ -290,6 +273,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 * is the time of the most recent modification found in any of the already processed files.
 	 */
 	private boolean shouldIgnore(Path filePath, long modificationTime) {
+		assert (Thread.holdsLock(lock));
 		boolean shouldIgnore = ((pathFilter != null && pathFilter.filterPath(filePath)) || modificationTime <= globalModificationTime);
 		if (shouldIgnore) {
 			LOG.debug("Ignoring " + filePath + ", with mod time= " + modificationTime + " and global mod time= " + globalModificationTime);
@@ -300,35 +284,36 @@ public class ContinuousFileMonitoringFunction<OUT>
 	@Override
 	public void close() throws Exception {
 		super.close();
-		isRunning = false;
+		synchronized (lock) {
+			globalModificationTime = Long.MAX_VALUE;
+			isRunning = false;
+		}
 		LOG.info("Closed File Monitoring Source.");
 	}
 
 	@Override
 	public void cancel() {
-		isRunning = false;
+		if (lock != null) {
+			// this is to cover the case where cancel() is called before the run()
+			synchronized (lock) {
+				globalModificationTime = Long.MAX_VALUE;
+				isRunning = false;
+			}
+		} else {
+			globalModificationTime = Long.MAX_VALUE;
+			isRunning = false;
+		}
 	}
 
 	//	---------------------			Checkpointing			--------------------------
 
 	@Override
-	public Tuple3<List<Tuple2<Long, List<FileInputSplit>>>, Tuple2<Long, List<FileInputSplit>>, Long> snapshotState(
-		long checkpointId, long checkpointTimestamp) throws Exception {
-
-		if (!isRunning) {
-			LOG.debug("snapshotState() called on closed source");
-			return null;
-		}
-		return new Tuple3<>(splitsToFwdOrderedAscByModTime,
-			currentSplitsToFwd, globalModificationTime);
+	public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		return globalModificationTime;
 	}
 
 	@Override
-	public void restoreState(Tuple3<List<Tuple2<Long, List<FileInputSplit>>>,
-		Tuple2<Long, List<FileInputSplit>>, Long> state) throws Exception {
-
-		this.splitsToFwdOrderedAscByModTime = state.f0;
-		this.currentSplitsToFwd = state.f1;
-		this.globalModificationTime = state.f2;
+	public void restoreState(Long state) throws Exception {
+		this.globalModificationTime = state;
 	}
 }
