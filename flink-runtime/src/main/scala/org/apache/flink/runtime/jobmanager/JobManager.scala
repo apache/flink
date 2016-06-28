@@ -160,7 +160,7 @@ class JobManager(
       Option(new JobManagerMetricGroup(
         registry, NetUtils.ipAddressToUrlString(InetAddress.getByName(host))))
     case None =>
-      log.error("Could not instantiate JobManager metrics.")
+      log.warn("Could not instantiate JobManager metrics.")
       None
   }
 
@@ -223,7 +223,7 @@ class JobManager(
       case Some(group) =>
         instantiateMetrics(group)
       case None =>
-        log.error("Could not instantiate JobManager metrics.")
+        log.warn("Could not instantiate JobManager metrics.")
     }
   }
 
