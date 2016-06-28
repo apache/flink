@@ -616,7 +616,7 @@ public class CliFrontend {
 
 		// evaluate help flag
 		if (options.isPrintHelp()) {
-			CliFrontendParser.printHelpForCancel();
+			CliFrontendParser.printHelpForSavepoint();
 			return 0;
 		}
 
