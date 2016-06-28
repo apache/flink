@@ -72,7 +72,6 @@ import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{MathUtils, NetUtils}
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -1267,7 +1266,7 @@ class TaskManager(
       val accumulatorEvents =
         scala.collection.mutable.Buffer[AccumulatorSnapshot]()
 
-      runningTasks foreach {
+      runningTasks.asScala foreach {
         case (execID, task) =>
           val registry = task.getAccumulatorRegistry
           val accumulators = registry.getSnapshot
@@ -2305,7 +2304,7 @@ object TaskManager {
   private def instantiateGarbageCollectorMetrics(metrics: MetricGroup) {
     val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
 
-    for (garbageCollector <- garbageCollectors) {
+    for (garbageCollector <- garbageCollectors.asScala) {
       val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
       gcGroup.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
         override def getValue: Long = garbageCollector.getCollectionCount
