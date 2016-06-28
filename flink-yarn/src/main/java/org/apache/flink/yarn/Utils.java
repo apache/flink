@@ -67,23 +67,23 @@ public final class Utils {
 	public static int calculateHeapSize(int memory, org.apache.flink.configuration.Configuration conf) {
 
 		BootstrapTools.substituteDeprecatedConfigKey(conf,
-			ConfigConstants.YARN_HEAP_CUTOFF_RATIO, ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO);
+			ConfigConstants.YARN_HEAP_CUTOFF_RATIO, ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO);
 		BootstrapTools.substituteDeprecatedConfigKey(conf,
-			ConfigConstants.YARN_HEAP_CUTOFF_MIN, ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN);
+			ConfigConstants.YARN_HEAP_CUTOFF_MIN, ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN);
 
-		float memoryCutoffRatio = conf.getFloat(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO,
+		float memoryCutoffRatio = conf.getFloat(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO,
 			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF_RATIO);
-		int minCutoff = conf.getInteger(ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN,
+		int minCutoff = conf.getInteger(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN,
 			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF);
 
 		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO
+				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO
 				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
 		}
 		if (minCutoff > memory) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN
+				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN
 				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
 		}
 

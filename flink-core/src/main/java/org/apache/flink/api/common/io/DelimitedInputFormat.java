@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -629,11 +630,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	//  Checkpointing
 	// --------------------------------------------------------------------------------------------
 
+	@PublicEvolving
 	@Override
 	public Long getCurrentState() throws IOException {
 		return this.offset;
 	}
 
+	@PublicEvolving
 	@Override
 	public void reopen(FileInputSplit split, Long state) throws IOException {
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
