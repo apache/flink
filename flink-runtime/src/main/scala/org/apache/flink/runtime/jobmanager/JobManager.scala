@@ -1133,8 +1133,7 @@ class JobManager(
               restartStrategy,
               jobGraph.getUserJarBlobKeys,
               jobGraph.getClasspaths,
-              userCodeLoader,
-              jobMetrics)
+              userCodeLoader)
 
             currentJobs.put(jobGraph.getJobID, (graph, jobInfo))
             graph
@@ -1235,7 +1234,7 @@ class JobManager(
                 ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
                 ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE)
 
-              new SimpleCheckpointStatsTracker(historySize, ackVertices)
+              new SimpleCheckpointStatsTracker(historySize, ackVertices, jobMetrics)
             }
 
           val jobParallelism = jobGraph.getSerializedExecutionConfig

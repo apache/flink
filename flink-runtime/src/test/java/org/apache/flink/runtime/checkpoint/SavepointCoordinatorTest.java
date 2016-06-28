@@ -822,8 +822,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 				classLoader,
 				checkpointIdCounter,
 				savepointStore,
-				new DisabledCheckpointStatsTracker(),
-				new UnregisteredMetricsGroup());
+				new DisabledCheckpointStatsTracker());
 	}
 
 	private static Map<JobVertexID, ExecutionJobVertex> createExecutionJobVertexMap(

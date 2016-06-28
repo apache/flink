@@ -22,9 +22,6 @@ import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -154,11 +151,6 @@ public class CheckpointCoordinator {
 	/** Helper for tracking checkpoint statistics  */
 	private final CheckpointStatsTracker statsTracker;
 
-	protected final MetricGroup metrics;
-
-	private long lastCheckpointSize = 0;
-	private long lastCheckpointDuration = 0;
-
 	protected final int numberKeyGroups;
 
 	// --------------------------------------------------------------------------------------------
@@ -179,8 +171,7 @@ public class CheckpointCoordinator {
 		this(job, baseInterval, checkpointTimeout, 0L, Integer.MAX_VALUE, numberKeyGroups,
 				tasksToTrigger, tasksToWaitFor, tasksToCommitTo,
 				userClassLoader, checkpointIDCounter, completedCheckpointStore, recoveryMode,
-				new DisabledCheckpointStatsTracker(),
-				new UnregisteredMetricsGroup());
+				new DisabledCheckpointStatsTracker());
 	}
 
 	public CheckpointCoordinator(
@@ -197,8 +188,7 @@ public class CheckpointCoordinator {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			RecoveryMode recoveryMode,
-			CheckpointStatsTracker statsTracker,
-			MetricGroup metrics) throws Exception {
+			CheckpointStatsTracker statsTracker) throws Exception {
 
 		// Sanity check
 		checkArgument(baseInterval > 0, "Checkpoint timeout must be larger than zero");
@@ -218,10 +208,6 @@ public class CheckpointCoordinator {
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.recentPendingCheckpoints = new ArrayDeque<Long>(NUM_GHOST_CHECKPOINT_IDS);
 		this.userClassLoader = userClassLoader;
-		this.metrics = checkNotNull(metrics);
-		
-		this.metrics.gauge("lastCheckpointSize", new CheckpointSizeGauge());
-		this.metrics.gauge("lastCheckpointDuration", new CheckpointDurationGauge());
 
 		// Started with the periodic scheduler
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
@@ -677,9 +663,6 @@ public class CheckpointCoordinator {
 						LOG.info("Completed checkpoint " + checkpointId + " (in " +
 								completed.getDuration() + " ms)");
 
-						lastCheckpointSize = completed.getStateSize();
-						lastCheckpointDuration = completed.getDuration();
-
 						if (LOG.isDebugEnabled()) {
 							StringBuilder builder = new StringBuilder();
 							for (Map.Entry<JobVertexID, TaskState> entry: completed.getTaskStates().entrySet()) {
@@ -1018,20 +1001,6 @@ public class CheckpointCoordinator {
 			catch (Exception e) {
 				LOG.error("Exception while triggering checkpoint", e);
 			}
-		}
-	}
-
-	private class CheckpointSizeGauge extends Gauge<Long> {
-		@Override
-		public Long getValue() {
-			return lastCheckpointSize;
-		}
-	}
-
-	private class CheckpointDurationGauge extends Gauge<Long> {
-		@Override
-		public Long getValue() {
-			return lastCheckpointDuration;
 		}
 	}
 }

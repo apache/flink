@@ -24,8 +24,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -232,8 +230,6 @@ public class ExecutionGraph implements Serializable {
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ExecutionContext executionContext;
 
-	private transient MetricGroup metrics;
-
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
 
@@ -262,8 +258,7 @@ public class ExecutionGraph implements Serializable {
 			restartStrategy,
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(),
-			ExecutionGraph.class.getClassLoader(),
-			new UnregisteredMetricsGroup()
+			ExecutionGraph.class.getClassLoader()
 		);
 	}
 
@@ -277,8 +272,7 @@ public class ExecutionGraph implements Serializable {
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
-			ClassLoader userClassLoader,
-			MetricGroup metrics) {
+			ClassLoader userClassLoader) {
 
 		checkNotNull(executionContext);
 		checkNotNull(jobId);
@@ -312,8 +306,6 @@ public class ExecutionGraph implements Serializable {
 		this.timeout = timeout;
 
 		this.restartStrategy = restartStrategy;
-
-		this.metrics = checkNotNull(metrics);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -397,8 +389,7 @@ public class ExecutionGraph implements Serializable {
 				checkpointIDCounter,
 				completedCheckpointStore,
 				recoveryMode,
-				checkpointStatsTracker,
-				metrics);
+				checkpointStatsTracker);
 
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
@@ -419,8 +410,7 @@ public class ExecutionGraph implements Serializable {
 				// checkpoint coordinator.
 				checkpointIDCounter,
 				savepointStore,
-				checkpointStatsTracker,
-				metrics);
+				checkpointStatsTracker);
 
 		registerJobStatusListener(savepointCoordinator
 				.createActivatorDeactivator(actorSystem, leaderSessionID));
@@ -1000,7 +990,6 @@ public class ExecutionGraph implements Serializable {
 		scheduler = null;
 		checkpointCoordinator = null;
 		executionContext = null;
-		metrics = null;
 
 		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
 			vertex.prepareForArchiving();

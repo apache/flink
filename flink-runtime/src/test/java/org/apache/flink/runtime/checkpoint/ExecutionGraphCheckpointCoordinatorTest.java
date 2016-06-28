@@ -22,7 +22,6 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
@@ -56,8 +55,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			new NoRestartStrategy(),
 			Collections.<BlobKey>emptyList(),
 			Collections.<URL>emptyList(),
-			ClassLoader.getSystemClassLoader(),
-			new UnregisteredMetricsGroup());
+			ClassLoader.getSystemClassLoader());
 
 		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 
