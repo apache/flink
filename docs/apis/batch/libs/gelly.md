@@ -1859,10 +1859,10 @@ verticesWithCommunity.print();
 {% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
 
-val graph: Graph[Long, Long, NullValue] = ...
+val graph: Graph[java.lang.Long, java.lang.Long, NullValue] = ...
 
 // run Label Propagation for 30 iterations to detect communities on the input graph
-val verticesWithCommunity = graph.run(new LabelPropagation[Long](30))
+val verticesWithCommunity = graph.run(new LabelPropagation[java.lang.Long, java.lang.Long, NullValue](30))
 
 // print the result
 verticesWithCommunity.print
