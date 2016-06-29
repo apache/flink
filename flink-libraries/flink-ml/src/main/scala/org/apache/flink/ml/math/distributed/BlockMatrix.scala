@@ -18,8 +18,6 @@
 
 package org.apache.flink.ml.math.distributed
 
-import java.lang
-
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTypeInformation, _}
@@ -44,10 +42,8 @@ class BlockMatrix(
 )
     extends DistributedMatrix {
 
-
   val numCols = blockMapper.numCols
   val numRows = blockMapper.numRows
-
 
   val getBlockCols = blockMapper.numBlockCols
   val getBlockRows = blockMapper.numBlockRows
@@ -62,8 +58,7 @@ class BlockMatrix(
     * @return
     */
   def hasSameFormat(other: BlockMatrix): Boolean =
-    this.numRows == other.numRows &&
-    this.numCols == other.numCols &&
+    this.numRows == other.numRows && this.numCols == other.numCols &&
     this.getRowsPerBlock == other.getRowsPerBlock &&
     this.getColsPerBlock == other.getColsPerBlock
 
@@ -87,12 +82,14 @@ class BlockMatrix(
 
             val (id1, block1) = Option(left) match {
               case Some((id, block)) => (id, block)
-              case None => (right._1, Block.zero(right._2.getRows, right._2.getCols))
+              case None =>
+                (right._1, Block.zero(right._2.getRows, right._2.getCols))
             }
 
             val (id2, block2) = Option(right) match {
-              case Some((id,block)) => (id,block)
-              case None =>  (left._1, Block.zero(left._2.getRows, left._2.getCols))
+              case Some((id, block)) => (id, block)
+              case None =>
+                (left._1, Block.zero(left._2.getRows, left._2.getCols))
             }
 
             require(id1 == id2)
@@ -157,8 +154,7 @@ class BlockMatrix(
 
     /*BlockID is converted to mapped coordinates that will be required to
       group blocks together.*/
-    val otherWithCoord =
-      other.data.map(new MapToMappedCoord(blockMapper))
+    val otherWithCoord = other.data.map(new MapToMappedCoord(blockMapper))
 
     val dataWithCoord = data.map(new MapToMappedCoord(blockMapper))
 
@@ -222,7 +218,7 @@ private class MapToMappedCoord(blockMapper: BlockMapper)
 private class ToRowMatrixReducer(blockMapper: BlockMapper)
     extends RichGroupReduceFunction[(Int, Int, Block), IndexedRow] {
 
-  override def reduce(values: lang.Iterable[(Int, Int, Block)],
+  override def reduce(values: java.lang.Iterable[(Int, Int, Block)],
                       out: Collector[IndexedRow]): Unit = {
 
     val blockGroup = values.toList
@@ -272,7 +268,7 @@ private class GroupMultiplyReduction(blockMapper: BlockMapper)
     extends RichGroupReduceFunction[
         ((Int, Int, Block), (Int, Int, Block)), (BlockID, Block)] {
   override def reduce(
-      values: lang.Iterable[((BlockID, Int, Block), (Int, Int, Block))],
+      values: java.lang.Iterable[((BlockID, Int, Block), (Int, Int, Block))],
       out: Collector[(BlockID, Block)]): Unit = {
     val multipliedGroups: Seq[(Int, Int, Block)] = values.map {
       case ((i, j, left), (s, t, right)) => (i, t, left.multiply(right))
