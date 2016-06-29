@@ -91,27 +91,27 @@ class DistributedRowMatrixSuite
     dmatrix.toLocalDenseMatrix.iterator.filter(_._3 != 0).toSet shouldBe rawSampleData.toSet
   }
 
-  "sum" should "correctly sum two matrices" in {
+  "add" should "correctly add two matrices" in {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val rawSampleSum1 = List(
+    val rawSampleAdd1 = List(
         (0, 0, 1.0),
         (7, 4, 3.0),
         (0, 1, 8.0),
         (2, 8, 12.0)
     )
 
-    val rawSampleSum2 = List(
+    val rawSampleAdd2 = List(
         (0, 0, 2.0),
         (3, 4, 4.0),
         (2, 8, 8.0)
     )
 
-    val sumBlockMatrix1 =
-      DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum1), 10, 10)
-    val sumBlockMatrix2 =
-      DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum2), 10, 10)
+    val addBlockMatrix1 =
+      DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleAdd1), 10, 10)
+    val addBlockMatrix2 =
+      DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleAdd2), 10, 10)
 
     val expected = List(
         (0, 0, 3.0),
@@ -120,8 +120,8 @@ class DistributedRowMatrixSuite
         (2, 8, 20.0),
         (7, 4, 3.0)
     )
-    val result = sumBlockMatrix1
-      .sum(sumBlockMatrix2)
+    val result = addBlockMatrix1
+      .add(addBlockMatrix2)
       .toLocalSparseMatrix
       .filter(_._3 != 0.0)
     result.toSet shouldEqual expected.toSet
