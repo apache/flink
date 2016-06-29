@@ -103,7 +103,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 ### Fault Tolerance Guarantees of Data Sources and Sinks
 
 Flink can guarantee exactly-once state updates to user-defined state only when the source participates in the
-snapshotting mechanism. This is currently guaranteed for the Kafka source (and internal number generators), but
+snapshotting mechanism. This is currently guaranteed for the Kafka source and AWS Kinesis Streams source (and internal number generators), but
 not for other sources. The following table lists the state update guarantees of Flink coupled with the bundled sources:
 
 <table class="table table-bordered">
@@ -119,6 +119,11 @@ not for other sources. The following table lists the state update guarantees of 
             <td>Apache Kafka</td>
             <td>exactly once</td>
             <td>Use the appropriate Kafka connector for your version</td>
+        </tr>
+        <tr>
+            <td>AWS Kinesis Streams</td>
+            <td>exactly once</td>
+            <td>Current version does not handle stream resharding</td>
         </tr>
         <tr>
             <td>RabbitMQ</td>
@@ -178,8 +183,13 @@ state updates) of Flink coupled with bundled sinks:
     </tr>
     <tr>
         <td>Cassandra sink</td>
-        <td>at-least-once / exactly-once</td>
-        <td>exactly-once only for idempotent updates</td>
+        <td>at least once / exactly once</td>
+        <td>exactly once only for idempotent updates</td>
+    </tr>
+    <tr>
+        <td>AWS Kinesis Streams</td>
+        <td>at least once</td>
+        <td></td>
     </tr>
     <tr>
         <td>File sinks</td>
