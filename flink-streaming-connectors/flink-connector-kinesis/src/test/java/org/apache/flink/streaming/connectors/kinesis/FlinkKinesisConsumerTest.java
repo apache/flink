@@ -22,6 +22,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstan
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.testutils.ReferenceKinesisShardTopologies;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
@@ -344,7 +345,7 @@ public class FlinkKinesisConsumerTest {
 		dummyConsumer.open(new Configuration());
 
 		for (KinesisStreamShard shard : fakeAssignedShardsToThisConsumerTask) {
-			verify(kinesisDataFetcherMock).advanceSequenceNumberTo(shard, SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.toString());
+			verify(kinesisDataFetcherMock).advanceSequenceNumberTo(shard, SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get());
 		}
 
 	}
@@ -380,7 +381,7 @@ public class FlinkKinesisConsumerTest {
 		dummyConsumer.open(new Configuration());
 
 		for (KinesisStreamShard shard : fakeAssignedShardsToThisConsumerTask) {
-			verify(kinesisDataFetcherMock).advanceSequenceNumberTo(shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.toString());
+			verify(kinesisDataFetcherMock).advanceSequenceNumberTo(shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
 		}
 
 	}
@@ -414,14 +415,14 @@ public class FlinkKinesisConsumerTest {
 			null, null, false, false);
 
 		// generate random UUIDs as sequence numbers of last checkpointed state for each assigned shard
-		ArrayList<String> listOfSeqNumIfAssignedShards = new ArrayList<>(fakeAssignedShardsToThisConsumerTask.size());
+		ArrayList<SequenceNumber> listOfSeqNumOfAssignedShards = new ArrayList<>(fakeAssignedShardsToThisConsumerTask.size());
 		for (KinesisStreamShard shard : fakeAssignedShardsToThisConsumerTask) {
-			listOfSeqNumIfAssignedShards.add(UUID.randomUUID().toString());
+			listOfSeqNumOfAssignedShards.add(new SequenceNumber(UUID.randomUUID().toString()));
 		}
 
-		HashMap<KinesisStreamShard, String> fakeRestoredState = new HashMap<>();
+		HashMap<KinesisStreamShard, SequenceNumber> fakeRestoredState = new HashMap<>();
 		for (int i=0; i<fakeAssignedShardsToThisConsumerTask.size(); i++) {
-			fakeRestoredState.put(fakeAssignedShardsToThisConsumerTask.get(i), listOfSeqNumIfAssignedShards.get(i));
+			fakeRestoredState.put(fakeAssignedShardsToThisConsumerTask.get(i), listOfSeqNumOfAssignedShards.get(i));
 		}
 
 		dummyConsumer.restoreState(fakeRestoredState);
@@ -430,7 +431,7 @@ public class FlinkKinesisConsumerTest {
 		for (int i=0; i<fakeAssignedShardsToThisConsumerTask.size(); i++) {
 			verify(kinesisDataFetcherMock).advanceSequenceNumberTo(
 				fakeAssignedShardsToThisConsumerTask.get(i),
-				listOfSeqNumIfAssignedShards.get(i));
+				listOfSeqNumOfAssignedShards.get(i));
 		}
 	}
 

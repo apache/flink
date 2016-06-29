@@ -25,9 +25,11 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -42,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ShardConsumerThread<T> extends Thread {
 	private final SourceFunction.SourceContext<T> sourceContext;
 	private final KinesisDeserializationSchema<T> deserializer;
-	private final HashMap<KinesisStreamShard, String> seqNoState;
+	private final HashMap<KinesisStreamShard, SequenceNumber> seqNoState;
 
 	private final KinesisProxy kinesisProxy;
 
@@ -52,18 +54,17 @@ public class ShardConsumerThread<T> extends Thread {
 
 	private final int maxNumberOfRecordsPerFetch;
 
-	private String lastSequenceNum;
-	private String nextShardItr;
+	private SequenceNumber lastSequenceNum;
 
 	private volatile boolean running = true;
 
 	public ShardConsumerThread(KinesisDataFetcher ownerRef,
 							Properties props,
 							KinesisStreamShard assignedShard,
-							String lastSequenceNum,
+							SequenceNumber lastSequenceNum,
 							SourceFunction.SourceContext<T> sourceContext,
 							KinesisDeserializationSchema<T> deserializer,
-							HashMap<KinesisStreamShard, String> seqNumState) {
+							HashMap<KinesisStreamShard, SequenceNumber> seqNumState) {
 		this.ownerRef = checkNotNull(ownerRef);
 		this.assignedShard = checkNotNull(assignedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
@@ -79,56 +80,74 @@ public class ShardConsumerThread<T> extends Thread {
 	@SuppressWarnings("unchecked")
 	@Override
 	public void run() {
+		String nextShardItr;
+
 		try {
-			if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.toString())) {
+			// before infinitely looping, we set the initial nextShardItr appropriately
+
+			if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get())) {
 				// if the shard is already closed, there will be no latest next record to get for this shard
 				if (assignedShard.isClosed()) {
 					nextShardItr = null;
 				} else {
 					nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.LATEST.toString(), null);
 				}
-			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.toString())) {
+			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get())) {
 				nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
-			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.toString())) {
+			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
 				nextShardItr = null;
 			} else {
-				nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum);
+				// we will be starting from an actual sequence number (due to restore from failure).
+				// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records
+				// from the last aggregated record; otherwise, we can simply start iterating from the record right after.
+
+				if (lastSequenceNum.isAggregated()) {
+					String itrForLastAggregatedRecord =
+						kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.AT_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+
+					// get only the last aggregated record
+					GetRecordsResult getRecordsResult = kinesisProxy.getRecords(itrForLastAggregatedRecord, 1);
+
+					List<UserRecord> fetchedRecords = deaggregateRecords(
+							getRecordsResult.getRecords(),
+							assignedShard.getStartingHashKey(),
+							assignedShard.getEndingHashKey());
+
+					long lastSubSequenceNum = lastSequenceNum.getSubSequenceNumber();
+					for (UserRecord record : fetchedRecords) {
+						// we have found a dangling sub-record if it has a larger subsequence number
+						// than our last sequence number; if so, collect the record and update state
+						if (record.getSubSequenceNumber() > lastSubSequenceNum) {
+							collectRecordAndUpdateState(record);
+						}
+					}
+
+					// set the nextShardItr so we can continue iterating in the next while loop
+					nextShardItr = getRecordsResult.getNextShardIterator();
+				} else {
+					// the last record was non-aggregated, so we can simply start from the next record
+					nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+				}
 			}
 
 			while(running) {
 				if (nextShardItr == null) {
-					lastSequenceNum = SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.toString();
-
 					synchronized (sourceContext.getCheckpointLock()) {
-						seqNoState.put(assignedShard, lastSequenceNum);
+						seqNoState.put(assignedShard, SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
 					}
 
 					break;
 				} else {
 					GetRecordsResult getRecordsResult = kinesisProxy.getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
 
-					List<Record> fetchedRecords = getRecordsResult.getRecords();
-
 					// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
-					fetchedRecords = deaggregateRecords(fetchedRecords, assignedShard.getStartingHashKey(), assignedShard.getEndingHashKey());
+					List<UserRecord> fetchedRecords = deaggregateRecords(
+						getRecordsResult.getRecords(),
+						assignedShard.getStartingHashKey(),
+						assignedShard.getEndingHashKey());
 
-					for (Record record : fetchedRecords) {
-						ByteBuffer recordData = record.getData();
-
-						byte[] dataBytes = new byte[recordData.remaining()];
-						recordData.get(dataBytes);
-
-						byte[] keyBytes = record.getPartitionKey().getBytes();
-
-						final T value = deserializer.deserialize(keyBytes, dataBytes,assignedShard.getStreamName(),
-							record.getSequenceNumber());
-
-						synchronized (sourceContext.getCheckpointLock()) {
-							sourceContext.collect(value);
-							seqNoState.put(assignedShard, record.getSequenceNumber());
-						}
-
-						lastSequenceNum = record.getSequenceNumber();
+					for (UserRecord record : fetchedRecords) {
+						collectRecordAndUpdateState(record);
 					}
 
 					nextShardItr = getRecordsResult.getNextShardIterator();
@@ -144,8 +163,31 @@ public class ShardConsumerThread<T> extends Thread {
 		this.interrupt();
 	}
 
+	private void collectRecordAndUpdateState(UserRecord record) throws IOException {
+		ByteBuffer recordData = record.getData();
+
+		byte[] dataBytes = new byte[recordData.remaining()];
+		recordData.get(dataBytes);
+
+		byte[] keyBytes = record.getPartitionKey().getBytes();
+
+		final T value = deserializer.deserialize(keyBytes, dataBytes, assignedShard.getStreamName(),
+			record.getSequenceNumber());
+
+		synchronized (sourceContext.getCheckpointLock()) {
+			sourceContext.collect(value);
+			if (record.isAggregated()) {
+				seqNoState.put(
+					assignedShard,
+					new SequenceNumber(record.getSequenceNumber(), record.getSubSequenceNumber()));
+			} else {
+				seqNoState.put(assignedShard, new SequenceNumber(record.getSequenceNumber()));
+			}
+		}
+	}
+
 	@SuppressWarnings("unchecked")
-	protected static List<Record> deaggregateRecords(List<Record> records, String startingHashKey, String endingHashKey) {
-		return (List<Record>) (List<?>) UserRecord.deaggregate(records, new BigInteger(startingHashKey), new BigInteger(endingHashKey));
+	protected static List<UserRecord> deaggregateRecords(List<Record> records, String startingHashKey, String endingHashKey) {
+		return UserRecord.deaggregate(records, new BigInteger(startingHashKey), new BigInteger(endingHashKey));
 	}
 }
