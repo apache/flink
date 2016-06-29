@@ -1408,7 +1408,7 @@ You can define an additonal "user scope" by calling the either `MetricGroup#addG
 
 {% highlight java %}
 
-counter2 = getRuntimeContext().getMetricGroup().addGroup("MyMetrics").counter("myCounter2");
+counter = getRuntimeContext().getMetricGroup().addGroup("MyMetrics").counter("myCounter");
 
 {% endhighlight %}
 
@@ -1421,16 +1421,44 @@ Each of these keys expect a format string that may contain constants (e.g. "task
 
 - `metrics.scope.jm`
   - Default: \<host>.jobmanager
+  - Applied to all metrics that were scoped to a jobmanager.
 - `metrics.scope.jm.job`
   - Default: \<host>.jobmanager.\<job_name>
+  - Applied to all metrics that were scoped to a jobmanager and job.
 - `metrics.scope.tm`
   - Default: \<host>.taskmanager.\<tm_id>
+  - Applied to all metrics that were scoped to a taskmanager.
 - `metrics.scope.tm.job`
   - Default: \<host>.taskmanager.\<tm_id>.\<job_name>
-- `metrics.scope.task`
+  - Applied to all metrics that were scoped to a taskmanager and job.
+- `metrics.scope.tm.task`
   - Default: \<host>.taskmanager.\<tm_id>.\<job_name>.\<task_name>.\<subtask_index>
-- `metrics.scope.operator`
+   - Applied to all metrics that were scoped to a task.
+- `metrics.scope.tm.operator`
   - Default: \<host>.taskmanager.\<tm_id>.\<job_name>.\<operator_name>.\<subtask_index>
+  - Applied to all metrics that were scoped to an operator.
+
+Note that for metrics for which multiple formats may apply (like jm and jm.job) the most specific format takes precedence,
+in this case jm.job.
+
+The hierarchical orders are as follows:
+
+jm < jm.job 
+
+tm < tm.job < tm.task < tm.operator
+
+This hierarchy also defines which variables may be accessed. The `tm.operator` format may contain variables for jobs, whereas `tm.job` may not contain
+variables for operators. There is no restriction on order of variables.
+
+There is no restriction on the order of variables.
+
+The default scope for operator metrics will result in a metric name akin to `localhost.taskmanager.1234.MyJob.MyOperator.0`
+
+If you also want to include the task name, but omit the taskmanager information you can specify the following format:
+
+`metrics.scope.tm.operator: \<host>.\<job_name>.\<task_name>.\<operator_name>.\<subtask_index>`
+
+This could create the name `localhost.MyJob.MySource_->_MyOperator.MyOperator.0`.
 
 The following is a list of all variables available:
 
@@ -1439,14 +1467,6 @@ The following is a list of all variables available:
 - Job: \<job_id>, \<job_name>
 - Task: \<task_id>, \<task_name>, \<task_attempt_id>, \<task_attempt_num>, \<subtask_index>
 - Operator: \<operator_name>, \<subtask_index>
-
-There is no restriction on the order of variables.
-
-Which format is applied to a metric depends on which entities it was scoped to.
-The `metrics.scope.operator` format will be applied to all metrics that were scoped to an operator.
-The `metrics.scope.tm.job` format will be applied to all metrics that were only scoped to a job and a taskmanager.
-
-This allows you to define explicitly how metrics on every level should be reported.
 
 ### Reporter
 
