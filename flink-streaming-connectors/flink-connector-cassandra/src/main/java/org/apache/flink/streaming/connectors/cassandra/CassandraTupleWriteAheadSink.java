@@ -49,13 +49,7 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 	private final String insertQuery;
 	private transient PreparedStatement preparedStatement;
 
-	private transient Throwable exception = null;
-	private transient FutureCallback<ResultSet> callback;
-
 	private ClusterBuilder builder;
-
-	private int updatesSent = 0;
-	private AtomicInteger updatesConfirmed = new AtomicInteger(0);
 
 	private transient Object[] fields;
 
@@ -71,18 +65,6 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 		if (!getRuntimeContext().isCheckpointingEnabled()) {
 			throw new IllegalStateException("The write-ahead log requires checkpointing to be enabled.");
 		}
-		this.callback = new FutureCallback<ResultSet>() {
-			@Override
-			public void onSuccess(ResultSet resultSet) {
-				updatesConfirmed.incrementAndGet();
-			}
-
-			@Override
-			public void onFailure(Throwable throwable) {
-				exception = throwable;
-				LOG.error("Error while sending value.", throwable);
-			}
-		};
 		cluster = builder.getCluster();
 		session = cluster.connect();
 		preparedStatement = session.prepare(insertQuery);
@@ -110,11 +92,25 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 	}
 
 	@Override
-	protected void sendValues(Iterable<IN> values, long timestamp) throws Exception {
-		//verify that no query failed until now
-		if (exception != null) {
-			throw new Exception(exception);
-		}
+	protected boolean sendValues(Iterable<IN> values, long timestamp) throws Exception {
+		int updatesSent = 0;
+		final AtomicInteger updatesConfirmed = new AtomicInteger(0);
+
+		final AtomicContainer<Throwable> exception = new AtomicContainer<>();
+
+		FutureCallback<ResultSet> callback = new FutureCallback<ResultSet>() {
+			@Override
+			public void onSuccess(ResultSet resultSet) {
+				updatesConfirmed.incrementAndGet();
+			}
+
+			@Override
+			public void onFailure(Throwable throwable) {
+				exception.set(throwable);
+				LOG.error("Error while sending value.", throwable);
+			}
+		};
+
 		//set values for prepared statement
 		for (IN value : values) {
 			for (int x = 0; x < value.getArity(); x++) {
@@ -132,11 +128,27 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 		}
 		try {
 			while (updatesSent != updatesConfirmed.get()) {
+				if (exception.get() != null) { // verify that no query failed until now
+					LOG.warn("Sending a value failed.", exception.get());
+					break;
+				}
 				Thread.sleep(100);
 			}
 		} catch (InterruptedException e) {
 		}
-		updatesSent = 0;
-		updatesConfirmed.set(0);
+		boolean success = updatesSent != updatesConfirmed.get();
+		return success;
+	}
+
+	private static class AtomicContainer<T> {
+		private T value;
+
+		public synchronized void set(T value) {
+			this.value = value;
+		}
+
+		public synchronized T get() {
+			return this.value;
+		}
 	}
 }
