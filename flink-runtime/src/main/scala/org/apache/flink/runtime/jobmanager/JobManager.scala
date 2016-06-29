@@ -1110,13 +1110,6 @@ class JobManager(
 
         log.info(s"Using restart strategy $restartStrategy for $jobId.")
 
-        val jobMetrics = jobManagerMetricGroup match {
-          case Some(group) =>
-            group.addJob(jobGraph.getJobID, jobGraph.getName)
-          case None =>
-            new UnregisteredMetricsGroup()
-        }
-
         // see if there already exists an ExecutionGraph for the corresponding job ID
         executionGraph = currentJobs.get(jobGraph.getJobID) match {
           case Some((graph, currentJobInfo)) =>
@@ -1230,6 +1223,16 @@ class JobManager(
             if (isStatsDisabled) {
               new DisabledCheckpointStatsTracker()
             } else {
+
+              val jobMetrics = jobManagerMetricGroup match {
+                case Some(group) =>
+                  group.addJob(jobGraph.getJobID, jobGraph.getName) match {
+                    case (jobGroup:Any) => jobGroup
+                    case null => new UnregisteredMetricsGroup()
+                  }
+                case None =>
+                  new UnregisteredMetricsGroup()
+              }
               val historySize: Int = flinkConfiguration.getInteger(
                 ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
                 ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE)
