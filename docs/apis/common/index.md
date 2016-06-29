@@ -1453,39 +1453,74 @@ This allows you to define explicitly how metrics on every level should be report
 Metrics can be exposed to an external system by configuring a reporter in the `conf/flink-conf.yaml`.
 
 - `metrics.reporter.class`: The class of the reporter to use.
-  - Example: org.apache.flink.metrics.reporter.JMXReporter)
+  - Example: org.apache.flink.metrics.reporter.JMXReporter
 - `metrics.reporter.arguments`: A list of named parameters that are passed to the reporter.
-  - Example: --host localhost --port 9010)
+  - Example: --host localhost --port 9010
 - `metrics.reporter.interval`: The interval between reports.
-  - Example: 10 SECONDS)
-
-By default Flink uses JMX to expose metrics.
-
-The port for JMX can be configured by setting the `metrics.jmx.port` key. This parameter expects either a single port
-or a port range, with the default being 9010-9025. Which port is used in the end is shown in the relevant Job-/TaskManager log.
-
-All non-JMXReporters are not part of the distribution and have to be added to the classpath manually, usually by putting the jar into /lib.
+  - Example: 10 SECONDS
 
 You can write your own Reporter by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the Scheduled interface as well.
 
-Flink supports the following systems with their respective configuration parameters:
+By default Flink uses JMX to expose metrics.
+All non-JMXReporters are not part of the distribution and have to be added to the classpath manually, either by putting the jar into /lib
+or including it in the job jar.
 
-#### Ganglia (org.apcahe.flink.metrics.ganglia.GangliaReporter)
-- `host`
-- `port`
-- `dmax`
-- `tmax`
-- `ttl`
-- `addressingMode` (UNICAST/MULTICAST)
+Flink supports the following systems:
+
+#### JMX
+
+The port for JMX can be configured by setting the `metrics.jmx.port` key. This parameter expects either a single port
+or a port range, with the default being 9010-9025. The used port is shown in the relevant Job-/TaskManager log.
+
+#### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
+Dependency:
+{% highlight xml %}
+<dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-metrics-ganglia</artifactId>
+      <version>1.1-SNAPSHOT</version>
+</dependency>
+{% endhighlight %}
+
+Parameters:
+
+- `host` - the ganglia server host
+- `port` - the ganglia server port
+- `tmax` - soft limit for how long an old metric should be retained
+- `dmax` - hard limit for how long an old metric should be retained
+- `ttl` - time-to-live for transmitted UDP packets
+- `addressingMode` - UDP addressing mode to use (UNICAST/MULTICAST)
 
 #### Graphite (org.apache.flink.metrics.graphite.GraphiteReporter)
-- `host`
-- `port`
+Dependency:
+{% highlight xml %}
+<dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-metrics-graphite</artifactId>
+      <version>1.1-SNAPSHOT</version>
+</dependency>
+{% endhighlight %}
+
+Parameters:
+
+- `host` - the Graphite server host
+- `port` - the Graphite server port
 
 #### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
-- `host`
-- `port`
+Dependency:
+{% highlight xml %}
+<dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-metrics-statsd</artifactId>
+      <version>1.1-SNAPSHOT</version>
+</dependency>
+{% endhighlight %}
+
+Parameters:
+
+- `host` - the StatsD server host
+- `port` - the StatsD server port
 
 ### System metrics
 
