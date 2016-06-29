@@ -1540,8 +1540,8 @@ Metrics can be exposed to an external system by configuring a reporter in the `c
 - `metrics.reporter.interval`: The interval between reports.
   - Example: 10 SECONDS
 
-You can write your own Reporter by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
-If the Reporter should send out reports regularly you have to implement the Scheduled interface as well.
+You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
+If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 
 By default Flink uses JMX to expose metrics.
 All non-JMXReporters are not part of the distribution and have to be added to the classpath manually, either by putting the jar into /lib
