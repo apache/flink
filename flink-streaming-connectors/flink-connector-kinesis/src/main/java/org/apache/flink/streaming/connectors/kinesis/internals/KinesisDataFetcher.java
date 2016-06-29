@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ public class KinesisDataFetcher {
 	private final String taskName;
 
 	/** Information of the shards that this fetcher handles, along with the sequence numbers that they should start from */
-	private HashMap<KinesisStreamShard, String> assignedShardsWithStartingSequenceNum;
+	private HashMap<KinesisStreamShard, SequenceNumber> assignedShardsWithStartingSequenceNum;
 
 	/** Reference to the thread that executed run() */
 	private volatile Thread mainThread;
@@ -71,7 +72,7 @@ public class KinesisDataFetcher {
 		this.configProps = checkNotNull(configProps);
 		this.assignedShardsWithStartingSequenceNum = new HashMap<>();
 		for (KinesisStreamShard shard : assignedShards) {
-			assignedShardsWithStartingSequenceNum.put(shard, SentinelSequenceNumber.SENTINEL_SEQUENCE_NUMBER_NOT_SET.toString());
+			assignedShardsWithStartingSequenceNum.put(shard, SentinelSequenceNumber.SENTINEL_SEQUENCE_NUMBER_NOT_SET.get());
 		}
 		this.taskName = taskName;
 		this.error = new AtomicReference<>();
@@ -83,7 +84,7 @@ public class KinesisDataFetcher {
 	 * @param streamShard the shard to perform the advance on
 	 * @param sequenceNum the sequence number to advance to
 	 */
-	public void advanceSequenceNumberTo(KinesisStreamShard streamShard, String sequenceNum) {
+	public void advanceSequenceNumberTo(KinesisStreamShard streamShard, SequenceNumber sequenceNum) {
 		if (!assignedShardsWithStartingSequenceNum.containsKey(streamShard)) {
 			throw new IllegalArgumentException("Can't advance sequence number on a shard we are not going to read.");
 		}
@@ -92,7 +93,7 @@ public class KinesisDataFetcher {
 
 	public <T> void run(SourceFunction.SourceContext<T> sourceContext,
 						KinesisDeserializationSchema<T> deserializationSchema,
-						HashMap<KinesisStreamShard, String> lastSequenceNums) throws Exception {
+						HashMap<KinesisStreamShard, SequenceNumber> lastSequenceNums) throws Exception {
 
 		if (assignedShardsWithStartingSequenceNum == null || assignedShardsWithStartingSequenceNum.size() == 0) {
 			throw new IllegalArgumentException("No shards set to read for this fetcher");
@@ -104,7 +105,7 @@ public class KinesisDataFetcher {
 
 		// create a thread for each individual shard
 		ArrayList<ShardConsumerThread<?>> consumerThreads = new ArrayList<>(assignedShardsWithStartingSequenceNum.size());
-		for (Map.Entry<KinesisStreamShard, String> assignedShard : assignedShardsWithStartingSequenceNum.entrySet()) {
+		for (Map.Entry<KinesisStreamShard, SequenceNumber> assignedShard : assignedShardsWithStartingSequenceNum.entrySet()) {
 			ShardConsumerThread<T> thread = new ShardConsumerThread<>(this, configProps, assignedShard.getKey(),
 				assignedShard.getValue(), sourceContext, InstantiationUtil.clone(deserializationSchema), lastSequenceNums);
 			thread.setName(String.format("ShardConsumer - %s - %s/%s",

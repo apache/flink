@@ -28,6 +28,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstan
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
@@ -64,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> the type of data emitted
  */
 public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
-	implements CheckpointedAsynchronously<HashMap<KinesisStreamShard, String>>, ResultTypeQueryable<T> {
+	implements CheckpointedAsynchronously<HashMap<KinesisStreamShard, SequenceNumber>>, ResultTypeQueryable<T> {
 
 	private static final long serialVersionUID = 4724006128720664870L;
 
@@ -92,10 +93,10 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	private transient KinesisDataFetcher fetcher;
 
 	/** The sequence numbers of the last fetched data records from Kinesis by this task */
-	private transient HashMap<KinesisStreamShard, String> lastSequenceNums;
+	private transient HashMap<KinesisStreamShard, SequenceNumber> lastSequenceNums;
 
 	/** The sequence numbers to restore to upon restore from failure */
-	private transient HashMap<KinesisStreamShard, String> sequenceNumsToRestore;
+	private transient HashMap<KinesisStreamShard, SequenceNumber> sequenceNumsToRestore;
 
 	private volatile boolean hasAssignedShards;
 
@@ -227,14 +228,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 				LOG.info("Consumer task {} is restoring sequence numbers from previous checkpointed state", thisConsumerTaskIndex);
 			}
 
-			for (Map.Entry<KinesisStreamShard, String> restoreSequenceNum : sequenceNumsToRestore.entrySet()) {
+			for (Map.Entry<KinesisStreamShard, SequenceNumber> restoreSequenceNum : sequenceNumsToRestore.entrySet()) {
 				// advance the corresponding shard to the last known sequence number
 				fetcher.advanceSequenceNumberTo(restoreSequenceNum.getKey(), restoreSequenceNum.getValue());
 			}
 
 			if (LOG.isInfoEnabled()) {
 				StringBuilder sb = new StringBuilder();
-				for (Map.Entry<KinesisStreamShard, String> restoreSequenceNo : sequenceNumsToRestore.entrySet()) {
+				for (Map.Entry<KinesisStreamShard, SequenceNumber> restoreSequenceNo : sequenceNumsToRestore.entrySet()) {
 					KinesisStreamShard shard = restoreSequenceNo.getKey();
 					sb.append(shard.getStreamName()).append(":").append(shard.getShardId())
 						.append(" -> ").append(restoreSequenceNo.getValue()).append(", ");
@@ -265,14 +266,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 			}
 
 			for (KinesisStreamShard assignedShard : assignedShards) {
-				fetcher.advanceSequenceNumberTo(assignedShard, sentinelSequenceNum.toString());
+				fetcher.advanceSequenceNumberTo(assignedShard, sentinelSequenceNum.get());
 			}
 
 			if (LOG.isInfoEnabled()) {
 				StringBuilder sb = new StringBuilder();
 				for (KinesisStreamShard assignedShard : assignedShards) {
 					sb.append(assignedShard.getStreamName()).append(":").append(assignedShard.getShardId())
-						.append(" -> ").append(sentinelSequenceNum.toString()).append(", ");
+						.append(" -> ").append(sentinelSequenceNum.get()).append(", ");
 				}
 				LOG.info("Advanced the starting sequence numbers of consumer task {}: {}", thisConsumerTaskIndex, sb.toString());
 			}
@@ -335,7 +336,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public HashMap<KinesisStreamShard, String> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+	public HashMap<KinesisStreamShard, SequenceNumber> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
 		if (lastSequenceNums == null) {
 			LOG.debug("snapshotState() requested on not yet opened source; returning null.");
 			return null;
@@ -351,12 +352,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 		}
 
 		@SuppressWarnings("unchecked")
-		HashMap<KinesisStreamShard, String> currentSequenceNums = (HashMap<KinesisStreamShard, String>) lastSequenceNums.clone();
+		HashMap<KinesisStreamShard, SequenceNumber> currentSequenceNums =
+			(HashMap<KinesisStreamShard, SequenceNumber>) lastSequenceNums.clone();
+
 		return currentSequenceNums;
 	}
 
 	@Override
-	public void restoreState(HashMap<KinesisStreamShard, String> restoredState) throws Exception {
+	public void restoreState(HashMap<KinesisStreamShard, SequenceNumber> restoredState) throws Exception {
 		sequenceNumsToRestore = restoredState;
 	}
 
