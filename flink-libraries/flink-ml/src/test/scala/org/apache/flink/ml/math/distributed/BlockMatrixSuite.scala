@@ -29,18 +29,12 @@ class BlockMatrixSuite
     with GivenWhenThen
     with FlinkTestBase {
 
-  val env = ExecutionEnvironment.getExecutionEnvironment
-
   val rawSampleData = List(
       (0, 0, 3.0),
       (1, 0, 1.0),
       (3, 1, 4.0),
       (3, 3, 12.0)
   )
-
-  val bm1 = DistributedRowMatrix
-    .fromCOO(env.fromCollection(rawSampleData), 4, 4)
-    .toBlockMatrix(3, 3)
 
   val rawSampleData2 = List(
       (0, 0, 2.0),
@@ -49,12 +43,19 @@ class BlockMatrixSuite
       (3, 2, 35.0)
   )
 
-  val bm2 = DistributedRowMatrix
-    .fromCOO(env.fromCollection(rawSampleData2), 4, 4)
-    .toBlockMatrix(3, 3)
-
   "multiply" should "correctly multiply two matrices" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val bm1 = DistributedRowMatrix
+      .fromCOO(env.fromCollection(rawSampleData), 4, 4)
+      .toBlockMatrix(3, 3)
+
+    val bm2 = DistributedRowMatrix
+      .fromCOO(env.fromCollection(rawSampleData2), 4, 4)
+      .toBlockMatrix(3, 3)
+
     val result = bm1.multiply(bm2)
+
     result.toRowMatrix.toCOO.toSet.filter(_._3 != 0) shouldBe Set(
         (0, 0, 6.0),
         (1, 0, 2.0),
@@ -66,6 +67,8 @@ class BlockMatrixSuite
   }
 
   "sum" should "correctly sum two matrices" in {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val rawSampleSum1 = List(
         (0, 0, 1.0),
