@@ -67,5 +67,5 @@ class TestingJobManager(
     checkpointRecoveryFactory,
     savepointStore,
     jobRecoveryTimeout,
-    None)
+    metricRegistry)
   with TestingJobManagerLike {}
