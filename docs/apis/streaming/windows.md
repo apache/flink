@@ -533,6 +533,9 @@ input
 
 The time can be one of `Time.seconds(x)`, `Time.minutes(x)`, and so on.
 
+<span class="label label-info">Note</span> When using the `GlobalWindows` window assigner no
+data is ever considered late because the end timestamp of the global window is `Long.MAX_VALUE`.
+
 ## Triggers
 
 A `Trigger` determines when a window as assigned by the `WindowAssigner` is ready for being
