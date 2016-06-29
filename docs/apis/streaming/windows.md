@@ -142,7 +142,7 @@ how long to wait for new data before considering a session as closed.
 
 ### Specifying a Window Assigner
 
-The window assigners except `GlobalWindows` come in two versions. One for processing-time
+The built-in window assigners (except `GlobalWindows`) come in two versions. One for processing-time
 windowing and one for event-time windowing. The processing-time assigners assign elements to
 windows based on the current clock of the worker machines while the event-time assigners assign
 windows based on the timestamps of elements. Please have a look at
@@ -267,7 +267,10 @@ get both incremental aggregation of window elements and the additional informati
 
 ### ReduceFunction
 
-A reduce function can be specified like this:
+A reduce function specifies how two values can be combined to form one element. Flink can use this
+to incrementally aggregate the elements in a window.
+
+A `ReduceFunction` can be used in a program like this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -339,11 +342,11 @@ a concatenation of all the `Long` fields of the input.
 
 ### WindowFunction - The Generic Case
 
-Using a `WindowFunction` gives you most flexibility, at the cost of performance. The reason for this
+Using a `WindowFunction` provides most flexibility, at the cost of performance. The reason for this
 is that elements cannot be incrementally aggregated for a window and instead need to be buffered
 internally until the window is considered ready for processing. A `WindowFunction` gets an
-`Iterable` containing all the elements of the window being processed. This is the signature of
-`WindowFunction`:
+`Iterable` containing all the elements of the window being processed. The signature of
+`WindowFunction` is this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -385,7 +388,12 @@ public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function
 </div>
 </div>
 
-and it can be used like this:
+Here we show an example that uses a `WindowFunction` to count the elements in a window. We do this
+because we want to access information about the window itself to emit it along with the count.
+This is very inefficient, however, and should be implemented with a
+`ReduceFunction` in practice. Below, we will see an example of how a `ReduceFunction` can
+be combined with a `WindowFunction` to get both incremental aggregation and the added
+information of a `WindowFunction`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -438,17 +446,14 @@ class MyWindowFunction extends WindowFunction[(String, Long), String, String, Ti
 </div>
 </div>
 
-This example shows how to count the elements in a window and emit it along with the window in which
-the elements are. This is very inefficient, however, and should be implemented with a
-`ReduceFunction` in practice.
-
 ### WindowFunction with Incremental Aggregation
 
-A `WindowFunction` can be combined with either `ReduceFunction` or `FoldFunction` to get
-the benefit of incremental window computation and also have the additional meta information
+A `WindowFunction` can be combined with either a `ReduceFunction` or a `FoldFunction`. This allows
+to get the benefit of incremental window computation and also have the additional meta information
 that writing a `WindowFunction` provides.
 
-Combining a incremental window computation with a `WindowFunction` works like this:
+This is an exampel that shows how incremental aggregation functions can be combined with
+a `WindowFunction`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -498,9 +503,10 @@ see [event time](apis/streaming/event_time.html) and especially
 how Flink deals with event time.
 
 You can specify for a windowed transformation how it should deal with late elements and how much
-lateness you allow. The parameter for this is called *allowed lateness*. This specifies by
-how much elements can be late. If elements arrive after the allowed lateness they will
-be dropped. Flink will also make sure that any state held by the windowing operation is garbage
+lateness is allowed. The parameter for this is called *allowed lateness*. This specifies by how much
+elements can be late. Elements that arrive within the allowed lateness are still put into windows
+and are considered when computing window results. If elements arrive after the allowed lateness they
+will be dropped. Flink will also make sure that any state held by the windowing operation is garbage
 collected once the watermark passes the end of a window plus the allowed lateness.
 
 You can specify an allowed lateness like this:
@@ -538,15 +544,15 @@ data is ever considered late because the end timestamp of the global window is `
 
 ## Triggers
 
-A `Trigger` determines when a window as assigned by the `WindowAssigner` is ready for being
+A `Trigger` determines when a window (as assigned by the `WindowAssigner`) is ready for being
 processed by the *window function*. The trigger observes how elements are added to windows
 and can also keep track of the progress of processing time and event time. Once a trigger
-determines that a window is ready for processing it fires. This is the signal for the
-window operation to take the elements that are currently in window and pass them along to
+determines that a window is ready for processing, it fires. This is the signal for the
+window operation to take the elements that are currently in the window and pass them along to
 the window function to produce output for the firing window.
 
 Each `WindowAssigner` (except `GlobalWindows`) comes with a default trigger that should be
-appropriate for most use cases. For example, `TumblingEventTimeWindows` has `EventTimeTrigger` as
+appropriate for most use cases. For example, `TumblingEventTimeWindows` has an `EventTimeTrigger` as
 default trigger. This trigger simply fires once the watermark passes the end of a window.
 
 You can specify the trigger to be used by calling `trigger()` with a given `Trigger`. The
@@ -578,9 +584,9 @@ input
 </div>
 </div>
 
-Flink comes with a few triggers out-of-box: there is the already mentioned `EventTimeTrigger`
-that fires based on the progress of event-time as measured by the watermark, `ProcessingTimeTrigger`
-does the same but based on processing time and `CountTrigger` fires once the number of elements
+Flink comes with a few triggers out-of-box: there is the already mentioned `EventTimeTrigger` that
+fires based on the progress of event-time as measured by the watermark, The `ProcessingTimeTrigger`
+does the same but based on processing time and the `CountTrigger` fires once the number of elements
 in a window exceeds the given limit.
 
 <span class="label label-danger">Attention</span> By specifying a trigger using `trigger()` you
