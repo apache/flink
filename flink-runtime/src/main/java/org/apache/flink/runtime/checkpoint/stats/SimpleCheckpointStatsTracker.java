@@ -108,7 +108,6 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 	 * The latest completed checkpoint (highest ID) or <code>null</code>.
 	 */
 	private CompletedCheckpoint latestCompletedCheckpoint;
-	private CheckpointStats latestCompletedCheckpointStats;
 
 	public SimpleCheckpointStatsTracker(
 			int historySize,
