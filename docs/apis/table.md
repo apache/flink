@@ -776,7 +776,7 @@ val result = left.intersectAll(right);
       </td>
     </tr>
     <tr>
-      <td><strong>UnionAll</strong></td>
+      <td><strong>MinusAll</strong></td>
       <td>
         <p>Similar to a SQL EXCEPT ALL clause. Returns elements from the first table that do not exist in the second table without removing duplicates. Both tables must have identical schema(field names and types).</p>
 {% highlight scala %}
@@ -969,7 +969,7 @@ val result = tableEnv.sql(
 
 #### Limitations
 
-The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, `UNION` and `EXCEPT` clauses. Aggregations or joins are not supported yet.
+The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE` and `UNION` clauses. Aggregations or joins are not supported yet.
 
 {% top %}
 
