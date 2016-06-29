@@ -87,14 +87,22 @@ extends GraphAlgorithmDelegatingGraph<OLD, VV, EV, NEW, VV, EV> {
 
 		TranslateGraphIds rhs = (TranslateGraphIds) other;
 
+		// verify that configurations can be merged
+
+		if (translator != rhs.translator) {
+			return false;
+		}
+
+		// merge configurations
+
 		parallelism = Math.min(parallelism, rhs.parallelism);
 
 		return true;
 	}
 
-
 	@Override
-	public Graph<NEW, VV, EV> runInternal(Graph<OLD, VV, EV> input) throws Exception {
+	public Graph<NEW, VV, EV> runInternal(Graph<OLD, VV, EV> input)
+			throws Exception {
 		// Vertices
 		DataSet<Vertex<NEW, VV>> translatedVertices = translateVertexIds(input.getVertices(), translator, parallelism);
 

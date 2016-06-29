@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingGraph;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.Preconditions;
 
@@ -38,7 +38,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class Simplify<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
+extends GraphAlgorithmDelegatingGraph<K, VV, EV, K, VV, EV> {
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_DEFAULT;
@@ -59,7 +59,27 @@ implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
 	}
 
 	@Override
-	public Graph<K, VV, EV> run(Graph<K, VV, EV> input)
+	protected String getAlgorithmName() {
+		return Simplify.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingGraph other) {
+		Preconditions.checkNotNull(other);
+
+		if (! Simplify.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		Simplify rhs = (Simplify) other;
+
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public Graph<K, VV, EV> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// Edges
 		DataSet<Edge<K, EV>> edges = input

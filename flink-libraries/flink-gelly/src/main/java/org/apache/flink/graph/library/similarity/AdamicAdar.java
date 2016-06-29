@@ -33,11 +33,11 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
@@ -71,7 +71,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class AdamicAdar<K extends CopyableValue<K>, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 	private static final int GROUP_SIZE = 64;
 
@@ -127,6 +127,35 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		return this;
 	}
 
+	@Override
+	protected String getAlgorithmName() {
+		return AdamicAdar.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! AdamicAdar.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		AdamicAdar rhs = (AdamicAdar) other;
+
+		// verify that configurations can be merged
+
+		if (minimumRatio != rhs.minimumRatio ||
+			minimumScore != rhs.minimumScore) {
+			return false;
+		}
+
+		// merge configurations
+
+		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+
+		return true;
+	}
+
 	/*
 	 * Implementation notes:
 	 *
@@ -136,7 +165,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 
 	@Override
-	public DataSet<Result<K>> run(Graph<K, VV, EV> input)
+	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, d(s), 1/log(d(s))
 		DataSet<Tuple3<K, LongValue, FloatValue>> inverseLogDegree = input

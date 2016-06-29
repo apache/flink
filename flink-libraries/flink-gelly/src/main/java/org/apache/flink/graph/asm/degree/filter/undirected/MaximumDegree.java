@@ -27,9 +27,10 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFir
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingGraph;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -46,15 +47,15 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class MaximumDegree<K, VV, EV>
-implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
+extends GraphAlgorithmDelegatingGraph<K, VV, EV, K, VV, EV> {
 
 	// Required configuration
 	private long maximumDegree;
 
 	// Optional configuration
-	private boolean reduceOnTargetId = false;
+	private OptionalBoolean reduceOnTargetId = new OptionalBoolean(false, false);
 
-	private boolean broadcastHighDegreeVertices = false;
+	private OptionalBoolean broadcastHighDegreeVertices = new OptionalBoolean(false, false);
 
 	private int parallelism = PARALLELISM_DEFAULT;
 
@@ -79,7 +80,7 @@ implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
 	 * @return this
 	 */
 	public MaximumDegree<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
-		this.reduceOnTargetId = reduceOnTargetId;
+		this.reduceOnTargetId.set(reduceOnTargetId);
 
 		return this;
 	}
@@ -96,7 +97,7 @@ implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
 	 * @return this
 	 */
 	public MaximumDegree<K, VV, EV> setBroadcastHighDegreeVertices(boolean broadcastHighDegreeVertices) {
-		this.broadcastHighDegreeVertices = broadcastHighDegreeVertices;
+		this.broadcastHighDegreeVertices.set(broadcastHighDegreeVertices);
 
 		return this;
 	}
@@ -113,6 +114,36 @@ implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
 		return this;
 	}
 
+	@Override
+	protected String getAlgorithmName() {
+		return MaximumDegree.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingGraph other) {
+		Preconditions.checkNotNull(other);
+
+		if (! MaximumDegree.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		MaximumDegree rhs = (MaximumDegree) other;
+
+		// verify that configurations can be merged
+
+		if (maximumDegree != rhs.maximumDegree) {
+			return false;
+		}
+
+		// merge configurations
+
+		reduceOnTargetId.mergeWith(rhs.reduceOnTargetId);
+		broadcastHighDegreeVertices.mergeWith(rhs.broadcastHighDegreeVertices);
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
 	/*
 	 * Implementation notes:
 	 *
@@ -121,12 +152,12 @@ implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
 	 */
 
 	@Override
-	public Graph<K, VV, EV> run(Graph<K, VV, EV> input)
+	public Graph<K, VV, EV> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, d(u)
 		DataSet<Vertex<K, LongValue>> vertexDegree = input
 			.run(new VertexDegree<K, VV, EV>()
-				.setReduceOnTargetId(reduceOnTargetId)
+				.setReduceOnTargetId(reduceOnTargetId.get())
 				.setParallelism(parallelism));
 
 		// u, d(u) if d(u) > maximumDegree
@@ -135,7 +166,7 @@ implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
 				.setParallelism(parallelism)
 				.name("Filter high-degree vertices");
 
-		JoinHint joinHint = broadcastHighDegreeVertices ? JoinHint.BROADCAST_HASH_SECOND : JoinHint.REPARTITION_HASH_SECOND;
+		JoinHint joinHint = broadcastHighDegreeVertices.get() ? JoinHint.BROADCAST_HASH_SECOND : JoinHint.REPARTITION_HASH_SECOND;
 
 		// Vertices
 		DataSet<Vertex<K, VV>> vertices = input
@@ -151,17 +182,17 @@ implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
 		DataSet<Edge<K, EV>> edges = input
 			.getEdges()
 			.leftOuterJoin(highDegreeVertices, joinHint)
-			.where(reduceOnTargetId ? 1 : 0)
+			.where(reduceOnTargetId.get() ? 1 : 0)
 			.equalTo(0)
 				.with(new ProjectEdge<K, EV>())
 				.setParallelism(parallelism)
-				.name("Project low-degree edges by " + (reduceOnTargetId ? "target" : "source"))
+				.name("Project low-degree edges by " + (reduceOnTargetId.get() ? "target" : "source"))
 			.leftOuterJoin(highDegreeVertices, joinHint)
-			.where(reduceOnTargetId ? 0 : 1)
+			.where(reduceOnTargetId.get() ? 0 : 1)
 			.equalTo(0)
 			.with(new ProjectEdge<K, EV>())
 				.setParallelism(parallelism)
-				.name("Project low-degree edges by " + (reduceOnTargetId ? "source" : "target"));
+				.name("Project low-degree edges by " + (reduceOnTargetId.get() ? "source" : "target"));
 
 		// Graph
 		return Graph.fromDataSet(vertices, edges, input.getContext());

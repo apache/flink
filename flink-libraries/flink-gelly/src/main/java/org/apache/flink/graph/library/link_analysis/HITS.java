@@ -36,9 +36,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.library.link_analysis.HITS.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -62,7 +63,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class HITS<K, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<HITS.Result<K>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 	private static final String CHANGE_IN_SCORES = "change in scores";
 
@@ -128,7 +129,32 @@ implements GraphAlgorithm<K, VV, EV, DataSet<HITS.Result<K>>> {
 	}
 
 	@Override
-	public DataSet<Result<K>> run(Graph<K, VV, EV> input)
+	protected String getAlgorithmName() {
+		return HITS.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! HITS.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		HITS rhs = (HITS) other;
+
+		// merge configurations
+
+		maxIterations = Math.max(maxIterations, rhs.maxIterations);
+		convergenceThreshold = Math.min(convergenceThreshold, rhs.convergenceThreshold);
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+
+	@Override
+	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		DataSet<Tuple2<K, K>> edges = input
 			.getEdges()

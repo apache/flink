@@ -24,9 +24,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeDegreeWithVertexDegree;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Preconditions;
 
@@ -41,10 +42,10 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class EdgeDegreePair<K, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Edge<K, Tuple3<EV, LongValue, LongValue>>> {
 
 	// Optional configuration
-	protected boolean reduceOnTargetId = false;
+	private OptionalBoolean reduceOnTargetId = new OptionalBoolean(false, false);
 
 	private int parallelism = PARALLELISM_DEFAULT;
 
@@ -58,7 +59,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongV
 	 * @return this
 	 */
 	public EdgeDegreePair<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
-		this.reduceOnTargetId = reduceOnTargetId;
+		this.reduceOnTargetId.set(reduceOnTargetId);
 
 		return this;
 	}
@@ -79,18 +80,39 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongV
 	}
 
 	@Override
-	public DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> run(Graph<K, VV, EV> input)
+	protected String getAlgorithmName() {
+		return EdgeDegreePair.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! EdgeSourceDegree.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		EdgeDegreePair rhs = (EdgeDegreePair) other;
+
+		reduceOnTargetId.mergeWith(rhs.reduceOnTargetId);
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, t, d(s)
 		DataSet<Edge<K, Tuple2<EV, LongValue>>> edgeSourceDegrees = input
 			.run(new EdgeSourceDegree<K, VV, EV>()
-				.setReduceOnTargetId(reduceOnTargetId)
+				.setReduceOnTargetId(reduceOnTargetId.get())
 				.setParallelism(parallelism));
 
 		// t, d(t)
 		DataSet<Vertex<K, LongValue>> vertexDegrees = input
 			.run(new VertexDegree<K, VV, EV>()
-				.setReduceOnTargetId(reduceOnTargetId)
+				.setReduceOnTargetId(reduceOnTargetId.get())
 				.setParallelism(parallelism));
 
 		// s, t, (d(s), d(t))
