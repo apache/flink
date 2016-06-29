@@ -52,12 +52,16 @@ mvn clean install -Pinclude-kinesis -DskipTests
 
 
 Note that the streaming connectors are not part of the binary distribution. 
-See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+See how to link with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
-#### Usage of Consumer
+### Using the Amazon Kinesis Streams Service
+Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
+to setup Kinesis streams. Make sure to create the appropriate IAM policy and user to read / write to the Kinesis streams.
+
+### Kinesis Consumer
 
 The `FlinkKinesisConsumer` can be used to pull data from multiple Kinesis streams within the same AWS region in parallel.
-It participates in Flink's distributed snapshot checkpointing and provides exactly-once processing guarantees. Note
+It participates in Flink's distributed snapshot checkpointing and provides exactly-once user-defined state update guarantees. Note
 that the current version can not handle resharding of Kinesis streams. When Kinesis streams are resharded, the consumer
 will fail and the Flink streaming job must be resubmitted.
 
@@ -78,8 +82,26 @@ kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYP
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
 
-DataStream<String> kinesisRecords = env.addSource(new FlinkKinesisConsumer<>(
+DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
     "kinesis_stream_name", new SimpleStringSchema(), kinesisConsumerConfig))
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val kinesisConsumerConfig = new Properties();
+kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+kinesisConsumerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
+    "aws_access_key_id_here");
+kinesisConsumerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
+    "aws_secret_key_here");
+kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, "LATEST");
+
+val env = StreamExecutionEnvironment.getEnvironment
+
+val kinesis = env.addSource(new FlinkKinesisConsumer[String](
+    "kinesis_stream_name", new SimpleStringSchema, kinesisConsumerConfig))
 {% endhighlight %}
 </div>
 </div>
@@ -92,13 +114,15 @@ the AWS access key ID and secret key are directly supplied in the configuration 
 from the newest position in the Kinesis stream (the other option will be setting `KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE`
 to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from the earliest record possible).
 
-#### Usage of Producer
+Other optional configuration keys can be found in `KinesisConfigConstants`.
 
-The `FlinkKinesisProducer` is used for putting data from a Flink stream onto a Kinesis stream. Note that the producer is not participating in 
+### Kinesis Producer
+
+The `FlinkKinesisProducer` is used for putting data from a Flink stream into a Kinesis stream. Note that the producer is not participating in
 Flink's checkpointing and doesn't provide exactly-once processing guarantees. In case of a failure, data will be written again
 to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
 
-To put data onto a Kinesis stream, make sure the stream is marked as "ACTIVE" in the AWS dashboard.
+To put data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in the AWS dashboard.
 
 For the monitoring to work, the user accessing the stream needs access to the Cloud watch service.
 
@@ -113,13 +137,34 @@ kinesisProducerConfig.put(
 kinesisProducerConfig.put(
     KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
     "aws_secret_key_here");
-FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(), kinesisProducerConfig);
 
+FlinkKinesisProducer<String> kinesis =
+    new FlinkKinesisProducer<>(new SimpleStringSchema(), kinesisProducerConfig);
 kinesis.setFailOnError(true);
-kinesis.setDefaultStream("test-flink");
+kinesis.setDefaultStream("kinesis_stream_name");
 kinesis.setDefaultPartition("0");
 
 DataStream<String> simpleStringStream = ...;
+simpleStringStream.addSink(kinesis);
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val kinesisProducerConfig = new Properties();
+kinesisProducerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
+    "aws_access_key_id_here");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
+    "aws_secret_key_here");
+
+val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, kinesisProducerConfig);
+kinesis.setFailOnError(true);
+kinesis.setDefaultStream("kinesis_stream_name");
+kinesis.setDefaultPartition("0");
+
+val simpleStringStream = ...;
 simpleStringStream.addSink(kinesis);
 {% endhighlight %}
 </div>
