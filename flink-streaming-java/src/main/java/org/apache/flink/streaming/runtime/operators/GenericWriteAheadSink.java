@@ -49,6 +49,8 @@ import java.util.UUID;
  * @param <IN> Type of the elements emitted by this sink
  */
 public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+	private static final long serialVersionUID = 1L;
+
 	protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
 	private final CheckpointCommitter committer;
 	private transient AbstractStateBackend.CheckpointStateOutputView out;
@@ -140,10 +142,14 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 					if (!committer.isCheckpointCommitted(pastCheckpointId)) {
 						Tuple2<Long, StateHandle<DataInputView>> handle = state.pendingHandles.get(pastCheckpointId);
 						DataInputView in = handle.f1.getState(getUserCodeClassloader());
-						sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
-						committer.commitCheckpoint(pastCheckpointId);
+						boolean success = sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
+						if (success) { //if the sending has failed we will retry on the next notify
+							committer.commitCheckpoint(pastCheckpointId);
+							checkpointsToRemove.add(pastCheckpointId);
+						}
+					} else {
+						checkpointsToRemove.add(pastCheckpointId);
 					}
-					checkpointsToRemove.add(pastCheckpointId);
 				}
 			}
 			for (Long toRemove : checkpointsToRemove) {
@@ -159,10 +165,10 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	 * Write the given element into the backend.
 	 *
 	 * @param value value to be written
+	 * @return true, if the sending was successful, false otherwise
 	 * @throws Exception
 	 */
-
-	protected abstract void sendValues(Iterable<IN> value, long timestamp) throws Exception;
+	protected abstract boolean sendValues(Iterable<IN> value, long timestamp) throws Exception;
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
