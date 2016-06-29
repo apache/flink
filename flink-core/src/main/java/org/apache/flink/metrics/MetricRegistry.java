@@ -69,8 +69,6 @@ public class MetricRegistry {
 	private final ScheduledExecutorService executor;
 
 	private final ScopeFormats scopeFormats;
-	
-	private boolean enabled = true;
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
@@ -157,11 +155,6 @@ public class MetricRegistry {
 			return reporter;
 		}
 	}
-	
-	public void disable() {
-		enabled = false;
-		shutdown();
-	}
 
 	/**
 	 * Shuts down this registry and the associated {@link org.apache.flink.metrics.reporter.MetricReporter}.
@@ -208,7 +201,7 @@ public class MetricRegistry {
 	 */
 	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
-			if (enabled && reporter != null) {
+			if (reporter != null) {
 				reporter.notifyOfAddedMetric(metric, metricName, group);
 			}
 		} catch (Exception e) {
@@ -225,7 +218,7 @@ public class MetricRegistry {
 	 */
 	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
-			if (enabled && reporter != null) {
+			if (reporter != null) {
 				reporter.notifyOfRemovedMetric(metric, metricName, group);
 			}
 		} catch (Exception e) {
