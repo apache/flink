@@ -32,6 +32,7 @@ import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ListOptions;
+import org.apache.flink.client.cli.MainOptions;
 import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.cli.SavepointOptions;
@@ -132,9 +133,9 @@ public class CliFrontend {
 
 
 
-	private Configuration config;
+	private final Configuration config;
 
-	private FiniteDuration clientTimeout;
+	private final FiniteDuration clientTimeout;
 
 	/**
 	 *
@@ -145,10 +146,6 @@ public class CliFrontend {
 	}
 
 	public CliFrontend(String configDir) throws Exception {
-		configureConfigDir(configDir);
-	}
-
-	private void configureConfigDir(String configDir) throws Exception {
 
 		// configure the config directory
 		File configDirectory = new File(configDir);
@@ -211,15 +208,6 @@ public class CliFrontend {
 		}
 		catch (Throwable t) {
 			return handleError(t);
-		}
-
-		//load configDir
-		if (options.getConfigDir() != null) {
-			try {
-				configureConfigDir(options.getConfigDir());
-			} catch(Exception e) {
-				return handleArgException(new CliArgsException(e.toString()));
-			}
 		}
 
 		// evaluate help flag
@@ -1017,7 +1005,17 @@ public class CliFrontend {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
 		try {
-			CliFrontend cli = new CliFrontend();
+			final MainOptions mainOptions = CliFrontendParser.parseMainCommand(args);
+
+			final CliFrontend cli;
+			if (mainOptions.getConfigDir() == null) {
+				cli = new CliFrontend();
+			} else {
+
+				// remove configDir key and value from arguments
+				args = Arrays.copyOfRange(args, 2, args.length);
+				cli = new CliFrontend(mainOptions.getConfigDir());
+			}
 			int retCode = cli.parseParameters(args);
 			System.exit(retCode);
 		}

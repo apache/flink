@@ -76,7 +76,7 @@ public class CliFrontendParser {
 			"Disposes an existing savepoint.");
 
 	static final Option CONFIGDIR_OPTION = new Option(null, "configDir", true,
-			"The configuration directory with which to run the program.");
+			"Path to a custom configuration directory with which to run the client.");
 
 	// list specific options
 	static final Option RUNNING_OPTION = new Option("r", "running", false,
@@ -129,6 +129,7 @@ public class CliFrontendParser {
 	private static final Options CANCEL_OPTIONS = getCancelOptions(buildGeneralOptions(new Options()));
 	private static final Options STOP_OPTIONS = getStopOptions(buildGeneralOptions(new Options()));
 	private static final Options SAVEPOINT_OPTIONS = getSavepointOptions(buildGeneralOptions(new Options()));
+	private static final Options MAIN_OPTIONS = getMainOptions(buildGeneralOptions(new Options()));
 
 	private static Options buildGeneralOptions(Options options) {
 		options.addOption(HELP_OPTION);
@@ -150,7 +151,6 @@ public class CliFrontendParser {
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		options.addOption(CONFIGDIR_OPTION);
 		return options;
 	}
 
@@ -161,7 +161,6 @@ public class CliFrontendParser {
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		options.addOption(CONFIGDIR_OPTION);
 		return options;
 	}
 
@@ -206,7 +205,11 @@ public class CliFrontendParser {
 		return addCustomCliOptions(options, false);
 	}
 
-	// --------------------------------------------------------------------------------------------
+	private static Options getMainOptions(Options options) {
+		options.addOption(CONFIGDIR_OPTION);
+		return options;
+	}
+// --------------------------------------------------------------------------------------------
 	//  Help
 	// --------------------------------------------------------------------------------------------
 
@@ -249,8 +252,11 @@ public class CliFrontendParser {
 	 * Prints the help for the client.
 	 */
 	public static void printHelp() {
-		System.out.println("./flink <ACTION> [OPTIONS] [ARGUMENTS]");
+		System.out.println("./flink [CONFIGDIR] <ACTION> [ACTION-OPTIONS] [ARGUMENTS]");
 		System.out.println();
+
+		printHelpForMain();
+
 		System.out.println("The following actions are available:");
 
 		printHelpForRun();
@@ -259,6 +265,17 @@ public class CliFrontendParser {
 		printHelpForStop();
 		printHelpForCancel();
 		printHelpForSavepoint();
+
+		System.out.println();
+	}
+
+	public static void printHelpForMain() {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("General option to point a custom configuration directory");
+		formatter.printHelp(" ", getMainOptions(new Options()));
 
 		System.out.println();
 	}
@@ -455,6 +472,16 @@ public class CliFrontendParser {
 			return new InfoOptions(line);
 		}
 		catch (ParseException e) {
+			throw new CliArgsException(e.getMessage());
+		}
+	}
+
+	public static MainOptions parseMainCommand(String[] args) throws CliArgsException {
+		try {
+			DefaultParser parser = new DefaultParser();
+			CommandLine line = parser.parse(MAIN_OPTIONS, args, false);
+			return new MainOptions(line);
+		} catch (ParseException e){
 			throw new CliArgsException(e.getMessage());
 		}
 	}
