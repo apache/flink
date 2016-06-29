@@ -1361,7 +1361,14 @@ Flink exposes a metric system that allows gathering and exposing metrics to exte
 You can access the metric system from any user function that extends [RichFunction]({{ site.baseurl }}/apis/common/index.html#rich-functions) by calling `getRuntimeContext().getMetricGroup()`.
 This method returns a `MetricGroup` object on which you can create and register new metrics.
 
-If you want to count the number of records your user function has received you could use a `Counter` like this:
+### Metric types
+
+Flink supports `Counters`, `Gauges` and `Histograms`.
+
+#### Counter
+
+A `Counter` is used to count something. The current value can be in- or decremented using `inc()/inc(long n)` or `dec()/dec(long n)`.
+You can create and register a `Counter` by calling `counter(String name)` on a MetricGroup.
 
 {% highlight java %}
 
@@ -1384,21 +1391,75 @@ public class MyMapper extends RichMapFunction<String, Integer> {
 
 {% endhighlight %}
 
-### Metric types
+Alternatively you can also use your own `Counter` implementation:
 
-Flink supports `Counters`, `Gauges` and `Histograms`.
+{% highlight java %}
 
-A `Counter` is used to count something. The current value can be in- or decremented using `inc()/inc(long n)` or `dec()/dec(long n)`.
-You can create and register a `Counter` by calling `counter(String name)` on a MetricGroup. Alternatively, you can pass an instance of your own `Counter` implementation along with the name.
+public class MyMapper extends RichMapFunction<String, Integer> {
+  ...
+
+  @Override
+  public void open(Configuration config) {
+    // register a custom counter
+    this.counter = getRuntimeContext().getmetricGroup().counter("myCustomCounter", new CustomCounter());
+    ...
+  }
+  ...
+}
+
+{% endhighlight %}
+
+#### Gauge
 
 A `Gauge` provides a value of any type on demand. In order to use a `Gauge` you must first create a class that implements the `org.apache.flink.metrics.Gauge` interface.
 There is not restriction for the type of the returned value.
 You can register a gauge by calling `gauge(String name, Gauge gauge)` on a MetricGroup.
 
+{% highlight java %}
+
+public class MyMapper extends RichMapFunction<String, Integer> {
+  private int valueToExpose;
+
+  @Override
+  public void open(Configuration config) {
+    // register the gauge
+    getRuntimeContext().getmetricGroup().gauge("MyGauge", new Gauge<Integer>() {
+      @Override
+      public Integer getValue() {
+        return valueToExpose;
+      }});
+    ...
+  }
+  ...
+}
+
+{% endhighlight %}
+
+#### Histogram
+
 A Histogram measure the distribution of long values.
 You can register one by calling histogram(String name, Histogram histogram) on a MetricGroup.
 
+{% highlight java %}
+public class MyMapper extends RichMapFunction<Long, Integer> {
+  private Histogram histogram;
+
+  @Override
+  public void open(Configuration config) {
+    // create and register a counter
+    this.histogram = getRuntimeContext().getMetricGroup().histogram("myHistogram", new MyHistogram());
+    ...
+  }
+
+  @public Integer map(Long value) throws Exception {
+    this.histogram.update(value);
+    ...
+  }
+}
+{% endhighlight %}
+
 Flink only provides an interface for Histograms, but offers a Wrapper that allows usage of Codahale/DropWizard Histograms. (org.apache.flink.dropwizard.metrics.DropWizardHistogramWrapper)
+This wrapper is contained in the `flink-metrics-dropwizard` module.
 
 ### Scope
 
