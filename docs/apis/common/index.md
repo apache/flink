@@ -1495,66 +1495,136 @@ Flink exposes the following system metrics:
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-center">Metrics</th>
+      <th class="text-left">Metrics</th>
+      <th class="text-left">Description</th>
     </tr>
   </thead>
 
   <tbody>
     <tr>
-      <td><strong>JobManager</strong></td>
-      <td>
-      </td>
+      <th rowspan="1"><strong>JobManager</strong></th>
+      <td></td>
+      <td></td>
     </tr>
     <tr>
-      <td><strong>TaskManager</strong></td>
-      <td>
-        <p>Status.JVM.ClassLoader.ClassesLoaded</p>
-        <p>Status.JVM.ClassLoader.ClassesUnloaded</p>
-        <p></p>
-        <p>Status.JVM.GargabeCollector.&lt;garbageCollector&gt;.Count</p>
-        <p>Status.JVM.GargabeCollector.&lt;garbageCollector&gt;.Time</p>
-        <p></p>
-        <p>Status.JVM.Memory.Heap.Used</p>
-        <p>Status.JVM.Memory.Heap.Committed</p>
-        <p>Status.JVM.Memory.Heap.Max</p>
-        <p>Status.JVM.Memory.NonHeap.Used</p>
-        <p>Status.JVM.Memory.NonHeap.Committed</p>
-        <p>Status.JVM.Memory.NonHeap.Max</p>
-        <p>Status.JVM.Memory.Direct.Count</p>
-        <p>Status.JVM.Memory.Direct.MemoryUsed</p>
-        <p>Status.JVM.Memory.Direct.TotalCapacity</p>
-        <p>Status.JVM.Memory.Mapped.Count</p>
-        <p>Status.JVM.Memory.Mapped.MemoryUsed</p>
-        <p>Status.JVM.Memory.Mapped.TotalCapacity</p>
-        <p></p>
-        <p>Status.JVM.Threads.Count</p>
-        <p></p>
-        <p>Status.JVM.CPU.Load</p>
-        <p>Status.JVM.CPU.Time</p>
-      </td>
+      <th rowspan="19"><strong>TaskManager.Status.JVM</strong></th>
+      <td>ClassLoader.ClassesLoaded</td>
+      <td>The total number of classes loaded since the start of the JVM.</td>
     </tr>
     <tr>
-      <td><strong>Job</strong></td>
-      <td>
-      </td>
+      <td>ClassLoader.ClassesUnloaded</td>
+      <td>The total number of classes unloaded since the start of the JVM.</td>
     </tr>
     <tr>
-      <td><strong>Task</strong></td>
-      <td>
-        <p>currentLowWatermark</p>
-        <p>lastCheckpointSize</p>
-        <p>numBytesInLocal</p>
-        <p>numBytesInRemote</p>
-        <p>numBytesOut</p>
-      </td>
+      <td>GargabeCollector.&lt;garbageCollector&gt;.Count</td>
+      <td>The total number of collections that have occurred.</td>
     </tr>
     <tr>
-      <td><strong>Operator</strong></td>
-      <td>
-        <p>numRecordsIn</p>
-        <p>numRecordsOut</p>
-        <p>numSplitsProcessed</p>
-      </td>
+      <td>GargabeCollector.&lt;garbageCollector&gt;.Time</td>
+      <td>The total time spent performing garbage collection.</td>
+    </tr>
+    <tr>
+      <td>Memory.Heap.Used</td>
+      <td>The amount of heap memory currently used.</td>
+    </tr>
+    <tr>
+      <td>Memory.Heap.Committed</td>
+      <td>The amount of heap memory guaranteed to be available to the JVM.</td>
+    </tr>
+    <tr>
+      <td>Memory.Heap.Max</td>
+      <td>The maximum amount of heap memory that can be used for memory management.</td>
+    </tr>
+    <tr>
+      <td>Memory.NonHeap.Used</td>
+      <td>The amount of non-heap memory currently used.</td>
+    </tr>
+    <tr>
+      <td>Memory.NonHeap.Committed</td>
+      <td>The amount of non-heap memory guaranteed to be available to the JVM.</td>
+    </tr>
+    <tr>
+      <td>Memory.NonHeap.Max</td>
+      <td>The maximum amount of non-heap memory that can be used for memory management.</td>
+    </tr>
+    <tr>
+      <td>Memory.Direct.Count</td>
+      <td>The number of buffers in the direct buffer pool.</td>
+    </tr>
+    <tr>
+      <td>Memory.Direct.MemoryUsed</td>
+      <td>The amount of memory used by the JVM for the direct buffer pool.</td>
+    </tr>
+    <tr>
+      <td>Memory.Direct.TotalCapacity</td>
+      <td>The total capacity of all buffers in the direct buffer pool.</td>
+    </tr>
+    <tr>
+      <td>Memory.Mapped.Count</td>
+      <td>The number of buffers in the mapped buffer pool.</td>
+    </tr>
+    <tr>
+      <td>Memory.Mapped.MemoryUsed</td>
+      <td>The amount of memory used by the JVM for the mapped buffer pool.</td>
+    </tr>
+    <tr>
+      <td>Memory.Mapped.TotalCapacity</td>
+      <td>The number of buffers in the mapped buffer pool.</td>
+    </tr>
+    <tr>
+      <td>Threads.Count</td>
+      <td>The total number of live threads.</td>
+    </tr>
+    <tr>
+      <td>CPU.Load</td>
+      <td>The recent CPu usage of the JVM.</td>
+    </tr>
+    <tr>
+      <td>CPU.Time</td>
+      <td>The CPU time used by the JVM.</td>
+    </tr>
+    <tr>
+      <th rowspan="1"><strong>Job</strong></th>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <tr>
+        <th rowspan="5"><strong>Task</strong></t>
+        <td>currentLowWatermark</td>
+        <td>The lowest watermark a task has received.</td>
+      </tr>
+      <tr>
+        <td>lastCheckpointSize</td>
+        <td>The total size of the last checkpoint.</td>
+      </tr>
+      <tr>
+        <td>numBytesInLocal</td>
+        <td>The total number of bytes this task has read from a local source.</td>
+      </tr>
+      <tr>
+        <td>numBytesInRemote</td>
+        <td>The total number of bytes this task has read from a remote source.</td>
+      </tr>
+      <tr>
+        <td>numBytesOut</td>
+        <td>The total number of bytes this task has emitted.</td>
+      </tr>
+    </tr>
+    <tr>
+      <tr>
+        <th rowspan="3"><strong>Operator</strong></th>
+        <td>numRecordsIn</td>
+        <td>The total number of records this operator has received.</td>
+      </tr>
+      <tr>
+        <td>numRecordsOut</td>
+        <td>The total number of records this operator has emitted.</td>
+      </tr>
+      <tr>
+        <td>numSplitsProcessed</td>
+        <td>The total number of InputSplits this data source has processed.</td>
+      </tr>
     </tr>
   </tbody>
 </table>
