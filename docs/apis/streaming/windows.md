@@ -24,14 +24,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink uses a concept called *windows* to divide a (potentially) infinite `DataStream` into slices
-based on the timestamps of elements or other criteria. This division is required when working
+Flink uses a concept called *windows* to divide a (potentially) infinite `DataStream` into finite
+slices based on the timestamps of elements or other criteria. This division is required when working
 with infinite streams of data and performing transformations that aggregate elements.
 
-<span class="label label-info">Info</span> We will mostly talk about *keyed windowing* here, this
-means that the elements are subdivided based on both window and key before being given to
-a user function. Keyed windows have the advantage that work can be distributed across the cluster
-because the elements for different keys can be processed in isolation. If you absolutely must,
+<span class="label label-info">Info</span> We will mostly talk about *keyed windowing* here, i.e.
+windows that are applied on a `KeyedStream`. Keyed windows have the advantage that elements are
+subdivided based on both window and key before being given to
+a user function. The work can thus be distributed across the cluster
+because the elements for different keys can be processed independently. If you absolutely have to,
 you can check out [non-keyed windowing](#non-keyed-windowing) where we describe how non-keyed
 windows work.
 
@@ -40,9 +41,10 @@ windows work.
 
 ## Basics
 
-For a windowed transformations you must at least specify a *key* (usually in the form of a
-`KeySelector`) a *window assigner* and a *window function*. The *key* specifies how elements are
-put into groups. The *window assigner* specifies how the infinite stream is divided into windows.
+For a windowed transformations you must at least specify a *key*
+(see [specifying keys](apis/common/index.html#specifying-keys))
+a *window assigner* and a *window function*. The *key* divides the infinite, non-keyed, stream
+into logical keyed streams while the *window assigner* assigns elements to finite per-key windows.
 Finally, the *window function* is used to process the elements of each window.
 
 The basic structure of a windowed transformation is thus as follows:
@@ -71,11 +73,11 @@ input
 </div>
 </div>
 
-We will cover the different window assigners in [window assigners](#window-assigners).
+We will cover [window assigners](#window-assigners) in a separate section below.
 
 The window transformation can be one of `reduce()`, `fold()` or `apply()`. Which respectively
 takes a `ReduceFunction`, `FoldFunction` or `WindowFunction`. We describe each of these ways
-of specifying a windowed transformation in detail in [window functions](#window-functions).
+of specifying a windowed transformation in detail below: [window functions](#window-functions).
 
 For more advanced use cases you can also specify a `Trigger` that determines when exactly a window
 is being considered as *ready for processing*. These will be covered in more detail in
@@ -83,11 +85,12 @@ is being considered as *ready for processing*. These will be covered in more det
 
 ## Window Assigners
 
-The window assigner specifies how elements of the stream are divided into slices. You can provide
-your custom window assigner by implementing `WindowAssigner` but Flink comes with
-window assigners for typical use cases: *tumbling windows*, *sliding windows*, *session windows*
-and *global windows*. Except for the last, all of these assign windows based on time, which
-can either be processing time or event time.
+The window assigner specifies how elements of the stream are divided into finite slices. Flink comes
+with pre-implemented window assigners for the most typical use cases, namely *tumbling windows*,
+*sliding windows*, *session windows* and *global windows* but you can implement your own by
+extending the `WindowAssigner` class. All the built-in window assigners, except for the global
+windows one, assign elements to windows based on time, which can either be processing time or event
+time.
 
 Let's first look at how each of these window assigners works before looking at how they can be used
 in a Flink program. We will be using abstract figures to visualize the workings of each assigner:
@@ -98,39 +101,42 @@ of time.
 ### Global Windows
 
 Global windows are a way of specifying that we don't want to subdivide our elements into windows.
-Each element is assigned to the one single *global window* (still separate for each key, of course).
-This is only useful if you also specify a custom [trigger](#triggers), otherwise you will never
-process any data because the global window does not have a natural end at which we could process
-the aggregated elements.
+Each element is assigned to one single per-key *global window*.
+This windowing scheme is only useful if you also specify a custom [trigger](#triggers). Otherwise,
+no computation is ever going to be performed, as the global window does not have a natural end at
+which we could process the aggregated elements.
 
 <img src="non-windowed.svg" class="center" style="width: 80%;" />
 
 ### Tumbling Windows
 
-A *tumbling windows* assigner assigns elements to fixed time buckets of a specified *window size*.
-For example, if you specify a window size of 5 minutes, the window function will get 5 minutes
-worth of elements in each invocation.
+A *tumbling windows* assigner assigns elements to fixed length, non-overlapping windows of a
+specified *window size*.. For example, if you specify a window size of 5 minutes, the window
+function will get 5 minutes worth of elements in each invocation.
 
 <img src="tumbling-windows.svg" class="center" style="width: 80%;" />
 
 ### Sliding Windows
 
-The *sliding windows* assigner is very similar to the *tumbling windows* assigner but it assigns
-one element to more than one windows based on a *window size* and *window slide* size. For example,
-you could have windows of size 10 minutes that slide by 5 minutes. With this you get 10 minutes
-worth of elements in each invocation of the window function and it will be invoked for every
+The *sliding windows* assigner assigns elements to windows of fixed length equal to *window size*,
+as the tumbling windows assigner, but in this case, windows can be overlapping. The size of the
+overlap is defined by the user-specified parameter *window slide*. As windows are overlapping, an
+element can be assigned to multiple windows
+
+For example, you could have windows of size 10 minutes that slide by 5 minutes. With this you get 10
+minutes worth of elements in each invocation of the window function and it will be invoked for every
 5 minutes of data.
 
 <img src="sliding-windows.svg" class="center" style="width: 80%;" />
 
 ### Session Windows
 
-The *session windows* assigner can be used if windows need to dynamically adapt to the data.
-Both the *tumbling windows* and *sliding windows* assigner assign elements to windows that start
-at fixed time points. With session windows it is possible to have windows that start at
-individual points in time for each key and that end once there has been a certain period of
-inactivity. The configuration parameter is the *session gap* that specifies how long to wait for
-new data before considering a session as closed.
+The *session windows* assigner is ideal for cases where the window boundaries need to adjust to the
+incoming data. Both the *tumbling windows* and *sliding windows* assigner assign elements to windows
+that start at fixed time points and have a fixed *window size*. With session windows it is possible
+to have windows that start at individual points in time for each key and that end once there has
+been a certain period of inactivity. The configuration parameter is the *session gap* that specifies
+how long to wait for new data before considering a session as closed.
 
 <img src="session-windows.svg" class="center" style="width: 80%;" />
 
