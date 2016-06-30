@@ -84,7 +84,7 @@ public class YarnClusterClient extends ClusterClient {
 	private final ActorRef applicationClient;
 	private final FiniteDuration akkaDuration;
 	private final Timeout akkaTimeout;
-	private final ApplicationReport applicationId;
+	private final ApplicationReport appReport;
 	private final ApplicationId appId;
 	private final String trackingURL;
 
@@ -120,7 +120,7 @@ public class YarnClusterClient extends ClusterClient {
 		this.yarnClient = yarnClient;
 		this.hadoopConfig = yarnClient.getConfig();
 		this.sessionFilesDir = sessionFilesDir;
-		this.applicationId = appReport;
+		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
 		this.perJobCluster = perJobCluster;
@@ -136,7 +136,7 @@ public class YarnClusterClient extends ClusterClient {
 		// start application client
 		LOG.info("Start application client.");
 
-		applicationClient = actorSystem.actorOf(
+		applicationClient = actorSystemLoader.get().actorOf(
 			Props.create(
 				ApplicationClient.class,
 				flinkConfig,
@@ -263,7 +263,7 @@ public class YarnClusterClient extends ClusterClient {
 
 	@Override
 	public String getClusterIdentifier() {
-		return applicationId.getApplicationId().toString();
+		return "Yarn cluster with application id " + appReport.getApplicationId();
 	}
 
 	/**
@@ -406,7 +406,7 @@ public class YarnClusterClient extends ClusterClient {
 			// we are already in the shutdown hook
 		}
 
-		if(actorSystem != null){
+		if(actorSystemLoader != null){
 			LOG.info("Sending shutdown request to the Application Master");
 			if(applicationClient != ActorRef.noSender()) {
 				try {
@@ -467,7 +467,7 @@ public class YarnClusterClient extends ClusterClient {
 				LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
 				LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
 					+ "the full application log using this command:\n"
-					+ "\tyarn logs -applicationId " + appReport.getApplicationId() + "\n"
+					+ "\tyarn logs -appReport " + appReport.getApplicationId() + "\n"
 					+ "(It sometimes takes a few seconds until the logs are aggregated)");
 			}
 		} catch (Exception e) {
@@ -552,5 +552,9 @@ public class YarnClusterClient extends ClusterClient {
 	@Override
 	public boolean isDetached() {
 		return super.isDetached() || clusterDescriptor.isDetachedMode();
+	}
+
+	public ApplicationId getApplicationId() {
+		return appId;
 	}
 }
