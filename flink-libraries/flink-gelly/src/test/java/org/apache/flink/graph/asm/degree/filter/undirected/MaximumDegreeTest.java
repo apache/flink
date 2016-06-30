@@ -18,10 +18,10 @@
 
 package org.apache.flink.graph.asm.degree.filter.undirected;
 
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
-import org.apache.flink.graph.utils.GraphUtils;
+import org.apache.flink.graph.library.metric.ChecksumHashCode;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -62,8 +62,10 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		ChecksumHashCode checksum = GraphUtils.checksumHashCode(undirectedRMatGraph
-			.run(new MaximumDegree<LongValue, NullValue, NullValue>(16)));
+		Utils.ChecksumHashCode checksum = undirectedRMatGraph
+			.run(new MaximumDegree<LongValue, NullValue, NullValue>(16))
+			.run(new ChecksumHashCode<LongValue, NullValue, NullValue>())
+			.execute();
 
 		assertEquals(805, checksum.getCount());
 		assertEquals(0x0000000008028b43L, checksum.getChecksum());
