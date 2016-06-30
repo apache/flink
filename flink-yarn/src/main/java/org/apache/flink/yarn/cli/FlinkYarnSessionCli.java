@@ -30,7 +30,6 @@ import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterClient;
@@ -113,7 +112,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private final boolean acceptInteractiveInput;
 	
 	//------------------------------------ Internal fields -------------------------
-	private YarnClusterClient yarnCluster = null;
+	private YarnClusterClient yarnCluster;
 	private boolean detachedMode = false;
 
 	public FlinkYarnSessionCli(String shortPrefix, String longPrefix) {
@@ -555,7 +554,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			if (detachedMode) {
 				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 					"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-					"yarn application -kill "+yarnCluster.getClusterIdentifier());
+					"yarn application -kill " + APPLICATION_ID.getOpt());
 				yarnCluster.disconnect();
 			} else {
 				runInteractiveCli(yarnCluster, true);
@@ -608,7 +607,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 				// print info and quit:
 				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-						"yarn application -kill " + yarnCluster.getClusterIdentifier() + "\n" +
+						"yarn application -kill " + yarnCluster.getApplicationId() + System.lineSeparator() +
 						"Please also note that the temporary files of the YARN session in {} will not be removed.",
 						yarnDescriptor.getSessionFilesDir());
 				yarnCluster.disconnect();

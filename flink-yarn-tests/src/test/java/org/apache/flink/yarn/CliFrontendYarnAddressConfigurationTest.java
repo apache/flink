@@ -303,8 +303,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 		@Override
 		// make method public
-		public ClusterClient getClient(CommandLineOptions options, String programName) throws Exception {
-			return super.getClient(options, programName);
+		public ClusterClient createClient(CommandLineOptions options, String programName) throws Exception {
+			return super.createClient(options, programName);
 		}
 
 		@Override

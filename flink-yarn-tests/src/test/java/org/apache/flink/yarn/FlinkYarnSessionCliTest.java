@@ -134,6 +134,7 @@ public class FlinkYarnSessionCliTest {
 		Assert.assertEquals(6, client.getMaxSlots());
 	}
 
+
 	private static class TestCLI extends FlinkYarnSessionCli {
 
 		public TestCLI(String shortPrefix, String longPrefix) {
@@ -143,7 +144,7 @@ public class FlinkYarnSessionCliTest {
 		private static class JarAgnosticClusterDescriptor extends YarnClusterDescriptor {
 			@Override
 			public void setLocalJarPath(Path localJarPath) {
-//				setLocalJarPath("/tmp");
+				// add nothing
 			}
 		}
 
@@ -160,12 +161,7 @@ public class FlinkYarnSessionCliTest {
 				Mockito.mock(YarnClient.class),
 				Mockito.mock(ApplicationReport.class),
 				config,
-				new Path("/tmp"), true);
-		}
-
-		@Override
-		protected ActorSystem createActorSystem() throws IOException {
-			return Mockito.mock(ActorSystem.class);
+				new Path("/tmp"), false);
 		}
 	}
 }
