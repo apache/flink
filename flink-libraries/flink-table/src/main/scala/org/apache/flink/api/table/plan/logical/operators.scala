@@ -252,7 +252,7 @@ case class SetMinus(left: LogicalNode, right: LogicalNode, all: Boolean) extends
         s" ${left.output.size} and ${right.output.size}")
     }
     val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
-      l.resultType == r.resultType && l.name == r.name }
+      l.resultType == r.resultType}
     if (!sameSchema) {
       failValidation(s"Set minus two table of different schema:" +
         s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +

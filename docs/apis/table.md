@@ -550,7 +550,7 @@ Table result = left.intersect(right);
     <tr>
       <td><strong>Minus</strong></td>
       <td>
-        <p>Similar to a SQL EXCEPT clause. Returns elements from the first table that do not exist in the second table. Both tables must have identical schema, i.e., field names and types.</p>
+        <p>Similar to a SQL EXCEPT clause. Except returns records from the first table that do not exist in the second table. Duplicate records in the first table are returned exactly once, i.e., duplicates are removed. Both tables must have identical schema, i.e., field names and types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -574,7 +574,7 @@ Table result = left.intersectAll(right);
     <tr>
       <td><strong>MinusAll</strong></td>
       <td>
-        <p>Similar to a SQL EXCEPT ALL clause. Returns elements from the first table that do not exist in the second table without removing duplicates. Both tables must have identical schema, i.e., field names and types.</p>
+        <p>Similar to a SQL EXCEPT ALL clause. Except All returns the records that do not exist in the second table. A record that is present n times in the first table and m times in the second table is returned (n - m) times, i.e., as many duplicates as are present in the second table are removed. Both tables must have identical schema, i.e., field names and types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -969,7 +969,7 @@ val result = tableEnv.sql(
 
 #### Limitations
 
-The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE` and `UNION` clauses. Aggregations or joins are not supported yet.
+The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, and `UNION` clauses. Aggregations or joins are not supported yet.
 
 {% top %}
 

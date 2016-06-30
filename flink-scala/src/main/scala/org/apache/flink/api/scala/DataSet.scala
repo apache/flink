@@ -1353,16 +1353,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     getCallLocationName()))
 
   // --------------------------------------------------------------------------------------------
-  //  Minus
-  // --------------------------------------------------------------------------------------------
-
-  /**
-    * Creates a new DataSet containing the elements from `this` DataSet minus elements from `other`
-    * DataSet.
-    */
-  def minus(other: DataSet[T]): DataSet[T] = wrap(javaSet.minus(other.javaSet))
-
-  // --------------------------------------------------------------------------------------------
   //  Partitioning
   // --------------------------------------------------------------------------------------------
 

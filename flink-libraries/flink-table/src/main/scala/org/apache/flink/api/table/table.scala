@@ -472,6 +472,10 @@ class Table(
     * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
     * must fully overlap.
     *
+    * Returns records from the left table that do not exist in the right table.
+    * If there are m duplicates in the left table and n duplicates in the right table this operation
+    * will return max(m-n, 0) duplicates.
+    *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
     *
     * Example:
@@ -493,6 +497,9 @@ class Table(
     * exist in both tables. If a record is present in one or both tables more than once, it is
     * returned just once, i.e., the resulting table has no duplicate records. Similar to an
     * SQL INTERSECT. The fields of the two intersect operations must fully overlap.
+    *
+    * Records of the left table are returned only if they do not match any records from the
+    * right table. Duplicate records are returned exactly once.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
     *

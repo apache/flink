@@ -18,13 +18,18 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
+import java.lang.Iterable
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
+import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.BatchTableEnvironment
+import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
@@ -57,7 +62,7 @@ class DataSetMinus(
   }
 
   override def toString: String = {
-    s"SetMinus(setMinus: (${rowType.getFieldNames.asScala.toList.mkString(", ")}))"
+    s"SetMinus(setMinus: ($setMinusSelectionToString}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -91,16 +96,55 @@ class DataSetMinus(
         rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, expectedType)
     }
 
-    val minusRes = leftDataSet.minus(rightDataSet)
-    if (!all) {
-      minusRes.distinct()
+    val leftType = leftDataSet.getType
+    val rightType = rightDataSet.getType
+    val coGroupedDs = leftDataSet.coGroup(rightDataSet)
+
+    // If it is atomic type, the field expression need to be "*".
+    // Otherwise, we use int-based field position keys
+    val coGroupedPredicateDs =
+    if (leftType.isTupleType || leftType.isInstanceOf[CompositeType[Any]]) {
+      coGroupedDs.where(0 until left.getRowType.getFieldCount: _*)
     } else {
-      minusRes
+      coGroupedDs.where("*")
     }
+
+    val coGroupedWithoutFunctionDs =
+    if (rightType.isTupleType || rightType.isInstanceOf[CompositeType[Any]]) {
+      coGroupedPredicateDs.equalTo(0 until right.getRowType.getFieldCount: _*)
+    } else {
+      coGroupedPredicateDs.equalTo("*")
+    }
+
+    coGroupedWithoutFunctionDs.`with`(new MinusCoGroupFunction[Any](all))
+      .name(s"intersect: $setMinusSelectionToString")
   }
 
   private def setMinusSelectionToString: String = {
     rowType.getFieldNames.asScala.toList.mkString(", ")
   }
 
+}
+
+class MinusCoGroupFunction[T](all: Boolean) extends CoGroupFunction[T, T, T] {
+  override def coGroup(first: Iterable[T], second: Iterable[T], out: Collector[T]): Unit = {
+    if (first == null || second == null) return
+    val leftIter = first.iterator()
+    val rightIter = second.iterator()
+
+    if (all) {
+      while (rightIter.hasNext && leftIter.hasNext) {
+        leftIter.next()
+        rightIter.next()
+      }
+
+      while (leftIter.hasNext) {
+        out.collect(leftIter.next())
+      }
+    } else {
+      if (!rightIter.hasNext && leftIter.hasNext) {
+        out.collect(leftIter.next())
+      }
+    }
+  }
 }

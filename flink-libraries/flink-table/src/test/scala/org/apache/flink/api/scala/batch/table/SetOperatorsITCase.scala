@@ -26,6 +26,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -148,28 +149,17 @@ class SetOperatorsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.getOneElement3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val minusDs = ds1.minusAll(ds2).select('c)
-
-    val results = minusDs.toDataSet[Row].collect()
-    val expected = "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testSetMinusAllWithDuplicates(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds3 = CollectionDataSets.getOneElement3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds4 = CollectionDataSets.getOneElement3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val minusDs = ds1.unionAll(ds2).minusAll(ds3).select('c)
+    val minusDs = ds1.unionAll(ds2).unionAll(ds2)
+      .minusAll(ds3.unionAll(ds4)).select('c)
 
     val results = minusDs.toDataSet[Row].collect()
-    val expected = "Hello\n" + "Hello world\n" +
+    val expected = "Hi\n" +
+      "Hello\n" + "Hello world\n" +
+      "Hello\n" + "Hello world\n" +
       "Hello\n" + "Hello world\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -180,41 +170,16 @@ class SetOperatorsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.getOneElement3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val minusDs = ds1.minus(ds2).select('c)
-
-    val results = minusDs.toDataSet[Row].collect()
-    val expected = "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testSetMinusWithDuplicates(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds3 = CollectionDataSets.getOneElement3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds4 = CollectionDataSets.getOneElement3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val minusDs = ds1.unionAll(ds2).minus(ds3).select('c)
+    val minusDs = ds1.unionAll(ds2).unionAll(ds2)
+      .minus(ds3.unionAll(ds4)).select('c)
 
     val results = minusDs.toDataSet[Row].collect()
     val expected = "Hello\n" + "Hello world\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testMinusDifferentFieldNames(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
-
-    // must fail. Minus inputs have different field names.
-    ds1.minus(ds2)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -228,6 +193,19 @@ class SetOperatorsITCase(
 
     // must fail. Minus inputs have different field types.
     ds1.minus(ds2)
+  }
+
+  @Test
+  def testMinusDifferentFieldNames(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f)
+
+    val minusDs = ds1.minus(ds2)
+    val result = minusDs.toDataSet[Row].collect()
+    assertEquals(0, result.length)
   }
 
   @Test(expected = classOf[ValidationException])

@@ -33,14 +33,6 @@ class DataSetMinusRule
     "DataSetMinusRule")
 {
 
-  /**
-    * Translate EXCEPT and EXCEPT ALL.
-    */
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val logicalMinus: LogicalMinus = call.rel(0).asInstanceOf[LogicalMinus]
-    true
-  }
-
   def convert(rel: RelNode): RelNode = {
 
     val minus: LogicalMinus = rel.asInstanceOf[LogicalMinus]

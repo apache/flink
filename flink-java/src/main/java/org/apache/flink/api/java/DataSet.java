@@ -32,7 +32,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.Keys;
@@ -87,12 +86,10 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -1209,31 +1206,6 @@ public abstract class DataSet<T> {
 	 */
 	public UnionOperator<T> union(DataSet<T> other){
 		return new UnionOperator<>(this, other, Utils.getCallLocationName());
-	}
-
-	/**
-	* Creates a set minus of this DataSet with an other DataSet. The other DataSet must be of the same data type.
-	*
-	* @param other The other DataSet which is set minus with the current DataSet.
-	* @return The resulting DataSet.
-	*/
-	public CoGroupOperator<T, T, T> minus(DataSet<T> other){
-		return coGroup(other)
-			.where("*")
-			.equalTo("*")
-			.with(new RichCoGroupFunction<T, T, T>() {
-				@Override
-				public void coGroup(Iterable<T> first, Iterable<T> second, Collector<T> out) throws Exception {
-					Iterator<T> secondIter = second.iterator();
-					if (secondIter.hasNext()) {
-						return;
-					}
-
-					for (T t: first) {
-						out.collect(t);
-					}
-				}
-			});
 	}
 
 	// --------------------------------------------------------------------------------------------
