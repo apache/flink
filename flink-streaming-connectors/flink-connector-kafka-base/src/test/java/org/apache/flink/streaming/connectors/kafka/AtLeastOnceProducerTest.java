@@ -20,13 +20,13 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskmanager.OneShotLatch;
 import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
@@ -35,13 +35,15 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.Assert;
 import org.junit.Test;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Test ensuring that the producer is not dropping buffered records
@@ -49,31 +51,35 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @SuppressWarnings("unchecked")
 public class AtLeastOnceProducerTest {
 
-	@Test
+	// we set a timeout because the test will not finish if the logic is broken
+	@Test(timeout=5000)
 	public void testAtLeastOnceProducer() throws Exception {
 		runTest(true);
 	}
 
 	// This test ensures that the actual test fails if the flushing is disabled
-	@Test(expected = AssertionError.class)
+	@Test(expected = AssertionError.class, timeout=5000)
 	public void ensureTestFails() throws Exception {
 		runTest(false);
 	}
 
 	private void runTest(boolean flushOnCheckpoint) throws Exception {
 		Properties props = new Properties();
-		final TestingKafkaProducer<String> producer = new TestingKafkaProducer<>("someTopic", new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), props);
+		final OneShotLatch snapshottingFinished = new OneShotLatch();
+		final TestingKafkaProducer<String> producer = new TestingKafkaProducer<>("someTopic", new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), props,
+				snapshottingFinished);
 		producer.setFlushOnCheckpoint(flushOnCheckpoint);
 		producer.setRuntimeContext(new MockRuntimeContext(0, 1));
 
 		producer.open(new Configuration());
 
-		for(int i = 0; i < 100; i++) {
+		for (int i = 0; i < 100; i++) {
 			producer.invoke("msg-" + i);
 		}
 		// start a thread confirming all pending records
 		final Tuple1<Throwable> runnableError = new Tuple1<>(null);
-		final AtomicBoolean markOne = new AtomicBoolean(false);
+		final Thread threadA = Thread.currentThread();
+
 		Runnable confirmer = new Runnable() {
 			@Override
 			public void run() {
@@ -81,23 +87,25 @@ public class AtLeastOnceProducerTest {
 					MockProducer mp = producer.getProducerInstance();
 					List<Callback> pending = mp.getPending();
 
-					// we ensure thread A is locked and didn't reach markOne
-					// give thread A some time to really reach the snapshot state
-					Thread.sleep(500);
-					if(markOne.get()) {
-						Assert.fail("Snapshot was confirmed even though messages " +
-								"were still in the buffer");
+					// we need to find out if the snapshot() method blocks forever
+					// this is not possible. If snapshot() is running, it will
+					// start removing elements from the pending list.
+					synchronized (threadA) {
+						threadA.wait(500L);
 					}
+					// we now check that no records have been confirmed yet
 					Assert.assertEquals(100, pending.size());
+					Assert.assertFalse("Snapshot method returned before all records were confirmed",
+							snapshottingFinished.hasTriggered());
 
 					// now confirm all checkpoints
-					for(Callback c: pending) {
+					for (Callback c: pending) {
 						c.onCompletion(null, null);
 					}
 					pending.clear();
-					// wait for the snapshotState() method to return
-					Thread.sleep(100);
-					Assert.assertTrue("Snapshot state didn't return", markOne.get());
+					// wait for the snapshotState() method to return. The will
+					// fail if snapshotState never returns.
+					snapshottingFinished.await();
 				} catch(Throwable t) {
 					runnableError.f0 = t;
 				}
@@ -107,15 +115,16 @@ public class AtLeastOnceProducerTest {
 		threadB.start();
 		// this should block:
 		producer.snapshotState(0, 0);
-		// once all pending callbacks are confirmed, we can set this marker to true
-		markOne.set(true);
-		for(int i = 0; i < 99; i++) {
-			producer.invoke("msg-" + i);
+		synchronized (threadA) {
+			threadA.notifyAll(); // just in case, to let the test fail faster
 		}
-		// wait at most one second
-		threadB.join(800L);
-		Assert.assertFalse("Thread A reached this point too fast", threadB.isAlive());
-		if(runnableError.f0 != null) {
+
+		Deadline deadline = FiniteDuration.apply(5, "s").fromNow();
+		while (deadline.hasTimeLeft() && threadB.isAlive()) {
+			threadB.join(500);
+		}
+		Assert.assertFalse("Thread A is expected to be finished at this point. If not, the test is prone to fail", threadB.isAlive());
+		if (runnableError.f0 != null) {
 			runnableError.f0.printStackTrace();
 			Assert.fail("Error from thread B: " + runnableError.f0 );
 		}
@@ -126,15 +135,26 @@ public class AtLeastOnceProducerTest {
 
 	private static class TestingKafkaProducer<T> extends FlinkKafkaProducerBase<T> {
 		private MockProducer prod;
+		private OneShotLatch snapshottingFinished;
 
-		public TestingKafkaProducer(String defaultTopicId, KeyedSerializationSchema<T> serializationSchema, Properties producerConfig) {
+		public TestingKafkaProducer(String defaultTopicId, KeyedSerializationSchema<T> serializationSchema, Properties producerConfig, OneShotLatch snapshottingFinished) {
 			super(defaultTopicId, serializationSchema, producerConfig, null);
+			this.snapshottingFinished = snapshottingFinished;
 		}
 
 		@Override
 		protected <K, V> KafkaProducer<K, V> getKafkaProducer(Properties props) {
 			this.prod = new MockProducer();
 			return this.prod;
+		}
+
+		@Override
+		public Serializable snapshotState(long checkpointId, long checkpointTimestamp) {
+			// call the actual snapshot state
+			Serializable ret = super.snapshotState(checkpointId, checkpointTimestamp);
+			// notify test that snapshotting has been done
+			snapshottingFinished.trigger();
+			return ret;
 		}
 
 		@Override
@@ -184,17 +204,13 @@ public class AtLeastOnceProducerTest {
 			return null;
 		}
 
-		@Override
-		public void close() {
-
-		}
 
 		public List<Callback> getPending() {
 			return this.pendingCallbacks;
 		}
 
 		public void flush() {
-			while(pendingCallbacks.size() > 0) {
+			while (pendingCallbacks.size() > 0) {
 				try {
 					Thread.sleep(10);
 				} catch (InterruptedException e) {

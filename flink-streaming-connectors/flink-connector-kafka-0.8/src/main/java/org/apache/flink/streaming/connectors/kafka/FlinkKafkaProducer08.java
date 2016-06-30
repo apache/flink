@@ -127,13 +127,18 @@ public class FlinkKafkaProducer08<IN> extends FlinkKafkaProducerBase<IN>  {
 
 	@Override
 	protected void flush() {
-		// The Kafka 0.8 producer doesn't support flushing, therefore, we are using an inefficient
-		// busy wait approach
-		while(pendingRecords > 0) {
-			try {
-				Thread.sleep(10);
-			} catch (InterruptedException e) {
-				throw new RuntimeException("Unable to flush producer, task was interrupted");
+		// The Kafka 0.8 producer doesn't support flushing, we wait here
+		// until all pending records are confirmed
+		//noinspection SynchronizeOnNonFinalField
+		synchronized (pendingRecordsLock) {
+			while (pendingRecords > 0) {
+				try {
+					pendingRecordsLock.wait();
+				} catch (InterruptedException e) {
+					// this can be interrupted when the Task has been cancelled.
+					// by throwing an exception, we ensure that this checkpoint doesn't get confirmed
+					throw new RuntimeException("Flushing got interrupted while checkpointing", e);
+				}
 			}
 		}
 	}

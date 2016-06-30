@@ -130,7 +130,7 @@ public class FlinkKafkaProducer09<IN> extends FlinkKafkaProducerBase<IN> {
 
 	@Override
 	protected void flush() {
-		if(this.producer != null) {
+		if (this.producer != null) {
 			producer.flush();
 		}
 	}

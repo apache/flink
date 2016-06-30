@@ -22,6 +22,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.DefaultKafkaMetricAccumulator;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
@@ -59,6 +60,7 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <IN> Type of the messages to write into Kafka.
  */
+@SuppressWarnings("SynchronizeOnNonFinalField")
 public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> implements Checkpointed<Serializable> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducerBase.class);
@@ -125,11 +127,13 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	/**
 	 * Number of unacknowledged records.
-	 * There is no need to introduce additional locks because invoke() and snapshotState() are
-	 * never called concurrently. So blocking the snapshotting will lock the invoke() method until all
-	 * pending records have been confirmed.
 	 */
-	protected volatile long pendingRecords = 0;
+	protected long pendingRecords = 0;
+
+	/**
+	 * Lock for accessing the pending records
+	 */
+	protected transient Object pendingRecordsLock;
 
 
 	/**
@@ -224,7 +228,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		producer = getKafkaProducer(this.producerConfig);
 
 		RuntimeContext ctx = getRuntimeContext();
-		if(partitioner != null) {
+		if (partitioner != null) {
 			partitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), partitions);
 		}
 
@@ -232,22 +236,30 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 				ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), defaultTopicId);
 
 		// register Kafka metrics to Flink accumulators
-		if(!Boolean.valueOf(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
+		if (!Boolean.valueOf(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
 			Map<MetricName, ? extends Metric> metrics = this.producer.metrics();
 
-			if(metrics == null) {
+			if (metrics == null) {
 				// MapR's Kafka implementation returns null here.
 				LOG.info("Producer implementation does not support metrics");
 			} else {
-				for(Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
+				for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
 					String name = producerId + "-producer-" + metric.getKey().name();
 					DefaultKafkaMetricAccumulator kafkaAccumulator = DefaultKafkaMetricAccumulator.createFor(metric.getValue());
 					// best effort: we only add the accumulator if available.
-					if(kafkaAccumulator != null) {
+					if (kafkaAccumulator != null) {
 						getRuntimeContext().addAccumulator(name, kafkaAccumulator);
 					}
 				}
 			}
+		}
+
+		if (flushOnCheckpoint && !((StreamingRuntimeContext)this.getRuntimeContext()).isCheckpointingEnabled()) {
+			LOG.warn("Flushing on checkpoint is enabled, but checkpointing is not enabled. Disabling flushing.");
+			flushOnCheckpoint = false;
+		}
+		if (flushOnCheckpoint) {
+			pendingRecordsLock = new Object();
 		}
 
 		if (logFailuresOnly) {
@@ -288,18 +300,20 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		byte[] serializedKey = schema.serializeKey(next);
 		byte[] serializedValue = schema.serializeValue(next);
 		String targetTopic = schema.getTargetTopic(next);
-		if(targetTopic == null) {
+		if (targetTopic == null) {
 			targetTopic = defaultTopicId;
 		}
 
 		ProducerRecord<byte[], byte[]> record;
-		if(partitioner == null) {
+		if (partitioner == null) {
 			record = new ProducerRecord<>(targetTopic, serializedKey, serializedValue);
 		} else {
 			record = new ProducerRecord<>(targetTopic, partitioner.partition(next, serializedKey, serializedValue, partitions.length), serializedKey, serializedValue);
 		}
-		if(flushOnCheckpoint) {
-			pendingRecords++;
+		if (flushOnCheckpoint) {
+			synchronized (pendingRecordsLock) {
+				pendingRecords++;
+			}
 		}
 		producer.send(record, callback);
 	}
@@ -318,25 +332,34 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //
 
 	private void acknowledgeMessage() {
-		if(!flushOnCheckpoint) {
+		if (!flushOnCheckpoint) {
 			// the logic is disabled
 			return;
 		}
-		pendingRecords--;
+		synchronized (pendingRecordsLock) {
+			pendingRecords--;
+			if (pendingRecords == 0) {
+				pendingRecordsLock.notifyAll();
+			}
+		}
 	}
 
+	/**
+	 * Flush pending records.
+	 */
 	protected abstract void flush();
 
 	@Override
 	public Serializable snapshotState(long checkpointId, long checkpointTimestamp) {
-		if(flushOnCheckpoint) {
+		if (flushOnCheckpoint) {
 			// flushing is activated: We need to wait until pendingRecords is 0
 			flush();
-
-			if(pendingRecords != 0) {
-				throw new IllegalStateException("Pending record count must be zero at this point: " + pendingRecords);
+			synchronized (pendingRecordsLock) {
+				if (pendingRecords != 0) {
+					throw new IllegalStateException("Pending record count must be zero at this point: " + pendingRecords);
+				}
+				// pending records count is 0. We can now confirm the checkpoint
 			}
-			// pending records count is 0. We can now confirm the checkpoint
 		}
 		// return empty state
 		return null;

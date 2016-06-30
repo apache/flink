@@ -53,4 +53,10 @@ public final class OneShotLatch {
 			}
 		}
 	}
+
+	public boolean hasTriggered() {
+		synchronized (lock) {
+			return triggered;
+		}
+	}
 }
