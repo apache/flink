@@ -39,20 +39,17 @@ followSymLink() {
 
 target=$(followSymLink "$0")
 
-#Search --configDir into the parameters and set it as FLINK_CONF_DIR
-args=("$@")
-for i in "${!args[@]}"; do
-    if [ ${args[$i]} = "--configDir" ]; then
-        dir=$( followSymLink "${args[$(($i+1))]}" )
-        if [ -d "$dir" ]; then
-            FLINK_CONF_DIR=`cd "${dir}" && pwd -P`
-        else
-            echo "ERROR: --configDir is not a directory"
-            exit 1
-        fi
-        break
+#Check if --configDir is present and set is value as FLINK_CONF_DIR
+if [ "$1" = "--configDir" ]; then
+    dir=$( followSymLink "$2" )
+    if [ -d "$dir" ]; then
+        FLINK_CONF_DIR=`cd "${dir}" && pwd -P`
+    else
+        echo "ERROR: --configDir is not a directory"
+        exit 1
     fi
-done
+    break
+fi
 
 # Convert relative path to absolute path
 bin=`dirname "$target"`
