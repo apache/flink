@@ -31,10 +31,10 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStoreFactory;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV0;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -84,7 +84,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -220,9 +219,9 @@ public class SavepointITCase extends TestLogger {
 					new RequestSavepoint(savepointPath),
 					deadline.timeLeft());
 
-			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
+			SavepointV0 savepoint = (SavepointV0) ((ResponseSavepoint) Await.result(
 					savepointFuture, deadline.timeLeft())).savepoint();
-			LOG.info("Retrieved savepoint: " + savepoint + ".");
+			LOG.info("Retrieved savepoint: " + savepointPath + ".");
 
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
@@ -321,12 +320,11 @@ public class SavepointITCase extends TestLogger {
 
 			// Verify that all tasks, which are part of the savepoint
 			// have a matching task deployment descriptor.
-			for (Map.Entry<JobVertexID, TaskState> entry: savepoint.getTaskStates().entrySet()) {
-				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(entry.getKey());
-				TaskState taskState = entry.getValue();
+			for (TaskState taskState : savepoint.getTaskStates()) {
+				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(taskState.getJobVertexID());
 
 				errMsg = "Missing task for savepoint state for operator "
-					+ entry.getKey() + ".";
+						+ taskState.getJobVertexID() + ".";
 				assertTrue(errMsg, taskTdds.size() > 0);
 
 				assertEquals(taskState.getNumberCollectedStates(), taskTdds.size());
@@ -360,7 +358,7 @@ public class SavepointITCase extends TestLogger {
 			// The checkpoint files
 			List<File> checkpointFiles = new ArrayList<>();
 
-			for (TaskState stateForTaskGroup : savepoint.getTaskStates().values()) {
+			for (TaskState stateForTaskGroup : savepoint.getTaskStates()) {
 				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
 					StreamTaskStateList taskStateList = (StreamTaskStateList) subtaskState.getState()
 						.deserializeValue(ClassLoader.getSystemClassLoader());
@@ -389,7 +387,7 @@ public class SavepointITCase extends TestLogger {
 			// All savepoints should have been cleaned up
 			errMsg = "Savepoints directory not cleaned up properly: " +
 					Arrays.toString(savepointDir.listFiles()) + ".";
-			assertNull(errMsg, savepointDir.listFiles());
+			assertEquals(errMsg, 0, savepointDir.listFiles().length);
 
 			// - Verification END ---------------------------------------------
 		}
@@ -505,9 +503,8 @@ public class SavepointITCase extends TestLogger {
 					new RequestSavepoint(savepointPath),
 					deadline.timeLeft());
 
-			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
-					savepointFuture, deadline.timeLeft())).savepoint();
-			LOG.info("Retrieved savepoint: " + savepoint + ".");
+			Await.ready(savepointFuture, deadline.timeLeft());
+			LOG.info("Retrieved savepoint: " + savepointPath + ".");
 
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
@@ -644,9 +641,9 @@ public class SavepointITCase extends TestLogger {
 					new RequestSavepoint(savepointPath),
 					deadline.timeLeft());
 
-			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
+			SavepointV0 savepoint = (SavepointV0) ((ResponseSavepoint) Await.result(
 					savepointFuture, deadline.timeLeft())).savepoint();
-			LOG.info("Retrieved savepoint: " + savepoint + ".");
+			LOG.info("Retrieved savepoint: " + savepointPath + ".");
 
 			// Cancel the job
 			LOG.info("Cancelling job " + jobId + ".");
@@ -661,7 +658,7 @@ public class SavepointITCase extends TestLogger {
 			assertTrue((Boolean) Await.result(removedRespFuture, deadline.timeLeft()));
 
 			// Check that all checkpoint files have been removed
-			for (TaskState stateForTaskGroup : savepoint.getTaskStates().values()) {
+			for (TaskState stateForTaskGroup : savepoint.getTaskStates()) {
 				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
 					StreamTaskStateList taskStateList = (StreamTaskStateList) subtaskState.getState()
 						.deserializeValue(ClassLoader.getSystemClassLoader());

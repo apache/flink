@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.util.Preconditions;

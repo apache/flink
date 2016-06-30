@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.ActorGateway
 import org.apache.flink.runtime.jobgraph.JobStatus
+import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
 
 object TestingJobManagerMessages {
 
@@ -107,7 +108,7 @@ object TestingJobManagerMessages {
     *
     * @param savepoint The requested savepoint or null if none available.
     */
-  case class ResponseSavepoint(savepoint: CompletedCheckpoint)
+  case class ResponseSavepoint(savepoint: Savepoint)
 
   def getNotifyWhenLeader(): AnyRef = NotifyWhenLeader
   def getDisablePostStop(): AnyRef = DisablePostStop

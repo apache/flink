@@ -47,7 +47,7 @@ public interface CheckpointRecoveryFactory {
 	 * @param userClassLoader User code class loader of the job
 	 * @return {@link CompletedCheckpointStore} instance for the job
 	 */
-	CompletedCheckpointStore createCompletedCheckpoints(JobID jobId, ClassLoader userClassLoader)
+	CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader)
 			throws Exception;
 
 	/**

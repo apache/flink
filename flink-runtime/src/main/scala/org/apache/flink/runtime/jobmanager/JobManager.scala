@@ -41,6 +41,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
+import org.apache.flink.runtime.checkpoint.savepoint.{SavepointStoreFactory, SavepointStore}
 import org.apache.flink.runtime.checkpoint.stats.{CheckpointStatsTracker, SimpleCheckpointStatsTracker, DisabledCheckpointStatsTracker}
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.execution.SuppressRestartsException
@@ -212,14 +213,6 @@ class JobManager(
         throw new RuntimeException("Could not start the checkpoint recovery service.", e)
     }
 
-    try {
-      savepointStore.start()
-    } catch {
-      case e: Exception =>
-        log.error("Could not start the savepoint store.", e)
-        throw new RuntimeException("Could not start the  savepoint store store.", e)
-    }
-
     jobManagerMetricGroup match {
       case Some(group) =>
         instantiateMetrics(group)
@@ -249,10 +242,10 @@ class JobManager(
     }
 
     try {
-      savepointStore.stop()
+      savepointStore.shutdown()
     } catch {
       case e: Exception =>
-        log.error("Could not stop the savepoint store.", e)
+        log.error("Could not shut down savepoint store.", e)
         throw new RuntimeException("Could not stop the  savepoint store store.", e)
     }
 
@@ -751,10 +744,6 @@ class JobManager(
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
 
-          val savepoint = savepointStore.getState(savepointPath)
-
-          log.debug(s"$savepoint")
-
           if (blobKeys.isDefined) {
             // We don't need a real ID here for the library cache manager
             val jid = new JobID()
@@ -764,17 +753,14 @@ class JobManager(
               val classLoader = libraryCacheManager.getClassLoader(jid)
 
               // Discard with user code loader
-              savepoint.discard(classLoader)
+              savepointStore.disposeSavepoint(savepointPath, classLoader)
             } finally {
               libraryCacheManager.unregisterJob(jid)
             }
           } else {
             // Discard with system class loader
-            savepoint.discard(getClass.getClassLoader)
+            savepointStore.disposeSavepoint(savepointPath, getClass.getClassLoader)
           }
-
-          // Dispose the savepoint
-          savepointStore.disposeState(savepointPath)
 
           senderRef ! DisposeSavepointSuccess
         } catch {
@@ -1237,7 +1223,7 @@ class JobManager(
             snapshotSettings.getVerticesToConfirm().asScala.map(idToVertex).asJava
 
           val completedCheckpoints = checkpointRecoveryFactory
-            .createCompletedCheckpoints(jobId, userCodeLoader)
+            .createCheckpointStore(jobId, userCodeLoader)
 
           val checkpointIdCounter = checkpointRecoveryFactory.createCheckpointIDCounter(jobId)
 

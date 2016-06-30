@@ -57,8 +57,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 	}
 
 	@Override
-	protected CompletedCheckpointStore createCompletedCheckpoints(int maxNumberOfCheckpointsToRetain,
-			ClassLoader userLoader) throws Exception {
+	protected CompletedCheckpointStore createCompletedCheckpoints(
+			int maxNumberOfCheckpointsToRetain, ClassLoader userLoader) throws Exception {
 
 		return new ZooKeeperCompletedCheckpointStore(maxNumberOfCheckpointsToRetain, userLoader,
 			ZooKeeper.createClient(), CheckpointsPath, new StateStorageHelper<CompletedCheckpoint>() {
@@ -79,7 +79,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(3, ClassLoader
 				.getSystemClassLoader());
 
-		TestCheckpoint[] expected = new TestCheckpoint[] {
+		TestCompletedCheckpoint[] expected = new TestCompletedCheckpoint[] {
 				createCheckpoint(0), createCheckpoint(1), createCheckpoint(2)
 		};
 
@@ -118,7 +118,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		CuratorFramework client = ZooKeeper.getClient();
 
 		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
-		TestCheckpoint checkpoint = createCheckpoint(0);
+		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
@@ -143,7 +143,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		CuratorFramework client = ZooKeeper.getClient();
 
 		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
-		TestCheckpoint checkpoint = createCheckpoint(0);
+		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());

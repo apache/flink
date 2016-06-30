@@ -53,7 +53,6 @@ public class PendingCheckpoint {
 	private int numAcknowledgedTasks;
 	
 	private boolean discarded;
-	private ClassLoader userClassLoader;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -110,7 +109,7 @@ public class PendingCheckpoint {
 		return discarded;
 	}
 	
-	public CompletedCheckpoint toCompletedCheckpoint() throws Exception {
+	public CompletedCheckpoint finalizeCheckpoint() throws Exception {
 		synchronized (lock) {
 			if (discarded) {
 				throw new IllegalStateException("pending checkpoint is discarded");
@@ -196,7 +195,6 @@ public class PendingCheckpoint {
 	 * Discards the pending checkpoint, releasing all held resources.
 	 */
 	public void discard(ClassLoader userClassLoader) throws Exception {
-		this.userClassLoader = userClassLoader;
 		dispose(userClassLoader, true);
 	}
 

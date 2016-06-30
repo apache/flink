@@ -26,6 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointCoordinator;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -148,7 +150,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				counter,
 				store,
 				RecoveryMode.STANDALONE,
-				new HeapStateStore<CompletedCheckpoint>(),
+				new HeapSavepointStore(),
 				new DisabledCheckpointStatsTracker());
 
 		JobVertex jobVertex = new JobVertex("MockVertex");
