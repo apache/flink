@@ -18,7 +18,7 @@ flink image run:
 
 or
 
-    docker build -t "flink" flink
+    docker build -t flink .
 
 If you want to build the container for a specific version of flink/hadoop/scala
 you can configure it in the respective args:
