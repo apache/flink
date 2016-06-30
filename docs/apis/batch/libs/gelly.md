@@ -1083,10 +1083,10 @@ final class Compute extends ComputeFunction {
 ### Scatter-Gather Iterations
 The scatter-gather model, also known as "signal/collect" model, expresses computation from the perspective of a vertex in the graph. The computation proceeds in synchronized iteration steps, called supersteps. In each superstep, a vertex produces messages for other vertices and updates its value based on the messages it receives. To use scatter-gather iterations in Gelly, the user only needs to define how a vertex behaves in each superstep:
 
-* <strong>Messaging</strong>:  corresponds to the scatter phase and produces the messages that a vertex will send to other vertices.
-* <strong>Value Update</strong>: corresponds to the gather phase and updates the vertex value using the received messages.
+* <strong>Scatter</strong>:  produces the messages that a vertex will send to other vertices.
+* <strong>Gather</strong>: updates the vertex value using received messages.
 
-Gelly provides methods for scatter-gather iterations. The user only needs to implement two functions, corresponding to the scatter and gather phases. The first function is a `MessagingFunction`, which allows a vertex to send out messages for other vertices. Messages are recieved during the same superstep as they are sent. The second function is `VertexUpdateFunction`, which defines how a vertex will update its value based on the received messages.
+Gelly provides methods for scatter-gather iterations. The user only needs to implement two functions, corresponding to the scatter and gather phases. The first function is a `ScatterFunction`, which allows a vertex to send out messages to other vertices. Messages are received during the same superstep as they are sent. The second function is `GatherFunction`, which defines how a vertex will update its value based on the received messages.
 These functions and the maximum number of iterations to run are given as parameters to Gelly's `runScatterGatherIteration`. This method will execute the scatter-gather iteration on the input Graph and return a new Graph, with updated vertex values.
 
 A scatter-gather iteration can be extended with information such as the total number of vertices, the in degree and out degree.
@@ -1109,7 +1109,7 @@ int maxIterations = 10;
 
 // Execute the scatter-gather iteration
 Graph<Long, Double, Double> result = graph.runScatterGatherIteration(
-			new VertexDistanceUpdater(), new MinDistanceMessenger(), maxIterations);
+			new MinDistanceMessenger(), new VertexDistanceUpdater(), maxIterations);
 
 // Extract the vertices as the result
 DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
@@ -1118,7 +1118,7 @@ DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
 // - - -  UDFs - - - //
 
 // scatter: messaging
-public static final class MinDistanceMessenger extends MessagingFunction<Long, Double, Double, Double> {
+public static final class MinDistanceMessenger extends ScatterFunction<Long, Double, Double, Double> {
 
 	public void sendMessages(Vertex<Long, Double> vertex) {
 		for (Edge<Long, Double> edge : getEdges()) {
@@ -1128,7 +1128,7 @@ public static final class MinDistanceMessenger extends MessagingFunction<Long, D
 }
 
 // gather: vertex update
-public static final class VertexDistanceUpdater extends VertexUpdateFunction<Long, Double, Double> {
+public static final class VertexDistanceUpdater extends GatherFunction<Long, Double, Double> {
 
 	public void updateVertex(Vertex<Long, Double> vertex, MessageIterator<Double> inMessages) {
 		Double minDistance = Double.MAX_VALUE;
@@ -1157,7 +1157,7 @@ val graph: Graph[Long, Double, Double] = ...
 val maxIterations = 10
 
 // Execute the scatter-gather iteration
-val result = graph.runScatterGatherIteration(new VertexDistanceUpdater, new MinDistanceMessenger, maxIterations)
+val result = graph.runScatterGatherIteration(new MinDistanceMessenger, new VertexDistanceUpdater, maxIterations)
 
 // Extract the vertices as the result
 val singleSourceShortestPaths = result.getVertices
@@ -1166,7 +1166,7 @@ val singleSourceShortestPaths = result.getVertices
 // - - -  UDFs - - - //
 
 // messaging
-final class MinDistanceMessenger extends MessagingFunction[Long, Double, Double, Double] {
+final class MinDistanceMessenger extends ScatterFunction[Long, Double, Double, Double] {
 
 	override def sendMessages(vertex: Vertex[Long, Double]) = {
 		for (edge: Edge[Long, Double] <- getEdges) {
@@ -1176,7 +1176,7 @@ final class MinDistanceMessenger extends MessagingFunction[Long, Double, Double,
 }
 
 // vertex update
-final class VertexDistanceUpdater extends VertexUpdateFunction[Long, Double, Double] {
+final class VertexDistanceUpdater extends GatherFunction[Long, Double, Double] {
 
 	override def updateVertex(vertex: Vertex[Long, Double], inMessages: MessageIterator[Double]) = {
 		var minDistance = Double.MaxValue
@@ -1211,9 +1211,9 @@ and can be specified using the `setName()` method.
 * <strong>Solution set in unmanaged memory</strong>: Defines whether the solution set is kept in managed memory (Flink's internal way of keeping objects in serialized form) or as a simple object map. By default, the solution set runs in managed memory. This property can be set using the `setSolutionSetUnmanagedMemory()` method.
 
 * <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines
-all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `VertexUpdateFunction` and `MessagingFunction`.
+all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `ScatterFunction` and `GatherFunction`.
 
-* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/apis/batch/index.html#broadcast-variables) to the `VertexUpdateFunction` and `MessagingFunction`, using the `addBroadcastSetForUpdateFunction()` and `addBroadcastSetForMessagingFunction()` methods, respectively.
+* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/apis/batch/index.html#broadcast-variables) to the `ScatterFunction` and `GatherFunction`, using the `addBroadcastSetForUpdateFunction()` and `addBroadcastSetForMessagingFunction()` methods, respectively.
 
 * <strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property can be set using the `setOptNumVertices()` method.
 The number of vertices can then be accessed in the vertex update function and in the messaging function using the `getNumberOfVertices()` method. If the option is not set in the configuration, this method will return -1.
@@ -1245,10 +1245,12 @@ parameters.registerAggregator("sumAggregator", new LongSumAggregator());
 // run the scatter-gather iteration, also passing the configuration parameters
 Graph<Long, Double, Double> result =
 			graph.runScatterGatherIteration(
-			new VertexUpdater(), new Messenger(), maxIterations, parameters);
+			new Messenger(), new VertexUpdater(), maxIterations, parameters);
 
 // user-defined functions
-public static final class VertexUpdater extends VertexUpdateFunction {
+public static final class Messenger extends ScatterFunction {...}
+
+public static final class VertexUpdater extends GatherFunction {
 
 	LongSumAggregator aggregator = new LongSumAggregator();
 
@@ -1272,8 +1274,6 @@ public static final class VertexUpdater extends VertexUpdateFunction {
 	}
 }
 
-public static final class Messenger extends MessagingFunction {...}
-
 {% endhighlight %}
 </div>
 
@@ -1294,10 +1294,12 @@ parameters.setParallelism(16)
 parameters.registerAggregator("sumAggregator", new LongSumAggregator)
 
 // run the scatter-gather iteration, also passing the configuration parameters
-val result = graph.runScatterGatherIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
+val result = graph.runScatterGatherIteration(new Messenger, new VertexUpdater, maxIterations, parameters)
 
 // user-defined functions
-final class VertexUpdater extends VertexUpdateFunction {
+final class Messenger extends ScatterFunction {...}
+
+final class VertexUpdater extends GatherFunction {
 
 	var aggregator = new LongSumAggregator
 
@@ -1320,8 +1322,6 @@ final class VertexUpdater extends VertexUpdateFunction {
 		setNewVertexValue(...)
 	}
 }
-
-final class Messenger extends MessagingFunction {...}
 
 {% endhighlight %}
 </div>
@@ -1347,20 +1347,20 @@ parameters.setOptDegrees(true);
 // run the scatter-gather iteration, also passing the configuration parameters
 Graph<Long, Double, Double> result =
 			graph.runScatterGatherIteration(
-			new VertexUpdater(), new Messenger(), maxIterations, parameters);
+			new Messenger(), new VertexUpdater(), maxIterations, parameters);
 
 // user-defined functions
-public static final class VertexUpdater {
-	...
-	// get the number of vertices
-	long numVertices = getNumberOfVertices();
-	...
-}
-
-public static final class Messenger {
+public static final class Messenger extends ScatterFunction {
 	...
 	// retrieve the vertex out-degree
 	outDegree = getOutDegree();
+	...
+}
+
+public static final class VertexUpdater extends GatherFunction {
+	...
+	// get the number of vertices
+	long numVertices = getNumberOfVertices();
 	...
 }
 
@@ -1382,20 +1382,20 @@ parameters.setOptNumVertices(true)
 parameters.setOptDegrees(true)
 
 // run the scatter-gather iteration, also passing the configuration parameters
-val result = graph.runScatterGatherIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
+val result = graph.runScatterGatherIteration(new Messenger, new VertexUpdater, maxIterations, parameters)
 
 // user-defined functions
-final class VertexUpdater {
-	...
-	// get the number of vertices
-	val numVertices = getNumberOfVertices
-	...
-}
-
-final class Messenger {
+final class Messenger extends ScatterFunction {
 	...
 	// retrieve the vertex out-degree
 	val outDegree = getOutDegree
+	...
+}
+
+final class VertexUpdater extends GatherFunction {
+	...
+	// get the number of vertices
+	val numVertices = getNumberOfVertices
 	...
 }
 
@@ -1419,13 +1419,13 @@ parameters.setDirection(EdgeDirection.IN);
 // run the scatter-gather iteration, also passing the configuration parameters
 DataSet<Vertex<Long, HashSet<Long>>> result =
 			graph.runScatterGatherIteration(
-			new VertexUpdater(), new Messenger(), maxIterations, parameters)
+			new Messenger(), new VertexUpdater(), maxIterations, parameters)
 			.getVertices();
 
 // user-defined functions
-public static final class VertexUpdater {...}
+public static final class Messenger extends GatherFunction {...}
 
-public static final class Messenger {...}
+public static final class VertexUpdater extends ScatterFunction {...}
 
 {% endhighlight %}
 </div>
@@ -1441,13 +1441,13 @@ val parameters = new ScatterGatherConfiguration
 parameters.setDirection(EdgeDirection.IN)
 
 // run the scatter-gather iteration, also passing the configuration parameters
-val result = graph.runScatterGatherIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
+val result = graph.runScatterGatherIteration(new Messenger, new VertexUpdater, maxIterations, parameters)
 			.getVertices
 
 // user-defined functions
-final class VertexUpdater {...}
+final class Messenger extends ScatterFunction {...}
 
-final class Messenger {...}
+final class VertexUpdater extends GatherFunction {...}
 
 {% endhighlight %}
 </div>

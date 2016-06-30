@@ -24,9 +24,9 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.junit.Assert;
 import org.junit.Test;
@@ -36,36 +36,27 @@ public class CollectionModeSuperstepITCase {
 
 	/**
 	 * Dummy iteration to test that the supersteps are correctly incremented
-	 * and can be retrieved from inside the updated and messaging functions.
+	 * and can be retrieved from inside the scatter and gather functions.
 	 * All vertices start with value 1 and increase their value by 1
 	 * in each iteration. 
 	 */
 	@Test
 	public void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-		
-		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(), 
+
+		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
-		
+
 		Graph<Long, Long, Long> result = graph.runScatterGatherIteration(
-				new UpdateFunction(), new MessageFunction(), 10);
+				new MessageFunction(), new UpdateFunction(), 10);
 
 		result.getVertices().map(
 				new VertexToTuple2Map<Long, Long>()).output(
 						new DiscardingOutputFormat<Tuple2<Long, Long>>());
 		env.execute();
 	}
-	
-	public static final class UpdateFunction extends VertexUpdateFunction<Long, Long, Long> {
-		@Override
-		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
-			long superstep = getSuperstepNumber();
-			Assert.assertEquals(true, vertex.getValue() == superstep);
-			setNewVertexValue(vertex.getValue() + 1);
-		}
-	}
-	
-	public static final class MessageFunction extends MessagingFunction<Long, Long, Long, Long> {
+
+	private static final class MessageFunction extends ScatterFunction<Long, Long, Long, Long> {
 		@Override
 		public void sendMessages(Vertex<Long, Long> vertex) {
 			long superstep = getSuperstepNumber();
@@ -75,8 +66,16 @@ public class CollectionModeSuperstepITCase {
 		}
 	}
 
-	public static final class AssignOneMapper implements MapFunction<Vertex<Long, Long>, Long> {
+	private static final class UpdateFunction extends GatherFunction<Long, Long, Long> {
+		@Override
+		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
+			long superstep = getSuperstepNumber();
+			Assert.assertEquals(true, vertex.getValue() == superstep);
+			setNewVertexValue(vertex.getValue() + 1);
+		}
+	}
 
+	private static final class AssignOneMapper implements MapFunction<Vertex<Long, Long>, Long> {
 		public Long map(Vertex<Long, Long> value) {
 			return 1L;
 		}

@@ -21,17 +21,16 @@ package org.apache.flink.graph.examples;
 import org.apache.flink.api.common.aggregators.DoubleSumAggregator;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.util.Preconditions;
 
@@ -100,17 +99,55 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 		parameter.registerAggregator("diffValueSum", new DoubleSumAggregator());
 
 		return newGraph
-				.runScatterGatherIteration(new VertexUpdate<K>(maxIterations, convergeThreshold),
-						new MessageUpdate<K>(maxIterations), maxIterations, parameter)
+				.runScatterGatherIteration(new MessageUpdate<K>(maxIterations),
+						new VertexUpdate<K>(maxIterations, convergeThreshold), maxIterations, parameter)
 				.getVertices();
+	}
+
+	/**
+	 * Distributes the value of a vertex among all neighbor vertices and sum all the
+	 * value in every superstep.
+	 */
+	private static final class MessageUpdate<K> extends ScatterFunction<K, Tuple2<DoubleValue, DoubleValue>, Double, Boolean> {
+		private int maxIteration;
+
+		public MessageUpdate(int maxIteration) {
+			this.maxIteration = maxIteration;
+		}
+
+		@Override
+		public void sendMessages(Vertex<K, Tuple2<DoubleValue, DoubleValue>> vertex) {
+			// in the first iteration, no aggregation to call, init sum with value of vertex
+			double iterationValueSum = 1.0;
+
+			if (getSuperstepNumber() > 1) {
+				iterationValueSum = Math.sqrt(((DoubleValue) getPreviousIterationAggregate("updatedValueSum")).getValue());
+			}
+			for (Edge<K, Boolean> edge : getEdges()) {
+				if (getSuperstepNumber() != maxIteration) {
+					if (getSuperstepNumber() % 2 == 1) {
+						if (edge.getValue()) {
+							sendMessageTo(edge.getTarget(), vertex.getValue().f0.getValue() / iterationValueSum);
+						}
+					} else {
+						if (!edge.getValue()) {
+							sendMessageTo(edge.getTarget(), vertex.getValue().f1.getValue() / iterationValueSum);
+						}
+					}
+				} else {
+					if (!edge.getValue()) {
+						sendMessageTo(edge.getTarget(), iterationValueSum);
+					}
+				}
+			}
+		}
 	}
 
 	/**
 	 * Function that updates the value of a vertex by summing up the partial
 	 * values from all messages and normalize the value.
 	 */
-	@SuppressWarnings("serial")
-	public static final class VertexUpdate<K> extends VertexUpdateFunction<K, Tuple2<DoubleValue, DoubleValue>, Double> {
+	private static final class VertexUpdate<K> extends GatherFunction<K, Tuple2<DoubleValue, DoubleValue>, Double> {
 		private int maxIteration;
 		private double convergeThreshold;
 		private DoubleSumAggregator updatedValueSumAggregator;
@@ -162,7 +199,7 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 						diffValueSum = ((DoubleValue) getPreviousIterationAggregate("diffValueSum")).getValue();
 					}
 					authoritySumAggregator.aggregate(previousAuthAverage);
-					
+
 					if (diffValueSum > convergeThreshold) {
 						newHubValue.setValue(newHubValue.getValue() / iterationValueSum);
 						newAuthorityValue.setValue(updateValue);
@@ -191,77 +228,24 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 		}
 	}
 
-	/**
-	 * Distributes the value of a vertex among all neighbor vertices and sum all the
-	 * value in every superstep.
-	 */
-	@SuppressWarnings("serial")
-	public static final class MessageUpdate<K> extends MessagingFunction<K, Tuple2<DoubleValue, DoubleValue>, Double, Boolean> {
-		private int maxIteration;
-
-		public MessageUpdate(int maxIteration) {
-			this.maxIteration = maxIteration;
-		}
-
-		@Override
-		public void sendMessages(Vertex<K, Tuple2<DoubleValue, DoubleValue>> vertex) {
-
-			// in the first iteration, no aggregation to call, init sum with value of vertex
-			double iterationValueSum = 1.0;
-
-			if (getSuperstepNumber() > 1) {
-				iterationValueSum = Math.sqrt(((DoubleValue) getPreviousIterationAggregate("updatedValueSum")).getValue());
-			}
-			for (Edge<K, Boolean> edge : getEdges()) {
-				if (getSuperstepNumber() != maxIteration) {
-					if (getSuperstepNumber() % 2 == 1) {
-						if (edge.getValue()) {
-							sendMessageTo(edge.getTarget(), vertex.getValue().f0.getValue() / iterationValueSum);
-						}
-					} else {
-						if (!edge.getValue()) {
-							sendMessageTo(edge.getTarget(), vertex.getValue().f1.getValue() / iterationValueSum);
-						}
-					}
-				} else {
-					if (!edge.getValue()) {
-						sendMessageTo(edge.getTarget(), iterationValueSum);
-					}
-				}
-			}
-		}
-	}
-
-	public static class VertexInitMapper<K, VV> implements MapFunction<Vertex<K, VV>, Tuple2<DoubleValue, DoubleValue>> {
-
-		private static final long serialVersionUID = 1L;
-
+	private static class VertexInitMapper<K, VV> implements MapFunction<Vertex<K, VV>, Tuple2<DoubleValue, DoubleValue>> {
 		private Tuple2<DoubleValue, DoubleValue> initVertexValue = new Tuple2<>(new DoubleValue(1.0), new DoubleValue(1.0));
 
 		public Tuple2<DoubleValue, DoubleValue> map(Vertex<K, VV> value) {
-
 			//init hub and authority value of each vertex
 			return initVertexValue;
 		}
 	}
 
-	public static class AuthorityEdgeMapper<K, EV> implements MapFunction<Edge<K, EV>, Boolean> {
-
-		private static final long serialVersionUID = 1L;
-
+	private static class AuthorityEdgeMapper<K, EV> implements MapFunction<Edge<K, EV>, Boolean> {
 		public Boolean map(Edge<K, EV> edge) {
-			
 			// mark edge as true for authority updating
 			return true;
 		}
 	}
 
-	public static class HubEdgeMapper<K, EV> implements MapFunction<Edge<K, EV>, Boolean> {
-
-		private static final long serialVersionUID = 1L;
-
+	private static class HubEdgeMapper<K, EV> implements MapFunction<Edge<K, EV>, Boolean> {
 		public Boolean map(Edge<K, EV> edge) {
-			
 			// mark edge as false for hub updating
 			return false;
 		}
