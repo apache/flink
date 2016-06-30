@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * Factory for savepoint {@link StateStore} instances.
+ * Factory for {@link SavepointStore} instances.
  */
 public class SavepointStoreFactory {
 
@@ -49,8 +49,7 @@ public class SavepointStoreFactory {
 	 * @param config The configuration to parse the savepoint backend configuration.
 	 * @return A savepoint store.
 	 */
-	public static SavepointStore createFromConfig(
-			Configuration config) throws Exception {
+	public static SavepointStore createFromConfig(Configuration config) throws Exception {
 
 		// Try a the savepoint-specific configuration first.
 		String savepointBackend = config.getString(SAVEPOINT_BACKEND_KEY, DEFAULT_SAVEPOINT_BACKEND);
@@ -88,11 +87,11 @@ public class SavepointStoreFactory {
 	// ------------------------------------------------------------------------
 
 	private static SavepointStore createJobManagerSavepointStore() {
-		return new SavepointStore(new HeapStateStore<CompletedCheckpoint>());
+		return new HeapSavepointStore();
 	}
 
 	private static SavepointStore createFileSystemSavepointStore(String rootPath) throws IOException {
-		return new SavepointStore(new FileSystemStateStore<CompletedCheckpoint>(rootPath, "savepoint-"));
+		return new FsSavepointStore(rootPath, "savepoint-");
 	}
 
 }

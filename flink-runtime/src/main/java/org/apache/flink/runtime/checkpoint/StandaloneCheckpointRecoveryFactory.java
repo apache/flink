@@ -37,7 +37,7 @@ public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFa
 	}
 
 	@Override
-	public CompletedCheckpointStore createCompletedCheckpoints(JobID jobId, ClassLoader userClassLoader)
+	public CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader)
 			throws Exception {
 
 		return new StandaloneCompletedCheckpointStore(CheckpointRecoveryFactory

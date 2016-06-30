@@ -16,11 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.runtime.checkpoint.savepoint;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -70,7 +76,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointCoordinator.class);
 
 	/** Store for savepoints. */
-	private StateStore<CompletedCheckpoint> savepointStore;
+	private final SavepointStore savepointStore;
 
 	/** Mapping from checkpoint ID to promises for savepoints. */
 	private final Map<Long, Promise<String>> savepointPromises;
@@ -89,7 +95,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			ExecutionVertex[] tasksToCommitTo,
 			ClassLoader userClassLoader,
 			CheckpointIDCounter checkpointIDCounter,
-			StateStore<CompletedCheckpoint> savepointStore,
+			SavepointStore savepointStore,
 			CheckpointStatsTracker statsTracker) throws Exception {
 
 		super(jobId,
@@ -103,7 +109,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				tasksToCommitTo,
 				userClassLoader,
 				checkpointIDCounter,
-				IgnoreCompletedCheckpointsStore.INSTANCE,
+				IgnoreCheckpointsStore.INSTANCE,
 				RecoveryMode.STANDALONE,
 				statsTracker);
 
@@ -192,35 +198,31 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 			LOG.info("Rolling back to savepoint '{}'.", savepointPath);
 
-			CompletedCheckpoint checkpoint = savepointStore.getState(savepointPath);
+			Savepoint savepoint = savepointStore.loadSavepoint(savepointPath);
 
-			LOG.info("Savepoint: {}@{}", checkpoint.getCheckpointID(), checkpoint.getTimestamp());
+			long recoveryTimestamp = System.currentTimeMillis();
 
-			// Set the initial state of all tasks
-			LOG.debug("Rolling back individual operators.");
-
-			for (Map.Entry<JobVertexID, TaskState> taskStateEntry: checkpoint.getTaskStates().entrySet()) {
-				TaskState taskState = taskStateEntry.getValue();
-				ExecutionJobVertex executionJobVertex = tasks.get(taskStateEntry.getKey());
+			for (TaskState taskState : savepoint.getTaskStates()) {
+				ExecutionJobVertex executionJobVertex = tasks.get(taskState.getJobVertexID());
 
 				if (executionJobVertex != null) {
 					if (executionJobVertex.getParallelism() != taskState.getParallelism()) {
 						String msg = String.format("Failed to rollback to savepoint %s. " +
-								"Parallelism mismatch between savepoint state and new program. " +
-								"Cannot map operator %s with parallelism %d to new program with " +
-								"parallelism %d. This indicates that the program has been changed " +
-								"in a non-compatible way after the savepoint.",
-							checkpoint,
-							taskStateEntry.getKey(),
-							taskState.getParallelism(),
-							executionJobVertex.getParallelism());
+										"Parallelism mismatch between savepoint state and new program. " +
+										"Cannot map operator %s with parallelism %d to new program with " +
+										"parallelism %d. This indicates that the program has been changed " +
+										"in a non-compatible way after the savepoint.",
+								savepoint,
+								taskState.getJobVertexID(),
+								taskState.getParallelism(),
+								executionJobVertex.getParallelism());
 
 						throw new IllegalStateException(msg);
 					}
 
 					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(
-						numberKeyGroups,
-						executionJobVertex.getParallelism());
+							numberKeyGroups,
+							executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getTaskVertices().length; i++) {
 						SubtaskState subtaskState = taskState.getState(i);
@@ -231,28 +233,28 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 						}
 
 						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState
-							.getUnwrappedKvStates(keyGroupPartitions.get(i));
+								.getUnwrappedKvStates(keyGroupPartitions.get(i));
 
 						Execution currentExecutionAttempt = executionJobVertex
-							.getTaskVertices()[i]
-							.getCurrentExecutionAttempt();
+								.getTaskVertices()[i]
+								.getCurrentExecutionAttempt();
 
 						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap);
 					}
 				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
-							"Cannot map old state for task %s to the new program. " +
-							"This indicates that the program has been changed in a " +
-							"non-compatible way  after the savepoint.", checkpoint,
-						taskStateEntry.getKey());
+									"Cannot map old state for task %s to the new program. " +
+									"This indicates that the program has been changed in a " +
+									"non-compatible way  after the savepoint.", savepointPath,
+							taskState.getJobVertexID());
 					throw new IllegalStateException(msg);
 				}
 			}
 
 			// Reset the checkpoint ID counter
-			long nextCheckpointId = checkpoint.getCheckpointID();
+			long nextCheckpointId = savepoint.getCheckpointId() + 1;
 			checkpointIdCounter.start();
-			checkpointIdCounter.setCount(nextCheckpointId + 1);
+			checkpointIdCounter.setCount(nextCheckpointId);
 			LOG.info("Reset the checkpoint ID to {}", nextCheckpointId);
 
 			if (savepointRestorePath == null) {
@@ -300,9 +302,11 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 		}
 
 		try {
-			// Save the checkpoint
-			String savepointPath = savepointStore.putState(checkpoint);
-			promise.success(savepointPath);
+			Savepoint savepoint = new SavepointV0(
+					checkpoint.getCheckpointID(),
+					checkpoint.getTaskStates().values());
+			String path = savepointStore.storeSavepoint(savepoint);
+			promise.success(path);
 		}
 		catch (Exception e) {
 			LOG.warn("Failed to store savepoint.", e);
@@ -344,9 +348,9 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 	// Completed checkpoints
 	// ------------------------------------------------------------------------
 
-	private static class IgnoreCompletedCheckpointsStore implements CompletedCheckpointStore {
+	private static class IgnoreCheckpointsStore implements CompletedCheckpointStore {
 
-		private static final CompletedCheckpointStore INSTANCE = new IgnoreCompletedCheckpointsStore();
+		private static final CompletedCheckpointStore INSTANCE = new IgnoreCheckpointsStore();
 
 		@Override
 		public void recover() throws Exception {

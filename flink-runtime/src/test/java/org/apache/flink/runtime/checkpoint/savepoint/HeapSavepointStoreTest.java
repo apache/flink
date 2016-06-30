@@ -16,29 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.runtime.checkpoint.savepoint;
 
-import org.mockito.internal.util.reflection.Whitebox;
+public class HeapSavepointStoreTest {
 
-import java.util.Map;
 
-/**
- * Basic {@link HeapStateStore} behaviour test.
- */
-public class HeapStateStoreTest extends AbstractStateStoreTest {
-
-	@Override
-	StateStore<Integer> createStateStore() {
-		return new HeapStateStore<>();
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	boolean verifyDiscarded(StateStore<Integer> stateStore, String path) {
-		Map<Integer, Integer> stateMap = (Map<Integer, Integer>) Whitebox
-				.getInternalState(stateStore, "stateMap");
-
-		return !stateMap.containsKey(path);
-	}
 
 }

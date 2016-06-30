@@ -16,24 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
+import org.junit.Assert;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class SavepointStoreFactoryTest {
 
 	@Test
 	public void testStateStoreWithDefaultConfig() throws Exception {
 		SavepointStore store = SavepointStoreFactory.createFromConfig(new Configuration());
-		assertTrue(store.getStateStore() instanceof HeapStateStore);
+		Assert.assertTrue(store instanceof HeapSavepointStore);
 	}
 
 	@Test
@@ -41,7 +38,7 @@ public class SavepointStoreFactoryTest {
 		Configuration config = new Configuration();
 		config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "jobmanager");
 		SavepointStore store = SavepointStoreFactory.createFromConfig(config);
-		assertTrue(store.getStateStore() instanceof HeapStateStore);
+		Assert.assertTrue(store instanceof HeapSavepointStore);
 	}
 
 	@Test
@@ -53,11 +50,10 @@ public class SavepointStoreFactoryTest {
 		config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY, rootPath);
 
 		SavepointStore store = SavepointStoreFactory.createFromConfig(config);
-		assertTrue(store.getStateStore() instanceof FileSystemStateStore);
+		Assert.assertTrue(store instanceof FsSavepointStore);
 
-		FileSystemStateStore<CompletedCheckpoint> stateStore = (FileSystemStateStore<CompletedCheckpoint>)
-				store.getStateStore();
-		assertEquals(new Path(rootPath), stateStore.getRootPath());
+		FsSavepointStore stateStore = (FsSavepointStore) store;
+		Assert.assertEquals(new Path(rootPath), stateStore.getRootPath());
 	}
 
 	@Test
@@ -71,11 +67,10 @@ public class SavepointStoreFactoryTest {
 		config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY, rootPath);
 
 		SavepointStore store = SavepointStoreFactory.createFromConfig(config);
-		assertTrue(store.getStateStore() instanceof FileSystemStateStore);
+		Assert.assertTrue(store instanceof FsSavepointStore);
 
-		FileSystemStateStore<CompletedCheckpoint> stateStore = (FileSystemStateStore<CompletedCheckpoint>)
-				store.getStateStore();
-		assertEquals(new Path(rootPath), stateStore.getRootPath());
+		FsSavepointStore stateStore = (FsSavepointStore) store;
+		Assert.assertEquals(new Path(rootPath), stateStore.getRootPath());
 	}
 
 	@Test(expected = IllegalConfigurationException.class)
@@ -83,7 +78,7 @@ public class SavepointStoreFactoryTest {
 		Configuration config = new Configuration();
 		config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
 		SavepointStoreFactory.createFromConfig(config);
-		fail("Did not throw expected Exception");
+		Assert.fail("Did not throw expected Exception");
 	}
 
 	@Test(expected = IllegalConfigurationException.class)
@@ -91,6 +86,6 @@ public class SavepointStoreFactoryTest {
 		Configuration config = new Configuration();
 		config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "unexpected");
 		SavepointStoreFactory.createFromConfig(config);
-		fail("Did not throw expected Exception");
+		Assert.fail("Did not throw expected Exception");
 	}
 }
