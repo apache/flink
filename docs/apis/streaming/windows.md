@@ -41,8 +41,8 @@ windows work.
 
 ## Basics
 
-For a windowed transformations you must at least specify a *key*
-(see [specifying keys](apis/common/index.html#specifying-keys))
+For a windowed transformation you must at least specify a *key*
+(see [specifying keys](/apis/common/index.html#specifying-keys)),
 a *window assigner* and a *window function*. The *key* divides the infinite, non-keyed, stream
 into logical keyed streams while the *window assigner* assigns elements to finite per-key windows.
 Finally, the *window function* is used to process the elements of each window.
@@ -87,10 +87,11 @@ is being considered as *ready for processing*. These will be covered in more det
 
 The window assigner specifies how elements of the stream are divided into finite slices. Flink comes
 with pre-implemented window assigners for the most typical use cases, namely *tumbling windows*,
-*sliding windows*, *session windows* and *global windows* but you can implement your own by
+*sliding windows*, *session windows* and *global windows*, but you can implement your own by
 extending the `WindowAssigner` class. All the built-in window assigners, except for the global
 windows one, assign elements to windows based on time, which can either be processing time or event
-time.
+time. Please take a look at our section on [event time](/apis/streaming/event_time.html) for more
+information about how Flink deals with time.
 
 Let's first look at how each of these window assigners works before looking at how they can be used
 in a Flink program. We will be using abstract figures to visualize the workings of each assigner:
@@ -248,19 +249,22 @@ input
 </div>
 </div>
 
+Note, how we can specify a time interval by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
+`Time.minutes(x)`, and so on.
+
 ## Window Functions
 
 The *window function* is used to process the elements of each window (and key) once the system
 determines that a window is ready for processing (see [triggers](#triggers) for how the system
 determines when a window is ready).
 
-The window function can be one of `ReduceFunction`, `FoldFunction` or `WindowFunction`. The former
+The window function can be one of `ReduceFunction`, `FoldFunction` or `WindowFunction`. The first
 two can be executed more efficiently because Flink can incrementally aggregate the elements for each
 window as they arrive. A `WindowFunction` gets an `Iterable` for all the elements contained in a
 window and additional meta information about the window to which the elements belong.
 
 A windowed transformation with a `WindowFunction` cannot be executed as efficiently as the other
-cases because Flink has to buffer all elements for a window internally before invoking the function.
+cases because Flink has to buffer *all* elements for a window internally before invoking the function.
 This can be mitigated by combining a `WindowFunction` with a `ReduceFunction` or `FoldFunction` to
 get both incremental aggregation of window elements and the additional information that the
 `WindowFunction` receives. We will look at examples for each of these variants.
@@ -448,11 +452,13 @@ class MyWindowFunction extends WindowFunction[(String, Long), String, String, Ti
 
 ### WindowFunction with Incremental Aggregation
 
-A `WindowFunction` can be combined with either a `ReduceFunction` or a `FoldFunction`. This allows
-to get the benefit of incremental window computation and also have the additional meta information
-that writing a `WindowFunction` provides.
+A `WindowFunction` can be combined with either a `ReduceFunction` or a `FoldFunction`. When doing
+this, the `ReduceFunction`/`FoldFunction` will be used to incrementally aggregate elements as they
+arrive while the `WindowFunction` will be provided with the aggregated result when the window is
+ready for processing. This allows to get the benefit of incremental window computation and also have
+the additional meta information that writing a `WindowFunction` provides.
 
-This is an exampel that shows how incremental aggregation functions can be combined with
+This is an example that shows how incremental aggregation functions can be combined with
 a `WindowFunction`.
 
 <div class="codetabs" markdown="1">
@@ -498,12 +504,12 @@ input
 When working with event-time windowing it can happen that elements arrive late, i.e the
 watermark that Flink uses to keep track of the progress of event-time is already past the
 end timestamp of a window to which an element belongs. Please
-see [event time](apis/streaming/event_time.html) and especially
-[late elements](pis/streaming/event_time.html#late-elements) for a more thorough discussion of
+see [event time](/apis/streaming/event_time.html) and especially
+[late elements](/apis/streaming/event_time.html#late-elements) for a more thorough discussion of
 how Flink deals with event time.
 
-You can specify for a windowed transformation how it should deal with late elements and how much
-lateness is allowed. The parameter for this is called *allowed lateness*. This specifies by how much
+You can specify how a windowed transformation should deal with late elements and how much lateness
+is allowed. The parameter for this is called *allowed lateness*. This specifies by how much time
 elements can be late. Elements that arrive within the allowed lateness are still put into windows
 and are considered when computing window results. If elements arrive after the allowed lateness they
 will be dropped. Flink will also make sure that any state held by the windowing operation is garbage
@@ -536,8 +542,6 @@ input
 {% endhighlight %}
 </div>
 </div>
-
-The time can be one of `Time.seconds(x)`, `Time.minutes(x)`, and so on.
 
 <span class="label label-info">Note</span> When using the `GlobalWindows` window assigner no
 data is ever considered late because the end timestamp of the global window is `Long.MAX_VALUE`.
@@ -585,7 +589,7 @@ input
 </div>
 
 Flink comes with a few triggers out-of-box: there is the already mentioned `EventTimeTrigger` that
-fires based on the progress of event-time as measured by the watermark, The `ProcessingTimeTrigger`
+fires based on the progress of event-time as measured by the watermark, the `ProcessingTimeTrigger`
 does the same but based on processing time and the `CountTrigger` fires once the number of elements
 in a window exceeds the given limit.
 
@@ -604,6 +608,10 @@ if you want to write your own custom trigger:
 You can also leave out the `keyBy()` when specifying a windowed transformation. This means, however,
 that Flink cannot process windows for different keys in parallel, essentially turning the
 transformation into a non-parallel operation.
+
+<span class="label label-danger">Warning</span> As mentioned in the introduction, non-keyed
+windows have the disadvantage that work cannot be distributed in the cluster because
+windows cannot be computed independently per key. This can have severe performance implications.
 
 
 The basic structure of a non-keyed windowed transformation is as follows:
