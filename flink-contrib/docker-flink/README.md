@@ -47,17 +47,23 @@ you can configure it in the respective args:
 
         docker-compose kill
 
-- Upload a jar to the cluster
+- Upload jar to the cluster
+
+        docker cp <your_jar> $(docker ps --filter name=flink_jobmanager --format={{.ID}}):/<your_path>
+
+- Copy file to all the nodes in the cluster
 
         for i in $(docker ps --filter name=flink --format={{.ID}}); do
-            docker cp <your_jar> $i:/<your_path>
+            docker cp <your_file> $i:/<your_path>
         done
 
 - Run a topology
 
-        docker run -it --rm flink:latest flink run -m <jobmanager:port> -c <your_class> <your_jar> <your_params>
+From the jobmanager:
 
-if you have a local flink installation
+        docker exec -it $(docker ps --filter name=flink_jobmanager --format={{.ID}}) flink run -m <jobmanager:port> -c <your_class> <your_jar> <your_params>
+
+If you have a local flink installation:
 
         $FLINK_HOME/bin/flink run -m <jobmanager:port> <your_jar>
 
