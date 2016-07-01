@@ -109,8 +109,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 	private static final ApplicationId TEST_YARN_APPLICATION_ID =
 		ApplicationId.newInstance(System.currentTimeMillis(), 42);
 
-	private static final String validPropertiesFile =
-		"jobManager=" + TEST_YARN_JOB_MANAGER_ADDRESS + ":" + TEST_YARN_JOB_MANAGER_PORT;
+	private static final String validPropertiesFile = "applicationID=" + TEST_YARN_APPLICATION_ID;
 
 
 	private static final String TEST_JOB_MANAGER_ADDRESS = "192.168.1.33";

@@ -22,7 +22,6 @@ import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 
@@ -300,43 +299,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		yarnClient.init(conf);
 		yarnClient.start();
 		return yarnClient;
-	}
-
-	/**
-	 * Retrieves the Yarn application and cluster from the config
-	 * @param config The config with entries to retrieve the cluster
-	 * @return YarnClusterClient
-	 * @deprecated This should be removed in the future
-	 */
-	public YarnClusterClient retrieveFromConfig(org.apache.flink.configuration.Configuration config)
-			throws UnsupportedOperationException {
-		String jobManagerHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		int jobManagerPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
-
-		if (jobManagerHost != null && jobManagerPort != -1) {
-
-			YarnClient yarnClient = getYarnClient();
-			final List<ApplicationReport> applicationReports;
-			try {
-				applicationReports = yarnClient.getApplications();
-			} catch (Exception e) {
-				throw new RuntimeException("Couldn't get Yarn application reports", e);
-			}
-			for (ApplicationReport report : applicationReports) {
-				if (report.getHost().equals(jobManagerHost) && report.getRpcPort() == jobManagerPort) {
-					LOG.info("Found application '{}' " +
-						"with JobManager host name '{}' and port '{}' from Yarn properties file.",
-						report.getApplicationId(), jobManagerHost, jobManagerPort);
-					return retrieve(report.getApplicationId().toString());
-				}
-			}
-
-		}
-
-		LOG.warn("Couldn't retrieve Yarn cluster from Flink configuration using JobManager address '{}:{}'",
-			jobManagerHost, jobManagerPort);
-
-		throw new IllegalConfigurationException("Could not resume Yarn cluster from config.");
 	}
 
 	@Override
