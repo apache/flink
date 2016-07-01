@@ -33,6 +33,8 @@ import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
+import org.apache.flink.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
@@ -124,7 +126,8 @@ class JobManager(
     protected val submittedJobGraphs : SubmittedJobGraphStore,
     protected val checkpointRecoveryFactory : CheckpointRecoveryFactory,
     protected val savepointStore: SavepointStore,
-    protected val jobRecoveryTimeout: FiniteDuration)
+    protected val jobRecoveryTimeout: FiniteDuration,
+    protected val metricsRegistry: Option[FlinkMetricRegistry])
   extends FlinkActor
   with LeaderSessionMessageFilter // mixin oder is important, we want filtering after logging
   with LogMessages // mixin order is important, we want first logging
@@ -148,6 +151,16 @@ class JobManager(
   protected val recoveryMode = RecoveryMode.fromConfig(flinkConfiguration)
 
   var leaderSessionID: Option[UUID] = None
+
+  protected val jobManagerMetricGroup : Option[JobManagerMetricGroup] = metricsRegistry match {
+    case Some(registry) =>
+      val host = flinkConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+      Option(new JobManagerMetricGroup(
+        registry, NetUtils.ipAddressToUrlString(InetAddress.getByName(host))))
+    case None =>
+      log.warn("Could not instantiate JobManager metrics.")
+      None
+  }
 
   /** Futures which have to be completed before terminating the job manager */
   var futuresToComplete: Option[Seq[Future[Unit]]] = None
@@ -268,6 +281,13 @@ class JobManager(
 
     // shut down the extra thread pool for futures
     executorService.shutdown()
+
+    // failsafe shutdown of the metrics registry
+    try {
+      metricsRegistry.map(_.shutdown())
+    } catch {
+      case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
+    }
 
     log.debug(s"Job manager ${self.path} is completely stopped.")
   }
@@ -2266,7 +2286,8 @@ object JobManager {
     SubmittedJobGraphStore,
     CheckpointRecoveryFactory,
     SavepointStore,
-    FiniteDuration // timeout for job recovery
+    FiniteDuration, // timeout for job recovery
+    Option[FlinkMetricRegistry]
    ) = {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
@@ -2358,6 +2379,13 @@ object JobManager {
       }
     }
 
+    val metricRegistry = try {
+      Option(new FlinkMetricRegistry(configuration))
+    } catch {
+      case _: Exception =>
+        None
+    }
+
     (executorService,
       instanceManager,
       scheduler,
@@ -2369,7 +2397,8 @@ object JobManager {
       submittedJobGraphs,
       checkpointRecoveryFactory,
       savepointStore,
-      jobRecoveryTimeout)
+      jobRecoveryTimeout,
+      metricRegistry)
   }
 
   /**
@@ -2432,7 +2461,8 @@ object JobManager {
     submittedJobGraphs,
     checkpointRecoveryFactory,
     savepointStore,
-    jobRecoveryTimeout) = createJobManagerComponents(
+    jobRecoveryTimeout, 
+    metricsRegistry) = createJobManagerComponents(
       configuration,
       None)
 
@@ -2458,7 +2488,8 @@ object JobManager {
       submittedJobGraphs,
       checkpointRecoveryFactory,
       savepointStore,
-      jobRecoveryTimeout)
+      jobRecoveryTimeout,
+      metricsRegistry)
 
     val jobManager: ActorRef = jobManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)

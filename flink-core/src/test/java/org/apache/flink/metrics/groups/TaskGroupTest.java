@@ -60,7 +60,7 @@ public class TaskGroupTest {
 		AbstractID executionId = new AbstractID();
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
-		JobMetricGroup jmGroup = new JobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
+		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 		TaskMetricGroup taskGroup = new TaskMetricGroup(registry, jmGroup, vertexId, executionId, "aTaskName", 13, 2);
 
 		assertArrayEquals(
@@ -86,7 +86,7 @@ public class TaskGroupTest {
 		AbstractID executionId = new AbstractID();
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
-		JobMetricGroup jmGroup = new JobMetricGroup(registry, tmGroup, jid, "myJobName");
+		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
 		TaskMetricGroup taskGroup = new TaskMetricGroup(
 				registry, jmGroup, taskFormat, vertexId, executionId, "aTaskName", 13, 2);
 
@@ -114,7 +114,7 @@ public class TaskGroupTest {
 		AbstractID executionId = new AbstractID();
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
-		JobMetricGroup jmGroup = new JobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
+		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 
 		TaskMetricGroup taskGroup = new TaskMetricGroup(
 				registry, jmGroup, format, new AbstractID(), executionId, "aTaskName", 13, 1);

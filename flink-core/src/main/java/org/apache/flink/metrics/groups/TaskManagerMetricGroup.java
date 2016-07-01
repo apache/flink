@@ -36,7 +36,7 @@ import java.util.Map;
 @Internal
 public class TaskManagerMetricGroup extends ComponentMetricGroup {
 
-	private final Map<JobID, JobMetricGroup> jobs = new HashMap<>();
+	private final Map<JobID, TaskManagerJobMetricGroup> jobs = new HashMap<>();
 
 	private final String hostname;
 
@@ -82,12 +82,12 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 		// because it might lead to a deadlock
 		while (true) {
 			// get or create a jobs metric group
-			JobMetricGroup currentJobGroup;
+			TaskManagerJobMetricGroup currentJobGroup;
 			synchronized (this) {
 				currentJobGroup = jobs.get(jobId);
-				
+
 				if (currentJobGroup == null || currentJobGroup.isClosed()) {
-					currentJobGroup = new JobMetricGroup(registry, this, jobId, jobName);
+					currentJobGroup = new TaskManagerJobMetricGroup(registry, this, jobId, jobName);
 					jobs.put(jobId, currentJobGroup);
 				}
 			}
@@ -106,14 +106,14 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 		}
 	}
 
-	public void removeJobMetricsGroup(JobID jobId, JobMetricGroup group) {
+	public void removeJobMetricsGroup(JobID jobId, TaskManagerJobMetricGroup group) {
 		if (jobId == null || group == null || !group.isClosed()) {
 			return;
 		}
 
 		synchronized (this) {
 			// optimistically remove the currently contained group, and check later if it was correct
-			JobMetricGroup containedGroup = jobs.remove(jobId);
+			TaskManagerJobMetricGroup containedGroup = jobs.remove(jobId);
 
 			// check if another group was actually contained, and restore that one
 			if (containedGroup != null && containedGroup != group) {
