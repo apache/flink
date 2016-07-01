@@ -52,6 +52,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -198,7 +199,8 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 				submittedJobGraphStore,
 				checkpointRecoveryFactory,
 				savepointStore,
-				AkkaUtils.getDefaultTimeout()
+				AkkaUtils.getDefaultTimeout(),
+				Option.apply(null)
 		);
 	}
 }

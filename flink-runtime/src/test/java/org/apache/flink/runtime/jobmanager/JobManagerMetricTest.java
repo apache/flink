@@ -19,7 +19,6 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -74,7 +73,7 @@ public class JobManagerMetricTest {
 			flink.submitJobDetached(jobGraph);
 
 			Future<Object> jobRunning = flink.getLeaderGateway(deadline.timeLeft())
-				.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobGraph.getJobID(), JobStatus.RUNNING), deadline.timeLeft());
+				.ask(new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobGraph.getJobID()), deadline.timeLeft());
 			Await.ready(jobRunning, deadline.timeLeft());
 
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
