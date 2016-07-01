@@ -1368,7 +1368,7 @@ Flink supports `Counters`, `Gauges` and `Histograms`.
 #### Counter
 
 A `Counter` is used to count something. The current value can be in- or decremented using `inc()/inc(long n)` or `dec()/dec(long n)`.
-You can create and register a `Counter` by calling `counter(String name)` on a MetricGroup.
+You can create and register a `Counter` by calling `counter(String name)` on a `MetricGroup`.
 
 {% highlight java %}
 
@@ -1377,15 +1377,13 @@ public class MyMapper extends RichMapFunction<String, Integer> {
 
   @Override
   public void open(Configuration config) {
-    // create and register a counter
-    this.counter = getRuntimeContext().getMetricGroup().counter("myCounter");
-    ...
+    this.counter = getRuntimeContext()
+      .getMetricGroup()
+      .counter("myCounter");
   }
 
   @public Integer map(String value) throws Exception {
-    // increment counter
     this.counter.inc();
-    ...
   }
 }
 
@@ -1396,15 +1394,14 @@ Alternatively you can also use your own `Counter` implementation:
 {% highlight java %}
 
 public class MyMapper extends RichMapFunction<String, Integer> {
-  ...
+  private Counter counter;
 
   @Override
   public void open(Configuration config) {
-    // register a custom counter
-    this.counter = getRuntimeContext().getmetricGroup().counter("myCustomCounter", new CustomCounter());
-    ...
+    this.counter = getRuntimeContext()
+      .getMetricGroup()
+      .counter("myCustomCounter", new CustomCounter());
   }
-  ...
 }
 
 {% endhighlight %}
@@ -1412,8 +1409,8 @@ public class MyMapper extends RichMapFunction<String, Integer> {
 #### Gauge
 
 A `Gauge` provides a value of any type on demand. In order to use a `Gauge` you must first create a class that implements the `org.apache.flink.metrics.Gauge` interface.
-There is not restriction for the type of the returned value.
-You can register a gauge by calling `gauge(String name, Gauge gauge)` on a MetricGroup.
+There is no restriction for the type of the returned value.
+You can register a gauge by calling `gauge(String name, Gauge gauge)` on a `MetricGroup`.
 
 {% highlight java %}
 
@@ -1422,23 +1419,25 @@ public class MyMapper extends RichMapFunction<String, Integer> {
 
   @Override
   public void open(Configuration config) {
-    // register the gauge
-    getRuntimeContext().getmetricGroup().gauge("MyGauge", new Gauge<Integer>() {
-      @Override
-      public Integer getValue() {
-        return valueToExpose;
-      }});
-    ...
+    getRuntimeContext()
+      .getMetricGroup()
+      .gauge("MyGauge", new Gauge<Integer>() {
+        @Override
+        public Integer getValue() {
+          return valueToExpose;
+        }
+      });
   }
-  ...
 }
 
 {% endhighlight %}
 
+Note that reporters will turn the exposed object into a `String`, which means that a meaningful `toString()` implementation is required.
+
 #### Histogram
 
-A Histogram measure the distribution of long values.
-You can register one by calling histogram(String name, Histogram histogram) on a MetricGroup.
+A `Histogram` measures the distribution of long values.
+You can register one by calling `histogram(String name, Histogram histogram)` on a `MetricGroup`.
 
 {% highlight java %}
 public class MyMapper extends RichMapFunction<Long, Integer> {
@@ -1446,92 +1445,114 @@ public class MyMapper extends RichMapFunction<Long, Integer> {
 
   @Override
   public void open(Configuration config) {
-    // create and register a counter
-    this.histogram = getRuntimeContext().getMetricGroup().histogram("myHistogram", new MyHistogram());
-    ...
+    this.histogram = getRuntimeContext()
+      .getMetricGroup()
+      .histogram("myHistogram", new MyHistogram());
   }
 
   @public Integer map(Long value) throws Exception {
     this.histogram.update(value);
-    ...
   }
 }
 {% endhighlight %}
 
-Flink only provides an interface for Histograms, but offers a Wrapper that allows usage of Codahale/DropWizard Histograms. (org.apache.flink.dropwizard.metrics.DropWizardHistogramWrapper)
-This wrapper is contained in the `flink-metrics-dropwizard` module.
+Flink does not provide a default implementation for `Histogram`, but offers a {% gh_link flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java "Wrapper" %} that allows usage of Codahale/DropWizard histograms.
+To use this wrapper add the following dependency in your `pom.xml`:
+{% highlight xml %}
+<dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-metrics-dropwizard</artifactId>
+      <version>{{site.version}}</version>
+</dependency>
+{% endhighlight %}
+
+You can then register a Codahale/DropWizard histogram like this:
+
+{% highlight java %}
+public class MyMapper extends RichMapFunction<Long, Integer> {
+  private Histogram histogram;
+
+  @Override
+  public void open(Configuration config) {
+    com.codahale.metrics.Histogram histogram =
+      new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500));
+
+    this.histogram = getRuntimeContext()
+      .getMetricGroup()
+      .histogram("myHistogram", new DropWizardHistogramWrapper(histogram));
+  }
+}
+{% endhighlight %}
 
 ### Scope
 
-Every registered metric has an automatically assigned scope which represents the entities it is tied to. By default a metric that is registered in a user function will be scoped to the operator in which the function runs, the task/job it belongs to and the taskManager/host it is executed on. This is referred to as the "system scope".
+Every metric is assigned an identifier under which it will be reported that is based on 3 components: the user-provided name when registering the metric, an optional user-defined scope and a system-provided scope.
+For example, if `A.B` is the sytem scope, `C.D` the user scope and `E` the name, then the identifier for the metric will be `A.B.C.D.E`.
 
-You can define an additonal "user scope" by calling the either `MetricGroup#addGroup(String name)` or `MetricGroup#addGroup(int name)`.
+#### User Scope
+
+You can define a user scope by calling either `MetricGroup#addGroup(String name)` or `MetricGroup#addGroup(int name)`.
 
 {% highlight java %}
 
-counter = getRuntimeContext().getMetricGroup().addGroup("MyMetrics").counter("myCounter");
+counter = getRuntimeContext()
+  .getMetricGroup()
+  .addGroup("MyMetrics")
+  .counter("myCounter");
 
 {% endhighlight %}
 
-The name under which a metric is exported is based on both scopes and the name passed in the `counter()` call. The order is always \<system_scope>\<user_scope>\<name>.
+#### System Scope
 
-The system scope allows the reported name to contain contextual information like the name of job it was registered in without requiring the user to pass this information manually.
+The system scope contains context information about the metric, for example in which task it was registered or what job that task belongs to.
 
-How the system scope affects the reported name for a metric can be modified by setting the following keys in the flink-conf.yaml. 
-Each of these keys expect a format string that may contain constants (e.g. "taskmanager") and variables (e.g. "\<task_id>") which will be replaced at runtime.
+Which context information should be included can be configured by setting the following keys in `conf/flink-conf.yaml`.
+Each of these keys expect a format string that may contain constants (e.g. "taskmanager") and variables (e.g. "&lt;task_id&gt;") which will be replaced at runtime.
 
 - `metrics.scope.jm`
-  - Default: \<host>.jobmanager
-  - Applied to all metrics that were scoped to a jobmanager.
+  - Default: &lt;host&gt;.jobmanager
+  - Applied to all metrics that were scoped to a job manager.
 - `metrics.scope.jm.job`
-  - Default: \<host>.jobmanager.\<job_name>
-  - Applied to all metrics that were scoped to a jobmanager and job.
+  - Default: &lt;host&gt;.jobmanager.&lt;job_name&gt;
+  - Applied to all metrics that were scoped to a job manager and job.
 - `metrics.scope.tm`
-  - Default: \<host>.taskmanager.\<tm_id>
-  - Applied to all metrics that were scoped to a taskmanager.
+  - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;
+  - Applied to all metrics that were scoped to a task manager.
 - `metrics.scope.tm.job`
-  - Default: \<host>.taskmanager.\<tm_id>.\<job_name>
-  - Applied to all metrics that were scoped to a taskmanager and job.
+  - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;
+  - Applied to all metrics that were scoped to a task manager and job.
 - `metrics.scope.tm.task`
-  - Default: \<host>.taskmanager.\<tm_id>.\<job_name>.\<task_name>.\<subtask_index>
+  - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;task_name&gt;.&lt;subtask_index&gt;
    - Applied to all metrics that were scoped to a task.
 - `metrics.scope.tm.operator`
-  - Default: \<host>.taskmanager.\<tm_id>.\<job_name>.\<operator_name>.\<subtask_index>
+  - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;operator_name&gt;.&lt;subtask_index&gt;
   - Applied to all metrics that were scoped to an operator.
 
-Note that for metrics for which multiple formats may apply (like jm and jm.job) the most specific format takes precedence,
-in this case jm.job.
+There are no restrictions on the number or order of variables. Variables are case sensitive.
 
-The hierarchical orders are as follows:
+The default scope for operator metrics will result in an identifier akin to `localhost.taskmanager.1234.MyJob.MyOperator.0.MyMetric`
 
-jm < jm.job 
+If you also want to include the task name but omit the task manager information you can specify the following format:
 
-tm < tm.job < tm.task < tm.operator
+`metrics.scope.tm.operator: <host>.<job_name>.<task_name>.<operator_name>.<subtask_index>`
 
-This hierarchy also defines which variables may be accessed. The `tm.operator` format may contain variables for jobs, whereas `tm.job` may not contain
-variables for operators. There is no restriction on order of variables.
+This could create the identifier `localhost.MyJob.MySource_->_MyOperator.MyOperator.0.MyMetric`.
 
-There is no restriction on the order of variables.
+Note that for this format string an identifier clash can occur should the same job be run multiple times concurrently, which can lead to inconsistent metric data.
+As such it is advised to either use format strings that provide a certain degree of uniqueness by including IDs (e.g &lt;job_id&gt;)
+or by assigning unique names to jobs and operators.
 
-The default scope for operator metrics will result in a metric name akin to `localhost.taskmanager.1234.MyJob.MyOperator.0`
+#### List of all Variables
 
-If you also want to include the task name, but omit the taskmanager information you can specify the following format:
-
-`metrics.scope.tm.operator: \<host>.\<job_name>.\<task_name>.\<operator_name>.\<subtask_index>`
-
-This could create the name `localhost.MyJob.MySource_->_MyOperator.MyOperator.0`.
-
-The following is a list of all variables available:
-
-- JobManager: \<host>
-- TaskManager: \<host>, \<tm_id>
-- Job: \<job_id>, \<job_name>
-- Task: \<task_id>, \<task_name>, \<task_attempt_id>, \<task_attempt_num>, \<subtask_index>
-- Operator: \<operator_name>, \<subtask_index>
+- JobManager: &lt;host&gt;
+- TaskManager: &lt;host&gt;, &lt;tm_id&gt;
+- Job: &lt;job_id&gt;, &lt;job_name&gt;
+- Task: &lt;task_id&gt;, &lt;task_name&gt;, &lt;task_attempt_id&gt;, &lt;task_attempt_num&gt;, &lt;subtask_index&gt;
+- Operator: &lt;operator_name&gt;, &lt;subtask_index&gt;
 
 ### Reporter
 
-Metrics can be exposed to an external system by configuring a reporter in the `conf/flink-conf.yaml`.
+Metrics can be exposed to an external system by configuring a reporter in `conf/flink-conf.yaml`.
 
 - `metrics.reporter.class`: The class of the reporter to use.
   - Example: org.apache.flink.metrics.reporter.JMXReporter
@@ -1544,15 +1565,14 @@ You can write your own `Reporter` by implementing the `org.apache.flink.metrics.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 
 By default Flink uses JMX to expose metrics.
-All non-JMXReporters are not part of the distribution and have to be added to the classpath manually, either by putting the jar into /lib
-or including it in the job jar.
+All non-JMXReporters are not part of the distribution and have to be added [manually]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
-Flink supports the following systems:
+The following sections list the supported reporters.
 
 #### JMX
 
 The port for JMX can be configured by setting the `metrics.jmx.port` key. This parameter expects either a single port
-or a port range, with the default being 9010-9025. The used port is shown in the relevant Job-/TaskManager log.
+or a port range, with the default being 9010-9025. The used port is shown in the relevant job or task manager log.
 
 #### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
 Dependency:
@@ -1560,7 +1580,7 @@ Dependency:
 <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-metrics-ganglia</artifactId>
-      <version>1.1-SNAPSHOT</version>
+      <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
 
@@ -1579,7 +1599,7 @@ Dependency:
 <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-metrics-graphite</artifactId>
-      <version>1.1-SNAPSHOT</version>
+      <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
 
@@ -1594,7 +1614,7 @@ Dependency:
 <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-metrics-statsd</artifactId>
-      <version>1.1-SNAPSHOT</version>
+      <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
 
