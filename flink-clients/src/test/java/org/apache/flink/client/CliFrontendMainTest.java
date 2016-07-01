@@ -23,13 +23,17 @@ public class CliFrontendMainTest {
 	}
 
 	@Test
-	public void testMain() throws CliArgsException, FileNotFoundException, MalformedURLException {
-			// test configure configDir
-			{
-				String[] parameters = {"--configDir", "expectedConfigDirectory", getTestJarPath()};
-				MainOptions options = CliFrontendParser.parseMainCommand(parameters);
-				assertEquals("expectedConfigDirectory", options.getConfigDir());
-			}
+	public void simpleParse() throws FileNotFoundException, MalformedURLException, CliArgsException {
+			String[] parameters = {"--configDir", "expectedConfigDirectory", "run", getTestJarPath()};
+			MainOptions options = CliFrontendParser.parseMainCommand(parameters);
+			assertEquals("expectedConfigDirectory", options.getConfigDir());
 	}
 
+	@Test
+	public void dropAfterAction() throws FileNotFoundException, MalformedURLException, CliArgsException {
+		String[] parameters = {"--configDir", "expectedConfigDirectory", "run", getTestJarPath(), "--configDir", "notExpected"};
+		MainOptions options = CliFrontendParser.parseMainCommand(parameters);
+		assertEquals("expectedConfigDirectory", options.getConfigDir());
+		assertEquals(options.getOptions().length, 1);
+	}
 }

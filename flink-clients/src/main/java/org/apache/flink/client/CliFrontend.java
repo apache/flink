@@ -113,6 +113,15 @@ public class CliFrontend {
 	private static final String ACTION_STOP = "stop";
 	private static final String ACTION_SAVEPOINT = "savepoint";
 
+	public static final List<String> ACTIONS = Arrays.asList(
+			ACTION_RUN,
+			ACTION_INFO,
+			ACTION_LIST,
+			ACTION_CANCEL,
+			ACTION_STOP,
+			ACTION_SAVEPOINT
+	);
+
 	// config dir parameters
 	private static final String ENV_CONFIG_DIRECTORY = "FLINK_CONF_DIR";
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";

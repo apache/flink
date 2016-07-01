@@ -27,6 +27,9 @@ import org.apache.flink.client.CliFrontend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.List;
+
 
 /**
  * A simple command line parser (based on Apache Commons CLI) that extracts command
@@ -477,6 +480,17 @@ public class CliFrontendParser {
 	}
 
 	public static MainOptions parseMainCommand(String[] args) throws CliArgsException {
+
+		// drop all arguments after an action
+		final List<String> params= Arrays.asList(args);
+		for (String action: CliFrontend.ACTIONS) {
+			int index = params.indexOf(action);
+			if(index != -1) {
+				args = Arrays.copyOfRange(args, 0, index);
+				break;
+			}
+		}
+
 		try {
 			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(MAIN_OPTIONS, args, false);
