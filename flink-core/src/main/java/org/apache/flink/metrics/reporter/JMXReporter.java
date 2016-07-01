@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -48,8 +49,6 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
-import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via JMX.
@@ -94,7 +93,7 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	private static JMXServer startJmxServer(Configuration config) {
-		Iterator<Integer> ports = NetUtils.getPortRangeFromString(config.getString(KEY_METRICS_JMX_PORT, "9010-9025"));
+		Iterator<Integer> ports = NetUtils.getPortRangeFromString(config.getString(ConfigConstants.METRICS_JMX_PORT, "9010-9025"));
 
 		JMXServer server = new JMXServer();
 		while (ports.hasNext()) {

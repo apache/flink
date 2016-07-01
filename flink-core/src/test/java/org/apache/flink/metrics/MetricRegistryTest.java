@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
@@ -40,7 +41,7 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterInstantiation() {
 		Configuration config = new Configuration();
 
-		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter1.class.getName());
 
 		new MetricRegistry(config);
 
@@ -63,8 +64,8 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterArgumentForwarding() {
 		Configuration config = new Configuration();
 
-		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestReporter2.class.getName());
-		config.setString(MetricRegistry.KEY_METRICS_REPORTER_ARGUMENTS, "--arg1 hello --arg2 world");
+		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter2.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "--arg1 hello --arg2 world");
 
 		new MetricRegistry(config);
 	}
@@ -86,8 +87,8 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterScheduling() throws InterruptedException {
 		Configuration config = new Configuration();
 
-		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestReporter3.class.getName());
-		config.setString(MetricRegistry.KEY_METRICS_REPORTER_INTERVAL, "50 MILLISECONDS");
+		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter3.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_INTERVAL, "50 MILLISECONDS");
 
 		new MetricRegistry(config);
 
@@ -125,7 +126,7 @@ public class MetricRegistryTest extends TestLogger {
 	@Test
 	public void testListener() {
 		Configuration config = new Configuration();
-		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestReporter6.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter6.class.getName());
 
 		MetricRegistry registry = new MetricRegistry(config);
 
@@ -163,10 +164,10 @@ public class MetricRegistryTest extends TestLogger {
 	public void testScopeConfig() {
 		Configuration config = new Configuration();
 
-		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_TM, "A");
-		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_TM_JOB, "B");
-		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_TASK, "C");
-		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_OPERATOR, "D");
+		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A");
+		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, "B");
+		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "C");
+		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_OPERATOR, "D");
 
 		ScopeFormats scopeConfig = MetricRegistry.createScopeConfig(config);
 
