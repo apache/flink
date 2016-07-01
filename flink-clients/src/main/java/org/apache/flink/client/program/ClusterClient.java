@@ -373,6 +373,7 @@ public abstract class ClusterClient {
 		}
 
 		try {
+			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
 			this.lastJobID = jobGraph.getJobID();
 			return JobClient.submitJobAndWait(actorSystem,
 				leaderRetrievalService, jobGraph, timeout, printStatusDuringExecution, classLoader);
@@ -398,6 +399,7 @@ public abstract class ClusterClient {
 		}
 
 		try {
+			logAndSysout("Submitting Job with JobID: " + jobGraph.getJobID() + ". Returning after job submission.");
 			JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, classLoader);
 			return new JobSubmissionResult(jobGraph.getJobID());
 		} catch (JobExecutionException e) {
