@@ -154,7 +154,6 @@ public class CliFrontend {
 		LOG.info("Trying to load configuration file");
 		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 		System.setProperty(ENV_CONFIG_DIRECTORY, configDirectory.getAbsolutePath());
-
 		this.config = GlobalConfiguration.getConfiguration();
 
 		try {
@@ -846,12 +845,12 @@ public class CliFrontend {
 		ClusterClient client;
 		try {
 			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
-			logAndSysout("Cluster retrieved");
+			logAndSysout("Cluster retrieved: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
 				String applicationName = "Flink Application: " + programName;
 				client = activeCommandLine.createCluster(applicationName, options.getCommandLine(), config);
-				logAndSysout("Cluster started");
+				logAndSysout("Cluster started: " + client.getClusterIdentifier());
 			} catch (UnsupportedOperationException e2) {
 				throw new IllegalConfigurationException(
 					"The JobManager address is neither provided at the command-line, " +
@@ -859,7 +858,9 @@ public class CliFrontend {
 			}
 		}
 
-		logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
+		// Avoid resolving the JobManager Gateway here to prevent blocking until we invoke the user's program.
+		final InetSocketAddress jobManagerAddress = client.getJobManagerAddressFromConfig();
+		logAndSysout("Using address " + jobManagerAddress.getHostString() + ":" + jobManagerAddress.getPort() + " to connect to JobManager.");
 		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
 		return client;
 	}
@@ -1054,7 +1055,7 @@ public class CliFrontend {
 	 * @param config The config to write to
 	 */
 	public static void setJobManagerAddressInConfig(Configuration config, InetSocketAddress address) {
-		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostString());
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.getPort());
 	}
 
