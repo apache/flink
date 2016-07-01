@@ -494,9 +494,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 
 			jobManager = newJobManagerLeader;
 
-			// inform the framework that we have updated the leader
-			leaderUpdated();
-
 			if (workers.size() > 0) {
 				LOG.info("Received TaskManagers that were registered at the leader JobManager. " +
 						"Trying to consolidate.");
@@ -643,12 +640,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 *                   restarted.
 	 */
 	protected abstract void initialize() throws Exception;
-
-	/**
-	 * Provides codes to handle an update of the leader (relevant for HA). The framework has to deal
-	 * with the consequences of a leader update.
-	 */
-	protected abstract void leaderUpdated();
 
 	/**
 	 * The framework specific code for shutting down the application. This should report the
