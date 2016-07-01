@@ -2322,22 +2322,22 @@ object TaskManager {
       override def getValue: Long = mxBean.getHeapMemoryUsage.getUsed
     })
     heap.gauge[Long, FlinkGauge[Long]]("Committed", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
-      })
+      override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
+    })
     heap.gauge[Long, FlinkGauge[Long]]("Max", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
-      })
+      override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
+    })
 
     val nonHeap = metrics.addGroup("NonHeap")
     nonHeap.gauge[Long, FlinkGauge[Long]]("Used", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
-      })
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
+    })
     nonHeap.gauge[Long, FlinkGauge[Long]]("Committed", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
-      })
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
+    })
     nonHeap.gauge[Long, FlinkGauge[Long]]("Max", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
-      })
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
+    })
 
     val con = ManagementFactory.getPlatformMBeanServer;
 
@@ -2345,33 +2345,33 @@ object TaskManager {
 
     val direct = metrics.addGroup("Direct")
     direct.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "Count").asInstanceOf[Long]
-      })
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "Count").asInstanceOf[Long]
+    })
     direct.gauge[Long, FlinkGauge[Long]]("MemoryUsed", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
-      })
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
+    })
     direct.gauge[Long, FlinkGauge[Long]]("TotalCapacity", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
-      })
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
+    })
 
-    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
+    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=mapped")
 
     val mapped = metrics.addGroup("Mapped")
     mapped.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
-      })
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
+    })
     mapped.gauge[Long, FlinkGauge[Long]]("MemoryUsed", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
-      })
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
+    })
     mapped.gauge[Long, FlinkGauge[Long]]("TotalCapacity", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
-      })
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
+    })
   }
 
   private def instantiateThreadMetrics(metrics: MetricGroup): Unit = {
