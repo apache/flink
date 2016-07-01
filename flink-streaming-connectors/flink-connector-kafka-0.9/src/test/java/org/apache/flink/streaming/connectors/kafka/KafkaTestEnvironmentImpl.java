@@ -136,7 +136,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		tmpZkDir = new File(tempDir, "kafkaITcase-zk-dir-" + (UUID.randomUUID().toString()));
 		assertTrue("cannot create zookeeper temp dir", tmpZkDir.mkdirs());
 
-		tmpKafkaParent = new File(tempDir, "kafkaITcase-kafka-dir*" + (UUID.randomUUID().toString()));
+		tmpKafkaParent = new File(tempDir, "kafkaITcase-kafka-dir-" + (UUID.randomUUID().toString()));
 		assertTrue("cannot create kafka temp dir", tmpKafkaParent.mkdirs());
 
 		tmpKafkaDirs = new ArrayList<>(numKafkaServers);
