@@ -111,7 +111,7 @@ class DataSetAggregate(
       .name(prepareOpName)
 
     val groupReduceFunction = aggregateResult._2
-    val rowTypeInfo = new RowTypeInfo(fieldTypes, rowType.getFieldNames.asScala)
+    val rowTypeInfo = new RowTypeInfo(fieldTypes)
 
     val result = {
       if (groupingKeys.length > 0) {
