@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.statsd;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
@@ -77,9 +78,9 @@ public class StatsDReporterTest extends TestLogger {
 			int port = receiver.getPort();
 
 			Configuration config = new Configuration();
-			config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, StatsDReporter.class.getName());
-			config.setString(MetricRegistry.KEY_METRICS_REPORTER_INTERVAL, "1 SECONDS");
-			config.setString(MetricRegistry.KEY_METRICS_REPORTER_ARGUMENTS, "--host localhost --port " + port);
+			config.setString(ConfigConstants.METRICS_REPORTER_CLASS, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_INTERVAL, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "--host localhost --port " + port);
 
 			registry = new MetricRegistry(config);
 

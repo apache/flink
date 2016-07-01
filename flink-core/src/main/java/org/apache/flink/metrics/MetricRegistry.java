@@ -19,6 +19,7 @@
 package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.groups.scope.ScopeFormat;
@@ -45,19 +46,6 @@ public class MetricRegistry {
 	// ------------------------------------------------------------------------
 	//  configuration keys
 	// ------------------------------------------------------------------------
-
-	public static final String KEY_METRICS_JMX_PORT = "metrics.jmx.port";
-
-	public static final String KEY_METRICS_REPORTER_CLASS = "metrics.reporter.class";
-	public static final String KEY_METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
-	public static final String KEY_METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
-
-	public static final String KEY_METRICS_SCOPE_NAMING_JM = "metrics.scope.jm";
-	public static final String KEY_METRICS_SCOPE_NAMING_TM = "metrics.scope.tm";
-	public static final String KEY_METRICS_SCOPE_NAMING_JM_JOB = "metrics.scope.jm.job";
-	public static final String KEY_METRICS_SCOPE_NAMING_TM_JOB = "metrics.scope.tm.job";
-	public static final String KEY_METRICS_SCOPE_NAMING_TASK = "metrics.scope.task";
-	public static final String KEY_METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
 
 	// ------------------------------------------------------------------------
 	//  configuration keys
@@ -87,7 +75,7 @@ public class MetricRegistry {
 
 		// second, instantiate any custom configured reporters
 		
-		final String className = config.getString(KEY_METRICS_REPORTER_CLASS, null);
+		final String className = config.getString(ConfigConstants.METRICS_REPORTER_CLASS, null);
 		if (className == null) {
 			// by default, create JMX metrics
 			LOG.info("No metrics reporter configured, exposing metrics via JMX");
@@ -98,7 +86,7 @@ public class MetricRegistry {
 			MetricReporter reporter;
 			ScheduledExecutorService executor = null;
 			try {
-				String configuredPeriod = config.getString(KEY_METRICS_REPORTER_INTERVAL, null);
+				String configuredPeriod = config.getString(ConfigConstants.METRICS_REPORTER_INTERVAL, null);
 				TimeUnit timeunit = TimeUnit.SECONDS;
 				long period = 10;
 				
@@ -143,9 +131,9 @@ public class MetricRegistry {
 		JMXReporter reporter = null;
 		try {
 			Configuration reporterConfig = new Configuration();
-			String portRange = config.getString(KEY_METRICS_JMX_PORT, null);
+			String portRange = config.getString(ConfigConstants.METRICS_JMX_PORT, null);
 			if (portRange != null) {
-				reporterConfig.setString(KEY_METRICS_JMX_PORT, portRange);
+				reporterConfig.setString(ConfigConstants.METRICS_JMX_PORT, portRange);
 			}
 			reporter = new JMXReporter();
 			reporter.open(reporterConfig);
@@ -235,7 +223,7 @@ public class MetricRegistry {
 		reporterConfig.setLong("period", period);
 		reporterConfig.setString("timeunit", timeunit.name());
 
-		String[] arguments = config.getString(KEY_METRICS_REPORTER_ARGUMENTS, "").split(" ");
+		String[] arguments = config.getString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "").split(" ");
 		if (arguments.length > 1) {
 			for (int x = 0; x < arguments.length; x += 2) {
 				reporterConfig.setString(arguments[x].replace("--", ""), arguments[x + 1]);
@@ -246,17 +234,17 @@ public class MetricRegistry {
 
 	static ScopeFormats createScopeConfig(Configuration config) {
 		String jmFormat = config.getString(
-				KEY_METRICS_SCOPE_NAMING_JM, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_GROUP);
+				ConfigConstants.METRICS_SCOPE_NAMING_JM, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_GROUP);
 		String jmJobFormat = config.getString(
-			KEY_METRICS_SCOPE_NAMING_JM_JOB, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_JOB_GROUP);
+			ConfigConstants.METRICS_SCOPE_NAMING_JM_JOB, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_JOB_GROUP);
 		String tmFormat = config.getString(
-				KEY_METRICS_SCOPE_NAMING_TM, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_GROUP);
+				ConfigConstants.METRICS_SCOPE_NAMING_TM, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_GROUP);
 		String tmJobFormat = config.getString(
-				KEY_METRICS_SCOPE_NAMING_TM_JOB, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP);
+				ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP);
 		String taskFormat = config.getString(
-				KEY_METRICS_SCOPE_NAMING_TASK, ScopeFormat.DEFAULT_SCOPE_TASK_GROUP);
+				ConfigConstants.METRICS_SCOPE_NAMING_TASK, ScopeFormat.DEFAULT_SCOPE_TASK_GROUP);
 		String operatorFormat = config.getString(
-				KEY_METRICS_SCOPE_NAMING_OPERATOR, ScopeFormat.DEFAULT_SCOPE_OPERATOR_GROUP);
+				ConfigConstants.METRICS_SCOPE_NAMING_OPERATOR, ScopeFormat.DEFAULT_SCOPE_OPERATOR_GROUP);
 		
 		return new ScopeFormats(jmFormat, jmJobFormat, tmFormat, tmJobFormat, taskFormat, operatorFormat);
 	}

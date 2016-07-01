@@ -625,6 +625,38 @@ public final class ConfigConstants {
 
 	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "recovery.zookeeper.client.max-retry-attempts";
 
+	// ---------------------------- Metrics -----------------------------------
+
+	/** The port range from which JMX will pick one to listen for incoming connections. */
+	public static final String METRICS_JMX_PORT = "metrics.jmx.port";
+	
+	/** The class of the reporter to use. */
+	public static final String METRICS_REPORTER_CLASS = "metrics.reporter.class";
+	
+	/** A list of named parameters that are passed to the reporter. */
+	public static final String METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
+	
+	/** The interval between reports. */
+	public static final String METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
+
+	/** The scope format string that is applied to all metrics scoped to a JobManager. */
+	public static final String METRICS_SCOPE_NAMING_JM = "metrics.scope.jm";
+
+	/** The scope format string that is applied to all metrics scoped to a TaskManager. */
+	public static final String METRICS_SCOPE_NAMING_TM = "metrics.scope.tm";
+
+	/** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
+	public static final String METRICS_SCOPE_NAMING_JM_JOB = "metrics.scope.jm.job";
+
+	/** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
+	public static final String METRICS_SCOPE_NAMING_TM_JOB = "metrics.scope.tm.job";
+
+	/** The scope format string that is applied to all metrics scoped to a task. */
+	public static final String METRICS_SCOPE_NAMING_TASK = "metrics.scope.task";
+
+	/** The scope format string that is applied to all metrics scoped to an operator. */
+	public static final String METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
+
 	// ------------------------------------------------------------------------
 	//                            Default Values
 	// ------------------------------------------------------------------------
