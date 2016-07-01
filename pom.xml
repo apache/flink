@@ -867,6 +867,7 @@ under the License.
 						<exclude>**/.*/**</exclude>
 						<exclude>**/*.prefs</exclude>
 						<exclude>**/*.log</exclude>
+						<exclude>**/DT.log*</exclude>
 						<!-- External web libraries. -->
 						<exclude>docs/**/bootstrap*</exclude>
 						<exclude>docs/Gemfile.lock</exclude>
@@ -1219,6 +1220,14 @@ under the License.
 						<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
 						<outputFile>${project.basedir}/target/scalastyle-output.xml</outputFile>
 						<outputEncoding>UTF-8</outputEncoding>
+					</configuration>
+				</plugin>
+
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-dependency-plugin</artifactId>
+					<configuration>
+						<outputFile>DT.log</outputFile>
 					</configuration>
 				</plugin>
 			</plugins>

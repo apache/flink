@@ -6,6 +6,7 @@ scalastyle-output.xml
 .settings
 .project
 .version.properties
+DT.log*
 filter.properties
 logs.zip
 target
