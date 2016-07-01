@@ -24,6 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -94,9 +95,15 @@ public final class Utils {
 	}
 
 
-	public static void setupEnv(Configuration conf, Map<String, String> appMasterEnv) {
-		addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
-		for (String c: conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+	public static void setupYarnClassPath(Configuration conf, Map<String, String> appMasterEnv) {
+		addToEnvironment(
+			appMasterEnv,
+			Environment.CLASSPATH.name(),
+			appMasterEnv.get(YarnConfigKeys.ENV_FLINK_CLASSPATH));
+		String[] applicationClassPathEntries = conf.getStrings(
+			YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+			YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
+		for (String c : applicationClassPathEntries) {
 			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
 	}
@@ -133,10 +140,10 @@ public final class Utils {
 		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
 	}
 
-	public static void setTokensFor(ContainerLaunchContext amContainer, Path[] paths, Configuration conf) throws IOException {
+	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
 		Credentials credentials = new Credentials();
 		// for HDFS
-		TokenCache.obtainTokensForNamenodes(credentials, paths, conf);
+		TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
 		// for HBase
 		obtainTokenForHBase(credentials, conf);
 		// for user

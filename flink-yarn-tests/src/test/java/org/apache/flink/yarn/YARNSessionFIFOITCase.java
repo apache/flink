@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
@@ -221,8 +222,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		flinkYarnClient.setJobManagerMemory(768);
 		flinkYarnClient.setTaskManagerMemory(1024);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		flinkYarnClient.setShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-		String confDirPath = System.getenv("FLINK_CONF_DIR");
+		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.getConfiguration());
 		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));

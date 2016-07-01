@@ -43,14 +43,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -269,18 +267,13 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			String shipPath = cmd.getOptionValue(SHIP_PATH.getOpt());
 			File shipDir = new File(shipPath);
 			if (shipDir.isDirectory()) {
-				shipFiles = new ArrayList<>(Arrays.asList(shipDir.listFiles(new FilenameFilter() {
-					@Override
-					public boolean accept(File dir, String name) {
-						return !(name.equals(".") || name.equals(".."));
-					}
-				})));
+				shipFiles.add(shipDir);
 			} else {
 				LOG.warn("Ship directory is not a directory. Ignoring it.");
 			}
 		}
 
-		yarnClusterDescriptor.setShipFiles(shipFiles);
+		yarnClusterDescriptor.addShipFiles(shipFiles);
 
 		// queue
 		if (cmd.hasOption(QUEUE.getOpt())) {

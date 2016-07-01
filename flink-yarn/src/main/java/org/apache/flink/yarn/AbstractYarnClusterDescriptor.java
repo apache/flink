@@ -67,9 +67,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
@@ -107,19 +111,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private int taskManagerCount = 1;
 
-	private String yarnQueue = null;
+	private String yarnQueue;
 
 	private String configurationDirectory;
 
 	private Path flinkConfigurationPath;
 
-	private Path flinkLoggingConfigurationPath; // optional
-
 	private Path flinkJarPath;
 
 	private String dynamicPropertiesEncoded;
 
-	private List<File> shipFiles = new ArrayList<>();
+	/** Lazily initialized list of files to ship */
+	protected List<File> shipFiles = new LinkedList<>();
+
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	private boolean detached;
@@ -137,34 +141,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		// load the config
-		this.configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
-		GlobalConfiguration.loadConfiguration(configurationDirectory);
-		this.flinkConfiguration = GlobalConfiguration.getConfiguration();
+		// tries to load the config through the environment, if it fails it can still be set through the setters
+		try {
+			this.configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
+			GlobalConfiguration.loadConfiguration(configurationDirectory);
+			this.flinkConfiguration = GlobalConfiguration.getConfiguration();
 
-		File confFile = new File(configurationDirectory + File.separator + CONFIG_FILE_NAME);
-		if (!confFile.exists()) {
-			throw new RuntimeException("Unable to locate configuration file in " + confFile);
-		}
-		flinkConfigurationPath = new Path(confFile.getAbsolutePath());
-
-		//check if there is a logback or log4j file
-		if (configurationDirectory.length() > 0) {
-			File logback = new File(configurationDirectory + File.pathSeparator + CONFIG_FILE_LOGBACK_NAME);
-			if (logback.exists()) {
-				shipFiles.add(logback);
-				flinkLoggingConfigurationPath = new Path(logback.toURI());
+			File confFile = new File(configurationDirectory + File.separator + CONFIG_FILE_NAME);
+			if (!confFile.exists()) {
+				throw new RuntimeException("Unable to locate configuration file in " + confFile);
 			}
-			File log4j = new File(configurationDirectory + File.pathSeparator + CONFIG_FILE_LOG4J_NAME);
-			if (log4j.exists()) {
-				shipFiles.add(log4j);
-				if (flinkLoggingConfigurationPath != null) {
-					// this means there is already a logback configuration file --> fail
-					LOG.warn("The configuration directory ('" + configurationDirectory + "') contains both LOG4J and " +
-						"Logback configuration files. Please delete or rename one of them.");
-				}
-				flinkLoggingConfigurationPath = new Path(log4j.toURI());
-			}
+			flinkConfigurationPath = new Path(confFile.getAbsolutePath());
+		} catch (Exception e) {
+			LOG.debug("Config couldn't be loaded from environment variable.");
 		}
 	}
 
@@ -227,14 +216,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		this.configurationDirectory = configurationDirectory;
 	}
 
-	public void setFlinkLoggingConfigurationPath(Path logConfPath) {
-		flinkLoggingConfigurationPath = logConfPath;
-	}
-
-	public Path getFlinkLoggingConfigurationPath() {
-		return flinkLoggingConfigurationPath;
-	}
-
 	public void setTaskManagerCount(int tmCount) {
 		if(tmCount < 1) {
 			throw new IllegalArgumentException("The TaskManager count has to be at least 1.");
@@ -246,8 +227,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		return this.taskManagerCount;
 	}
 
-	public void setShipFiles(List<File> shipFiles) {
-		for(File shipFile: shipFiles) {
+	public void addShipFiles(List<File> shipFiles) {
+		for (File shipFile: shipFiles) {
 			// remove uberjar from ship list (by default everything in the lib/ folder is added to
 			// the list of files to ship, but we handle the uberjar separately.
 			if(!(shipFile.getName().startsWith("flink-dist") && shipFile.getName().endsWith("jar"))) {
@@ -432,26 +413,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		LOG.info("\tJobManager memory = {}", jobManagerMemoryMb);
 		LOG.info("\tTaskManager memory = {}", taskManagerMemoryMb);
 
-		// Create application via yarnClient
 		final YarnClient yarnClient = getYarnClient();
-		final YarnClientApplication yarnApplication = yarnClient.createApplication();
-		GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
 
-		// ------------------ Add dynamic properties to local flinkConfiguraton ------
 
-		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
-		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
-			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
-		}
-
-		// ------------------ Set default file system scheme -------------------------
-
-		try {
-			org.apache.flink.core.fs.FileSystem.setDefaultScheme(flinkConfiguration);
-		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
-		}
 		// ------------------ Check if the specified queue exists --------------------
 
 		try {
@@ -482,6 +446,35 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
+		// ------------------ Add dynamic properties to local flinkConfiguraton ------
+
+		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
+		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
+			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
+		}
+
+		// ------------------ Set default file system scheme -------------------------
+
+		try {
+			org.apache.flink.core.fs.FileSystem.setDefaultScheme(flinkConfiguration);
+		} catch (IOException e) {
+			throw new IOException("Error while setting the default " +
+				"filesystem scheme from configuration.", e);
+		}
+
+		// initialize file system
+		// Copy the application master jar to the filesystem
+		// Create a local resource to point to the destination jar path
+		final FileSystem fs = FileSystem.get(conf);
+
+		// hard coded check for the GoogleHDFS client because its not overriding the getScheme() method.
+		if (!fs.getClass().getSimpleName().equals("GoogleHadoopFileSystem") &&
+			fs.getScheme().startsWith("file")) {
+			LOG.warn("The file system scheme is '" + fs.getScheme() + "'. This indicates that the "
+				+ "specified Hadoop configuration path is wrong and the system is using the default Hadoop configuration values."
+				+ "The Flink YARN client needs to store its files in a distributed file system");
+		}
+
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
 
 		// the yarnMinAllocationMB specifies the smallest possible container allocation size.
@@ -501,6 +494,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		if(taskManagerMemoryMb < yarnMinAllocationMB) {
 			taskManagerMemoryMb =  yarnMinAllocationMB;
 		}
+
+		// Create application via yarnClient
+		final YarnClientApplication yarnApplication = yarnClient.createApplication();
+		GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
 
 		Resource maxRes = appResponse.getMaximumResourceCapability();
 		final String NOTE = "Please check the 'yarn.scheduler.maximum-allocation-mb' and the 'yarn.nodemanager.resource.memory-mb' configuration values\n";
@@ -556,62 +553,32 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		// ------------------ Prepare Application Master Container  ------------------------------
-
-		// respect custom JVM options in the YAML file
-		final String javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
-
-		String logbackFile = configurationDirectory + File.separator + CONFIG_FILE_LOGBACK_NAME;
-		boolean hasLogback = new File(logbackFile).exists();
-		String log4jFile = configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME;
-
-		boolean hasLog4j = new File(log4jFile).exists();
-		if(hasLogback) {
-			shipFiles.add(new File(logbackFile));
-		}
-		if(hasLog4j) {
-			shipFiles.add(new File(log4jFile));
+		Set<File> effectiveShipFiles = new HashSet<>(shipFiles.size());
+		for (File file : shipFiles) {
+			effectiveShipFiles.add(file.getAbsoluteFile());
 		}
 
-		// Set up the container launch context for the application master
-		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
+		//check if there is a logback or log4j file
+		File logbackFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOGBACK_NAME);
+		final boolean hasLogback = logbackFile.exists();
+		if (hasLogback) {
+			effectiveShipFiles.add(logbackFile);
+		}
 
-		String amCommand = "$JAVA_HOME/bin/java"
-			+ " -Xmx" + Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration)
-			+ "M " + javaOpts;
-
-		if(hasLogback || hasLog4j) {
-			amCommand += " -Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
-
-			if(hasLogback) {
-				amCommand += " -Dlogback.configurationFile=file:" + CONFIG_FILE_LOGBACK_NAME;
-			}
-
-			if(hasLog4j) {
-				amCommand += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
+		File log4jFile = new File(configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME);
+		final boolean hasLog4j = log4jFile.exists();
+		if (hasLog4j) {
+			effectiveShipFiles.add(log4jFile);
+			if (hasLogback) {
+				// this means there is already a logback configuration file --> fail
+				LOG.warn("The configuration directory ('" + configurationDirectory + "') contains both LOG4J and " +
+					"Logback configuration files. Please delete or rename one of them.");
 			}
 		}
 
-		amCommand += " " + getApplicationMasterClass().getName() + " "
-			+ " 1>"
-			+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out"
-			+ " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
-		amContainer.setCommands(Collections.singletonList(amCommand));
+		addLibFolderToShipFiles(effectiveShipFiles);
 
-		LOG.debug("Application Master start command: " + amCommand);
-
-		// intialize HDFS
-		// Copy the application master jar to the filesystem
-		// Create a local resource to point to the destination jar path
-		final FileSystem fs = FileSystem.get(conf);
-
-		// hard coded check for the GoogleHDFS client because its not overriding the getScheme() method.
-		if (!fs.getClass().getSimpleName().equals("GoogleHadoopFileSystem") &&
-			fs.getScheme().startsWith("file")) {
-			LOG.warn("The file system scheme is '" + fs.getScheme() + "'. This indicates that the "
-				+ "specified Hadoop configuration path is wrong and the system is using the default Hadoop configuration values."
-				+ "The Flink YARN client needs to store its files in a distributed file system");
-		}
+		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(hasLogback, hasLog4j);
 
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
@@ -634,52 +601,74 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		final ApplicationId appId = appContext.getApplicationId();
 
+		// local resource map for Yarn
+		final Map<String, LocalResource> localResources = new HashMap<>(2 + effectiveShipFiles.size());
+		// list of remote paths (after upload)
+		final List<Path> paths = new ArrayList<>(2 + effectiveShipFiles.size());
+		// classpath assembler
+		final StringBuilder classPathBuilder = new StringBuilder();
+		// ship list that enables reuse of resources for task manager containers
+		StringBuilder envShipFileList = new StringBuilder();
+
+		// upload and register ship files
+		for (File shipFile : effectiveShipFiles) {
+			LocalResource shipResources = Records.newRecord(LocalResource.class);
+
+			Path shipLocalPath = new Path("file://" + shipFile.getAbsolutePath());
+			Path remotePath =
+				Utils.setupLocalResource(fs, appId.toString(), shipLocalPath, shipResources, fs.getHomeDirectory());
+
+			paths.add(remotePath);
+
+			localResources.put(shipFile.getName(), shipResources);
+
+			classPathBuilder.append(ApplicationConstants.Environment.PWD.$());
+			classPathBuilder.append(File.separator);
+			classPathBuilder.append(shipFile.getName());
+			if (shipFile.isDirectory()) {
+				// add directories to the classpath
+				classPathBuilder.append(File.separator).append("*");
+			}
+			classPathBuilder.append(File.pathSeparator);
+
+			envShipFileList.append(remotePath).append(",");
+		}
+
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
 		LocalResource flinkConf = Records.newRecord(LocalResource.class);
-		Path remotePathJar = Utils.setupLocalResource(fs, appId.toString(), flinkJarPath, appMasterJar, fs.getHomeDirectory());
-		Path remotePathConf = Utils.setupLocalResource(fs, appId.toString(), flinkConfigurationPath, flinkConf, fs.getHomeDirectory());
-		Map<String, LocalResource> localResources = new HashMap<>(2);
+		Path remotePathJar =
+			Utils.setupLocalResource(fs, appId.toString(), flinkJarPath, appMasterJar, fs.getHomeDirectory());
+		Path remotePathConf =
+			Utils.setupLocalResource(fs, appId.toString(), flinkConfigurationPath, flinkConf, fs.getHomeDirectory());
 		localResources.put("flink.jar", appMasterJar);
 		localResources.put("flink-conf.yaml", flinkConf);
 
+		paths.add(remotePathJar);
+		classPathBuilder.append(ApplicationConstants.Environment.PWD.$()).append(File.separator)
+			.append("flink.jar").append(File.pathSeparator);
+		paths.add(remotePathConf);
+		classPathBuilder.append(ApplicationConstants.Environment.PWD.$()).append(File.separator)
+			.append("flink-conf.yaml").append(File.pathSeparator);
 
-		// setup security tokens (code from apache storm)
-		final Path[] paths = new Path[2 + shipFiles.size()];
-		StringBuilder envShipFileList = new StringBuilder();
-		// upload ship files
-		for (int i = 0; i < shipFiles.size(); i++) {
-			File shipFile = shipFiles.get(i);
-			LocalResource shipResources = Records.newRecord(LocalResource.class);
-			Path shipLocalPath = new Path("file://" + shipFile.getAbsolutePath());
-			paths[2 + i] = Utils.setupLocalResource(fs, appId.toString(),
-				shipLocalPath, shipResources, fs.getHomeDirectory());
-			localResources.put(shipFile.getName(), shipResources);
-
-			envShipFileList.append(paths[2 + i]);
-			if(i+1 < shipFiles.size()) {
-				envShipFileList.append(',');
-			}
-		}
-
-		paths[0] = remotePathJar;
-		paths[1] = remotePathConf;
 		sessionFilesDir = new Path(fs.getHomeDirectory(), ".flink/" + appId.toString() + "/");
 
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 		fs.setPermission(sessionFilesDir, permission); // set permission for path.
 
+		// setup security tokens
 		Utils.setTokensFor(amContainer, paths, conf);
 
 		amContainer.setLocalResources(localResources);
 		fs.close();
 
-		// Setup CLASSPATH for ApplicationMaster
-		Map<String, String> appMasterEnv = new HashMap<>();
+		// Setup CLASSPATH and environment variables for ApplicationMaster
+		final Map<String, String> appMasterEnv = new HashMap<>();
 		// set user specified app master environment variables
 		appMasterEnv.putAll(Utils.getEnvironmentVariables(ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX, flinkConfiguration));
-		// set classpath from YARN configuration
-		Utils.setupEnv(conf, appMasterEnv);
+		// set Flink app class path
+		appMasterEnv.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, classPathBuilder.toString());
+
 		// set Flink on YARN internal configuration values
 		appMasterEnv.put(YarnConfigKeys.ENV_TM_COUNT, String.valueOf(taskManagerCount));
 		appMasterEnv.put(YarnConfigKeys.ENV_TM_MEMORY, String.valueOf(taskManagerMemoryMb));
@@ -694,6 +683,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		if(dynamicPropertiesEncoded != null) {
 			appMasterEnv.put(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
 		}
+
+		// set classpath from YARN configuration
+		Utils.setupYarnClassPath(conf, appMasterEnv);
 
 		amContainer.setEnvironment(appMasterEnv);
 
@@ -778,7 +770,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		String host = report.getHost();
 		int port = report.getRpcPort();
-		String trackingURL = report.getTrackingUrl();
 
 		// Correctly initialize the Flink config
 		flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
@@ -1013,6 +1004,61 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				LOG.error("Failed to delete Flink Jar and conf files in HDFS", e);
 			}
 		}
+	}
+
+	protected void addLibFolderToShipFiles(Set<File> effectiveShipFiles) {
+		// Add lib folder to the ship files if the environment variable is set.
+		// This is for convenience when running from the command-line.
+		// (for other files users explicitly set the ship files)
+		String libDir = System.getenv().get(ENV_FLINK_LIB_DIR);
+		if (libDir != null) {
+			File libDirFile = new File(libDir);
+			if (libDirFile.isDirectory()) {
+				effectiveShipFiles.add(libDirFile);
+			} else {
+				throw new YarnDeploymentException("The environment variable '" + ENV_FLINK_LIB_DIR +
+					"' is set to '" + libDir + "' but the directory doesn't exist.");
+			}
+		} else if (this.shipFiles.isEmpty()) {
+			LOG.warn("Environment variable '{}' not set and ship files have not been provided manually. " +
+				"Not shipping any library files.", ENV_FLINK_LIB_DIR);
+		}
+	}
+
+	protected ContainerLaunchContext setupApplicationMasterContainer(boolean hasLogback, boolean hasLog4j) {
+		// ------------------ Prepare Application Master Container  ------------------------------
+
+		// respect custom JVM options in the YAML file
+		final String javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+
+		// Set up the container launch context for the application master
+		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
+
+		String amCommand = "$JAVA_HOME/bin/java"
+			+ " -Xmx" + Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration)
+			+ "M " + javaOpts;
+
+		if (hasLogback || hasLog4j) {
+			amCommand += " -Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
+
+			if(hasLogback) {
+				amCommand += " -Dlogback.configurationFile=file:" + CONFIG_FILE_LOGBACK_NAME;
+			}
+
+			if(hasLog4j) {
+				amCommand += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
+			}
+		}
+
+		amCommand += " " + getApplicationMasterClass().getName() + " "
+			+ " 1>"
+			+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out"
+			+ " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
+		amContainer.setCommands(Collections.singletonList(amCommand));
+
+		LOG.debug("Application Master start command: " + amCommand);
+
+		return amContainer;
 	}
 
 	/**
