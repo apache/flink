@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Sink that emits its input elements into a Cassandra database. This sink stores incoming records within a
@@ -98,7 +99,7 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 		int updatesSent = 0;
 		final AtomicInteger updatesConfirmed = new AtomicInteger(0);
 
-		final AtomicContainer<Throwable> exception = new AtomicContainer<>();
+		final AtomicReference<Throwable> exception = new AtomicReference<>();
 
 		FutureCallback<ResultSet> callback = new FutureCallback<ResultSet>() {
 			@Override
@@ -108,8 +109,9 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 
 			@Override
 			public void onFailure(Throwable throwable) {
-				exception.set(throwable);
-				LOG.error("Error while sending value.", throwable);
+				if (exception.compareAndSet(null, throwable)) {
+					LOG.error("Error while sending value.", throwable);
+				}
 			}
 		};
 
@@ -140,17 +142,5 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 		}
 		boolean success = updatesSent != updatesConfirmed.get();
 		return success;
-	}
-
-	private static class AtomicContainer<T> {
-		private T value;
-
-		public synchronized void set(T value) {
-			this.value = value;
-		}
-
-		public synchronized T get() {
-			return this.value;
-		}
 	}
 }
