@@ -140,7 +140,7 @@ class YarnJobManager(
       )
 
     case jnf: JobNotFound =>
-      log.warn(s"Job with ID ${jnf.jobID} not found in JobManager")
+      log.debug(s"Job with ID ${jnf.jobID} not found in JobManager")
       if (stopWhenJobFinished == null) {
         log.warn("The ApplicationMaster didn't expect to receive this message")
       }
