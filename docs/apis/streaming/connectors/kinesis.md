@@ -114,12 +114,82 @@ the AWS access key ID and secret key are directly supplied in the configuration 
 from the newest position in the Kinesis stream (the other option will be setting `KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE`
 to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from the earliest record possible).
 
-Note that the consumer attempts to discover new Kinesis shards due to resharding at a fixed default interval of
-10 seconds. In other words, new shards may take up to 10 seconds to be discovered. This setting can be overridden
-to other values by setting a different value for `KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS` in the
-supplied consumer configuration.
-
 Other optional configuration keys can be found in `KinesisConfigConstants`.
+
+#### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
+
+With Flink's checkpointing enabled, the Flink Kinesis Consumer will consume records from shards in Kinesis streams and
+periodically checkpoint each shard's progress. In case of a job failure, Flink will restore the streaming program to the
+state of the latest complete checkpoint and re-consume the records from Kinesis shards, starting from the progress that
+was stored in the checkpoint.
+
+The interval of drawing checkpoints therefore defines how much the program may have to go back at most, in case of a failure.
+
+To use fault tolerant Kinesis Consumers, checkpointing of the topology needs to be enabled at the execution environment:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.enableCheckpointing(5000); // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+env.enableCheckpointing(5000) // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+</div>
+
+Also note that Flink can only restart the topology if enough processing slots are available to restart the topology.
+Therefore, if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
+Flink on YARN supports automatic restart of lost YARN containers.
+
+#### Threading Model
+
+The Flink Kinesis Consumer uses multiple threads for shard discovery and data consumption.
+
+For shard discovery, each parallel consumer subtask will have a single thread that constantly queries Kinesis for shard
+information even if the subtask initially did not have shards to read from when the consumer was started. In other words, if
+the consumer is run with a parallelism of 10, there will be a total of 10 threads constantly querying Kinesis regardless
+of the total amount of shards in the subscribed streams.
+
+For data consumption, a single thread will be created to consume each discovered shard. Threads will terminate when the
+shard it is responsible of consuming is closed as a result of stream resharding. In other words, there will always be
+one thread per open shard.
+
+#### Internally Used Kinesis APIs
+
+The Flink Kinesis Consumer uses the [AWS Java SDK](http://aws.amazon.com/sdk-for-java/) internally to call Kinesis APIs
+for shard discovery and data consumption. Due to Amazon's [service limits for Kinesis Streams](http://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html)
+on the APIs, the consumer will be competing with other non-Flink consuming applications that the user may be running.
+Below is a list of APIs called by the consumer with description of how the consumer uses the API, as well as information
+on how to deal with any errors or warnings that the Flink Kinesis Consumer may have due to these service limits.
+
+- *[DescribeStream](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html)*: this is constantly called
+by a single thread in each parallel consumer subtask to discover any new shards as a result of stream resharding. By default,
+the consumer performs the shard discovery at an interval of 10 seconds, and will retry indefinitely until it gets a result
+from Kinesis. If this interferes with other non-Flink consuming applications, users can slow down the consumer of
+calling this API by setting a value for `KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS` in the supplied
+configuration properties. This sets the discovery interval to a different value. Note that this setting directly impacts
+the maximum delay of discovering a new shard and starting to consume it, as shards will not be discovered during the interval.
+
+- *[GetShardIterator](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html)*: this is called
+only once when per shard consuming threads are started, and will retry if Kinesis complains that the transaction limit for the
+API has exceeded, up to a default of 3 attempts. Note that since the rate limit for this API is per shard (not per stream),
+the consumer itself should not exceed the limit. Usually, if this happens, users can either try to slow down any other
+non-Flink consuming applications of calling this API, or modify the retry behaviour of this API call in the consumer by
+setting keys prefixed by `KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_*` in the supplied configuration properties.
+
+- *[GetRecords](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html)*: this is constantly called
+by per shard consuming threads to fetch records from Kinesis. When a shard has multiple concurrent consumers (when there
+are any other non-Flink consuming applications running), the per shard rate limit may be exceeded. By default, on each call
+of this API, the consumer will retry if Kinesis complains that the data size / transaction limit for the API has exceeded,
+up to a default of 3 attempts. Users can either try to slow down other non-Flink consuming applications, or adjust the maximum
+amount of records to fetch per call by setting the `KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_MAX` key in the supplied
+configuration properties. The retry behaviour of the consumer when calling this API can also be modified by using the
+other keys prefixed by `KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_*`.
 
 ### Kinesis Producer
 

@@ -228,6 +228,14 @@ public class KinesisDataFetcher<T> {
 
 		//  1. query for any new shards that may have been created while the Kinesis consumer was not running,
 		//     and register them to the subscribedShardState list.
+		if (LOG.isDebugEnabled()) {
+			String logFormat = (isRestoredFromFailure)
+				? "Subtask {} is trying to discover initial shards ..."
+				: "Subtask {} is trying to discover any new shards that were created while the consumer wasn't" +
+				"running due to failure ...";
+
+			LOG.debug(logFormat, indexOfThisConsumerSubtask);
+		}
 		List<KinesisStreamShard> newShardsCreatedWhileNotRunning = discoverNewShardsToSubscribe();
 		for (KinesisStreamShard shard : newShardsCreatedWhileNotRunning) {
 			// the starting state for new shards created while the consumer wasn't running depends on whether or not
@@ -244,7 +252,7 @@ public class KinesisDataFetcher<T> {
 					: "Subtask {} will be seeded with new shard {} that was created while the consumer wasn't" +
 						"running due to failure, starting state set as sequence number {}";
 
-				LOG.info(logFormat, runtimeContext.getIndexOfThisSubtask(), shard.toString(), startingStateForNewShard.get());
+				LOG.info(logFormat, indexOfThisConsumerSubtask, shard.toString(), startingStateForNewShard.get());
 			}
 			registerNewSubscribedShardState(new KinesisStreamShardState(shard, startingStateForNewShard.get()));
 		}
@@ -277,8 +285,8 @@ public class KinesisDataFetcher<T> {
 			KinesisStreamShardState seededShardState = subscribedShardsState.get(seededStateIndex);
 
 			if (LOG.isInfoEnabled()) {
-				LOG.info("Subtask {} will start consuming seeded shard {} from sequence number {} with ShardConsumer {}" +
-					runtimeContext.getIndexOfThisSubtask(), seededShardState.getKinesisStreamShard().toString(),
+				LOG.info("Subtask {} will start consuming seeded shard {} from sequence number {} with ShardConsumer {}",
+					indexOfThisConsumerSubtask, seededShardState.getKinesisStreamShard().toString(),
 					seededShardState.getLastProcessedSequenceNum(), seededStateIndex);
 			}
 
@@ -301,6 +309,10 @@ public class KinesisDataFetcher<T> {
 				Long.toString(KinesisConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
 
 		while (running) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Subtask {} is trying to discover new shards that were created due to resharding ...",
+					indexOfThisConsumerSubtask);
+			}
 			List<KinesisStreamShard> newShardsDueToResharding = discoverNewShardsToSubscribe();
 
 			for (KinesisStreamShard shard : newShardsDueToResharding) {
@@ -313,7 +325,7 @@ public class KinesisDataFetcher<T> {
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Subtask {} has discovered a new shard {} due to resharding, and will start consuming " +
 							"the shard from sequence number {} with ShardConsumer {}",
-						runtimeContext.getIndexOfThisSubtask(), newShardState.getKinesisStreamShard().toString(),
+						indexOfThisConsumerSubtask, newShardState.getKinesisStreamShard().toString(),
 						newShardState.getLastProcessedSequenceNum(), newStateIndex);
 				}
 
@@ -377,8 +389,7 @@ public class KinesisDataFetcher<T> {
 		mainThread.interrupt(); // the main thread may be sleeping for the discovery interval
 
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Shutting down the shard consumer threads of subtask {} ...",
-				runtimeContext.getIndexOfThisSubtask());
+			LOG.info("Shutting down the shard consumer threads of subtask {} ...", indexOfThisConsumerSubtask);
 		}
 		shardConsumersExecutor.shutdownNow();
 	}
