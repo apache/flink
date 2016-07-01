@@ -622,8 +622,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 			localResources.put(shipFile.getName(), shipResources);
 
-			classPathBuilder.append(ApplicationConstants.Environment.PWD.$());
-			classPathBuilder.append(File.separator);
 			classPathBuilder.append(shipFile.getName());
 			if (shipFile.isDirectory()) {
 				// add directories to the classpath
@@ -645,11 +643,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		localResources.put("flink-conf.yaml", flinkConf);
 
 		paths.add(remotePathJar);
-		classPathBuilder.append(ApplicationConstants.Environment.PWD.$()).append(File.separator)
-			.append("flink.jar").append(File.pathSeparator);
+		classPathBuilder.append("flink.jar").append(File.pathSeparator);
 		paths.add(remotePathConf);
-		classPathBuilder.append(ApplicationConstants.Environment.PWD.$()).append(File.separator)
-			.append("flink-conf.yaml").append(File.pathSeparator);
+		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 
 		sessionFilesDir = new Path(fs.getHomeDirectory(), ".flink/" + appId.toString() + "/");
 
