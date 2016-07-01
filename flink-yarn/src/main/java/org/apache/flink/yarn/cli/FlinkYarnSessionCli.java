@@ -456,7 +456,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	public boolean isActive(CommandLine commandLine, Configuration configuration) {
 		String jobManagerOption = commandLine.getOptionValue(ADDRESS_OPTION.getOpt(), null);
 		boolean yarnJobManager = ID.equals(jobManagerOption);
-		return yarnJobManager || resumeFromYarnProperties(commandLine, configuration);
+		boolean yarnAppId = commandLine.hasOption(APPLICATION_ID.getOpt());
+		return yarnJobManager || yarnAppId || resumeFromYarnProperties(commandLine, configuration);
 	}
 
 	@Override
