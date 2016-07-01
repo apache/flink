@@ -49,6 +49,8 @@ import java.util.UUID;
  * @param <IN> Type of the elements emitted by this sink
  */
 public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+	private static final long serialVersionUID = 1L;
+
 	protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
 	private final CheckpointCommitter committer;
 	private transient AbstractStateBackend.CheckpointStateOutputView out;

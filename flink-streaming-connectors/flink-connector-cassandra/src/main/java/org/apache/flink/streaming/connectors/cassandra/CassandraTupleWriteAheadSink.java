@@ -43,6 +43,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <IN> Type of the elements emitted by this sink
  */
 public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWriteAheadSink<IN> {
+	private static final long serialVersionUID = 1L;
+
 	protected transient Cluster cluster;
 	protected transient Session session;
 
