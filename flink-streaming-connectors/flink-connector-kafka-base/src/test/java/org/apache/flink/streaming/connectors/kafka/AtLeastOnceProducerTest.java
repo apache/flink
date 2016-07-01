@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.taskmanager.OneShotLatch;
 import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
@@ -44,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Test ensuring that the producer is not dropping buffered records
@@ -53,19 +53,19 @@ public class AtLeastOnceProducerTest {
 
 	// we set a timeout because the test will not finish if the logic is broken
 	@Test(timeout=5000)
-	public void testAtLeastOnceProducer() throws Exception {
+	public void testAtLeastOnceProducer() throws Throwable {
 		runTest(true);
 	}
 
 	// This test ensures that the actual test fails if the flushing is disabled
 	@Test(expected = AssertionError.class, timeout=5000)
-	public void ensureTestFails() throws Exception {
+	public void ensureTestFails() throws Throwable {
 		runTest(false);
 	}
 
-	private void runTest(boolean flushOnCheckpoint) throws Exception {
+	private void runTest(boolean flushOnCheckpoint) throws Throwable {
 		Properties props = new Properties();
-		final OneShotLatch snapshottingFinished = new OneShotLatch();
+		final AtomicBoolean snapshottingFinished = new AtomicBoolean(false);
 		final TestingKafkaProducer<String> producer = new TestingKafkaProducer<>("someTopic", new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), props,
 				snapshottingFinished);
 		producer.setFlushOnCheckpoint(flushOnCheckpoint);
@@ -96,16 +96,13 @@ public class AtLeastOnceProducerTest {
 					// we now check that no records have been confirmed yet
 					Assert.assertEquals(100, pending.size());
 					Assert.assertFalse("Snapshot method returned before all records were confirmed",
-							snapshottingFinished.hasTriggered());
+							snapshottingFinished.get());
 
 					// now confirm all checkpoints
 					for (Callback c: pending) {
 						c.onCompletion(null, null);
 					}
 					pending.clear();
-					// wait for the snapshotState() method to return. The will
-					// fail if snapshotState never returns.
-					snapshottingFinished.await();
 				} catch(Throwable t) {
 					runnableError.f0 = t;
 				}
@@ -118,15 +115,14 @@ public class AtLeastOnceProducerTest {
 		synchronized (threadA) {
 			threadA.notifyAll(); // just in case, to let the test fail faster
 		}
-
+		Assert.assertEquals(0, producer.getProducerInstance().getPending().size());
 		Deadline deadline = FiniteDuration.apply(5, "s").fromNow();
 		while (deadline.hasTimeLeft() && threadB.isAlive()) {
 			threadB.join(500);
 		}
 		Assert.assertFalse("Thread A is expected to be finished at this point. If not, the test is prone to fail", threadB.isAlive());
 		if (runnableError.f0 != null) {
-			runnableError.f0.printStackTrace();
-			Assert.fail("Error from thread B: " + runnableError.f0 );
+			throw runnableError.f0;
 		}
 
 		producer.close();
@@ -135,9 +131,9 @@ public class AtLeastOnceProducerTest {
 
 	private static class TestingKafkaProducer<T> extends FlinkKafkaProducerBase<T> {
 		private MockProducer prod;
-		private OneShotLatch snapshottingFinished;
+		private AtomicBoolean snapshottingFinished;
 
-		public TestingKafkaProducer(String defaultTopicId, KeyedSerializationSchema<T> serializationSchema, Properties producerConfig, OneShotLatch snapshottingFinished) {
+		public TestingKafkaProducer(String defaultTopicId, KeyedSerializationSchema<T> serializationSchema, Properties producerConfig, AtomicBoolean snapshottingFinished) {
 			super(defaultTopicId, serializationSchema, producerConfig, null);
 			this.snapshottingFinished = snapshottingFinished;
 		}
@@ -153,7 +149,7 @@ public class AtLeastOnceProducerTest {
 			// call the actual snapshot state
 			Serializable ret = super.snapshotState(checkpointId, checkpointTimestamp);
 			// notify test that snapshotting has been done
-			snapshottingFinished.trigger();
+			snapshottingFinished.set(true);
 			return ret;
 		}
 
