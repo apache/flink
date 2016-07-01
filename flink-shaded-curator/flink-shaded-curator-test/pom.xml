@@ -38,7 +38,6 @@
 		<dependency>
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-test</artifactId>
-			<version>${curator.version}</version>
 		</dependency>
 
 		<!-- Use Flink's Guava version here to avoid too many guava versions in Flink -->
