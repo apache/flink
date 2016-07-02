@@ -22,26 +22,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Protocol;
 
-import java.io.Serializable;
 import java.util.Set;
 
 /**
  * Configuration for Jedis Sentinel Pool.
  */
-public class FlinkJedisSentinelConfig implements Serializable {
+public class FlinkJedisSentinelConfig extends FlinkJedisConfigBase {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkJedisSentinelConfig.class);
 
 	private String masterName;
 	private Set<String> sentinels;
-	private int connectionTimeout;
 	private int soTimeout;
 	private String password;
 	private int database;
-	private int maxTotal;
-	private int maxIdle;
-	private int minIdle;
 
 	/**
 	 * Jedis Sentinels config.
@@ -64,19 +59,16 @@ public class FlinkJedisSentinelConfig implements Serializable {
 									int connectionTimeout, int soTimeout,
 									String password, int database,
 									int maxTotal, int maxIdle, int minIdle) {
+		super(connectionTimeout, maxTotal, maxIdle, minIdle);
 		Preconditions.checkNotNull(masterName, "Master name should be presented");
 		Preconditions.checkNotNull(sentinels, "Sentinels information should be presented");
 		Preconditions.checkArgument(!sentinels.isEmpty(), "Sentinel hosts should not be empty");
 
 		this.masterName = masterName;
 		this.sentinels = sentinels;
-		this.connectionTimeout = connectionTimeout;
 		this.soTimeout = soTimeout;
 		this.password = password;
 		this.database = database;
-		this.maxTotal = maxTotal;
-		this.maxIdle = maxIdle;
-		this.minIdle = minIdle;
 	}
 
 	/**
@@ -131,42 +123,6 @@ public class FlinkJedisSentinelConfig implements Serializable {
 	 */
 	public int getDatabase() {
 		return database;
-	}
-
-	/**
-	 * Get the value for the {@code maxTotal} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code maxTotal} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMaxTotal()
-	 */
-	public int getMaxTotal() {
-		return maxTotal;
-	}
-
-	/**
-	 * Get the value for the {@code maxIdle} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code maxIdle} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMaxIdle()
-	 */
-	public int getMaxIdle() {
-		return maxIdle;
-	}
-
-	/**
-	 * Get the value for the {@code minIdle} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code minIdle} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMinIdle()
-	 */
-	public int getMinIdle() {
-		return minIdle;
 	}
 
 	/**

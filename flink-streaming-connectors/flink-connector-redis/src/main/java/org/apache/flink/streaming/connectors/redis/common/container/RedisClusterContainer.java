@@ -55,6 +55,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 				LOG.error("Cannot send Redis message with command HSET to hash {} error message {}",
 					key, hashField, e.getMessage());
 			}
+			throw e;
 		}
 	}
 
@@ -67,6 +68,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 				LOG.error("Cannot send Redis message with command RPUSH to list {} error message: {}",
 					listName, e.getMessage());
 			}
+			throw e;
 		}
 	}
 
@@ -79,6 +81,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 				LOG.error("Cannot send Redis message with command LPUSH to list {} error message: {}",
 					listName, e.getMessage());
 			}
+			throw e;
 		}
 	}
 
@@ -91,6 +94,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 				LOG.error("Cannot send Redis message with command RPUSH to set {} error message {}",
 					setName, e.getMessage());
 			}
+			throw e;
 		}
 	}
 
@@ -103,6 +107,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 				LOG.error("Cannot send Redis message with command PUBLISH to channel {} error message {}",
 					channelName, e.getMessage());
 			}
+			throw e;
 		}
 	}
 
@@ -115,6 +120,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 				LOG.error("Cannot send Redis message with command SET to key {} error message {}",
 					key, e.getMessage());
 			}
+			throw e;
 		}
 	}
 
@@ -127,6 +133,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 				LOG.error("Cannot send Redis message with command PFADD to key {} error message {}",
 					key, e.getMessage());
 			}
+			throw e;
 		}
 	}
 
@@ -139,6 +146,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 				LOG.error("Cannot send Redis message with command ZADD to set {} error message {}",
 					key, e.getMessage());
 			}
+			throw e;
 		}
 	}
 

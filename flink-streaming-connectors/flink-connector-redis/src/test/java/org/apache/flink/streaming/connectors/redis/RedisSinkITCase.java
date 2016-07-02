@@ -197,8 +197,9 @@ public class RedisSinkITCase extends RedisITCaseBase {
 		public RedisCommandMapper(RedisCommand redisCommand){
 			this.redisCommand = redisCommand;
 		}
+
 		@Override
-		public RedisCommandDescription getDataTypeDescription() {
+		public RedisCommandDescription getCommandDescription() {
 			return new RedisCommandDescription(redisCommand);
 		}
 
@@ -222,7 +223,7 @@ public class RedisSinkITCase extends RedisITCaseBase {
 		}
 
 		@Override
-		public RedisCommandDescription getDataTypeDescription() {
+		public RedisCommandDescription getCommandDescription() {
 			return new RedisCommandDescription(redisCommand, REDIS_ADDITIONAL_KEY);
 		}
 

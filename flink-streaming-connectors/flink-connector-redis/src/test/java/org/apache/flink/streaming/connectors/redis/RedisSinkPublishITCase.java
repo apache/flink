@@ -120,7 +120,7 @@ public class RedisSinkPublishITCase extends RedisITCaseBase {
 	private static class RedisTestMapper implements RedisMapper<Tuple2<String, String>>{
 
 		@Override
-		public RedisCommandDescription getDataTypeDescription() {
+		public RedisCommandDescription getCommandDescription() {
 			return new RedisCommandDescription(RedisCommand.PUBLISH);
 		}
 

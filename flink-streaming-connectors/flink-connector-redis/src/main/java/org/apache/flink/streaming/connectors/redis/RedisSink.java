@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.redis;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisClusterConfig;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisConfigBase;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisSentinelConfig;
 import org.apache.flink.streaming.connectors.redis.common.container.RedisCommandsContainer;
@@ -37,12 +38,14 @@ import java.io.IOException;
 
 /**
  * A sink that delivers data to a Redis channel using the Jedis client.
- * <p>When creating the sink using first constructor {@link #RedisSink(FlinkJedisPoolConfig, RedisMapper)}
- * the sink will create connection using {@link redis.clients.jedis.JedisPool}.
- * <p>When using second constructor {@link #RedisSink(FlinkJedisSentinelConfig, RedisMapper)} the sink will create connection
- * using {@link redis.clients.jedis.JedisSentinelPool} to Redis cluster. Use this if Redis is
- * configured using sentinels else use the third constructor {@link #RedisSink(FlinkJedisClusterConfig, RedisMapper)}
- * which use {@link redis.clients.jedis.JedisCluster} to connect to Redis cluster.
+ * <p> The sink takes two arguments {@link FlinkJedisConfigBase} and {@link RedisMapper}.
+ * <p> When {@link FlinkJedisPoolConfig} is passed as the first argument,
+ * the sink will create connection using {@link redis.clients.jedis.JedisPool}. Please use this when
+ * you want to connect to a single Redis server.
+ * <p> When {@link FlinkJedisSentinelConfig} is passed as the first argument, the sink will create connection
+ * using {@link redis.clients.jedis.JedisSentinelPool}. Please use this when you want to connect to Sentinel.
+ * <p> Please use {@link FlinkJedisClusterConfig} as the first argument if you want to connect to
+ * a Redis Cluster.
  *
  * <p>Example:
  *
@@ -55,8 +58,8 @@ import java.io.IOException;
  *	public RedisAdditionalDataMapper(RedisCommand redisCommand){
  *		this.redisCommand = redisCommand;
  *	}
- *	public RedisDataTypeDescription getDataTypeDescription() {
- *		return new RedisDataTypeDescription(redisCommand, REDIS_ADDITIONAL_KEY);
+ *	public RedisCommandDescription getCommandDescription() {
+ *		return new RedisCommandDescription(redisCommand, REDIS_ADDITIONAL_KEY);
  *	}
  *	public String getKeyFromData(Tuple2<String, String> data) {
  *		return data.f0;
@@ -91,54 +94,24 @@ public class RedisSink<IN> extends RichSinkFunction<IN> {
 	private RedisMapper<IN> redisSinkMapper;
 	private RedisCommand redisCommand;
 
-	private FlinkJedisPoolConfig jedisPoolConfig;
-	private FlinkJedisSentinelConfig jedisSentinelConfig;
-	private FlinkJedisClusterConfig jedisClusterConfig;
-
+	private FlinkJedisConfigBase flinkJedisConfigBase;
 	private RedisCommandsContainer redisCommandsContainer;
 
 	/**
 	 * Creates a new {@link RedisSink} that connects to the Redis Server.
 	 *
-	 * @param jedisPoolConfig The configuration of {@link FlinkJedisPoolConfig}
+	 * @param flinkJedisConfigBase The configuration of {@link FlinkJedisConfigBase}
 	 * @param redisSinkMapper This is used to generate Redis command and key value from incoming elements.
 	 */
-	public RedisSink(FlinkJedisPoolConfig jedisPoolConfig, RedisMapper<IN> redisSinkMapper) {
-		Preconditions.checkNotNull(jedisPoolConfig, "Redis connection pool config should not be null");
-		this.jedisPoolConfig = jedisPoolConfig;
-		init(redisSinkMapper);
-	}
-
-	/**
-	 * Creates a new {@link RedisSink} that connects to the Redis Sentinels.
-	 *
-	 * @param jedisSentinelConfig The configuration of {@link FlinkJedisSentinelConfig}
-	 * @param redisSinkMapper This used for generate redis command and key value from incoming elements
-	 */
-	public RedisSink(FlinkJedisSentinelConfig jedisSentinelConfig, RedisMapper<IN> redisSinkMapper) {
-		Preconditions.checkNotNull(jedisSentinelConfig, "Redis Sentinel connection pool config should not be Null");
-		this.jedisSentinelConfig = jedisSentinelConfig;
-		init(redisSinkMapper);
-	}
-
-	/**
-	 * Creates a new {@link RedisSink} that connects to the Redis Cluster.
-	 *
-	 * @param jedisClusterConfig The configuration of {@link FlinkJedisClusterConfig}
-	 * @param redisSinkMapper This used for generate redis command and key value from incoming elements
-	 */
-	public RedisSink(FlinkJedisClusterConfig jedisClusterConfig, RedisMapper<IN> redisSinkMapper) {
-		Preconditions.checkNotNull(jedisClusterConfig, "Redis cluster config should not be Null");
-		this.jedisClusterConfig = jedisClusterConfig;
-		init(redisSinkMapper);
-
-	}
-
-	private void init(RedisMapper<IN> redisSinkMapper){
+	public RedisSink(FlinkJedisConfigBase flinkJedisConfigBase, RedisMapper<IN> redisSinkMapper) {
+		Preconditions.checkNotNull(flinkJedisConfigBase, "Redis connection pool config should not be null");
 		Preconditions.checkNotNull(redisSinkMapper, "Redis Mapper can not be null");
-		Preconditions.checkNotNull(redisSinkMapper.getDataTypeDescription(), "Redis Mapper data type description can not be null");
+		Preconditions.checkNotNull(redisSinkMapper.getCommandDescription(), "Redis Mapper data type description can not be null");
+
+		this.flinkJedisConfigBase = flinkJedisConfigBase;
+
 		this.redisSinkMapper = redisSinkMapper;
-		RedisCommandDescription dataTypeDescription = redisSinkMapper.getDataTypeDescription();
+		RedisCommandDescription dataTypeDescription = redisSinkMapper.getCommandDescription();
 		this.redisCommand = dataTypeDescription.getCommand();
 		this.additionalKey = dataTypeDescription.getAdditionalKey();
 	}
@@ -147,7 +120,7 @@ public class RedisSink<IN> extends RichSinkFunction<IN> {
 	 * Called when new data arrives to the sink, and forwards it to Redis channel.
 	 * Depending on the specified Redis data type (see {@link RedisDataType}),
 	 * a different Redis command will be applied.
-	 * Available commands are HSET, RPUSH, SADD, PUBLISH, SET, PFADD, and ZADD.
+	 * Available commands are RPUSH, LPUSH, SADD, PUBLISH, SET, PFADD, HSET and ZADD.
 	 *
 	 * @param input The incoming data
 	 */
@@ -193,12 +166,15 @@ public class RedisSink<IN> extends RichSinkFunction<IN> {
      */
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		if (jedisPoolConfig != null) {
-			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(jedisPoolConfig);
-		} else if (jedisClusterConfig != null) {
-			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(jedisClusterConfig);
-		} else if (jedisSentinelConfig != null) {
-			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(jedisSentinelConfig);
+		if(flinkJedisConfigBase instanceof FlinkJedisPoolConfig){
+			FlinkJedisPoolConfig flinkJedisPoolConfig = (FlinkJedisPoolConfig) flinkJedisConfigBase;
+			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(flinkJedisPoolConfig);
+		} else if (flinkJedisConfigBase instanceof FlinkJedisClusterConfig) {
+			FlinkJedisClusterConfig flinkJedisClusterConfig = (FlinkJedisClusterConfig) flinkJedisConfigBase;
+			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(flinkJedisClusterConfig);
+		} else if (flinkJedisConfigBase instanceof FlinkJedisSentinelConfig) {
+			FlinkJedisSentinelConfig flinkJedisSentinelConfig = (FlinkJedisSentinelConfig) flinkJedisConfigBase;
+			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(flinkJedisSentinelConfig);
 		} else {
 			throw new IllegalArgumentException("Jedis configuration not found");
 		}

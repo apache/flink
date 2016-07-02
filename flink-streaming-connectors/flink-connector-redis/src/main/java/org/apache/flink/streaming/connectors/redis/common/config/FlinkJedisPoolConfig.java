@@ -20,23 +20,18 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.flink.util.Preconditions;
 import redis.clients.jedis.Protocol;
 
-import java.io.Serializable;
-
 /**
  * Configuration for Jedis Pool.
  */
-public class FlinkJedisPoolConfig implements Serializable {
+public class FlinkJedisPoolConfig extends FlinkJedisConfigBase {
 
 	private static final long serialVersionUID = 1L;
 
 	private String host;
 	private int port;
-	private int timeout;
 	private int database;
 	private String password;
-	private int maxTotal;
-	private int maxIdle;
-	private int minIdle;
+
 
 	/**
 	 * Jedis pool configuration.
@@ -44,7 +39,7 @@ public class FlinkJedisPoolConfig implements Serializable {
 	 *
 	 * @param host hostname or IP
 	 * @param port port, default value is 6379
-	 * @param timeout socket / connection timeout, default value is 2000 milli second
+	 * @param connectionTimeout socket / connection timeout, default value is 2000 milli second
 	 * @param password password, if any
 	 * @param database database index
 	 * @param maxTotal the maximum number of objects that can be allocated by the pool, default value is 8
@@ -52,53 +47,14 @@ public class FlinkJedisPoolConfig implements Serializable {
 	 * @param minIdle the minimum number of idle objects to maintain in the pool, default value is 0
 	 * @throws NullPointerException if parameter {@code host} is {@code null}
 	 */
-	private FlinkJedisPoolConfig(String host, int port, int timeout, String password, int database,
+	private FlinkJedisPoolConfig(String host, int port, int connectionTimeout, String password, int database,
 								int maxTotal, int maxIdle, int minIdle) {
+		super(connectionTimeout, maxTotal, maxIdle, minIdle);
 		Preconditions.checkNotNull(host, "Host information should be presented");
 		this.host = host;
 		this.port = port;
-		this.timeout = timeout;
 		this.database = database;
 		this.password = password;
-		this.maxTotal = maxTotal;
-		this.maxIdle = maxIdle;
-		this.minIdle = minIdle;
-	}
-
-	/**
-	 * Get the value for the {@code maxTotal} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code maxTotal} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMaxTotal()
-	 */
-	public int getMaxTotal() {
-		return maxTotal;
-	}
-
-	/**
-	 * Get the value for the {@code maxIdle} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code maxIdle} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMaxIdle()
-	 */
-	public int getMaxIdle() {
-		return maxIdle;
-	}
-
-	/**
-	 * Get the value for the {@code minIdle} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code minIdle} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMinIdle()
-	 */
-	public int getMinIdle() {
-		return minIdle;
 	}
 
 	/**
@@ -119,14 +75,6 @@ public class FlinkJedisPoolConfig implements Serializable {
 		return port;
 	}
 
-	/**
-	 * Returns timeout.
-	 *
-	 * @return socket / connection timeout
-	 */
-	public int getTimeout() {
-		return timeout;
-	}
 
 	/**
 	 * Returns database index.
@@ -266,7 +214,7 @@ public class FlinkJedisPoolConfig implements Serializable {
 		return "JedisPoolConfig{" +
 			"host='" + host + '\'' +
 			", port=" + port +
-			", timeout=" + timeout +
+			", timeout=" + connectionTimeout +
 			", database=" + database +
 			", maxTotal=" + maxTotal +
 			", maxIdle=" + maxIdle +

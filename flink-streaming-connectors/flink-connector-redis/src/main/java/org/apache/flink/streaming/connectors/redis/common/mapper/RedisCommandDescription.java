@@ -57,7 +57,8 @@ public class RedisCommandDescription implements Serializable {
 		this.redisCommand = redisCommand;
 		this.additionalKey = additionalKey;
 
-		if (redisCommand.isInRedisDataType(RedisDataType.HASH) || redisCommand.isInRedisDataType(RedisDataType.SORTED_SET)) {
+		if (redisCommand.getRedisDataType() == RedisDataType.HASH ||
+			redisCommand.getRedisDataType() == RedisDataType.SORTED_SET) {
 			if (additionalKey == null) {
 				throw new IllegalArgumentException("Hash and Sorted Set should have additional key");
 			}

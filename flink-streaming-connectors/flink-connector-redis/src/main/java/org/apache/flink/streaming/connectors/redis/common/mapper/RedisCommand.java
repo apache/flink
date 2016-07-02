@@ -26,6 +26,7 @@ public enum RedisCommand {
 	 * If key does not exist, it is created as empty list before performing the push operations.
 	 */
 	LPUSH(RedisDataType.LIST),
+
 	/**
 	 * Insert the specified value at the tail of the list stored at key.
 	 * If key does not exist, it is created as empty list before performing the push operation.
@@ -66,7 +67,7 @@ public enum RedisCommand {
 	HSET(RedisDataType.HASH);
 
 	/**
-	 * The {@link RedisDataType} this command belongs to
+	 * The {@link RedisDataType} this command belongs to.
 	 */
 	private RedisDataType redisDataType;
 
@@ -75,14 +76,10 @@ public enum RedisCommand {
 	}
 
 
-	public boolean isInRedisDataType(RedisDataType redisDataType) {
-		return this.redisDataType == redisDataType;
-	}
-
 	/**
 	 * The {@link RedisDataType} this command belongs to.
 	 * @return the {@link RedisDataType}
-     */
+	 */
 	public RedisDataType getRedisDataType(){
 		return redisDataType;
 	}

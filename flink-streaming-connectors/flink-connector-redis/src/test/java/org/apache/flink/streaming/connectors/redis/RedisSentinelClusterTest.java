@@ -87,7 +87,7 @@ public class RedisSentinelClusterTest extends TestLogger {
 
 	@After
 	public void tearDown() throws IOException {
-		if (jedisSentinelPool != null){
+		if (jedisSentinelPool != null) {
 			jedisSentinelPool.close();
 		}
 	}

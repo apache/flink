@@ -22,7 +22,6 @@ import org.apache.flink.util.Preconditions;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Protocol;
 
-import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,76 +29,35 @@ import java.util.Set;
 /**
  * Configuration for Jedis Cluster.
  */
-public class FlinkJedisClusterConfig implements Serializable {
+public class FlinkJedisClusterConfig extends FlinkJedisConfigBase {
 	private static final long serialVersionUID = 1L;
 
 	private Set<InetSocketAddress> nodes;
-	private int timeout;
 	private int maxRedirections;
-	private int maxTotal;
-	private int maxIdle;
-	private int minIdle;
+
 
 	/**
 	 * Jedis cluster configuration.
 	 * The list of node is mandatory, and when nodes is not set, it throws NullPointerException.
 	 *
 	 * @param nodes list of node information for JedisCluster
-	 * @param timeout socket / connection timeout. The default is 2000
+	 * @param connectionTimeout socket / connection timeout. The default is 2000
 	 * @param maxRedirections limit of redirections-how much we'll follow MOVED or ASK
 	 * @param maxTotal the maximum number of objects that can be allocated by the pool
 	 * @param maxIdle the cap on the number of "idle" instances in the pool
 	 * @param minIdle the minimum number of idle objects to maintain in the pool
 	 * @throws NullPointerException if parameter {@code nodes} is {@code null}
 	 */
-	private FlinkJedisClusterConfig(Set<InetSocketAddress> nodes, int timeout, int maxRedirections,
+	private FlinkJedisClusterConfig(Set<InetSocketAddress> nodes, int connectionTimeout, int maxRedirections,
 									int maxTotal, int maxIdle, int minIdle) {
+		super(connectionTimeout, maxTotal, maxIdle, minIdle);
 
 		Preconditions.checkNotNull(nodes, "Node information should be presented");
-
 		this.nodes = nodes;
-		this.timeout = timeout;
 		this.maxRedirections = maxRedirections;
-		this.maxTotal = maxTotal;
-		this.maxIdle = maxIdle;
-		this.minIdle = minIdle;
 	}
 
-	/**
-	 * Get the value for the {@code maxTotal} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code maxTotal} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMaxTotal()
-	 */
-	public int getMaxTotal() {
-		return maxTotal;
-	}
 
-	/**
-	 * Get the value for the {@code maxIdle} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code maxIdle} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMaxIdle()
-	 */
-	public int getMaxIdle() {
-		return maxIdle;
-	}
-
-	/**
-	 * Get the value for the {@code minIdle} configuration attribute
-	 * for pools to be created with this configuration instance.
-	 *
-	 * @return  The current setting of {@code minIdle} for this
-	 *          configuration instance
-	 * @see GenericObjectPoolConfig#getMinIdle()
-	 */
-	public int getMinIdle() {
-		return minIdle;
-	}
 
 	/**
 	 * Returns nodes.
@@ -112,15 +70,6 @@ public class FlinkJedisClusterConfig implements Serializable {
 			ret.add(new HostAndPort(node.getHostName(), node.getPort()));
 		}
 		return ret;
-	}
-
-	/**
-	 * Returns socket / connection timeout.
-	 *
-	 * @return socket / connection timeout
-	 */
-	public int getTimeout() {
-		return timeout;
 	}
 
 	/**
@@ -227,7 +176,7 @@ public class FlinkJedisClusterConfig implements Serializable {
 	public String toString() {
 		return "JedisClusterConfig{" +
 			"nodes=" + nodes +
-			", timeout=" + timeout +
+			", timeout=" + connectionTimeout +
 			", maxRedirections=" + maxRedirections +
 			", maxTotal=" + maxTotal +
 			", maxIdle=" + maxIdle +

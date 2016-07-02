@@ -206,6 +206,11 @@ state updates) of Flink coupled with bundled sinks:
         <td>at least once</td>
         <td></td>
     </tr>
+    <tr>
+        <td>Redis sink</td>
+        <td>at least once</td>
+        <td></td>
+    </tr>
   </tbody>
 </table>
 

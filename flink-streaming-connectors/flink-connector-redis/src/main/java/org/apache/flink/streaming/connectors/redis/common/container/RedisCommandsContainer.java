@@ -69,7 +69,7 @@ public interface RedisCommandsContainer extends Serializable {
 	 * @param channelName Name of the channel to which data will be published
 	 * @param message the message
 	 */
-	void  publish(String channelName, String message);
+	void publish(String channelName, String message);
 
 	/**
 	 * Set key to hold the string value. If key already holds a value, it is overwritten,

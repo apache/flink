@@ -36,6 +36,7 @@ following dependency to your project:
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
+Version Compatibility: This module is compatible with redis 2.8.5 .
 
 Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
@@ -57,8 +58,8 @@ This code shows how to create a sink that communicate to a single redis server:
 public static class RedisExampleMapper implements RedisMapper<Tuple2<String, String>>{
 
     @Override
-    public RedisCommandDescription getDataTypeDescription() {
-        return new RedisDataTypeDescription(RedisCommand.HSET, "HASH_NAME");
+    public RedisCommandDescription getCommandDescription() {
+        return new RedisCommandDescription(RedisCommand.HSET, "HASH_NAME");
     }
 
     @Override
@@ -80,8 +81,8 @@ stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMappe
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 class RedisExampleMapper extends RedisMapper[(String, String)]{
-  override def getDataTypeDescription: RedisDataTypeDescription = {
-    new RedisDataTypeDescription(RedisCommand.HSET, "HASH_NAME")
+  override def getCommandDescription: RedisCommandDescription = {
+    new RedisCommandDescription(RedisCommand.HSET, "HASH_NAME")
   }
 
   override def getKeyFromData(data: (String, String)): String = data._1
