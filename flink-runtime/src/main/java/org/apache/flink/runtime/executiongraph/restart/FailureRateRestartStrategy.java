@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import com.google.common.base.Preconditions;
+import com.google.common.collect.EvictingQueue;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import scala.concurrent.duration.Duration;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static akka.dispatch.Futures.future;
@@ -35,19 +34,21 @@ import static akka.dispatch.Futures.future;
  * with a fixed time delay in between.
  */
 public class FailureRateRestartStrategy implements RestartStrategy {
-	private final int maxFailuresPerUnit;
-	private final TimeUnit failureRateUnit;
-	private final long delayBetweenRestartAttempts;
-	private List<Long> restartTimestamps = new ArrayList<>();
+	private final Duration failuresInterval;
+	private final Duration delayInterval;
+	private EvictingQueue<Long> restartTimestampsQueue;
 	private boolean disabled = false;
 
-	public FailureRateRestartStrategy(int maxFailuresPerUnit, TimeUnit failureRateUnit, long delayBetweenRestartAttempts) {
-		Preconditions.checkArgument(maxFailuresPerUnit > 0, "Maximum number of restart attempts per time unit must be greater than 0.");
-		Preconditions.checkArgument(delayBetweenRestartAttempts >= 0, "Delay between restart attempts must be positive");
+	public FailureRateRestartStrategy(int maxFailuresPerInterval, Duration failuresInterval, Duration delayInterval) {
+		Preconditions.checkArgument(maxFailuresPerInterval > 0, "Maximum number of restart attempts per time unit must be greater than 0.");
+		Preconditions.checkNotNull(failuresInterval, "Failures interval cannot be null.");
+		Preconditions.checkNotNull(failuresInterval.length() > 0, "Failures interval must be greater than 0 ms.");
+		Preconditions.checkNotNull(delayInterval, "Delay interval cannot be null.");
+		Preconditions.checkNotNull(delayInterval.length() >= 0, "Delay interval must be at least 0 ms.");
 
-		this.maxFailuresPerUnit = maxFailuresPerUnit;
-		this.failureRateUnit = failureRateUnit;
-		this.delayBetweenRestartAttempts = delayBetweenRestartAttempts;
+		this.failuresInterval = failuresInterval;
+		this.delayInterval = delayInterval;
+		this.restartTimestampsQueue = EvictingQueue.create(maxFailuresPerInterval);
 	}
 
 	@Override
@@ -56,13 +57,10 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	private boolean canRestartJob() {
-		int restartsInWindowSoFar = restartTimestamps.size();
-		if (restartsInWindowSoFar >= maxFailuresPerUnit) {
-			List<Long> lastFailures = restartTimestamps.subList(restartsInWindowSoFar - maxFailuresPerUnit, restartsInWindowSoFar);
-			restartTimestamps = lastFailures; //deallocating not needed timestamps
-			Long earliestFailure = lastFailures.get(0);
+		if (restartTimestampsQueue.remainingCapacity() == 0) {
 			Long now = System.currentTimeMillis();
-			return Duration.apply(now - earliestFailure, TimeUnit.MILLISECONDS).gt(Duration.apply(1, failureRateUnit));
+			Long earliestFailure = restartTimestampsQueue.peek();
+			return Duration.apply(now - earliestFailure, TimeUnit.MILLISECONDS).gt(failuresInterval);
 		} else {
 			return true;
 		}
@@ -70,8 +68,8 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 
 	@Override
 	public void restart(final ExecutionGraph executionGraph) {
-		restartTimestamps.add(System.currentTimeMillis());
-		future(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayBetweenRestartAttempts), executionGraph.getExecutionContext());
+		restartTimestampsQueue.add(System.currentTimeMillis());
+		future(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMillis()), executionGraph.getExecutionContext());
 	}
 
 	@Override
@@ -80,29 +78,29 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	public static FailureRateRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
-		int maxFailuresPerUnit = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_UNIT, 1);
-		String failureRateUnitString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_UNIT, TimeUnit.MINUTES.name());
-		TimeUnit failureRateUnit = TimeUnit.valueOf(failureRateUnitString);
+		int maxFailuresPerInterval = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 1);
+		String failuresIntervalString = configuration.getString(
+				ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, Duration.apply(1, TimeUnit.MINUTES).toString()
+		);
 		String timeoutString = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
 		String delayString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_DELAY, timeoutString);
-		long delay = Duration.apply(delayString).toMillis();
-		return new FailureRateRestartStrategyFactory(maxFailuresPerUnit, failureRateUnit, delay);
+		return new FailureRateRestartStrategyFactory(maxFailuresPerInterval, Duration.apply(failuresIntervalString), Duration.apply(delayString));
 	}
 
 	public static class FailureRateRestartStrategyFactory extends RestartStrategyFactory {
-		private final int maxFailuresPerUnit;
-		private final TimeUnit failureRateUnit;
-		private final long delayBetweenRestartAttempts;
+		private final int maxFailuresPerInterval;
+		private final Duration failuresInterval;
+		private final Duration delayInterval;
 
-		public FailureRateRestartStrategyFactory(int maxFailuresPerUnit, TimeUnit failureRateUnit, long delayBetweenRestartAttempts) {
-			this.maxFailuresPerUnit = maxFailuresPerUnit;
-			this.failureRateUnit = failureRateUnit;
-			this.delayBetweenRestartAttempts = delayBetweenRestartAttempts;
+		public FailureRateRestartStrategyFactory(int maxFailuresPerInterval, Duration failuresInterval, Duration delayInterval) {
+			this.maxFailuresPerInterval = maxFailuresPerInterval;
+			this.failuresInterval = failuresInterval;
+			this.delayInterval = delayInterval;
 		}
 
 		@Override
 		public RestartStrategy createRestartStrategy() {
-			return new FailureRateRestartStrategy(maxFailuresPerUnit, failureRateUnit, delayBetweenRestartAttempts);
+			return new FailureRateRestartStrategy(maxFailuresPerInterval, failuresInterval, delayInterval);
 		}
 	}
 }

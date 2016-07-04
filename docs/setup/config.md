@@ -140,13 +140,13 @@ Default value is 1.
 - `restart-strategy.fixed-delay.delay`: Delay between restart attempts, used if the default restart strategy is set to "fixed-delay".
 Default value is the `akka.ask.timeout`.
 
-- `restart-strategy.failure-rate.max-failures-per-unit`: Maximum number of restarts in given time unit before failing a job in "failure-rate" strategy. 
+- `restart-strategy.failure-rate.max-failures-per-interval`: Maximum number of restarts in given time interval before failing a job in "failure-rate" strategy. 
 Default value is 1.
 
-- `restart-strategy.failure-rate.failure-rate-unit`: Time unit for measuring failure rate in "failure-rate" strategy. One of java.util.concurrent.TimeUnit values .
-Default value is `MINUTES`.
+- `restart-strategy.failure-rate.failure-rate-interval`: Time interval for measuring failure rate in "failure-rate" strategy.
+Default value is `1 minute`.
 
-- `restart-strategy.failure-rate.failure-rate-unit`: Delay between restart attempts, used if the default restart strategy is set to "failure-rate".
+- `restart-strategy.failure-rate.delay`: Delay between restart attempts, used if the default restart strategy is set to "failure-rate".
 Default value is the `akka.ask.timeout`.
 
 ## Full Reference

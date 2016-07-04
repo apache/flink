@@ -43,6 +43,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.Iterator;
@@ -149,16 +150,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	@Test
 	public void taskShouldFailWhenFailureRateLimitExceeded() throws Exception {
-		FailureRateRestartStrategy restartStrategy = new FailureRateRestartStrategy(2, TimeUnit.SECONDS, 0);
-		FiniteDuration timeout = new FiniteDuration(50, TimeUnit.MILLISECONDS);
+		FailureRateRestartStrategy restartStrategy = new FailureRateRestartStrategy(2, Duration.apply(10, TimeUnit.SECONDS), Duration.apply(0, TimeUnit.SECONDS));
+		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.SECONDS);
 		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createExecutionGraph(restartStrategy);
 		ExecutionGraph eg = executionGraphInstanceTuple.f0;
-
-		restartAfterFailure(eg, timeout, false);
-		restartAfterFailure(eg, timeout, false);
-		//failure rate limit not exceeded yet, so task is running
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		Thread.sleep(1000); //wait for a second to restart limit rate
 
 		restartAfterFailure(eg, timeout, false);
 		restartAfterFailure(eg, timeout, false);
@@ -169,7 +164,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	@Test
 	public void taskShouldNotFailWhenFailureRateLimitWasNotExceeded() throws Exception {
-		FailureRateRestartStrategy restartStrategy = new FailureRateRestartStrategy(1, TimeUnit.MILLISECONDS, 0);
+		FailureRateRestartStrategy restartStrategy = new FailureRateRestartStrategy(1, Duration.apply(1, TimeUnit.MILLISECONDS), Duration.apply(0, TimeUnit.SECONDS));
 		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.SECONDS);
 		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createExecutionGraph(restartStrategy);
 		ExecutionGraph eg = executionGraphInstanceTuple.f0;

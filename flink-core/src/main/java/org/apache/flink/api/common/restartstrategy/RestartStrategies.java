@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.restartstrategy;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.TimeInterval;
 
 import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
@@ -48,23 +49,31 @@ public class RestartStrategies {
 	 * @param delayBetweenAttempts Delay in-between restart attempts for the FixedDelayRestartStrategy
 	 * @return FixedDelayRestartStrategy
 	 */
-	public static RestartStrategyConfiguration fixedDelayRestart(
-		int restartAttempts,
-		long delayBetweenAttempts) {
+	public static RestartStrategyConfiguration fixedDelayRestart(int restartAttempts, long delayBetweenAttempts) {
+		return fixedDelayRestart(restartAttempts, new TimeInterval(delayBetweenAttempts, TimeUnit.MILLISECONDS));
+	}
 
-		return new FixedDelayRestartStrategyConfiguration(restartAttempts, delayBetweenAttempts);
+	/**
+	 * Generates a FixedDelayRestartStrategyConfiguration.
+	 *
+	 * @param restartAttempts Number of restart attempts for the FixedDelayRestartStrategy
+	 * @param delayInterval Delay in-between restart attempts for the FixedDelayRestartStrategy
+	 * @return FixedDelayRestartStrategy
+	 */
+	public static RestartStrategyConfiguration fixedDelayRestart(int restartAttempts, TimeInterval delayInterval) {
+		return new FixedDelayRestartStrategyConfiguration(restartAttempts, delayInterval);
 	}
 
 	/**
 	 * Generates a FailureRateRestartStrategyConfiguration.
 	 *
-	 * @param maxFailureRate Maximum number of restarts in given time unit {@code failureRateUnit} before failing a job
-	 * @param failureRateUnit Time unit for measuring failure rate
-	 * @param delayBetweenRestartAttempts Delay in-between restart attempts
+	 * @param failureRate Maximum number of restarts in given interval {@code failureInterval} before failing a job
+	 * @param failureInterval Time interval for failures
+	 * @param delayInterval Delay in-between restart attempts
 	 */
 	public static FailureRateRestartStrategyConfiguration failureRateRestart(
-			int maxFailureRate, TimeUnit failureRateUnit, long delayBetweenRestartAttempts) {
-		return new FailureRateRestartStrategyConfiguration(maxFailureRate, failureRateUnit, delayBetweenRestartAttempts);
+			int failureRate, TimeInterval failureInterval, TimeInterval delayInterval) {
+		return new FailureRateRestartStrategyConfiguration(failureRate, failureInterval, delayInterval);
 	}
 
 	public abstract static class RestartStrategyConfiguration implements Serializable {
@@ -93,24 +102,26 @@ public class RestartStrategies {
 		private static final long serialVersionUID = 4149870149673363190L;
 
 		private final int restartAttempts;
-		private final long delayBetweenAttempts;
+		private final TimeInterval delayBetweenAttemptsInterval;
 
-		FixedDelayRestartStrategyConfiguration(int restartAttempts, long delayBetweenAttempts) {
+		FixedDelayRestartStrategyConfiguration(int restartAttempts, TimeInterval delayBetweenAttemptsInterval) {
 			this.restartAttempts = restartAttempts;
-			this.delayBetweenAttempts = delayBetweenAttempts;
+			this.delayBetweenAttemptsInterval = delayBetweenAttemptsInterval;
 		}
 
 		public int getRestartAttempts() {
 			return restartAttempts;
 		}
 
-		public long getDelayBetweenAttempts() {
-			return delayBetweenAttempts;
+		public TimeInterval getDelayBetweenAttemptsInterval() {
+			return delayBetweenAttemptsInterval;
 		}
 
 		@Override
 		public int hashCode() {
-			return 31 * restartAttempts + (int)(delayBetweenAttempts ^ (delayBetweenAttempts >>> 32));
+			int result = restartAttempts;
+			result = 31 * result + (delayBetweenAttemptsInterval != null ? delayBetweenAttemptsInterval.hashCode() : 0);
+			return result;
 		}
 
 		@Override
@@ -118,7 +129,7 @@ public class RestartStrategies {
 			if (obj instanceof FixedDelayRestartStrategyConfiguration) {
 				FixedDelayRestartStrategyConfiguration other = (FixedDelayRestartStrategyConfiguration) obj;
 
-				return restartAttempts == other.restartAttempts && delayBetweenAttempts == other.delayBetweenAttempts;
+				return restartAttempts == other.restartAttempts && delayBetweenAttemptsInterval.equals(other.delayBetweenAttemptsInterval);
 			} else {
 				return false;
 			}
@@ -126,38 +137,40 @@ public class RestartStrategies {
 
 		@Override
 		public String getDescription() {
-			return "Restart with fixed delay (" + delayBetweenAttempts + " ms). #"
+			return "Restart with fixed delay (" + delayBetweenAttemptsInterval + " ms). #"
 				+ restartAttempts + " restart attempts.";
 		}
 	}
 
 	final public static class FailureRateRestartStrategyConfiguration extends RestartStrategyConfiguration {
+		private static final long serialVersionUID = 1195028697539661739L;
 		private final int maxFailureRate;
-		private final TimeUnit failureRateUnit;
-		private final long delayBetweenRestartAttempts;
 
-		public FailureRateRestartStrategyConfiguration(int maxFailureRate, TimeUnit failureRateUnit, long delayBetweenRestartAttempts) {
+		private final TimeInterval failureInterval;
+		private final TimeInterval delayBetweenAttemptsInterval;
+
+		public FailureRateRestartStrategyConfiguration(int maxFailureRate, TimeInterval failureInterval, TimeInterval delayBetweenAttemptsInterval) {
 			this.maxFailureRate = maxFailureRate;
-			this.failureRateUnit = failureRateUnit;
-			this.delayBetweenRestartAttempts = delayBetweenRestartAttempts;
+			this.failureInterval = failureInterval;
+			this.delayBetweenAttemptsInterval = delayBetweenAttemptsInterval;
 		}
 
 		public int getMaxFailureRate() {
 			return maxFailureRate;
 		}
 
-		public TimeUnit getFailureRateUnit() {
-			return failureRateUnit;
+		public TimeInterval getFailureInterval() {
+			return failureInterval;
 		}
 
-		public long getDelayBetweenRestartAttempts() {
-			return delayBetweenRestartAttempts;
+		public TimeInterval getDelayBetweenAttemptsInterval() {
+			return delayBetweenAttemptsInterval;
 		}
 
 		@Override
 		public String getDescription() {
-			return "Failure rate restart with " + maxFailureRate + " max failures per " + failureRateUnit
-					+ " and fixed delay " + delayBetweenRestartAttempts;
+			return "Failure rate restart with maximum of " + maxFailureRate + " failures within interval " + failureInterval.toString()
+					+ " and fixed delay " + delayBetweenAttemptsInterval.toString();
 		}
 	}
 }

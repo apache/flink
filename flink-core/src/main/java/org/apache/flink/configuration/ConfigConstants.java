@@ -65,17 +65,18 @@ public final class ConfigConstants {
 	public static final String RESTART_STRATEGY_FIXED_DELAY_DELAY = "restart-strategy.fixed-delay.delay";
 
 	/**
-	 * Maximum number of restarts in given time unit {@link #RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_UNIT} before failing a job
+	 * Maximum number of restarts in given time interval {@link #RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL} before failing a job
 	 * in FailureRateRestartStrategy.
 	 */
 	@PublicEvolving
-	public static final String RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_UNIT = "restart-strategy.failure-rate.max-failures-per-unit";
+	public static final String RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL = "restart-strategy.failure-rate.max-failures-per-interval";
 
 	/**
-	 * Time unit for measuring failure rate in FailureRateRestartStrategy. One of {@link java.util.concurrent.TimeUnit} values
+	 * Time interval in which greater amount of failures than {@link #RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL} causes
+	 * job fail in FailureRateRestartStrategy. It can be specified using Scala's FiniteDuration notation: "1 min", "20 s"
 	 */
 	@PublicEvolving
-	public static final String RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_UNIT = "restart-strategy.failure-rate.failure-rate-unit";
+	public static final String RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL = "restart-strategy.failure-rate.failure-rate-interval";
 
 	/**
 	 * Delay between two consecutive restart attempts in FailureRateRestartStrategy.

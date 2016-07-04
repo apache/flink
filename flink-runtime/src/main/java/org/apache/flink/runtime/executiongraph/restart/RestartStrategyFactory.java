@@ -21,9 +21,11 @@ package org.apache.flink.runtime.executiongraph.restart;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.TimeInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
@@ -57,19 +59,23 @@ public abstract class RestartStrategyFactory implements Serializable {
 
 			return new FixedDelayRestartStrategy(
 				fixedDelayConfig.getRestartAttempts(),
-				fixedDelayConfig.getDelayBetweenAttempts());
+				fixedDelayConfig.getDelayBetweenAttemptsInterval().getMillis());
 		} else if (restartStrategyConfiguration instanceof RestartStrategies.FailureRateRestartStrategyConfiguration) {
 			RestartStrategies.FailureRateRestartStrategyConfiguration config =
 					(RestartStrategies.FailureRateRestartStrategyConfiguration) restartStrategyConfiguration;
 			return new FailureRateRestartStrategy(
 					config.getMaxFailureRate(),
-					config.getFailureRateUnit(),
-					config.getDelayBetweenRestartAttempts()
+					toDuration(config.getFailureInterval()),
+					toDuration(config.getDelayBetweenAttemptsInterval())
 			);
 		} else {
 			throw new IllegalArgumentException("Unknown restart strategy configuration " +
 				restartStrategyConfiguration + ".");
 		}
+	}
+
+	private static FiniteDuration toDuration(TimeInterval interval) {
+		return Duration.apply(interval.getLength(), interval.getUnit());
 	}
 
 	/**

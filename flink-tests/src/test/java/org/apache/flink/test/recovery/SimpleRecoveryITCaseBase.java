@@ -25,12 +25,9 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -115,15 +112,7 @@ public abstract class SimpleRecoveryITCaseBase {
 						})
 						.output(new LocalCollectionOutputFormat<Long>(resultCollection));
 
-				try {
-					JobExecutionResult result = env.execute();
-					assertTrue(result.getNetRuntime() >= 0);
-					assertNotNull(result.getAllAccumulatorResults());
-					assertTrue(result.getAllAccumulatorResults().isEmpty());
-				}
-				catch (JobExecutionException e) {
-					fail("The program should have succeeded on the second run");
-				}
+				executeAndRunAssertions(env);
 
 				long sum = 0;
 				for (long l : resultCollection) {
@@ -137,6 +126,18 @@ public abstract class SimpleRecoveryITCaseBase {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	private void executeAndRunAssertions(ExecutionEnvironment env) throws Exception {
+		try {
+            JobExecutionResult result = env.execute();
+            assertTrue(result.getNetRuntime() >= 0);
+            assertNotNull(result.getAllAccumulatorResults());
+            assertTrue(result.getAllAccumulatorResults().isEmpty());
+        }
+        catch (JobExecutionException e) {
+            fail("The program should have succeeded on the second run");
+        }
 	}
 
 	@Test
@@ -162,15 +163,7 @@ public abstract class SimpleRecoveryITCaseBase {
 					})
 					.output(new LocalCollectionOutputFormat<Long>(resultCollection));
 
-			try {
-				JobExecutionResult result = env.execute();
-				assertTrue(result.getNetRuntime() >= 0);
-				assertNotNull(result.getAllAccumulatorResults());
-				assertTrue(result.getAllAccumulatorResults().isEmpty());
-			}
-			catch (JobExecutionException e) {
-				fail("The program should have succeeded on the second run");
-			}
+			executeAndRunAssertions(env);
 
 			long sum = 0;
 			for (long l : resultCollection) {
@@ -207,15 +200,7 @@ public abstract class SimpleRecoveryITCaseBase {
 					})
 					.output(new LocalCollectionOutputFormat<Long>(resultCollection));
 
-			try {
-				JobExecutionResult result = env.execute();
-				assertTrue(result.getNetRuntime() >= 0);
-				assertNotNull(result.getAllAccumulatorResults());
-				assertTrue(result.getAllAccumulatorResults().isEmpty());
-			}
-			catch (JobExecutionException e) {
-				fail("The program should have succeeded on the second run");
-			}
+			executeAndRunAssertions(env);
 
 			long sum = 0;
 			for (long l : resultCollection) {
