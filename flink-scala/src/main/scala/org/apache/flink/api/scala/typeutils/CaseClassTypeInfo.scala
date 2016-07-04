@@ -43,7 +43,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     clazz: Class[T],
     val typeParamTypeInfos: Array[TypeInformation[_]],
     fieldTypes: Seq[TypeInformation[_]],
-    var fieldNames: Seq[String])
+    val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
 
   @PublicEvolving

@@ -35,14 +35,12 @@ class RowTypeInfo(fieldTypes: Seq[TypeInformation[_]])
     classOf[Row],
     Array(),
     fieldTypes,
-    Nil)
+    for (i <- fieldTypes.indices) yield "f" + i)
 {
 
   def this(fieldTypes: Array[TypeInformation[_]]) = {
     this(fieldTypes.toSeq)
   }
-
-  this.fieldNames = for (i <- fieldTypes.indices) yield "f" + i
 
   /**
    * Temporary variable for directly passing orders to comparators.
