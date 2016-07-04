@@ -207,7 +207,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 					Tuple3<List<FileInputSplit>, FileInputSplit, S> restoredState) {
 
 			this.format = checkNotNull(format, "Unspecified FileInputFormat.");
-			this.serializer = checkNotNull(serializer, "Unspecified Serialized.");
+			this.serializer = checkNotNull(serializer, "Unspecified Serializer.");
 
 			this.pendingSplits = new LinkedList<>();
 			this.collector = collector;
