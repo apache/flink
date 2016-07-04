@@ -778,6 +778,13 @@ public class CheckpointCoordinator {
 	// --------------------------------------------------------------------------------------------
 
 	public boolean restoreLatestCheckpointedState(
+						Map<JobVertexID, ExecutionJobVertex> tasks,
+						boolean errorIfNoCheckpoint,
+						boolean allOrNothingState) throws Exception {
+		return restoreLatestCheckpointedState(null, tasks, errorIfNoCheckpoint, allOrNothingState);
+	}
+
+	public boolean restoreLatestCheckpointedState(CompletedCheckpoint latest,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			boolean errorIfNoCheckpoint,
 			boolean allOrNothingState) throws Exception {
@@ -787,20 +794,20 @@ public class CheckpointCoordinator {
 				throw new IllegalStateException("CheckpointCoordinator is shut down");
 			}
 
-			// Recover the checkpoints
-			completedCheckpointStore.recover();
+			if(latest == null) {
+				// Recover the checkpoints
+				completedCheckpointStore.recover();
 
-			// restore from the latest checkpoint
-			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
-
-			if (latest == null) {
-				if (errorIfNoCheckpoint) {
-					throw new IllegalStateException("No completed checkpoint available");
-				} else {
-					return false;
+				// restore from the latest checkpoint
+				latest = completedCheckpointStore.getLatestCheckpoint();
+				if (latest == null) {
+					if (errorIfNoCheckpoint) {
+						throw new IllegalStateException("No completed checkpoint available");
+					} else {
+						return false;
+					}
 				}
 			}
-
 			long recoveryTimestamp = System.currentTimeMillis();
 
 			for (Map.Entry<JobVertexID, TaskState> taskGroupStateEntry: latest.getTaskStates().entrySet()) {
@@ -850,6 +857,20 @@ public class CheckpointCoordinator {
 		}
 	}
 
+	public CompletedCheckpoint restoreLastCompletedCheckPoint() throws Exception {
+		synchronized (lock) {
+			if (shutdown) {
+				throw new IllegalStateException("CheckpointCoordinator is shut down");
+			}
+
+			// Recover the checkpoints
+			completedCheckpointStore.recover();
+
+			// restore from the latest checkpoint
+			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
+			return latest;
+		}
+	}
 	/**
 	 * Groups the available set of key groups into key group partitions. A key group partition is
 	 * the set of key groups which is assigned to the same task. Each set of the returned list
