@@ -745,57 +745,33 @@ class JobManager(
           sender() ! TriggerSavepointFailure(jobId, new IllegalArgumentException("Unknown job."))
       }
 
-    case DisposeSavepoint(savepointPath, jobId) =>
+    case DisposeSavepoint(savepointPath, blobKeys) =>
       val senderRef = sender()
       future {
-        try {
-          log.info(s"Disposing savepoint at '$savepointPath' of job $jobId.")
-
-          val userCodeLoader = try {
-            libraryCacheManager.getClassLoader(jobId)
-          } catch {
-            case e: IllegalStateException =>
-              throw new IllegalArgumentException(s"No class loader available for job $jobId. " +
-                s"Please check that the provided job ID is valid. You can also dispose " +
-                s"the savepoint with the job JAR.")
-          }
-
-          val savepoint = savepointStore.getState(savepointPath)
-          log.debug(s"$savepoint")
-
-          // Discard the associated checkpoint
-          savepoint.discard(userCodeLoader)
-
-          // Dispose the savepoint
-          savepointStore.disposeState(savepointPath)
-
-          senderRef ! DisposeSavepointSuccess
-        } catch {
-          case t: Throwable =>
-            log.error(s"Failed to dispose savepoint at '$savepointPath'.", t)
-
-            senderRef ! DisposeSavepointFailure(t)
-        }
-      }(context.dispatcher)
-
-    case DisposeSavepointWithClassLoader(savepointPath, blobKeys, classPaths) =>
-      val senderRef = sender()
-      future {
-        // We don't need the proper job ID here since we uploaded the JARs for
-        // the disposal ourselves.
-        val jobId = new JobID()
-
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
 
-          libraryCacheManager.registerJob(jobId, blobKeys, classPaths)
-
-          val userCodeLoader = libraryCacheManager.getClassLoader(jobId)
           val savepoint = savepointStore.getState(savepointPath)
+
           log.debug(s"$savepoint")
 
-          // Discard the associated checkpoint
-          savepoint.discard(userCodeLoader)
+          if (blobKeys.isDefined) {
+            // We don't need a real ID here for the library cache manager
+            val jid = new JobID()
+
+            try {
+              libraryCacheManager.registerJob(jid, blobKeys.get, java.util.Collections.emptyList())
+              val classLoader = libraryCacheManager.getClassLoader(jid)
+
+              // Discard with user code loader
+              savepoint.discard(classLoader)
+            } finally {
+              libraryCacheManager.unregisterJob(jid)
+            }
+          } else {
+            // Discard with system class loader
+            savepoint.discard(getClass.getClassLoader)
+          }
 
           // Dispose the savepoint
           savepointStore.disposeState(savepointPath)
@@ -806,8 +782,6 @@ class JobManager(
             log.error(s"Failed to dispose savepoint at '$savepointPath'.", t)
 
             senderRef ! DisposeSavepointFailure(t)
-        } finally {
-          libraryCacheManager.unregisterJob(jobId)
         }
       }(context.dispatcher)
 

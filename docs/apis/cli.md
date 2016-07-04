@@ -31,9 +31,9 @@ and connects by default to the running Flink master (JobManager) that was
 started from the same installation directory.
 
 A prerequisite to using the command line interface is that the Flink
-master (JobManager) has been started (via 
-`<flink-home>/bin/start-local.sh` or 
-`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is 
+master (JobManager) has been started (via
+`<flink-home>/bin/start-local.sh` or
+`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is
 available.
 
 The command line can be used to
@@ -116,11 +116,11 @@ The command line can be used to
 -   Stop a job (streaming jobs only):
 
         ./bin/flink stop <jobID>
-        
-        
+
+
 The difference between cancelling and stopping a (streaming) job is the following:
 
-On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as 
+On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as
 soon as possible.
 If operators are not not stopping after the cancel call, Flink will start interrupting the thread periodically
 until it stops.
@@ -152,21 +152,19 @@ The run command has a savepoint flag to submit a job, which restores its state f
 
 #### **Dispose a savepoint**
 
+{% highlight bash %}
+./bin/flink savepoint -d <savepointPath>
+{% endhighlight %}
+
 Disposes the savepoint at the given path. The savepoint path is returned by the savepoint trigger command.
 
-If the job is running:
+If you use custom state instances (for example custom reducing state or RocksDB state), you have to specify the path to the program JAR with which the savepoint was triggered in order to dispose the savepoint with the user code class loader:
 
 {% highlight bash %}
-./bin/flink savepoint -d <savepointPath> <jobID>
+./bin/flink savepoint -d <savepointPath> -j <jarFile>
 {% endhighlight %}
 
-If the job has terminated:
-
-{% highlight bash %}
-./bin/flink savepoint -d <savepointPath> -j <jobJar> [-c <mainClass> -C <classPath> <args>]
-{% endhighlight %}
-
-The additional arguments for Job ID or JARs are required in order to use the user code class loader of the job the savepoint belongs to.
+Otherwise, you will run into a `ClassNotFoundException`.
 
 ## Usage
 
@@ -313,25 +311,12 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
 
  Syntax: savepoint [OPTIONS] <Job ID>
  "savepoint" action options:
-    -c,--class <classname>         Class with the program entry point ("main"
-                                   method or "getPlan()" method. Only needed if
-                                   the JAR file does not specify the class in
-                                   its manifest.
-    -C,--classpath <url>           Adds a URL to each user code classloader  on
-                                   all nodes in the cluster. The paths must
-                                   specify a protocol (e.g. file://) and be
-                                   accessible on all nodes (e.g. by means of a
-                                   NFS share). You can use this option multiple
-                                   times for specifying more than one URL. The
-                                   protocol must be supported by the {@link
-                                   java.net.URLClassLoader}.
-    -d,--dispose <savepointPath>   Disposes an existing savepoint.
-    -j,--jarfile <jarfile>         Flink program JAR file.
-
-
- Examples:
- - Trigger savepoint: bin/flink savepoint <Job ID>
- - Dispose savepoint:
-   * For a running job: bin/flink savepoint -d <Path> <Job ID>
-   * For a terminated job: bin/flink savepoint -d <Path> -j <Jar> [-c <mainClass> -C <classPath>]
+    -d,--dispose <arg>            Path of savepoint to dispose.
+    -j,--jarfile <jarfile>        Flink program JAR file.
+    -m,--jobmanager <host:port>   Address of the JobManager (master) to which
+                                  to connect. Use this flag to connect to a
+                                  different JobManager than the one specified
+                                  in the configuration.
+ Options for yarn-cluster mode:
+    -yid,--yarnapplicationId <arg>   Attach to running YARN session
 ~~~

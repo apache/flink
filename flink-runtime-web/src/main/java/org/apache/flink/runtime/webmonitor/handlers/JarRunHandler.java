@@ -49,7 +49,7 @@ public class JarRunHandler extends JarActionHandler {
 		try {
 			Tuple2<JobGraph, ClassLoader> graph = getJobGraphAndClassLoader(pathParams, queryParams);
 			try {
-				JobClient.uploadJarFiles(graph.f0, jobManager, timeout);
+				graph.f0.uploadUserJars(jobManager, timeout);
 			} catch (IOException e) {
 				throw new ProgramInvocationException("Failed to upload jar files to the job manager", e);
 			}

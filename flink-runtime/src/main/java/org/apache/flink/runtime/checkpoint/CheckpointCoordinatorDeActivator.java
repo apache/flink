@@ -45,7 +45,7 @@ public class CheckpointCoordinatorDeActivator extends FlinkUntypedActor {
 	}
 
 	@Override
-	public void handleMessage(Object message) {
+	public void handleMessage(Object message) throws Exception {
 		if (message instanceof ExecutionGraphMessages.JobStatusChanged) {
 			JobStatus status = ((ExecutionGraphMessages.JobStatusChanged) message).newJobStatus();
 			

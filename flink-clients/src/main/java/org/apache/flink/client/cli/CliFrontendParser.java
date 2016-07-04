@@ -36,6 +36,7 @@ public class CliFrontendParser {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CliFrontendParser.class);
 
+
 	static final Option HELP_OPTION = new Option("h", "help", false,
 			"Show the help message for the CLI Frontend or the action.");
 
@@ -72,7 +73,7 @@ public class CliFrontendParser {
 			"Path to a savepoint to reset the job back to (for example file:///flink/savepoint-1537).");
 
 	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
-			"Disposes an existing savepoint.");
+			"Path of savepoint to dispose.");
 
 	// list specific options
 	static final Option RUNNING_OPTION = new Option("r", "running", false,
@@ -111,9 +112,6 @@ public class CliFrontendParser {
 
 		SAVEPOINT_PATH_OPTION.setRequired(false);
 		SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
-
-		SAVEPOINT_DISPOSE_OPTION.setRequired(false);
-		SAVEPOINT_DISPOSE_OPTION.setArgName("savepointPath");
 	}
 
 	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
@@ -195,8 +193,6 @@ public class CliFrontendParser {
 		options = getJobManagerAddressOption(options);
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
 		options.addOption(JAR_OPTION);
-		options.addOption(CLASS_OPTION);
-		options.addOption(CLASSPATH_OPTION);
 		return addCustomCliOptions(options, false);
 	}
 
@@ -208,6 +204,7 @@ public class CliFrontendParser {
 		Options o = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
 		return getJobManagerAddressOption(o);
 	}
+
 
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(CLASS_OPTION);
@@ -229,6 +226,13 @@ public class CliFrontendParser {
 
 	private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
 		options = getJobManagerAddressOption(options);
+		return options;
+	}
+
+	private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
+		options = getJobManagerAddressOption(options);
+		options.addOption(SAVEPOINT_DISPOSE_OPTION);
+		options.addOption(JAR_OPTION);
 		return options;
 	}
 
@@ -333,16 +337,10 @@ public class CliFrontendParser {
 		System.out.println("\nAction \"savepoint\" triggers savepoints for a running job or disposes existing ones.");
 		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID>");
 		formatter.setSyntaxPrefix("  \"savepoint\" action options:");
-		formatter.printHelp(" ", getSavepointOptions(new Options()));
+		formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
 
-		System.out.println();
 		printCustomCliOptions(formatter, false);
 
-		System.out.println("\n  Examples:");
-		System.out.println("  - Trigger savepoint: bin/flink savepoint <Job ID>");
-		System.out.println("  - Dispose savepoint:");
-		System.out.println("    * For a running job: bin/flink savepoint -d <Path> <Job ID>");
-		System.out.println("    * For a terminated job: bin/flink savepoint -d <Path> -j <Jar> [-c <mainClass> -C <classPath>]");
 		System.out.println();
 	}
 

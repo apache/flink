@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.messages
 
-import java.net.URL
 import java.util.UUID
 
 import akka.actor.ActorRef
@@ -446,25 +445,17 @@ object JobManagerMessages {
   case class TriggerSavepointFailure(jobId: JobID, cause: Throwable)
 
   /**
-    * Disposes a savepoint with the class loader of a running job.
+    * Disposes a savepoint.
     *
     * @param savepointPath The path of the savepoint to dispose.
-    * @param jobId ID of the job to get the class loader from
+    * @param blobKeys BLOB keys if a user program JAR was uploaded for disposal.
+    *                 This is required when we dispose state which contains
+    *                 custom state instances (e.g. reducing state, rocksDB state).
     */
-  case class DisposeSavepoint(savepointPath: String, jobId: JobID) extends RequiresLeaderSessionID
-
-  /**
-    * Disposes a savepoint with the class loader created from the uploaded
-    * blobs and class paths.
-    *
-    * @param savepointPath The path of the savepoint to dispose.
-    * @param blobKeys List of blob keys
-    * @param classPaths List of class path URLs
-    */
-  case class DisposeSavepointWithClassLoader(
-    savepointPath: String,
-    blobKeys: java.util.List[BlobKey],
-    classPaths: java.util.List[URL])  extends RequiresLeaderSessionID
+  case class DisposeSavepoint(
+      savepointPath: String,
+      blobKeys: Option[java.util.List[BlobKey]] = None)
+    extends RequiresLeaderSessionID
 
   /** Response after a successful savepoint dispose. */
   case object DisposeSavepointSuccess

@@ -732,7 +732,7 @@ public class CheckpointCoordinator {
 		recentPendingCheckpoints.addLast(id);
 	}
 
-	private void dropSubsumedCheckpoints(long timestamp) {
+	private void dropSubsumedCheckpoints(long timestamp) throws Exception {
 		Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
 		while (entries.hasNext()) {
 			PendingCheckpoint p = entries.next().getValue();
@@ -926,7 +926,7 @@ public class CheckpointCoordinator {
 	//  Periodic scheduling of checkpoints
 	// --------------------------------------------------------------------------------------------
 
-	public void startCheckpointScheduler() {
+	public void startCheckpointScheduler() throws Exception {
 		synchronized (lock) {
 			if (shutdown) {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
@@ -949,7 +949,7 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	public void stopCheckpointScheduler() {
+	public void stopCheckpointScheduler() throws Exception {
 		synchronized (lock) {
 			triggerRequestQueued = false;
 			periodicScheduling = false;

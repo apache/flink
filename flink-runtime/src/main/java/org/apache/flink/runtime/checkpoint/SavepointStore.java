@@ -32,15 +32,17 @@ public class SavepointStore implements StateStore<CompletedCheckpoint> {
 	public void start() {
 	}
 
-	public void stop() {
+	public void stop() throws Exception {
 		if (stateStore instanceof HeapStateStore) {
 			HeapStateStore<CompletedCheckpoint> heapStateStore = (HeapStateStore<CompletedCheckpoint>) stateStore;
 
-			for (CompletedCheckpoint savepoint : heapStateStore.getAll()) {
-				savepoint.discard(ClassLoader.getSystemClassLoader());
+			try {
+				for (CompletedCheckpoint savepoint : heapStateStore.getAll()) {
+					savepoint.discard(ClassLoader.getSystemClassLoader());
+				}
+			} finally {
+				heapStateStore.clearAll();
 			}
-
-			heapStateStore.clearAll();
 		}
 	}
 
