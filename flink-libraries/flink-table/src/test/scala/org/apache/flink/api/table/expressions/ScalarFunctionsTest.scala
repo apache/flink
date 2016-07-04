@@ -211,6 +211,13 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "MOD(44, 3)",
       "2")
 
+    testFunction(
+      50.toExpr % 'f4,
+      "mod(50, f4)",
+      "MOD(50, f4)",
+      "6"
+    )
+
   }
 
   @Test

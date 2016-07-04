@@ -54,6 +54,12 @@ abstract class Expression extends TreeNode[Expression] {
       s"${this.getClass.getName} cannot be transformed to RexNode"
     )
 
+  /**
+    * To support literals on left side of binary expressions, i.e. 12.toExpr % 'a
+    * @return
+    */
+  def toExpr: Expression = this
+
   def checkEquals(other: Expression): Boolean = {
     if (this.getClass != other.getClass) {
       false

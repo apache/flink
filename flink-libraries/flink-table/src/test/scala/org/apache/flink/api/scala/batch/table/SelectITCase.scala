@@ -134,4 +134,22 @@ class SelectITCase(
       .select('a, 'b as 'a).toDataSet[Row].print()
   }
 
+  @Test
+  def testLiteralOnLeft(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+      .select(3.toExpr + '_1, 4.toExpr >= '_2)
+
+    val results = t.toDataSet[Row].collect()
+
+    val expected = "4,true\n" + "5,true\n" + "6,true\n" + "7,true\n" + "8,true\n" + "9,true\n" +
+      "10,true\n" + "11,true\n" + "12,true\n" + "13,true\n" + "14,false\n" + "15,false\n" +
+      "16,false\n" + "17,false\n" + "18,false\n" + "19,false\n" + "20,false\n" + "21,false\n" +
+      "22,false\n" + "23,false\n" + "24,false\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+  }
+
 }
