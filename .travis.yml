@@ -16,16 +16,31 @@ language: java
 # The file assumes a certain build order for the maven / nightly build deployments.
 matrix:
   include:
+  # Always run test groups A and B together
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.11 -Pinclude-yarn-tests -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-a -Dmaven.javadoc.skip=true"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.6.3 -Pinclude-yarn-tests -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-b -Dmaven.javadoc.skip=true"
+
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.version=2.6.3 -Pinclude-yarn-tests,flink-fast-tests-a -Dmaven.javadoc.skip=true"
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.version=2.6.3 -Pinclude-yarn-tests,flink-fast-tests-b -Dmaven.javadoc.skip=true"
+
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests"
-    - jdk: "oraclejdk7" # this uploads the Hadoop 2 build to Maven and S3
-      env: PROFILE="-Dhadoop.version=2.3.0"
-    - jdk: "openjdk7" # this uploads the Hadoop 1 build to Maven and S3
-      env: PROFILE="-Dhadoop.profile=1" 
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-a"
+    - jdk: "openjdk7"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-b"
+
+    - jdk: "oraclejdk7"
+      env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-a"
+    - jdk: "oraclejdk7"
+      env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-b"
+
+    - jdk: "openjdk7" 
+      env: PROFILE="-Dhadoop.profile=1 -Pflink-fast-tests-a" 
+    - jdk: "openjdk7" 
+      env: PROFILE="-Dhadoop.profile=1 -Pflink-fast-tests-b" 
 
 
 git:

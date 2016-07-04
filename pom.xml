@@ -82,6 +82,8 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<!-- Mutable name of the hadoop shading artifact. The module name can contain a scala version suffix. -->
 		<shading-artifact.name>error</shading-artifact.name>
+		<!-- Internal property to reduce build times on TravisCi -->
+		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
 		<!-- The shading artifact module name can be used as a module name. it does not get a scala version suffix -->
 		<shading-artifact-module.name>error</shading-artifact-module.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
@@ -213,6 +215,7 @@ under the License.
 				<artifactId>avro</artifactId>
 				<version>1.7.6</version>
 			</dependency>
+			
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro-ipc</artifactId>
@@ -741,6 +744,23 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
+		<!--
+			Test profile A excludes all tests starting with (A-M).
+			profile B excludes tests (N-Z).
+			This allows us to split up the test execution into separate profiles.
+		-->
+		<profile>
+			<id>flink-fast-tests-a</id>
+			<properties>
+				<flink-fast-tests-pattern>%regex[.*/[A-M].*]</flink-fast-tests-pattern>
+			</properties>
+		</profile>
+		<profile>
+			<id>flink-fast-tests-b</id>
+			<properties>
+				<flink-fast-tests-pattern>%regex[.*/[N-Z].*]</flink-fast-tests-pattern>
+			</properties>
+		</profile>
 	</profiles>
 
 	<build>
@@ -989,6 +1009,7 @@ under the License.
 						<configuration>
 							<excludes>
 								<exclude>**/*ITCase.*</exclude>
+								<exclude>${flink-fast-tests-pattern}</exclude>
 							</excludes>
 						</configuration>
 					</execution>
@@ -1002,6 +1023,9 @@ under the License.
 							<includes>
 								<include>**/*ITCase.*</include>
 							</includes>
+							<excludes>
+								<exclude>${flink-fast-tests-pattern}</exclude>
+							</excludes>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
