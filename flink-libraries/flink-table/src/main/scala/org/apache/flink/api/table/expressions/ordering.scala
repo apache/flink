@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.validate._
 
 abstract class Ordering extends UnaryExpression {
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (!child.isInstanceOf[NamedExpression]) {
       ValidationFailure(s"Sort should only based on field reference")
     } else {
@@ -36,19 +36,19 @@ abstract class Ordering extends UnaryExpression {
 case class Asc(child: Expression) extends Ordering {
   override def toString: String = s"($child).asc"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     child.toRexNode
   }
 
-  override def resultType: TypeInformation[_] = child.resultType
+  override private[flink] def resultType: TypeInformation[_] = child.resultType
 }
 
 case class Desc(child: Expression) extends Ordering {
   override def toString: String = s"($child).desc"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.desc(child.toRexNode)
   }
 
-  override def resultType: TypeInformation[_] = child.resultType
+  override private[flink] def resultType: TypeInformation[_] = child.resultType
 }
