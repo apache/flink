@@ -17,6 +17,7 @@
 package org.apache.flink.streaming.connectors.redis.common.config;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
@@ -24,13 +25,18 @@ import java.io.Serializable;
  * Base class for Flink Redis configuration.
  */
 public abstract class FlinkJedisConfigBase implements Serializable {
+	private static final long serialVersionUID = 1L;
 
-	protected int maxTotal;
-	protected int maxIdle;
-	protected int minIdle;
-	protected int connectionTimeout;
+	protected final int maxTotal;
+	protected final int maxIdle;
+	protected final int minIdle;
+	protected final int connectionTimeout;
 
 	protected FlinkJedisConfigBase(int connectionTimeout, int maxTotal, int maxIdle, int minIdle){
+		Preconditions.checkArgument(connectionTimeout >= 0, "connection timeout can not be negative");
+		Preconditions.checkArgument(maxTotal >= 0, "maxTotal value can not be negative");
+		Preconditions.checkArgument(maxIdle >= 0, "maxIdle value can not be negative");
+		Preconditions.checkArgument(minIdle >= 0, "minIdle value can not be negative");
 		this.connectionTimeout = connectionTimeout;
 		this.maxTotal = maxTotal;
 		this.maxIdle = maxIdle;

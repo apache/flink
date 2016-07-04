@@ -21,16 +21,16 @@ import org.apache.flink.util.Preconditions;
 import redis.clients.jedis.Protocol;
 
 /**
- * Configuration for Jedis Pool.
+ * Configuration for Jedis pool.
  */
 public class FlinkJedisPoolConfig extends FlinkJedisConfigBase {
 
 	private static final long serialVersionUID = 1L;
 
-	private String host;
-	private int port;
-	private int database;
-	private String password;
+	private final String host;
+	private final int port;
+	private final int database;
+	private final String password;
 
 
 	/**

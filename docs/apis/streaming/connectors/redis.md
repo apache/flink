@@ -36,9 +36,9 @@ following dependency to your project:
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
-Version Compatibility: This module is compatible with redis 2.8.5 .
+Version Compatibility: This module is compatible with Redis 2.8.5.
 
-Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+Note that the streaming connectors are currently not part of the binary distribution. You need to link them for cluster execution [explicitly]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 #### Installing Redis
 Follow the instructions from the [Redis download page](http://redis.io/download).
@@ -137,7 +137,7 @@ stream.addSink(new RedisSink[(String, String)](conf, new RedisExampleMapper))
 </div>
 </div>
 
-This section gives a description of all the available data types and what redis command used for that.
+This section gives a description of all the available data types and what Redis command used for that.
 
 <table class="table table-bordered" style="width: 75%">
     <thead>
@@ -149,16 +149,16 @@ This section gives a description of all the available data types and what redis 
       </thead>
       <tbody>
         <tr>
-            <td>HASH</td><td><a href="http://redis.io/commands/hset"> HSET</a></td><td>--NA--</td>
+            <td>HASH</td><td><a href="http://redis.io/commands/hset">HSET</a></td><td>--NA--</td>
         </tr>
         <tr>
             <td>LIST</td><td>
-                <a href="http://redis.io/commands/rpush"> RPUSH </a>,
-                <a href="http://redis.io/commands/lpush"> LPUSH </a>
+                <a href="http://redis.io/commands/rpush">RPUSH</a>, 
+                <a href="http://redis.io/commands/lpush">LPUSH</a>
             </td><td>--NA--</td>
         </tr>
         <tr>
-            <td>SET</td><td><a href="http://redis.io/commands/rpush"> SADD</a></td><td>--NA--</td>
+            <td>SET</td><td><a href="http://redis.io/commands/rpush">SADD</a></td><td>--NA--</td>
         </tr>
         <tr>
             <td>PUBSUB</td><td><a href="http://redis.io/commands/publish">PUBLISH</a></td><td>--NA--</td>

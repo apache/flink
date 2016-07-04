@@ -124,11 +124,6 @@ public class RedisSinkITCase extends RedisITCaseBase {
 		jedis.del(REDIS_ADDITIONAL_KEY);
 	}
 
-	@Test(expected=NullPointerException.class)
-	public void shouldThrowNullPointExceptionIfDataMapperIsNull(){
-		new RedisSink(new FlinkJedisClusterConfig.Builder().build(), null);
-	}
-
 	@After
 	public void tearDown(){
 		if(jedis != null){

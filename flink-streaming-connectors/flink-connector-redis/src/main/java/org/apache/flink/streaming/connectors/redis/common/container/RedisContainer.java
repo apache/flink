@@ -37,8 +37,8 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RedisContainer.class);
 
-	private JedisPool jedisPool;
-	private JedisSentinelPool jedisSentinelPool;
+	private final JedisPool jedisPool;
+	private final JedisSentinelPool jedisSentinelPool;
 
 
 	/**
@@ -49,6 +49,7 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	public RedisContainer(JedisPool jedisPool) {
 		Preconditions.checkNotNull(jedisPool, "Jedis Pool can not be null");
 		this.jedisPool = jedisPool;
+		this.jedisSentinelPool = null;
 	}
 
 	/**
@@ -58,6 +59,7 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	 */
 	public RedisContainer(final JedisSentinelPool sentinelPool) {
 		Preconditions.checkNotNull(sentinelPool, "Jedis Sentinel Pool can not be null");
+		this.jedisPool = null;
 		this.jedisSentinelPool = sentinelPool;
 	}
 
@@ -218,10 +220,8 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	private Jedis getInstance() {
 		if (jedisSentinelPool != null) {
 			return jedisSentinelPool.getResource();
-		} else if (jedisPool != null) {
-			return jedisPool.getResource();
 		} else {
-			throw new IllegalArgumentException("Jedis Pool not found");
+			return jedisPool.getResource();
 		}
 	}
 

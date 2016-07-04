@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * The container for all available Redis Commands.
+ * The container for all available Redis commands.
  */
 public interface RedisCommandsContainer extends Serializable {
 

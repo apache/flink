@@ -16,34 +16,34 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.config;
 
-import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import java.net.InetSocketAddress;
-import java.util.HashSet;
-import java.util.Set;
+public class FlinkJedisConfigBaseTest {
 
-public class JedisClusterConfigTest extends TestLogger {
-
-	@Test(expected = NullPointerException.class)
-	public void shouldThrowNullPointExceptionIfNodeValueIsNull(){
-		FlinkJedisClusterConfig.Builder builder = new FlinkJedisClusterConfig.Builder();
-		builder.setMinIdle(0)
-			.setMaxIdle(0)
-			.setMaxTotal(0)
-			.setTimeout(0)
-			.build();
+	@Test(expected = IllegalArgumentException.class)
+	public void shouldThrowIllegalArgumentExceptionIfTimeOutIsNegative(){
+		new TestConfig(-1, 0, 0, 0);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void shouldThrowIllegalArgumentExceptionIfNodeValuesAreEmpty(){
-		Set<InetSocketAddress> set = new HashSet<>();
-		FlinkJedisClusterConfig.Builder builder = new FlinkJedisClusterConfig.Builder();
-		builder.setMinIdle(0)
-			.setMaxIdle(0)
-			.setMaxTotal(0)
-			.setTimeout(0)
-			.setNodes(set)
-			.build();
+	public void shouldThrowIllegalArgumentExceptionIfMaxTotalIsNegative(){
+		new TestConfig(1, -1, 0, 0);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void shouldThrowIllegalArgumentExceptionIfMaxIdleIsNegative(){
+		new TestConfig(0, 0, -1, 0);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void shouldThrowIllegalArgumentExceptionIfMinIdleIsNegative(){
+		new TestConfig(0, 0, 0, -1);
+	}
+
+	private class TestConfig extends FlinkJedisConfigBase{
+
+		protected TestConfig(int connectionTimeout, int maxTotal, int maxIdle, int minIdle) {
+			super(connectionTimeout, maxTotal, maxIdle, minIdle);
+		}
 	}
 }

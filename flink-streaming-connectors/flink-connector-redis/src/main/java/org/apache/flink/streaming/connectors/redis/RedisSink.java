@@ -55,7 +55,7 @@ import java.io.IOException;
  *
  *	private RedisCommand redisCommand;
  *
- *	public RedisAdditionalDataMapper(RedisCommand redisCommand){
+ *	public RedisExampleMapper(RedisCommand redisCommand){
  *		this.redisCommand = redisCommand;
  *	}
  *	public RedisCommandDescription getCommandDescription() {
@@ -70,7 +70,7 @@ import java.io.IOException;
  *}
  *JedisPoolConfig jedisPoolConfig = new JedisPoolConfig.Builder()
  *    .setHost(REDIS_HOST).setPort(REDIS_PORT).build();
- *new RedisSink<String>(jedisPoolConfig, new RedisExampleDataMapper(RedisCommand.LPUSH));
+ *new RedisSink<String>(jedisPoolConfig, new RedisExampleMapper(RedisCommand.LPUSH));
  *}</pre>
  *
  * @param <IN> Type of the elements emitted by this sink
@@ -98,7 +98,7 @@ public class RedisSink<IN> extends RichSinkFunction<IN> {
 	private RedisCommandsContainer redisCommandsContainer;
 
 	/**
-	 * Creates a new {@link RedisSink} that connects to the Redis Server.
+	 * Creates a new {@link RedisSink} that connects to the Redis server.
 	 *
 	 * @param flinkJedisConfigBase The configuration of {@link FlinkJedisConfigBase}
 	 * @param redisSinkMapper This is used to generate Redis command and key value from incoming elements.
@@ -111,16 +111,16 @@ public class RedisSink<IN> extends RichSinkFunction<IN> {
 		this.flinkJedisConfigBase = flinkJedisConfigBase;
 
 		this.redisSinkMapper = redisSinkMapper;
-		RedisCommandDescription dataTypeDescription = redisSinkMapper.getCommandDescription();
-		this.redisCommand = dataTypeDescription.getCommand();
-		this.additionalKey = dataTypeDescription.getAdditionalKey();
+		RedisCommandDescription redisCommandDescription = redisSinkMapper.getCommandDescription();
+		this.redisCommand = redisCommandDescription.getCommand();
+		this.additionalKey = redisCommandDescription.getAdditionalKey();
 	}
 
 	/**
 	 * Called when new data arrives to the sink, and forwards it to Redis channel.
 	 * Depending on the specified Redis data type (see {@link RedisDataType}),
 	 * a different Redis command will be applied.
-	 * Available commands are RPUSH, LPUSH, SADD, PUBLISH, SET, PFADD, HSET and ZADD.
+	 * Available commands are RPUSH, LPUSH, SADD, PUBLISH, SET, PFADD, HSET, ZADD.
 	 *
 	 * @param input The incoming data
 	 */
@@ -166,18 +166,7 @@ public class RedisSink<IN> extends RichSinkFunction<IN> {
      */
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		if(flinkJedisConfigBase instanceof FlinkJedisPoolConfig){
-			FlinkJedisPoolConfig flinkJedisPoolConfig = (FlinkJedisPoolConfig) flinkJedisConfigBase;
-			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(flinkJedisPoolConfig);
-		} else if (flinkJedisConfigBase instanceof FlinkJedisClusterConfig) {
-			FlinkJedisClusterConfig flinkJedisClusterConfig = (FlinkJedisClusterConfig) flinkJedisConfigBase;
-			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(flinkJedisClusterConfig);
-		} else if (flinkJedisConfigBase instanceof FlinkJedisSentinelConfig) {
-			FlinkJedisSentinelConfig flinkJedisSentinelConfig = (FlinkJedisSentinelConfig) flinkJedisConfigBase;
-			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(flinkJedisSentinelConfig);
-		} else {
-			throw new IllegalArgumentException("Jedis configuration not found");
-		}
+		this.redisCommandsContainer = RedisCommandsContainerBuilder.build(this.flinkJedisConfigBase);
 	}
 
 	/**

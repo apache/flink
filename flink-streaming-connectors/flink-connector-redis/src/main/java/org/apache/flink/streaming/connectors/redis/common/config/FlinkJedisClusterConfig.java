@@ -27,13 +27,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Configuration for Jedis Cluster.
+ * Configuration for Jedis cluster.
  */
 public class FlinkJedisClusterConfig extends FlinkJedisConfigBase {
 	private static final long serialVersionUID = 1L;
 
-	private Set<InetSocketAddress> nodes;
-	private int maxRedirections;
+	private final Set<InetSocketAddress> nodes;
+	private final int maxRedirections;
 
 
 	/**
@@ -53,7 +53,8 @@ public class FlinkJedisClusterConfig extends FlinkJedisConfigBase {
 		super(connectionTimeout, maxTotal, maxIdle, minIdle);
 
 		Preconditions.checkNotNull(nodes, "Node information should be presented");
-		this.nodes = nodes;
+		Preconditions.checkArgument(!nodes.isEmpty(), "Redis cluster hosts should not be empty");
+		this.nodes = new HashSet<>(nodes);
 		this.maxRedirections = maxRedirections;
 	}
 

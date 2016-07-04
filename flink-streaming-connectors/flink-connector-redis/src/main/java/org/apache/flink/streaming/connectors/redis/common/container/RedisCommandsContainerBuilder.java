@@ -18,6 +18,7 @@ package org.apache.flink.streaming.connectors.redis.common.container;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisClusterConfig;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisConfigBase;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisSentinelConfig;
 import org.apache.flink.util.Preconditions;
@@ -29,6 +30,26 @@ import redis.clients.jedis.JedisSentinelPool;
  * The builder for {@link RedisCommandsContainer}.
  */
 public class RedisCommandsContainerBuilder {
+
+	/**
+	 * Initialize the {@link RedisCommandsContainer} based on the instance type.
+	 * @param flinkJedisConfigBase configuration base
+	 * @return @throws IllegalArgumentException if jedisPoolConfig, jedisClusterConfig and jedisSentinelConfig are all null
+     */
+	public static RedisCommandsContainer build(FlinkJedisConfigBase flinkJedisConfigBase){
+		if(flinkJedisConfigBase instanceof FlinkJedisPoolConfig){
+			FlinkJedisPoolConfig flinkJedisPoolConfig = (FlinkJedisPoolConfig) flinkJedisConfigBase;
+			return RedisCommandsContainerBuilder.build(flinkJedisPoolConfig);
+		} else if (flinkJedisConfigBase instanceof FlinkJedisClusterConfig) {
+			FlinkJedisClusterConfig flinkJedisClusterConfig = (FlinkJedisClusterConfig) flinkJedisConfigBase;
+			return RedisCommandsContainerBuilder.build(flinkJedisClusterConfig);
+		} else if (flinkJedisConfigBase instanceof FlinkJedisSentinelConfig) {
+			FlinkJedisSentinelConfig flinkJedisSentinelConfig = (FlinkJedisSentinelConfig) flinkJedisConfigBase;
+			return RedisCommandsContainerBuilder.build(flinkJedisSentinelConfig);
+		} else {
+			throw new IllegalArgumentException("Jedis configuration not found");
+		}
+	}
 
 	/**
 	 * Builds container for single Redis environment.

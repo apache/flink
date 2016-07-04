@@ -22,21 +22,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Protocol;
 
+import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Configuration for Jedis Sentinel Pool.
+ * Configuration for Jedis Sentinel pool.
  */
 public class FlinkJedisSentinelConfig extends FlinkJedisConfigBase {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkJedisSentinelConfig.class);
 
-	private String masterName;
-	private Set<String> sentinels;
-	private int soTimeout;
-	private String password;
-	private int database;
+	private final String masterName;
+	private final Set<String> sentinels;
+	private final int soTimeout;
+	private final String password;
+	private final int database;
 
 	/**
 	 * Jedis Sentinels config.
@@ -65,7 +66,7 @@ public class FlinkJedisSentinelConfig extends FlinkJedisConfigBase {
 		Preconditions.checkArgument(!sentinels.isEmpty(), "Sentinel hosts should not be empty");
 
 		this.masterName = masterName;
-		this.sentinels = sentinels;
+		this.sentinels = new HashSet<>(sentinels);
 		this.soTimeout = soTimeout;
 		this.password = password;
 		this.database = database;
@@ -87,15 +88,6 @@ public class FlinkJedisSentinelConfig extends FlinkJedisConfigBase {
 	 */
 	public Set<String> getSentinels() {
 		return sentinels;
-	}
-
-	/**
-	 * Returns timeout.
-	 *
-	 * @return connection timeout
-	 */
-	public int getConnectionTimeout() {
-		return connectionTimeout;
 	}
 
 	/**
