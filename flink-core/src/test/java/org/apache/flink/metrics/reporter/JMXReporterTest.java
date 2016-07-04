@@ -38,6 +38,7 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.lang.management.ManagementFactory;
 
+import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
 import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_REPORTER_CLASS;
 import static org.junit.Assert.assertEquals;
 
@@ -87,11 +88,11 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep1 = new JMXReporter();
 		JMXReporter rep2 = new JMXReporter();
 
-		Configuration cfg1 = new Configuration();
-		Configuration cfg2 = new Configuration();
+		Configuration config = new Configuration();
+		setJmxPortRange(config);
 
-		rep1.open(cfg1);
-		rep2.open(cfg2);
+		rep1.open(config);
+		rep2.open(config);
 
 		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
 			@Override
@@ -136,8 +137,11 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep1 = new JMXReporter();
 		JMXReporter rep2 = new JMXReporter();
 
-		rep1.open(new Configuration());
-		rep2.open(new Configuration());
+		Configuration config = new Configuration();
+		setJmxPortRange(config);
+
+		rep1.open(config);
+		rep2.open(config);
 
 		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
 			@Override
@@ -284,5 +288,24 @@ public class JMXReporterTest extends TestLogger {
 				}
 			};
 		}
+	}
+
+	/**
+	 * Sets the JMX port range config key based on the fork number.
+	 * @param config Configuration instance to configure
+	 * @return Passed configuration instance
+	 */
+	private static Configuration setJmxPortRange(Configuration config) {
+		int forkNumber = 0;
+		try {
+			forkNumber = Integer.parseInt(System.getProperty("forkNumber"));
+		} catch (NumberFormatException ignored) {
+		}
+
+		int minPort = 9000 + forkNumber * 100;
+		int maxPort = minPort + 25;
+
+		config.setString(KEY_METRICS_JMX_PORT, minPort + "-" + maxPort);
+		return config;
 	}
 }
