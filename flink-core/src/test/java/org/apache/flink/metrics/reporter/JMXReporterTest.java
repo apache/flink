@@ -38,6 +38,7 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.lang.management.ManagementFactory;
 
+import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
 import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_REPORTER_CLASS;
 import static org.junit.Assert.assertEquals;
 
@@ -88,10 +89,10 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep2 = new JMXReporter();
 
 		Configuration cfg1 = new Configuration();
-		Configuration cfg2 = new Configuration();
+		cfg1.setString(KEY_METRICS_JMX_PORT, "9020-9035");
 
 		rep1.open(cfg1);
-		rep2.open(cfg2);
+		rep2.open(cfg1);
 
 		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
 			@Override
@@ -136,8 +137,10 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep1 = new JMXReporter();
 		JMXReporter rep2 = new JMXReporter();
 
-		rep1.open(new Configuration());
-		rep2.open(new Configuration());
+		Configuration cfg1 = new Configuration();
+		cfg1.setString(KEY_METRICS_JMX_PORT, "9040-9055");
+		rep1.open(cfg1);
+		rep2.open(cfg1);
 
 		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
 			@Override
