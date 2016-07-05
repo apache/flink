@@ -129,7 +129,6 @@ public class FlinkKafkaProducer08<IN> extends FlinkKafkaProducerBase<IN>  {
 	protected void flush() {
 		// The Kafka 0.8 producer doesn't support flushing, we wait here
 		// until all pending records are confirmed
-		//noinspection SynchronizeOnNonFinalField
 		synchronized (pendingRecordsLock) {
 			while (pendingRecords > 0) {
 				try {
