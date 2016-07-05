@@ -38,29 +38,8 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_2.10</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_2.10</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-reflect</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-library</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-compiler</artifactId>
 		</dependency>
 
 		<dependency>
@@ -70,21 +49,49 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
 			<version>1.7.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-metrics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.protobuf</groupId>
+					<artifactId>protobuf-java</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpcore</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-dbcp</groupId>
+					<artifactId>commons-dbcp</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-		</dependency>
 
 		<!-- test dependencies -->
 
@@ -110,14 +117,6 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -126,7 +125,6 @@ under the License.
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
-				<version>3.1.4</version>
 				<executions>
 					<!-- Run scala compiler in the process-resources phase, so that dependencies on
 						scala classes can be resolved later in the (Java) compile phase -->
@@ -134,6 +132,7 @@ under the License.
 						<id>scala-compile-first</id>
 						<phase>process-resources</phase>
 						<goals>
+							<goal>add-source</goal>
 							<goal>compile</goal>
 						</goals>
 					</execution>
@@ -148,80 +147,52 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
-				<configuration>
-					<jvmArgs>
-						<jvmArg>-Xms128m</jvmArg>
-						<jvmArg>-Xmx512m</jvmArg>
-					</jvmArgs>
-					<compilerPlugins combine.children="append">
-						<compilerPlugin>
-							<groupId>org.scalamacros</groupId>
-							<artifactId>paradise_${scala.version}</artifactId>
-							<version>${scala.macros.version}</version>
-						</compilerPlugin>
-					</compilerPlugins>
-				</configuration>
 			</plugin>
 
-			<!-- Eclipse Integration -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.8</version>
-				<configuration>
-					<downloadSources>true</downloadSources>
-					<projectnatures>
-						<projectnature>org.scala-ide.sdt.core.scalanature</projectnature>
-						<projectnature>org.eclipse.jdt.core.javanature</projectnature>
-					</projectnatures>
-					<buildcommands>
-						<buildcommand>org.scala-ide.sdt.core.scalabuilder</buildcommand>
-					</buildcommands>
-					<classpathContainers>
-						<classpathContainer>org.scala-ide.sdt.launching.SCALA_CONTAINER</classpathContainer>
-						<classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
-					</classpathContainers>
-					<excludes>
-						<exclude>org.scala-lang:scala-library</exclude>
-						<exclude>org.scala-lang:scala-compiler</exclude>
-					</excludes>
-					<sourceIncludes>
-						<sourceInclude>**/*.scala</sourceInclude>
-						<sourceInclude>**/*.java</sourceInclude>
-					</sourceIncludes>
-				</configuration>
-			</plugin>
-
-			<!-- Adding scala source directories to build path -->
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
+				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
-					<!-- Add src/main/scala to eclipse build path -->
 					<execution>
-						<id>add-source</id>
-						<phase>generate-sources</phase>
-						<goals>
-							<goal>add-source</goal>
-						</goals>
+						<id>shade-flink</id>
 						<configuration>
-							<sources>
-								<source>src/main/scala</source>
-							</sources>
-						</configuration>
-					</execution>
-					<!-- Add src/test/scala to eclipse build path -->
-					<execution>
-						<id>add-test-source</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>add-test-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>src/test/scala</source>
-							</sources>
+							<filters>
+								<filter>
+									<excludes>
+									    	<exclude>org-apache-calcite-jdbc.properties</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>codegen/**</exclude>
+										<exclude>google/**</exclude>
+									</excludes>
+								 </filter>
+							</filters>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.apache.calcite:*</include>
+									<include>org.apache.calcite.avatica:*</include>
+									<include>net.hydromatic:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<!-- We currently don't relocate slf4j as we have "logger not found" 
+									warnings otherwise during runtime -->
+								<!--<relocation>
+									<pattern>org.slf4j</pattern>
+									<shadedPattern>org.apache.flink.shaded.calcite.org.slf4j</shadedPattern>
+								</relocation>-->
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.shaded.calcite.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.shaded.calcite.com.google</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.eigenbase</pattern>
+									<shadedPattern>org.apache.flink.shaded.calcite.org.eigenbase</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>
@@ -238,24 +209,5 @@ under the License.
 
 		</plugins>
 	</build>
-
-	<profiles>
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-				<property>
-					<!-- this is the default scala profile -->
-					<name>!scala-2.11</name>
-				</property>
-			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>org.scalamacros</groupId>
-					<artifactId>quasiquotes_${scala.binary.version}</artifactId>
-					<version>${scala.macros.version}</version>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
 
 </project>
