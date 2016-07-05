@@ -135,6 +135,17 @@ under the License.
 
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<!-- Netty 3.5.12.Final is needed by Flume, but for internal communication, so we are going with 3.8.0.Final -->
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty</artifactId>
+				<version>3.8.0.Final</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<build>
 		<plugins>
 			<plugin>

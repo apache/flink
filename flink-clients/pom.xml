@@ -79,6 +79,16 @@ under the License.
 		</dependency>
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty</artifactId>
+				<version>3.8.0.Final</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<!-- More information on this:
 		http://stackoverflow.com/questions/1401857/using-maven-to-build-separate-jar-files-for-unit-testing-a-custom-class-loader
 	 -->
