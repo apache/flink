@@ -153,7 +153,7 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 				updatesConfirmed.wait();
 			}
 		}
-		boolean success = updatesSent != updatesConfirmed.get();
+		boolean success = updatesSent == updatesConfirmed.get();
 		return success;
 	}
 }
