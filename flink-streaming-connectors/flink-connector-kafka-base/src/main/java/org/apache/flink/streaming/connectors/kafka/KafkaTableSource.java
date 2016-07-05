@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.sources.StreamTableSource;
 import org.apache.flink.api.table.typeutils.RowTypeInfo;
@@ -29,6 +28,8 @@ import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
+
+import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.toTypeInfo;
 
 /**
  * A version-agnostic Kafka {@link StreamTableSource}.
@@ -147,16 +148,4 @@ abstract class KafkaTableSource implements StreamTableSource<Row> {
 	protected DeserializationSchema<Row> getDeserializationSchema() {
 		return deserializationSchema;
 	}
-
-	/**
-	 * Creates TypeInformation array for an array of Classes.
-	 */
-	private static TypeInformation<?>[] toTypeInfo(Class<?>[] fieldTypes) {
-		TypeInformation<?>[] typeInfos = new TypeInformation[fieldTypes.length];
-		for (int i = 0; i < fieldTypes.length; i++) {
-			typeInfos[i] = TypeExtractor.getForClass(fieldTypes[i]);
-		}
-		return typeInfos;
-	}
-
 }
