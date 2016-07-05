@@ -273,7 +273,7 @@ data.reduce_group(Adder())
         or on a grouped data set.</p>
 {% highlight python %}
 # This code finds the sum of all of the values in the first field and the maximum of all of the values in the second field
-data.aggregate(Aggregation.Sum, 0).agg_and(Aggregation.Max, 1)
+data.aggregate(Aggregation.Sum, 0).and_agg(Aggregation.Max, 1)
 {% endhighlight %}
       </td>
     </tr>
