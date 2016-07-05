@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -60,7 +61,6 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <IN> Type of the messages to write into Kafka.
  */
-@SuppressWarnings("SynchronizeOnNonFinalField")
 public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> implements Checkpointed<Serializable> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducerBase.class);
@@ -112,7 +112,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	/**
 	 * If true, the producer will wait until all outstanding records have been send to the broker.
 	 */
-	private boolean flushOnCheckpoint = false;
+	private boolean flushOnCheckpoint;
 	
 	// -------------------------------- Runtime fields ------------------------------------------
 
@@ -121,19 +121,15 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	/** The callback than handles error propagation or logging callbacks */
 	protected transient Callback callback;
-	
+
 	/** Errors encountered in the async producer are stored here */
 	protected transient volatile Exception asyncException;
 
-	/**
-	 * Number of unacknowledged records.
-	 */
-	protected long pendingRecords = 0;
+	/** Lock for accessing the pending records */
+	protected final SerializableObject pendingRecordsLock = new SerializableObject();
 
-	/**
-	 * Lock for accessing the pending records
-	 */
-	protected transient Object pendingRecordsLock;
+	/** Number of unacknowledged records. */
+	protected long pendingRecords;
 
 
 	/**
@@ -233,10 +229,10 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		}
 
 		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into topic {}", 
-				ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), defaultTopicId);
+				ctx.getIndexOfThisSubtask() + 1, ctx.getNumberOfParallelSubtasks(), defaultTopicId);
 
 		// register Kafka metrics to Flink accumulators
-		if (!Boolean.valueOf(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
+		if (!Boolean.parseBoolean(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
 			Map<MetricName, ? extends Metric> metrics = this.producer.metrics();
 
 			if (metrics == null) {
@@ -257,9 +253,6 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		if (flushOnCheckpoint && !((StreamingRuntimeContext)this.getRuntimeContext()).isCheckpointingEnabled()) {
 			LOG.warn("Flushing on checkpoint is enabled, but checkpointing is not enabled. Disabling flushing.");
 			flushOnCheckpoint = false;
-		}
-		if (flushOnCheckpoint) {
-			pendingRecordsLock = new Object();
 		}
 
 		if (logFailuresOnly) {
@@ -332,14 +325,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //
 
 	private void acknowledgeMessage() {
-		if (!flushOnCheckpoint) {
-			// the logic is disabled
-			return;
-		}
-		synchronized (pendingRecordsLock) {
-			pendingRecords--;
-			if (pendingRecords == 0) {
-				pendingRecordsLock.notifyAll();
+		if (flushOnCheckpoint) {
+			synchronized (pendingRecordsLock) {
+				pendingRecords--;
+				if (pendingRecords == 0) {
+					pendingRecordsLock.notifyAll();
+				}
 			}
 		}
 	}
