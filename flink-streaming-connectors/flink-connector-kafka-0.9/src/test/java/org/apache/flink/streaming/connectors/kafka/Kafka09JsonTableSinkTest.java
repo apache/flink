@@ -15,28 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
+package org.apache.flink.streaming.connectors.kafka;
 
-/**
- * This is used for executing Table API operations. We use manually generated
- * TypeInfo to check the field types and create serializers and comparators.
- */
-class Row(arity: Int) extends Product {
+import org.junit.Test;
 
-  private val fields = new Array[Any](arity)
+public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
+	@Test
+	public void kafka09JsonTableSinkTest() throws Exception {
+		testKafkaTableSink();
+	}
 
-  def productArity = fields.length
-
-  def productElement(i: Int): Any = fields(i)
-
-  def setField(i: Int, value: Any): Unit = fields(i) = value
-
-  def getField(i: Int): Any = fields(i)
-
-  def getFieldNumber(): Int = fields.length
-
-  def canEqual(that: Any) = false
-
-  override def toString = fields.mkString(",")
-
+	@Override
+	protected KafkaTableSink createTableSink() {
+		return new Kafka09JsonTableSink(
+			TOPIC,
+			createSinkProperties(),
+			createPartitioner(),
+			FIELD_NAMES,
+			FIELD_TYPES);
+	}
 }

@@ -26,6 +26,8 @@ import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 
 import scala.collection.JavaConverters._
+import org.apache.flink.api.table.sinks.{TableSink, TableSinkBase}
+import org.apache.flink.api.table.typeutils.TypeConverter
 
 /**
   * A Table is the core component of the Table API.
@@ -590,7 +592,7 @@ class Table(
       .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
 
     // configure the table sink
-    val configuredSink = sink.configure(fieldNames, fieldTypes)
+    val configuredSink = sink.asInstanceOf[TableSinkBase[T]].configure(fieldNames, fieldTypes)
 
     // emit the table to the configured table sink
     tableEnv.writeToSink(this, configuredSink)
