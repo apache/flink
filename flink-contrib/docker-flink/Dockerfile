@@ -30,7 +30,8 @@ ARG HADOOP_VERSION=27
 ARG SCALA_VERSION=2.11
 
 # Install build dependencies and flink
-RUN apk --update add --virtual build-dependencies curl && \
+RUN set -x && \
+  apk --update add --virtual build-dependencies curl && \
   curl -s $(curl -s https://www.apache.org/dyn/closer.cgi\?as_json\=1 | \
   awk '/preferred/ {gsub(/"/,""); print $2}')flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | \
   tar xvz -C /usr/local/ && \
