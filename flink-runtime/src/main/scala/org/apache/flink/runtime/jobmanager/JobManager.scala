@@ -2027,7 +2027,7 @@ object JobManager {
       listeningPort: Int)
     : Unit = {
 
-    val (jobManagerSystem, _, _, _, _) = startActorSystemAndJobManagerActors(
+    val (jobManagerSystem, _, _, webMonitorOption, _) = startActorSystemAndJobManagerActors(
       configuration,
       executionMode,
       listeningAddress,
@@ -2039,6 +2039,16 @@ object JobManager {
 
     // block until everything is shut down
     jobManagerSystem.awaitTermination()
+
+    webMonitorOption.foreach{
+      webMonitor =>
+        try {
+          webMonitor.stop()
+        } catch {
+          case t =>
+            LOG.warn("Could not properly stop the web monitor.", t)
+        }
+    }
   }
 
   /**
