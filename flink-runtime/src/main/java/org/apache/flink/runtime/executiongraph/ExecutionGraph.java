@@ -914,12 +914,36 @@ public class ExecutionGraph implements Serializable {
 				transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
 
 				// if we have checkpointed state, reload it into the executions
+				long savePointCheckPointId = -1l, latestCheckpointId = -1l;
+				String savePointPath = null;
+				if(savepointCoordinator != null) {
+					savePointPath = savepointCoordinator.getSavepointRestorePath();
+					if(savePointPath != null) {
+						savePointCheckPointId = savepointCoordinator.getCheckpointId(savePointPath);
+					}
+				}
+				CompletedCheckpoint completedCheckpoint = null;
 				if (checkpointCoordinator != null) {
-					boolean restored = checkpointCoordinator
-							.restoreLatestCheckpointedState(getAllVertices(), false, false);
-
+					completedCheckpoint =
+						checkpointCoordinator.restoreLastCompletedCheckPoint();
+					if (completedCheckpoint != null) {
+						latestCheckpointId = completedCheckpoint.getCheckpointID();
+					}
+				}
+				if(latestCheckpointId != -1 && savePointCheckPointId != -1) {
+					if(latestCheckpointId <  savePointCheckPointId) {
+						// savepoint has got even more latest checkpoint
+						if (savepointCoordinator != null && savePointPath != null) {
+							savepointCoordinator.restoreSavepoint(getAllVertices(), savePointPath);
+						}
+					}
+				} else {
+					boolean restored = false;
+					if(completedCheckpoint != null) {
+						restored = checkpointCoordinator
+							.restoreLatestCheckpointedState(completedCheckpoint, getAllVertices(), false, false);
+					}
 					// TODO(uce) Temporary work around to restore initial state on
-					// failure during recovery. Will be superseded by FLINK-3397.
 					if (!restored && savepointCoordinator != null) {
 						String savepointPath = savepointCoordinator.getSavepointRestorePath();
 						if (savepointPath != null) {
@@ -927,6 +951,7 @@ public class ExecutionGraph implements Serializable {
 						}
 					}
 				}
+
 			}
 
 			scheduleForExecution(scheduler);

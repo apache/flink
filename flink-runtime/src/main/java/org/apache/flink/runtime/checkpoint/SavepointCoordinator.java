@@ -115,6 +115,13 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 		return savepointRestorePath;
 	}
 
+	public long getCheckpointId(String savePath) throws Exception {
+		return this.savepointStore.getState(savePath).getCheckpointID();
+	}
+
+	public long getCheckpointTimeStamp(String savePath) throws Exception {
+		return this.savepointStore.getState(savePath).getTimestamp();
+	}
 	// ------------------------------------------------------------------------
 	// Savepoint trigger and reset
 	// ------------------------------------------------------------------------
