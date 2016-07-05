@@ -21,9 +21,10 @@ import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisClust
 import org.apache.flink.streaming.connectors.redis.common.mapper.RedisCommand;
 import org.apache.flink.streaming.connectors.redis.common.mapper.RedisCommandDescription;
 import org.apache.flink.streaming.connectors.redis.common.mapper.RedisMapper;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-public class RedisSinkTest {
+public class RedisSinkTest extends TestLogger {
 
 	@Test(expected=NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfDataMapperIsNull(){
