@@ -51,7 +51,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	private boolean failOnMissingField;
 
 	/**
-	 * Creates a JSON deserializtion schema for the given fields and type classes.
+	 * Creates a JSON deserialization schema for the given fields and type classes.
 	 *
 	 * @param fieldNames Names of JSON fields to parse.
 	 * @param fieldTypes Type classes to parse JSON fields as.
@@ -69,7 +69,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	}
 
 	/**
-	 * Creates a JSON deserializtion schema for the given fields and types.
+	 * Creates a JSON deserialization schema for the given fields and types.
 	 *
 	 * @param fieldNames Names of JSON fields to parse.
 	 * @param fieldTypes Types to parse JSON fields as.
