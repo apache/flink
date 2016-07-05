@@ -31,6 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
+import org.apache.flink.types.IntValue;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -96,7 +97,7 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 
 	@Override
 	protected boolean sendValues(Iterable<IN> values, long timestamp) throws Exception {
-		int updatesSent = 0;
+		final IntValue updatesCount = new IntValue(0);
 		final AtomicInteger updatesConfirmed = new AtomicInteger(0);
 
 		final AtomicReference<Throwable> exception = new AtomicReference<>();
@@ -105,17 +106,28 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 			@Override
 			public void onSuccess(ResultSet resultSet) {
 				updatesConfirmed.incrementAndGet();
+				if (updatesCount.getValue() > 0) { // only set if all updates have been sent
+					if (updatesCount.getValue() == updatesConfirmed.get()) {
+						synchronized (updatesConfirmed) {
+							updatesConfirmed.notifyAll();
+						}
+					}
+				}
 			}
 
 			@Override
 			public void onFailure(Throwable throwable) {
 				if (exception.compareAndSet(null, throwable)) {
 					LOG.error("Error while sending value.", throwable);
+					synchronized (updatesConfirmed) {
+						updatesConfirmed.notifyAll();
+					}
 				}
 			}
 		};
 
 		//set values for prepared statement
+		int updatesSent = 0;
 		for (IN value : values) {
 			for (int x = 0; x < value.getArity(); x++) {
 				fields[x] = value.getField(x);
@@ -130,15 +142,16 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 				Futures.addCallback(result, callback);
 			}
 		}
-		try {
+		updatesCount.setValue(updatesSent);
+
+		synchronized (updatesConfirmed) {
 			while (updatesSent != updatesConfirmed.get()) {
 				if (exception.get() != null) { // verify that no query failed until now
 					LOG.warn("Sending a value failed.", exception.get());
 					break;
 				}
-				Thread.sleep(100);
+				updatesConfirmed.wait();
 			}
-		} catch (InterruptedException e) {
 		}
 		boolean success = updatesSent != updatesConfirmed.get();
 		return success;
