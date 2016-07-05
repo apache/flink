@@ -386,7 +386,12 @@ public class FsStateBackend extends AbstractStateBackend {
 			// try to grab the file system for this path/URI
 			FileSystem filesystem = FileSystem.get(checkpointDataUri);
 			if (filesystem == null) {
-				throw new IOException("Could not find a file system for the given scheme in the available configurations.");
+				String reason = "Could not find a file system for the given scheme in" +
+				"the available configurations.";
+				LOG.warn("Could not verify checkpoint path. This might be caused by a genuine " +
+						"problem or by the fact that the file system is not accessible from the " +
+						"client. Reason:{}", reason);
+				return new Path(checkpointDataUri);
 			}
 
 			URI fsURI = filesystem.getUri();
@@ -394,9 +399,14 @@ public class FsStateBackend extends AbstractStateBackend {
 				URI baseURI = new URI(fsURI.getScheme(), fsURI.getAuthority(), path, null, null);
 				return new Path(baseURI);
 			} catch (URISyntaxException e) {
-				throw new IOException(
-					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s",
-						checkpointDataUri, fsURI), e);
+				String reason = String.format(
+						"Cannot create file system URI for checkpointDataUri %s and filesystem URI %s: " + e.toString(),
+						checkpointDataUri,
+						fsURI);
+				LOG.warn("Could not verify checkpoint path. This might be caused by a genuine " +
+						"problem or by the fact that the file system is not accessible from the " +
+						"client. Reason: {}", reason);
+				return new Path(checkpointDataUri);
 			}
 		}
 	}
