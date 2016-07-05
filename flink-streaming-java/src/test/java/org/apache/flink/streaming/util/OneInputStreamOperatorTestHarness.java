@@ -145,6 +145,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		return mockTask.getCheckpointLock();
 	}
 
+	public Environment getEnvironment() {
+		return this.mockTask.getEnvironment();
+	}
+
 	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
 		ClosureCleaner.clean(keySelector, false);
 		config.setStatePartitioner(0, keySelector);
