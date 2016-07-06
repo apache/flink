@@ -562,7 +562,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			try {
 				yarnDescriptor = createDescriptor(null, cmd);
 			} catch (Exception e) {
-				System.err.println("Error while starting the YARN Client. Please check log output!");
+				System.err.println("Error while starting the YARN Client: " + e.getMessage());
+				e.printStackTrace(System.err);
 				return 1;
 			}
 
