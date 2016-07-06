@@ -25,8 +25,9 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import java.io.IOException;
@@ -46,7 +47,7 @@ import java.util.PriorityQueue;
 abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBasePatternOperator<IN, OUT> {
 	private static final long serialVersionUID = 7487334510746595640L;
 
-	private final StreamRecordSerializer<IN> streamRecordSerializer;
+	private final MultiplexingStreamRecordSerializer<IN> streamRecordSerializer;
 
 	// global nfa for all elements
 	private NFA<IN> nfa;
@@ -60,7 +61,7 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 			NFACompiler.NFAFactory<IN> nfaFactory) {
 		super(inputSerializer, isProcessingTime);
 
-		this.streamRecordSerializer = new StreamRecordSerializer<>(inputSerializer);
+		this.streamRecordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
 		this.nfa = nfaFactory.createNFA();
 	}
 
@@ -134,7 +135,8 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 		priorityQueue = new PriorityQueue<StreamRecord<IN>>(numberPriorityQueueEntries, new StreamRecordComparator<IN>());
 
 		for (int i = 0; i <numberPriorityQueueEntries; i++) {
-			priorityQueue.offer(streamRecordSerializer.deserialize(div));
+			StreamElement streamElement = streamRecordSerializer.deserialize(div);
+			priorityQueue.offer(streamElement.<IN>asRecord());
 		}
 
 		div.close();
