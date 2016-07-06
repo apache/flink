@@ -144,7 +144,7 @@ object AkkaUtils {
       ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS)
 
     val jvmExitOnFatalError = if (
-      configuration.getBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, false)){
+      configuration.getBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true)){
       "on"
     } else {
       "off"
