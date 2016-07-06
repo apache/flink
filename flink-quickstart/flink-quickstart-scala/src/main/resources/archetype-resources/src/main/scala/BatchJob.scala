@@ -32,10 +32,10 @@ import org.apache.flink.api.scala._
  *   mvn clean package
  * }}}
  * in the projects root directory. You will find the jar in
- * target/flink-quickstart-${version}.jar
+ * target/${artifactId}-${version}.jar
  * From the CLI you can then run
  * {{{
- *    ./bin/flink run -c ${package}.BatchJob target/flink-quickstart-${version}.jar
+ *    ./bin/flink run -c ${package}.BatchJob target/${artifactId}-${version}.jar
  * }}}
  *
  * For more information on the CLI see:
