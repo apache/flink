@@ -29,8 +29,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import java.io.IOException;
@@ -103,13 +103,17 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 						null));
 		}
 
+		@SuppressWarnings("unchecked,rawtypes")
+		TypeSerializer<StreamRecord<IN>> streamRecordSerializer =
+				(TypeSerializer) new MultiplexingStreamRecordSerializer<>(getInputSerializer());
+
 		if (priorityQueueOperatorState == null) {
 			priorityQueueOperatorState = getPartitionedState(
-					new ValueStateDescriptor<PriorityQueue<StreamRecord<IN>>>(
+					new ValueStateDescriptor<>(
 						PRIORIRY_QUEUE_STATE_NAME,
-						new PriorityQueueSerializer<StreamRecord<IN>>(
-							new StreamRecordSerializer<IN>(getInputSerializer()),
-							new PriorityQueueStreamRecordFactory<IN>()),
+						new PriorityQueueSerializer<>(
+								streamRecordSerializer,
+								new PriorityQueueStreamRecordFactory<IN>()),
 						null));
 		}
 	}
