@@ -35,7 +35,7 @@ import org.apache.flink.api.scala._
  * target/flink-quickstart-${version}.jar
  * From the CLI you can then run
  * {{{
- *    ./bin/flink run -c ${package}.BatchJob target/flink-quickstart-${version}.jar
+ *    ./bin/flink run -c ${package}.BatchJob target/${artifactId}-${version}.jar
  * }}}
  *
  * For more information on the CLI see:
