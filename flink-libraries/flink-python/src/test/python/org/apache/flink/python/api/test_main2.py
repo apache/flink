@@ -48,6 +48,15 @@ if __name__ == "__main__":
         .aggregate(Sum, 0).and_agg(Min, 1).and_agg(Max, 2) \
         .map_partition(Verify([(4.4 + 4.3 + 4.2 + 4.1, 4.1, 3)], "Ungrouped Aggregate")).output()
 
+    #Aggregate syntactic sugar functions
+    d4 \
+        .group_by(2).sum(0).and_agg(Max, 1).and_agg(Min, 3) \
+        .map_partition(Verify([(3, 0.5, "hello", False), (2, 0.4, "world", False)], "Grouped Aggregate")).output()
+
+    d5 \
+        .sum(0).and_agg(Min, 1).and_agg(Max, 2) \
+        .map_partition(Verify([(4.4 + 4.3 + 4.2 + 4.1, 4.1, 3)], "Ungrouped Aggregate")).output()
+
     #Join
     class Join(JoinFunction):
         def join(self, value1, value2):

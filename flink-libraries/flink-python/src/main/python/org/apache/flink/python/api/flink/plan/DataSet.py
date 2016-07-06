@@ -18,7 +18,7 @@
 import copy
 import types as TYPES
 
-from flink.functions.Aggregation import AggregationFunction
+from flink.functions.Aggregation import AggregationFunction, Min, Max, Sum
 from flink.plan.Constants import _Identifier, WriteMode, _createKeyValueTypeInfo, _createArrayTypeInfo
 from flink.plan.OperationInfo import OperationInfo
 from flink.functions.CoGroupFunction import CoGroupFunction
@@ -210,6 +210,30 @@ class DataSet(object):
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
+
+    def min(self, field):
+        """
+        Syntactic sugar for the minimum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated DataSet.
+        """
+        return self.aggregate(Min, field)
+
+    def max(self, field):
+        """
+        Syntactic sugar for the maximum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated DataSet.
+        """
+        return self.aggregate(Max, field)
+
+    def sum(self, field):
+        """
+        Syntactic sugar for the sum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated DataSet.
+        """
+        return self.aggregate(Sum, field)
 
     def project(self, *fields):
         """
@@ -740,6 +764,30 @@ class UnsortedGrouping(Grouping):
         self._env._sets.append(child)
         self._info.children.append(child)
         return child_set
+
+    def min(self, field):
+        """
+        Syntactic sugar for the minimum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated UnsortedGrouping.
+        """
+        return self.aggregate(Min, field)
+
+    def max(self, field):
+        """
+        Syntactic sugar for the maximum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated UnsortedGrouping.
+        """
+        return self.aggregate(Max, field)
+
+    def sum(self, field):
+        """
+        Syntactic sugar for the sum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated UnsortedGrouping.
+        """
+        return self.aggregate(Sum, field)
 
     def _finalize(self):
         grouping = self._child_chain[0]

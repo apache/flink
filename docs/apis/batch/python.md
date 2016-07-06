@@ -274,6 +274,9 @@ data.reduce_group(Adder())
 {% highlight python %}
 # This code finds the sum of all of the values in the first field and the maximum of all of the values in the second field
 data.aggregate(Aggregation.Sum, 0).and_agg(Aggregation.Max, 1)
+
+# min(), max(), and sum() syntactic sugar functions are also available
+data.sum(0).and_agg(Aggregation.Max, 1)
 {% endhighlight %}
       </td>
     </tr>
