@@ -143,8 +143,10 @@ public class CassandraConnectorUnitTest {
 		};
 		t.start();
 
-
-		while (t.getState() != Thread.State.WAITING) {
+		int count = 0;
+		while (t.getState() != Thread.State.WAITING && count < 100) { // 10 second timeout 10 * 10 * 100ms
+			Thread.sleep(100);
+			count++;
 		}
 
 		callback.get().run();
