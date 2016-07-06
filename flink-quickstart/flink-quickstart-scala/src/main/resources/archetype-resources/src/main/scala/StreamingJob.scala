@@ -18,7 +18,7 @@ package ${package}
  * limitations under the License.
  */
 
-import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala._
 
 /**
  * Skeleton for a Flink Streaming Job.
