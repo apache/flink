@@ -71,6 +71,8 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 		this.address = new InetSocketAddress(host, port);
 
+		LOG.info("Starting StatsDReporter to send metric reports to " + address);
+
 //		String conversionRate = config.getString(ARG_CONVERSION_RATE, "SECONDS");
 //		String conversionDuration = config.getString(ARG_CONVERSION_DURATION, "MILLISECONDS");
 //		this.rateFactor = TimeUnit.valueOf(conversionRate).toSeconds(1);
@@ -121,6 +123,33 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 			// ignore - may happen when metrics are concurrently added or removed
 			// report next time
 		}
+	}
+
+	@Override
+	protected String replaceInvalidChars(String metricName) {
+		char[] chars = null;
+		final int strLen = metricName.length();
+		int pos = 0;
+
+		for (int i = 0; i < strLen; i++) {
+			final char c = metricName.charAt(i);
+			switch (c) {
+				case ':':
+					if (chars == null) {
+						chars = metricName.toCharArray();
+					}
+					chars[pos++] = '-';
+					break;
+
+				default:
+					if (chars != null) {
+						chars[pos] = c;
+					}
+					pos++;
+			}
+		}
+
+		return chars == null ? metricName : new String(chars, 0, pos);
 	}
 
 	// ------------------------------------------------------------------------
