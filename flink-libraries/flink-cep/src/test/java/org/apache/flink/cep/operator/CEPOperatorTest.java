@@ -27,19 +27,27 @@ import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 import static org.junit.Assert.*;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class CEPOperatorTest extends TestLogger {
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Test
 	public void testCEPOperatorWatermarkForwarding() throws Exception {
@@ -186,10 +194,9 @@ public class CEPOperatorTest extends TestLogger {
 		harness.close();
 	}
 
-
-
 	@Test
 	public void testKeyedCEPOperatorCheckpointing() throws Exception {
+
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
 
@@ -253,6 +260,118 @@ public class CEPOperatorTest extends TestLogger {
 						IntSerializer.INSTANCE,
 						new NFAFactory()));
 
+		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
+		harness.setup();
+		harness.restore(snapshot2, 2);
+		harness.open();
+
+		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
+		harness.processElement(new StreamRecord<Event>(new Event(42, "start", 1.0), 4));
+		harness.processElement(new StreamRecord<Event>(endEvent, 5));
+
+		harness.processWatermark(new Watermark(Long.MAX_VALUE));
+
+		ConcurrentLinkedQueue<Object> result = harness.getOutput();
+
+		// watermark and the result
+		assertEquals(2, result.size());
+
+		Object resultObject = result.poll();
+		assertTrue(resultObject instanceof StreamRecord);
+		StreamRecord<?> resultRecord = (StreamRecord<?>) resultObject;
+		assertTrue(resultRecord.getValue() instanceof Map);
+
+		@SuppressWarnings("unchecked")
+		Map<String, Event> patternMap = (Map<String, Event>) resultRecord.getValue();
+
+		assertEquals(startEvent, patternMap.get("start"));
+		assertEquals(middleEvent, patternMap.get("middle"));
+		assertEquals(endEvent, patternMap.get("end"));
+
+		harness.close();
+	}
+
+	@Test
+	public void testKeyedCEPOperatorCheckpointingWithRocksDB() throws Exception {
+
+		String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
+		String rocksDbBackups = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDBStateBackend =
+				new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+
+		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
+			private static final long serialVersionUID = -4873366487571254798L;
+
+			@Override
+			public Integer getKey(Event value) throws Exception {
+				return value.getId();
+			}
+		};
+
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
+				new KeyedCEPPatternOperator<>(
+						Event.createTypeSerializer(),
+						false,
+						keySelector,
+						IntSerializer.INSTANCE,
+						new NFAFactory()));
+
+		harness.setStateBackend(rocksDBStateBackend);
+		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
+
+		harness.open();
+
+		Event startEvent = new Event(42, "start", 1.0);
+		SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
+		Event endEvent=  new Event(42, "end", 1.0);
+
+		harness.processElement(new StreamRecord<Event>(startEvent, 1));
+		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
+
+		// simulate snapshot/restore with some elements in internal sorting queue
+		StreamTaskState snapshot = harness.snapshot(0, 0);
+
+		harness = new OneInputStreamOperatorTestHarness<>(
+				new KeyedCEPPatternOperator<>(
+						Event.createTypeSerializer(),
+						false,
+						keySelector,
+						IntSerializer.INSTANCE,
+						new NFAFactory()));
+
+		rocksDBStateBackend =
+				new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+		harness.setStateBackend(rocksDBStateBackend);
+		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
+		harness.setup();
+		harness.restore(snapshot, 1);
+		harness.open();
+
+		harness.processWatermark(new Watermark(Long.MIN_VALUE));
+
+		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
+
+		// if element timestamps are not correctly checkpointed/restored this will lead to
+		// a pruning time underflow exception in NFA
+		harness.processWatermark(new Watermark(2));
+
+		// simulate snapshot/restore with empty element queue but NFA state
+		StreamTaskState snapshot2 = harness.snapshot(1, 1);
+
+		harness = new OneInputStreamOperatorTestHarness<>(
+				new KeyedCEPPatternOperator<>(
+						Event.createTypeSerializer(),
+						false,
+						keySelector,
+						IntSerializer.INSTANCE,
+						new NFAFactory()));
+
+		rocksDBStateBackend =
+				new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+		harness.setStateBackend(rocksDBStateBackend);
 		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
 		harness.setup();
 		harness.restore(snapshot2, 2);
