@@ -132,6 +132,11 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	}
 
 	@Override
+	protected void updateNFA(NFA<IN> nfa) throws IOException {
+		nfaOperatorState.update(nfa);
+	}
+
+	@Override
 	protected PriorityQueue<StreamRecord<IN>> getPriorityQueue() throws IOException {
 		PriorityQueue<StreamRecord<IN>> priorityQueue = priorityQueueOperatorState.value();
 
@@ -142,6 +147,11 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 		}
 
 		return priorityQueue;
+	}
+
+	@Override
+	protected void updatePriorityQueue(PriorityQueue<StreamRecord<IN>> queue) throws IOException {
+		priorityQueueOperatorState.update(queue);
 	}
 
 	@Override
@@ -158,7 +168,6 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 			setKeyContext(key);
 
 			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
-
 			NFA<IN> nfa = getNFA();
 
 			while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
@@ -166,6 +175,8 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 				processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
 			}
+			updateNFA(nfa);
+			updatePriorityQueue(priorityQueue);
 		}
 
 		output.emitWatermark(mark);
@@ -335,6 +346,16 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 		@Override
 		public PriorityQueue<StreamRecord<T>> createPriorityQueue() {
 			return new PriorityQueue<StreamRecord<T>>(INITIAL_PRIORITY_QUEUE_CAPACITY, new StreamRecordComparator<T>());
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof PriorityQueueStreamRecordFactory;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
 		}
 	}
 }

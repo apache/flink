@@ -78,8 +78,18 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 	}
 
 	@Override
+	protected void updateNFA(NFA<IN> nfa) {
+		// a no-op, because we only have one NFA
+	}
+
+	@Override
 	protected PriorityQueue<StreamRecord<IN>> getPriorityQueue() throws IOException {
 		return priorityQueue;
+	}
+
+	@Override
+	protected void updatePriorityQueue(PriorityQueue<StreamRecord<IN>> queue) {
+		// a no-op, because we only have one priority queue
 	}
 
 	@Override
