@@ -156,6 +156,8 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 	@Override
 	public void close() {
 		super.close();
+		ioMetrics.close();
+
 		parent.removeTaskMetricGroup(executionId);
 	}
 
