@@ -25,6 +25,7 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
 import java.nio.ByteBuffer;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -139,6 +140,7 @@ public class FakeKinesisBehavioursFactory {
 					new Record()
 						.withData(ByteBuffer.wrap(String.valueOf(i).getBytes()))
 						.withPartitionKey(UUID.randomUUID().toString())
+						.withApproximateArrivalTimestamp(new Date(System.currentTimeMillis()))
 						.withSequenceNumber(String.valueOf(i)));
 			}
 			return batch;

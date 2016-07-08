@@ -74,7 +74,7 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 	}
 
 	@Override
-	protected void emitRecordAndUpdateState(String record, int shardStateIndex, SequenceNumber lastSequenceNumber) {
+	protected void emitRecordAndUpdateState(String record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (fakeCheckpointLock) {
 			this.numElementsCollected++;
 			updateState(shardStateIndex, lastSequenceNumber);
