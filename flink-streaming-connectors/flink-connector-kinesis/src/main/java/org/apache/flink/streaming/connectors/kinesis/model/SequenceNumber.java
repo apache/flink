@@ -57,7 +57,7 @@ public class SequenceNumber implements Serializable {
 		this.sequenceNumber = checkNotNull(sequenceNumber);
 		this.subSequenceNumber = subSequenceNumber;
 
-		this.cachedHash = 37 * (sequenceNumber.hashCode() + Long.hashCode(subSequenceNumber));
+		this.cachedHash = 37 * (sequenceNumber.hashCode() + Long.valueOf(subSequenceNumber).hashCode());
 	}
 
 	public boolean isAggregated() {
