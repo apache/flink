@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.net.*;
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 
@@ -109,7 +110,7 @@ public class TaskManagerConfigurationTest {
 	@Test
 	public void testDefaultFsParameterLoading() {
 		final File tmpDir = getTmpDir();
-		final File confFile =  new File(tmpDir.getAbsolutePath() + File.separator + CommonTestUtils.getRandomDirectoryName() + ".yaml");
+		final File confFile =  new File(tmpDir, UUID.randomUUID().toString() + ".yaml");
 
 		try {
 			final URI defaultFS = new URI("otherFS", null, "localhost", 1234, null, null, null);
@@ -146,13 +147,7 @@ public class TaskManagerConfigurationTest {
 		try {
 			InetAddress localhostAddress = InetAddress.getByName(hostname);
 			server = new ServerSocket(0, 50, localhostAddress);
-		}
-		catch (UnknownHostException e) {
-			// may happen if disconnected. skip test.
-			System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
-			return;
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			// may happen in certain test setups, skip test.
 			System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
 			return;
@@ -181,10 +176,8 @@ public class TaskManagerConfigurationTest {
 	}
 
 	private File getTmpDir() {
-		File tmpDir = new File(CommonTestUtils.getTempDir() + File.separator
-			+ CommonTestUtils.getRandomDirectoryName() + File.separator);
-		tmpDir.mkdirs();
-
+		File tmpDir = new File(CommonTestUtils.getTempDir(), UUID.randomUUID().toString());
+		assertTrue("could not create temp directory", tmpDir.mkdirs());
 		return tmpDir;
 	}
 }

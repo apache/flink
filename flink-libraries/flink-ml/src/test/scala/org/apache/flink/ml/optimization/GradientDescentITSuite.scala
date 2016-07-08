@@ -21,10 +21,10 @@ package org.apache.flink.ml.optimization
 import org.apache.flink.ml.common.{LabeledVector, WeightVector}
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.regression.RegressionData._
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{Matchers, FlatSpec}
 
 import org.apache.flink.api.scala._
-import org.apache.flink.test.util.FlinkTestBase
 
 
 class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {

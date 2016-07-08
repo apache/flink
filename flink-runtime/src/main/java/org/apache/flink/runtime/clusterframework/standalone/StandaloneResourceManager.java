@@ -59,11 +59,6 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	}
 
 	@Override
-	protected void leaderUpdated() {
-		// nothing to update
-	}
-
-	@Override
 	protected void shutdownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) {
 	}
 

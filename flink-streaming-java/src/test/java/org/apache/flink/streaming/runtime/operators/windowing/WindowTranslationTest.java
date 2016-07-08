@@ -44,8 +44,8 @@ import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -58,7 +58,8 @@ import static org.junit.Assert.fail;
  * {@link WindowedStream} instantiate
  * the correct window operator.
  */
-public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
+@SuppressWarnings("serial")
+public class WindowTranslationTest {
 
 	/**
 	 * .reduce() does not support RichReduceFunction, since the reduce function is used internally
@@ -262,8 +263,6 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		fail("The fold call should fail.");
-
-		env.execute();
 	}
 
 	@Test
@@ -317,8 +316,6 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		fail("The trigger call should fail.");
-
-		env.execute();
 	}
 
 

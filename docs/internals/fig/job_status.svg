@@ -38,13 +38,57 @@ under the License.
   <defs
      id="defs4">
     <marker
+       inkscape:stockid="Arrow2Mstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Mstart"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path4577"
+         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round;stroke:#000000;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(0.6) translate(0,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Mstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Mstart"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path4559"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.4) translate(10,0)" />
+    </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker4407"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Mend">
+      <path
+         transform="scale(-0.6,-0.6)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.625;stroke-linejoin:round;stroke-opacity:1"
+         id="path4409"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
        inkscape:stockid="Arrow2Mend"
        orient="auto"
        refY="0"
        refX="0"
        id="marker4534"
        style="overflow:visible"
-       inkscape:isstock="true">
+       inkscape:isstock="true"
+       inkscape:collect="always">
       <path
          inkscape:connector-curvature="0"
          id="path4536"
@@ -361,16 +405,16 @@ under the License.
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.4"
-     inkscape:cx="584.30425"
-     inkscape:cy="378.45547"
+     inkscape:cx="366.44711"
+     inkscape:cy="435.59833"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
-     inkscape:window-width="2134"
-     inkscape:window-height="1377"
-     inkscape:window-x="1533"
-     inkscape:window-y="16"
-     inkscape:window-maximized="0">
+     inkscape:window-width="1402"
+     inkscape:window-height="855"
+     inkscape:window-x="38"
+     inkscape:window-y="1"
+     inkscape:window-maximized="1">
     <inkscape:grid
        type="xygrid"
        id="grid4136" />
@@ -392,6 +436,12 @@ under the License.
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(0,-272.83465)">
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-start:url(#Arrow2Mstart);marker-end:url(#marker4407)"
+       d="M 369.28571,490.93361 C 340,572.36218 330,712.36218 340.71429,802.36218"
+       id="path3473"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
     <g
        id="g4324"
        transform="translate(-30.285714,162.34191)">
@@ -738,26 +788,26 @@ under the License.
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="264"
-       y="578.36218"
+       x="219"
+       y="606.93359"
        id="text5227"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan5229"
-         x="264"
-         y="578.36218"
+         x="219"
+         y="606.93359"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">Fail job</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="218"
-       y="728.36218"
+       x="156.57143"
+       y="764.07648"
        id="text5565"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan5567"
-         x="218"
-         y="728.36218"
+         x="156.57143"
+         y="764.07648"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start">Cancel job</tspan></text>
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker5892)"
@@ -770,7 +820,7 @@ under the License.
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6174)"
-       d="M 385.20445,485.78223 C 940,652.36221 835.65722,822.42397 665.47877,968.49491"
+       d="M 419.49016,485.78223 C 974.28571,652.36221 835.65722,822.42397 665.47877,968.49491"
        id="path5571"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -779,7 +829,7 @@ under the License.
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6280)"
-       d="m 378.71359,670.32685 c 466.9675,42.03536 386.85357,182.13109 263.2627,288.16806"
+       d="m 413.71359,666.04114 c 466.9675,42.03536 351.85357,186.4168 228.2627,292.45377"
        id="path5573"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -813,20 +863,22 @@ under the License.
        inkscape:connection-end="#g4324" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6510)"
-       d="m 362.07679,625.15283 10.26054,-139.3706"
+       d="m 400.64822,624.43854 c 14.16495,-34.7353 13.47368,-78.92413 6.68911,-136.51345"
        id="path5585"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
-       inkscape:connection-start="#g4286"
-       inkscape:connection-end="#g4276" />
+       sodipodi:nodetypes="cc"
+       inkscape:connection-end="#g4276"
+       inkscape:connection-start="#g4286" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker6634)"
-       d="M 356.36117,670.32685 334.17842,805.99316"
+       d="m 394.21832,671.04114 c 18.43152,58.30256 7.7951,100.67644 -12.18276,132.80916"
        id="path5587"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
        inkscape:connection-start="#g4286"
-       inkscape:connection-end="#g4416" />
+       inkscape:connection-end="#g4416"
+       sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#marker7718)"
        d="M 194.71429,444.79077 C 295.26058,393.86555 426.46327,380.03465 584,438.3622"
@@ -896,13 +948,13 @@ under the License.
     <text
        sodipodi:linespacing="125%"
        id="text8186"
-       y="741.93359"
-       x="353"
+       y="752.64789"
+       x="409.42856"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
-         y="741.93359"
-         x="353"
+         y="752.64789"
+         x="409.42856"
          id="tspan8188"
          sodipodi:role="line">Cancel job</tspan></text>
     <text
@@ -954,13 +1006,13 @@ under the License.
     <text
        sodipodi:linespacing="125%"
        id="text8206"
-       y="574.07654"
-       x="374"
+       y="566.93372"
+       x="418.28571"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
-         y="574.07654"
-         x="374"
+         y="566.93372"
+         x="418.28571"
          id="tspan8208"
          sodipodi:role="line">Fail job</tspan></text>
     <path
@@ -969,5 +1021,29 @@ under the License.
        id="path3470"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:25px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="250.71428"
+       y="710.93359"
+       id="text7267"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan7269"
+         x="250.71428"
+         y="710.93359"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;font-family:Sans-serif;-inkscape-font-specification:Sans-serif">Cancel job</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text7271"
+       y="565.505"
+       x="293.28571"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:start;writing-mode:lr-tb;text-anchor:start"
+         y="565.505"
+         x="293.28571"
+         id="tspan7273"
+         sodipodi:role="line">Fail job</tspan></text>
   </g>
 </svg>

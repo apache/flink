@@ -137,9 +137,9 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 
-		Deadline deadline = new FiniteDuration(3, TimeUnit.MINUTES).fromNow();
+		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 
-		int num = 25;
+		int num = 20;
 
 		ZooKeeperLeaderElectionService[] leaderElectionService = new ZooKeeperLeaderElectionService[num];
 		TestingContender[] contenders = new TestingContender[num];

@@ -24,7 +24,7 @@ import org.apache.calcite.rel.core.JoinRelType._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
@@ -40,23 +40,19 @@ object TypeConverter {
 
   def typeInfoToSqlType(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
     case BOOLEAN_TYPE_INFO => BOOLEAN
-    case BOOLEAN_VALUE_TYPE_INFO => BOOLEAN
     case BYTE_TYPE_INFO => TINYINT
-    case BYTE_VALUE_TYPE_INFO => TINYINT
     case SHORT_TYPE_INFO => SMALLINT
-    case SHORT_VALUE_TYPE_INFO => SMALLINT
     case INT_TYPE_INFO => INTEGER
-    case INT_VALUE_TYPE_INFO => INTEGER
     case LONG_TYPE_INFO => BIGINT
-    case LONG_VALUE_TYPE_INFO => BIGINT
     case FLOAT_TYPE_INFO => FLOAT
-    case FLOAT_VALUE_TYPE_INFO => FLOAT
     case DOUBLE_TYPE_INFO => DOUBLE
-    case DOUBLE_VALUE_TYPE_INFO => DOUBLE
     case STRING_TYPE_INFO => VARCHAR
-    case STRING_VALUE_TYPE_INFO => VARCHAR
-    case DATE_TYPE_INFO => DATE
     case BIG_DEC_TYPE_INFO => DECIMAL
+
+    // date/time types
+    case SqlTimeTypeInfo.DATE => DATE
+    case SqlTimeTypeInfo.TIME => TIME
+    case SqlTimeTypeInfo.TIMESTAMP => TIMESTAMP
 
     case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
       throw new TableException("Character type is not supported.")
@@ -74,8 +70,14 @@ object TypeConverter {
     case FLOAT => FLOAT_TYPE_INFO
     case DOUBLE => DOUBLE_TYPE_INFO
     case VARCHAR | CHAR => STRING_TYPE_INFO
-    case DATE => DATE_TYPE_INFO
     case DECIMAL => BIG_DEC_TYPE_INFO
+
+    // date/time types
+    case DATE => SqlTimeTypeInfo.DATE
+    case TIME => SqlTimeTypeInfo.TIME
+    case TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
+    case INTERVAL_DAY_TIME | INTERVAL_YEAR_MONTH =>
+      throw new TableException("Intervals are not supported yet.")
 
     case NULL =>
       throw new TableException("Type NULL is not supported. " +
@@ -86,7 +88,7 @@ object TypeConverter {
     case SYMBOL => INT_TYPE_INFO
 
     case _ =>
-      throw new TableException("Type " + sqlType.toString + "is not supported")
+      throw new TableException("Type " + sqlType.toString + " is not supported.")
   }
 
   /**

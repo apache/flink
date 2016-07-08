@@ -113,7 +113,6 @@ public class CliFrontend {
 	private static final String ACTION_SAVEPOINT = "savepoint";
 
 	// config dir parameters
-	private static final String ENV_CONFIG_DIRECTORY = "FLINK_CONF_DIR";
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
 
@@ -153,8 +152,7 @@ public class CliFrontend {
 		// load the configuration
 		LOG.info("Trying to load configuration file");
 		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-		System.setProperty(ENV_CONFIG_DIRECTORY, configDirectory.getAbsolutePath());
-
+		System.setProperty(ConfigConstants.ENV_FLINK_CONF_DIR, configDirectory.getAbsolutePath());
 		this.config = GlobalConfiguration.getConfiguration();
 
 		try {
@@ -234,7 +232,7 @@ public class CliFrontend {
 		ClusterClient client = null;
 		try {
 
-			client = getClient(options, program.getMainClassName());
+			client = createClient(options, program.getMainClassName());
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			client.setDetached(options.getDetachedMode());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
@@ -616,7 +614,7 @@ public class CliFrontend {
 
 		// evaluate help flag
 		if (options.isPrintHelp()) {
-			CliFrontendParser.printHelpForCancel();
+			CliFrontendParser.printHelpForSavepoint();
 			return 0;
 		}
 
@@ -810,7 +808,7 @@ public class CliFrontend {
 		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
 		try {
 			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
-			LOG.info("Using address {} to connect to JobManager.", client.getJobManagerAddressFromConfig());
+			logAndSysout("Using address " + client.getJobManagerAddressFromConfig() + " to connect to JobManager.");
 			return client;
 		} catch (Exception e) {
 			LOG.error("Couldn't retrieve {} cluster.", customCLI.getId(), e);
@@ -827,6 +825,7 @@ public class CliFrontend {
 	 * @throws Exception
 	 */
 	protected ActorGateway getJobManagerGateway(CommandLineOptions options) throws Exception {
+		logAndSysout("Retrieving JobManager.");
 		return retrieveClient(options).getJobManagerGateway();
 	}
 
@@ -836,7 +835,7 @@ public class CliFrontend {
 	 * @param programName Program name
 	 * @throws Exception
 	 */
-	protected ClusterClient getClient(
+	protected ClusterClient createClient(
 			CommandLineOptions options,
 			String programName) throws Exception {
 
@@ -846,12 +845,12 @@ public class CliFrontend {
 		ClusterClient client;
 		try {
 			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
-			logAndSysout("Cluster retrieved");
+			logAndSysout("Cluster retrieved: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
 				String applicationName = "Flink Application: " + programName;
 				client = activeCommandLine.createCluster(applicationName, options.getCommandLine(), config);
-				logAndSysout("Cluster started");
+				logAndSysout("Cluster started: " + client.getClusterIdentifier());
 			} catch (UnsupportedOperationException e2) {
 				throw new IllegalConfigurationException(
 					"The JobManager address is neither provided at the command-line, " +
@@ -859,7 +858,9 @@ public class CliFrontend {
 			}
 		}
 
-		logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
+		// Avoid resolving the JobManager Gateway here to prevent blocking until we invoke the user's program.
+		final InetSocketAddress jobManagerAddress = client.getJobManagerAddressFromConfig();
+		logAndSysout("Using address " + jobManagerAddress.getHostString() + ":" + jobManagerAddress.getPort() + " to connect to JobManager.");
 		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
 		return client;
 	}
@@ -1020,8 +1021,8 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	public static String getConfigurationDirectoryFromEnv() {
-		String envLocation = System.getenv(ENV_CONFIG_DIRECTORY);
-		String location = envLocation != null ? envLocation : System.getProperty(ENV_CONFIG_DIRECTORY);
+		String envLocation = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+		String location = envLocation != null ? envLocation : System.getProperty(ConfigConstants.ENV_FLINK_CONF_DIR);
 
 		if (location != null) {
 			if (new File(location).exists()) {
@@ -1029,7 +1030,7 @@ public class CliFrontend {
 			}
 			else {
 				throw new RuntimeException("The config directory '" + location + "', specified in the '" +
-						ENV_CONFIG_DIRECTORY + "' environment variable, does not exist.");
+					ConfigConstants.ENV_FLINK_CONF_DIR + "' environment variable, does not exist.");
 			}
 		}
 		else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
@@ -1041,7 +1042,7 @@ public class CliFrontend {
 		else {
 			throw new RuntimeException("The configuration directory was not specified. " +
 					"Please specify the directory containing the configuration file through the '" +
-					ENV_CONFIG_DIRECTORY + "' environment variable.");
+				ConfigConstants.ENV_FLINK_CONF_DIR + "' environment variable.");
 		}
 		return location;
 	}
@@ -1054,7 +1055,7 @@ public class CliFrontend {
 	 * @param config The config to write to
 	 */
 	public static void setJobManagerAddressInConfig(Configuration config, InetSocketAddress address) {
-		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostString());
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.getPort());
 	}
 

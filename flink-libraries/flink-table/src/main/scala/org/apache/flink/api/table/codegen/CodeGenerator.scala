@@ -25,7 +25,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.{SqlLiteral, SqlOperator}
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -35,7 +35,7 @@ import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.calls.ScalarFunctions
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isNumeric, isString}
+import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isNumeric, isString, isTemporal}
 import org.apache.flink.api.table.typeutils.TypeConverter.sqlTypeToTypeInfo
 
 import scala.collection.JavaConversions._
@@ -335,12 +335,13 @@ class CodeGenerator(
     }
 
     val returnTypeTerm = boxedTypeTermForTypeInfo(returnType)
+    val boxedFieldExprs = fieldExprs.map(generateOutputBoxing)
 
     // generate result expression
     returnType match {
       case ri: RowTypeInfo =>
         addReusableOutRecord(ri)
-        val resultSetters: String = fieldExprs.zipWithIndex map {
+        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             if (nullCheck) {
               s"""
@@ -365,7 +366,7 @@ class CodeGenerator(
 
       case pt: PojoTypeInfo[_] =>
         addReusableOutRecord(pt)
-        val resultSetters: String = fieldExprs.zip(resultFieldNames) map {
+        val resultSetters: String = boxedFieldExprs.zip(resultFieldNames) map {
           case (fieldExpr, fieldName) =>
             val accessor = getFieldAccessor(pt.getTypeClass, fieldName)
 
@@ -436,7 +437,7 @@ class CodeGenerator(
 
       case tup: TupleTypeInfo[_] =>
         addReusableOutRecord(tup)
-        val resultSetters: String = fieldExprs.zipWithIndex map {
+        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             val fieldName = "f" + i
             if (nullCheck) {
@@ -461,12 +462,12 @@ class CodeGenerator(
         GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
 
       case cc: CaseClassTypeInfo[_] =>
-        val fieldCodes: String = fieldExprs.map(_.code).mkString("\n")
-        val constructorParams: String = fieldExprs.map(_.resultTerm).mkString(", ")
+        val fieldCodes: String = boxedFieldExprs.map(_.code).mkString("\n")
+        val constructorParams: String = boxedFieldExprs.map(_.resultTerm).mkString(", ")
         val resultTerm = newName(outRecordTerm)
 
         val nullCheckCode = if (nullCheck) {
-        fieldExprs map { (fieldExpr) =>
+        boxedFieldExprs map { (fieldExpr) =>
           s"""
               |if (${fieldExpr.nullTerm}) {
               |  throw new NullPointerException("Null result cannot be stored in a Case Class.");
@@ -487,7 +488,7 @@ class CodeGenerator(
         GeneratedExpression(resultTerm, "false", resultCode, returnType)
 
       case a: AtomicType[_] =>
-        val fieldExpr = fieldExprs.head
+        val fieldExpr = boxedFieldExprs.head
         val nullCheckCode = if (nullCheck) {
           s"""
           |if (${fieldExpr.nullTerm}) {
@@ -611,7 +612,16 @@ class CodeGenerator(
         }
 
         generateNonNullLiteral(resultType, symbolOrdinal.toString)
-      case _ => ??? // TODO more types
+
+      case DATE =>
+        generateNonNullLiteral(resultType, value.toString)
+      case TIME =>
+        generateNonNullLiteral(resultType, value.toString)
+      case TIMESTAMP =>
+        generateNonNullLiteral(resultType, value.toString + "L")
+
+      case t@_ =>
+        throw new CodeGenException(s"Type not supported: $t")
     }
   }
 
@@ -795,11 +805,11 @@ class CodeGenerator(
     // if input has been used before, we can reuse the code that
     // has already been generated
     val inputExpr = reusableInputUnboxingExprs.get((inputTerm, index)) match {
-      // input access and boxing has already been generated
+      // input access and unboxing has already been generated
       case Some(expr) =>
         expr
 
-      // generate input access and boxing if necessary
+      // generate input access and unboxing if necessary
       case None =>
         val expr = if (nullableInput) {
           generateNullableInputFieldAccess(inputType, inputTerm, index)
@@ -936,9 +946,16 @@ class CodeGenerator(
     val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
     val defaultValue = primitiveDefaultValue(literalType)
 
+    // explicit unboxing
+    val unboxedLiteralCode = if (isTemporal(literalType)) {
+      temporalToInternalCode(literalType, literalCode)
+    } else {
+      literalCode
+    }
+
     val wrappedCode = if (nullCheck && !isReference(literalType)) {
       s"""
-        |$tmpTypeTerm $tmpTerm = $literalCode;
+        |$tmpTypeTerm $tmpTerm = $unboxedLiteralCode;
         |boolean $nullTerm = $tmpTerm == null;
         |$resultTypeTerm $resultTerm;
         |if ($nullTerm) {
@@ -950,12 +967,12 @@ class CodeGenerator(
         |""".stripMargin
     } else if (nullCheck) {
       s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
+        |$resultTypeTerm $resultTerm = $unboxedLiteralCode;
         |boolean $nullTerm = $literalCode == null;
         |""".stripMargin
     } else {
       s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
+        |$resultTypeTerm $resultTerm = $unboxedLiteralCode;
         |""".stripMargin
     }
 
@@ -998,6 +1015,39 @@ class CodeGenerator(
       GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
     } else {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
+    }
+  }
+
+  private def generateOutputBoxing(expr: GeneratedExpression): GeneratedExpression = {
+    expr.resultType match {
+      // convert internal date/time/timestamp to java.sql.* objects
+      case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP =>
+        val resultTerm = newName("result")
+        val resultTypeTerm = boxedTypeTermForTypeInfo(expr.resultType)
+        val convMethod = internalToTemporalCode(expr.resultType, expr.resultTerm)
+
+        val resultCode = if (nullCheck) {
+          s"""
+            |${expr.code}
+            |$resultTypeTerm $resultTerm;
+            |if (${expr.nullTerm}) {
+            |  $resultTerm = null;
+            |}
+            |else {
+            |  $resultTerm = $convMethod;
+            |}
+            |""".stripMargin
+        } else {
+          s"""
+            |${expr.code}
+            |$resultTypeTerm $resultTerm = $convMethod;
+            |""".stripMargin
+        }
+
+        GeneratedExpression(resultTerm, expr.nullTerm, resultCode, expr.resultType)
+
+      // other types are autoboxed or need no boxing
+      case _ => expr
     }
   }
 

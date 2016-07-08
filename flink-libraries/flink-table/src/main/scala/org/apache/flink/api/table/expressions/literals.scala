@@ -17,16 +17,17 @@
  */
 package org.apache.flink.api.table.expressions
 
-import java.util.Date
+import java.sql.{Timestamp, Time, Date}
+import java.util.{TimeZone, Calendar}
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.typeutils.TypeConverter
 
 object Literal {
-  def apply(l: Any): Literal = l match {
+  private[flink] def apply(l: Any): Literal = l match {
     case i: Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
     case s: Short => Literal(s, BasicTypeInfo.SHORT_TYPE_INFO)
     case b: Byte => Literal(b, BasicTypeInfo.BYTE_TYPE_INFO)
@@ -35,31 +36,51 @@ object Literal {
     case f: Float => Literal(f, BasicTypeInfo.FLOAT_TYPE_INFO)
     case str: String => Literal(str, BasicTypeInfo.STRING_TYPE_INFO)
     case bool: Boolean => Literal(bool, BasicTypeInfo.BOOLEAN_TYPE_INFO)
-    case date: Date => Literal(date, BasicTypeInfo.DATE_TYPE_INFO)
     case javaDec: java.math.BigDecimal => Literal(javaDec, BasicTypeInfo.BIG_DEC_TYPE_INFO)
     case scalaDec: scala.math.BigDecimal =>
       Literal(scalaDec.bigDecimal, BasicTypeInfo.BIG_DEC_TYPE_INFO)
+    case sqlDate: Date => Literal(sqlDate, SqlTimeTypeInfo.DATE)
+    case sqlTime: Time => Literal(sqlTime, SqlTimeTypeInfo.TIME)
+    case sqlTimestamp: Timestamp => Literal(sqlTimestamp, SqlTimeTypeInfo.TIMESTAMP)
   }
 }
 
 case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"$value"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     resultType match {
       case BasicTypeInfo.BIG_DEC_TYPE_INFO =>
         val bigDecValue = value.asInstanceOf[java.math.BigDecimal]
         val decType = relBuilder.getTypeFactory.createSqlType(SqlTypeName.DECIMAL)
         relBuilder.getRexBuilder.makeExactLiteral(bigDecValue, decType)
+
+      // date/time
+      case SqlTimeTypeInfo.DATE =>
+        relBuilder.getRexBuilder.makeDateLiteral(dateToCalendar)
+      case SqlTimeTypeInfo.TIME =>
+        relBuilder.getRexBuilder.makeTimeLiteral(dateToCalendar, 0)
+      case SqlTimeTypeInfo.TIMESTAMP =>
+        relBuilder.getRexBuilder.makeTimestampLiteral(dateToCalendar, 3)
+
       case _ => relBuilder.literal(value)
     }
+  }
+
+  private def dateToCalendar: Calendar = {
+    val date = value.asInstanceOf[java.util.Date]
+    val cal = Calendar.getInstance()
+    val t = date.getTime
+    // according to Calcite's SqlFunctions.internalToXXX methods
+    cal.setTimeInMillis(t + TimeZone.getDefault.getOffset(t))
+    cal
   }
 }
 
 case class Null(resultType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"null"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.getRexBuilder.makeNullLiteral(TypeConverter.typeInfoToSqlType(resultType))
   }
 }

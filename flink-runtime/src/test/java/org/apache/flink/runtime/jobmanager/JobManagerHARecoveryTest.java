@@ -148,7 +148,8 @@ public class JobManagerHARecoveryTest {
 				mySubmittedJobGraphStore,
 				new StandaloneCheckpointRecoveryFactory(),
 				new SavepointStore(new HeapStateStore()),
-				jobRecoveryTimeout);
+				jobRecoveryTimeout,
+				Option.apply(null));
 
 			jobManager = system.actorOf(jobManagerProps, "jobmanager");
 			ActorGateway gateway = new AkkaActorGateway(jobManager, leaderSessionID);

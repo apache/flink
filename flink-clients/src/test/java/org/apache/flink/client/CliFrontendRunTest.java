@@ -118,13 +118,13 @@ public class CliFrontendRunTest {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class RunTestingCliFrontend extends CliFrontend {
-		
+
 		private final int expectedParallelism;
 		private final boolean sysoutLogging;
 		private final boolean isDetached;
-		
+
 		public RunTestingCliFrontend(int expectedParallelism, boolean logging, boolean isDetached) throws Exception {
 			super(CliFrontendTestUtils.getConfigDir());
 			this.expectedParallelism = expectedParallelism;
@@ -138,11 +138,6 @@ public class CliFrontendRunTest {
 			assertEquals(sysoutLogging, client.getPrintStatusDuringExecution());
 			assertEquals(expectedParallelism, parallelism);
 			return 0;
-		}
-
-		@Override
-		protected ClusterClient getClient(CommandLineOptions options, String programName) throws Exception {
-			return TestingClusterClientWithoutActorSystem.create();
 		}
 	}
 }

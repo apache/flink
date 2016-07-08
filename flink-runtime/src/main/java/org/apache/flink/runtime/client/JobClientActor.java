@@ -25,6 +25,7 @@ import akka.actor.Status;
 import akka.actor.Terminated;
 import akka.dispatch.Futures;
 import akka.dispatch.OnSuccess;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
@@ -255,7 +256,9 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 				if (hasJobBeenSubmitted()) {
 					submitter.tell(
 						decorateMessage(new Status.Failure(
-							new JobClientActorSubmissionTimeoutException("Job submission to the JobManager timed out."))),
+							new JobClientActorSubmissionTimeoutException("Job submission to the JobManager timed out. " +
+								"You may increase '" + ConfigConstants.AKKA_CLIENT_TIMEOUT + "' in case the JobManager " +
+								"needs more time to configure and confirm the job submission."))),
 						getSelf());
 				}
 

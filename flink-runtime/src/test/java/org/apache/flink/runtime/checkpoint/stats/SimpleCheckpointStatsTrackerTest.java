@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.stats;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -54,7 +55,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	@Test
 	public void testNoCompletedCheckpointYet() throws Exception {
 		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(
-				0, Collections.<ExecutionJobVertex>emptyList());
+				0, Collections.<ExecutionJobVertex>emptyList(), new UnregisteredMetricsGroup());
 
 		assertFalse(tracker.getJobStats().isDefined());
 		assertFalse(tracker.getOperatorStats(new JobVertexID()).isDefined());
@@ -64,7 +65,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	public void testRandomStats() throws Exception {
 		CompletedCheckpoint[] checkpoints = generateRandomCheckpoints(16);
 		List<ExecutionJobVertex> tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
-		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor);
+		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor, new UnregisteredMetricsGroup());
 
 		for (int i = 0; i < checkpoints.length; i++) {
 			CompletedCheckpoint checkpoint = checkpoints[i];
@@ -80,7 +81,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	public void testIllegalOperatorId() throws Exception {
 		CompletedCheckpoint[] checkpoints = generateRandomCheckpoints(16);
 		List<ExecutionJobVertex> tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
-		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor);
+		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor, new UnregisteredMetricsGroup());
 
 		for (CompletedCheckpoint checkpoint : checkpoints) {
 			tracker.onCompletedCheckpoint(checkpoint);
@@ -95,7 +96,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	public void testCompletedCheckpointReordering() throws Exception {
 		CompletedCheckpoint[] checkpoints = generateRandomCheckpoints(2);
 		List<ExecutionJobVertex> tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
-		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor);
+		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor, new UnregisteredMetricsGroup());
 
 		// First the second checkpoint notifies
 		tracker.onCompletedCheckpoint(checkpoints[1]);
@@ -115,7 +116,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	public void testOperatorStateCachedClearedOnNewCheckpoint() throws Exception {
 		CompletedCheckpoint[] checkpoints = generateRandomCheckpoints(2);
 		List<ExecutionJobVertex> tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
-		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor);
+		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor, new UnregisteredMetricsGroup());
 
 		tracker.onCompletedCheckpoint(checkpoints[0]);
 

@@ -20,6 +20,8 @@ package org.apache.flink.api.io.avro;
 
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -38,7 +40,6 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.util.Utf8;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.io.avro.generated.Address;
 import org.apache.flink.api.io.avro.generated.Colors;
@@ -51,6 +52,8 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -80,7 +83,7 @@ public class AvroRecordInputFormatTest {
 	final static String TEST_MAP_KEY2 = "KEY 2";
 	final static long TEST_MAP_VALUE2 = 17554L;
 	
-	final static Integer TEST_NUM = 239;
+	final static int TEST_NUM = 239;
 	final static String TEST_STREET = "Baker Street";
 	final static String TEST_CITY = "London";
 	final static String TEST_STATE = "London";
@@ -104,7 +107,7 @@ public class AvroRecordInputFormatTest {
 		longMap.put(TEST_MAP_KEY2, TEST_MAP_VALUE2);
 		
 		Address addr = new Address();
-		addr.setNum(new Integer(TEST_NUM));
+		addr.setNum(TEST_NUM);
 		addr.setStreet(TEST_STREET);
 		addr.setCity(TEST_CITY);
 		addr.setState(TEST_STATE);
@@ -293,10 +296,18 @@ public class AvroRecordInputFormatTest {
 			Assert.assertTrue(
 					ec.getDefaultKryoSerializerClasses().containsKey(Schema.class) &&
 							ec.getDefaultKryoSerializerClasses().get(Schema.class).equals(Serializers.AvroSchemaSerializer.class));
-			ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
-			tser.serialize(rec, target);
 
-			GenericData.Record newRec = tser.deserialize(target.getInputView());
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			try (DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(out)) {
+				tser.serialize(rec, outView);
+			}
+
+			GenericData.Record newRec;
+			try (DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(
+					new ByteArrayInputStream(out.toByteArray())))
+			{
+				newRec = tser.deserialize(inView);
+			}
 
 			// check if it is still the same
 			assertNotNull(newRec);
@@ -328,10 +339,18 @@ public class AvroRecordInputFormatTest {
 
 			Assert.assertEquals(AvroTypeInfo.class, te.getClass());
 			TypeSerializer<User> tser = te.createSerializer(ec);
-			ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
-			tser.serialize(rec, target);
 
-			User newRec = tser.deserialize(target.getInputView());
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			try (DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(out)) {
+				tser.serialize(rec, outView);
+			}
+
+			User newRec;
+			try (DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(
+					new ByteArrayInputStream(out.toByteArray())))
+			{
+				newRec = tser.deserialize(inView);
+			}
 
 			// check if it is still the same
 			assertNotNull(newRec);

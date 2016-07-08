@@ -29,8 +29,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
@@ -181,8 +179,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		LOG.info("Initializing YARN resource master");
 
 		// create the client to communicate with the ResourceManager
-		ActorGateway selfGateway = new AkkaActorGateway(self(), getLeaderSessionID());
-		resourceManagerCallbackHandler = new YarnResourceManagerCallbackHandler(selfGateway);
+		resourceManagerCallbackHandler = new YarnResourceManagerCallbackHandler(self());
 
 		resourceManagerClient = AMRMClientAsync.createAMRMClientAsync(
 			yarnHeartbeatIntervalMillis, resourceManagerCallbackHandler);
@@ -221,12 +218,6 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			// adjust the progress indicator
 			updateProgress();
 		}
-	}
-
-	@Override
-	protected void leaderUpdated() {
-		AkkaActorGateway newGateway = new AkkaActorGateway(self(), getLeaderSessionID());
-		resourceManagerCallbackHandler.setCurrentLeaderGateway(newGateway);
 	}
 
 	@Override

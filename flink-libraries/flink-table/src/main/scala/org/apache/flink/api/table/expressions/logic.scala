@@ -25,9 +25,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.validate._
 
 abstract class BinaryPredicate extends BinaryExpression {
-  override def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+  override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (left.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
         right.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
       ValidationSuccess
@@ -42,13 +42,13 @@ case class Not(child: Expression) extends UnaryExpression {
 
   override def toString = s"!($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.not(child.toRexNode)
   }
 
-  override def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+  override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (child.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -62,7 +62,7 @@ case class And(left: Expression, right: Expression) extends BinaryPredicate {
 
   override def toString = s"$left && $right"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.and(left.toRexNode, right.toRexNode)
   }
 }
@@ -71,36 +71,36 @@ case class Or(left: Expression, right: Expression) extends BinaryPredicate {
 
   override def toString = s"$left || $right"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.or(left.toRexNode, right.toRexNode)
   }
 }
 
-case class Eval(
+case class If(
     condition: Expression,
     ifTrue: Expression,
     ifFalse: Expression)
   extends Expression {
-  def children = Seq(condition, ifTrue, ifFalse)
+  private[flink] def children = Seq(condition, ifTrue, ifFalse)
 
-  override def resultType = ifTrue.resultType
+  override private[flink] def resultType = ifTrue.resultType
 
   override def toString = s"($condition)? $ifTrue : $ifFalse"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val c = condition.toRexNode
     val t = ifTrue.toRexNode
     val f = ifFalse.toRexNode
     relBuilder.call(SqlStdOperatorTable.CASE, c, t, f)
   }
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (condition.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
         ifTrue.resultType == ifFalse.resultType) {
       ValidationSuccess
     } else {
       ValidationFailure(
-        s"Eval should have boolean condition and same type of ifTrue and ifFalse, get " +
+        s"If should have boolean condition and same type of ifTrue and ifFalse, get " +
           s"(${condition.resultType}, ${ifTrue.resultType}, ${ifFalse.resultType})")
     }
   }

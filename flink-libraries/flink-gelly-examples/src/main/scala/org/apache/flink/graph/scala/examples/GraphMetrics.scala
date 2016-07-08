@@ -61,7 +61,7 @@ object GraphMetrics {
 
     /** compute the average node degree **/
     val verticesWithDegrees = graph.getDegrees
-    val avgDegree = verticesWithDegrees.sum(1).map(in => (in._2 / numVertices).toDouble)
+    val avgDegree = verticesWithDegrees.sum(1).map(in => (in._2.getValue / numVertices).toDouble)
 
     /** find the vertex with the maximum in-degree **/
     val maxInDegreeVertex = graph.inDegrees.max(1).map(in => in._1)

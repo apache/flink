@@ -89,10 +89,10 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep2 = new JMXReporter();
 
 		Configuration cfg1 = new Configuration();
-		Configuration cfg2 = new Configuration();
+		cfg1.setString(KEY_METRICS_JMX_PORT, "9020-9035");
 
 		rep1.open(cfg1);
-		rep2.open(cfg2);
+		rep2.open(cfg1);
 
 		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
 			@Override
@@ -137,16 +137,10 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep1 = new JMXReporter();
 		JMXReporter rep2 = new JMXReporter();
 
-		int port1 = 9010;
-		int port2 = 9011;
-
 		Configuration cfg1 = new Configuration();
-		cfg1.setString(KEY_METRICS_JMX_PORT, String.valueOf(port1));
-		Configuration cfg2 = new Configuration();
-		cfg2.setString(KEY_METRICS_JMX_PORT, String.valueOf(port2));
-
+		cfg1.setString(KEY_METRICS_JMX_PORT, "9040-9055");
 		rep1.open(cfg1);
-		rep2.open(cfg2);
+		rep2.open(cfg1);
 
 		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
 			@Override
@@ -165,7 +159,7 @@ public class JMXReporterTest extends TestLogger {
 		ObjectName objectName1 = new ObjectName(JMXReporter.generateJmxName("rep1", mg.getScopeComponents()));
 		ObjectName objectName2 = new ObjectName(JMXReporter.generateJmxName("rep2", mg.getScopeComponents()));
 
-		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + port1 + "/jndi/rmi://localhost:" + port1 + "/jmxrmi");
+		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + rep1.getPort() + "/jndi/rmi://localhost:" + rep1.getPort() + "/jmxrmi");
 		JMXConnector jmxCon1 = JMXConnectorFactory.connect(url1);
 		MBeanServerConnection mCon1 = jmxCon1.getMBeanServerConnection();
 
@@ -177,7 +171,7 @@ public class JMXReporterTest extends TestLogger {
 		jmxCon1 = null;
 		mCon1 = null;
 
-		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + port2 + "/jndi/rmi://localhost:" + port2 + "/jmxrmi");
+		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + rep2.getPort() + "/jndi/rmi://localhost:" + rep2.getPort() + "/jmxrmi");
 		JMXConnector jmxCon2 = JMXConnectorFactory.connect(url2);
 		MBeanServerConnection mCon2 = jmxCon2.getMBeanServerConnection();
 

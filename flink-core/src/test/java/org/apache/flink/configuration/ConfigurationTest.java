@@ -23,9 +23,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
-
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 /**
@@ -54,7 +54,7 @@ public class ConfigurationTest extends TestLogger {
 			orig.setBytes("bytes sequence", new byte[] { 1, 2, 3, 4, 5 } );
 			orig.setClass("myclass", this.getClass());
 	
-			final Configuration copy = CommonTestUtils.createCopyWritable(orig);
+			final Configuration copy = InstantiationUtil.createCopyWritable(orig);
 			assertEquals("myvalue", copy.getString("mykey", "null"));
 			assertEquals(100, copy.getInteger("mynumber", 0));
 			assertEquals(478236947162389746L, copy.getLong("longvalue", 0L));

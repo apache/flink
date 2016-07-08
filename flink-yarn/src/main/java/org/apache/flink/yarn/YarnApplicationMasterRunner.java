@@ -66,6 +66,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
+
 /**
  * This class is the executable entry point for the YARN application master.
  * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmanager.JobManager}
@@ -517,6 +519,9 @@ public class YarnApplicationMasterRunner {
 		String yarnClientUsername = env.get(YarnConfigKeys.ENV_CLIENT_USERNAME);
 		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_USERNAME);
 
+		String classPathString = env.get(YarnConfigKeys.ENV_FLINK_CLASSPATH);
+		require(classPathString != null, "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
+
 		// obtain a handle to the file system used by YARN
 		final org.apache.hadoop.fs.FileSystem yarnFileSystem;
 		try {
@@ -582,7 +587,9 @@ public class YarnApplicationMasterRunner {
 		containerEnv.putAll(tmParams.taskManagerEnv());
 
 		// add YARN classpath, etc to the container environment
-		Utils.setupEnv(yarnConfig, containerEnv);
+		containerEnv.put(ENV_FLINK_CLASSPATH, classPathString);
+		Utils.setupYarnClassPath(yarnConfig, containerEnv);
+
 		containerEnv.put(YarnConfigKeys.ENV_CLIENT_USERNAME, yarnClientUsername);
 
 		ctx.setEnvironment(containerEnv);

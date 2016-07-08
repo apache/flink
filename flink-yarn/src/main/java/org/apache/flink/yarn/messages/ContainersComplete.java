@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn.messages;
 
-import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 import org.apache.flink.yarn.YarnFlinkResourceManager;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -31,7 +30,7 @@ import java.util.List;
  * 
  * NOTE: This message is not serializable, because the ContainerStatus object is not serializable.
  */
-public class ContainersComplete implements RequiresLeaderSessionID {
+public class ContainersComplete {
 	
 	private final List<ContainerStatus> containers;
 	

@@ -19,8 +19,8 @@
 package org.apache.flink.ml.nn
 
 import org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric
-import org.apache.flink.test.util.FlinkTestBase
 import org.apache.flink.ml.math.{Vector, DenseVector}
+import org.apache.flink.ml.util.FlinkTestBase
 
 import org.scalatest.{Matchers, FlatSpec}
 

@@ -27,8 +27,10 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +45,7 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 
 	private static final String ACCUMULATOR_NAME = "op-stats";
 
-	public OperatorStatsAccumulatorTest(){
+	public OperatorStatsAccumulatorTest() {
 		super(new Configuration());
 	}
 	
