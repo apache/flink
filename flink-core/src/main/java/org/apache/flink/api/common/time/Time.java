@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.windowing.time;
+package org.apache.flink.api.common.time;
 
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 import org.apache.flink.annotation.Public;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The definition of a time interval for windowing. The time characteristic referred
- * to is the default time characteristic set on the execution environment.
+ * The definition of a time interval.
  */
 @Public
-public final class Time {
+public final class Time implements Serializable {
 
 	/** The time unit for this policy's time interval */
 	private final TimeUnit unit;
@@ -76,9 +76,6 @@ public final class Time {
 
 	/**
 	 * Creates a new {@link Time} of the given duration and {@link TimeUnit}.
-	 *
-	 * <p>The {@code Time} refers to the time characteristic that is set on the dataflow via
-	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}.
 	 *
 	 * @param size The duration of time.
 	 * @param unit The unit of time of the duration, for example {@code TimeUnit.SECONDS}.

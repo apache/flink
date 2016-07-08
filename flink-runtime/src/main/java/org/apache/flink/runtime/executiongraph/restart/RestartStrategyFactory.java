@@ -21,7 +21,7 @@ package org.apache.flink.runtime.executiongraph.restart;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.TimeInterval;
+import org.apache.flink.api.common.time.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
@@ -59,7 +59,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 
 			return new FixedDelayRestartStrategy(
 				fixedDelayConfig.getRestartAttempts(),
-				fixedDelayConfig.getDelayBetweenAttemptsInterval().getMillis());
+				fixedDelayConfig.getDelayBetweenAttemptsInterval().toMilliseconds());
 		} else if (restartStrategyConfiguration instanceof RestartStrategies.FailureRateRestartStrategyConfiguration) {
 			RestartStrategies.FailureRateRestartStrategyConfiguration config =
 					(RestartStrategies.FailureRateRestartStrategyConfiguration) restartStrategyConfiguration;
@@ -74,8 +74,8 @@ public abstract class RestartStrategyFactory implements Serializable {
 		}
 	}
 
-	private static FiniteDuration toDuration(TimeInterval interval) {
-		return Duration.apply(interval.getLength(), interval.getUnit());
+	private static FiniteDuration toDuration(Time interval) {
+		return Duration.apply(interval.getSize(), interval.getUnit());
 	}
 
 	/**

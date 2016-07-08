@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.restartstrategy;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.TimeInterval;
+import org.apache.flink.api.common.time.Time;
 
 import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +50,7 @@ public class RestartStrategies {
 	 * @return FixedDelayRestartStrategy
 	 */
 	public static RestartStrategyConfiguration fixedDelayRestart(int restartAttempts, long delayBetweenAttempts) {
-		return fixedDelayRestart(restartAttempts, new TimeInterval(delayBetweenAttempts, TimeUnit.MILLISECONDS));
+		return fixedDelayRestart(restartAttempts, Time.of(delayBetweenAttempts, TimeUnit.MILLISECONDS));
 	}
 
 	/**
@@ -60,7 +60,7 @@ public class RestartStrategies {
 	 * @param delayInterval Delay in-between restart attempts for the FixedDelayRestartStrategy
 	 * @return FixedDelayRestartStrategy
 	 */
-	public static RestartStrategyConfiguration fixedDelayRestart(int restartAttempts, TimeInterval delayInterval) {
+	public static RestartStrategyConfiguration fixedDelayRestart(int restartAttempts, Time delayInterval) {
 		return new FixedDelayRestartStrategyConfiguration(restartAttempts, delayInterval);
 	}
 
@@ -72,7 +72,7 @@ public class RestartStrategies {
 	 * @param delayInterval Delay in-between restart attempts
 	 */
 	public static FailureRateRestartStrategyConfiguration failureRateRestart(
-			int failureRate, TimeInterval failureInterval, TimeInterval delayInterval) {
+			int failureRate, Time failureInterval, Time delayInterval) {
 		return new FailureRateRestartStrategyConfiguration(failureRate, failureInterval, delayInterval);
 	}
 
@@ -102,9 +102,9 @@ public class RestartStrategies {
 		private static final long serialVersionUID = 4149870149673363190L;
 
 		private final int restartAttempts;
-		private final TimeInterval delayBetweenAttemptsInterval;
+		private final Time delayBetweenAttemptsInterval;
 
-		FixedDelayRestartStrategyConfiguration(int restartAttempts, TimeInterval delayBetweenAttemptsInterval) {
+		FixedDelayRestartStrategyConfiguration(int restartAttempts, Time delayBetweenAttemptsInterval) {
 			this.restartAttempts = restartAttempts;
 			this.delayBetweenAttemptsInterval = delayBetweenAttemptsInterval;
 		}
@@ -113,7 +113,7 @@ public class RestartStrategies {
 			return restartAttempts;
 		}
 
-		public TimeInterval getDelayBetweenAttemptsInterval() {
+		public Time getDelayBetweenAttemptsInterval() {
 			return delayBetweenAttemptsInterval;
 		}
 
@@ -146,10 +146,10 @@ public class RestartStrategies {
 		private static final long serialVersionUID = 1195028697539661739L;
 		private final int maxFailureRate;
 
-		private final TimeInterval failureInterval;
-		private final TimeInterval delayBetweenAttemptsInterval;
+		private final Time failureInterval;
+		private final Time delayBetweenAttemptsInterval;
 
-		public FailureRateRestartStrategyConfiguration(int maxFailureRate, TimeInterval failureInterval, TimeInterval delayBetweenAttemptsInterval) {
+		public FailureRateRestartStrategyConfiguration(int maxFailureRate, Time failureInterval, Time delayBetweenAttemptsInterval) {
 			this.maxFailureRate = maxFailureRate;
 			this.failureInterval = failureInterval;
 			this.delayBetweenAttemptsInterval = delayBetweenAttemptsInterval;
@@ -159,11 +159,11 @@ public class RestartStrategies {
 			return maxFailureRate;
 		}
 
-		public TimeInterval getFailureInterval() {
+		public Time getFailureInterval() {
 			return failureInterval;
 		}
 
-		public TimeInterval getDelayBetweenAttemptsInterval() {
+		public Time getDelayBetweenAttemptsInterval() {
 			return delayBetweenAttemptsInterval;
 		}
 

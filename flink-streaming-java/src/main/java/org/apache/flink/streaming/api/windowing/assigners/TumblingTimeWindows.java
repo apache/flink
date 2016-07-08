@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.windowing.assigners;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.api.common.time.Time;
 
 /**
  * A {@link WindowAssigner} that windows elements into windows based on the timestamp of the

@@ -247,7 +247,7 @@ In case of a failure the system tries to restart the job 3 times and waits 10 se
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts 
-  org.apache.flink.util.TimeInterval(10, java.util.concurrent.TimeUnit.SECONDS) // delay
+  Time.of(10, TimeUnit.SECONDS) // delay
 ));
 {% endhighlight %}
 </div>
@@ -256,7 +256,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 val env = ExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts 
-  org.apache.flink.util.TimeInterval(10, java.util.concurrent.TimeUnit.SECONDS) // delay
+  Time.of(10, TimeUnit.SECONDS) // delay
 ))
 {% endhighlight %}
 </div>
@@ -311,7 +311,7 @@ The fixed delay restart strategy can also be set programmatically:
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts 
-  org.apache.flink.util.TimeInterval(10, java.util.concurrent.TimeUnit.SECONDS) // delay
+  Time.of(10, TimeUnit.SECONDS) // delay
 ));
 {% endhighlight %}
 </div>
@@ -320,7 +320,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 val env = ExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts 
-  org.apache.flink.util.TimeInterval(10, java.util.concurrent.TimeUnit.SECONDS) // delay
+  Time.of(10, TimeUnit.SECONDS) // delay
 ))
 {% endhighlight %}
 </div>
@@ -394,8 +394,8 @@ The failure rate restart strategy can also be set programmatically:
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.failureRateRestart(
   3, // max failures per interval
-  org.apache.flink.util.TimeInterval(5, java.util.concurrent.TimeUnit.MINUTES), //time interval for measuring failure rate
-  org.apache.flink.util.TimeInterval(10, java.util.concurrent.TimeUnit.SECONDS) // delay
+  Time.of(5, TimeUnit.MINUTES), //time interval for measuring failure rate
+  Time.of(10, TimeUnit.SECONDS) // delay
 ));
 {% endhighlight %}
 </div>
@@ -404,8 +404,8 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 val env = ExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.failureRateRestart(
   3, // max failures per unit
-  org.apache.flink.util.TimeInterval(5, java.util.concurrent.TimeUnit.MINUTES), //time interval for measuring failure rate
-  org.apache.flink.util.TimeInterval(10, java.util.concurrent.TimeUnit.SECONDS) // delay
+  Time.of(5, TimeUnit.MINUTES), //time interval for measuring failure rate
+  Time.of(10, TimeUnit.SECONDS) // delay
 ))
 {% endhighlight %}
 </div>

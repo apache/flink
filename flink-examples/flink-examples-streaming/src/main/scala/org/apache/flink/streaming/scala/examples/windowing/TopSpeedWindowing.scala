@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor
-import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger
 
 import scala.Stream._

@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.functions.timestamps;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.api.common.time.Time;
 
 /**
  * This is a {@link AssignerWithPeriodicWatermarks} used to emit Watermarks that lag behind the element with

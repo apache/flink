@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import com.google.common.collect.EvictingQueue;
+import org.apache.flink.runtime.util.FixedSizeFifoQueue;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -36,19 +36,19 @@ import static akka.dispatch.Futures.future;
 public class FailureRateRestartStrategy implements RestartStrategy {
 	private final Duration failuresInterval;
 	private final Duration delayInterval;
-	private EvictingQueue<Long> restartTimestampsQueue;
+	private FixedSizeFifoQueue<Long> restartTimestampsQueue;
 	private boolean disabled = false;
 
 	public FailureRateRestartStrategy(int maxFailuresPerInterval, Duration failuresInterval, Duration delayInterval) {
-		Preconditions.checkArgument(maxFailuresPerInterval > 0, "Maximum number of restart attempts per time unit must be greater than 0.");
 		Preconditions.checkNotNull(failuresInterval, "Failures interval cannot be null.");
-		Preconditions.checkNotNull(failuresInterval.length() > 0, "Failures interval must be greater than 0 ms.");
 		Preconditions.checkNotNull(delayInterval, "Delay interval cannot be null.");
-		Preconditions.checkNotNull(delayInterval.length() >= 0, "Delay interval must be at least 0 ms.");
+		Preconditions.checkArgument(maxFailuresPerInterval > 0, "Maximum number of restart attempts per time unit must be greater than 0.");
+		Preconditions.checkArgument(failuresInterval.length() > 0, "Failures interval must be greater than 0 ms.");
+		Preconditions.checkArgument(delayInterval.length() >= 0, "Delay interval must be at least 0 ms.");
 
 		this.failuresInterval = failuresInterval;
 		this.delayInterval = delayInterval;
-		this.restartTimestampsQueue = EvictingQueue.create(maxFailuresPerInterval);
+		this.restartTimestampsQueue = new FixedSizeFifoQueue<>(maxFailuresPerInterval);
 	}
 
 	@Override
@@ -57,7 +57,7 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	private boolean canRestartJob() {
-		if (restartTimestampsQueue.remainingCapacity() == 0) {
+		if (restartTimestampsQueue.isFull()) {
 			Long now = System.currentTimeMillis();
 			Long earliestFailure = restartTimestampsQueue.peek();
 			return Duration.apply(now - earliestFailure, TimeUnit.MILLISECONDS).gt(failuresInterval);
