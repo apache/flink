@@ -536,6 +536,30 @@ Table result = left.unionAll(right);
       </td>
     </tr>
 
+	<tr>
+      <td><strong>Intersect</strong></td>
+      <td>
+        <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table result = left.intersect(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+	<tr>
+      <td><strong>IntersectAll</strong></td>
+      <td>
+        <p>Similar to a SQL INTERSECT ALL clause. Intersect All returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table result = left.intersectAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
@@ -695,6 +719,30 @@ val result = left.unionAll(right);
       </td>
     </tr>
 
+	<tr>
+      <td><strong>Intersect</strong></td>
+      <td>
+        <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'e, 'f, 'g);
+val result = left.intersect(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+	<tr>
+      <td><strong>IntersectAll</strong></td>
+      <td>
+        <p>Similar to a SQL INTERSECT ALL clause. Intersect All returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'e, 'f, 'g);
+val result = left.intersectAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
@@ -836,7 +884,7 @@ Among others, the following SQL features are not supported, yet:
 - Non-equi joins and Cartesian products
 - Result selection by order position (`ORDER BY OFFSET FETCH`)
 - Grouping sets
-- `INTERSECT` and `EXCEPT` set operations
+- `EXCEPT` set operation
 
 *Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
 
