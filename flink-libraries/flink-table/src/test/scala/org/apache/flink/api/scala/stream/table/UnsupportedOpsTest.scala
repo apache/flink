@@ -20,21 +20,21 @@ package org.apache.flink.api.scala.stream.table
 
 import org.apache.flink.api.scala.stream.utils.StreamTestData
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{ValidationException, TableEnvironment, TableException}
+import org.apache.flink.api.table.{TableEnvironment, ValidationException}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Test
 
 class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testSelectWithAggregation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select('_1.min)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGroupBy(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -42,21 +42,21 @@ class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
       .groupBy('_1)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testDistinct(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).distinct()
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testSort(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).orderBy('_1.desc)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -65,7 +65,7 @@ class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
     t1.join(t2)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testUnion(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -75,11 +75,38 @@ class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
+  def testIntersect(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    t1.intersect(t2)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testIntersectAll(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    t1.intersectAll(t2)
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testMinus(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.minus(t2)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testMinusAll(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    t1.minusAll(t2)
   }
 }
