@@ -183,6 +183,8 @@ under the License.
 									<exclude>org.apache.flink:flink-examples-batch_2.10</exclude>
 									<exclude>org.apache.flink:flink-examples-streaming_2.10</exclude>
 									<exclude>org.apache.flink:flink-streaming-java_2.10</exclude>
+									<exclude>org.apache.flink:flink-streaming-scala_2.10</exclude>
+									<exclude>org.apache.flink:flink-scala-shell_2.10</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 
