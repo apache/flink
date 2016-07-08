@@ -36,7 +36,7 @@ Flink has build-in support for the following file systems:
 | Hadoop Distributed File System (HDFS) &nbsp; | `hdfs://`    | All HDFS versions are supported |
 | Amazon S3                             | `s3://`      | Support through Hadoop file system implementation (see below) | 
 | MapR file system                      | `maprfs://`  | The user has to manually place the required jar files in the `lib/` dir |
-| Tachyon                               | `tachyon://` &nbsp; | Support through Hadoop file system implementation (see below) |
+| Alluxio                               | `alluxio://` &nbsp; | Support through Hadoop file system implementation (see below) |
 
 
 
@@ -47,7 +47,7 @@ interface. There are Hadoop `FileSystem` implementations for
 
 - [S3](https://aws.amazon.com/s3/) (tested)
 - [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
-- [Tachyon](http://tachyon-project.org/) (tested)
+- [Alluxio](http://alluxio.org/) (tested)
 - [XtreemFS](http://www.xtreemfs.org/) (tested)
 - FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
 - and many more.
@@ -55,7 +55,7 @@ interface. There are Hadoop `FileSystem` implementations for
 In order to use a Hadoop file system with Flink, make sure that
 
 - the `flink-conf.yaml` has set the `fs.hdfs.hadoopconf` property set to the Hadoop configuration directory.
-- the Hadoop configuration (in that directory) has an entry for the required file system. Examples for S3 and Tachyon are shown below.
+- the Hadoop configuration (in that directory) has an entry for the required file system. Examples for S3 and Alluxio are shown below.
 - the required classes for using the file system are available in the `lib/` folder of the Flink installation (on all machines running Flink). If putting the files into the directory is not possible, Flink is also respecting the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
 
 #### Amazon S3
@@ -82,14 +82,14 @@ For Amazon S3 support add the following entries into the `core-site.xml` file:
 </property>
 ~~~
 
-#### Tachyon
+#### Alluxio
 
-For Tachyon support add the following entry into the `core-site.xml` file:
+For Alluxio support add the following entry into the `core-site.xml` file:
 
 ~~~xml
 <property>
-  <name>fs.tachyon.impl</name>
-  <value>tachyon.hadoop.TFS</value>
+  <name>fs.alluxio.impl</name>
+  <value>alluxio.hadoop.FileSystem</value>
 </property>
 ~~~
 
