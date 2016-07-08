@@ -21,6 +21,7 @@ import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
@@ -185,6 +186,14 @@ public class ShardConsumer<T> implements Runnable {
 		return !Thread.interrupted();
 	}
 
+	/**
+	 * Deserializes a record for collection, and accordingly updates the shard state in the fetcher.
+	 * Note that the server-side Kinesis timestamp is attached to the record when collected. When the
+	 * user programs uses {@link TimeCharacteristic#EventTime}, this timestamp will be used by default.
+	 *
+	 * @param record
+	 * @throws IOException
+	 */
 	private void deserializeRecordForCollectionAndUpdateState(UserRecord record)
 		throws IOException {
 		ByteBuffer recordData = record.getData();
@@ -194,17 +203,21 @@ public class ShardConsumer<T> implements Runnable {
 
 		byte[] keyBytes = record.getPartitionKey().getBytes();
 
-		final T value = deserializer.deserialize(keyBytes, dataBytes, subscribedShard.getStreamName(),
-			record.getSequenceNumber());
+		final long approxArrivalTimestamp = record.getApproximateArrivalTimestamp().getTime();
+
+		final T value = deserializer.deserialize(
+			keyBytes, dataBytes, subscribedShard.getStreamName(), record.getSequenceNumber(), approxArrivalTimestamp);
 
 		if (record.isAggregated()) {
 			fetcherRef.emitRecordAndUpdateState(
 				value,
+				approxArrivalTimestamp,
 				subscribedShardStateIndex,
 				new SequenceNumber(record.getSequenceNumber(), record.getSubSequenceNumber()));
 		} else {
 			fetcherRef.emitRecordAndUpdateState(
 				value,
+				approxArrivalTimestamp,
 				subscribedShardStateIndex,
 				new SequenceNumber(record.getSequenceNumber()));
 		}

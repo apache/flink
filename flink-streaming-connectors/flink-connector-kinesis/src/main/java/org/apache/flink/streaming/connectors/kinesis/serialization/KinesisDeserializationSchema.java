@@ -39,10 +39,11 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
 	 * @param recordValue the record's value as a byte array
 	 * @param stream the name of the Kinesis stream that this record was sent to
 	 * @param seqNum the sequence number of this record in the Kinesis shard
+	 * @param approxArrivalTimestamp the server-side timestamp of when Kinesis received and stored the record
 	 * @return the deserialized message as an Java object
 	 * @throws IOException
 	 */
-	T deserialize(byte[] recordKey, byte[] recordValue, String stream, String seqNum) throws IOException;
+	T deserialize(byte[] recordKey, byte[] recordValue, String stream, String seqNum, long approxArrivalTimestamp) throws IOException;
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
