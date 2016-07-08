@@ -83,7 +83,7 @@ kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYP
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
 
 DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
-    "kinesis_stream_name", new SimpleStringSchema(), kinesisConsumerConfig))
+    "kinesis_stream_name", new SimpleStringSchema(), kinesisConsumerConfig));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -164,10 +164,31 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 </div>
 
 If streaming topologies choose to use the [event time notion]({{site.baseurl}}/apis/streaming/event_time.html) for record
-timestamps, an *approximate arrival timestamp* will be used. This timestamp is attached to records by Kinesis once they
+timestamps, an *approximate arrival timestamp* will be used by default. This timestamp is attached to records by Kinesis once they
 were successfully received and stored by streams. Note that this timestamp is typically referred to as a Kinesis server-side
 timestamp, and there are no guarantees about the accuracy or order correctness (i.e., the timestamps may not always be
 ascending).
+
+Users can choose to override this default with a custom timestamp, as described [here]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html),
+or use one from the [predefined ones]({{ site.baseurl }}/apis/streaming/event_timestamp_extractors.html). After doing so,
+it can be passed to the consumer in the following way:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
+    "kinesis_stream_name", new SimpleStringSchema(), kinesisConsumerConfig));
+kinesis.assignTimestampsAndWatermarks(new CustomTimestampAssigner());
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val kinesis = env.addSource(new FlinkKinesisConsumer[String](
+    "kinesis_stream_name", new SimpleStringSchema, kinesisConsumerConfig))
+kinesis.assignTimestampsAndWatermarks(new CustomTimestampAssigner)
+{% endhighlight %}
+</div>
+</div>
 
 #### Threading Model
 
