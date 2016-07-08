@@ -223,8 +223,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		@Override
 		public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
 			for (int i = 0; i < numElements; i++) {
-				// keys '1' and '2' hash to different buckets
-				Tuple2<Integer, Integer> result = new Tuple2<>(1 + (MathUtils.murmurHash(i) % numKeys), i);
+				Tuple2<Integer, Integer> result = new Tuple2<>(MathUtils.murmurHash(i) % numKeys, i);
 				ctx.collect(result);
 			}
 		}
