@@ -125,7 +125,6 @@ under the License.
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
-				<version>3.2.2</version>
 				<executions>
 					<!-- Run scala compiler in the process-resources phase, so that dependencies on
 						scala classes can be resolved later in the (Java) compile phase -->
@@ -157,6 +156,16 @@ under the License.
 					<execution>
 						<id>shade-flink</id>
 						<configuration>
+							<filters>
+								<filter>
+									<excludes>
+									    	<exclude>org-apache-calcite-jdbc.properties</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>codegen/**</exclude>
+										<exclude>google/**</exclude>
+									</excludes>
+								 </filter>
+							</filters>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.calcite:*</include>
@@ -164,6 +173,26 @@ under the License.
 									<include>net.hydromatic:*</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<!-- We currently don't relocate slf4j as we have "logger not found" 
+									warnings otherwise during runtime -->
+								<!--<relocation>
+									<pattern>org.slf4j</pattern>
+									<shadedPattern>org.apache.flink.shaded.calcite.org.slf4j</shadedPattern>
+								</relocation>-->
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.shaded.calcite.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.shaded.calcite.com.google</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.eigenbase</pattern>
+									<shadedPattern>org.apache.flink.shaded.calcite.org.eigenbase</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>
