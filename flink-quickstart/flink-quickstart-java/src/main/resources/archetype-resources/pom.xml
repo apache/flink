@@ -189,7 +189,6 @@ under the License.
 									<exclude>org.scala-lang:scala-library</exclude>
 									<exclude>org.scala-lang:scala-compiler</exclude>
 									<exclude>org.scala-lang:scala-reflect</exclude>
-									<exclude>com.amazonaws:aws-java-sdk</exclude>
 									<exclude>com.typesafe.akka:akka-actor_*</exclude>
 									<exclude>com.typesafe.akka:akka-remote_*</exclude>
 									<exclude>com.typesafe.akka:akka-slf4j_*</exclude>
@@ -209,13 +208,8 @@ under the License.
 									<exclude>org.objenesis:objenesis</exclude>
 									<exclude>com.twitter:chill_*</exclude>
 									<exclude>com.twitter:chill-java</exclude>
-									<exclude>com.twitter:chill-avro_*</exclude>
-									<exclude>com.twitter:chill-bijection_*</exclude>
-									<exclude>com.twitter:bijection-core_*</exclude>
-									<exclude>com.twitter:bijection-avro_*</exclude>
 									<exclude>commons-lang:commons-lang</exclude>
 									<exclude>junit:junit</exclude>
-									<exclude>de.javakaffee:kryo-serializers</exclude>
 									<exclude>joda-time:joda-time</exclude>
 									<exclude>org.apache.commons:commons-lang3</exclude>
 									<exclude>org.slf4j:slf4j-api</exclude>
