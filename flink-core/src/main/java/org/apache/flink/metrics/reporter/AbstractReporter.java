@@ -84,4 +84,24 @@ public abstract class AbstractReporter implements MetricReporter {
 	protected String replaceInvalidChars(String metricName) {
 		return metricName;
 	}
+
+	/**
+	 * Method which constructs the fully qualified metric name from the metric group and the metric
+	 * name.
+	 *
+	 * @param metricName Name of the metric
+	 * @param group Associated metric group
+	 * @return Fully qualified metric name
+	 */
+	private String constructMetricName(String metricName, AbstractMetricGroup group) {
+		StringBuilder builder = new StringBuilder();
+
+		for (String componentName : group.getScopeComponents()) {
+			builder.append(replaceInvalidChars(componentName)).append(".");
+		}
+
+		builder.append(replaceInvalidChars(metricName));
+
+		return builder.toString();
+	}
 }

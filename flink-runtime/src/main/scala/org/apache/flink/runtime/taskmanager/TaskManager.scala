@@ -2305,7 +2305,7 @@ object TaskManager {
     val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
 
     for (garbageCollector <- garbageCollectors.asScala) {
-      val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
+      val gcGroup = metrics.addGroup(garbageCollector.getName)
       gcGroup.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
         override def getValue: Long = garbageCollector.getCollectionCount
       })

@@ -140,6 +140,63 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 		}
 	}
 
+	/**
+	 * Can be overridden by sub-classes to replace invalid characters in metric name.
+	 *
+	 * @param metricName Name of the metric
+	 * @return The metric name to register the metric under
+	 */
+	protected String replaceInvalidChars(String metricName) {
+		char[] chars = null;
+		final int strLen = metricName.length();
+		int pos = 0;
+
+		for (int i = 0; i < strLen; i++) {
+			final char c = metricName.charAt(i);
+			switch (c) {
+				case '.':
+					if (chars == null) {
+						chars = metricName.toCharArray();
+					}
+					chars[pos++] = '-';
+					break;
+				case '"':
+					if (chars == null) {
+						chars = metricName.toCharArray();
+					}
+					break;
+
+				default:
+					if (chars != null) {
+						chars[pos] = c;
+					}
+					pos++;
+			}
+		}
+
+		return chars == null ? metricName : new String(chars, 0, pos);
+	}
+
+	/**
+	 * Method which constructs the fully qualified metric name from the metric group and the metric
+	 * name.
+	 *
+	 * @param metricName Name of the metric
+	 * @param group Associated metric group
+	 * @return Fully qualified metric name
+	 */
+	private String constructMetricName(String metricName, AbstractMetricGroup group) {
+		StringBuilder builder = new StringBuilder();
+
+		for (String componentName : group.getScopeComponents()) {
+			builder.append(replaceInvalidChars(componentName)).append(".");
+		}
+
+		builder.append(replaceInvalidChars(metricName));
+
+		return builder.toString();
+	}
+
 	// ------------------------------------------------------------------------
 	//  scheduled reporting
 	// ------------------------------------------------------------------------
