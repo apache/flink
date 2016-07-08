@@ -157,7 +157,7 @@ public class MetricRegistryTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that the scopeName configuration is properly extracted.
+	 * Verifies that the scope configuration is properly extracted.
 	 */
 	@Test
 	public void testScopeConfig() {

@@ -74,13 +74,13 @@ public class MetricRegistry {
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
 	public MetricRegistry(Configuration config) {
-		// first parse the scopeName formats, these are needed for all reporters
+		// first parse the scope formats, these are needed for all reporters
 		ScopeFormats scopeFormats;
 		try {
 			scopeFormats = createScopeConfig(config);
 		}
 		catch (Exception e) {
-			LOG.warn("Failed to parse scopeName format, using default scopeName formats", e);
+			LOG.warn("Failed to parse scope format, using default scope formats", e);
 			scopeFormats = new ScopeFormats();
 		}
 		this.scopeFormats = scopeFormats;
