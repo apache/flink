@@ -238,7 +238,7 @@ You can write your own `Reporter` by implementing the `org.apache.flink.metrics.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 
 By default Flink uses JMX to expose metrics.
-All non-JMXReporters are not part of the distribution. To use them you have to copy the respective jar to the `/lib` folder.
+All non-JMXReporters are not part of the distribution. To use them you have to copy the respective fat-jar to the `/lib` folder.
 
 The following sections list the supported reporters.
 
