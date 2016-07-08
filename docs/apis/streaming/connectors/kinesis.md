@@ -52,14 +52,18 @@ mvn clean install -Pinclude-kinesis -DskipTests
 
 
 Note that the streaming connectors are not part of the binary distribution. 
-See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+See how to link with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
-#### Usage of Consumer
+### Using the Amazon Kinesis Streams Service
+Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
+to setup Kinesis streams. Make sure to create the appropriate IAM policy and user to read / write to the Kinesis streams.
 
-The `FlinkKinesisConsumer` can be used to pull data from multiple Kinesis streams within the same AWS region in parallel.
-It participates in Flink's distributed snapshot checkpointing and provides exactly-once processing guarantees. Note
-that the current version can not handle resharding of Kinesis streams. When Kinesis streams are resharded, the consumer
-will fail and the Flink streaming job must be resubmitted.
+### Kinesis Consumer
+
+The `FlinkKinesisConsumer` is an exactly-once parallel streaming data source that subscribes to multiple AWS Kinesis
+streams within the same AWS service region, and can handle resharding of streams. Each subtask of the consumer is
+responsible for fetching data records from multiple Kinesis shards. The number of shards fetched by each subtask will
+change as shards are closed and created by Kinesis.
 
 Before consuming data from Kinesis streams, make sure that all streams are created with the status "ACTIVE" in the AWS dashboard.
 
@@ -78,8 +82,26 @@ kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYP
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
 
-DataStream<String> kinesisRecords = env.addSource(new FlinkKinesisConsumer<>(
+DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
     "kinesis_stream_name", new SimpleStringSchema(), kinesisConsumerConfig))
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val kinesisConsumerConfig = new Properties();
+kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+kinesisConsumerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
+    "aws_access_key_id_here");
+kinesisConsumerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
+    "aws_secret_key_here");
+kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, "LATEST");
+
+val env = StreamExecutionEnvironment.getEnvironment
+
+val kinesis = env.addSource(new FlinkKinesisConsumer[String](
+    "kinesis_stream_name", new SimpleStringSchema, kinesisConsumerConfig))
 {% endhighlight %}
 </div>
 </div>
@@ -92,13 +114,90 @@ the AWS access key ID and secret key are directly supplied in the configuration 
 from the newest position in the Kinesis stream (the other option will be setting `KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE`
 to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from the earliest record possible).
 
-#### Usage of Producer
+Other optional configuration keys can be found in `KinesisConfigConstants`.
 
-The `FlinkKinesisProducer` is used for putting data from a Flink stream onto a Kinesis stream. Note that the producer is not participating in 
+#### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
+
+With Flink's checkpointing enabled, the Flink Kinesis Consumer will consume records from shards in Kinesis streams and
+periodically checkpoint each shard's progress. In case of a job failure, Flink will restore the streaming program to the
+state of the latest complete checkpoint and re-consume the records from Kinesis shards, starting from the progress that
+was stored in the checkpoint.
+
+The interval of drawing checkpoints therefore defines how much the program may have to go back at most, in case of a failure.
+
+To use fault tolerant Kinesis Consumers, checkpointing of the topology needs to be enabled at the execution environment:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.enableCheckpointing(5000); // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+env.enableCheckpointing(5000) // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+</div>
+
+Also note that Flink can only restart the topology if enough processing slots are available to restart the topology.
+Therefore, if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
+Flink on YARN supports automatic restart of lost YARN containers.
+
+#### Threading Model
+
+The Flink Kinesis Consumer uses multiple threads for shard discovery and data consumption.
+
+For shard discovery, each parallel consumer subtask will have a single thread that constantly queries Kinesis for shard
+information even if the subtask initially did not have shards to read from when the consumer was started. In other words, if
+the consumer is run with a parallelism of 10, there will be a total of 10 threads constantly querying Kinesis regardless
+of the total amount of shards in the subscribed streams.
+
+For data consumption, a single thread will be created to consume each discovered shard. Threads will terminate when the
+shard it is responsible of consuming is closed as a result of stream resharding. In other words, there will always be
+one thread per open shard.
+
+#### Internally Used Kinesis APIs
+
+The Flink Kinesis Consumer uses the [AWS Java SDK](http://aws.amazon.com/sdk-for-java/) internally to call Kinesis APIs
+for shard discovery and data consumption. Due to Amazon's [service limits for Kinesis Streams](http://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html)
+on the APIs, the consumer will be competing with other non-Flink consuming applications that the user may be running.
+Below is a list of APIs called by the consumer with description of how the consumer uses the API, as well as information
+on how to deal with any errors or warnings that the Flink Kinesis Consumer may have due to these service limits.
+
+- *[DescribeStream](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStream.html)*: this is constantly called
+by a single thread in each parallel consumer subtask to discover any new shards as a result of stream resharding. By default,
+the consumer performs the shard discovery at an interval of 10 seconds, and will retry indefinitely until it gets a result
+from Kinesis. If this interferes with other non-Flink consuming applications, users can slow down the consumer of
+calling this API by setting a value for `KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS` in the supplied
+configuration properties. This sets the discovery interval to a different value. Note that this setting directly impacts
+the maximum delay of discovering a new shard and starting to consume it, as shards will not be discovered during the interval.
+
+- *[GetShardIterator](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html)*: this is called
+only once when per shard consuming threads are started, and will retry if Kinesis complains that the transaction limit for the
+API has exceeded, up to a default of 3 attempts. Note that since the rate limit for this API is per shard (not per stream),
+the consumer itself should not exceed the limit. Usually, if this happens, users can either try to slow down any other
+non-Flink consuming applications of calling this API, or modify the retry behaviour of this API call in the consumer by
+setting keys prefixed by `KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_*` in the supplied configuration properties.
+
+- *[GetRecords](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html)*: this is constantly called
+by per shard consuming threads to fetch records from Kinesis. When a shard has multiple concurrent consumers (when there
+are any other non-Flink consuming applications running), the per shard rate limit may be exceeded. By default, on each call
+of this API, the consumer will retry if Kinesis complains that the data size / transaction limit for the API has exceeded,
+up to a default of 3 attempts. Users can either try to slow down other non-Flink consuming applications, or adjust the maximum
+amount of records to fetch per call by setting the `KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_MAX` key in the supplied
+configuration properties. The retry behaviour of the consumer when calling this API can also be modified by using the
+other keys prefixed by `KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_*`.
+
+### Kinesis Producer
+
+The `FlinkKinesisProducer` is used for putting data from a Flink stream into a Kinesis stream. Note that the producer is not participating in
 Flink's checkpointing and doesn't provide exactly-once processing guarantees. In case of a failure, data will be written again
 to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
 
-To put data onto a Kinesis stream, make sure the stream is marked as "ACTIVE" in the AWS dashboard.
+To put data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in the AWS dashboard.
 
 For the monitoring to work, the user accessing the stream needs access to the Cloud watch service.
 
@@ -113,13 +212,34 @@ kinesisProducerConfig.put(
 kinesisProducerConfig.put(
     KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
     "aws_secret_key_here");
-FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(), kinesisProducerConfig);
 
+FlinkKinesisProducer<String> kinesis =
+    new FlinkKinesisProducer<>(new SimpleStringSchema(), kinesisProducerConfig);
 kinesis.setFailOnError(true);
-kinesis.setDefaultStream("test-flink");
+kinesis.setDefaultStream("kinesis_stream_name");
 kinesis.setDefaultPartition("0");
 
 DataStream<String> simpleStringStream = ...;
+simpleStringStream.addSink(kinesis);
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val kinesisProducerConfig = new Properties();
+kinesisProducerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
+    "aws_access_key_id_here");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
+    "aws_secret_key_here");
+
+val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, kinesisProducerConfig);
+kinesis.setFailOnError(true);
+kinesis.setDefaultStream("kinesis_stream_name");
+kinesis.setDefaultPartition("0");
+
+val simpleStringStream = ...;
 simpleStringStream.addSink(kinesis);
 {% endhighlight %}
 </div>

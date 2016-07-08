@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TaskMetricGroup extends ComponentMetricGroup {
 
 	/** The job metrics group containing this task metrics group */
-	private final JobMetricGroup parent;
+	private final TaskManagerJobMetricGroup parent;
 
 	private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
 
@@ -61,7 +61,7 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 
 	public TaskMetricGroup(
 			MetricRegistry registry,
-			JobMetricGroup parent,
+			TaskManagerJobMetricGroup parent,
 			@Nullable AbstractID vertexId,
 			AbstractID executionId,
 			@Nullable String taskName,
@@ -74,7 +74,7 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 
 	public TaskMetricGroup(
 			MetricRegistry registry,
-			JobMetricGroup parent,
+			TaskManagerJobMetricGroup parent,
 			TaskScopeFormat scopeFormat, 
 			@Nullable AbstractID vertexId,
 			AbstractID executionId,
@@ -99,7 +99,7 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 	//  properties
 	// ------------------------------------------------------------------------
 
-	public final JobMetricGroup parent() {
+	public final TaskManagerJobMetricGroup parent() {
 		return parent;
 	}
 

@@ -135,7 +135,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 	}
 
 	@Test
-	public void testEval() throws Exception {
+	public void testIf() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
@@ -146,9 +146,9 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 				tableEnv.fromDataSet(input, "a, b");
 
 		Table result = table.select(
-				"(b && true).eval('true', 'false')," +
-					"false.eval('true', 'false')," +
-					"true.eval(true.eval(true.eval(10, 4), 4), 4)");
+				"(b && true).?('true', 'false')," +
+					"false.?('true', 'false')," +
+					"true.?(true.?(true.?(10, 4), 4), 4)");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
@@ -157,7 +157,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 	}
 
 	@Test(expected = ValidationException.class)
-	public void testEvalInvalidTypes() throws Exception {
+	public void testIfInvalidTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
@@ -167,7 +167,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
 
-		Table result = table.select("(b && true).eval(5, 'false')");
+		Table result = table.select("(b && true).?(5, 'false')");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();

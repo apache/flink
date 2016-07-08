@@ -1477,6 +1477,8 @@ public class WindowOperatorTest {
 
 		// this is dropped as late
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
+		// this is also dropped as late (we test that they are not accidentally merged)
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10100));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
 		testHarness.processWatermark(new Watermark(20000));

@@ -81,8 +81,8 @@ public abstract class ClusterClient {
 	/** The optimizer used in the optimization of batch programs */
 	final Optimizer compiler;
 
-	/** The actor system used to communicate with the JobManager */
-	protected final ActorSystem actorSystem;
+	/** The actor system used to communicate with the JobManager. Lazily initialized upon first use */
+	protected final LazyActorSystemLoader actorSystemLoader;
 
 	/** Configuration of the client */
 	protected final Configuration flinkConfig;
@@ -127,39 +127,74 @@ public abstract class ClusterClient {
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
 		this.lookupTimeout = AkkaUtils.getLookupTimeout(flinkConfig);
 
-		this.actorSystem = createActorSystem();
+		this.actorSystemLoader = new LazyActorSystemLoader(flinkConfig, LOG);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Method to create the ActorSystem of the Client. May be overriden in subclasses.
-	 * @return ActorSystem
-	 * @throws IOException
-	 */
-	protected ActorSystem createActorSystem() throws IOException {
+	protected static class LazyActorSystemLoader {
 
-		if (actorSystem != null) {
-			throw new RuntimeException("This method may only be called once.");
+		private final Logger LOG;
+
+		private final Configuration flinkConfig;
+
+		private ActorSystem actorSystem;
+
+		private LazyActorSystemLoader(Configuration flinkConfig, Logger LOG) {
+			this.flinkConfig = flinkConfig;
+			this.LOG = LOG;
 		}
 
-		// start actor system
-		LOG.info("Starting client actor system.");
-
-		String hostName = flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		int port = flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
-		if (hostName == null || port == -1) {
-			throw new IOException("The initial JobManager address has not been set correctly.");
+		/**
+		 * Indicates whether the ActorSystem has already been instantiated.
+		 * @return boolean True if it exists, False otherwise
+		 */
+		public boolean isLoaded() {
+			return actorSystem != null;
 		}
-		InetSocketAddress initialJobManagerAddress = new InetSocketAddress(hostName, port);
 
-		// find name of own public interface, able to connect to the JM
-		// try to find address for 2 seconds. log after 400 ms.
-		InetAddress ownHostname = ConnectionUtils.findConnectingAddress(initialJobManagerAddress, 2000, 400);
-		return AkkaUtils.createActorSystem(flinkConfig,
-			new Some<>(new Tuple2<String, Object>(ownHostname.getCanonicalHostName(), 0)));
+		public void shutdown() {
+			if (isLoaded()) {
+				actorSystem.shutdown();
+				actorSystem.awaitTermination();
+				actorSystem = null;
+			}
+		}
+
+		/**
+		 * Creates a new ActorSystem or returns an existing one.
+		 * @return ActorSystem
+		 */
+		public ActorSystem get() {
+
+			if (!isLoaded()) {
+				// start actor system
+				LOG.info("Starting client actor system.");
+
+				String hostName = flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+				int port = flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+				if (hostName == null || port == -1) {
+					throw new RuntimeException("The initial JobManager address has not been set correctly.");
+				}
+				InetSocketAddress initialJobManagerAddress = new InetSocketAddress(hostName, port);
+
+				// find name of own public interface, able to connect to the JM
+				// try to find address for 2 seconds. log after 400 ms.
+				InetAddress ownHostname;
+				try {
+					ownHostname = ConnectionUtils.findConnectingAddress(initialJobManagerAddress, 2000, 400);
+				} catch (IOException e) {
+					throw new RuntimeException("Failed to resolve JobManager address at " + initialJobManagerAddress, e);
+				}
+				actorSystem = AkkaUtils.createActorSystem(flinkConfig,
+					new Some<>(new Tuple2<String, Object>(ownHostname.getCanonicalHostName(), 0)));
+			}
+
+			return actorSystem;
+		}
+
 	}
 
 	/**
@@ -170,10 +205,7 @@ public abstract class ClusterClient {
 			try {
 				finalizeCluster();
 			} finally {
-				if (!this.actorSystem.isTerminated()) {
-					this.actorSystem.shutdown();
-					this.actorSystem.awaitTermination();
-				}
+				this.actorSystemLoader.shutdown();
 			}
 		}
 	}
@@ -201,7 +233,7 @@ public abstract class ClusterClient {
 
 	/**
 	 * Gets the current JobManager address from the Flink configuration (may change in case of a HA setup).
-	 * @return The address (host and port) of the leading JobManager
+	 * @return The address (host and port) of the leading JobManager when it was last retrieved (may be outdated)
 	 */
 	public InetSocketAddress getJobManagerAddressFromConfig() {
 		try {
@@ -373,8 +405,9 @@ public abstract class ClusterClient {
 		}
 
 		try {
+			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
 			this.lastJobID = jobGraph.getJobID();
-			return JobClient.submitJobAndWait(actorSystem,
+			return JobClient.submitJobAndWait(actorSystemLoader.get(),
 				leaderRetrievalService, jobGraph, timeout, printStatusDuringExecution, classLoader);
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
@@ -398,6 +431,7 @@ public abstract class ClusterClient {
 		}
 
 		try {
+			logAndSysout("Submitting Job with JobID: " + jobGraph.getJobID() + ". Returning after job submission.");
 			JobClient.submitJobDetached(jobManagerGateway, jobGraph, timeout, classLoader);
 			return new JobSubmissionResult(jobGraph.getJobID());
 		} catch (JobExecutionException e) {
@@ -612,7 +646,7 @@ public abstract class ClusterClient {
 
 		return LeaderRetrievalUtils.retrieveLeaderGateway(
 			LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig),
-			actorSystem,
+			actorSystemLoader.get(),
 			lookupTimeout);
 	}
 
@@ -650,7 +684,7 @@ public abstract class ClusterClient {
 	/**
 	 * Returns a string representation of the cluster.
 	 */
-	protected abstract String getClusterIdentifier();
+	public abstract String getClusterIdentifier();
 
 	/**
 	 * Request the cluster to shut down or disconnect.

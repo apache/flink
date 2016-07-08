@@ -335,6 +335,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				// drop if the window is already late
 				if (isLate(actualWindow)) {
 					LOG.info("Dropped element " + element+ " for window " + actualWindow + " due to lateness.");
+					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
 

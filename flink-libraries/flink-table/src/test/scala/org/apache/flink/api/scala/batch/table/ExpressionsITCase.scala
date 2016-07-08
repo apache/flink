@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.batch.table
 
-import java.util.Date
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
@@ -26,7 +26,7 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.codegen.CodeGenException
-import org.apache.flink.api.table.expressions.{Literal, Null}
+import org.apache.flink.api.table.expressions.Null
 import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
@@ -129,15 +129,15 @@ class ExpressionsITCase(
   }
 
   @Test
-  def testEval(): Unit = {
+  def testIf(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = env.fromElements((5, true)).toTable(tEnv, 'a, 'b)
       .select(
-        ('b && true).eval("true", "false"),
-        false.eval("true", "false"),
-        true.eval(true.eval(true.eval(10, 4), 4), 4))
+        ('b && true).?("true", "false"),
+        false.?("true", "false"),
+        true.?(true.?(true.?(10, 4), 4), 4))
 
     val expected = "true,false,10"
     val results = t.toDataSet[Row].collect()
@@ -145,12 +145,12 @@ class ExpressionsITCase(
   }
 
   @Test(expected = classOf[ValidationException])
-  def testEvalInvalidTypes(): Unit = {
+  def testIfInvalidTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = env.fromElements((5, true)).toTable(tEnv, 'a, 'b)
-      .select(('b && true).eval(5, "false"))
+      .select(('b && true).?(5, "false"))
 
     val expected = "true,false,3,10"
     val results = t.toDataSet[Row].collect()
@@ -158,37 +158,25 @@ class ExpressionsITCase(
   }
 
   @Test
-  def testDecimalLiteral(): Unit = {
+  def testAdvancedDataTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = env
-      .fromElements(
-        (BigDecimal("78.454654654654654").bigDecimal, BigDecimal("4E+9999").bigDecimal)
-      )
-      .toTable(tEnv, 'a, 'b)
-      .select('a, 'b, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal)
+      .fromElements((
+        BigDecimal("78.454654654654654").bigDecimal,
+        BigDecimal("4E+9999").bigDecimal,
+        Date.valueOf("1984-07-12"),
+        Time.valueOf("14:34:24"),
+        Timestamp.valueOf("1984-07-12 14:34:24")))
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .select('a, 'b, 'c, 'd, 'e, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
+        Date.valueOf("1984-07-12"), Time.valueOf("14:34:24"),
+        Timestamp.valueOf("1984-07-12 14:34:24"))
 
-    val expected = "78.454654654654654,4E+9999,11.2,11.2"
+    val expected = "78.454654654654654,4E+9999,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
+      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
-  // Date literals not yet supported
-  @Ignore
-  @Test
-  def testDateLiteral(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = env.fromElements((0L, "test")).toTable(tEnv, 'a, 'b)
-      .select('a,
-        Literal(new Date(0)).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        'a.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
-
-    val expected = "0,1970-01-01 00:00:00.000,1970-01-01 00:00:00.000"
-    val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
 }

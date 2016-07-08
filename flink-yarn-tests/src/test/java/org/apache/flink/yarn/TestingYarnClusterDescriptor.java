@@ -46,7 +46,7 @@ public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor 
 		filesToShip.add(testingJar);
 		filesToShip.add(testingRuntimeJar);
 
-		setShipFiles(filesToShip);
+		addShipFiles(filesToShip);
 	}
 
 	@Override

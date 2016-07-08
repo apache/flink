@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.table.codegen
 
-import java.lang.reflect.Field
+import java.lang.reflect.{Field, Method}
 import java.util.concurrent.atomic.AtomicInteger
 
+import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo._
-import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -64,6 +65,11 @@ object CodeGenUtils {
     case BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => "boolean[]"
     case CHAR_PRIMITIVE_ARRAY_TYPE_INFO => "char[]"
 
+    // internal primitive representation of Date/Time/Timestamp
+    case SqlTimeTypeInfo.DATE => "int"
+    case SqlTimeTypeInfo.TIME => "int"
+    case SqlTimeTypeInfo.TIMESTAMP => "long"
+
     case _ =>
       tpe.getTypeClass.getCanonicalName
   }
@@ -94,6 +100,8 @@ object CodeGenUtils {
     case BOOLEAN_TYPE_INFO => "false"
     case STRING_TYPE_INFO => "\"\""
     case CHAR_TYPE_INFO => "'\\0'"
+    case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP => "-1"
+
     case _ => "null"
   }
 
@@ -101,6 +109,29 @@ object CodeGenUtils {
     case _: FractionalTypeInfo[_] => "double"
     case _ => "long"
   }
+
+  def qualifyMethod(method: Method): String =
+    method.getDeclaringClass.getCanonicalName + "." + method.getName
+
+  def internalToTemporalCode(resultType: TypeInformation[_], resultTerm: String) =
+    resultType match {
+      case SqlTimeTypeInfo.DATE =>
+        s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_DATE.method)}($resultTerm)"
+      case SqlTimeTypeInfo.TIME =>
+        s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIME.method)}($resultTerm)"
+      case SqlTimeTypeInfo.TIMESTAMP =>
+        s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIMESTAMP.method)}($resultTerm)"
+    }
+
+  def temporalToInternalCode(resultType: TypeInformation[_], resultTerm: String) =
+    resultType match {
+      case SqlTimeTypeInfo.DATE =>
+        s"${qualifyMethod(BuiltInMethod.DATE_TO_INT.method)}($resultTerm)"
+      case SqlTimeTypeInfo.TIME =>
+        s"${qualifyMethod(BuiltInMethod.TIME_TO_INT.method)}($resultTerm)"
+      case SqlTimeTypeInfo.TIMESTAMP =>
+        s"${qualifyMethod(BuiltInMethod.TIMESTAMP_TO_LONG.method)}($resultTerm)"
+    }
 
   // ----------------------------------------------------------------------------------------------
 

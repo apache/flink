@@ -18,8 +18,8 @@
 
 package org.apache.flink.yarn;
 
+import akka.actor.ActorRef;
 import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
 
@@ -38,13 +38,13 @@ import java.util.List;
 public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.CallbackHandler {
 
 	/** The yarn master to which we report the callbacks */
-	private ActorGateway yarnFrameworkMaster;
+	private ActorRef yarnFrameworkMaster;
 
 	/** The progress we report */
 	private float currentProgress;
 	
 	
-	public YarnResourceManagerCallbackHandler(ActorGateway yarnFrameworkMaster) {
+	public YarnResourceManagerCallbackHandler(ActorRef yarnFrameworkMaster) {
 		this.yarnFrameworkMaster = yarnFrameworkMaster;
 	}
 
@@ -65,12 +65,16 @@ public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.Callb
 
 	@Override
 	public void onContainersCompleted(List<ContainerStatus> list) {
-		yarnFrameworkMaster.tell(new ContainersComplete(list));
+		yarnFrameworkMaster.tell(
+			new ContainersComplete(list),
+			ActorRef.noSender());
 	}
 
 	@Override
 	public void onContainersAllocated(List<Container> containers) {
-		yarnFrameworkMaster.tell(new ContainersAllocated(containers));
+		yarnFrameworkMaster.tell(
+			new ContainersAllocated(containers),
+			ActorRef.noSender());
 	}
 
 	@Override
@@ -85,14 +89,8 @@ public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.Callb
 
 	@Override
 	public void onError(Throwable error) {
-		yarnFrameworkMaster.tell(new FatalErrorOccurred("Connection to YARN Resource Manager failed", error));
-	}
-
-	/**
-	 * Leaders may change. The current gateway can be adjusted here.
-	 * @param gateway The current gateway to the leading job manager.
-	 */
-	public void setCurrentLeaderGateway(ActorGateway gateway) {
-		this.yarnFrameworkMaster = gateway;
+		yarnFrameworkMaster.tell(
+			new FatalErrorOccurred("Connection to YARN Resource Manager failed", error),
+			ActorRef.noSender());
 	}
 }

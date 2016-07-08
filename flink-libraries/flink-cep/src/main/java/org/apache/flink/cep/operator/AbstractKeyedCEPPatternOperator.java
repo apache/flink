@@ -190,7 +190,7 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 		super.restoreState(state, recoveryTimestamp);
 
 		@SuppressWarnings("unchecked")
-		StateHandle<DataInputView> stateHandle = (StateHandle<DataInputView>) state;
+		StateHandle<DataInputView> stateHandle = (StateHandle<DataInputView>) state.getOperatorState();
 
 		DataInputView inputView = stateHandle.getState(getUserCodeClassloader());
 

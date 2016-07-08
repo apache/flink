@@ -21,8 +21,8 @@ package org.apache.flink.graph.asm.translate;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingGraph;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
@@ -38,7 +38,7 @@ import static org.apache.flink.graph.asm.translate.Translate.translateVertexIds;
  * @param <EV> edge value type
  */
 public class TranslateGraphIds<OLD, NEW, VV, EV>
-implements GraphAlgorithm<OLD, VV, EV, Graph<NEW, VV, EV>> {
+extends GraphAlgorithmDelegatingGraph<OLD, VV, EV, NEW, VV, EV> {
 
 	// Required configuration
 	private TranslateFunction<OLD,NEW> translator;
@@ -73,7 +73,36 @@ implements GraphAlgorithm<OLD, VV, EV, Graph<NEW, VV, EV>> {
 	}
 
 	@Override
-	public Graph<NEW, VV, EV> run(Graph<OLD, VV, EV> input) throws Exception {
+	protected String getAlgorithmName() {
+		return TranslateGraphIds.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingGraph other) {
+		Preconditions.checkNotNull(other);
+
+		if (! TranslateGraphIds.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		TranslateGraphIds rhs = (TranslateGraphIds) other;
+
+		// verify that configurations can be merged
+
+		if (translator != rhs.translator) {
+			return false;
+		}
+
+		// merge configurations
+
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public Graph<NEW, VV, EV> runInternal(Graph<OLD, VV, EV> input)
+			throws Exception {
 		// Vertices
 		DataSet<Vertex<NEW, VV>> translatedVertices = translateVertexIds(input.getVertices(), translator, parallelism);
 

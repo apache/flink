@@ -52,6 +52,9 @@ under the License.
     </build>
 
     <dependencies>
+        
+        <!-- core dependencies -->
+        
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-core</artifactId>
@@ -77,11 +80,13 @@ under the License.
             <artifactId>flink-clients_2.10</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- test dependencies -->
+        
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-test-utils_2.10</artifactId>
             <version>${project.version}</version>
-			<type>test-jar</type>
             <scope>test</scope>
         </dependency>
     </dependencies>

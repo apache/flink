@@ -19,6 +19,8 @@
 package org.apache.flink.metrics.groups.scope;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.JobManagerJobScopeFormat;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.JobManagerScopeFormat;
 import org.apache.flink.metrics.groups.scope.ScopeFormat.OperatorScopeFormat;
 import org.apache.flink.metrics.groups.scope.ScopeFormat.TaskManagerJobScopeFormat;
 import org.apache.flink.metrics.groups.scope.ScopeFormat.TaskManagerScopeFormat;
@@ -32,6 +34,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class ScopeFormats {
 
+	private final JobManagerScopeFormat jobManagerFormat;
+	private final JobManagerJobScopeFormat jobManagerJobFormat;
 	private final TaskManagerScopeFormat taskManagerFormat;
 	private final TaskManagerJobScopeFormat taskManagerJobFormat;
 	private final TaskScopeFormat taskFormat;
@@ -43,6 +47,11 @@ public class ScopeFormats {
 	 * Creates all default scope formats.
 	 */
 	public ScopeFormats() {
+		this.jobManagerFormat = new JobManagerScopeFormat(ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_COMPONENT);
+
+		this.jobManagerJobFormat = new JobManagerJobScopeFormat(
+			ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_JOB_GROUP, this.jobManagerFormat);
+
 		this.taskManagerFormat = new TaskManagerScopeFormat(ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_COMPONENT);
 
 		this.taskManagerJobFormat = new TaskManagerJobScopeFormat(
@@ -59,11 +68,15 @@ public class ScopeFormats {
 	 * Creates all scope formats, based on the given scope format strings.
 	 */
 	public ScopeFormats(
+			String jobManagerFormat,
+			String jobManagerJobFormat,
 			String taskManagerFormat,
 			String taskManagerJobFormat,
 			String taskFormat,
 			String operatorFormat)
 	{
+		this.jobManagerFormat = new JobManagerScopeFormat(jobManagerFormat);
+		this.jobManagerJobFormat = new JobManagerJobScopeFormat(jobManagerJobFormat, this.jobManagerFormat);
 		this.taskManagerFormat = new TaskManagerScopeFormat(taskManagerFormat);
 		this.taskManagerJobFormat = new TaskManagerJobScopeFormat(taskManagerJobFormat, this.taskManagerFormat);
 		this.taskFormat = new TaskScopeFormat(taskFormat, this.taskManagerJobFormat);
@@ -74,11 +87,15 @@ public class ScopeFormats {
 	 * Creates a {@code ScopeFormats} with the given scope formats.
 	 */
 	public ScopeFormats(
+			JobManagerScopeFormat jobManagerFormat,
+			JobManagerJobScopeFormat jobManagerJobFormat,
 			TaskManagerScopeFormat taskManagerFormat,
 			TaskManagerJobScopeFormat taskManagerJobFormat,
 			TaskScopeFormat taskFormat,
 			OperatorScopeFormat operatorFormat)
 	{
+		this.jobManagerFormat = checkNotNull(jobManagerFormat);
+		this.jobManagerJobFormat = checkNotNull(jobManagerJobFormat);
 		this.taskManagerFormat = checkNotNull(taskManagerFormat);
 		this.taskManagerJobFormat = checkNotNull(taskManagerJobFormat);
 		this.taskFormat = checkNotNull(taskFormat);
@@ -87,12 +104,20 @@ public class ScopeFormats {
 
 	// ------------------------------------------------------------------------
 
+	public JobManagerScopeFormat getJobManagerFormat() {
+		return this.jobManagerFormat;
+	}
+
 	public TaskManagerScopeFormat getTaskManagerFormat() {
 		return this.taskManagerFormat;
 	}
 
-	public TaskManagerJobScopeFormat getJobFormat() {
+	public TaskManagerJobScopeFormat getTaskManagerJobFormat() {
 		return this.taskManagerJobFormat;
+	}
+
+	public JobManagerJobScopeFormat getJobManagerJobFormat() {
+		return this.jobManagerJobFormat;
 	}
 
 	public TaskScopeFormat getTaskFormat() {

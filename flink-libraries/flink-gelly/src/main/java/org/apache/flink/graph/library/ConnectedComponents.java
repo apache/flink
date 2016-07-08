@@ -25,9 +25,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
@@ -76,39 +76,16 @@ public class ConnectedComponents<K, VV extends Comparable<VV>, EV>
 			.getUndirected();
 
 		return undirectedGraph.runScatterGatherIteration(
-			new CCUpdater<K, VV>(),
 			new CCMessenger<K, VV>(valueTypeInfo),
+			new CCUpdater<K, VV>(),
 			maxIterations).getVertices();
-	}
-
-	/**
-	 * Updates the value of a vertex by picking the minimum neighbor value out of all the incoming messages.
-	 */
-	public static final class CCUpdater<K, VV extends Comparable<VV>>
-		extends VertexUpdateFunction<K, VV, VV> {
-
-		@Override
-		public void updateVertex(Vertex<K, VV> vertex, MessageIterator<VV> messages) throws Exception {
-			VV current = vertex.getValue();
-			VV min = current;
-
-			for (VV msg : messages) {
-				if (msg.compareTo(min) < 0) {
-					min = msg;
-				}
-			}
-
-			if (!min.equals(current)) {
-				setNewVertexValue(min);
-			}
-		}
 	}
 
 	/**
 	 * Sends the current vertex value to all adjacent vertices.
 	 */
 	public static final class CCMessenger<K, VV extends Comparable<VV>>
-		extends MessagingFunction<K, VV, VV, NullValue>
+		extends ScatterFunction<K, VV, VV, NullValue>
 		implements ResultTypeQueryable<VV> {
 
 		private final TypeInformation<VV> typeInformation;
@@ -126,6 +103,29 @@ public class ConnectedComponents<K, VV extends Comparable<VV>, EV>
 		@Override
 		public TypeInformation<VV> getProducedType() {
 			return typeInformation;
+		}
+	}
+
+	/**
+	 * Updates the value of a vertex by picking the minimum neighbor value out of all the incoming messages.
+	 */
+	public static final class CCUpdater<K, VV extends Comparable<VV>>
+		extends GatherFunction<K, VV, VV> {
+
+		@Override
+		public void updateVertex(Vertex<K, VV> vertex, MessageIterator<VV> messages) throws Exception {
+			VV current = vertex.getValue();
+			VV min = current;
+
+			for (VV msg : messages) {
+				if (msg.compareTo(min) < 0) {
+					min = msg;
+				}
+			}
+
+			if (!min.equals(current)) {
+				setNewVertexValue(min);
+			}
 		}
 	}
 }

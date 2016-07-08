@@ -92,7 +92,9 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public <T> FlinkKafkaProducerBase<T> getProducer(String topic, KeyedSerializationSchema<T> serSchema, Properties props, KafkaPartitioner<T> partitioner) {
-		return new FlinkKafkaProducer09<>(topic, serSchema, props, partitioner);
+		FlinkKafkaProducer09<T> prod = new FlinkKafkaProducer09<>(topic, serSchema, props, partitioner);
+		prod.setFlushOnCheckpoint(true);
+		return prod;
 	}
 
 	@Override

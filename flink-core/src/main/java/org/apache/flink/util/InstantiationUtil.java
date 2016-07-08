@@ -21,6 +21,7 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
@@ -340,6 +341,35 @@ public final class InstantiationUtil {
 			return deserializeObject(serializedObject, classLoader);
 		}
 	}
+
+	/**
+	 * Clones the given writable using the {@link IOReadableWritable serialization}.
+	 *
+	 * @param original Object to clone
+	 * @param <T> Type of the object to clone
+	 * @return Cloned object
+	 * @throws IOException Thrown is the serialization fails.
+	 */
+	public static <T extends IOReadableWritable> T createCopyWritable(T original) throws IOException {
+		if (original == null) {
+			return null;
+		}
+
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try (DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos)) {
+			original.write(out);
+		}
+
+		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+		try (DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais)) {
+
+			@SuppressWarnings("unchecked")
+			T copy = (T) instantiate(original.getClass());
+			copy.read(in);
+			return copy;
+		}
+	}
+	
 	
 	// --------------------------------------------------------------------------------------------
 	

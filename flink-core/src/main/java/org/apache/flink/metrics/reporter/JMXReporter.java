@@ -125,6 +125,10 @@ public class JMXReporter implements MetricReporter {
 			}
 		}
 	}
+	
+	public int getPort() {
+		return jmxServer.port;
+	}
 
 	// ------------------------------------------------------------------------
 	//  adding / removing metrics
@@ -415,6 +419,7 @@ public class JMXReporter implements MetricReporter {
 	private static class JMXServer {
 		private Registry rmiRegistry;
 		private JMXConnectorServer connector;
+		private int port;
 
 		public void start(int port) throws IOException {
 			if (rmiRegistry != null && connector != null) {
@@ -423,6 +428,7 @@ public class JMXReporter implements MetricReporter {
 			}
 			startRmiRegistry(port);
 			startJmxService(port);
+			this.port = port;
 		}
 
 		/**

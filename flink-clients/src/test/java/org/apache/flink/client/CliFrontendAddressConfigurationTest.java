@@ -18,14 +18,7 @@
 
 package org.apache.flink.client;
 
-import static org.apache.flink.client.CliFrontendTestUtils.checkJobManagerAddress;
-import static org.junit.Assert.fail;
-
-import static org.mockito.Mockito.*;
-
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.CommandLineOptions;
-
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -37,6 +30,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.net.InetSocketAddress;
+
+import static org.apache.flink.client.CliFrontendTestUtils.checkJobManagerAddress;
+import static org.junit.Assert.fail;
 
 /**
  * Tests that verify that the CLI client picks up the correct address for the JobManager
@@ -78,10 +74,10 @@ public class CliFrontendAddressConfigurationTest {
 
 	@Test(expected = IllegalConfigurationException.class)
 	public void testInvalidConfigAndNoOption() throws Exception {
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getInvalidConfigDir());
-			RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
+		CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getInvalidConfigDir());
+		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
 
-			frontend.retrieveClient(options);
+		frontend.retrieveClient(options);
 	}
 
 	@Test
@@ -89,12 +85,12 @@ public class CliFrontendAddressConfigurationTest {
 		try {
 			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 
-			RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "10.221.130.22:7788"});
+			RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "203.0.113.22:7788"});
 
 			ClusterClient client = frontend.retrieveClient(options);
 			Configuration config = client.getFlinkConfiguration();
 
-			InetSocketAddress expectedAddress = new InetSocketAddress("10.221.130.22", 7788);
+			InetSocketAddress expectedAddress = new InetSocketAddress("203.0.113.22", 7788);
 
 			checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
 		}

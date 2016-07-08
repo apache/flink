@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -53,8 +54,10 @@ import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -80,6 +83,11 @@ public class CliFrontendYarnAddressConfigurationTest {
 		PrintStream nullPrinter = new PrintStream(new NullPrint());
 		System.setOut(nullPrinter);
 		System.setErr(nullPrinter);
+
+		// Unset FLINK_CONF_DIR, as this is a precondition for this test to work properly
+		Map<String, String> map = new HashMap<>(System.getenv());
+		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
+		TestBaseUtils.setEnv(map);
 	}
 
 	@AfterClass
@@ -101,8 +109,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 	private static final ApplicationId TEST_YARN_APPLICATION_ID =
 		ApplicationId.newInstance(System.currentTimeMillis(), 42);
 
-	private static final String validPropertiesFile =
-		"jobManager=" + TEST_YARN_JOB_MANAGER_ADDRESS + ":" + TEST_YARN_JOB_MANAGER_PORT;
+	private static final String validPropertiesFile = "applicationID=" + TEST_YARN_APPLICATION_ID;
 
 
 	private static final String TEST_JOB_MANAGER_ADDRESS = "192.168.1.33";
@@ -262,12 +269,11 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 		Configuration config = frontend.getConfiguration();
 
-		InetSocketAddress expectedAddress = new InetSocketAddress("10.221.130.22", 7788);
+		InetSocketAddress expectedAddress = InetSocketAddress.createUnresolved("10.221.130.22", 7788);
 
 		checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
 
 	}
-
 
 	///////////
 	// Utils //
@@ -296,8 +302,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 		@Override
 		// make method public
-		public ClusterClient getClient(CommandLineOptions options, String programName) throws Exception {
-			return super.getClient(options, programName);
+		public ClusterClient createClient(CommandLineOptions options, String programName) throws Exception {
+			return super.createClient(options, programName);
 		}
 
 		@Override

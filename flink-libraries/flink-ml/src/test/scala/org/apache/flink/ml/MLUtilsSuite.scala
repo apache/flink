@@ -20,16 +20,15 @@ package org.apache.flink.ml
 
 import java.io.File
 
-import scala.io.Source
+import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.CommonTestUtils
+import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.math.SparseVector
+import org.apache.flink.ml.util.FlinkTestBase
 
 import org.scalatest.{FlatSpec, Matchers}
 
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.SparseVector
-import org.apache.flink.test.util.FlinkTestBase
-import org.apache.flink.testutils.TestFileUtils
+import scala.io.Source
 
 class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
 
@@ -53,7 +52,7 @@ class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
       LabeledVector(-42.1, SparseVector.fromCOO(10, (1, 2), (3, -6.1), (2, 5.1)))
     )
 
-    val inputFilePath = TestFileUtils.createTempFile(content)
+    val inputFilePath = CommonTestUtils.createTempFile(content)
 
     val svmInput = env.readLibSVM(inputFilePath)
 
@@ -86,10 +85,7 @@ class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val labeledVectorsDS = env.fromCollection(labeledVectors)
 
-    val tempDir = new File(System.getProperty("java.io.tmpdir"))
-
-    val tempFile = new File(tempDir, TestFileUtils.randomFileName())
-
+    val tempFile = File.createTempFile("flink_test_", ".tmp")
     val outputFilePath = tempFile.getAbsolutePath
 
     labeledVectorsDS.writeAsLibSVM(outputFilePath)

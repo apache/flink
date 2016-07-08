@@ -25,12 +25,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
@@ -55,7 +55,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class LocalClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 	// Optional configuration
 	private int littleParallelism = PARALLELISM_DEFAULT;
@@ -74,6 +74,25 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 		return this;
 	}
+	@Override
+	protected String getAlgorithmName() {
+		return LocalClusteringCoefficient.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! LocalClusteringCoefficient.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		LocalClusteringCoefficient rhs = (LocalClusteringCoefficient) other;
+
+		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+
+		return true;
+	}
 
 	/*
 	 * Implementation notes:
@@ -86,12 +105,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 
 	@Override
-	public DataSet<Result<K>> run(Graph<K, VV, EV> input)
+	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, v, w, bitmask
 		DataSet<TriangleListing.Result<K>> triangles = input
 			.run(new TriangleListing<K,VV,EV>()
-				.setSortTriangleVertices(false)
 				.setLittleParallelism(littleParallelism));
 
 		// u, edge count
@@ -126,7 +144,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 *
 	 * @param <T> ID type
 	 */
-	private class SplitTriangles<T>
+	private static class SplitTriangles<T>
 	implements FlatMapFunction<TriangleListing.Result<T>, Tuple2<T, LongValue>> {
 		private LongValue one = new LongValue(1);
 
@@ -159,7 +177,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0")
-	private class CountTriangles<T>
+	private static class CountTriangles<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
 		@Override
 		public Tuple2<T, LongValue> reduce(Tuple2<T, LongValue> left, Tuple2<T, LongValue> right)
@@ -176,7 +194,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 	@FunctionAnnotation.ForwardedFieldsFirst("0; 1.0->1.0")
 	@FunctionAnnotation.ForwardedFieldsSecond("0")
-	private class JoinVertexDegreeWithTriangleCount<T>
+	private static class JoinVertexDegreeWithTriangleCount<T>
 	implements JoinFunction<Vertex<T, Degrees>, Tuple2<T, LongValue>, Result<T>> {
 		private LongValue zero = new LongValue(0);
 

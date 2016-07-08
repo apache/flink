@@ -34,17 +34,12 @@ under the License.
 
 	<dependencies>
 
+		<!-- core dependencies -->
+
 		<!-- scala command line parsing -->
 		<dependency>
 			<groupId>com.github.scopt</groupId>
             <artifactId>scopt_${scala.binary.version}</artifactId>
-		</dependency>
-
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_2.10</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
@@ -60,6 +55,12 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-scala_2.10</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-compiler</artifactId>
 			<version>${scala.version}</version>
@@ -70,27 +71,19 @@ under the License.
 			<artifactId>scala-library</artifactId>
 			<version>${scala.version}</version>
 		</dependency>
+
 		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-reflect</artifactId>
 			<version>${scala.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
-			<version>1.1-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_2.10</artifactId>
-			<version>1.1-SNAPSHOT</version>
-		</dependency>
-		<!-- tests -->
+
+		<!-- test dependencies -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 

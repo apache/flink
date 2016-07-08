@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.scala.batch.sql
 
+import java.sql.{Timestamp, Time, Date}
+
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
@@ -116,6 +118,28 @@ class ExpressionsITCase(
     val result = tEnv.sql(sqlQuery)
 
     val expected = "1,bcd,11,null,null,true"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testAdvancedDataTypes(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT a, b, c, DATE '1984-07-12', TIME '14:34:24', " +
+      "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable"
+
+    val ds = env.fromElements((
+      Date.valueOf("1984-07-12"),
+      Time.valueOf("14:34:24"),
+      Timestamp.valueOf("1984-07-12 14:34:24")))
+    tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
+      "1984-07-12,14:34:24,1984-07-12 14:34:24.0"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

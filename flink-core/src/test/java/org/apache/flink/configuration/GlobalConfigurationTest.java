@@ -19,12 +19,14 @@
 package org.apache.flink.configuration;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
+import java.util.UUID;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
@@ -211,14 +213,12 @@ public class GlobalConfigurationTest extends TestLogger {
 	}
 
 	private File getTmpDir() {
-		File tmpDir = new File(CommonTestUtils.getTempDir() + File.separator
-			+ CommonTestUtils.getRandomDirectoryName() + File.separator);
-		tmpDir.mkdirs();
-
+		File tmpDir = new File(CommonTestUtils.getTempDir(), UUID.randomUUID().toString());
+		assertTrue(tmpDir.mkdirs());
 		return tmpDir;
 	}
 
 	private File createRandomFile(File path, String suffix) {
-		return new File(path.getAbsolutePath() + File.separator + CommonTestUtils.getRandomDirectoryName() + suffix);
+		return new File(path, UUID.randomUUID().toString() + suffix);
 	}
 }

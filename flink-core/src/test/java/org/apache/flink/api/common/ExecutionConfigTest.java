@@ -77,17 +77,4 @@ public class ExecutionConfigTest {
 			throw new RuntimeException("Couldn't create new ExecutionConfig for test.", e);
 		}
 	}
-
-	/**
-	 * Deserializes the given ExecutionConfig with the System class loader.
-	 * @param serializedConfig The serialized ExecutionConfig
-	 * @return ExecutionConfig
-	 */
-	public static ExecutionConfig deserializeConfig(SerializedValue<ExecutionConfig> serializedConfig) {
-		try {
-			return serializedConfig.deserializeValue(ExecutionConfigTest.class.getClassLoader());
-		} catch (Exception e) {
-			throw new RuntimeException("Could not deserialize ExecutionConfig for test.", e);
-		}
-	}
 }

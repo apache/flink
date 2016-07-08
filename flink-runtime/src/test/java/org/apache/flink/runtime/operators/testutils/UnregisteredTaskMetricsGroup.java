@@ -24,7 +24,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.MetricRegistry;
 import org.apache.flink.metrics.groups.IOMetricGroup;
-import org.apache.flink.metrics.groups.JobMetricGroup;
+import org.apache.flink.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -60,7 +60,7 @@ public class UnregisteredTaskMetricsGroup extends TaskMetricGroup {
 		}
 	}
 
-	private static class DummyJobMetricGroup extends JobMetricGroup {
+	private static class DummyJobMetricGroup extends TaskManagerJobMetricGroup {
 		
 		public DummyJobMetricGroup() {
 			super(EMPTY_REGISTRY, new DummyTaskManagerMetricsGroup(), new JobID(), "testjob");

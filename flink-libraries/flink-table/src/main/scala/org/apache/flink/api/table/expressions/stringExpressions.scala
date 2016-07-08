@@ -31,9 +31,9 @@ import org.apache.flink.api.table.validate._
   * Returns the length of this `str`.
   */
 case class CharLength(child: Expression) extends UnaryExpression {
-  override def resultType: TypeInformation[_] = INT_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = INT_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -41,9 +41,9 @@ case class CharLength(child: Expression) extends UnaryExpression {
     }
   }
 
-  override def toString(): String = s"($child).charLength()"
+  override def toString: String = s"($child).charLength()"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.CHAR_LENGTH, child.toRexNode)
   }
 }
@@ -53,9 +53,9 @@ case class CharLength(child: Expression) extends UnaryExpression {
   * All other letters are in lowercase. Words are delimited by white space.
   */
 case class InitCap(child: Expression) extends UnaryExpression {
-  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -63,9 +63,9 @@ case class InitCap(child: Expression) extends UnaryExpression {
     }
   }
 
-  override def toString(): String = s"($child).initCap()"
+  override def toString: String = s"($child).initCap()"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.INITCAP, child.toRexNode)
   }
 }
@@ -74,12 +74,12 @@ case class InitCap(child: Expression) extends UnaryExpression {
   * Returns true if `str` matches `pattern`.
   */
 case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
-  def left: Expression = str
-  def right: Expression = pattern
+  private[flink] def left: Expression = str
+  private[flink] def right: Expression = pattern
 
-  override def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -88,9 +88,9 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
     }
   }
 
-  override def toString(): String = s"($str).like($pattern)"
+  override def toString: String = s"($str).like($pattern)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.LIKE, children.map(_.toRexNode))
   }
 }
@@ -99,9 +99,9 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
   * Returns str with all characters changed to lowercase.
   */
 case class Lower(child: Expression) extends UnaryExpression {
-  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -109,9 +109,9 @@ case class Lower(child: Expression) extends UnaryExpression {
     }
   }
 
-  override def toString(): String = s"($child).toLowerCase()"
+  override def toString: String = s"($child).toLowerCase()"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.LOWER, child.toRexNode)
   }
 }
@@ -120,12 +120,12 @@ case class Lower(child: Expression) extends UnaryExpression {
   * Returns true if `str` is similar to `pattern`.
   */
 case class Similar(str: Expression, pattern: Expression) extends BinaryExpression {
-  def left: Expression = str
-  def right: Expression = pattern
+  private[flink] def left: Expression = str
+  private[flink] def right: Expression = pattern
 
-  override def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -134,9 +134,9 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
     }
   }
 
-  override def toString(): String = s"($str).similarTo($pattern)"
+  override def toString: String = s"($str).similarTo($pattern)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.SIMILAR_TO, children.map(_.toRexNode))
   }
 }
@@ -151,16 +151,16 @@ case class SubString(
 
   def this(str: Expression, begin: Expression) = this(str, begin, CharLength(str))
 
-  override def children: Seq[Expression] = str :: begin :: end :: Nil
+  override private[flink] def children: Seq[Expression] = str :: begin :: end :: Nil
 
-  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override def expectedTypes: Seq[TypeInformation[_]] =
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
-  override def toString(): String = s"$str.subString($begin, $end)"
+  override def toString: String = s"$str.subString($begin, $end)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.SUBSTRING, children.map(_.toRexNode))
   }
 }
@@ -174,16 +174,16 @@ case class Trim(
     trimString: Expression,
     str: Expression) extends Expression with InputTypeSpec {
 
-  override def children: Seq[Expression] = trimFlag :: trimString :: str :: Nil
+  override private[flink] def children: Seq[Expression] = trimFlag :: trimString :: str :: Nil
 
-  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override def expectedTypes: Seq[TypeInformation[_]] =
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
     Seq(INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO)
 
-  override def toString(): String = s"trim($trimFlag, $trimString, $str)"
+  override def toString: String = s"trim($trimFlag, $trimString, $str)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.TRIM, children.map(_.toRexNode))
   }
 }
@@ -202,9 +202,9 @@ object TrimConstants {
   * Returns str with all characters changed to uppercase.
   */
 case class Upper(child: Expression) extends UnaryExpression {
-  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
@@ -212,9 +212,9 @@ case class Upper(child: Expression) extends UnaryExpression {
     }
   }
 
-  override def toString(): String = s"($child).toUpperCase()"
+  override def toString: String = s"($child).toUpperCase()"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.UPPER, child.toRexNode)
   }
 }

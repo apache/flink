@@ -24,6 +24,7 @@ import akka.actor.ActorRef
 
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
+import org.apache.flink.metrics.MetricRegistry
 import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
@@ -70,7 +71,8 @@ class YarnJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     savepointStore: SavepointStore,
-    jobRecoveryTimeout: FiniteDuration)
+    jobRecoveryTimeout: FiniteDuration,
+    metricsRegistry: Option[MetricRegistry])
   extends JobManager(
     flinkConfiguration,
     executorService,
@@ -84,7 +86,8 @@ class YarnJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     savepointStore,
-    jobRecoveryTimeout) {
+    jobRecoveryTimeout,
+    metricsRegistry) {
 
   val DEFAULT_YARN_HEARTBEAT_DELAY: FiniteDuration = 5 seconds
   val YARN_HEARTBEAT_DELAY: FiniteDuration =
@@ -137,7 +140,7 @@ class YarnJobManager(
       )
 
     case jnf: JobNotFound =>
-      log.warn(s"Job with ID ${jnf.jobID} not found in JobManager")
+      log.debug(s"Job with ID ${jnf.jobID} not found in JobManager")
       if (stopWhenJobFinished == null) {
         log.warn("The ApplicationMaster didn't expect to receive this message")
       }

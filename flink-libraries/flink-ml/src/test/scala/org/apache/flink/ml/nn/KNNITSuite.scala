@@ -24,7 +24,7 @@ import org.apache.flink.ml.classification.Classification
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.metrics.distances.{ManhattanDistanceMetric,
 SquaredEuclideanDistanceMetric}
-import org.apache.flink.test.util.FlinkTestBase
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {

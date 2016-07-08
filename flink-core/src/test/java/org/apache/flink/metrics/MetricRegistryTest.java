@@ -164,14 +164,14 @@ public class MetricRegistryTest extends TestLogger {
 		Configuration config = new Configuration();
 
 		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_TM, "A");
-		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_JOB, "B");
+		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_TM_JOB, "B");
 		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_TASK, "C");
 		config.setString(MetricRegistry.KEY_METRICS_SCOPE_NAMING_OPERATOR, "D");
 
 		ScopeFormats scopeConfig = MetricRegistry.createScopeConfig(config);
 
 		assertEquals("A", scopeConfig.getTaskManagerFormat().format());
-		assertEquals("B", scopeConfig.getJobFormat().format());
+		assertEquals("B", scopeConfig.getTaskManagerJobFormat().format());
 		assertEquals("C", scopeConfig.getTaskFormat().format());
 		assertEquals("D", scopeConfig.getOperatorFormat().format());
 	}

@@ -81,14 +81,14 @@ public class YarnClusterClient extends ClusterClient {
 	//---------- Class internal fields -------------------
 
 	private final AbstractYarnClusterDescriptor clusterDescriptor;
-	private final ActorRef applicationClient;
+	private final LazApplicationClientLoader applicationClient;
 	private final FiniteDuration akkaDuration;
 	private final Timeout akkaTimeout;
-	private final ApplicationReport applicationId;
+	private final ApplicationReport appReport;
 	private final ApplicationId appId;
 	private final String trackingURL;
 
-	private boolean isConnected = false;
+	private boolean isConnected = true;
 
 	private final boolean perJobCluster;
 
@@ -120,63 +120,18 @@ public class YarnClusterClient extends ClusterClient {
 		this.yarnClient = yarnClient;
 		this.hadoopConfig = yarnClient.getConfig();
 		this.sessionFilesDir = sessionFilesDir;
-		this.applicationId = appReport;
+		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
 		this.perJobCluster = perJobCluster;
 
-		/* The leader retrieval service for connecting to the cluster and finding the active leader. */
-		LeaderRetrievalService leaderRetrievalService;
-		try {
-			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
-		} catch (Exception e) {
-			throw new IOException("Could not create the leader retrieval service.", e);
-		}
-
-		// start application client
-		LOG.info("Start application client.");
-
-		applicationClient = actorSystem.actorOf(
-			Props.create(
-				ApplicationClient.class,
-				flinkConfig,
-				leaderRetrievalService),
-			"applicationClient");
+		this.applicationClient = new LazApplicationClientLoader();
 
 		pollingRunner = new PollingThread(yarnClient, appId);
 		pollingRunner.setDaemon(true);
 		pollingRunner.start();
 
 		Runtime.getRuntime().addShutdownHook(clientShutdownHook);
-
-		isConnected = true;
-
-		if (perJobCluster) {
-
-			logAndSysout("Waiting until all TaskManagers have connected");
-
-			for (GetClusterStatusResponse currentStatus, lastStatus = null;; lastStatus = currentStatus) {
-				currentStatus = getClusterStatus();
-				if (currentStatus != null && !currentStatus.equals(lastStatus)) {
-					logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"
-						+ clusterDescriptor.getTaskManagerCount() + ")");
-					if (currentStatus.numRegisteredTaskManagers() >= clusterDescriptor.getTaskManagerCount()) {
-						logAndSysout("All TaskManagers are connected");
-						break;
-					}
-				} else if (lastStatus == null) {
-					logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
-				}
-
-				try {
-					Thread.sleep(250);
-				} catch (InterruptedException e) {
-					LOG.error("Interrupted while waiting for TaskManagers");
-					System.err.println("Thread is interrupted");
-					throw new IOException("Interrupted while waiting for TaskManagers", e);
-				}
-			}
-		}
 	}
 
 	/**
@@ -219,7 +174,10 @@ public class YarnClusterClient extends ClusterClient {
 	 */
 	private void stopAfterJob(JobID jobID) {
 		Preconditions.checkNotNull(jobID, "The job id must not be null");
-		Future<Object> messageReceived = ask(applicationClient, new YarnMessages.LocalStopAMAfterJob(jobID), akkaTimeout);
+		Future<Object> messageReceived =
+			ask(
+				applicationClient.get(),
+				new YarnMessages.LocalStopAMAfterJob(jobID), akkaTimeout);
 		try {
 			Await.result(messageReceived, akkaDuration);
 		} catch (Exception e) {
@@ -263,7 +221,7 @@ public class YarnClusterClient extends ClusterClient {
 
 	@Override
 	public String getClusterIdentifier() {
-		return applicationId.getApplicationId().toString();
+		return "Yarn cluster with application id " + appReport.getApplicationId();
 	}
 
 	/**
@@ -278,7 +236,11 @@ public class YarnClusterClient extends ClusterClient {
 			return null;
 		}
 
-		Future<Object> clusterStatusOption = ask(applicationClient, YarnMessages.getLocalGetyarnClusterStatus(), akkaTimeout);
+		Future<Object> clusterStatusOption =
+			ask(
+				applicationClient.get(),
+				YarnMessages.getLocalGetyarnClusterStatus(),
+				akkaTimeout);
 		Object clusterStatus;
 		try {
 			clusterStatus = Await.result(clusterStatusOption, akkaDuration);
@@ -338,9 +300,11 @@ public class YarnClusterClient extends ClusterClient {
 		while(true) {
 			Object result;
 			try {
-				Future<Object> response = Patterns.ask(applicationClient,
-						YarnMessages.getLocalGetYarnMessage(), new Timeout(akkaDuration));
-
+				Future<Object> response =
+					Patterns.ask(
+						applicationClient.get(),
+						YarnMessages.getLocalGetYarnMessage(),
+						new Timeout(akkaDuration));
 				result = Await.result(response, akkaDuration);
 			} catch(Exception ioe) {
 				LOG.warn("Error retrieving the YARN messages locally", ioe);
@@ -406,11 +370,12 @@ public class YarnClusterClient extends ClusterClient {
 			// we are already in the shutdown hook
 		}
 
-		if(actorSystem != null){
+		if(actorSystemLoader.isLoaded()){
 			LOG.info("Sending shutdown request to the Application Master");
-			if(applicationClient != ActorRef.noSender()) {
+			if(applicationClient.get() != ActorRef.noSender()) {
 				try {
-					Future<Object> response = Patterns.ask(applicationClient,
+					Future<Object> response =
+						Patterns.ask(applicationClient.get(),
 							new YarnMessages.LocalStopYarnSession(getApplicationStatus(),
 									"Flink YARN Client requested shutdown"),
 							new Timeout(akkaDuration));
@@ -467,7 +432,7 @@ public class YarnClusterClient extends ClusterClient {
 				LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
 				LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
 					+ "the full application log using this command:\n"
-					+ "\tyarn logs -applicationId " + appReport.getApplicationId() + "\n"
+					+ "\tyarn logs -appReport " + appReport.getApplicationId() + "\n"
 					+ "(It sometimes takes a few seconds until the logs are aggregated)");
 			}
 		} catch (Exception e) {
@@ -552,5 +517,69 @@ public class YarnClusterClient extends ClusterClient {
 	@Override
 	public boolean isDetached() {
 		return super.isDetached() || clusterDescriptor.isDetachedMode();
+	}
+
+	public ApplicationId getApplicationId() {
+		return appId;
+	}
+
+	protected class LazApplicationClientLoader {
+
+		private ActorRef applicationClient;
+
+		/**
+		 * Creates a new ApplicationClient actor or returns an existing one. May start an ActorSystem.
+		 * @return ActorSystem
+		 */
+		public ActorRef get() {
+			if (applicationClient == null) {
+				/* The leader retrieval service for connecting to the cluster and finding the active leader. */
+				LeaderRetrievalService leaderRetrievalService;
+				try {
+					leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
+				} catch (Exception e) {
+					throw new RuntimeException("Could not create the leader retrieval service.", e);
+				}
+
+				// start application client
+				LOG.info("Start application client.");
+
+				applicationClient = actorSystemLoader.get().actorOf(
+					Props.create(
+						ApplicationClient.class,
+						flinkConfig,
+						leaderRetrievalService),
+					"applicationClient");
+
+				if (perJobCluster) {
+
+					logAndSysout("Waiting until all TaskManagers have connected");
+
+					for (GetClusterStatusResponse currentStatus, lastStatus = null;; lastStatus = currentStatus) {
+						currentStatus = getClusterStatus();
+						if (currentStatus != null && !currentStatus.equals(lastStatus)) {
+							logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"
+								+ clusterDescriptor.getTaskManagerCount() + ")");
+							if (currentStatus.numRegisteredTaskManagers() >= clusterDescriptor.getTaskManagerCount()) {
+								logAndSysout("All TaskManagers are connected");
+								break;
+							}
+						} else if (lastStatus == null) {
+							logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
+						}
+
+						try {
+							Thread.sleep(250);
+						} catch (InterruptedException e) {
+							LOG.error("Interrupted while waiting for TaskManagers");
+							System.err.println("Thread is interrupted");
+							throw new RuntimeException("Interrupted while waiting for TaskManagers", e);
+						}
+					}
+				}
+			}
+
+			return applicationClient;
+		}
 	}
 }

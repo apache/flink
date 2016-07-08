@@ -24,13 +24,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
-public class TranslationTest extends StreamingMultipleProgramsTestBase {
+public class TranslationTest {
 	
 	@Test
 	public void testCheckpointModeTranslation() {

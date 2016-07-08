@@ -18,44 +18,14 @@
 
 package org.apache.flink.graph.utils;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils;
-import org.apache.flink.graph.Edge;
-import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.AbstractID;
 
 import static org.apache.flink.api.java.typeutils.ValueTypeInfo.LONG_VALUE_TYPE_INFO;
 
 public class GraphUtils {
-
-	/**
-	 * Convenience method to get the count (number of elements) of a Graph
-	 * as well as the checksum (sum over element hashes). The vertex and
-	 * edge DataSets are processed in a single job and the resultant counts
-	 * and checksums are merged locally.
-	 *
-	 * @param graph Graph over which to compute the count and checksum
-	 * @return the checksum over the vertices and edges
-	 */
-	public static <K, VV, EV> Utils.ChecksumHashCode checksumHashCode(Graph<K, VV, EV> graph) throws Exception {
-		final String verticesId = new AbstractID().toString();
-		graph.getVertices().output(new Utils.ChecksumHashCodeHelper<Vertex<K, VV>>(verticesId)).name("ChecksumHashCode vertices");
-
-		final String edgesId = new AbstractID().toString();
-		graph.getEdges().output(new Utils.ChecksumHashCodeHelper<Edge<K, EV>>(edgesId)).name("ChecksumHashCode edges");
-
-		JobExecutionResult res = graph.getContext().execute();
-
-		Utils.ChecksumHashCode checksum = res.<Utils.ChecksumHashCode>getAccumulatorResult(verticesId);
-		checksum.add(res.<Utils.ChecksumHashCode>getAccumulatorResult(edgesId));
-
-		return checksum;
-	}
 
 	/**
 	 * Count the number of elements in a DataSet.
