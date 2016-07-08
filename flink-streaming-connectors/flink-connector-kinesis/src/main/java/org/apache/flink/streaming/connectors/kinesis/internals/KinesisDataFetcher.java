@@ -131,7 +131,7 @@ public class KinesisDataFetcher<T> {
 	 * <ul>
 	 *     <li>{@link KinesisDataFetcher#registerNewSubscribedShardState(KinesisStreamShardState)}</li>
 	 *     <li>{@link KinesisDataFetcher#updateState(int, SequenceNumber)}</li>
-	 *     <li>{@link KinesisDataFetcher#emitRecordAndUpdateState(T, int, SequenceNumber)}</li>
+	 *     <li>{@link KinesisDataFetcher#emitRecordAndUpdateState(T, long, int, SequenceNumber)}</li>
 	 * </ul>
 	 */
 	private final List<KinesisStreamShardState> subscribedShardsState;
@@ -491,13 +491,14 @@ public class KinesisDataFetcher<T> {
 	 * This method is called by {@link ShardConsumer}s.
 	 *
 	 * @param record the record to collect
+	 * @param recordTimestamp timestamp to attach to the collected record
 	 * @param shardStateIndex index of the shard to update in subscribedShardsState;
 	 *                        this index should be the returned value from
 	 *                        {@link KinesisDataFetcher#registerNewSubscribedShardState(KinesisStreamShardState)}, called
 	 *                        when the shard state was registered.
 	 * @param lastSequenceNumber the last sequence number value to update
 	 */
-	protected void emitRecordAndUpdateState(T record, int shardStateIndex, SequenceNumber lastSequenceNumber) {
+	protected void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (checkpointLock) {
 			sourceContext.collect(record);
 			updateState(shardStateIndex, lastSequenceNumber);

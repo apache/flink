@@ -37,7 +37,8 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
 	}
 
 	@Override
-	public T deserialize(byte[] recordKey, byte[] recordValue, String stream, String seqNu) throws IOException {
+	public T deserialize(byte[] recordKey, byte[] recordValue, String stream, String seqNum, long approxArrivalTimestamp)
+		throws IOException {
 		return deserializationSchema.deserialize(recordValue);
 	}
 
