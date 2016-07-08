@@ -251,6 +251,20 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	@Test
+	public void testUnparsableLongForGetRecordsIntervalMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for getRecords sleep interval in milliseconds");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_INTERVAL_MILLIS, "unparsableLong");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
 	public void testUnparsableIntForGetShardIteratorRetriesInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for maximum retry attempts for getShardIterator shard operation");

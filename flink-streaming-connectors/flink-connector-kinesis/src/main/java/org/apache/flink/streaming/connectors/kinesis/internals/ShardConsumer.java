@@ -28,8 +28,6 @@ import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -43,8 +41,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Thread that does the actual data pulling from AWS Kinesis shards. Each thread is in charge of one Kinesis shard only.
  */
 public class ShardConsumer<T> implements Runnable {
-
-	private static final Logger LOG = LoggerFactory.getLogger(ShardConsumer.class);
 
 	private final KinesisDeserializationSchema<T> deserializer;
 
@@ -164,11 +160,6 @@ public class ShardConsumer<T> implements Runnable {
 					break;
 				} else {
 					if (fetchIntervalMillis != 0) {
-						if (LOG.isDebugEnabled()) {
-							LOG.debug(
-								"Consumer {} of subtask {} is sleeping for {} milliseconds before fetching the next batch of records ...",
-								subscribedShardStateIndex, fetcherRef.getIndexOfThisConsumerSubtask(), fetchIntervalMillis);
-						}
 						Thread.sleep(fetchIntervalMillis);
 					}
 
