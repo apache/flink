@@ -128,7 +128,7 @@ case class Distinct(child: LogicalNode) extends UnaryNode {
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Distinct on stream tables is currently not supported.")
+      failValidation(s"Distinct on stream tables is currently not supported.")
     }
     this
   }
@@ -144,7 +144,7 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Distinct on stream tables is currently not supported.")
+      failValidation(s"Distinct on stream tables is currently not supported.")
     }
     super.validate(tableEnv)
   }
@@ -196,7 +196,7 @@ case class Aggregate(
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Aggregate on stream tables is currently not supported.")
+      failValidation(s"Aggregate on stream tables is currently not supported.")
     }
 
     val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
@@ -277,6 +277,10 @@ case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment] && !all) {
+      failValidation(s"Union on stream tables is currently not supported.")
+    }
+
     val resolvedUnion = super.validate(tableEnv).asInstanceOf[Union]
     if (left.output.length != right.output.length) {
       failValidation(s"Union two tables of different column sizes:" +
@@ -304,6 +308,10 @@ case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extend
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      failValidation(s"Intersect on stream tables is currently not supported.")
+    }
+
     val resolvedIntersect = super.validate(tableEnv).asInstanceOf[Intersect]
     if (left.output.length != right.output.length) {
       failValidation(s"Intersect two tables of different column sizes:" +
@@ -392,7 +400,7 @@ case class Join(
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Join on stream tables is currently not supported.")
+      failValidation(s"Join on stream tables is currently not supported.")
     }
 
     val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
