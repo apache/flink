@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import org.apache.flink.runtime.util.FixedSizeFifoQueue;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.Duration;
 
+import java.util.ArrayDeque;
 import java.util.concurrent.TimeUnit;
 
 import static akka.dispatch.Futures.future;
@@ -36,7 +36,8 @@ import static akka.dispatch.Futures.future;
 public class FailureRateRestartStrategy implements RestartStrategy {
 	private final Duration failuresInterval;
 	private final Duration delayInterval;
-	private FixedSizeFifoQueue<Long> restartTimestampsQueue;
+	private final int maxFailuresPerInterval;
+	private final ArrayDeque<Long> restartTimestampsDeque;
 	private boolean disabled = false;
 
 	public FailureRateRestartStrategy(int maxFailuresPerInterval, Duration failuresInterval, Duration delayInterval) {
@@ -48,7 +49,8 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 
 		this.failuresInterval = failuresInterval;
 		this.delayInterval = delayInterval;
-		this.restartTimestampsQueue = new FixedSizeFifoQueue<>(maxFailuresPerInterval);
+		this.maxFailuresPerInterval = maxFailuresPerInterval;
+		this.restartTimestampsDeque = new ArrayDeque<>(maxFailuresPerInterval);
 	}
 
 	@Override
@@ -57,9 +59,9 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 	}
 
 	private boolean canRestartJob() {
-		if (restartTimestampsQueue.isFull()) {
+		if (isRestartTimestampsQueueFull()) {
 			Long now = System.currentTimeMillis();
-			Long earliestFailure = restartTimestampsQueue.peek();
+			Long earliestFailure = restartTimestampsDeque.peek();
 			return Duration.apply(now - earliestFailure, TimeUnit.MILLISECONDS).gt(failuresInterval);
 		} else {
 			return true;
@@ -68,8 +70,15 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 
 	@Override
 	public void restart(final ExecutionGraph executionGraph) {
-		restartTimestampsQueue.add(System.currentTimeMillis());
+		if (isRestartTimestampsQueueFull()) {
+			restartTimestampsDeque.remove();
+		}
+		restartTimestampsDeque.add(System.currentTimeMillis());
 		future(ExecutionGraphRestarter.restartWithDelay(executionGraph, delayInterval.toMillis()), executionGraph.getExecutionContext());
+	}
+
+	private boolean isRestartTimestampsQueueFull() {
+		return restartTimestampsDeque.size() == maxFailuresPerInterval;
 	}
 
 	@Override
