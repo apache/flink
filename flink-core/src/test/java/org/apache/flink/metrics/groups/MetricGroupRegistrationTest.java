@@ -17,6 +17,7 @@
  */
 package org.apache.flink.metrics.groups;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -39,7 +40,7 @@ public class MetricGroupRegistrationTest {
 	@Test
 	public void testMetricInstantiation() {
 		Configuration config = new Configuration();
-		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter1.class.getName());
 
 		MetricRegistry registry = new MetricRegistry(config);
 

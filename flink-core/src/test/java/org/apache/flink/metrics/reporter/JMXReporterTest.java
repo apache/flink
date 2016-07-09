@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -38,8 +39,6 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.lang.management.ManagementFactory;
 
-import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
-import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_REPORTER_CLASS;
 import static org.junit.Assert.assertEquals;
 
 public class JMXReporterTest extends TestLogger {
@@ -80,7 +79,7 @@ public class JMXReporterTest extends TestLogger {
 	@Test
 	public void testPortConflictHandling() throws Exception {
 		Configuration cfg = new Configuration();
-		cfg.setString(KEY_METRICS_REPORTER_CLASS, TestReporter.class.getName());
+		cfg.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter.class.getName());
 		MetricRegistry reg = new MetricRegistry(cfg);
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
@@ -89,7 +88,7 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep2 = new JMXReporter();
 
 		Configuration cfg1 = new Configuration();
-		cfg1.setString(KEY_METRICS_JMX_PORT, "9020-9035");
+		cfg1.setString(ConfigConstants.METRICS_JMX_PORT, "9020-9035");
 
 		rep1.open(cfg1);
 		rep2.open(cfg1);
@@ -129,7 +128,7 @@ public class JMXReporterTest extends TestLogger {
 	@Test
 	public void testJMXAvailability() throws Exception {
 		Configuration cfg = new Configuration();
-		cfg.setString(KEY_METRICS_REPORTER_CLASS, TestReporter.class.getName());
+		cfg.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter.class.getName());
 		MetricRegistry reg = new MetricRegistry(cfg);
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
@@ -138,7 +137,7 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep2 = new JMXReporter();
 
 		Configuration cfg1 = new Configuration();
-		cfg1.setString(KEY_METRICS_JMX_PORT, "9040-9055");
+		cfg1.setString(ConfigConstants.METRICS_JMX_PORT, "9040-9055");
 		rep1.open(cfg1);
 		rep2.open(cfg1);
 

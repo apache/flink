@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -37,8 +38,6 @@ import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
-import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_SCOPE_NAMING_JM_JOB;
 import static org.junit.Assert.assertEquals;
 
 public class JobManagerMetricTest {
@@ -51,9 +50,9 @@ public class JobManagerMetricTest {
 	public void testJobManagerMetricAccess() throws Exception {
 		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 		Configuration flinkConfiguration = new Configuration();
-
-		flinkConfiguration.setString(KEY_METRICS_SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
-		flinkConfiguration.setString(KEY_METRICS_JMX_PORT, "9060-9075");
+		
+		flinkConfiguration.setString(ConfigConstants.METRICS_SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
+		flinkConfiguration.setString(ConfigConstants.METRICS_JMX_PORT, "9060-9075");
 
 		TestingCluster flink = new TestingCluster(flinkConfiguration);
 
