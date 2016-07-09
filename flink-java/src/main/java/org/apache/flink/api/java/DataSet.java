@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
@@ -34,7 +34,6 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
-import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
@@ -65,6 +64,7 @@ import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.PartitionOperator;
@@ -1148,30 +1148,30 @@ public abstract class DataSet<T> {
 	 * {@code
 	 * DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
 	 *                                                  initialState.iterateDelta(initialFeedbackSet, 100, 0);
-	 *
+	 * 
 	 * DataSet<Tuple2<Long, Long>> delta = iteration.groupBy(0).aggregate(Aggregations.AVG, 1)
 	 *                                              .join(iteration.getSolutionSet()).where(0).equalTo(0)
 	 *                                              .flatMap(new ProjectAndFilter());
-	 *
+	 *                                              
 	 * DataSet<Tuple2<Long, Long>> feedBack = delta.join(someOtherSet).where(...).equalTo(...).with(...);
-	 *
+	 * 
 	 * // close the delta iteration (delta and new workset are identical)
 	 * DataSet<Tuple2<Long, Long>> result = iteration.closeWith(delta, feedBack);
 	 * }
 	 * </pre>
-	 *
+	 * 
 	 * @param workset The initial version of the data set that is fed back to the next iteration step (the workset).
 	 * @param maxIterations The maximum number of iteration steps, as a fall back safeguard.
 	 * @param keyPositions The position of the tuple fields that is used as the key of the solution set.
-	 *
+	 * 
 	 * @return The DeltaIteration that marks the start of a delta iteration.
-	 *
+	 * 
 	 * @see org.apache.flink.api.java.operators.DeltaIteration
 	 */
 	public <R> DeltaIteration<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
 		Preconditions.checkNotNull(workset);
 		Preconditions.checkNotNull(keyPositions);
-
+		
 		Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<>(keyPositions, getType());
 		return new DeltaIteration<>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
@@ -1179,12 +1179,12 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	//  Custom Operators
 	// -------------------------------------------------------------------------------------------
-
+	
 
 	/**
 	 * Runs a {@link CustomUnaryOperation} on the data set. Custom operations are typically complex
 	 * operators that are composed of multiple steps.
-	 *
+	 * 
 	 * @param operation The operation to run.
 	 * @return The data set produced by the operation.
 	 */
@@ -1193,14 +1193,14 @@ public abstract class DataSet<T> {
 		operation.setInput(this);
 		return operation.createResult();
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	//  Union
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Creates a union of this DataSet with an other DataSet. The other DataSet must be of the same data type.
-	 *
+	 * 
 	 * @param other The other DataSet which is unioned with the current DataSet.
 	 * @return The resulting DataSet.
 	 */

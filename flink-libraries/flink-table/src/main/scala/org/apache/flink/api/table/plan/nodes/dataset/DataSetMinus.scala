@@ -18,24 +18,21 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import java.lang.Iterable
-
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
-import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.BatchTableEnvironment
-import org.apache.flink.util.Collector
+import org.apache.flink.api.table.runtime.MinusCoGroupFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 
 /**
-  * Flink RelNode which matches along with DataSetOperator.
+  * Flink RelNode which implements set minus operation.
   *
   */
 class DataSetMinus(
@@ -70,53 +67,25 @@ class DataSetMinus(
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-
     val children = this.getInputs
-    val rowCnt = children.foldLeft(0D) { (rows, child) =>
-      rows + metadata.getRowCount(child)
+    children.foldLeft(planner.getCostFactory.makeCost(0, 0, 0)) { (cost, child) =>
+      val rowCnt = metadata.getRowCount(child)
+      val rowSize = this.estimateRowSize(child.getRowType)
+      cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
     }
-
-    planner.getCostFactory.makeCost(rowCnt, 0, 0)
   }
 
   override def translateToPlan(
       tableEnv: BatchTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    var leftDataSet: DataSet[Any] = null
-    var rightDataSet: DataSet[Any] = null
+    val leftDataSet: DataSet[Any] = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val rightDataSet: DataSet[Any] = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
-    expectedType match {
-      case None =>
-        leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
-        rightDataSet =
-          right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, Some(leftDataSet.getType))
-      case _ =>
-        leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv, expectedType)
-        rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, expectedType)
-    }
-
-    val leftType = leftDataSet.getType
-    val rightType = rightDataSet.getType
-    val coGroupedDs = leftDataSet.coGroup(rightDataSet)
-
-    // If it is atomic type, the field expression need to be "*".
-    // Otherwise, we use int-based field position keys
-    val coGroupedPredicateDs =
-    if (leftType.isTupleType || leftType.isInstanceOf[CompositeType[Any]]) {
-      coGroupedDs.where(0 until left.getRowType.getFieldCount: _*)
-    } else {
-      coGroupedDs.where("*")
-    }
-
-    val coGroupedWithoutFunctionDs =
-    if (rightType.isTupleType || rightType.isInstanceOf[CompositeType[Any]]) {
-      coGroupedPredicateDs.equalTo(0 until right.getRowType.getFieldCount: _*)
-    } else {
-      coGroupedPredicateDs.equalTo("*")
-    }
-
-    coGroupedWithoutFunctionDs.`with`(new MinusCoGroupFunction[Any](all))
+    leftDataSet.coGroup(rightDataSet)
+      .where("*")
+      .equalTo("*")
+      .`with`(new MinusCoGroupFunction[Any](all))
       .name(s"intersect: $setMinusSelectionToString")
   }
 
@@ -126,25 +95,3 @@ class DataSetMinus(
 
 }
 
-class MinusCoGroupFunction[T](all: Boolean) extends CoGroupFunction[T, T, T] {
-  override def coGroup(first: Iterable[T], second: Iterable[T], out: Collector[T]): Unit = {
-    if (first == null || second == null) return
-    val leftIter = first.iterator()
-    val rightIter = second.iterator()
-
-    if (all) {
-      while (rightIter.hasNext && leftIter.hasNext) {
-        leftIter.next()
-        rightIter.next()
-      }
-
-      while (leftIter.hasNext) {
-        out.collect(leftIter.next())
-      }
-    } else {
-      if (!rightIter.hasNext && leftIter.hasNext) {
-        out.collect(leftIter.next())
-      }
-    }
-  }
-}

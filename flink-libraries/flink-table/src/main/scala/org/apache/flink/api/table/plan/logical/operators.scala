@@ -236,7 +236,7 @@ case class Aggregate(
   }
 }
 
-case class SetMinus(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
+case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
   override def output: Seq[Attribute] = left.output
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -246,7 +246,7 @@ case class SetMinus(left: LogicalNode, right: LogicalNode, all: Boolean) extends
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    val resolvedMinus = super.validate(tableEnv).asInstanceOf[SetMinus]
+    val resolvedMinus = super.validate(tableEnv).asInstanceOf[Minus]
     if (left.output.length != right.output.length) {
       failValidation(s"Set minus two table of different column sizes:" +
         s" ${left.output.size} and ${right.output.size}")

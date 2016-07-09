@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.plan.logical
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 import org.apache.flink.api.table.typeutils.TypeConverter
@@ -419,7 +420,7 @@ class Table(
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new Table(tableEnv, SetMinus(logicalPlan, right.logicalPlan, true).validate(tableEnv))
+    new Table(tableEnv, logical.Minus(logicalPlan, right.logicalPlan, true).validate(tableEnv))
   }
 
   /**
@@ -442,7 +443,7 @@ class Table(
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be minus.")
     }
-    new Table(tableEnv, SetMinus(logicalPlan, right.logicalPlan, false).validate(tableEnv))
+    new Table(tableEnv, logical.Minus(logicalPlan, right.logicalPlan, false).validate(tableEnv))
   }
 
   /**
