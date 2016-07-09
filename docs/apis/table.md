@@ -755,7 +755,7 @@ val result = left.intersect(right);
     <tr>
       <td><strong>Minus</strong></td>
       <td>
-        <p>Similar to a SQL EXCEPT clause. Returns elements from the left table that do not exist in the right table. Both tables must have identical schema(field types).</p>
+        <p>Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical schema, i.e., field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
@@ -778,7 +778,7 @@ val result = left.intersectAll(right);
     <tr>
       <td><strong>MinusAll</strong></td>
       <td>
-        <p>Similar to a SQL EXCEPT ALL clause. Returns elements from the first table that do not exist in the second table without removing duplicates. Both tables must have identical schema(field names and types).</p>
+        <p>Similar to a SQL EXCEPT ALL clause. Returns records from the left table that do not exist in the right table. If there are m duplicates in the left table and n duplicates in the right table this operation will return max(m-n, 0) duplicates. Both tables must have identical schema(field names and types).</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
