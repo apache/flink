@@ -31,6 +31,10 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Random;
 
+/**
+ * This is for testing the performance of reduce, with different execution strategies.
+ * (See also http://peel-framework.org/2016/04/07/hash-aggregations-in-flink.html)
+ */
 public class ReducePerformance {
 	
 	public static void main(String[] args) throws Exception {
@@ -70,8 +74,7 @@ public class ReducePerformance {
 		(B iterator, TypeInformation<T> typeInfo, CombineHint hint, int numRecords, boolean print) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		//env.getConfig().enableObjectReuse();
-		//env.setParallelism(1);
+		env.getConfig().enableObjectReuse();
 
 		@SuppressWarnings("unchecked")
 		DataSet<T> output =
