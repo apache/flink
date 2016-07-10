@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.java.operators.{ReduceOperator => JavaReduceOperator, _}
+import org.apache.flink.api.java.operators._
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.api.scala.extensions.base.AcceptPFTestBase
@@ -54,7 +54,7 @@ class OnGroupedDataSetTest extends AcceptPFTestBase {
         case ((_, v1), (_, v2)) => (0, s"$v1 $v2")
       }
 
-    assert(test.javaSet.isInstanceOf[JavaReduceOperator[_]],
+    assert(test.javaSet.isInstanceOf[ReduceOperator[_]],
       "reduceWith on tuples should produce a ReduceOperator")
   }
 
@@ -65,7 +65,7 @@ class OnGroupedDataSetTest extends AcceptPFTestBase {
         case (KeyValuePair(_, v1), KeyValuePair(_, v2)) => KeyValuePair(0, s"$v1 $v2")
       }
 
-    assert(test.javaSet.isInstanceOf[JavaReduceOperator[_]],
+    assert(test.javaSet.isInstanceOf[ReduceOperator[_]],
       "reduceWith on case objects should produce a ReduceOperator")
   }
 
