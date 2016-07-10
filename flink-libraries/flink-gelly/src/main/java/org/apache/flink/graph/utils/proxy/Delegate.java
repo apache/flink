@@ -30,7 +30,7 @@ import java.lang.reflect.Method;
  * Wraps an object with a proxy delegate whose method handler invokes all
  * method calls on the wrapped object. This object can be later replaced.
  *
- * @param <X>
+ * @param <X> the type of the proxied object
  */
 public class Delegate<X> {
 	private X obj;
@@ -52,7 +52,7 @@ public class Delegate<X> {
 	 * @param obj delegated object
 	 */
 	public void setObject(X obj) {
-		this.obj = obj;
+		this.obj = (obj instanceof ReferentProxy) ? ((ReferentProxy<X>) obj).getProxiedObject() : obj;
 	}
 
 	/**
@@ -70,6 +70,7 @@ public class Delegate<X> {
 
 		ProxyFactory factory = new ProxyFactory();
 		factory.setSuperclass(obj.getClass());
+		factory.setInterfaces(new Class[]{ReferentProxy.class});
 
 		// create the class and instantiate an instance without calling a constructor
 		Class<? extends X> proxyClass = factory.createClass(new MethodFilter() {
@@ -84,12 +85,28 @@ public class Delegate<X> {
 		((ProxyObject) proxy).setHandler(new MethodHandler() {
 			@Override
 			public Object invoke(Object self, Method thisMethod, Method proceed, Object[] args) throws Throwable {
-				// method visibility may be restricted
-				thisMethod.setAccessible(true);
-				return thisMethod.invoke(obj, args);
+				if (thisMethod.getName().equals("getProxiedObject")) {
+					// this method is provided by the ReferentProxy interface
+					return obj;
+				} else {
+					// method visibility may be restricted
+					thisMethod.setAccessible(true);
+					return thisMethod.invoke(obj, args);
+				}
 			}
 		});
 
 		return proxy;
+	}
+
+	/**
+	 * This interface provides access via the proxy handler to the original
+	 * object being proxied. This is necessary since we cannot and should not
+	 * create a proxy of a proxy but must instead proxy the original object.
+	 *
+	 * @param <Y> the type of the proxied object
+	 */
+	protected interface ReferentProxy<Y> {
+		Y getProxiedObject();
 	}
 }

@@ -51,7 +51,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val IS_NOT_NULL: Keyword = Keyword("isNotNull")
   lazy val CAST: Keyword = Keyword("cast")
   lazy val NULL: Keyword = Keyword("Null")
-  lazy val EVAL: Keyword = Keyword("eval")
+  lazy val IF: Keyword = Keyword("?")
   lazy val ASC: Keyword = Keyword("asc")
   lazy val DESC: Keyword = Keyword("desc")
   lazy val TO_DATE: Keyword = Keyword("toDate")
@@ -61,7 +61,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
       not(SUM) ~ not(IS_NULL) ~ not(IS_NOT_NULL) ~ not(CAST) ~ not(NULL) ~
-      not(EVAL) ~> super.ident
+      not(IF) ~> super.ident
 
   // data types
 
@@ -173,9 +173,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       Trim(TrimConstants.TRIM_BOTH, TrimConstants.TRIM_DEFAULT_CHAR, e)
   }
 
-  lazy val suffixEval: PackratParser[Expression] =
-    composite ~ "." ~ EVAL ~ "(" ~ expression ~ "," ~ expression ~ ")" ^^ {
-    case condition ~ _ ~ _ ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => Eval(condition, ifTrue, ifFalse)
+  lazy val suffixIf: PackratParser[Expression] =
+    composite ~ "." ~ IF ~ "(" ~ expression ~ "," ~ expression ~ ")" ^^ {
+    case condition ~ _ ~ _ ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => If(condition, ifTrue, ifFalse)
   }
 
   lazy val suffixFunctionCall =
@@ -200,7 +200,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffixed: PackratParser[Expression] =
     suffixIsNull | suffixIsNotNull | suffixSum | suffixMin | suffixMax | suffixCount | suffixAvg |
-      suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixEval | suffixFunctionCall |
+      suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixIf | suffixFunctionCall |
         suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime
 
   // prefix operators
@@ -236,9 +236,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case _ ~ _ ~ e ~ _ ~ target ~ _ => Alias(e, target.name)
   }
 
-  lazy val prefixEval: PackratParser[Expression] = composite ~
-      EVAL ~ "(" ~ expression ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
-    case _ ~ _ ~ condition ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => Eval(condition, ifTrue, ifFalse)
+  lazy val prefixIf: PackratParser[Expression] = composite ~
+      IF ~ "(" ~ expression ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
+    case _ ~ _ ~ condition ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => If(condition, ifTrue, ifFalse)
   }
 
   lazy val prefixFunctionCall = functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
@@ -263,7 +263,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixed: PackratParser[Expression] =
     prefixIsNull | prefixIsNotNull | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
-      prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixEval | prefixFunctionCall
+      prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixFunctionCall
 
   // suffix/prefix composite
 

@@ -71,16 +71,16 @@ trait ImplicitExpressionOperations {
   def desc = Desc(expr)
 
   /**
-    * Conditional operator that decides which of two other expressions should be evaluated
+    * Ternary conditional operator that decides which of two other expressions should be evaluated
     * based on a evaluated boolean condition.
     *
-    * e.g. (42 > 5).eval("A", "B") leads to "A"
+    * e.g. (42 > 5).?("A", "B") leads to "A"
     *
     * @param ifTrue expression to be evaluated if condition holds
     * @param ifFalse expression to be evaluated if condition does not hold
     */
-  def eval(ifTrue: Expression, ifFalse: Expression) = {
-    Eval(expr, ifTrue, ifFalse)
+  def ?(ifTrue: Expression, ifFalse: Expression) = {
+    If(expr, ifTrue, ifFalse)
   }
 
   // scalar functions

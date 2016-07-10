@@ -208,7 +208,7 @@ public class JMXReporter implements MetricReporter {
 			nameBuilder.append(x);
 			nameBuilder.append("=");
 
-			// write scopeName component
+			// write scope component
 			nameBuilder.append(replaceInvalidChars(scopeComponents[x]));
 			nameBuilder.append(",");
 		}

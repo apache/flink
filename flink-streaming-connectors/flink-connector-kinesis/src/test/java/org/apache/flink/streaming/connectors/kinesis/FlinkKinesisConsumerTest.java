@@ -17,16 +17,18 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
+import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
-import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
-import org.apache.flink.streaming.connectors.kinesis.testutils.ReferenceKinesisShardTopologies;
+import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
+import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -36,26 +38,15 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
- * Suite of FlinkKinesisConsumer tests, including utility static method tests,
- * and tests for the methods called throughout the source life cycle with mocked KinesisProxy.
+ * Suite of FlinkKinesisConsumer tests for the methods called throughout the source life cycle.
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({FlinkKinesisConsumer.class, KinesisConfigUtil.class})
@@ -148,29 +139,57 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	@Test
-	public void testUnparsableIntForDescribeStreamRetryCountInConfig() {
+	public void testUnparsableLongForDescribeStreamBackoffBaseMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for describeStream stream operation retry count");
+		exception.expectMessage("Invalid value given for describe stream operation base backoff milliseconds");
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES, "unparsableInt");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableLongForDescribeStreamBackoffMillisInConfig() {
+	public void testUnparsableLongForDescribeStreamBackoffMaxMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for describeStream stream operation backoff milliseconds");
+		exception.expectMessage("Invalid value given for describe stream operation max backoff milliseconds");
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF, "unparsableLong");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_MAX, "unparsableLong");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableDoubleForDescribeStreamBackoffExponentialConstantInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for describe stream operation backoff exponential constant");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForGetRecordsRetriesInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum retry attempts for getRecords shard operation");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_RETRIES, "unparsableInt");
 
 		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
@@ -184,329 +203,218 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET, "unparsableInt");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_MAX, "unparsableInt");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForGetRecordsBackoffBaseMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for get records operation base backoff milliseconds");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_BASE, "unparsableLong");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForGetRecordsBackoffMaxMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for get records operation max backoff milliseconds");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_MAX, "unparsableLong");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableDoubleForGetRecordsBackoffExponentialConstantInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for get records operation backoff exponential constant");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForGetShardIteratorRetriesInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum retry attempts for getShardIterator shard operation");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_RETRIES, "unparsableInt");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForGetShardIteratorBackoffBaseMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for get shard iterator operation base backoff milliseconds");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_BASE, "unparsableLong");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForGetShardIteratorBackoffMaxMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for get shard iterator operation max backoff milliseconds");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_MAX, "unparsableLong");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableDoubleForGetShardIteratorBackoffExponentialConstantInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for get shard iterator operation backoff exponential constant");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+
+		KinesisConfigUtil.validateConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForShardDiscoveryIntervalMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for shard discovery sleep interval in milliseconds");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS, "unparsableLong");
 
 		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	// ----------------------------------------------------------------------
-	// FlinkKinesisConsumer.assignShards() tests
+	// Tests related to state initialization
 	// ----------------------------------------------------------------------
 
 	@Test
-	public void testShardNumEqualConsumerNum() {
-		try {
-			List<KinesisStreamShard> fakeShards = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-			int consumerTaskCount = fakeShards.size();
+	public void testSnapshotStateShouldBeNullIfSourceNotOpened() throws Exception {
+		Properties config = new Properties();
+		config.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		config.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		config.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 
-			for (int consumerNum=0; consumerNum < consumerTaskCount; consumerNum++) {
-				List<KinesisStreamShard> assignedShardsToThisConsumerTask =
-					FlinkKinesisConsumer.assignShards(fakeShards, consumerTaskCount, consumerNum);
+		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema(), config);
 
-				// the ith consumer should be assigned exactly 1 shard,
-				// which is always the ith shard of a shard list that only has open shards
-				assertEquals(1, assignedShardsToThisConsumerTask.size());
-				assertTrue(assignedShardsToThisConsumerTask.get(0).equals(fakeShards.get(consumerNum)));
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		assertTrue(consumer.snapshotState(123, 123) == null); //arbitrary checkpoint id and timestamp
 	}
 
 	@Test
-	public void testShardNumFewerThanConsumerNum() {
-		try {
-			List<KinesisStreamShard> fakeShards = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-			int consumerTaskCount = fakeShards.size() + 3;
+	public void testSnapshotStateShouldBeNullIfSourceNotRun() throws Exception {
+		Properties config = new Properties();
+		config.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		config.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
+		config.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 
-			for (int consumerNum = 0; consumerNum < consumerTaskCount; consumerNum++) {
-				List<KinesisStreamShard> assignedShardsToThisConsumerTask =
-					FlinkKinesisConsumer.assignShards(fakeShards, consumerTaskCount, consumerNum);
+		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema(), config);
+		consumer.open(new Configuration()); // only opened, not run
 
-				// for ith consumer with i < the total num of shards,
-				// the ith consumer should be assigned exactly 1 shard,
-				// which is always the ith shard of a shard list that only has open shards;
-				// otherwise, the consumer should not be assigned any shards
-				if (consumerNum < fakeShards.size()) {
-					assertEquals(1, assignedShardsToThisConsumerTask.size());
-					assertTrue(assignedShardsToThisConsumerTask.get(0).equals(fakeShards.get(consumerNum)));
-				} else {
-					assertEquals(0, assignedShardsToThisConsumerTask.size());
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testShardNumMoreThanConsumerNum() {
-		try {
-			List<KinesisStreamShard> fakeShards = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-			int consumerTaskCount = fakeShards.size() - 1;
-
-			for (int consumerNum = 0; consumerNum < consumerTaskCount; consumerNum++) {
-				List<KinesisStreamShard> assignedShardsToThisConsumerTask =
-					FlinkKinesisConsumer.assignShards(fakeShards, consumerTaskCount, consumerNum);
-
-				// since the number of consumer tasks is short by 1,
-				// all but the first consumer task should be assigned 1 shard,
-				// while the first consumer task is assigned 2 shards
-				if (consumerNum != 0) {
-					assertEquals(1, assignedShardsToThisConsumerTask.size());
-					assertTrue(assignedShardsToThisConsumerTask.get(0).equals(fakeShards.get(consumerNum)));
-				} else {
-					assertEquals(2, assignedShardsToThisConsumerTask.size());
-					assertTrue(assignedShardsToThisConsumerTask.get(0).equals(fakeShards.get(0)));
-					assertTrue(assignedShardsToThisConsumerTask.get(1).equals(fakeShards.get(fakeShards.size()-1)));
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testAssignEmptyShards() {
-		try {
-			List<KinesisStreamShard> fakeShards = new ArrayList<>(0);
-			int consumerTaskCount = 4;
-
-			for (int consumerNum = 0; consumerNum < consumerTaskCount; consumerNum++) {
-				List<KinesisStreamShard> assignedShardsToThisConsumerTask =
-					FlinkKinesisConsumer.assignShards(fakeShards, consumerTaskCount, consumerNum);
-
-				// should not be assigned anything
-				assertEquals(0, assignedShardsToThisConsumerTask.size());
-
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		assertTrue(consumer.snapshotState(123, 123) == null); //arbitrary checkpoint id and timestamp
 	}
 
 	// ----------------------------------------------------------------------
-	// Constructor tests with mocked KinesisProxy
+	// Tests related to fetcher initialization
 	// ----------------------------------------------------------------------
 
 	@Test
-	public void testConstructorShouldThrowRuntimeExceptionIfUnableToFindAnyShards() {
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("Unable to retrieve any shards");
+	@SuppressWarnings("unchecked")
+	public void testFetcherShouldNotBeRestoringFromFailureIfNotRestoringFromCheckpoint() throws Exception {
+		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
-		Properties testConsumerConfig = new Properties();
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKey");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		// assume the given config is correct
+		PowerMockito.mockStatic(KinesisConfigUtil.class);
+		PowerMockito.doNothing().when(KinesisConfigUtil.class);
 
-		// get a consumer that will not be able to find any shards from AWS Kinesis
-		FlinkKinesisConsumer dummyConsumer = getDummyConsumerWithMockedKinesisProxy(
-			6, 2, "fake-consumer-task-name",
-			new ArrayList<KinesisStreamShard>(), new ArrayList<KinesisStreamShard>(), testConsumerConfig,
-			null, null, false, false);
-	}
+		TestableFlinkKinesisConsumer consumer = new TestableFlinkKinesisConsumer(
+			"fakeStream", new Properties(), 10, 2);
+		consumer.open(new Configuration());
+		consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
 
-	// ----------------------------------------------------------------------
-	// Tests for open() source life cycle method
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testOpenWithNoRestoreStateFetcherAdvanceToLatestSentinelSequenceNumberWhenConfigSetToStartFromLatest() throws Exception {
-
-		int fakeNumConsumerTasks = 6;
-		int fakeThisConsumerTaskIndex = 2;
-		String fakeThisConsumerTaskName = "fake-this-task-name";
-
-		List<KinesisStreamShard> fakeCompleteShardList = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-		List<KinesisStreamShard> fakeAssignedShardsToThisConsumerTask = fakeCompleteShardList.subList(2,3);
-
-		Properties testConsumerConfig = new Properties();
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKey");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, "LATEST");
-
-		KinesisDataFetcher kinesisDataFetcherMock = Mockito.mock(KinesisDataFetcher.class);
-		try {
-			whenNew(KinesisDataFetcher.class).withArguments(fakeAssignedShardsToThisConsumerTask, testConsumerConfig, fakeThisConsumerTaskName).thenReturn(kinesisDataFetcherMock);
-		} catch (Exception e) {
-			throw new RuntimeException("Error when power mocking KinesisDataFetcher in test", e);
-		}
-
-		FlinkKinesisConsumer dummyConsumer = getDummyConsumerWithMockedKinesisProxy(
-			fakeNumConsumerTasks, fakeThisConsumerTaskIndex, fakeThisConsumerTaskName,
-			fakeCompleteShardList, fakeAssignedShardsToThisConsumerTask, testConsumerConfig,
-			null, null, false, false);
-
-		dummyConsumer.open(new Configuration());
-
-		for (KinesisStreamShard shard : fakeAssignedShardsToThisConsumerTask) {
-			verify(kinesisDataFetcherMock).advanceSequenceNumberTo(shard, SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get());
-		}
-
+		Mockito.verify(mockedFetcher).setIsRestoringFromFailure(false);
 	}
 
 	@Test
-	public void testOpenWithNoRestoreStateFetcherAdvanceToEarliestSentinelSequenceNumberWhenConfigSetToTrimHorizon() throws Exception {
+	@SuppressWarnings("unchecked")
+	public void testFetcherShouldBeCorrectlySeededIfRestoringFromCheckpoint() throws Exception {
+		KinesisDataFetcher mockedFetcher = Mockito.mock(KinesisDataFetcher.class);
+		PowerMockito.whenNew(KinesisDataFetcher.class).withAnyArguments().thenReturn(mockedFetcher);
 
-		int fakeNumConsumerTasks = 6;
-		int fakeThisConsumerTaskIndex = 2;
-		String fakeThisConsumerTaskName = "fake-this-task-name";
-
-		List<KinesisStreamShard> fakeCompleteShardList = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-		List<KinesisStreamShard> fakeAssignedShardsToThisConsumerTask = fakeCompleteShardList.subList(2,3);
-
-		Properties testConsumerConfig = new Properties();
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKey");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, "TRIM_HORIZON");
-
-		KinesisDataFetcher kinesisDataFetcherMock = Mockito.mock(KinesisDataFetcher.class);
-		try {
-			whenNew(KinesisDataFetcher.class).withArguments(fakeAssignedShardsToThisConsumerTask, testConsumerConfig, fakeThisConsumerTaskName).thenReturn(kinesisDataFetcherMock);
-		} catch (Exception e) {
-			throw new RuntimeException("Error when power mocking KinesisDataFetcher in test", e);
-		}
-
-		FlinkKinesisConsumer dummyConsumer = getDummyConsumerWithMockedKinesisProxy(
-			fakeNumConsumerTasks, fakeThisConsumerTaskIndex, fakeThisConsumerTaskName,
-			fakeCompleteShardList, fakeAssignedShardsToThisConsumerTask, testConsumerConfig,
-			null, null, false, false);
-
-		dummyConsumer.open(new Configuration());
-
-		for (KinesisStreamShard shard : fakeAssignedShardsToThisConsumerTask) {
-			verify(kinesisDataFetcherMock).advanceSequenceNumberTo(shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
-		}
-
-	}
-
-	@Test
-	public void testOpenWithRestoreStateFetcherAdvanceToCorrespondingSequenceNumbers() throws Exception {
-
-		int fakeNumConsumerTasks = 6;
-		int fakeThisConsumerTaskIndex = 2;
-		String fakeThisConsumerTaskName = "fake-this-task-name";
-
-		List<KinesisStreamShard> fakeCompleteShardList = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-		List<KinesisStreamShard> fakeAssignedShardsToThisConsumerTask = fakeCompleteShardList.subList(2,3);
-
-		Properties testConsumerConfig = new Properties();
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKey");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, "TRIM_HORIZON");
-
-		KinesisDataFetcher kinesisDataFetcherMock = Mockito.mock(KinesisDataFetcher.class);
-		try {
-			whenNew(KinesisDataFetcher.class).withArguments(fakeAssignedShardsToThisConsumerTask, testConsumerConfig, fakeThisConsumerTaskName).thenReturn(kinesisDataFetcherMock);
-		} catch (Exception e) {
-			throw new RuntimeException("Error when power mocking KinesisDataFetcher in test", e);
-		}
-
-		FlinkKinesisConsumer dummyConsumer = getDummyConsumerWithMockedKinesisProxy(
-			fakeNumConsumerTasks, fakeThisConsumerTaskIndex, fakeThisConsumerTaskName,
-			fakeCompleteShardList, fakeAssignedShardsToThisConsumerTask, testConsumerConfig,
-			null, null, false, false);
-
-		// generate random UUIDs as sequence numbers of last checkpointed state for each assigned shard
-		ArrayList<SequenceNumber> listOfSeqNumOfAssignedShards = new ArrayList<>(fakeAssignedShardsToThisConsumerTask.size());
-		for (KinesisStreamShard shard : fakeAssignedShardsToThisConsumerTask) {
-			listOfSeqNumOfAssignedShards.add(new SequenceNumber(UUID.randomUUID().toString()));
-		}
+		// assume the given config is correct
+		PowerMockito.mockStatic(KinesisConfigUtil.class);
+		PowerMockito.doNothing().when(KinesisConfigUtil.class);
 
 		HashMap<KinesisStreamShard, SequenceNumber> fakeRestoredState = new HashMap<>();
-		for (int i=0; i<fakeAssignedShardsToThisConsumerTask.size(); i++) {
-			fakeRestoredState.put(fakeAssignedShardsToThisConsumerTask.get(i), listOfSeqNumOfAssignedShards.get(i));
+		fakeRestoredState.put(
+			new KinesisStreamShard("fakeStream1",
+				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0))),
+			new SequenceNumber(UUID.randomUUID().toString()));
+		fakeRestoredState.put(
+			new KinesisStreamShard("fakeStream1",
+				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(1))),
+			new SequenceNumber(UUID.randomUUID().toString()));
+		fakeRestoredState.put(
+			new KinesisStreamShard("fakeStream1",
+				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(2))),
+			new SequenceNumber(UUID.randomUUID().toString()));
+		fakeRestoredState.put(
+			new KinesisStreamShard("fakeStream2",
+				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0))),
+			new SequenceNumber(UUID.randomUUID().toString()));
+		fakeRestoredState.put(
+			new KinesisStreamShard("fakeStream2",
+				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(1))),
+			new SequenceNumber(UUID.randomUUID().toString()));
+
+		TestableFlinkKinesisConsumer consumer = new TestableFlinkKinesisConsumer(
+			"fakeStream", new Properties(), 10, 2);
+		consumer.restoreState(fakeRestoredState);
+		consumer.open(new Configuration());
+		consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
+
+		Mockito.verify(mockedFetcher).setIsRestoringFromFailure(true);
+		for (Map.Entry<KinesisStreamShard, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
+			Mockito.verify(mockedFetcher).advanceLastDiscoveredShardOfStream(
+				restoredShard.getKey().getStreamName(), restoredShard.getKey().getShard().getShardId());
+			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
+				new KinesisStreamShardState(restoredShard.getKey(), restoredShard.getValue()));
 		}
-
-		dummyConsumer.restoreState(fakeRestoredState);
-		dummyConsumer.open(new Configuration());
-
-		for (int i=0; i<fakeAssignedShardsToThisConsumerTask.size(); i++) {
-			verify(kinesisDataFetcherMock).advanceSequenceNumberTo(
-				fakeAssignedShardsToThisConsumerTask.get(i),
-				listOfSeqNumOfAssignedShards.get(i));
-		}
-	}
-
-	private TestableFlinkKinesisConsumer getDummyConsumerWithMockedKinesisProxy(
-		int fakeNumFlinkConsumerTasks,
-		int fakeThisConsumerTaskIndex,
-		String fakeThisConsumerTaskName,
-		List<KinesisStreamShard> fakeCompleteShardList,
-		List<KinesisStreamShard> fakeAssignedShardListToThisConsumerTask,
-		Properties consumerTestConfig,
-		KinesisDataFetcher fetcher,
-		HashMap<KinesisStreamShard, String> lastSequenceNumsToRestore,
-		boolean hasAssignedShards,
-		boolean running) {
-
-		final String dummyKinesisStreamName = "flink-test";
-
-		final List<String> dummyKinesisStreamList = Collections.singletonList(dummyKinesisStreamName);
-
-		final KinesisProxy kinesisProxyMock = mock(KinesisProxy.class);
-
-		// mock KinesisProxy that is instantiated in the constructor, as well as its getShardList call
-		try {
-			whenNew(KinesisProxy.class).withArguments(consumerTestConfig).thenReturn(kinesisProxyMock);
-		} catch (Exception e) {
-			throw new RuntimeException("Error when power mocking KinesisProxy in tests", e);
-		}
-
-		when(kinesisProxyMock.getShardList(dummyKinesisStreamList)).thenReturn(fakeCompleteShardList);
-
-		TestableFlinkKinesisConsumer dummyConsumer =
-			new TestableFlinkKinesisConsumer(dummyKinesisStreamName, fakeNumFlinkConsumerTasks,
-				fakeThisConsumerTaskIndex, fakeThisConsumerTaskName, consumerTestConfig);
-
-		try {
-			Field fetcherField = FlinkKinesisConsumer.class.getDeclaredField("fetcher");
-			fetcherField.setAccessible(true);
-			fetcherField.set(dummyConsumer, fetcher);
-
-			Field lastSequenceNumsField = FlinkKinesisConsumer.class.getDeclaredField("lastSequenceNums");
-			lastSequenceNumsField.setAccessible(true);
-			lastSequenceNumsField.set(dummyConsumer, lastSequenceNumsToRestore);
-
-			Field hasAssignedShardsField = FlinkKinesisConsumer.class.getDeclaredField("hasAssignedShards");
-			hasAssignedShardsField.setAccessible(true);
-			hasAssignedShardsField.set(dummyConsumer, hasAssignedShards);
-
-			Field runningField = FlinkKinesisConsumer.class.getDeclaredField("running");
-			runningField.setAccessible(true);
-			runningField.set(dummyConsumer, running);
-		} catch (IllegalAccessException | NoSuchFieldException e) {
-			// no reason to end up here ...
-			throw new RuntimeException(e);
-		}
-
-		// mock FlinkKinesisConsumer utility static methods
-		mockStatic(FlinkKinesisConsumer.class);
-		mockStatic(KinesisConfigUtil.class);
-
-		try {
-			// assume assignShards static method is correct by mocking
-			PowerMockito.when(
-				FlinkKinesisConsumer.assignShards(
-					fakeCompleteShardList,
-					fakeNumFlinkConsumerTasks,
-					fakeThisConsumerTaskIndex))
-				.thenReturn(fakeAssignedShardListToThisConsumerTask);
-
-			// assume validatePropertiesConfig static method is correct by mocking
-			PowerMockito.doNothing().when(KinesisConfigUtil.class, "validateConfiguration", Mockito.any(Properties.class));
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeException("Error when power mocking static methods of FlinkKinesisConsumer", e);
-		}
-
-		return dummyConsumer;
 	}
 }

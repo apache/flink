@@ -123,7 +123,7 @@ not for other sources. The following table lists the state update guarantees of 
         <tr>
             <td>AWS Kinesis Streams</td>
             <td>exactly once</td>
-            <td>Current version does not handle stream resharding</td>
+            <td></td>
         </tr>
         <tr>
             <td>RabbitMQ</td>
@@ -203,6 +203,11 @@ state updates) of Flink coupled with bundled sinks:
     </tr>
     <tr>
         <td>Standard output</td>
+        <td>at least once</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>Redis sink</td>
         <td>at least once</td>
         <td></td>
     </tr>

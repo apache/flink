@@ -37,6 +37,7 @@ import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
 import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_SCOPE_NAMING_JM_JOB;
 import static org.junit.Assert.assertEquals;
 
@@ -52,6 +53,7 @@ public class JobManagerMetricTest {
 		Configuration flinkConfiguration = new Configuration();
 
 		flinkConfiguration.setString(KEY_METRICS_SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
+		flinkConfiguration.setString(KEY_METRICS_JMX_PORT, "9060-9075");
 
 		TestingCluster flink = new TestingCluster(flinkConfiguration);
 

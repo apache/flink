@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.DummyActorGateway;
@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -83,7 +84,7 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					ExecutionConfigTest.getSerializedConfig(),
+					new SerializedValue<>(new ExecutionConfig()),
 					timeout,
 					new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
@@ -156,7 +157,7 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					ExecutionConfigTest.getSerializedConfig(),
+					new SerializedValue<>(new ExecutionConfig()),
 					timeout,
 					new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
@@ -233,7 +234,7 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					ExecutionConfigTest.getSerializedConfig(),
+					new SerializedValue<>(new ExecutionConfig()),
 					timeout,
 					new NoRestartStrategy());
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
@@ -301,7 +302,7 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					ExecutionConfigTest.getSerializedConfig(),
+					new SerializedValue<>(new ExecutionConfig()),
 					timeout,
 					new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
@@ -371,7 +372,7 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					ExecutionConfigTest.getSerializedConfig(),
+					new SerializedValue<>(new ExecutionConfig()),
 					timeout,
 					new NoRestartStrategy());
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
@@ -411,7 +412,7 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					ExecutionConfigTest.getSerializedConfig(),
+					new SerializedValue<>(new ExecutionConfig()),
 					timeout,
 					new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(vertex));

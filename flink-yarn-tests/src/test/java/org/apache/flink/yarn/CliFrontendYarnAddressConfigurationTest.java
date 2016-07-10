@@ -269,7 +269,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 		Configuration config = frontend.getConfiguration();
 
-		InetSocketAddress expectedAddress = new InetSocketAddress("10.221.130.22", 7788);
+		InetSocketAddress expectedAddress = InetSocketAddress.createUnresolved("10.221.130.22", 7788);
 
 		checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
 

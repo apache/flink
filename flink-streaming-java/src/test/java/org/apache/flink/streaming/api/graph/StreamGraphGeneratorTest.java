@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -39,7 +40,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
-import org.apache.flink.streaming.util.NoOpSink;
 
 import org.junit.Test;
 
@@ -49,8 +49,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link StreamGraphGenerator}. This only tests correct translation of split/select,
  * union, partitioning since the other translation routines are tested already in operation
- * specific tests, for example in {@link org.apache.flink.streaming.api.IterateTest} for
- * iterations.
+ * specific tests.
  */
 public class StreamGraphGeneratorTest {
 
@@ -77,7 +76,7 @@ public class StreamGraphGeneratorTest {
 				.broadcast()
 				.map(new NoOpIntMap());
 
-		broadcastMap.addSink(new NoOpSink<Integer>());
+		broadcastMap.addSink(new DiscardingSink<Integer>());
 
 		// verify that partitioning is preserved across union and split/select
 		EvenOddOutputSelector selector1 = new EvenOddOutputSelector();
@@ -113,7 +112,7 @@ public class StreamGraphGeneratorTest {
 		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
 				.map(new NoOpIntMap());
 
-		unionedMap.addSink(new NoOpSink<Integer>());
+		unionedMap.addSink(new DiscardingSink<Integer>());
 
 		StreamGraph graph = env.getStreamGraph();
 
@@ -169,7 +168,7 @@ public class StreamGraphGeneratorTest {
 				.select("foo")
 				.map(new NoOpIntMap());
 
-		unionedMap.addSink(new NoOpSink<Integer>());
+		unionedMap.addSink(new DiscardingSink<Integer>());
 
 		StreamGraph graph = env.getStreamGraph();
 
@@ -207,9 +206,9 @@ public class StreamGraphGeneratorTest {
 			BasicTypeInfo.INT_TYPE_INFO,
 			outputTypeConfigurableOperation);
 
-		result.addSink(new NoOpSink<Integer>());
+		result.addSink(new DiscardingSink<Integer>());
 
-		StreamGraph graph = env.getStreamGraph();
+		env.getStreamGraph();
 
 		assertEquals(BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
 	}
@@ -230,9 +229,9 @@ public class StreamGraphGeneratorTest {
 				BasicTypeInfo.INT_TYPE_INFO,
 				outputTypeConfigurableOperation);
 
-		result.addSink(new NoOpSink<Integer>());
+		result.addSink(new DiscardingSink<Integer>());
 
-		StreamGraph graph = env.getStreamGraph();
+		env.getStreamGraph();
 
 		assertEquals(BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
 	}

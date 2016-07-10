@@ -127,4 +127,11 @@ public class FlinkKafkaProducer09<IN> extends FlinkKafkaProducerBase<IN> {
 	public FlinkKafkaProducer09(String topicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner<IN> customPartitioner) {
 		super(topicId, serializationSchema, producerConfig, customPartitioner);
 	}
+
+	@Override
+	protected void flush() {
+		if (this.producer != null) {
+			producer.flush();
+		}
+	}
 }

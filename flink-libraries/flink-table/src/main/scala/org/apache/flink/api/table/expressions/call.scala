@@ -29,17 +29,17 @@ import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFail
   */
 case class Call(functionName: String, args: Seq[Expression]) extends Expression {
 
-  override def children: Seq[Expression] = args
+  override private[flink] def children: Seq[Expression] = args
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     throw new UnresolvedException(s"trying to convert UnresolvedFunction $functionName to RexNode")
   }
 
   override def toString = s"\\$functionName(${args.mkString(", ")})"
 
-  override def resultType =
+  override private[flink] def resultType =
     throw new UnresolvedException(s"calling resultType on UnresolvedFunction $functionName")
 
-  override def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ExprValidationResult =
     ValidationFailure(s"Unresolved function call: $functionName")
 }

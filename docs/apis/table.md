@@ -205,7 +205,8 @@ tableEnv.registerTableSource("Customers", custTS)
 
 A `TableSource` can provide access to data stored in various storage systems such as databases (MySQL, HBase, ...), file formats (CSV, Apache Parquet, Avro, ORC, ...), or messaging systems (Apache Kafka, RabbitMQ, ...).
 
-Currently, Flink only provides a `CsvTableSource` to read CSV files. A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface.
+Currently, Flink provides the `CsvTableSource` to read CSV files and the `Kafka08JsonTableSource`/`Kafka09JsonTableSource` to read JSON objects from Kafka. 
+A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface.
 
 ### Available Table Sources
 
@@ -214,7 +215,7 @@ Currently, Flink only provides a `CsvTableSource` to read CSV files. A custom `T
 | `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for JSON data.
 | `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for JSON data.
 
-All source that come with the `flink-table` dependency can be directly used by your Table programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
+All sources that come with the `flink-table` dependency can be directly used by your Table programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
 
 #### KafkaJsonTableSource
 
@@ -536,6 +537,30 @@ Table result = left.unionAll(right);
     </tr>
 
     <tr>
+      <td><strong>Intersect</strong></td>
+      <td>
+        <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table result = left.intersect(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>IntersectAll</strong></td>
+      <td>
+        <p>Similar to a SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table result = left.intersectAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
       <td><strong>Distinct</strong></td>
       <td>
         <p>Similar to a SQL DISTINCT clause. Returns rows with distinct value combinations.</p>
@@ -695,6 +720,30 @@ val result = left.unionAll(right);
     </tr>
 
     <tr>
+      <td><strong>Intersect</strong></td>
+      <td>
+        <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present in one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'e, 'f, 'g);
+val result = left.intersect(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+	<tr>
+      <td><strong>IntersectAll</strong></td>
+      <td>
+        <p>Similar to a SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'e, 'f, 'g);
+val result = left.intersectAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
       <td><strong>Distinct</strong></td>
       <td>
         <p>Similar to a SQL DISTINCT clause. Returns rows with distinct value combinations.</p>
@@ -748,7 +797,7 @@ unary = [ "!" | "-" ] , composite ;
 
 composite = suffixed | atom ;
 
-suffixed = cast | as | aggregation | nullCheck | evaluate | functionCall ;
+suffixed = cast | as | aggregation | nullCheck | if | functionCall ;
 
 cast = composite , ".cast(" , dataType , ")" ;
 
@@ -760,7 +809,7 @@ aggregation = composite , ( ".sum" | ".min" | ".max" | ".count" | ".avg" ) , [ "
 
 nullCheck = composite , ( ".isNull" | ".isNotNull" ) , [ "()" ] ;
 
-evaluate = composite , ".eval(" , expression , "," , expression , ")" ;
+if = composite , ".?(" , expression , "," , expression , ")" ;
 
 functionCall = composite , "." , functionIdentifier , "(" , [ expression , { "," , expression } ] , ")"
 
@@ -835,7 +884,7 @@ Among others, the following SQL features are not supported, yet:
 - Non-equi joins and Cartesian products
 - Result selection by order position (`ORDER BY OFFSET FETCH`)
 - Grouping sets
-- `INTERSECT` and `EXCEPT` set operations
+- `EXCEPT` set operation
 
 *Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
 

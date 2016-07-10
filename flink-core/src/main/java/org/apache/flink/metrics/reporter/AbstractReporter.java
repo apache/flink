@@ -43,7 +43,7 @@ public abstract class AbstractReporter implements MetricReporter {
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
-		final String name = group.getScopeString() + '.' + metricName;
+		final String name = replaceInvalidChars(group.getScopeString() + '.' + metricName);
 
 		synchronized (this) {
 			if (metric instanceof Counter) {
@@ -73,5 +73,15 @@ public abstract class AbstractReporter implements MetricReporter {
 					"does not support this metric type.", metric.getClass().getName());
 			}
 		}
+	}
+
+	/**
+	 * Can be overridden by sub-classes to replace invalid characters in metric name.
+	 *
+	 * @param metricName Name of the metric
+	 * @return The metric name to register the metric under
+	 */
+	protected String replaceInvalidChars(String metricName) {
+		return metricName;
 	}
 }
