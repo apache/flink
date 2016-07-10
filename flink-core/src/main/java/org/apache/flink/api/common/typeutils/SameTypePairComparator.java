@@ -17,6 +17,9 @@
  */
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
+
+@Internal
 public class SameTypePairComparator<T> extends TypePairComparator<T, T> {
 
 	private TypeComparator<T> comp, comp2;
