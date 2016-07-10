@@ -170,4 +170,21 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val expected = mutable.MutableList("Hello", "Hello world")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testConstantReduce(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val sqlQuery = "SELECT STREAM (3+4)+a, b+(1+2), c, 5+6 FROM T1 WHERE a>(1+7)"
+    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("T1", t1)
+
+    val table = tEnv.sql(sqlQuery)
+    val result = table.toDataStream[Row].javaStream.getTransformation
+
+    val expected = "where: (>(AS(_1, 'a'), 8)), select: (+(7, AS(_1, 'a')) AS _1, +(AS(_2, 'b'), 3) AS _2, AS(_3, 'c') AS _3)"
+
+    assertEquals(expected, result.getName)
+  }
 }
