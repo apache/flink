@@ -1487,8 +1487,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
      */
 	public static int hash(int code, int level) {
 		final int rotation = level * 11;
-		
-		code = (code << rotation) | (code >>> -rotation);
+
+		code = Integer.rotateLeft(code, rotation);
 
 		return MathUtils.jenkinsHash(code);
 	}
