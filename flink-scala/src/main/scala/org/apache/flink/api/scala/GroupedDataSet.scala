@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.flink.annotation.{Internal, Public}
+import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{GroupCombineFunction, GroupReduceFunction, Partitioner, ReduceFunction}
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
@@ -296,10 +296,12 @@ class GroupedDataSet[T: ClassTag](
    * combine phase.
    * If null is given as the strategy, then the optimizer will pick the strategy.
    */
+  @PublicEvolving
   def reduce(fun: (T, T) => T, strategy: CombineHint): DataSet[T] = {
     reduce(getCallLocationName(), fun, strategy)
   }
 
+  @PublicEvolving
   private def reduce(callLocationName: String,
                      fun: (T, T) => T,
                      strategy: CombineHint): DataSet[T] = {
@@ -326,6 +328,7 @@ class GroupedDataSet[T: ClassTag](
     * combine phase.
     * If null is given as the strategy, then the optimizer will pick the strategy.
     */
+  @PublicEvolving
   def reduce(reducer: ReduceFunction[T], strategy: CombineHint): DataSet[T] = {
     reduce(getCallLocationName(), reducer, strategy)
   }
