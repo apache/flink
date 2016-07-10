@@ -337,7 +337,8 @@ class GroupedDataSet[T: ClassTag](
                      reducer: ReduceFunction[T],
                      strategy: CombineHint): DataSet[T] = {
     require(reducer != null, "Reduce function must not be null.")
-    wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer, callLocationName).setCombineHint(strategy))
+    wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer, callLocationName).
+      setCombineHint(strategy))
   }
 
   /**
