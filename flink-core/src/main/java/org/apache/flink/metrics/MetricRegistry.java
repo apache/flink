@@ -42,15 +42,6 @@ import java.util.concurrent.TimeUnit;
  */
 @Internal
 public class MetricRegistry {
-
-	// ------------------------------------------------------------------------
-	//  configuration keys
-	// ------------------------------------------------------------------------
-
-	// ------------------------------------------------------------------------
-	//  configuration keys
-	// ------------------------------------------------------------------------
-	
 	static final Logger LOG = LoggerFactory.getLogger(MetricRegistry.class);
 	
 	private final MetricReporter reporter;
