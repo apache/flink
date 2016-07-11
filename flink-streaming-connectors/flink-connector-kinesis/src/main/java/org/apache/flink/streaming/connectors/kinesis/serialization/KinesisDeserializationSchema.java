@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
+import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
@@ -43,7 +44,7 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
 	 * @return the deserialized message as an Java object
 	 * @throws IOException
 	 */
-	T deserialize(byte[] recordKey, byte[] recordValue, String stream, String seqNum, long approxArrivalTimestamp) throws IOException;
+	T deserialize(byte[] recordKey, byte[] recordValue, String stream, Shard shard, String seqNum, long approxArrivalTimestamp) throws IOException;
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If

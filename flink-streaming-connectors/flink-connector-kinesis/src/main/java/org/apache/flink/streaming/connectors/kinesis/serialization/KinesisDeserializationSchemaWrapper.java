@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
+import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
@@ -37,7 +38,7 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
 	}
 
 	@Override
-	public T deserialize(byte[] recordKey, byte[] recordValue, String stream, String seqNum, long approxArrivalTimestamp)
+	public T deserialize(byte[] recordKey, byte[] recordValue, String stream, Shard shard, String seqNum, long approxArrivalTimestamp)
 		throws IOException {
 		return deserializationSchema.deserialize(recordValue);
 	}
