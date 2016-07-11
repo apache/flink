@@ -22,7 +22,7 @@ import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -93,11 +93,11 @@ public class ShardConsumer<T> implements Runnable {
 		Properties consumerConfig = fetcherRef.getConsumerConfiguration();
 		this.kinesis = kinesis;
 		this.maxNumberOfRecordsPerFetch = Integer.valueOf(consumerConfig.getProperty(
-			KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_MAX,
-			Integer.toString(KinesisConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX)));
+			ConsumerConfigConstants.SHARD_GETRECORDS_MAX,
+			Integer.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX)));
 		this.fetchIntervalMillis = Long.valueOf(consumerConfig.getProperty(
-			KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_INTERVAL_MILLIS,
-			Long.toString(KinesisConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS)));
+			ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS,
+			Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS)));
 	}
 
 	@SuppressWarnings("unchecked")

@@ -20,7 +20,9 @@ package org.apache.flink.streaming.connectors.kinesis;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -56,19 +58,19 @@ public class FlinkKinesisConsumerTest {
 	private ExpectedException exception = ExpectedException.none();
 
 	// ----------------------------------------------------------------------
-	// FlinkKinesisConsumer.validatePropertiesConfig() tests
+	// FlinkKinesisConsumer.validateAwsConfiguration() tests
 	// ----------------------------------------------------------------------
 
 	@Test
 	public void testMissingAwsRegionInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("The AWS region ('" + KinesisConfigConstants.CONFIG_AWS_REGION + "') must be set in the config.");
+		exception.expectMessage("The AWS region ('" + AWSConfigConstants.AWS_REGION + "') must be set in the config.");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateAwsConfiguration(testConfig);
 	}
 
 	@Test
@@ -77,36 +79,36 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid AWS region");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "wrongRegionId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "wrongRegionId");
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateAwsConfiguration(testConfig);
 	}
 
 	@Test
 	public void testCredentialProviderTypeDefaultToBasicButNoCredentialsSetInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
-				"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
+		exception.expectMessage("Please set values for AWS Access Key ID ('"+ AWSConfigConstants.AWS_ACCESS_KEY_ID +"') " +
+				"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateAwsConfiguration(testConfig);
 	}
 
 	@Test
 	public void testCredentialProviderTypeSetToBasicButNoCredentialSetInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
-				"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
+		exception.expectMessage("Please set values for AWS Access Key ID ('"+ AWSConfigConstants.AWS_ACCESS_KEY_ID +"') " +
+				"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE, "BASIC");
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateAwsConfiguration(testConfig);
 	}
 
 	@Test
@@ -115,13 +117,17 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid AWS Credential Provider Type");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE, "wrongProviderType");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "wrongProviderType");
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateAwsConfiguration(testConfig);
 	}
+
+	// ----------------------------------------------------------------------
+	// FlinkKinesisConsumer.validateConsumerConfiguration() tests
+	// ----------------------------------------------------------------------
 
 	@Test
 	public void testUnrecognizableStreamInitPositionTypeInConfig() {
@@ -129,13 +135,13 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid initial position in stream");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE, "BASIC");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, "wrongInitPosition");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "wrongInitPosition");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -144,12 +150,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for describe stream operation base backoff milliseconds");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_BASE, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, "unparsableLong");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -158,12 +164,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for describe stream operation max backoff milliseconds");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_MAX, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, "unparsableLong");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -172,12 +178,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for describe stream operation backoff exponential constant");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -186,12 +192,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for maximum retry attempts for getRecords shard operation");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_RETRIES, "unparsableInt");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_RETRIES, "unparsableInt");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -200,12 +206,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for maximum records per getRecords shard operation");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_MAX, "unparsableInt");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "unparsableInt");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -214,12 +220,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for get records operation base backoff milliseconds");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_BASE, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE, "unparsableLong");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -228,12 +234,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for get records operation max backoff milliseconds");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_MAX, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_MAX, "unparsableLong");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -242,12 +248,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for get records operation backoff exponential constant");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -256,12 +262,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for getRecords sleep interval in milliseconds");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_INTERVAL_MILLIS, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, "unparsableLong");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateProducerConfiguration(testConfig);
 	}
 
 	@Test
@@ -270,12 +276,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for maximum retry attempts for getShardIterator shard operation");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_RETRIES, "unparsableInt");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES, "unparsableInt");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -284,12 +290,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for get shard iterator operation base backoff milliseconds");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_BASE, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_BASE, "unparsableLong");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -298,12 +304,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for get shard iterator operation max backoff milliseconds");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_MAX, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_MAX, "unparsableLong");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -312,12 +318,12 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for get shard iterator operation backoff exponential constant");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
@@ -326,12 +332,44 @@ public class FlinkKinesisConsumerTest {
 		exception.expectMessage("Invalid value given for shard discovery sleep interval in milliseconds");
 
 		Properties testConfig = new Properties();
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "unparsableLong");
 
-		KinesisConfigUtil.validateConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	// ----------------------------------------------------------------------
+	// FlinkKinesisConsumer.validateProducerConfiguration() tests
+	// ----------------------------------------------------------------------
+
+	@Test
+	public void testUnparsableLongForCollectionMaxCountInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum number of items to pack into a PutRecords request");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT, "unparsableLong");
+
+		KinesisConfigUtil.validateProducerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForAggregationMaxCountInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum number of items to pack into an aggregated record");
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		testConfig.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT, "unparsableLong");
+
+		KinesisConfigUtil.validateProducerConfiguration(testConfig);
 	}
 
 	// ----------------------------------------------------------------------
@@ -341,9 +379,9 @@ public class FlinkKinesisConsumerTest {
 	@Test
 	public void testSnapshotStateShouldBeNullIfSourceNotOpened() throws Exception {
 		Properties config = new Properties();
-		config.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		config.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		config.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
 		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema(), config);
 
@@ -353,9 +391,9 @@ public class FlinkKinesisConsumerTest {
 	@Test
 	public void testSnapshotStateShouldBeNullIfSourceNotRun() throws Exception {
 		Properties config = new Properties();
-		config.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		config.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
-		config.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
+		config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
 		FlinkKinesisConsumer<String> consumer = new FlinkKinesisConsumer<>("fakeStream", new SimpleStringSchema(), config);
 		consumer.open(new Configuration()); // only opened, not run
