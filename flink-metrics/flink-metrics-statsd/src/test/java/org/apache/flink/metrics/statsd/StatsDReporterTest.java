@@ -94,7 +94,7 @@ public class StatsDReporterTest extends TestLogger {
 
 			Set<String> lines = receiver.getLines();
 
-			String prefix = metricGroup.getScopeString() + "." + histogramName;
+			String prefix = metricGroup.getMetricIdentifier(histogramName);
 
 			Set<String> expectedLines = new HashSet<>();
 

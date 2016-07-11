@@ -639,6 +639,9 @@ public final class ConfigConstants {
 	/** The interval between reports. */
 	public static final String METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
 
+	/** The delimiter used to assemble the metric identifier. */
+	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
+
 	/** The scope format string that is applied to all metrics scoped to a JobManager. */
 	public static final String METRICS_SCOPE_NAMING_JM = "metrics.scope.jm";
 

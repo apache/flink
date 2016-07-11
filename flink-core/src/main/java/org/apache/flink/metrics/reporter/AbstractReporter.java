@@ -43,7 +43,7 @@ public abstract class AbstractReporter implements MetricReporter {
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
-		final String name = replaceInvalidChars(group.getScopeString() + '.' + metricName);
+		final String name = replaceInvalidChars(group.getMetricIdentifier(metricName));
 
 		synchronized (this) {
 			if (metric instanceof Counter) {

@@ -137,7 +137,7 @@ public class TaskManagerGroupTest {
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "localhost", "id");
 
 		assertArrayEquals(new String[] { "localhost", "taskmanager", "id" }, group.getScopeComponents());
-		assertEquals("localhost.taskmanager.id", group.getScopeString());
+		assertEquals("localhost.taskmanager.id.name", group.getMetricIdentifier("name"));
 		registry.shutdown();
 	}
 
@@ -148,7 +148,7 @@ public class TaskManagerGroupTest {
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, format, "host", "id");
 
 		assertArrayEquals(new String[] { "constant", "host", "foo", "host" }, group.getScopeComponents());
-		assertEquals("constant.host.foo.host", group.getScopeString());
+		assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
 		registry.shutdown();
 	}
 }

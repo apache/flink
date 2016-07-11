@@ -42,8 +42,8 @@ public class JobManagerJobGroupTest {
 				jmGroup.getScopeComponents());
 
 		assertEquals(
-				"theHostName.jobmanager.myJobName",
-				jmGroup.getScopeString());
+				"theHostName.jobmanager.myJobName.name",
+				jmGroup.getMetricIdentifier("name"));
 	}
 
 	@Test
@@ -63,8 +63,8 @@ public class JobManagerJobGroupTest {
 				jmGroup.getScopeComponents());
 
 		assertEquals(
-				"some-constant.myJobName",
-				jmGroup.getScopeString());
+				"some-constant.myJobName.name",
+				jmGroup.getMetricIdentifier("name"));
 	}
 
 	@Test
@@ -84,7 +84,7 @@ public class JobManagerJobGroupTest {
 				jmGroup.getScopeComponents());
 
 		assertEquals(
-				"peter.some-constant." + jid,
-				jmGroup.getScopeString());
+				"peter.some-constant." + jid + ".name",
+				jmGroup.getMetricIdentifier("name"));
 	}
 }

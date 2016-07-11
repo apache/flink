@@ -43,8 +43,8 @@ public class TaskManagerJobGroupTest {
 				jmGroup.getScopeComponents());
 
 		assertEquals(
-				"theHostName.taskmanager.test-tm-id.myJobName",
-				jmGroup.getScopeString());
+				"theHostName.taskmanager.test-tm-id.myJobName.name",
+				jmGroup.getMetricIdentifier("name"));
 		registry.shutdown();
 	}
 
@@ -65,8 +65,8 @@ public class TaskManagerJobGroupTest {
 				jmGroup.getScopeComponents());
 
 		assertEquals(
-				"some-constant.myJobName",
-				jmGroup.getScopeString());
+				"some-constant.myJobName.name",
+				jmGroup.getMetricIdentifier("name"));
 		registry.shutdown();
 	}
 
@@ -87,8 +87,8 @@ public class TaskManagerJobGroupTest {
 				jmGroup.getScopeComponents());
 
 		assertEquals(
-				"peter.test-tm-id.some-constant." + jid,
-				jmGroup.getScopeString());
+				"peter.test-tm-id.some-constant." + jid + ".name",
+				jmGroup.getMetricIdentifier("name"));
 		registry.shutdown();
 	}
 }
