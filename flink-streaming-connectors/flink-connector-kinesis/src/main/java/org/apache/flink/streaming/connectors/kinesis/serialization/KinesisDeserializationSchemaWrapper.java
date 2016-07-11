@@ -42,7 +42,10 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
 		return deserializationSchema.deserialize(recordValue);
 	}
 
-	/*@Override
+	/*
+	FLINK-4194
+
+	@Override
 	public boolean isEndOfStream(T nextElement) {
 		return deserializationSchema.isEndOfStream(nextElement);
 	} */

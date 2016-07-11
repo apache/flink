@@ -206,13 +206,13 @@ public class ShardConsumer<T> implements Runnable {
 		final long approxArrivalTimestamp = record.getApproximateArrivalTimestamp().getTime();
 
 		final T value = deserializer.deserialize(
-				keyBytes,
-				dataBytes,
-				record.getPartitionKey(),
-				record.getSequenceNumber(),
-				approxArrivalTimestamp,
-				subscribedShard.getStreamName(),
-				subscribedShard.getShard().getShardId());
+			keyBytes,
+			dataBytes,
+			record.getPartitionKey(),
+			record.getSequenceNumber(),
+			approxArrivalTimestamp,
+			subscribedShard.getStreamName(),
+			subscribedShard.getShard().getShardId());
 
 		if (record.isAggregated()) {
 			fetcherRef.emitRecordAndUpdateState(
