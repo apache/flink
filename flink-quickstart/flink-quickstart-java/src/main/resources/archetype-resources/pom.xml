@@ -206,6 +206,7 @@ under the License.
 									<exclude>com.esotericsoftware.kryo:kryo</exclude>
 									<exclude>com.esotericsoftware.minlog:minlog</exclude>
 									<exclude>org.objenesis:objenesis</exclude>
+									<exclude>com.twitter:chill_*</exclude>
 									<exclude>com.twitter:chill-java</exclude>
 									<exclude>commons-lang:commons-lang</exclude>
 									<exclude>junit:junit</exclude>
