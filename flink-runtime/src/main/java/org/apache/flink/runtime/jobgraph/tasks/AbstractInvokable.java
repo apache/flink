@@ -22,8 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.BatchTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This is the abstract base class for every task that can be executed by a
@@ -35,8 +33,6 @@ import org.slf4j.LoggerFactory;
  * output stream readers and writers as well as the task's core operation).
  */
 public abstract class AbstractInvokable {
-
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractInvokable.class);
 
 	/** The environment assigned to this invokable. */
 	private Environment environment;
@@ -56,6 +52,17 @@ public abstract class AbstractInvokable {
 	 */
 	public abstract void invoke() throws Exception;
 
+	/**
+	 * This method is called when a task is canceled either as a result of a user abort or an execution failure. It can
+	 * be overwritten to respond to shut down the user code properly.
+	 *
+	 * @throws Exception
+	 *         thrown if any exception occurs during the execution of the user code
+	 */
+	public void cancel() throws Exception {
+		// The default implementation does nothing.
+	}
+	
 	/**
 	 * Sets the environment of this task.
 	 * 
@@ -125,16 +132,5 @@ public abstract class AbstractInvokable {
 	 */
 	public ExecutionConfig getExecutionConfig() {
 		return this.environment.getExecutionConfig();
-	}
-
-	/**
-	 * This method is called when a task is canceled either as a result of a user abort or an execution failure. It can
-	 * be overwritten to respond to shut down the user code properly.
-	 * 
-	 * @throws Exception
-	 *         thrown if any exception occurs during the execution of the user code
-	 */
-	public void cancel() throws Exception {
-		// The default implementation does nothing.
 	}
 }

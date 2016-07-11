@@ -95,7 +95,11 @@ public class StreamTaskState implements Serializable {
 		StateHandle<?> operatorState = this.operatorState;
 		StateHandle<?> functionState = this.functionState;
 		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = this.kvStates;
-		
+
+		this.operatorState = null;
+		this.functionState = null;
+		this.kvStates = null;
+	
 		if (operatorState != null) {
 			operatorState.discardState();
 		}
@@ -117,9 +121,5 @@ public class StreamTaskState implements Serializable {
 				}
 			}
 		}
-
-		this.operatorState = null;
-		this.functionState = null;
-		this.kvStates = null;
 	}
 }
