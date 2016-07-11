@@ -49,6 +49,8 @@ public class MetricRegistry {
 
 	private final ScopeFormats scopeFormats;
 
+	private final char delimiter;
+
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
@@ -63,6 +65,15 @@ public class MetricRegistry {
 			scopeFormats = new ScopeFormats();
 		}
 		this.scopeFormats = scopeFormats;
+
+		char delim;
+		try {
+			delim = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".").charAt(0);
+		} catch (Exception e) {
+			LOG.warn("Failed to parse delimiter, using default delimiter.", e);
+			delim = '.';
+		}
+		this.delimiter = delim;
 
 		// second, instantiate any custom configured reporters
 		
@@ -116,6 +127,10 @@ public class MetricRegistry {
 			this.reporter = reporter;
 			this.executor = executor;
 		}
+	}
+
+	public char getDelimiter() {
+		return this.delimiter;
 	}
 
 	private static JMXReporter startJmxReporter(Configuration config) {

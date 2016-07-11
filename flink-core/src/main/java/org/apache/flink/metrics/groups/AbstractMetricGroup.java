@@ -87,24 +87,23 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	/**
 	 * Gets the scope as an array of the scope components, for example
 	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}
-	 * 
-	 * @see #getScopeString() 
 	 */
 	public String[] getScopeComponents() {
 		return scopeComponents;
 	}
 
 	/**
-	 * Gets the scope as a single delimited string, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper"}
-	 *
-	 * @see #getScopeComponents()
-	 */
-	public String getScopeString() {
+	 * Returns the fully qualified metric name, for example
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 * 
+	 * @param metricName metric name
+	 * @return fully qualified metric name
+     */
+	public String getMetricIdentifier(String metricName) {
 		if (scopeString == null) {
-			scopeString = ScopeFormat.concat(scopeComponents);
+			scopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
 		}
-		return scopeString;
+		return scopeString + registry.getDelimiter() + metricName;
 	}
 	
 	// ------------------------------------------------------------------------

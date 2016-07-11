@@ -109,7 +109,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 
 			metricGroup.histogram(histogramMetricName, histogramWrapper);
 
-			String fullMetricName = metricGroup.getScopeString() + "." + histogramMetricName;
+			String fullMetricName = metricGroup.getMetricIdentifier(histogramMetricName);
 
 			Field f = registry.getClass().getDeclaredField("reporter");
 			f.setAccessible(true);

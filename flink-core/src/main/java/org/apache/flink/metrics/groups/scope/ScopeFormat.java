@@ -428,10 +428,14 @@ public abstract class ScopeFormat {
 	}
 
 	public static String concat(String... components) {
+		return concat('.', components);
+	}
+
+	public static String concat(Character delimiter, String... components) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(components[0]);
 		for (int x = 1; x < components.length; x++) {
-			sb.append(SCOPE_SEPARATOR);
+			sb.append(delimiter);
 			sb.append(components[x]);
 		}
 		return sb.toString();

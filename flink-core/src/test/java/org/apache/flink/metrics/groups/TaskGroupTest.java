@@ -68,8 +68,8 @@ public class TaskGroupTest {
 				taskGroup.getScopeComponents());
 
 		assertEquals(
-				"theHostName.taskmanager.test-tm-id.myJobName.aTaskName.13",
-				taskGroup.getScopeString());
+				"theHostName.taskmanager.test-tm-id.myJobName.aTaskName.13.name",
+				taskGroup.getMetricIdentifier("name"));
 		registry.shutdown();
 	}
 
@@ -95,8 +95,8 @@ public class TaskGroupTest {
 				taskGroup.getScopeComponents());
 
 		assertEquals(
-				String.format("test-tm-id.%s.%s.%s", jid, vertexId, executionId),
-				taskGroup.getScopeString());
+				String.format("test-tm-id.%s.%s.%s.name", jid, vertexId, executionId),
+				taskGroup.getMetricIdentifier("name"));
 		registry.shutdown();
 	}
 
@@ -124,8 +124,8 @@ public class TaskGroupTest {
 				taskGroup.getScopeComponents());
 
 		assertEquals(
-				"theHostName.taskmanager.test-tm-id.myJobName." + executionId + ".13",
-				taskGroup.getScopeString());
+				"theHostName.taskmanager.test-tm-id.myJobName." + executionId + ".13.name",
+				taskGroup.getMetricIdentifier("name"));
 		registry.shutdown();
 	}
 }

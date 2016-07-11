@@ -93,7 +93,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
-		final String fullName = group.getScopeString() + '.' + metricName;
+		final String fullName = group.getMetricIdentifier(metricName);
 
 		synchronized (this) {
 			if (metric instanceof Counter) {

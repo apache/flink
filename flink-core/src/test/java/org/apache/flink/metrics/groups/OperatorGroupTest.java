@@ -45,8 +45,8 @@ public class OperatorGroupTest {
 				opGroup.getScopeComponents());
 
 		assertEquals(
-				"theHostName.taskmanager.test-tm-id.myJobName.myOpName.11",
-				opGroup.getScopeString());
+				"theHostName.taskmanager.test-tm-id.myJobName.myOpName.11.name",
+				opGroup.getMetricIdentifier("name"));
 
 		registry.shutdown();
 	}
