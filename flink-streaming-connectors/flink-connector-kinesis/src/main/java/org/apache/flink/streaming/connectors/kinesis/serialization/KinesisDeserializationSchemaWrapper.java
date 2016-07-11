@@ -37,15 +37,18 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
 	}
 
 	@Override
-	public T deserialize(byte[] recordKey, byte[] recordValue, String stream, String seqNum, long approxArrivalTimestamp)
+	public T deserialize(byte[] recordKey, byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId)
 		throws IOException {
 		return deserializationSchema.deserialize(recordValue);
 	}
 
+	/*
+	FLINK-4194
+
 	@Override
 	public boolean isEndOfStream(T nextElement) {
 		return deserializationSchema.isEndOfStream(nextElement);
-	}
+	} */
 
 	@Override
 	public TypeInformation<T> getProducedType() {
