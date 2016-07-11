@@ -20,7 +20,8 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
@@ -29,7 +30,6 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
-import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -242,9 +242,12 @@ public class KinesisDataFetcher<T> {
 			// we are starting fresh (not restoring from a checkpoint); when we are starting fresh, this simply means
 			// all existing shards of streams we are subscribing to are new shards; when we are restoring from checkpoint,
 			// any new shards due to Kinesis resharding from the time of the checkpoint will be considered new shards.
+			InitialPosition initialPosition = InitialPosition.valueOf(configProps.getProperty(
+				ConsumerConfigConstants.STREAM_INITIAL_POSITION, ConsumerConfigConstants.DEFAULT_STREAM_INITIAL_POSITION));
+
 			SentinelSequenceNumber startingStateForNewShard = (isRestoredFromFailure)
 				? SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM
-				: KinesisConfigUtil.getInitialPositionAsSentinelSequenceNumber(configProps);
+				: initialPosition.toSentinelSequenceNumber();
 
 			if (LOG.isInfoEnabled()) {
 				String logFormat = (isRestoredFromFailure)
@@ -305,8 +308,8 @@ public class KinesisDataFetcher<T> {
 
 		final long discoveryIntervalMillis = Long.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS,
-				Long.toString(KinesisConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
+				ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
+				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
 
 		while (running) {
 			if (LOG.isDebugEnabled()) {

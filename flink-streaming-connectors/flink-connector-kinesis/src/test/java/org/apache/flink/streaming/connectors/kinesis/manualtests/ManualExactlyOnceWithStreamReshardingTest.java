@@ -27,7 +27,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValidatingConsumerThread;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
@@ -68,10 +68,10 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 		final String region = pt.getRequired("region");
 
 		final Properties configProps = new Properties();
-		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, accessKey);
-		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, secretKey);
-		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, region);
-		configProps.setProperty(KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS, "0");
+		configProps.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, accessKey);
+		configProps.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, secretKey);
+		configProps.setProperty(ConsumerConfigConstants.AWS_REGION, region);
+		configProps.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "0");
 		final AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
 
 		// the stream is first created with 1 shard

@@ -21,7 +21,7 @@ import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValidatingConsumerThread;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisEventsGeneratorProducerThread;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
@@ -57,9 +57,9 @@ public class ManualExactlyOnceTest {
 		final String region = pt.getRequired("region");
 
 		Properties configProps = new Properties();
-		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, accessKey);
-		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, secretKey);
-		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, region);
+		configProps.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, accessKey);
+		configProps.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, secretKey);
+		configProps.setProperty(AWSConfigConstants.AWS_REGION, region);
 		AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
 
 		// create a stream for the test:

@@ -28,7 +28,7 @@ import com.amazonaws.services.kinesis.model.LimitExceededException;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.StreamStatus;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.slf4j.Logger;
@@ -119,50 +119,50 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 		this.describeStreamBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_BASE,
-				Long.toString(KinesisConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE)));
+				ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
+				Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE)));
 		this.describeStreamMaxBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_MAX,
-				Long.toString(KinesisConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX)));
+				ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
+				Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX)));
 		this.describeStreamExpConstant = Double.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(KinesisConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
+				ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
+				Double.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
 
 		this.getRecordsBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_BASE,
-				Long.toString(KinesisConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_BASE)));
+				ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE,
+				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_BASE)));
 		this.getRecordsMaxBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_MAX,
-				Long.toString(KinesisConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_MAX)));
+				ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_MAX,
+				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_MAX)));
 		this.getRecordsExpConstant = Double.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(KinesisConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT)));
+				ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT,
+				Double.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT)));
 		this.getRecordsMaxAttempts = Integer.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_RETRIES,
-				Long.toString(KinesisConfigConstants.DEFAULT_SHARD_GETRECORDS_RETRIES)));
+				ConsumerConfigConstants.SHARD_GETRECORDS_RETRIES,
+				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_RETRIES)));
 
 		this.getShardIteratorBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_BASE,
-				Long.toString(KinesisConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_BASE)));
+				ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_BASE,
+				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_BASE)));
 		this.getShardIteratorMaxBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_MAX,
-				Long.toString(KinesisConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_MAX)));
+				ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_MAX,
+				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_MAX)));
 		this.getShardIteratorExpConstant = Double.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(KinesisConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT)));
+				ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT,
+				Double.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT)));
 		this.getShardIteratorMaxAttempts = Integer.valueOf(
 			configProps.getProperty(
-				KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_RETRIES,
-				Long.toString(KinesisConfigConstants.DEFAULT_SHARD_GETITERATOR_RETRIES)));
+				ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES,
+				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_RETRIES)));
 
 	}
 

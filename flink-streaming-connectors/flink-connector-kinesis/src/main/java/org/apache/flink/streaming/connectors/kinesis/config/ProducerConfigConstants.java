@@ -17,17 +17,17 @@
 
 package org.apache.flink.streaming.connectors.kinesis.config;
 
-import com.amazonaws.services.kinesis.model.ShardIteratorType;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 
 /**
- * The initial position to start reading shards from. This will affect the {@link ShardIteratorType} used
- * when the consumer tasks retrieve the first shard iterator for each Kinesis shard.
+ * Optional producer specific configuration keys for {@link FlinkKinesisProducer}
  */
-public enum InitialPosition {
+public class ProducerConfigConstants extends AWSConfigConstants {
 
-	/** Start reading from the earliest possible record in the stream (excluding expired data records) */
-	TRIM_HORIZON,
+	/** Maximum number of items to pack into an PutRecords request. **/
+	public static final String COLLECTION_MAX_COUNT = "aws.producer.collectionMaxCount";
 
-	/** Start reading from the latest incoming record */
-	LATEST
+	/** Maximum number of items to pack into an aggregated record. **/
+	public static final String AGGREGATION_MAX_COUNT = "aws.producer.aggregationMaxCount";
+
 }
