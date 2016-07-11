@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.plan.logical
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 import org.apache.flink.api.table.typeutils.TypeConverter
@@ -403,6 +404,49 @@ class Table(
   }
 
   /**
+    * Set minus between two [[Table]]s. Similar to an SQL EXCEPT ALL.
+    * The fields of the two minus operands must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.minusAll(right)
+    * }}}
+    */
+  def minusAll(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
+    }
+    new Table(tableEnv, logical.Minus(logicalPlan, right.logicalPlan, true).validate(tableEnv))
+  }
+
+  /**
+    * Perform set minus between [[Table]]s with duplicate records removed.
+    * Similar to an SQL EXCEPT. The fields of the two minus operations must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.minus(right)
+    * }}}
+    */
+  def minus(right: Table): Table = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new TableException(s"Set minus on stream tables is currently not supported.")
+    }
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be minus.")
+    }
+    new Table(tableEnv, logical.Minus(logicalPlan, right.logicalPlan, false).validate(tableEnv))
+  }
+
+  /**
     * Unions two [[Table]]s with duplicate records removed.
     * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
     *
@@ -426,8 +470,12 @@ class Table(
   }
 
   /**
-    * Unions two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
+    * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
     * must fully overlap.
+    *
+    * Returns records from the left table that do not exist in the right table.
+    * If there are m duplicates in the left table and n duplicates in the right table this operation
+    * will return max(m-n, 0) duplicates.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
     *
@@ -450,6 +498,9 @@ class Table(
     * exist in both tables. If a record is present in one or both tables more than once, it is
     * returned just once, i.e., the resulting table has no duplicate records. Similar to an
     * SQL INTERSECT. The fields of the two intersect operations must fully overlap.
+    *
+    * Records of the left table are returned only if they do not match any records from the
+    * right table. Duplicate records are returned exactly once.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
     *
