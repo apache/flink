@@ -322,7 +322,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	@Override
 	public void restoreState(HashMap<KafkaTopicPartition, Long> restoredOffsets) {
-		LOG.info("Setting restore state in the FlinkKafkaConsumer");
+		LOG.info("Setting restore state in the FlinkKafkaConsumer: {}", restoredOffsets);
 		restoreToOffset = restoredOffsets;
 	}
 
