@@ -267,7 +267,7 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, "unparsableLong");
 
-		KinesisConfigUtil.validateProducerConfiguration(testConfig);
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
