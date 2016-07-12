@@ -50,9 +50,8 @@ mvn clean install -Pinclude-kinesis -DskipTests
 {% endhighlight %}
 
 
-
-Note that the streaming connectors are not part of the binary distribution. 
-See how to link with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+The streaming connectors are not part of the binary distribution. See how to link with them for cluster 
+execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 ### Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
@@ -240,8 +239,9 @@ consumer when calling this API can also be modified by using the other keys pref
 ### Kinesis Producer
 
 The `FlinkKinesisProducer` is used for putting data from a Flink stream into a Kinesis stream. Note that the producer is not participating in
-Flink's checkpointing and doesn't provide exactly-once processing guarantees. In case of a failure, data will be written again
-to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
+Flink's checkpointing and doesn't provide exactly-once processing guarantees. 
+Also, the Kinesis producer does not guarantee that records are written in order to the shards (See [here](https://github.com/awslabs/amazon-kinesis-producer/issues/23) and [here](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecord.html#API_PutRecord_RequestSyntax) for more details). 
+In case of a failure, data will be written again to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
 
 To put data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in the AWS dashboard.
 
