@@ -103,8 +103,9 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 ### Fault Tolerance Guarantees of Data Sources and Sinks
 
 Flink can guarantee exactly-once state updates to user-defined state only when the source participates in the
-snapshotting mechanism. This is currently guaranteed for the Kafka source and AWS Kinesis Streams source (and internal number generators), but
-not for other sources. The following table lists the state update guarantees of Flink coupled with the bundled sources:
+snapshotting mechanism. The following table lists the state update guarantees of Flink coupled with the bundled connectors.
+
+Please read the documentation of each connector to understand the details of the fault tolerance guarantees.
 
 <table class="table table-bordered">
   <thead>
@@ -142,8 +143,8 @@ not for other sources. The following table lists the state update guarantees of 
         </tr>
         <tr>
             <td>Files</td>
-            <td>at least once</td>
-            <td>At failure the file will be read from the beginning</td>
+            <td>exactly once</td>
+            <td></td>
         </tr>
         <tr>
             <td>Sockets</td>
