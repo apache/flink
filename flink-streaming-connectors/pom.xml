@@ -40,6 +40,7 @@ under the License.
 		<module>flink-connector-kafka-base</module>
 		<module>flink-connector-kafka-0.8</module>
 		<module>flink-connector-kafka-0.9</module>
+		<module>flink-connector-kafka-0.10</module>
 		<module>flink-connector-elasticsearch</module>
 		<module>flink-connector-elasticsearch2</module>
 		<module>flink-connector-rabbitmq</module>
