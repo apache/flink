@@ -31,9 +31,11 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
+import org.apache.flink.types.IntValue;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Sink that emits its input elements into a Cassandra database. This sink stores incoming records within a
@@ -43,19 +45,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <IN> Type of the elements emitted by this sink
  */
 public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWriteAheadSink<IN> {
+	private static final long serialVersionUID = 1L;
+
 	protected transient Cluster cluster;
 	protected transient Session session;
 
 	private final String insertQuery;
 	private transient PreparedStatement preparedStatement;
 
-	private transient Throwable exception = null;
-	private transient FutureCallback<ResultSet> callback;
-
 	private ClusterBuilder builder;
-
-	private int updatesSent = 0;
-	private AtomicInteger updatesConfirmed = new AtomicInteger(0);
 
 	private transient Object[] fields;
 
@@ -71,18 +69,6 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 		if (!getRuntimeContext().isCheckpointingEnabled()) {
 			throw new IllegalStateException("The write-ahead log requires checkpointing to be enabled.");
 		}
-		this.callback = new FutureCallback<ResultSet>() {
-			@Override
-			public void onSuccess(ResultSet resultSet) {
-				updatesConfirmed.incrementAndGet();
-			}
-
-			@Override
-			public void onFailure(Throwable throwable) {
-				exception = throwable;
-				LOG.error("Error while sending value.", throwable);
-			}
-		};
 		cluster = builder.getCluster();
 		session = cluster.connect();
 		preparedStatement = session.prepare(insertQuery);
@@ -110,12 +96,38 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 	}
 
 	@Override
-	protected void sendValues(Iterable<IN> values, long timestamp) throws Exception {
-		//verify that no query failed until now
-		if (exception != null) {
-			throw new Exception(exception);
-		}
+	protected boolean sendValues(Iterable<IN> values, long timestamp) throws Exception {
+		final IntValue updatesCount = new IntValue(0);
+		final AtomicInteger updatesConfirmed = new AtomicInteger(0);
+
+		final AtomicReference<Throwable> exception = new AtomicReference<>();
+
+		FutureCallback<ResultSet> callback = new FutureCallback<ResultSet>() {
+			@Override
+			public void onSuccess(ResultSet resultSet) {
+				updatesConfirmed.incrementAndGet();
+				if (updatesCount.getValue() > 0) { // only set if all updates have been sent
+					if (updatesCount.getValue() == updatesConfirmed.get()) {
+						synchronized (updatesConfirmed) {
+							updatesConfirmed.notifyAll();
+						}
+					}
+				}
+			}
+
+			@Override
+			public void onFailure(Throwable throwable) {
+				if (exception.compareAndSet(null, throwable)) {
+					LOG.error("Error while sending value.", throwable);
+					synchronized (updatesConfirmed) {
+						updatesConfirmed.notifyAll();
+					}
+				}
+			}
+		};
+
 		//set values for prepared statement
+		int updatesSent = 0;
 		for (IN value : values) {
 			for (int x = 0; x < value.getArity(); x++) {
 				fields[x] = value.getField(x);
@@ -130,13 +142,18 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 				Futures.addCallback(result, callback);
 			}
 		}
-		try {
+		updatesCount.setValue(updatesSent);
+
+		synchronized (updatesConfirmed) {
 			while (updatesSent != updatesConfirmed.get()) {
-				Thread.sleep(100);
+				if (exception.get() != null) { // verify that no query failed until now
+					LOG.warn("Sending a value failed.", exception.get());
+					break;
+				}
+				updatesConfirmed.wait();
 			}
-		} catch (InterruptedException e) {
 		}
-		updatesSent = 0;
-		updatesConfirmed.set(0);
+		boolean success = updatesSent == updatesConfirmed.get();
+		return success;
 	}
 }
