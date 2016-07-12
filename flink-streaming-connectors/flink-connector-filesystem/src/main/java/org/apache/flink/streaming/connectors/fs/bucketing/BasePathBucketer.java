@@ -15,33 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.fs;
+package org.apache.flink.streaming.connectors.fs.bucketing;
 
-import org.apache.flink.streaming.connectors.fs.bucketing.BasePathBucketer;
 import org.apache.hadoop.fs.Path;
 
 /**
  * A {@link Bucketer} that does not perform any
- * rolling of files. All files are written to the base path.
- *
- * @deprecated use {@link BasePathBucketer} instead.
+ * bucketing of files. All files are written to the base path.
  */
-@Deprecated
-public class NonRollingBucketer implements Bucketer {
+public class BasePathBucketer<T> implements Bucketer<T> {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public boolean shouldStartNewBucket(Path basePath, Path currentBucketPath) {
-		return false;
-	}
-
-	@Override
-	public Path getNextBucketPath(Path basePath) {
+	public Path getBucketPath(Path basePath, T element) {
 		return basePath;
 	}
 
 	@Override
 	public String toString() {
-		return "NonRollingBucketer";
+		return "BasePathBucketer";
 	}
 }
