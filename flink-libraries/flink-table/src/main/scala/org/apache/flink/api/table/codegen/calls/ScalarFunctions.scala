@@ -25,11 +25,12 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.table.functions.utils.ScalarSqlFunction
 
 import scala.collection.mutable
 
 /**
-  * Global registry of built-in advanced SQL scalar functions.
+  * Global hub for user-defined and built-in advanced SQL scalar functions.
   */
 object ScalarFunctions {
 
@@ -167,22 +168,42 @@ object ScalarFunctions {
     Seq(BIG_DEC_TYPE_INFO),
     new FloorCeilCallGen(BuiltInMethod.CEIL.method))
 
-
   // ----------------------------------------------------------------------------------------------
 
+  /**
+    * Returns a [[CallGenerator]] that generates all required code for calling the given
+    * [[SqlOperator]].
+    *
+    * @param sqlOperator SQL operator (might be overloaded)
+    * @param operandTypes actual operand types
+    * @param resultType expected return type
+    * @return [[CallGenerator]]
+    */
   def getCallGenerator(
-      call: SqlOperator,
-      operandTypes: Seq[TypeInformation[_]])
-    : Option[CallGenerator] = {
+      sqlOperator: SqlOperator,
+      operandTypes: Seq[TypeInformation[_]],
+      resultType: TypeInformation[_])
+    : Option[CallGenerator] = sqlOperator match {
 
-    sqlFunctions.get((call, operandTypes))
-      .orElse(sqlFunctions.find(entry => entry._1._1 == call
-        && entry._1._2.length == operandTypes.length
-        && entry._1._2.zip(operandTypes).forall {
-        case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
-        case _ => false
-      }).map(_._2))
+    // user-defined scalar function
+    case ssf: ScalarSqlFunction =>
+      Some(
+        new ScalarFunctionCallGen(
+          ssf.getScalarFunction,
+          operandTypes,
+          resultType
+        )
+      )
 
+    // built-in scalar function
+    case _ =>
+      sqlFunctions.get((sqlOperator, operandTypes))
+        .orElse(sqlFunctions.find(entry => entry._1._1 == sqlOperator
+          && entry._1._2.length == operandTypes.length
+          && entry._1._2.zip(operandTypes).forall {
+          case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
+          case _ => false
+        }).map(_._2))
   }
 
   // ----------------------------------------------------------------------------------------------

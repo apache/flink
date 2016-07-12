@@ -18,28 +18,46 @@
 
 package org.apache.flink.api.table.validate
 
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable}
+import org.apache.calcite.sql.{SqlFunction, SqlOperatorTable}
+import org.apache.flink.api.table.ValidationException
+import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.functions.ScalarFunction
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils
+
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
-import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.ValidationException
-
 /**
-  * A catalog for looking up user defined functions, used during validation phase.
+  * A catalog for looking up user-defined functions, used during validation phase.
   */
 class FunctionCatalog {
 
   private val functionBuilders = mutable.HashMap.empty[String, Class[_]]
+  private val sqlFunctions = mutable.ListBuffer[SqlFunction]()
 
   def registerFunction(name: String, builder: Class[_]): Unit =
     functionBuilders.put(name.toLowerCase, builder)
+
+  def registerSqlFunction(sqlFunction: SqlFunction): Unit = {
+    sqlFunctions --= sqlFunctions.filter(_.getName == sqlFunction.getName)
+    sqlFunctions += sqlFunction
+  }
+
+  def getSqlOperatorTable: SqlOperatorTable =
+    ChainedSqlOperatorTable.of(
+      SqlStdOperatorTable.instance(),
+      new ListSqlOperatorTable(sqlFunctions)
+    )
 
   /**
     * Lookup and create an expression if we find a match.
     */
   def lookupFunction(name: String, children: Seq[Expression]): Expression = {
-    val funcClass = functionBuilders.getOrElse(name.toLowerCase,
-      throw new ValidationException(s"undefined function $name"))
+    val funcClass = functionBuilders
+      .getOrElse(name.toLowerCase, throw ValidationException(s"Undefined function: $name"))
     withChildren(funcClass, children)
   }
 
@@ -47,25 +65,40 @@ class FunctionCatalog {
     * Instantiate a function using the provided `children`.
     */
   private def withChildren(func: Class[_], children: Seq[Expression]): Expression = {
-    // Try to find a constructor accepts `Seq[Expression]`
-    Try(func.getDeclaredConstructor(classOf[Seq[_]])) match {
-      case Success(seqCtor) =>
-        Try(seqCtor.newInstance(children).asInstanceOf[Expression]) match {
-          case Success(expr) => expr
-          case Failure(e) => throw new ValidationException(e.getMessage)
+    func match {
+
+      // user-defined scalar function call
+      case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
+        Try(UserDefinedFunctionUtils.instantiate(sf.asInstanceOf[Class[ScalarFunction]])) match {
+          case Success(scalarFunction) => ScalarFunctionCall(scalarFunction, children)
+          case Failure(e) => throw ValidationException(e.getMessage)
         }
-      case Failure(e) =>
-        val childrenClass = Seq.fill(children.length)(classOf[Expression])
-        // Try to find a constructor matching the exact number of children
-        Try(func.getDeclaredConstructor(childrenClass: _*)) match {
-          case Success(ctor) =>
-            Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
+
+      // general expression call
+      case expression if classOf[Expression].isAssignableFrom(expression) =>
+        // try to find a constructor accepts `Seq[Expression]`
+        Try(func.getDeclaredConstructor(classOf[Seq[_]])) match {
+          case Success(seqCtor) =>
+            Try(seqCtor.newInstance(children).asInstanceOf[Expression]) match {
               case Success(expr) => expr
               case Failure(e) => throw new ValidationException(e.getMessage)
             }
           case Failure(e) =>
-            throw new ValidationException(s"Invalid number of arguments for function $func")
+            val childrenClass = Seq.fill(children.length)(classOf[Expression])
+            // try to find a constructor matching the exact number of children
+            Try(func.getDeclaredConstructor(childrenClass: _*)) match {
+              case Success(ctor) =>
+                Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
+                  case Success(expr) => expr
+                  case Failure(exception) => throw ValidationException(exception.getMessage)
+                }
+              case Failure(exception) =>
+                throw ValidationException(s"Invalid number of arguments for function $func")
+            }
         }
+
+      case _ =>
+        throw ValidationException("Unsupported function.")
     }
   }
 

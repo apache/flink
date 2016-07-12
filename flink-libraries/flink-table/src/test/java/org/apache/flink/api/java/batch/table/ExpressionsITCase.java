@@ -29,6 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.codegen.CodeGenException;
+import org.apache.flink.api.table.functions.ScalarFunction;
 import static org.junit.Assert.fail;
 
 import org.apache.flink.api.table.ValidationException;
@@ -198,6 +199,38 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
 		String expected = "false,10,55,0,true,trueX,false";
+		compareResultAsText(results, expected);
+	}
+
+	public static class OldHashCode extends ScalarFunction {
+		public int eval(String s) {
+			return -1;
+		}
+	}
+
+	public static class HashCode extends ScalarFunction {
+		public int eval(String s) {
+			return s.hashCode();
+		}
+	}
+
+	@Test
+	public void testUserDefinedScalarFunction() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		tableEnv.registerFunction("hashCode", new OldHashCode());
+		tableEnv.registerFunction("hashCode", new HashCode());
+
+		DataSource<String> input = env.fromElements("a", "b", "c");
+
+		Table table = tableEnv.fromDataSet(input, "text");
+
+		Table result = table.select("text.hashCode()");
+
+		DataSet<Integer> ds = tableEnv.toDataSet(result, Integer.class);
+		List<Integer> results = ds.collect();
+		String expected = "97\n98\n99";
 		compareResultAsText(results, expected);
 	}
 

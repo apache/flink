@@ -33,7 +33,7 @@ import org.apache.calcite.sql.parser.{SqlParseException, SqlParser}
 import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
-import org.apache.calcite.tools.{FrameworkConfig, RelConversionException, ValidationException => CValidationException}
+import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 
 import scala.collection.JavaConversions._
 
@@ -85,7 +85,7 @@ class FlinkPlannerImpl(
     }
     catch {
       case e: RuntimeException =>
-        throw new CValidationException(e)
+        throw new ValidationException(s"SQL validation failed.", e)
     }
     validatedSqlNode
   }
