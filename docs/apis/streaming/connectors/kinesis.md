@@ -333,7 +333,9 @@ kinesisProducerConfig.put(
 kinesisProducerConfig.put(
     KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
     "aws_secret_key_here");
-kinesisProducerConfig.put(KinesisConfigConstants.CONFIG_AWS_ENDPOINT, "http://localhost:4567");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_ENDPOINT,
+    "http://localhost:4567");
 {% endhighlight %}
 </div>
 </div>
