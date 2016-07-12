@@ -53,6 +53,9 @@ public class AWSUtil {
 		AmazonKinesisClient client =
 			new AmazonKinesisClient(AWSUtil.getCredentialsProvider(configProps).getCredentials(), awsClientConfig);
 		client.setRegion(Region.getRegion(Regions.fromName(configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION))));
+		if (configProps.containsKey(KinesisConfigConstants.CONFIG_AWS_ENDPOINT)) {
+			client.setEndpoint(configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_ENDPOINT));
+		}
 		return client;
 	}
 

@@ -302,3 +302,43 @@ Otherwise, the returned stream name is used.
 Other optional configuration keys can be found in `KinesisConfigConstants`.
 		
 		
+### Using Non-AWS Kinesis Endpoints for Testing
+
+It is sometimes desirable to have Flink operate as a consumer or producer against a non-AWS Kinesis endpoint such as kinesalite; this is especially useful when performing functional testing of a Flink application. The AWS endpoint that would normally be inferred by the AWS region set in the Flink configuration must be overriden via a configuration property.
+
+To override the AWS endpoint, set the `KinesisConfigConstants.CONFIG_AWS_ENDPOINT` property in the Flink configuration, in addition to the `KinesisConfigConstants.CONFIG_AWS_REGION` required by Flink. Although the region is required, it will not be used to determine the AWS endpoint URL.
+
+The following example shows how one might supply the `KinesisConfigConstants.CONFIG_AWS_ENDPOINT` configuration property:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Properties kinesisProducerConfig = new Properties();
+kinesisProducerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
+    "aws_access_key_id_here");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
+    "aws_secret_key_here");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_ENDPOINT,
+    "http://localhost:4567");
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val kinesisProducerConfig = new Properties();
+kinesisProducerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
+    "aws_access_key_id_here");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
+    "aws_secret_key_here");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_ENDPOINT,
+    "http://localhost:4567");
+{% endhighlight %}
+</div>
+</div>
