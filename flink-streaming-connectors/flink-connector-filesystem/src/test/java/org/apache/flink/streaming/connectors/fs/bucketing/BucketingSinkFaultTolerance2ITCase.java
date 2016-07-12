@@ -1,4 +1,4 @@
-/**
+/*
 * Licensed to the Apache Software Foundation (ASF) under one
 * or more contributor license agreements.  See the NOTICE file
 * distributed with this work for additional information
@@ -15,7 +15,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-package org.apache.flink.streaming.connectors.fs;
+package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import com.google.common.collect.Sets;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -37,11 +37,11 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -50,21 +50,18 @@ import java.util.regex.Pattern;
 import static org.junit.Assert.assertTrue;
 
 /**
-* Tests for {@link RollingSink}.
+* Tests for {@link BucketingSink}.
 *
 * <p>
 * This test only verifies the exactly once behaviour of the sink. Another test tests the
 * rolling behaviour.
 *
 * <p>
-* This differs from RollingSinkFaultToleranceITCase in that the checkpoint interval is extremely
+* This differs from BucketingSinkFaultToleranceITCase in that the checkpoint interval is extremely
 * high. This provokes the case that the sink restarts without any checkpoint having been performed.
 * This tests the initial cleanup of pending/in-progress files.
-*
-* @deprecated should be removed with the {@link RollingSink}.
 */
-@Deprecated
-public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBase {
+public class BucketingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBase {
 
 	final long NUM_STRINGS = 16_000;
 
@@ -118,8 +115,8 @@ public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBa
 		DataStream<String> mapped = stream
 				.map(new OnceFailingIdentityMapper(NUM_STRINGS));
 
-		RollingSink<String> sink = new RollingSink<String>(outPath)
-				.setBucketer(new NonRollingBucketer())
+		BucketingSink<String> sink = new BucketingSink<String>(outPath)
+				.setBucketer(new BasePathBucketer<String>())
 				.setBatchSize(5000)
 				.setValidLengthPrefix("")
 				.setPendingPrefix("");
