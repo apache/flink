@@ -299,7 +299,7 @@ Otherwise, the returned stream name is used.
 Other optional configuration keys can be found in `KinesisConfigConstants`.
 		
 		
-### Using non-AWS Kinesis Endpoints
+### Using Non-AWS Kinesis Endpoints for Testing
 
 It is sometimes desirable to have Flink operate as a consumer or producer against a non-AWS Kinesis endpoint such as kinesalite; this is especially useful when performing functional testing of a Flink application. The AWS endpoint that would normally be inferred by the AWS region set in the Flink configuration must be overriden via a configuration property.
 
