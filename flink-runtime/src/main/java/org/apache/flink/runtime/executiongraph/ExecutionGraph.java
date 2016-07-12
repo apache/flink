@@ -987,6 +987,7 @@ public class ExecutionGraph implements Serializable {
 		}
 
 		// clear the non-serializable fields
+		restartStrategy = null;
 		scheduler = null;
 		checkpointCoordinator = null;
 		executionContext = null;
