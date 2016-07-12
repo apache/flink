@@ -190,7 +190,7 @@ public class AbstractFetcherTimestampsTest {
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				StreamingRuntimeContext runtimeContext) throws Exception
 		{
-			super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext);
+			super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, false);
 		}
 
 		@Override
@@ -231,7 +231,7 @@ public class AbstractFetcherTimestampsTest {
 
 		@Override
 		public void collectWithTimestamp(T element, long timestamp) {
-			this.latestElement = new StreamRecord<T>(element, timestamp);
+			this.latestElement = new StreamRecord<>(element, timestamp);
 		}
 
 		@Override

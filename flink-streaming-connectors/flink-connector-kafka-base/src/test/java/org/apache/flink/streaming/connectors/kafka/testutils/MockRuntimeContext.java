@@ -33,8 +33,10 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
@@ -161,6 +163,11 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
+	public MetricGroup getMetricGroup() {
+		return new UnregisteredTaskMetricsGroup.DummyIOMetricGroup();
+	}
+
+	@Override
 	public <RT> List<RT> getBroadcastVariable(String name) {
 		throw new UnsupportedOperationException();
 	}
@@ -200,6 +207,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 		throw new UnsupportedOperationException();
 	}
 
+	@Override
 	public long getCurrentProcessingTime() {
 		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
 		return timerService.getCurrentProcessingTime();

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import kafka.common.TopicAndPartition;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.kafka.common.Node;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -78,7 +79,10 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	private final long invalidOffsetBehavior;
 
 	/** The interval in which to automatically commit (-1 if deactivated) */
-	private final long autoCommitInterval; 
+	private final long autoCommitInterval;
+
+	/** The metric group of this operator */
+	private final MetricGroup metricGroup;
 
 	/** The handler that reads/writes offsets from/to ZooKeeper */
 	private volatile ZookeeperOffsetHandler zookeeperOffsetHandler;
@@ -96,14 +100,16 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long invalidOffsetBehavior,
-			long autoCommitInterval) throws Exception
+			long autoCommitInterval,
+			boolean useMetrics) throws Exception
 	{
-		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext);
+		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, useMetrics);
 
 		this.deserializer = checkNotNull(deserializer);
 		this.kafkaConfig = checkNotNull(kafkaProperties);
 		this.taskName = runtimeContext.getTaskNameWithSubtasks();
 		this.userCodeClassLoader = runtimeContext.getUserCodeClassLoader();
+		this.metricGroup = runtimeContext.getMetricGroup();
 		this.invalidOffsetBehavior = invalidOffsetBehavior;
 		this.autoCommitInterval = autoCommitInterval;
 		this.unassignedPartitionsQueue = new ClosableBlockingQueue<>();
@@ -159,6 +165,12 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				periodicCommitter.setName("Periodic Kafka partition offset committer");
 				periodicCommitter.setDaemon(true);
 				periodicCommitter.start();
+			}
+
+			// register offset metrics
+			if(useMetrics) {
+				final MetricGroup kafkaMetricGroup = metricGroup.addGroup("Kafka08Consumer");
+				addCurrentOffsetGauge(kafkaMetricGroup);
 			}
 
 			// Main loop polling elements from the unassignedPartitions queue to the threads
