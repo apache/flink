@@ -1,21 +1,21 @@
-/**
-* Licensed to the Apache Software Foundation (ASF) under one
-* or more contributor license agreements.  See the NOTICE file
-* distributed with this work for additional information
-* regarding copyright ownership.  The ASF licenses this file
-* to you under the Apache License, Version 2.0 (the
-* "License"); you may not use this file except in compliance
-* with the License.  You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
-package org.apache.flink.streaming.connectors.fs;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import com.google.common.collect.Sets;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -37,11 +37,11 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -50,21 +50,13 @@ import java.util.regex.Pattern;
 import static org.junit.Assert.assertTrue;
 
 /**
-* Tests for {@link RollingSink}.
-*
-* <p>
-* This test only verifies the exactly once behaviour of the sink. Another test tests the
-* rolling behaviour.
-*
-* <p>
-* This differs from RollingSinkFaultToleranceITCase in that the checkpoint interval is extremely
-* high. This provokes the case that the sink restarts without any checkpoint having been performed.
-* This tests the initial cleanup of pending/in-progress files.
-*
-* @deprecated should be removed with the {@link RollingSink}.
-*/
-@Deprecated
-public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBase {
+ * Tests for {@link BucketingSink}.
+ *
+ * <p>
+ * This test only verifies the exactly once behaviour of the sink. Another test tests the
+ * rolling behaviour.
+ */
+public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestBase {
 
 	final long NUM_STRINGS = 16_000;
 
@@ -75,8 +67,6 @@ public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBa
 	private static org.apache.hadoop.fs.FileSystem dfs;
 
 	private static String outPath;
-
-
 
 	@BeforeClass
 	public static void createHDFS() throws IOException {
@@ -91,8 +81,8 @@ public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBa
 		dfs = hdfsCluster.getFileSystem();
 
 		outPath = "hdfs://"
-				+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(),  hdfsCluster.getNameNodePort())
-				+ "/string-non-rolling-out-no-checkpoint";
+				+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort())
+				+ "/string-non-rolling-out";
 	}
 
 	@AfterClass
@@ -109,7 +99,7 @@ public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBa
 
 		int PARALLELISM = 12;
 
-		env.enableCheckpointing(Long.MAX_VALUE);
+		env.enableCheckpointing(200);
 		env.setParallelism(PARALLELISM);
 		env.disableOperatorChaining();
 
@@ -118,9 +108,9 @@ public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBa
 		DataStream<String> mapped = stream
 				.map(new OnceFailingIdentityMapper(NUM_STRINGS));
 
-		RollingSink<String> sink = new RollingSink<String>(outPath)
-				.setBucketer(new NonRollingBucketer())
-				.setBatchSize(5000)
+		BucketingSink<String> sink = new BucketingSink<String>(outPath)
+				.setBucketer(new BasePathBucketer<String>())
+				.setBatchSize(10000)
 				.setValidLengthPrefix("")
 				.setPendingPrefix("");
 
@@ -208,8 +198,8 @@ public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBa
 
 		@Override
 		public void open(org.apache.flink.configuration.Configuration parameters) throws IOException {
-			long failurePosMin = (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
-			long failurePosMax = (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+			long failurePosMin = (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+			long failurePosMax = (long) (0.9 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;

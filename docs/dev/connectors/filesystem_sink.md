@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This connector provides a Sink that writes rolling files to any filesystem supported by
+This connector provides a Sink that writes partitioned files to any filesystem supported by
 Hadoop FileSystem. To use this connector, add the
 following dependency to your project:
 
@@ -41,17 +41,17 @@ distribution. See
 for information about how to package the program with the libraries for
 cluster execution.
 
-#### Rolling File Sink
+#### Bucketing File Sink
 
-The rolling behaviour as well as the writing can be configured but we will get to that later.
-This is how you can create a default rolling sink:
+The bucketing behaviour as well as the writing can be configured but we will get to that later.
+This is how you can create a bucketing sick which by default, sinks to rolling files that are split by time:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<String> input = ...;
 
-input.addSink(new RollingSink<String>("/base/path"));
+input.addSink(new BucketingSink<String>("/base/path"));
 
 {% endhighlight %}
 </div>
@@ -59,27 +59,34 @@ input.addSink(new RollingSink<String>("/base/path"));
 {% highlight scala %}
 val input: DataStream[String] = ...
 
-input.addSink(new RollingSink("/base/path"))
+input.addSink(new BucketingSink[String]("/base/path"))
 
 {% endhighlight %}
 </div>
 </div>
 
-The only required parameter is the base path where the rolling files (buckets) will be
-stored. The sink can be configured by specifying a custom bucketer, writer and batch size.
+The only required parameter is the base path where the buckets will be
+stored. The sink can be further configured by specifying a custom bucketer, writer and batch size.
 
-By default the rolling sink will use the pattern `"yyyy-MM-dd--HH"` to name the rolling buckets.
-This pattern is passed to `SimpleDateFormat` with the current system time to form a bucket path. A
-new bucket will be created whenever the bucket path changes. For example, if you have a pattern
-that contains minutes as the finest granularity you will get a new bucket every minute.
-Each bucket is itself a directory that contains several part files: Each parallel instance
-of the sink will create its own part file and when part files get too big the sink will also
-create a new part file next to the others. To specify a custom bucketer use `setBucketer()`
-on a `RollingSink`.
+By default the bucketing sink will split by the current system time when elements arrive and will
+use the datetime pattern `"yyyy-MM-dd--HH"` to name the buckets. This pattern is passed to
+`SimpleDateFormat` with the current system time to form a bucket path. A new bucket will be created
+whenever a new date is encountered. For example, if you have a pattern that contains minutes as the
+finest granularity you will get a new bucket every minute. Each bucket is itself a directory that
+contains several part files: each parallel instance of the sink will create its own part file and
+when part files get too big the sink will also create a new part file next to the others. When a
+bucket becomes inactive, the open part file will be flushed and closed. A bucket is regarded as
+inactive when it hasn't been written to recently. By default, the sink checks for inactive buckets
+every minute, and closes any buckets which haven't been written to for over a minute. This
+behaviour can be configured with `setInactiveBucketCheckInterval()` and
+`setInactiveBucketThreshold()` on a `BucketingSink`.
+
+You can also specify a custom bucketer by using `setBucketer()` on a `BucketingSink`. If desired,
+the bucketer can use a property of the element or tuple to determine the bucket directory.
 
 The default writer is `StringWriter`. This will call `toString()` on the incoming elements
 and write them to part files, separated by newline. To specify a custom writer use `setWriter()`
-on a `RollingSink`. If you want to write Hadoop SequenceFiles you can use the provided
+on a `BucketingSink`. If you want to write Hadoop SequenceFiles you can use the provided
 `SequenceFileWriter` which can also be configured to use compression.
 
 The last configuration option is the batch size. This specifies when a part file should be closed
@@ -92,8 +99,8 @@ Example:
 {% highlight java %}
 DataStream<Tuple2<IntWritable,Text>> input = ...;
 
-RollingSink sink = new RollingSink<String>("/base/path");
-sink.setBucketer(new DateTimeBucketer("yyyy-MM-dd--HHmm"));
+BucketingSink<String> sink = new BucketingSink<String>("/base/path");
+sink.setBucketer(new DateTimeBucketer<String>("yyyy-MM-dd--HHmm"));
 sink.setWriter(new SequenceFileWriter<IntWritable, Text>());
 sink.setBatchSize(1024 * 1024 * 400); // this is 400 MB,
 
@@ -105,8 +112,8 @@ input.addSink(sink);
 {% highlight scala %}
 val input: DataStream[Tuple2[IntWritable, Text]] = ...
 
-val sink = new RollingSink[String]("/base/path")
-sink.setBucketer(new DateTimeBucketer("yyyy-MM-dd--HHmm"))
+val sink = new BucketingSink[String]("/base/path")
+sink.setBucketer(new DateTimeBucketer[String]("yyyy-MM-dd--HHmm"))
 sink.setWriter(new SequenceFileWriter[IntWritable, Text]())
 sink.setBatchSize(1024 * 1024 * 400) // this is 400 MB,
 
@@ -127,4 +134,4 @@ of the parallel sink instance and `count` is the running number of part files th
 because of the batch size.
 
 For in-depth information, please refer to the JavaDoc for
-[RollingSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/RollingSink.html).
+[BucketingSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html).

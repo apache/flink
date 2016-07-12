@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.fs;
+package org.apache.flink.streaming.connectors.fs.bucketing;
 
+import org.apache.flink.streaming.connectors.fs.Clock;
+import org.apache.flink.streaming.connectors.fs.SystemClock;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -33,7 +33,7 @@ import java.util.Date;
  * The {@code DateTimeBucketer} will create directories of the following form:
  * {@code /{basePath}/{dateTimePath}/}. The {@code basePath} is the path
  * that was specified as a base path when creating the
- * {@link RollingSink}. The {@code dateTimePath}
+ * {@link BucketingSink}. The {@code dateTimePath}
  * is determined based on the current system time and the user provided format string.
  *
  * <p>
@@ -52,19 +52,12 @@ import java.util.Date;
  * This will create for example the following bucket path:
  * {@code /base/1976-12-31-14/}
  *
- * @deprecated use {@link org.apache.flink.streaming.connectors.fs.bucketing.DateTimeBucketer} instead.
  */
-@Deprecated
-public class DateTimeBucketer implements Bucketer {
-
-	private static Logger LOG = LoggerFactory.getLogger(DateTimeBucketer.class);
+public class DateTimeBucketer<T> implements Bucketer<T> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final String DEFAULT_FORMAT_STRING = "yyyy-MM-dd--HH";
-
-	// We have this so that we can manually set it for tests.
-	private static Clock clock = new SystemClock();
 
 	private final String formatString;
 
@@ -95,15 +88,8 @@ public class DateTimeBucketer implements Bucketer {
 		this.dateFormatter = new SimpleDateFormat(formatString);
 	}
 
-
 	@Override
-	public boolean shouldStartNewBucket(Path basePath, Path currentBucketPath) {
-		String newDateTimeString = dateFormatter.format(new Date(clock.currentTimeMillis()));
-		return !(new Path(basePath, newDateTimeString).equals(currentBucketPath));
-	}
-
-	@Override
-	public Path getNextBucketPath(Path basePath) {
+	public Path getBucketPath(Clock clock, Path basePath, T element) {
 		String newDateTimeString = dateFormatter.format(new Date(clock.currentTimeMillis()));
 		return new Path(basePath + "/" + newDateTimeString);
 	}
@@ -113,14 +99,5 @@ public class DateTimeBucketer implements Bucketer {
 		return "DateTimeBucketer{" +
 				"formatString='" + formatString + '\'' +
 				'}';
-	}
-
-	/**
-	 * This sets the internal {@link Clock} implementation. This method should only be used for testing
-	 *
-	 * @param newClock The new clock to set.
-	 */
-	public static void setClock(Clock newClock) {
-		clock = newClock;
 	}
 }
