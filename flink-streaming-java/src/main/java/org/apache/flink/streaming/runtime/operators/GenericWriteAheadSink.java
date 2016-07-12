@@ -190,6 +190,9 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	 * used since the last completed checkpoint.
 	 **/
 	public static class ExactlyOnceState implements StateHandle<Serializable> {
+
+		private static final long serialVersionUID = -3571063495273460743L;
+
 		protected TreeMap<Long, Tuple2<Long, StateHandle<DataInputView>>> pendingHandles;
 
 		public ExactlyOnceState() {

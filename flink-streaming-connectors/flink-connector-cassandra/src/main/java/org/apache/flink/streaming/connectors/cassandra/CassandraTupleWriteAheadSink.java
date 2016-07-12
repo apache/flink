@@ -31,7 +31,6 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
-import org.apache.flink.types.IntValue;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -97,7 +96,7 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 
 	@Override
 	protected boolean sendValues(Iterable<IN> values, long timestamp) throws Exception {
-		final IntValue updatesCount = new IntValue(0);
+		final AtomicInteger updatesCount = new AtomicInteger(0);
 		final AtomicInteger updatesConfirmed = new AtomicInteger(0);
 
 		final AtomicReference<Throwable> exception = new AtomicReference<>();
@@ -106,8 +105,8 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 			@Override
 			public void onSuccess(ResultSet resultSet) {
 				updatesConfirmed.incrementAndGet();
-				if (updatesCount.getValue() > 0) { // only set if all updates have been sent
-					if (updatesCount.getValue() == updatesConfirmed.get()) {
+				if (updatesCount.get() > 0) { // only set if all updates have been sent
+					if (updatesCount.get() == updatesConfirmed.get()) {
 						synchronized (updatesConfirmed) {
 							updatesConfirmed.notifyAll();
 						}
@@ -142,18 +141,19 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 				Futures.addCallback(result, callback);
 			}
 		}
-		updatesCount.setValue(updatesSent);
+		updatesCount.set(updatesSent);
 
 		synchronized (updatesConfirmed) {
-			while (updatesSent != updatesConfirmed.get()) {
-				if (exception.get() != null) { // verify that no query failed until now
-					LOG.warn("Sending a value failed.", exception.get());
-					break;
-				}
+			while (exception.get() == null && updatesSent != updatesConfirmed.get()) {
 				updatesConfirmed.wait();
 			}
 		}
-		boolean success = updatesSent == updatesConfirmed.get();
-		return success;
+
+		if (exception.get() != null) {
+			LOG.warn("Sending a value failed.", exception.get());
+			return false;
+		} else {
+			return true;
+		}
 	}
 }

@@ -25,39 +25,33 @@ import com.datastax.driver.core.Session;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.util.IterableIterator;
-import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.Assert.assertFalse;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ResultPartitionWriter.class, CassandraTupleWriteAheadSink.class})
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
-public class CassandraConnectorUnitTest {
-	@Test
+public class CassandraTupleWriteAheadSinkTest {
+
+	@Test(timeout=20000)
 	public void testAckLoopExitOnException() throws Exception {
-		final AtomicReference<Runnable> callback = new AtomicReference<>();
+		final AtomicReference<Runnable> runnableFuture = new AtomicReference<>();
 
 		final ClusterBuilder clusterBuilder = new ClusterBuilder() {
+			private static final long serialVersionUID = 4624400760492936756L;
+
 			@Override
 			protected Cluster buildCluster(Cluster.Builder builder) {
 				try {
@@ -73,7 +67,10 @@ public class CassandraConnectorUnitTest {
 					doAnswer(new Answer<Void>() {
 						@Override
 						public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-							callback.set((((Runnable) invocationOnMock.getArguments()[0])));
+							synchronized (runnableFuture) {
+								runnableFuture.set((((Runnable) invocationOnMock.getArguments()[0])));
+								runnableFuture.notifyAll();
+							}
 							return null;
 						}
 					}).when(future).addListener(any(Runnable.class), any(Executor.class));
@@ -91,68 +88,40 @@ public class CassandraConnectorUnitTest {
 			}
 		};
 
-		final IterableIterator<Tuple0> iter = new IterableIterator<Tuple0>() {
-			private boolean exhausted = false;
-
+		// Our asynchronous executor thread
+		new Thread(new Runnable() {
 			@Override
-			public boolean hasNext() {
-				return !exhausted;
-			}
-
-			@Override
-			public Tuple0 next() {
-				exhausted = true;
-				return new Tuple0();
-			}
-
-			@Override
-			public void remove() {
-			}
-
-			@Override
-			public Iterator<Tuple0> iterator() {
-				return this;
-			}
-		};
-
-		final AtomicReference<Boolean> exceptionCaught = new AtomicReference<>();
-
-		Thread t = new Thread() {
 			public void run() {
-				try {
-					CheckpointCommitter cc = mock(CheckpointCommitter.class);
-					final CassandraTupleWriteAheadSink<Tuple0> sink = new CassandraTupleWriteAheadSink<>(
-						"abc",
-						TupleTypeInfo.of(Tuple0.class).createSerializer(new ExecutionConfig()),
-						clusterBuilder,
-						cc
-					);
-
-					OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness = new OneInputStreamOperatorTestHarness(sink);
-					harness.getEnvironment().getTaskConfiguration().setBoolean("checkpointing", true);
-
-					harness.setup();
-					sink.open();
-					boolean result = sink.sendValues(iter, 0L);
-					sink.close();
-					exceptionCaught.set(result == false);
-				} catch (Exception e) {
-					throw new RuntimeException(e);
+				synchronized (runnableFuture) {
+					while (runnableFuture.get() == null) {
+						try {
+							runnableFuture.wait();
+						} catch (InterruptedException e) {
+							// ignore interrupts
+						}
+					}
 				}
+				runnableFuture.get().run();
 			}
-		};
-		t.start();
+		}).start();
 
-		int count = 0;
-		while (t.getState() != Thread.State.WAITING && count < 100) { // 10 second timeout 10 * 10 * 100ms
-			Thread.sleep(100);
-			count++;
-		}
+		CheckpointCommitter cc = mock(CheckpointCommitter.class);
+		final CassandraTupleWriteAheadSink<Tuple0> sink = new CassandraTupleWriteAheadSink<>(
+			"abc",
+			TupleTypeInfo.of(Tuple0.class).createSerializer(new ExecutionConfig()),
+			clusterBuilder,
+			cc
+		);
 
-		callback.get().run();
+		OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness = new OneInputStreamOperatorTestHarness(sink);
+		harness.getEnvironment().getTaskConfiguration().setBoolean("checkpointing", true);
 
-		t.join();
+		harness.setup();
+		sink.open();
 
-		Assert.assertTrue(exceptionCaught.get());
+		// we should leave the loop and return false since we've seen an exception
+		assertFalse(sink.sendValues(Collections.singleton(new Tuple0()), 0L));
+
+		sink.close();
 	}
 }
