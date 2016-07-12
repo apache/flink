@@ -303,9 +303,9 @@ Other optional configuration keys can be found in `KinesisConfigConstants`.
 
 It is sometimes desirable to have Flink operate as a consumer or producer against a non-AWS Kinesis endpoint such as kinesalite; this is especially useful when performing functional testing of a Flink application. The AWS endpoint that would normally be inferred by the AWS region set in the Flink configuration must be overriden via a configuration property.
 
-To override the AWS endpoint, set the `CONFIG_AWS_ENDPOINT` property in the Flink configuration, in addition to the `CONFIG_AWS_REGION` required by Flink. Although the region is required, it will not be used to determine the AWS endpoint URL.
+To override the AWS endpoint, set the `KinesisConfigConstants.CONFIG_AWS_ENDPOINT` property in the Flink configuration, in addition to the `KinesisConfigConstants.CONFIG_AWS_REGION` required by Flink. Although the region is required, it will not be used to determine the AWS endpoint URL.
 
-The following example shows how one might supply the `CONFIG_AWS_ENDPOINT` configuration property:
+The following example shows how one might supply the `KinesisConfigConstants.CONFIG_AWS_ENDPOINT` configuration property:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
