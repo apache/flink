@@ -31,7 +31,14 @@ case class TableException(msg: String) extends RuntimeException(msg)
 /**
   * Exception for all errors occurring during validation phase.
   */
-case class ValidationException(msg: String) extends RuntimeException(msg)
+case class ValidationException(
+    msg: String,
+    cause: Throwable)
+  extends RuntimeException(msg, cause) {
+
+  def this(msg: String) = this(msg, null)
+
+}
 
 /**
   * Exception for unwanted method calling on unresolved expression.
