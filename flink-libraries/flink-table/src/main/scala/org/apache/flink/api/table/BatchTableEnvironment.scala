@@ -174,9 +174,12 @@ abstract class BatchTableEnvironment(
     val jasonSqlPlan = env.getExecutionPlan
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
 
-    s"== Abstract Syntax Tree ==\n" +
-    s"$ast\n" +
-    s"== Physical Execution Plan ==\n" +
+    s"== Abstract Syntax Tree ==" +
+    System.lineSeparator +
+    s"$ast" +
+    System.lineSeparator +
+    s"== Physical Execution Plan ==" +
+    System.lineSeparator +
     s"$sqlPlan"
 
   }
