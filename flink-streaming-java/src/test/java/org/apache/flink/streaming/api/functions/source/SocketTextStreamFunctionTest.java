@@ -45,7 +45,7 @@ public class SocketTextStreamFunctionTest {
 		Socket channel = null;
 		
 		try {
-			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', 0);
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), "\n", 0);
 	
 			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check");
 			runner.start();
@@ -79,7 +79,7 @@ public class SocketTextStreamFunctionTest {
 		Socket channel = null;
 
 		try {
-			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', 0);
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), "\n", 0);
 
 			SocketSourceThread runner = new SocketSourceThread(source);
 			runner.start();
@@ -108,7 +108,7 @@ public class SocketTextStreamFunctionTest {
 		Socket channel = null;
 
 		try {
-			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', 10, 100);
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), "\n", 10, 100);
 
 			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check");
 			runner.start();
@@ -152,7 +152,7 @@ public class SocketTextStreamFunctionTest {
 		Socket channel = null;
 
 		try {
-			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', -1, 100);
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), "\n", -1, 100);
 
 			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check");
 			runner.start();
@@ -196,7 +196,7 @@ public class SocketTextStreamFunctionTest {
 		Socket channel = null;
 
 		try {
-			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), '\n', 10, 100);
+			SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, server.getLocalPort(), "\n", 10, 100);
 
 			SocketSourceThread runner = new SocketSourceThread(source, "test1", "check1", "check2");
 			runner.start();
