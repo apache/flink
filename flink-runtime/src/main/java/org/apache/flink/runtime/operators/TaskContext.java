@@ -65,7 +65,7 @@ public interface TaskContext<S, OT> {
 
 	Collector<OT> getOutputCollector();
 	
-	AbstractInvokable getOwningNepheleTask();
+	AbstractInvokable getContainingTask();
 	
 	String formatLogString(String message);
 	

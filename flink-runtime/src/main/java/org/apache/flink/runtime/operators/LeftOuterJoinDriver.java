@@ -68,7 +68,7 @@ public class LeftOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 						memoryManager,
 						ioManager,
 						numPages,
-						super.taskContext.getOwningNepheleTask()
+						super.taskContext.getContainingTask()
 				);
 			case LEFT_HYBRIDHASH_BUILD_FIRST:
 				return new ReusingBuildFirstHashJoinIterator<>(in1, in2,
@@ -76,7 +76,7 @@ public class LeftOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 						serializer2, comparator2,
 						pairComparatorFactory.createComparator21(comparator1, comparator2),
 						memoryManager, ioManager,
-						this.taskContext.getOwningNepheleTask(),
+						this.taskContext.getContainingTask(),
 						driverMemFraction,
 						false,
 						true,
@@ -87,7 +87,7 @@ public class LeftOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 						serializer2, comparator2,
 						pairComparatorFactory.createComparator12(comparator1, comparator2),
 						memoryManager, ioManager,
-						this.taskContext.getOwningNepheleTask(),
+						this.taskContext.getContainingTask(),
 						driverMemFraction,
 						true,
 						false,
@@ -126,7 +126,7 @@ public class LeftOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 						memoryManager,
 						ioManager,
 						numPages,
-						super.taskContext.getOwningNepheleTask()
+						super.taskContext.getContainingTask()
 				);
 			case LEFT_HYBRIDHASH_BUILD_FIRST:
 				return new NonReusingBuildFirstHashJoinIterator<>(in1, in2,
@@ -134,7 +134,7 @@ public class LeftOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 						serializer2, comparator2,
 						pairComparatorFactory.createComparator21(comparator1, comparator2),
 						memoryManager, ioManager,
-						this.taskContext.getOwningNepheleTask(),
+						this.taskContext.getContainingTask(),
 						driverMemFraction,
 						false,
 						true,
@@ -145,7 +145,7 @@ public class LeftOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 						serializer2, comparator2,
 						pairComparatorFactory.createComparator12(comparator1, comparator2),
 						memoryManager, ioManager,
-						this.taskContext.getOwningNepheleTask(),
+						this.taskContext.getContainingTask(),
 						driverMemFraction,
 						true,
 						false,

@@ -70,18 +70,17 @@ The out of the box configuration will use your default Java installation. You ca
 $ tar xzf flink-*.tgz
 $ cd flink
 $ bin/start-local.sh
-Starting job manager
+Starting jobmanager.
 ~~~
 
 You can check that the system is running by checking the log files in the `logs` directory:
 
 ~~~bash
 $ tail log/flink-*-jobmanager-*.log
-INFO ... - Initializing memory manager with 409 megabytes of memory
-INFO ... - Trying to load org.apache.flinknephele.jobmanager.scheduler.local.LocalScheduler as scheduler
-INFO ... - Setting up web info server, using web-root directory ...
-INFO ... - Web info server will display information about nephele job-manager on localhost, port 8081.
-INFO ... - Starting web info server for JobManager on port 8081
+INFO ... - Starting JobManager
+INFO ... - Starting JobManager web frontend
+INFO ... - Web frontend listening at 127.0.0.1:8081
+INFO ... - Registered TaskManager at 127.0.0.1 (akka://flink/user/taskmanager)
 ~~~
 
 The JobManager will also start a web frontend on port 8081, which you can check with your browser at `http://localhost:8081`.
@@ -117,7 +116,7 @@ With *Cygwin* you need to start the Cygwin Terminal, navigate to your Flink dire
 ~~~bash
 $ cd flink
 $ bin/start-local.sh
-Starting Nephele job manager
+Starting jobmanager.
 ~~~
 
 {% top %}
