@@ -76,15 +76,14 @@ object TPCHQuery3Table {
     }
 
     // set filter date
-    val dateFormat = new _root_.java.text.SimpleDateFormat("yyyy-MM-dd")
-    val date = dateFormat.parse("1995-03-12")
-    
+    val date = java.sql.Date.valueOf("1995-03-12")
+
     // get execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val lineitems = getLineitemDataSet(env)
-      .filter( l => dateFormat.parse(l.shipDate).after(date) ).toTable(tEnv)
+      .filter( l => java.sql.Date.valueOf(l.shipDate).after(date) ).toTable(tEnv)
       .as('id, 'extdPrice, 'discount, 'shipDate)
 
     val customers = getCustomerDataSet(env).toTable(tEnv)
@@ -92,7 +91,7 @@ object TPCHQuery3Table {
       .filter( 'mktSegment === "AUTOMOBILE" )
 
     val orders = getOrdersDataSet(env)
-      .filter( o => dateFormat.parse(o.orderDate).before(date) ).toTable(tEnv)
+      .filter( o => java.sql.Date.valueOf(o.orderDate).before(date) ).toTable(tEnv)
       .as('orderId, 'custId, 'orderDate, 'shipPrio)
 
     val items =
@@ -130,10 +129,10 @@ object TPCHQuery3Table {
   //     UTIL METHODS
   // *************************************************************************
   
-  private var lineitemPath: String = null
-  private var customerPath: String = null
-  private var ordersPath: String = null
-  private var outputPath: String = null
+  private var lineitemPath: String = _
+  private var customerPath: String = _
+  private var ordersPath: String = _
+  private var outputPath: String = _
 
   private def parseParameters(args: Array[String]): Boolean = {
     if (args.length == 4) {
@@ -147,7 +146,7 @@ object TPCHQuery3Table {
           " Due to legal restrictions, we can not ship generated data.\n" +
           " You can find the TPC-H data generator at http://www.tpc.org/tpch/.\n" +
           " Usage: TPCHQuery3 <lineitem-csv path> <customer-csv path>" + 
-                             "<orders-csv path> <result path>");
+                             "<orders-csv path> <result path>")
       false
     }
   }
