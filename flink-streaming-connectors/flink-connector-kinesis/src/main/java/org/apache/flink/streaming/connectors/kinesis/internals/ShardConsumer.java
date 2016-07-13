@@ -209,12 +209,9 @@ public class ShardConsumer<T> implements Runnable {
 		byte[] dataBytes = new byte[recordData.remaining()];
 		recordData.get(dataBytes);
 
-		byte[] keyBytes = record.getPartitionKey().getBytes();
-
 		final long approxArrivalTimestamp = record.getApproximateArrivalTimestamp().getTime();
 
 		final T value = deserializer.deserialize(
-			keyBytes,
 			dataBytes,
 			record.getPartitionKey(),
 			record.getSequenceNumber(),

@@ -35,7 +35,6 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
 	/**
 	 * Deserializes a Kinesis record's bytes
 	 *
-	 * @param recordKey the records's key as a byte array (null if no key has been set for the record)
 	 * @param recordValue the record's value as a byte array
 	 * @param partitionKey the record's partition key at the time of writing
 	 * @param seqNum the sequence number of this record in the Kinesis shard
@@ -45,7 +44,7 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
 	 * @return the deserialized message as an Java object
 	 * @throws IOException
 	 */
-	T deserialize(byte[] recordKey, byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException;
+	T deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException;
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
