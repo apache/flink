@@ -169,4 +169,11 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
 	}
+
+	@Override
+	public String toString() {
+		return String.format("SpillableSubpartitionView(index: %d) of ResultPartition %s",
+				parent.index,
+				parent.parent.getPartitionId());
+	}
 }
