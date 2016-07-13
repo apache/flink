@@ -125,7 +125,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 		MemoryManager memManager = taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(
 			taskContext.getTaskConfig().getRelativeMemoryDriver());
-		memory = memManager.allocatePages(taskContext.getOwningNepheleTask(), numMemoryPages);
+		memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
 		objectReuseEnabled = executionConfig.isObjectReuseEnabled();

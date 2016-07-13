@@ -216,7 +216,7 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
 	}
 
 	@Override
-	public AbstractInvokable getOwningNepheleTask() {
+	public AbstractInvokable getContainingTask() {
 		return this.owner;
 	}
 
