@@ -75,6 +75,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 				gen.writeStringField("task", task.getSimpleName());
 				gen.writeStringField("location", locationString);
 				gen.writeEndObject();
+				numExceptionsSoFar++;
 			}
 		}
 		gen.writeEndArray();
