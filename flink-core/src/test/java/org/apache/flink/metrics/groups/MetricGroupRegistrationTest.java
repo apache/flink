@@ -95,21 +95,6 @@ public class MetricGroupRegistrationTest {
 	}
 
 	/**
-	 * Verifies that metric names containing special characters are rejected.
-	 */
-	@Test(expected = IllegalArgumentException.class)
-	public void testInvalidMetricName() {
-		Configuration config = new Configuration();
-
-		MetricRegistry registry = new MetricRegistry(config);
-
-		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
-		root.counter("=)(/!");
-
-		registry.shutdown();
-	}
-
-	/**
 	 * Verifies that when attempting to create a group with the name of an existing one the existing one will be returned instead.
 	 */
 	@Test

@@ -191,9 +191,6 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	 * @param metric the metric to register
 	 */
 	protected void addMetric(String name, Metric metric) {
-		// early reject names that will later cause issues
-		checkAllowedCharacters(name);
-
 		// add the metric only if the group is still open
 		synchronized (this) {
 			if (!closed) {
@@ -264,23 +261,6 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 				GenericMetricGroup closedGroup = new GenericMetricGroup(registry, this, name);
 				closedGroup.close();
 				return closedGroup;
-			}
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Fast implementation to check if a string has only alphanumeric characters.
-	 * Compared to a regular expression, this is about an order of magnitude faster.
-	 */
-	private static void checkAllowedCharacters(String name) {
-		for (int i = 0; i < name.length(); i++) {
-			final char c = name.charAt(i);
-			if (c < 0x30 || (c >= 0x3a && c <= 0x40) || (c > 0x5a && c <= 0x60) || c > 0x7a) {
-				throw new IllegalArgumentException("Metric names may only contain [a-zA-Z0-9].");
 			}
 		}
 	}
