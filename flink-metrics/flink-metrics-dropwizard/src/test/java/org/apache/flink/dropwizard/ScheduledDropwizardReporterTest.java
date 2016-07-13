@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertEquals;
 
@@ -38,12 +37,8 @@ public class ScheduledDropwizardReporterTest {
 			}
 		};
 
-		Class<? extends ScheduledDropwizardReporter> clazz = reporter.getClass();
-
-		Method method = clazz.getSuperclass().getDeclaredMethod("replaceInvalidChars", String.class);
-
-		assertEquals("abc", method.invoke(reporter, "abc"));
-		assertEquals("a--b-c-", method.invoke(reporter, "a..b.c."));
-		assertEquals("ab-c", method.invoke(reporter, "a\"b.c"));
+		assertEquals("abc", reporter.filterCharacters("abc"));
+		assertEquals("a--b-c-", reporter.filterCharacters("a..b.c."));
+		assertEquals("ab-c", reporter.filterCharacters("a\"b.c"));
 	}
 }

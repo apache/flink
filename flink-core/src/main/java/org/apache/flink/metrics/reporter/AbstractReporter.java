@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -34,7 +35,7 @@ import java.util.Map;
  * Base interface for custom metric reporters.
  */
 @PublicEvolving
-public abstract class AbstractReporter implements MetricReporter {
+public abstract class AbstractReporter implements MetricReporter, CharacterFilter {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	protected final Map<Gauge<?>, String> gauges = new HashMap<>();
@@ -43,7 +44,7 @@ public abstract class AbstractReporter implements MetricReporter {
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
-		final String name = replaceInvalidChars(group.getMetricIdentifier(metricName));
+		final String name = group.getMetricIdentifier(metricName, this);
 
 		synchronized (this) {
 			if (metric instanceof Counter) {
@@ -73,35 +74,5 @@ public abstract class AbstractReporter implements MetricReporter {
 					"does not support this metric type.", metric.getClass().getName());
 			}
 		}
-	}
-
-	/**
-	 * Can be overridden by sub-classes to replace invalid characters in metric name.
-	 *
-	 * @param metricName Name of the metric
-	 * @return The metric name to register the metric under
-	 */
-	protected String replaceInvalidChars(String metricName) {
-		return metricName;
-	}
-
-	/**
-	 * Method which constructs the fully qualified metric name from the metric group and the metric
-	 * name.
-	 *
-	 * @param metricName Name of the metric
-	 * @param group Associated metric group
-	 * @return Fully qualified metric name
-	 */
-	private String constructMetricName(String metricName, AbstractMetricGroup group) {
-		StringBuilder builder = new StringBuilder();
-
-		for (String componentName : group.getScopeComponents()) {
-			builder.append(replaceInvalidChars(componentName)).append(".");
-		}
-
-		builder.append(replaceInvalidChars(metricName));
-
-		return builder.toString();
 	}
 }

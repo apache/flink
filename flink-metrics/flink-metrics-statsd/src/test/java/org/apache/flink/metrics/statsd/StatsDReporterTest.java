@@ -29,7 +29,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
@@ -46,13 +45,10 @@ public class StatsDReporterTest extends TestLogger {
 	public void testReplaceInvalidChars() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		StatsDReporter reporter = new StatsDReporter();
 
-		Class<? extends StatsDReporter> clazz = reporter.getClass();
 
-		Method m = clazz.getDeclaredMethod("replaceInvalidChars", String.class);
-
-		assertEquals("", m.invoke(reporter, ""));
-		assertEquals("abc", m.invoke(reporter, "abc"));
-		assertEquals("a-b--", m.invoke(reporter, "a:b::"));
+		assertEquals("", reporter.filterCharacters(""));
+		assertEquals("abc", reporter.filterCharacters("abc"));
+		assertEquals("a-b--", reporter.filterCharacters("a:b::"));
 	}
 
 	/**

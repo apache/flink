@@ -16,29 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.util;
+package org.apache.flink.metrics;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.metrics.reporter.AbstractReporter;
+/**
+ * Interface for a character filter function. The filter function is given a string which the filter
+ * can transform. The returned string is the transformation result.
+ */
+public interface CharacterFilter {
 
-public class TestReporter extends AbstractReporter {
-
-	@Override
-	public void open(Configuration config) {}
-
-	@Override
-	public void close() {}
-
-	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {}
-
-	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {}
-
-	@Override
-	public String filterCharacters(String input) {
-		return input;
-	}
+	/**
+	 * Filter the given string and generate a resulting string from it.
+	 *
+	 * For example, one implementation could filter out invalid characters from the input string.
+	 *
+	 * @param input Input string
+	 * @return Filtered result string
+	 */
+	String filterCharacters(String input);
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -100,10 +101,29 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	 * @return fully qualified metric name
      */
 	public String getMetricIdentifier(String metricName) {
+		return getMetricIdentifier(metricName, null);
+	}
+
+	/**
+	 * Returns the fully qualified metric name, for example
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 *
+	 * @param metricName metric name
+	 * @param filter character filter which is applied to the fully qualified metric name
+	 * @return fully qualified metric name
+	 */
+	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
 		if (scopeString == null) {
-			scopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
+			if (filter != null) {
+				scopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
+			}
 		}
-		return scopeString + registry.getDelimiter() + metricName;
+
+		if (filter != null) {
+			return scopeString + registry.getDelimiter() + filter.filterCharacters(metricName);
+		} else {
+			return scopeString + registry.getDelimiter() + metricName;
+		}
 	}
 	
 	// ------------------------------------------------------------------------
