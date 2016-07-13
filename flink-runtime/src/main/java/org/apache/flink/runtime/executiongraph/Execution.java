@@ -139,8 +139,6 @@ public class Execution implements Serializable {
 	private SerializedValue<StateHandle<?>> operatorState;
 
 	private Map<Integer, SerializedValue<StateHandle<?>>> operatorKvState;
-	
-	private long recoveryTimestamp;
 
 	/** The execution context which is used to execute futures. */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
@@ -239,15 +237,13 @@ public class Execution implements Serializable {
 
 	public void setInitialState(
 		SerializedValue<StateHandle<?>> initialState,
-		Map<Integer, SerializedValue<StateHandle<?>>> initialKvState,
-		long recoveryTimestamp) {
+		Map<Integer, SerializedValue<StateHandle<?>>> initialKvState) {
 
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
 		this.operatorState = initialState;
 		this.operatorKvState = initialKvState;
-		this.recoveryTimestamp = recoveryTimestamp;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -376,7 +372,6 @@ public class Execution implements Serializable {
 				slot,
 				operatorState,
 				operatorKvState,
-				recoveryTimestamp,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs

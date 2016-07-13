@@ -82,7 +82,7 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 	public KvState<K, N, S, SD, MemoryStateBackend> restoreState(
 		MemoryStateBackend stateBackend,
 		final TypeSerializer<K> keySerializer,
-		ClassLoader classLoader, long recoveryTimestamp) throws Exception {
+		ClassLoader classLoader) throws Exception {
 
 		// validity checks
 		if (!this.keySerializer.equals(keySerializer)) {

@@ -45,8 +45,7 @@ public abstract class AsynchronousKvStateSnapshot<K, N, S extends State, SD exte
 	public final KvState<K, N, S, SD, Backend> restoreState(
 		Backend stateBackend,
 		TypeSerializer<K> keySerializer,
-		ClassLoader classLoader,
-		long recoveryTimestamp) throws Exception {
+		ClassLoader classLoader) throws Exception {
 		throw new RuntimeException("This should never be called and probably points to a bug.");
 	}
 

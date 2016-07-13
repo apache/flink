@@ -83,8 +83,7 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 	public KvState<K, N, S, SD, FsStateBackend> restoreState(
 		FsStateBackend stateBackend,
 		final TypeSerializer<K> keySerializer,
-		ClassLoader classLoader,
-		long recoveryTimestamp) throws Exception {
+		ClassLoader classLoader) throws Exception {
 
 		// validity checks
 		if (!this.keySerializer.equals(keySerializer)) {

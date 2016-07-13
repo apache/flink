@@ -38,24 +38,22 @@ public class StateUtils {
 	 *            The state carrier operator.
 	 * @param state
 	 *            The state handle.
-	 * @param recoveryTimestamp
-	 *            Global recovery timestamp
 	 * @param <T>
 	 *            Type bound for the
 	 */
-	public static <T extends StateHandle<?>> void setOperatorState(StatefulTask<?> op,
-			StateHandle<?> state, long recoveryTimestamp) throws Exception {
+	public static <T extends StateHandle<?>> void setOperatorState(StatefulTask<?> op, StateHandle<?> state)
+			throws Exception {
+
 		@SuppressWarnings("unchecked")
 		StatefulTask<T> typedOp = (StatefulTask<T>) op;
 		@SuppressWarnings("unchecked")
 		T typedHandle = (T) state;
 
-		typedOp.setInitialState(typedHandle, recoveryTimestamp);
+		typedOp.setInitialState(typedHandle);
 	}
 
 	// ------------------------------------------------------------------------
 
 	/** Do not instantiate */
-	private StateUtils() {
-	}
+	private StateUtils() {}
 }

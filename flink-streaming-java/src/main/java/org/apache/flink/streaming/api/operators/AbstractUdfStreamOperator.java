@@ -150,8 +150,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
+	public void restoreState(StreamTaskState state) throws Exception {
+		super.restoreState(state);
 		
 		StateHandle<Serializable> stateHandle =  state.getFunctionState();
 		

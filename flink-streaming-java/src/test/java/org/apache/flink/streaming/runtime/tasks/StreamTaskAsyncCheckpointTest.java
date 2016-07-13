@@ -172,8 +172,8 @@ public class StreamTaskAsyncCheckpointTest {
 		}
 
 		@Override
-		public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-			super.restoreState(taskState, recoveryTimestamp);
+		public void restoreState(StreamTaskState taskState) throws Exception {
+			super.restoreState(taskState);
 		}
 	}
 

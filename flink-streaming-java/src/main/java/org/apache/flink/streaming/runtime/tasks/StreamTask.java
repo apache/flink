@@ -156,8 +156,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	/** Flag to mark this task as canceled */
 	private volatile boolean canceled;
 
-	private long recoveryTimestamp;
-
 	private long lastCheckpointSize = 0;
 
 	// ------------------------------------------------------------------------
@@ -498,13 +496,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	//  Checkpoint and Restore
 	// ------------------------------------------------------------------------
-	
+
 	@Override
-	public void setInitialState(StreamTaskStateList initialState, long recoveryTimestamp) {
+	public void setInitialState(StreamTaskStateList initialState) {
 		lazyRestoreState = initialState;
-		this.recoveryTimestamp = recoveryTimestamp;
 	}
-	
+
 	private void restoreState() throws Exception {
 		if (lazyRestoreState != null) {
 			LOG.info("Restoring checkpointed state to task {}", getName());
@@ -522,7 +519,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					
 					if (state != null && operator != null) {
 						LOG.debug("Task {} in chain ({}) has checkpointed state", i, getName());
-						operator.restoreState(state, recoveryTimestamp);
+						operator.restoreState(state);
 					}
 					else if (operator != null) {
 						LOG.debug("Task {} in chain ({}) does not have checkpointed state", i, getName());

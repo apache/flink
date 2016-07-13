@@ -186,8 +186,8 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
+	public void restoreState(StreamTaskState state) throws Exception {
+		super.restoreState(state);
 
 		@SuppressWarnings("unchecked")
 		StateHandle<DataInputView> stateHandle = (StateHandle<DataInputView>) state.getOperatorState();

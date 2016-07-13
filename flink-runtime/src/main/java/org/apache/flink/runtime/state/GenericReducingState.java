@@ -118,9 +118,8 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 		public KvState<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> restoreState(
 			Backend stateBackend,
 			TypeSerializer<K> keySerializer,
-			ClassLoader classLoader,
-			long recoveryTimestamp) throws Exception {
-			return new GenericReducingState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader, recoveryTimestamp), reduceFunction);
+			ClassLoader classLoader) throws Exception {
+			return new GenericReducingState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader), reduceFunction);
 		}
 
 		@Override
