@@ -32,6 +32,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -56,12 +57,13 @@ import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.api.common.state.StateBackend;
-
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.HDFSCopyFromLocal;
 import org.apache.flink.streaming.util.HDFSCopyToLocal;
+
 import org.apache.hadoop.fs.FileSystem;
+
 import org.rocksdb.BackupEngine;
 import org.rocksdb.BackupableDBOptions;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -74,6 +76,7 @@ import org.rocksdb.RestoreOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -684,6 +687,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
 			return fs.getContentSummary(new org.apache.hadoop.fs.Path(backupUri)).getLength();
 		}
+
+		@Override
+		public void close() throws IOException {
+			// cannot do much here
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -797,7 +805,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		 * Creates a new snapshot from the given state parameters.
 		 */
 		private FinalFullyAsyncSnapshot(StateHandle<DataInputView> stateHandle, long checkpointId) {
-			this.stateHandle = stateHandle;
+			this.stateHandle = requireNonNull(stateHandle);
 			this.checkpointId = checkpointId;
 		}
 
@@ -817,6 +825,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		@Override
 		public final long getStateSize() throws Exception {
 			return stateHandle.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			stateHandle.close();
 		}
 	}
 

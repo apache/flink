@@ -21,7 +21,9 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.util.ExceptionUtils;
 
+import java.io.IOException;
 import java.util.HashMap;
 
 /**
@@ -47,7 +49,7 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 		}
 		return true;
 	}
-	
+
 	@Override
 	public StreamTaskState[] getState(ClassLoader userCodeClassLoader) {
 		return states;
@@ -94,5 +96,28 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 
 		// State size as sum of all state sizes
 		return sumStateSize;
+	}
+
+	@Override
+	public void close() throws IOException {
+		if (states != null) {
+			Throwable firstException = null;
+
+			for (StreamTaskState state : states) {
+				if (state != null) {
+					try {
+						state.close();
+					} catch (Throwable t) {
+						if (firstException == null) {
+							firstException = t;
+						}
+					}
+				}
+			}
+
+			if (firstException != null) {
+				ExceptionUtils.rethrowIOException(firstException);
+			}
+		}
 	}
 }

@@ -30,7 +30,7 @@ import java.io.Serializable;
  * A state handle that points to state in a file system, accessible as an input stream.
  */
 public class FileStreamStateHandle extends AbstractFileStateHandle implements StreamStateHandle {
-	
+
 	private static final long serialVersionUID = -6826990484549987311L;
 
 	/**
@@ -44,7 +44,13 @@ public class FileStreamStateHandle extends AbstractFileStateHandle implements St
 
 	@Override
 	public InputStream getState(ClassLoader userCodeClassLoader) throws Exception {
-		return getFileSystem().open(getFilePath());
+		ensureNotClosed();
+
+		InputStream inStream = getFileSystem().open(getFilePath());
+		// make sure the state handle is cancelable
+		registerCloseable(inStream);
+
+		return inStream; 
 	}
 
 	/**
@@ -60,6 +66,18 @@ public class FileStreamStateHandle extends AbstractFileStateHandle implements St
 
 	@Override
 	public <T extends Serializable> StateHandle<T> toSerializableHandle() {
-		return new FileSerializableStateHandle<>(getFilePath());
+		FileSerializableStateHandle<T> handle = new FileSerializableStateHandle<>(getFilePath());
+
+		// forward closed status
+		if (isClosed()) {
+			try {
+				handle.close();
+			} catch (IOException e) {
+				// should not happen on a fresh handle, but forward anyways
+				throw new RuntimeException(e);
+			}
+		}
+
+		return handle;
 	}
 }
