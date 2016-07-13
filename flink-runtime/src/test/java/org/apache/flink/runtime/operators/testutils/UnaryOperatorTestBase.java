@@ -353,7 +353,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 	}
 
 	@Override
-	public AbstractInvokable getOwningNepheleTask() {
+	public AbstractInvokable getContainingTask() {
 		return this.owner;
 	}
 

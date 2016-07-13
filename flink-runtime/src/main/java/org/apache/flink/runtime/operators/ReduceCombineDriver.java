@@ -119,7 +119,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 		MemoryManager memManager = this.taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(
 				this.taskContext.getTaskConfig().getRelativeMemoryDriver());
-		this.memory = memManager.allocatePages(this.taskContext.getOwningNepheleTask(), numMemoryPages);
+		this.memory = memManager.allocatePages(this.taskContext.getContainingTask(), numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (this.comparator.supportsSerializationWithKeyNormalization() &&
