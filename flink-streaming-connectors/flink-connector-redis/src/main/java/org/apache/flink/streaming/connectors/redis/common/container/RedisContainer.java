@@ -68,12 +68,12 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	 */
 	@Override
 	public void close() throws IOException {
-		if (this.jedisPool != null) {
-			this.jedisPool.close();
-		}
-		if (this.jedisSentinelPool != null) {
-			this.jedisSentinelPool.close();
-		}
+		getInstance().close();
+	}
+
+	@Override
+	public void open() throws Exception {
+		getInstance().echo("Test");
 	}
 
 	@Override

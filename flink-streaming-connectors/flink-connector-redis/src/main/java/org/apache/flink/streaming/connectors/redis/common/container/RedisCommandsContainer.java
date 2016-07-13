@@ -25,6 +25,13 @@ import java.io.Serializable;
 public interface RedisCommandsContainer extends Serializable {
 
 	/**
+	 * Open the Jedis container.
+	 *
+	 * @throws Exception if the instance can not be opened properly
+	 */
+	void open() throws Exception;
+
+	/**
 	 * Sets field in the hash stored at key to value.
 	 * If key does not exist, a new key holding a hash is created.
 	 * If field already exists in the hash, it is overwritten.

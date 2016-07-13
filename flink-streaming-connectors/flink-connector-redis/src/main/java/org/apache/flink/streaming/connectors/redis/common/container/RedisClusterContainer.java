@@ -47,6 +47,11 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	@Override
+	public void open() throws Exception {
+		jedisCluster.echo("Test");
+	}
+
+	@Override
 	public void hset(final String key, final String hashField, final String value) {
 		try {
 			jedisCluster.hset(key, hashField, value);
