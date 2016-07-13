@@ -69,16 +69,7 @@ public class UnregisteredTaskMetricsGroup extends TaskMetricGroup {
 	
 	public static class DummyIOMetricGroup extends IOMetricGroup {
 		public DummyIOMetricGroup() {
-			super(EMPTY_REGISTRY, new UnregisteredTaskMetricsGroup());
-		}
-
-		@Override
-		protected void addMetric(String name, Metric metric) {
-		}
-
-		@Override
-		public MetricGroup addGroup(String name) {
-			return new UnregisteredMetricsGroup();
+			super(new UnregisteredTaskMetricsGroup());
 		}
 	}
 }

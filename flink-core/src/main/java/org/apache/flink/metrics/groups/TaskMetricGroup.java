@@ -92,7 +92,7 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 		this.subtaskIndex = subtaskIndex;
 		this.attemptNumber = attemptNumber;
 
-		this.ioMetrics = new IOMetricGroup(registry, this);
+		this.ioMetrics = new IOMetricGroup(this);
 	}
 
 	// ------------------------------------------------------------------------
@@ -156,7 +156,6 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 	@Override
 	public void close() {
 		super.close();
-		ioMetrics.close();
 
 		parent.removeTaskMetricGroup(executionId);
 	}
