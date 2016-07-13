@@ -47,7 +47,7 @@ class TableSinkITCase(
 
     val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
     tmpFile.deleteOnExit()
-    val path = "file:///" + tmpFile.getAbsolutePath
+    val path = tmpFile.toURI.toString
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
