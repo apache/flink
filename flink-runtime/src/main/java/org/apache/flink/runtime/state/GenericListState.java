@@ -120,9 +120,8 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 		public KvState<K, N, ListState<T>, ListStateDescriptor<T>, Backend> restoreState(
 			Backend stateBackend,
 			TypeSerializer<K> keySerializer,
-			ClassLoader classLoader,
-			long recoveryTimestamp) throws Exception {
-			return new GenericListState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader, recoveryTimestamp));
+			ClassLoader classLoader) throws Exception {
+			return new GenericListState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader));
 		}
 
 		@Override

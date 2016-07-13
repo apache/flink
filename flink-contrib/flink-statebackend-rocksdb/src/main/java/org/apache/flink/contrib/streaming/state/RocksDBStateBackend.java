@@ -58,6 +58,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.api.common.state.StateBackend;
 
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.HDFSCopyFromLocal;
 import org.apache.flink.streaming.util.HDFSCopyToLocal;
 import org.apache.hadoop.fs.FileSystem;
@@ -162,7 +163,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * checkpoints and when disposing the db. Otherwise, the asynchronous snapshot might try
 	 * iterating over a disposed db.
 	 */
-	private Object dbCleanupLock;
+	private final SerializableObject dbCleanupLock = new SerializableObject();
 
 	/**
 	 * Information about the k/v states as we create them. This is used to retrieve the
@@ -288,8 +289,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		} catch (IOException e) {
 			throw new RuntimeException("Error cleaning RocksDB data directory.", e);
 		}
-
-		dbCleanupLock = new Object();
 
 		List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(1);
 		// RocksDB seems to need this...
@@ -479,7 +478,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public final void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots, long recoveryTimestamp) throws Exception {
+	public final void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots) throws Exception {
 		if (keyValueStateSnapshots.size() == 0) {
 			return;
 		}
@@ -670,8 +669,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		public final KvState<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> restoreState(
 				RocksDBStateBackend stateBackend,
 				TypeSerializer<Object> keySerializer,
-				ClassLoader classLoader,
-				long recoveryTimestamp) throws Exception {
+				ClassLoader classLoader) throws Exception {
 			throw new RuntimeException("Should never happen.");
 		}
 
@@ -807,8 +805,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		public final KvState<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> restoreState(
 				RocksDBStateBackend stateBackend,
 				TypeSerializer<Object> keySerializer,
-				ClassLoader classLoader,
-				long recoveryTimestamp) throws Exception {
+				ClassLoader classLoader) throws Exception {
 			throw new RuntimeException("Should never happen.");
 		}
 

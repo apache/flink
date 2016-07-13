@@ -195,10 +195,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamTaskState, long)} ()}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamTaskState)} ()}
 	 */
 	public void restore(StreamTaskState snapshot, long recoveryTimestamp) throws Exception {
-		operator.restoreState(snapshot, recoveryTimestamp);
+		operator.restoreState(snapshot);
 	}
 
 	/**

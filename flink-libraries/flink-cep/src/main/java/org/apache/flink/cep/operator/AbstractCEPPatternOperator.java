@@ -118,8 +118,8 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
+	public void restoreState(StreamTaskState state) throws Exception {
+		super.restoreState(state);
 
 		StreamStateHandle stream = (StreamStateHandle)state.getOperatorState();
 

@@ -48,7 +48,6 @@ public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescript
 	 *                     from this snapshot.
 	 * @param keySerializer The serializer for the keys.
 	 * @param classLoader The class loader for user-defined types.
-	 * @param recoveryTimestamp The timestamp of the checkpoint we are recovering from.
 	 *
 	 * @return An instance of the key/value state loaded from this snapshot.
 	 * 
@@ -57,8 +56,7 @@ public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescript
 	KvState<K, N, S, SD, Backend> restoreState(
 		Backend stateBackend,
 		TypeSerializer<K> keySerializer,
-		ClassLoader classLoader,
-		long recoveryTimestamp) throws Exception;
+		ClassLoader classLoader) throws Exception;
 
 	/**
 	 * Discards the state snapshot, removing any resources occupied by it.

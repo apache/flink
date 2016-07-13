@@ -638,7 +638,6 @@ public class ExecutionVertex implements Serializable {
 			SimpleSlot targetSlot,
 			SerializedValue<StateHandle<?>> operatorState,
 			Map<Integer, SerializedValue<StateHandle<?>>> operatorKvState,
-			long recoveryTimestamp,
 			int attemptNumber) {
 
 		// Produced intermediate results
@@ -689,8 +688,7 @@ public class ExecutionVertex implements Serializable {
 			jarFiles,
 			classpaths,
 			targetSlot.getRoot().getSlotNumber(),
-			operatorState,
-			recoveryTimestamp);
+			operatorState);
 	}
 
 	// --------------------------------------------------------------------------------------------

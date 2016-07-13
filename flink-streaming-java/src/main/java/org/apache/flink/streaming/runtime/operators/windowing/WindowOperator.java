@@ -846,8 +846,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-		super.restoreState(taskState, recoveryTimestamp);
+	public void restoreState(StreamTaskState taskState) throws Exception {
+		super.restoreState(taskState);
 
 		final ClassLoader userClassloader = getUserCodeClassloader();
 

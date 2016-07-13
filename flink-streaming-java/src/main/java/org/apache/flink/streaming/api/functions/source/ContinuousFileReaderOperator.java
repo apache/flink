@@ -406,8 +406,8 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
+	public void restoreState(StreamTaskState state) throws Exception {
+		super.restoreState(state);
 
 		StreamStateHandle stream = (StreamStateHandle) state.getOperatorState();
 
@@ -427,6 +427,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		}
 
 		// read the state of the format
+		@SuppressWarnings("unchecked")
 		S formatState = (S) ois.readObject();
 
 		// set the whole reader state for the open() to find.

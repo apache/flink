@@ -609,7 +609,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					windowSize, windowSize);
 
 			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
-			op.restoreState(state, 1);
+			op.restoreState(state);
 			op.open();
 
 			// inject the remaining elements
@@ -717,7 +717,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					windowSize, windowSlide);
 
 			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
-			op.restoreState(state, 1);
+			op.restoreState(state);
 			op.open();
 
 

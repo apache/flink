@@ -58,7 +58,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -202,7 +201,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		// Verify all executions have been reset
 		for (ExecutionVertex vertex : ackVertices) {
 			verify(vertex.getCurrentExecutionAttempt(), times(1)).setInitialState(
-					any(SerializedValue.class), any(Map.class), anyLong());
+					any(SerializedValue.class), any(Map.class));
 		}
 
 		// Verify all promises removed

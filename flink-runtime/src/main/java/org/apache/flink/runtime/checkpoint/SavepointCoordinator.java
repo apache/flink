@@ -188,8 +188,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				throw new IllegalStateException("CheckpointCoordinator is shut down");
 			}
 
-			long recoveryTimestamp = System.currentTimeMillis();
-
 			LOG.info("Rolling back to savepoint '{}'.", savepointPath);
 
 			CompletedCheckpoint checkpoint = savepointStore.getState(savepointPath);
@@ -237,7 +235,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 							.getTaskVertices()[i]
 							.getCurrentExecutionAttempt();
 
-						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap, recoveryTimestamp);
+						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap);
 					}
 				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
