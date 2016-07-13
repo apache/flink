@@ -112,13 +112,6 @@ public class MetricGroupTest {
 		assertNotNull(group.counter(name));
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
-	public void exceptionOnIllegalName() {
-		GenericMetricGroup group = new GenericMetricGroup(
-				exceptionOnRegister, new DummyAbstractMetricGroup(exceptionOnRegister), "testgroup");
-		group.counter("ÜberCöunter");
-	}
-	
 	// ------------------------------------------------------------------------
 	
 	private static class ExceptionOnRegisterRegistry extends MetricRegistry {
