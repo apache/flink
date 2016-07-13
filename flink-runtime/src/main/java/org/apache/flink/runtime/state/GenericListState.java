@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -132,6 +133,11 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 		@Override
 		public long getStateSize() throws Exception {
 			return wrappedSnapshot.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			wrappedSnapshot.close();
 		}
 	}
 }

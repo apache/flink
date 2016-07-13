@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -29,7 +30,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of state represented by this state handle.
  */
-public class SerializedStateHandle<T extends Serializable> implements StateHandle<T> {
+public class SerializedStateHandle<T extends Serializable> extends AbstractCloseableHandle implements StateHandle<T> {
 	
 	private static final long serialVersionUID = 4145685722538475769L;
 
@@ -61,6 +62,7 @@ public class SerializedStateHandle<T extends Serializable> implements StateHandl
 			throw new NullPointerException();
 		}
 
+		ensureNotClosed();
 		return serializedData == null ? null : InstantiationUtil.<T>deserializeObject(serializedData, classLoader);
 	}
 

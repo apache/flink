@@ -21,7 +21,10 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.util.ExceptionUtils;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
@@ -37,7 +40,7 @@ import java.util.Iterator;
  * </ul>
  */
 @Internal
-public class StreamTaskState implements Serializable {
+public class StreamTaskState implements Serializable, Closeable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -120,6 +123,63 @@ public class StreamTaskState implements Serializable {
 					// fall through the loop
 				}
 			}
+		}
+	}
+
+	@Override
+	public void close() throws IOException {
+		StateHandle<?> operatorState = this.operatorState;
+		StateHandle<?> functionState = this.functionState;
+		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = this.kvStates;
+
+		this.operatorState = null;
+		this.functionState = null;
+		this.kvStates = null;
+
+		Throwable firstException = null;
+
+		if (operatorState != null) {
+			try {
+				operatorState.close();
+			} catch (Throwable t) {
+				firstException = t;
+			}
+		}
+
+		if (functionState != null) {
+			try {
+				functionState.close();
+			} catch (Throwable t) {
+				if (firstException == null) {
+					firstException = t;
+				}
+			}
+		}
+	
+		if (kvStates != null) {
+			while (kvStates.size() > 0) {
+				try {
+					Iterator<KvStateSnapshot<?, ?, ?, ?, ?>> values = kvStates.values().iterator();
+					while (values.hasNext()) {
+						KvStateSnapshot<?, ?, ?, ?, ?> s = values.next();
+						try {
+							s.close();
+						} catch (Throwable t) {
+							if (firstException == null) {
+								firstException = t;
+							}
+						}
+						values.remove();
+					}
+				}
+				catch (ConcurrentModificationException e) {
+					// fall through the loop
+				}
+			}
+		}
+
+		if (firstException != null) {
+			ExceptionUtils.rethrowIOException(firstException);
 		}
 	}
 }
