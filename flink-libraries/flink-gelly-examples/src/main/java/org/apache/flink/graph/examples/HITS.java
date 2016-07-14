@@ -28,6 +28,7 @@ import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphCsvReader;
 import org.apache.flink.graph.asm.simple.directed.Simplify;
 import org.apache.flink.graph.asm.translate.LongValueToIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
@@ -38,6 +39,7 @@ import org.apache.flink.graph.library.link_analysis.HITS.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.types.StringValue;
 
 import java.text.NumberFormat;
 
@@ -59,14 +61,14 @@ public class HITS {
 	public static final int DEFAULT_EDGE_FACTOR = 16;
 
 	private static void printUsage() {
-		System.out.println(WordUtils.wrap("", 80));
-		System.out.println();
-		System.out.println(WordUtils.wrap("", 80));
+		System.out.println(WordUtils.wrap("Hyperlink-Induced Topic Search computes two interdependent" +
+			" scores for every vertex in a directed graph. A good \"hub\" links to good \"authorities\"" +
+			" and good \"authorities\" are linked from good \"hubs\".", 80));
 		System.out.println();
 		System.out.println("usage: HITS --input <csv | rmat [options]> --output <print | hash | csv [options]");
 		System.out.println();
 		System.out.println("options:");
-		System.out.println("  --input csv --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
+		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
 		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
 		System.out.println();
 		System.out.println("  --output print");
@@ -92,15 +94,29 @@ public class HITS {
 				String fieldDelimiter = StringEscapeUtils.unescapeJava(
 					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-				Graph<LongValue, NullValue, NullValue> graph = Graph
+				GraphCsvReader reader = Graph
 					.fromCsvReader(parameters.get("input_filename"), env)
 						.ignoreCommentsEdges("#")
 						.lineDelimiterEdges(lineDelimiter)
-						.fieldDelimiterEdges(fieldDelimiter)
-						.keyType(LongValue.class);
+						.fieldDelimiterEdges(fieldDelimiter);
 
-				hits = graph
-					.run(new org.apache.flink.graph.library.link_analysis.HITS<LongValue, NullValue, NullValue>(iterations));
+				switch (parameters.get("type", "")) {
+					case "integer": {
+						hits = reader
+							.keyType(LongValue.class)
+							.run(new org.apache.flink.graph.library.link_analysis.HITS<LongValue, NullValue, NullValue>(iterations));
+					} break;
+
+					case "string": {
+						hits = reader
+							.keyType(StringValue.class)
+							.run(new org.apache.flink.graph.library.link_analysis.HITS<StringValue, NullValue, NullValue>(iterations));
+					} break;
+
+					default:
+						printUsage();
+						return;
+				}
 				} break;
 
 			case "rmat": {
