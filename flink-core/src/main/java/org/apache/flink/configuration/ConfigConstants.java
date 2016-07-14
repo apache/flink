@@ -626,6 +626,8 @@ public final class ConfigConstants {
 	/** ZooKeeper root path. */
 	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
 
+	public static final String ZOOKEEPER_NAMESPACE_KEY = "recovery.zookeeper.path.namespace";
+
 	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
 
 	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
@@ -971,6 +973,8 @@ public final class ConfigConstants {
 	// --------------------------- ZooKeeper ----------------------------------
 
 	public static final String DEFAULT_ZOOKEEPER_DIR_KEY = "/flink";
+
+	public static final String DEFAULT_ZOOKEEPER_NAMESPACE_KEY = "/default";
 
 	public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
 

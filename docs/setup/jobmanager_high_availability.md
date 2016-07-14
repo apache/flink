@@ -74,11 +74,15 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
   Each *addressX:port* refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
 
-- **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all required coordination data is placed.
+- **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all cluster namespace nodes are placed.
 
-  <pre>recovery.zookeeper.path.root: /flink # important: customize per cluster</pre>
+  <pre>recovery.zookeeper.path.root: /flink
 
-  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate root nodes for each cluster.
+- **ZooKeeper namespace** (recommended): The *namespace ZooKeeper node*, under which all required coordination data for a cluster is placed.
+
+  <pre>recovery.zookeeper.path.namespace: /default_ns # important: customize per cluster</pre> 
+
+  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate namespaces for each cluster. By default, the Yarn cluster and the Yarn session automatically generate namespaces based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a namespace with the -z CLI option, in turn, overrides manual configuration. 
 
 - **State backend and storage directory** (required): JobManager meta data is persisted in the *state backend* and only a pointer to this state is stored in ZooKeeper. Currently, only the file system state backend is supported in HA mode.
 
@@ -98,7 +102,8 @@ After configuring the masters and the ZooKeeper quorum, you can use the provided
    <pre>
 recovery.mode: zookeeper
 recovery.zookeeper.quorum: localhost:2181
-recovery.zookeeper.path.root: /flink # important: customize per cluster
+recovery.zookeeper.path.root: /flink
+recovery.zookeeper.path.namespace: /cluster_one # important: customize per cluster
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 recovery.zookeeper.storageDir: hdfs:///flink/recovery</pre>
@@ -183,7 +188,8 @@ This means that the application can be restarted 10 times before YARN fails the 
    <pre>
 recovery.mode: zookeeper
 recovery.zookeeper.quorum: localhost:2181
-recovery.zookeeper.path.root: /flink # important: customize per cluster
+recovery.zookeeper.path.root: /flink
+recovery.zookeeper.path.namespace: /cluster_one # important: customize per cluster
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 recovery.zookeeper.storageDir: hdfs:///flink/recovery

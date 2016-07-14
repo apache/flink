@@ -107,6 +107,7 @@ Usage:
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths for HA mode
 ~~~
 
 Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable to be set to read the YARN and HDFS configuration.

@@ -20,11 +20,10 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -51,7 +50,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,6 +127,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private String customName;
 
+	private String zookeeperNamespace;
 
 	public AbstractYarnClusterDescriptor() {
 		// for unit tests only
@@ -289,6 +288,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		return detached;
 	}
 
+	public String getZookeeperNamespace() {
+		return zookeeperNamespace;
+	}
+
+	public void setZookeeperNamespace(String zookeeperNamespace) {
+		this.zookeeperNamespace = zookeeperNamespace;
+	}
 
 	/**
 	 * Gets a Hadoop Yarn client
@@ -369,7 +375,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 */
 	protected YarnClusterClient deployInternal() throws Exception {
 		isReadyForDeployment();
-
 		LOG.info("Using values:");
 		LOG.info("\tTaskManager count = {}", taskManagerCount);
 		LOG.info("\tJobManager memory = {}", jobManagerMemoryMb);
@@ -409,7 +414,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		// ------------------ Add dynamic properties to local flinkConfiguraton ------
-
 		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
 		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
 			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
@@ -545,6 +549,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
+		final ApplicationId appId = appContext.getApplicationId();
+
+		// ------------------ Add Zookeeper namespace to local flinkConfiguraton ------
+		String zkNamespace = getZookeeperNamespace();
+		// no user specified cli argument for namespace?
+		if (zkNamespace == null || zkNamespace.isEmpty()) {
+			// namespace defined in config? else use applicationId as default.
+			zkNamespace = flinkConfiguration.getString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, String.valueOf(appId));
+			setZookeeperNamespace(zkNamespace);
+		}
+
+		flinkConfiguration.setString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+
 		if (RecoveryMode.isHighAvailabilityModeActivated(flinkConfiguration)) {
 			// activate re-execution of failed applications
 			appContext.setMaxAppAttempts(
@@ -560,8 +577,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					ConfigConstants.YARN_APPLICATION_ATTEMPTS,
 					1));
 		}
-
-		final ApplicationId appId = appContext.getApplicationId();
 
 		// local resource map for Yarn
 		final Map<String, LocalResource> localResources = new HashMap<>(2 + effectiveShipFiles.size());
@@ -637,6 +652,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
 		appMasterEnv.put(YarnConfigKeys.ENV_SLOTS, String.valueOf(slots));
 		appMasterEnv.put(YarnConfigKeys.ENV_DETACHED, String.valueOf(detached));
+		appMasterEnv.put(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE, getZookeeperNamespace());
 
 		if(dynamicPropertiesEncoded != null) {
 			appMasterEnv.put(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);

@@ -39,6 +39,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -197,6 +198,34 @@ public class CliFrontendYarnAddressConfigurationTest {
 			frontend.getConfiguration(),
 			TEST_YARN_JOB_MANAGER_ADDRESS,
 			TEST_YARN_JOB_MANAGER_PORT);
+	}
+
+	@Test
+	public void testResumeFromYarnIDZookeeperNamespace() throws Exception {
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+
+		RunOptions options =
+				CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
+
+		frontend.retrieveClient(options);
+		String zkNs = frontend.getConfiguration().getString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, "error");
+		Assert.assertTrue(zkNs.matches("application_\\d+_0042"));
+	}
+
+	@Test
+	public void testResumeFromYarnIDZookeeperNamespaceOverride() throws Exception {
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+		String overrideZkNamespace = "my_cluster";
+		RunOptions options =
+				CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString(), "-yz", overrideZkNamespace});
+
+		frontend.retrieveClient(options);
+		String zkNs = frontend.getConfiguration().getString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, "error");
+		Assert.assertEquals(overrideZkNamespace, zkNs);
 	}
 
 	@Test(expected = IllegalConfigurationException.class)
