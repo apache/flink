@@ -19,6 +19,7 @@
 package org.apache.flink.graph.asm.degree.annotate.undirected;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
 import org.apache.flink.graph.Edge;
@@ -143,6 +144,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 		DataSet<Vertex<K, LongValue>> degree = vertexIds
 			.groupBy(0)
 			.reduce(new DegreeCount<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Degree count");
 
