@@ -119,8 +119,13 @@ under the License.
 			<artifactId>flink-metrics-jmx</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+        
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-mesos_2.10</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		
-
 	</dependencies>
 
 	<!-- See main pom.xml for explanation of profiles -->
