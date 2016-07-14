@@ -1266,9 +1266,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
 					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 						@Override
-						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {
-							// read slowly
-							Thread.sleep(100);
+						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
 						}
 					});
 
@@ -1308,13 +1306,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// connect to JMX
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 			// wait until we've found all 5 offset metrics
-			Set<ObjectName> offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=offsets,*"), null);
+			Set<ObjectName> offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=current-offsets,*"), null);
 			while (offsetMetrics.size() < 5) { // test will time out if metrics are not properly working
 				if (error.f0 != null) {
 					// fail test early
 					throw error.f0;
 				}
-				offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=offsets,*"), null);
+				offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=current-offsets,*"), null);
 				Thread.sleep(50);
 			}
 			Assert.assertEquals(5, offsetMetrics.size());
