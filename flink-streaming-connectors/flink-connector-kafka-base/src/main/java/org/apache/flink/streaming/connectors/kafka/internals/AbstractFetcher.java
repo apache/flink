@@ -396,15 +396,29 @@ public abstract class AbstractFetcher<T, KPH> {
 		}
 	}
 
+	// ------------------------- Metrics ----------------------------------
+
 	/**
-	 * Add current offsets to metric group
+	 * Add current and committed offsets to metric group
+	 *
 	 * @param metricGroup The metric group to use
 	 */
-	protected void addCurrentOffsetGauge(MetricGroup metricGroup) {
-		MetricGroup offsets = metricGroup.addGroup("offsets");
+	protected void addOffsetStateGauge(MetricGroup metricGroup) {
+		// add current offsets to gage
+		MetricGroup currentOffsets = metricGroup.addGroup("current-offsets");
+		MetricGroup committedOffsets = metricGroup.addGroup("committed-offsets");
 		for(KafkaTopicPartitionState ktp: subscribedPartitions()){
-			offsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp));
+			currentOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
+			committedOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
 		}
+	}
+
+	/**
+	 * Gauge types
+	 */
+	private enum OffsetGaugeType {
+		CURRENT_OFFSET,
+		COMMITTED_OFFSET
 	}
 
 	/**
@@ -413,14 +427,23 @@ public abstract class AbstractFetcher<T, KPH> {
 	private static class OffsetGauge implements Gauge<Long> {
 
 		private final KafkaTopicPartitionState ktp;
+		private final OffsetGaugeType gaugeType;
 
-		public OffsetGauge(KafkaTopicPartitionState ktp) {
+		public OffsetGauge(KafkaTopicPartitionState ktp, OffsetGaugeType gaugeType) {
 			this.ktp = ktp;
+			this.gaugeType = gaugeType;
 		}
 
 		@Override
 		public Long getValue() {
-			return ktp.getOffset();
+			switch(gaugeType) {
+				case COMMITTED_OFFSET:
+					return ktp.getCommittedOffset();
+				case CURRENT_OFFSET:
+					return ktp.getOffset();
+				default:
+					throw new RuntimeException("Unknown gauge type: " + gaugeType);
+			}
 		}
 	}
  	// ------------------------------------------------------------------------

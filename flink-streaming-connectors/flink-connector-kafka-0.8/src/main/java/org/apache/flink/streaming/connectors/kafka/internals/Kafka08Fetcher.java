@@ -163,7 +163,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			// register offset metrics
 			if (useMetrics) {
 				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
-				addCurrentOffsetGauge(kafkaMetricGroup);
+				addOffsetStateGauge(kafkaMetricGroup);
 			}
 
 			// Main loop polling elements from the unassignedPartitions queue to the threads
@@ -328,6 +328,15 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		ZookeeperOffsetHandler zkHandler = this.zookeeperOffsetHandler;
 		if (zkHandler != null) {
 			zkHandler.writeOffsets(offsets);
+		}
+
+		// Set committed offsets in topic partition state
+		KafkaTopicPartitionState<TopicAndPartition>[] partitions = subscribedPartitions();
+		for (KafkaTopicPartitionState<TopicAndPartition> partition : partitions) {
+			Long offset = offsets.get(partition.getKafkaTopicPartition());
+			if (offset != null) {
+				partition.setCommittedOffset(offset);
+			}
 		}
 	}
 
