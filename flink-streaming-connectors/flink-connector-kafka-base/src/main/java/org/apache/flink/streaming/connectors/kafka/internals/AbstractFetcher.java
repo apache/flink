@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.connectors.kafka.internals.metrics.MetricUtils;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.util.SerializedValue;
 
@@ -397,7 +396,6 @@ public abstract class AbstractFetcher<T, KPH> {
 		}
 	}
 
-
 	/**
 	 * Add current offsets to metric group
 	 * @param metricGroup The metric group to use
@@ -405,7 +403,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	protected void addCurrentOffsetGauge(MetricGroup metricGroup) {
 		MetricGroup offsets = metricGroup.addGroup("offsets");
 		for(KafkaTopicPartitionState ktp: subscribedPartitions()){
-			offsets.gauge(MetricUtils.cleanMetricName(ktp.getTopic()) + ktp.getPartition(), new OffsetGauge(ktp));
+			offsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp));
 		}
 	}
 

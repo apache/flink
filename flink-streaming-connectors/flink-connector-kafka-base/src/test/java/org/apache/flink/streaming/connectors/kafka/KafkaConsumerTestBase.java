@@ -68,6 +68,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -1245,25 +1246,24 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 */
 	public void runMetricsTest() throws Throwable {
 
-		final int ELEMENT_COUNT = 300;
 		// create a stream with 5 topics
-		final String topic = writeSequence("metricsStream", ELEMENT_COUNT, 5, 1);
+		final String topic = "metricsStream";
+		createTestTopic(topic, 5, 1);
 
 		final Tuple1<Throwable> error = new Tuple1<>(null);
 		Runnable job = new Runnable() {
 			@Override
 			public void run() {
 				try {
-					// start job reading data.
+					// start job writing & reading data.
 					final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 					env1.setParallelism(1);
 					env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 					env1.getConfig().disableSysoutLogging();
 					env1.disableOperatorChaining(); // let the source read everything into the network buffers
 
-					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic,
-							new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig()),
-							standardProps));
+					TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
+					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
 					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 						@Override
 						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {
@@ -1271,6 +1271,26 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 							Thread.sleep(100);
 						}
 					});
+
+					DataStream<Tuple2<Integer, Integer>> fromGen = env1.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
+						boolean running = true;
+
+						@Override
+						public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+							int i = 0;
+							while (running) {
+								ctx.collect(Tuple2.of(i++, getRuntimeContext().getIndexOfThisSubtask()));
+								Thread.sleep(1);
+							}
+						}
+
+						@Override
+						public void cancel() {
+							running = false;
+						}
+					});
+
+					fromGen.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null));
 
 					env1.execute("Metrics test job");
 				} catch(Throwable t) {
@@ -1288,23 +1308,23 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// connect to JMX
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 			// wait until we've found all 5 offset metrics
-			Set<ObjectName> all = mBeanServer.queryNames(new ObjectName("*:key7=offsets,*"), null);
-			while (all.size() < 5) { // test will time out if metrics are not properly working
+			Set<ObjectName> offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=offsets,*"), null);
+			while (offsetMetrics.size() < 5) { // test will time out if metrics are not properly working
 				if (error.f0 != null) {
 					// fail test early
 					throw error.f0;
 				}
-				all = mBeanServer.queryNames(new ObjectName("*:key7=offsets,*"), null);
+				offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=offsets,*"), null);
 				Thread.sleep(50);
 			}
-			Assert.assertEquals(5, all.size());
+			Assert.assertEquals(5, offsetMetrics.size());
 			// we can't rely on the consumer to have touched all the partitions already
 			// that's why we'll wait until all five partitions have a positive offset.
 			// The test will fail if we never meet the condition
 			while(true) {
 				int numPosOffsets = 0;
 				// check that offsets are correctly reported
-				for (ObjectName object : all) {
+				for (ObjectName object : offsetMetrics) {
 					Object offset = mBeanServer.getAttribute(object, "Value");
 					if((long) offset >= 0) {
 						numPosOffsets++;
@@ -1316,6 +1336,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				// wait for the consumer to consume on all partitions
 				Thread.sleep(50);
 			}
+
+			// check if producer metrics are also available.
+			Set<ObjectName> producerMetrics = mBeanServer.queryNames(new ObjectName("*:key6=KafkaProducer,*"), null);
+			Assert.assertTrue("No producer metrics found", producerMetrics.size() > 30);
+
+
 			LOG.info("Found all JMX metrics. Cancelling job.");
 		} finally {
 			// cancel

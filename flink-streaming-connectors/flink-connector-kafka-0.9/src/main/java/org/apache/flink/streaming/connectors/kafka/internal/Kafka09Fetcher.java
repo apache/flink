@@ -29,7 +29,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.ExceptionProxy;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricGetter;
-import org.apache.flink.streaming.connectors.kafka.internals.metrics.MetricUtils;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
@@ -177,7 +176,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 			consumer.assign(convertKafkaPartitions(subscribedPartitions()));
 
 			if (useMetrics) {
-				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("Kafka09Consumer");
+				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
 				addCurrentOffsetGauge(kafkaMetricGroup);
 				// register Kafka metrics to Flink
 				Map<MetricName, ? extends Metric> metrics = consumer.metrics();
@@ -187,8 +186,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 				} else {
 					// we have Kafka metrics, register them
 					for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
-						String name = MetricUtils.cleanMetricName(metric.getKey().name());
-						kafkaMetricGroup.gauge(name, new KafkaMetricGetter(metric.getValue()));
+						kafkaMetricGroup.gauge(metric.getKey().name(), new KafkaMetricGetter(metric.getValue()));
 					}
 				}
 			}
