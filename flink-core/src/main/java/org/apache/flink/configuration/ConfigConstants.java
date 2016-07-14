@@ -426,6 +426,60 @@ public final class ConfigConstants {
 	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
 
 
+	// ------------------------ Mesos Configuration ------------------------
+
+	/**
+	 * The maximum number of failed Mesos tasks before entirely stopping
+	 * the Mesos session / job on Mesos.
+	 *
+	 * By default, we take the number of of initially requested tasks.
+	 */
+	public static final String MESOS_MAX_FAILED_TASKS = "mesos.maximum-failed-tasks";
+
+	/**
+	 * The Mesos master URL.
+	 *
+	 * The value should be in one of the following forms:
+	 * <pre>
+	 * {@code
+	 *     host:port
+	 *     zk://host1:port1,host2:port2,.../path
+	 *     zk://username:password@host1:port1,host2:port2,.../path
+	 *     file:///path/to/file (where file contains one of the above)
+	 * }
+	 * </pre>
+	 *
+	 */
+	public static final String MESOS_MASTER_URL = "mesos.master";
+
+	/**
+	 * The failover timeout for the Mesos scheduler, after which running tasks are automatically shut down.
+	 *
+	 * The default value is 600 (seconds).
+	 */
+	public static final String MESOS_FAILOVER_TIMEOUT_SECONDS = "mesos.failover-timeout";
+
+	/**
+	 * The config parameter defining the Mesos artifact server port to use.
+	 * Setting the port to 0 will let the OS choose an available port.
+	 */
+	public static final String MESOS_ARTIFACT_SERVER_PORT_KEY = "mesos.resourcemanager.artifactserver.port";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "mesos.resourcemanager.framework.name";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "mesos.resourcemanager.framework.role";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL = "mesos.resourcemanager.framework.principal";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET = "mesos.resourcemanager.framework.secret";
+
+	/**
+	 * The cpus to acquire from Mesos.
+	 *
+	 * By default, we use the number of requested task slots.
+	 */
+	public static final String MESOS_RESOURCEMANAGER_TASKS_CPUS = "mesos.resourcemanager.tasks.cpus";
+
 	// ------------------------ Hadoop Configuration ------------------------
 
 	/**
@@ -657,6 +711,9 @@ public final class ConfigConstants {
 
 	/** ZooKeeper root path (ZNode) for checkpoint counters. */
 	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.path.checkpoint-counter";
+
+	/** ZooKeeper root path (ZNode) for Mesos workers. */
+	public static final String ZOOKEEPER_MESOS_WORKERS_PATH = "recovery.zookeeper.path.mesos-workers";
 
 	public static final String ZOOKEEPER_SESSION_TIMEOUT = "recovery.zookeeper.client.session-timeout";
 
@@ -897,6 +954,23 @@ public final class ConfigConstants {
 	 */
 	public static final String DEFAULT_YARN_JOB_MANAGER_PORT = "0";
 
+	// ------ Mesos-Specific Configuration ------
+
+	/** The default failover timeout provided to Mesos (10 mins) */
+	public static final int DEFAULT_MESOS_FAILOVER_TIMEOUT_SECS = 10 * 60;
+
+	/**
+	 * The default network port to listen on for the Mesos artifact server.
+	 */
+	public static final int DEFAULT_MESOS_ARTIFACT_SERVER_PORT = 0;
+
+	/**
+	 * The default Mesos framework name for the ResourceManager to use.
+	 */
+	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "Flink";
+
+	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "*";
+
 	// ------------------------ File System Behavior ------------------------
 
 	/**
@@ -1034,6 +1108,8 @@ public final class ConfigConstants {
 	public static final String DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH = "/checkpoints";
 
 	public static final String DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "/checkpoint-counter";
+
+	public static final String DEFAULT_ZOOKEEPER_MESOS_WORKERS_PATH = "/mesos-workers";
 
 	public static final int DEFAULT_ZOOKEEPER_SESSION_TIMEOUT = 60000;
 

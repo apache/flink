@@ -452,6 +452,7 @@ class JobManager(
 
     case msg: ResourceRemoved =>
       // we're being informed by the resource manager that a resource has become unavailable
+      // note: a Terminated event may already have removed the instance.
       val resourceID = msg.resourceId()
       log.debug(s"Resource has been removed: $resourceID")
 
@@ -1023,7 +1024,7 @@ class JobManager(
 
   /**
     * Handler to be executed when a task manager terminates.
-    * (Akka Deathwatch or notifiction from ResourceManager)
+    * (Akka Deathwatch or notification from ResourceManager)
     *
     * @param taskManager The ActorRef of the taskManager
     */

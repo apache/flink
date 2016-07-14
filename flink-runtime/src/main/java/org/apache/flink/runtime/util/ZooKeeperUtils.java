@@ -275,7 +275,7 @@ public class ZooKeeperUtils {
 	 * @return {@link FileSystemStateStorageHelper} instance
 	 * @throws IOException
 	 */
-	private static <T extends Serializable> FileSystemStateStorageHelper<T> createFileSystemStateStorage(
+	public static <T extends Serializable> FileSystemStateStorageHelper<T> createFileSystemStateStorage(
 			Configuration configuration,
 			String prefix) throws IOException {
 
