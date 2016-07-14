@@ -19,6 +19,7 @@
 package org.apache.flink.api.table.sink
 
 import java.io.File
+import java.nio.charset.Charset
 import java.nio.file.Files
 import java.util.Collections
 
@@ -59,7 +60,7 @@ class CsvTableSinkTest {
     val sink = new CsvTableSink(file.getAbsolutePath, "|")
     writeToCsv(env, ds, sink)
 
-    val lines = Files.readAllLines(file.toPath)
+    val lines = Files.readAllLines(file.toPath, Charset.defaultCharset())
     assertEquals(Collections.singletonList("1|str|false"), lines)
   }
 

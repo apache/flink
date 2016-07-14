@@ -88,7 +88,6 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 		this.partitioner = Preconditions.checkNotNull(partitioner, "partitioner");
 		this.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
 		this.fieldTypes = Preconditions.checkNotNull(fieldTypes);
-
 		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
 			"Number of provided field names and types does not match.");
 	}
