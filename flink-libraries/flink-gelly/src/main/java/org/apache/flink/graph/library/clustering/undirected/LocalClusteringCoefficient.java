@@ -21,6 +21,7 @@ package org.apache.flink.graph.library.clustering.undirected;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -122,6 +123,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple2<K, LongValue>> vertexTriangleCount = triangleVertices
 			.groupBy(0)
 			.reduce(new CountTriangles<K>())
+				.setCombineHint(CombineHint.HASH)
 				.name("Count triangles");
 
 		// u, deg(u)

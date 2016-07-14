@@ -21,9 +21,9 @@ package org.apache.flink.graph.asm.degree.annotate.directed;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -122,7 +122,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 				.setParallelism(parallelism)
 				.name("Emit and flip edge")
 			.groupBy(0, 1)
-				.reduce(new ReduceBitmask<K>())
+			.reduceGroup(new ReduceBitmask<K>())
 				.setParallelism(parallelism)
 				.name("Reduce bitmask");
 
@@ -177,13 +177,23 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	 *
 	 * @param <T> ID type
 	 */
-	private static class ReduceBitmask<T>
-	implements ReduceFunction<Tuple3<T, T, ByteValue>> {
+	@ForwardedFields("0; 1")
+	private static final class ReduceBitmask<T>
+	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple3<T, T, ByteValue>> {
 		@Override
-		public Tuple3<T, T, ByteValue> reduce(Tuple3<T, T, ByteValue> left, Tuple3<T, T, ByteValue> right)
+		public void reduce(Iterable<Tuple3<T, T, ByteValue>> values, Collector<Tuple3<T, T, ByteValue>> out)
 				throws Exception {
-			left.f2.setValue((byte)(left.f2.getValue() | right.f2.getValue()));
-			return left;
+			Tuple3<T, T, ByteValue> output = null;
+
+			byte bitmask = 0;
+
+			for (Tuple3<T, T, ByteValue> value: values) {
+				output = value;
+				bitmask |= value.f2.getValue();
+			}
+
+			output.f2.setValue(bitmask);
+			out.collect(output);
 		}
 	}
 
