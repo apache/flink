@@ -41,6 +41,8 @@ public class YarnConfigKeys {
 
 	public final static String FLINK_JAR_PATH = "_FLINK_JAR_PATH"; // the Flink jar resource location (in HDFS).
 
+	public static final String ENV_ZOOKEEPER_NAMESPACE = "_ZOOKEEPER_NAMESPACE";
+
 
 	// ------------------------------------------------------------------------
 
