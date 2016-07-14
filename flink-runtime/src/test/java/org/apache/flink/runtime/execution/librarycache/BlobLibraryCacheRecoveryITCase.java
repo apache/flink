@@ -136,6 +136,12 @@ public class BlobLibraryCacheRecoveryITCase {
 
 				assertEquals(0, fis.available());
 			}
+
+			// Remove blobs again
+			try (BlobClient client = new BlobClient(serverAddress[1])) {
+				client.delete(keys.get(0));
+				client.delete(keys.get(1));
+			}
 		}
 		finally {
 			for (BlobServer s : server) {
