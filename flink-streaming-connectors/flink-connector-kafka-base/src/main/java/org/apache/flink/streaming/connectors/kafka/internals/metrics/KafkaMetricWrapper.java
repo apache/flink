@@ -23,10 +23,10 @@ import org.apache.flink.metrics.Gauge;
 /**
  * Gauge for getting the current value of a Kafka metric.
  */
-public class KafkaMetricGetter implements Gauge<Double> {
+public class KafkaMetricWrapper implements Gauge<Double> {
 	private final org.apache.kafka.common.Metric kafkaMetric;
 
-	public KafkaMetricGetter(org.apache.kafka.common.Metric metric) {
+	public KafkaMetricWrapper(org.apache.kafka.common.Metric metric) {
 		this.kafkaMetric = metric;
 	}
 

@@ -1319,7 +1319,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// we can't rely on the consumer to have touched all the partitions already
 			// that's why we'll wait until all five partitions have a positive offset.
 			// The test will fail if we never meet the condition
-			while(true) {
+			while (true) {
 				int numPosOffsets = 0;
 				// check that offsets are correctly reported
 				for (ObjectName object : offsetMetrics) {
@@ -1328,7 +1328,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 						numPosOffsets++;
 					}
 				}
-				if(numPosOffsets == 5) {
+				if (numPosOffsets == 5) {
 					break;
 				}
 				// wait for the consumer to consume on all partitions
@@ -1346,10 +1346,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
 		}
 
-		while(jobThread.isAlive()) {
+		while (jobThread.isAlive()) {
 			Thread.sleep(50);
 		}
-		if(error.f0 != null) {
+		if (error.f0 != null) {
 			throw error.f0;
 		}
 
