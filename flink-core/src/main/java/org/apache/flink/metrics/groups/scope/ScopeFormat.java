@@ -436,27 +436,27 @@ public abstract class ScopeFormat {
 	}
 
 	public static String concat(String... components) {
-		return concat('.', defaultFilter, components);
+		return concat(defaultFilter, '.', components);
 	}
 
 	public static String concat(CharacterFilter filter, String... components) {
-		return concat('.', filter, components);
+		return concat(filter, '.', components);
 	}
 
 	public static String concat(Character delimiter, String... components) {
-		return concat(delimiter, defaultFilter, components);
+		return concat(defaultFilter, delimiter, components);
 	}
 
 	/**
 	 * Concatenates the given component names separated by the delimiter character. Additionally
 	 * the character filter is applied to all component names.
 	 *
-	 * @param delimiter Delimiter to separate component names
 	 * @param filter Character filter to be applied to the component names
+	 * @param delimiter Delimiter to separate component names
 	 * @param components Array of component names
 	 * @return The concatenated component name
 	 */
-	public static String concat(Character delimiter, CharacterFilter filter, String... components) {
+	public static String concat(CharacterFilter filter, Character delimiter, String... components) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(filter.filterCharacters(components[0]));
 		for (int x = 1; x < components.length; x++) {

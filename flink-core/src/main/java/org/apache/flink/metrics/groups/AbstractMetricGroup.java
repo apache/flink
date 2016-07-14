@@ -109,12 +109,14 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
 	 *
 	 * @param metricName metric name
-	 * @param filter character filter which is applied to the fully qualified metric name
+	 * @param filter character filter which is applied to the scope components if not null.
 	 * @return fully qualified metric name
 	 */
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
 		if (scopeString == null) {
 			if (filter != null) {
+				scopeString = ScopeFormat.concat(filter, registry.getDelimiter(), scopeComponents);
+			} else {
 				scopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
 			}
 		}

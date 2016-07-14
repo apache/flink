@@ -75,6 +75,15 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	}
 
 	// ------------------------------------------------------------------------
+	//  Getters
+	// ------------------------------------------------------------------------
+
+	// used for testing purposes
+	Map<Counter, String> getCounters() {
+		return counters;
+	}
+
+	// ------------------------------------------------------------------------
 	//  life cycle
 	// ------------------------------------------------------------------------
 

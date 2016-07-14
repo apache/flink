@@ -18,26 +18,36 @@
 
 package org.apache.flink.metrics.statsd;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.metrics.groups.TaskMetricGroup;
+import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class StatsDReporterTest extends TestLogger {
 
@@ -45,10 +55,63 @@ public class StatsDReporterTest extends TestLogger {
 	public void testReplaceInvalidChars() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		StatsDReporter reporter = new StatsDReporter();
 
-
 		assertEquals("", reporter.filterCharacters(""));
 		assertEquals("abc", reporter.filterCharacters("abc"));
 		assertEquals("a-b--", reporter.filterCharacters("a:b::"));
+	}
+
+	/**
+	 * Tests that the registered metrics' names don't contain invalid characters.
+	 */
+	@Test
+	public void testAddingMetrics() throws NoSuchFieldException, IllegalAccessException {
+		Configuration configuration = new Configuration();
+		String taskName = "testTask";
+		String jobName = "testJob:-!ax..?";
+		String hostname = "local::host:";
+		String taskManagerId = "tas:kMana::ger";
+		String counterName = "testCounter";
+
+		configuration.setString(ConfigConstants.METRICS_REPORTER_CLASS, "org.apache.flink.metrics.statsd.StatsDReporterTest$TestingStatsDReporter");
+		configuration.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
+		configuration.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
+
+		MetricRegistry metricRegistry = new MetricRegistry(configuration);
+
+		char delimiter = metricRegistry.getDelimiter();
+
+		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(metricRegistry, hostname, taskManagerId);
+		TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(metricRegistry, tmMetricGroup, new JobID(), jobName);
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new AbstractID(), new AbstractID(), taskName, 0, 0);
+
+		SimpleCounter myCounter = new SimpleCounter();
+
+		taskMetricGroup.counter(counterName, myCounter);
+
+		Field reporterField = MetricRegistry.class.getDeclaredField("reporter");
+		reporterField.setAccessible(true);
+
+		MetricReporter metricReporter = (MetricReporter) reporterField.get(metricRegistry);
+
+		assertTrue("Reporter should be of type StatsDReporter", metricReporter instanceof StatsDReporter);
+
+		TestingStatsDReporter reporter = (TestingStatsDReporter) metricReporter;
+
+		Map<Counter, String> counters = reporter.getCounters();
+
+		assertTrue(counters.containsKey(myCounter));
+
+		String expectedCounterName = reporter.filterCharacters(hostname)
+			+ delimiter
+			+ reporter.filterCharacters(taskManagerId)
+			+ delimiter
+			+ reporter.filterCharacters(jobName)
+			+ delimiter
+			+ reporter.filterCharacters(counterName);
+
+		assertEquals(expectedCounterName, counters.get(myCounter));
+
+		metricRegistry.shutdown();
 	}
 
 	/**
@@ -120,6 +183,20 @@ public class StatsDReporterTest extends TestLogger {
 			if (receiverThread != null) {
 				receiverThread.join(joinTimeout);
 			}
+		}
+	}
+
+	/**
+	 * Testing StatsDReporter which disables the socket creation
+	 */
+	public static class TestingStatsDReporter extends StatsDReporter {
+		@Override
+		public void open(Configuration configuration) {
+			// disable the socket creation
+		}
+
+		public Map<Counter, String> getCounters() {
+			return counters;
 		}
 	}
 
