@@ -29,7 +29,6 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.messages.RegisterResource;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
-import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSuccessful;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.RegistrationMessages;
@@ -140,7 +139,7 @@ public class YarnFlinkResourceManagerTest {
 
 				resourceManager = system.actorOf(
 					Props.create(
-						TestingYarnFlinkResourcemanager.class,
+						TestingYarnFlinkResourceManager.class,
 						flinkConfig,
 						yarnConfig,
 						leaderRetrievalService,
@@ -166,7 +165,6 @@ public class YarnFlinkResourceManagerTest {
 					public Object answer(InvocationOnMock invocation) throws Throwable {
 						Container container = (Container) invocation.getArguments()[0];
 						resourceManagerGateway.tell(new RegisterResource(
-							leader1Gateway.actor(),
 							new RegistrationMessages.RegisterTaskManager(
 								YarnFlinkResourceManager.extractResourceID(container), null, null, 1)),
 							leader1Gateway);
@@ -179,10 +177,6 @@ public class YarnFlinkResourceManagerTest {
 				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.EMPTY_LIST));
 
 				Future<Object> taskManagerRegisteredFuture = resourceManagerGateway.ask(new NotifyWhenResourcesRegistered(numInitialTaskManagers), deadline.timeLeft());
-
-				for (int i = 0; i < numInitialTaskManagers; i++) {
-					expectMsgClass(RegisterResourceSuccessful.class);
-				}
 
 				Await.ready(taskManagerRegisteredFuture, deadline.timeLeft());
 
@@ -197,7 +191,6 @@ public class YarnFlinkResourceManagerTest {
 				for (Container container: containerList) {
 					resourceManagerGateway.tell(
 						new RegisterResource(
-							leader1,
 							new RegistrationMessages.RegisterTaskManager(
 								YarnFlinkResourceManager.extractResourceID(container), null, null, 1)),
 						leader1Gateway);

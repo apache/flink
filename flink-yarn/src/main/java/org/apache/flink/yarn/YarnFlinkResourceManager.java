@@ -79,6 +79,9 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	/** The containers where a TaskManager is starting and we are waiting for it to register */
 	private final Map<ResourceID, YarnContainerInLaunch> containersInLaunch;
 
+	/** The container where a TaskManager has been started and is running in */
+	private final Map<ResourceID, Container> containersLaunched;
+
 	/** Containers we have released, where we are waiting for an acknowledgement that
 	 * they are released */
 	private final Map<ContainerId, Container> containersBeingReturned;
@@ -208,6 +211,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		this.nodeManagerClient = Preconditions.checkNotNull(nodeManagerClient);
 
 		this.containersInLaunch = new HashMap<>();
+		this.containersLaunched = new HashMap<>();
 		this.containersBeingReturned = new HashMap<>();
 	}
 
@@ -359,6 +363,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 	@Override
 	protected void releaseRegisteredWorker(RegisteredYarnWorkerNode worker) {
+		containersLaunched.remove(worker.getResourceID());
+
 		releaseYarnContainer(worker.yarnContainer());
 	}
 
@@ -381,11 +387,18 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	}
 
 	@Override
-	protected RegisteredYarnWorkerNode workerRegistered(ResourceID resourceID) throws Exception {
+	protected RegisteredYarnWorkerNode workerRegistered(ResourceID resourceID) {
 		YarnContainerInLaunch inLaunch = containersInLaunch.remove(resourceID);
 		if (inLaunch == null) {
-			throw new Exception("Cannot register Worker - unknown resource id " + resourceID);
+			Container container = containersLaunched.get(resourceID);
+
+			if (container != null) {
+				return new RegisteredYarnWorkerNode(container);
+			} else {
+				return null;
+			}
 		} else {
+			containersLaunched.put(resourceID, inLaunch.container());
 			return new RegisteredYarnWorkerNode(inLaunch.container());
 		}
 	}
@@ -403,8 +416,12 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 				accepted.add(new RegisteredYarnWorkerNode(yci.container()));
 			}
 			else {
-				LOG.info("YARN container consolidation does not recognize TaskManager {}",
-					resourceID);
+				if (containersLaunched.containsKey(resourceID)) {
+					accepted.add(new RegisteredYarnWorkerNode(containersLaunched.get(resourceID)));
+				} else {
+					LOG.info("YARN container consolidation does not recognize TaskManager {}",
+						resourceID);
+				}
 			}
 		}
 		return accepted;
@@ -519,6 +536,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 							"Exit status: {}", id, exitStatus);
 					// we will trigger re-acquiring new containers at the end
 				} else {
+					containersLaunched.remove(id);
+
 					// failed registered worker
 					LOG.info("Container {} failed. Exit status: {}", id, exitStatus);
 

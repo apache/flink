@@ -35,7 +35,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
-public class TestingYarnFlinkResourcemanager extends YarnFlinkResourceManager {
+public class TestingYarnFlinkResourceManager extends YarnFlinkResourceManager {
 
 	private final PriorityQueue<Tuple2<Integer, ActorRef>> waitingQueue = new PriorityQueue<>(32, new Comparator<Tuple2<Integer, ActorRef>>() {
 		@Override
@@ -44,7 +44,7 @@ public class TestingYarnFlinkResourcemanager extends YarnFlinkResourceManager {
 		}
 	});
 
-	public TestingYarnFlinkResourcemanager(
+	public TestingYarnFlinkResourceManager(
 		Configuration flinkConfig,
 		YarnConfiguration yarnConfig,
 		LeaderRetrievalService leaderRetrievalService,

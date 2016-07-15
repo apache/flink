@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import akka.actor.ActorRef;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
@@ -28,17 +27,10 @@ import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 public class RegisterResource implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final ActorRef taskManager;
 	private final RegistrationMessages.RegisterTaskManager registerMessage;
 
-
-	public RegisterResource(ActorRef taskManager, RegistrationMessages.RegisterTaskManager registerMessage) {
-		this.taskManager = taskManager;
+	public RegisterResource(RegistrationMessages.RegisterTaskManager registerMessage) {
 		this.registerMessage = registerMessage;
-	}
-
-	public ActorRef getTaskManager() {
-		return taskManager;
 	}
 
 	public RegistrationMessages.RegisterTaskManager getRegisterMessage() {
@@ -48,7 +40,6 @@ public class RegisterResource implements RequiresLeaderSessionID, java.io.Serial
 	@Override
 	public String toString() {
 		return "RegisterResource{" +
-			"taskManager=" + taskManager +
 			", registerMessage=" + registerMessage +
 			'}';
 	}

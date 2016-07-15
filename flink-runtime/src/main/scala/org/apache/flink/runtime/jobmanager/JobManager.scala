@@ -362,37 +362,6 @@ class JobManager(
       // confirm registration and send known task managers with their resource ids
       sender ! decorateMessage(new RegisterResourceManagerSuccessful(self, taskManagerResources))
 
-    case msg: ReconnectResourceManager =>
-      log.debug(s"Resource manager reconnect: $msg")
-
-      /**
-        * In most cases, the ResourceManager handles the reconnect itself (due to leader change)
-        * but in case it doesn't we're sending a TriggerRegistrationAtJobManager message until we
-        * receive a registration of this or another ResourceManager.
-        */
-      def reconnectRepeatedly(): Unit = {
-        msg.resourceManager() ! decorateMessage(new TriggerRegistrationAtJobManager(self))
-        // try again after some delay
-        context.system.scheduler.scheduleOnce(2 seconds) {
-          self ! decorateMessage(msg)
-        }(context.dispatcher)
-      }
-
-      currentResourceManager match {
-        case Some(rm) if rm.equals(msg.resourceManager()) =>
-          // we should ditch the current resource manager
-          log.debug(s"Disconnecting resource manager $rm and forcing a reconnect.")
-          currentResourceManager = None
-          reconnectRepeatedly()
-        case Some(rm) =>
-          // we have registered with another ResourceManager in the meantime, stop sending
-          // TriggerRegistrationAtJobManager messages to the old ResourceManager
-        case None =>
-          log.warn(s"No resource manager ${msg.resourceManager()} connected. " +
-            s"Telling old ResourceManager to register again.")
-          reconnectRepeatedly()
-      }
-
     case msg @ RegisterTaskManager(
           resourceId,
           connectionInfo,
@@ -405,36 +374,13 @@ class JobManager(
 
       currentResourceManager match {
         case Some(rm) =>
-          val future = (rm ? decorateMessage(new RegisterResource(taskManager, msg)))(timeout)
-          future.onComplete {
-            case scala.util.Success(response) =>
-              // the resource manager is available and answered
-              self ! response
-            case scala.util.Failure(t) =>
-              t match {
-                case _: TimeoutException =>
-                  log.info("Attempt to register resource at ResourceManager timed out. Retrying")
-                case _ =>
-                  log.warn("Failure while asking ResourceManager for RegisterResource. Retrying", t)
-              }
-              // slow or unreachable resource manager, register anyway and let the rm reconnect
-              self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
-              self ! decorateMessage(new ReconnectResourceManager(rm))
-          }(context.dispatcher)
-
+          log.info(s"Register task manager $resourceId at the resource manager.")
+          rm ! decorateMessage(new RegisterResource(msg))
         case None =>
-          log.info("Task Manager Registration but not connected to ResourceManager")
-          // ResourceManager not yet available
-          // sending task manager information later upon ResourceManager registration
-          self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
+          log.info(s"Cannot register task manager $resourceId at resource manager.")
       }
 
-    case msg: RegisterResourceSuccessful =>
-
-      val originalMsg = msg.getRegistrationMessage
-      val taskManager = msg.getTaskManager
-
-      // ResourceManager knows about the resource, now let's try to register TaskManager
+      // ResourceManager is told about the resource, now let's try to register TaskManager
       if (instanceManager.isRegistered(taskManager)) {
         val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
 
@@ -446,10 +392,10 @@ class JobManager(
         try {
           val instanceID = instanceManager.registerTaskManager(
             taskManager,
-            originalMsg.resourceId,
-            originalMsg.connectionInfo,
-            originalMsg.resources,
-            originalMsg.numberOfSlots,
+            msg.resourceId,
+            msg.connectionInfo,
+            msg.resources,
+            msg.numberOfSlots,
             leaderSessionID.orNull)
 
           taskManager ! decorateMessage(
@@ -467,17 +413,6 @@ class JobManager(
               RefuseRegistration(e))
         }
       }
-
-    case msg: RegisterResourceFailed =>
-
-      val taskManager = msg.getTaskManager
-      val resourceId = msg.getResourceID
-      log.warn(s"TaskManager's resource id $resourceId failed to register at ResourceManager. " +
-        s"Refusing registration because of\n${msg.getMessage}.")
-
-      taskManager ! decorateMessage(
-        RefuseRegistration(new IllegalStateException(
-            s"Resource $resourceId not registered with resource manager.")))
 
     case msg: ResourceRemoved =>
       // we're being informed by the resource manager that a resource has become unavailable

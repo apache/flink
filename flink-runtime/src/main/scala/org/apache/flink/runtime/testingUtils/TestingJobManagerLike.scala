@@ -22,7 +22,6 @@ import akka.actor.{ActorRef, Cancellable, Terminated}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.FlinkActor
-import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSuccessful
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
@@ -339,7 +338,7 @@ trait TestingJobManagerLike extends FlinkActor {
       }
 
     // TaskManager may be registered on these two messages
-    case msg @ (_: RegisterTaskManager | _: RegisterResourceSuccessful) =>
+    case msg @ (_: RegisterTaskManager) =>
       super.handleMessage(msg)
 
       // dequeue all senders which wait for instanceManager.getNumberOfRegisteredTaskManagers or
