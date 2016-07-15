@@ -603,7 +603,7 @@ class TaskManager(
             )
 
             // the next timeout computes via exponential backoff with cap
-            val nextTimeout = (timeout * 2).min(TaskManager.MAX_REGISTRATION_TIMEOUT)
+            val nextTimeout = (timeout * 2).min(config.maxRegistrationPause)
 
             // schedule (with our timeout s delay) a check triggers a new registration
             // attempt, if we are not registered by then
@@ -677,7 +677,7 @@ class TaskManager(
 
           if(jobManagerAkkaURL.isDefined) {
             // try the registration again after some time
-            val delay: FiniteDuration = TaskManager.DELAY_AFTER_REFUSED_REGISTRATION
+            val delay: FiniteDuration = config.refusedRegistrationPause
             val deadline: Option[Deadline] = config.maxRegistrationDuration.map {
               timeout => timeout + delay fromNow
             }
@@ -692,7 +692,7 @@ class TaskManager(
                 self ! decorateMessage(
                   TriggerTaskManagerRegistration(
                     jobManagerAkkaURL.get,
-                    TaskManager.INITIAL_REGISTRATION_TIMEOUT,
+                    config.initialRegistrationPause,
                     deadline,
                     1,
                     currentRegistrationRun)
@@ -1387,7 +1387,7 @@ class TaskManager(
       self ! decorateMessage(
         TriggerTaskManagerRegistration(
           jobManagerAkkaURL.get,
-          TaskManager.INITIAL_REGISTRATION_TIMEOUT,
+          config.initialRegistrationPause,
           deadline,
           1,
           currentRegistrationRun)
@@ -1437,13 +1437,6 @@ object TaskManager {
   /** Time (milli seconds) after which the TaskManager will start logging failed
     * connection attempts */
   val STARTUP_CONNECT_LOG_SUPPRESS = 10000L
-
-  /** The initial time for registration of the TaskManager with the JobManager */
-  val INITIAL_REGISTRATION_TIMEOUT: FiniteDuration = 500 milliseconds
-  /** The maximum time for registration of the TaskManager with the JobManager */
-  val MAX_REGISTRATION_TIMEOUT: FiniteDuration = 30 seconds
-
-  val DELAY_AFTER_REFUSED_REGISTRATION: FiniteDuration = 10 seconds
 
   val HEARTBEAT_INTERVAL: FiniteDuration = 5000 milliseconds
 
@@ -2142,13 +2135,67 @@ object TaskManager {
         e)
     }
 
+    val initialRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The initial registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
+    val maxRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_MAX_REGISTARTION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The maximum registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
+    val refusedRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The refused registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
     val taskManagerConfig = TaskManagerConfiguration(
       tmpDirs,
       cleanupInterval,
       timeout,
       finiteRegistrationDuration,
       slots,
-      configuration)
+      configuration,
+      initialRegistrationPause,
+      maxRegistrationPause,
+      refusedRegistrationPause)
 
     (taskManagerConfig, networkConfig, connectionInfo, memType)
   }

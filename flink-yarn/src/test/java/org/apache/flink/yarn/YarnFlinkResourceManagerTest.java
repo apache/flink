@@ -88,7 +88,7 @@ public class YarnFlinkResourceManagerTest {
 	public void testYarnFlinkResourceManagerJobManagerLostLeadership() throws Exception {
 		new JavaTestKit(system) {{
 
-			Deadline deadline = new FiniteDuration(30, TimeUnit.SECONDS).fromNow();
+			final Deadline deadline = new FiniteDuration(30, TimeUnit.SECONDS).fromNow();
 
 			Configuration flinkConfig = new Configuration();
 			YarnConfiguration yarnConfig = new YarnConfiguration();
@@ -172,7 +172,7 @@ public class YarnFlinkResourceManagerTest {
 					}
 				}).when(nodeManagerClient).startContainer(Matchers.any(Container.class), Matchers.any(ContainerLaunchContext.class));
 
-				expectMsgClass(RegisterResourceManager.class);
+				expectMsgClass(deadline.timeLeft(), RegisterResourceManager.class);
 
 				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.EMPTY_LIST));
 
@@ -184,7 +184,7 @@ public class YarnFlinkResourceManagerTest {
 
 				leaderRetrievalService.notifyListener(leader1.path().toString(), leaderSessionID);
 
-				expectMsgClass(RegisterResourceManager.class);
+				expectMsgClass(deadline.timeLeft(), RegisterResourceManager.class);
 
 				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.EMPTY_LIST));
 

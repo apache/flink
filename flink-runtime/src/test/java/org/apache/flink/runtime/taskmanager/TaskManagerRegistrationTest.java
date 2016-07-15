@@ -50,6 +50,7 @@ import scala.Option;
 import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
+import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -286,14 +287,18 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				jm = TestingUtils.createForwardingActor(actorSystem, getTestActor(), Option.<String>empty());
 				final ActorGateway jmGateway = jm;
 
+				FiniteDuration refusedRegistrationPause = new FiniteDuration(500, TimeUnit.MILLISECONDS);
+				Configuration tmConfig = new Configuration(config);
+				tmConfig.setString(ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE, refusedRegistrationPause.toString());
+
 				// we make the test actor (the test kit) the JobManager to intercept
 				// the messages
 				taskManager = createTaskManager(
-						actorSystem,
-						jmGateway,
-						config,
-						true,
-						false);
+					actorSystem,
+					jmGateway,
+					tmConfig,
+					true,
+					false);
 
 				final ActorGateway taskManagerGateway = taskManager;
 
@@ -312,8 +317,10 @@ public class TaskManagerRegistrationTest extends TestLogger {
 					}
 				};
 
+
+
 				// the TaskManager should wait a bit an retry...
-				FiniteDuration maxDelay = (FiniteDuration) TaskManager.DELAY_AFTER_REFUSED_REGISTRATION().$times(2.0);
+				FiniteDuration maxDelay = (FiniteDuration) refusedRegistrationPause.$times(3.0);
 				new Within(maxDelay) {
 
 					@Override
@@ -325,6 +332,94 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			catch (Throwable e) {
 				e.printStackTrace();
 				fail(e.getMessage());
+			} finally {
+				stopActor(taskManager);
+				stopActor(jm);
+			}
+		}};
+	}
+
+	/**
+	 * Tests that the TaskManager does not send an excessive amount of registration messages to
+	 * the job manager if its registration was rejected.
+	 */
+	@Test
+	public void testTaskManagerNoExcessiveRegistrationMessages() throws Exception {
+		new JavaTestKit(actorSystem) {{
+			ActorGateway jm = null;
+			ActorGateway taskManager =null;
+			try {
+				FiniteDuration timeout = new FiniteDuration(5, TimeUnit.SECONDS);
+
+				jm = TestingUtils.createForwardingActor(actorSystem, getTestActor(), Option.<String>empty());
+				final ActorGateway jmGateway = jm;
+
+				long refusedRegistrationPause = 500;
+				long initialRegistrationPause = 100;
+				long maxDelay = 30000;
+
+				Configuration tmConfig = new Configuration(config);
+				tmConfig.setString(ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE, refusedRegistrationPause + " ms");
+				tmConfig.setString(ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE, initialRegistrationPause + " ms");
+
+				// we make the test actor (the test kit) the JobManager to intercept
+				// the messages
+				taskManager = createTaskManager(
+					actorSystem,
+					jmGateway,
+					tmConfig,
+					true,
+					false);
+
+				final ActorGateway taskManagerGateway = taskManager;
+
+				final Deadline deadline = timeout.fromNow();
+
+				try {
+					while (deadline.hasTimeLeft()) {
+						// the TaskManager should try to register
+						expectMsgClass(deadline.timeLeft(), RegisterTaskManager.class);
+
+						// we decline the registration
+						taskManagerGateway.tell(
+							new RefuseRegistration(new Exception("test reason")),
+							jmGateway);
+					}
+				} catch (AssertionError error) {
+					// ignore since it simply means that we have used up all our time
+				}
+
+				RegisterTaskManager[] registerTaskManagerMessages = new ReceiveWhile<RegisterTaskManager>(RegisterTaskManager.class, timeout) {
+					@Override
+					protected RegisterTaskManager match(Object msg) throws Exception {
+						if (msg instanceof RegisterTaskManager) {
+							return (RegisterTaskManager) msg;
+						} else {
+							throw noMatch();
+						}
+					}
+				}.get();
+
+				int maxExponent = (int) Math.floor(Math.log(((double) maxDelay / initialRegistrationPause + 1))/Math.log(2));
+				int exponent = (int) Math.ceil(Math.log(((double) timeout.toMillis() / initialRegistrationPause + 1))/Math.log(2));
+
+				int exp = Math.min(maxExponent, exponent);
+
+				long difference = timeout.toMillis() - (initialRegistrationPause * (1 << exp));
+
+				int numberRegisterTaskManagerMessages = exp;
+
+				if (difference > 0) {
+					numberRegisterTaskManagerMessages += Math.ceil((double) difference / maxDelay);
+				}
+
+				int maxExpectedNumberOfRegisterTaskManagerMessages = numberRegisterTaskManagerMessages * 2;
+
+				assertTrue("The number of RegisterTaskManager messages #"
+					+ registerTaskManagerMessages.length
+					+ " should be less than #"
+					+ maxExpectedNumberOfRegisterTaskManagerMessages,
+					registerTaskManagerMessages.length <= maxExpectedNumberOfRegisterTaskManagerMessages);
 			} finally {
 				stopActor(taskManager);
 				stopActor(jm);
