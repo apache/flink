@@ -30,8 +30,8 @@ import java.util.UUID;
  */
 public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 
-	private final String leaderAddress;
-	private final UUID leaderSessionID;
+	private String leaderAddress;
+	private UUID leaderSessionID;
 
 	private LeaderRetrievalListener listener;
 
@@ -59,6 +59,9 @@ public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 	}
 
 	public void notifyListener(String address, UUID leaderSessionID) {
+		this.leaderAddress = address;
+		this.leaderSessionID = leaderSessionID;
+
 		if (listener != null) {
 			listener.notifyLeaderAddress(address, leaderSessionID);
 		}
