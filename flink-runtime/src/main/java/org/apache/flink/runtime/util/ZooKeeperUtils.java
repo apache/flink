@@ -25,8 +25,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
@@ -169,7 +169,6 @@ public class ZooKeeperUtils {
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderElectionService} instance.
-	 * @return {@link ZooKeeperLeaderElectionService} instance.
 	 * @throws Exception
 	 */
 	public static ZooKeeperLeaderElectionService createLeaderElectionService(
@@ -292,11 +291,11 @@ public class ZooKeeperUtils {
 	}
 
 	private static String generateZookeeperPath(String root, String namespace) {
-		if(!namespace.startsWith("/")) {
+		if (!namespace.startsWith("/")) {
 			namespace = "/" + namespace;
 		}
 
-		if(namespace.endsWith("/")) {
+		if (namespace.endsWith("/")) {
 			namespace = namespace.substring(0, namespace.length() - 1);
 		}
 

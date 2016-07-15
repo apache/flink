@@ -426,7 +426,7 @@ public class YarnApplicationMasterRunner {
 
 		// override zookeeper namespace with user cli argument (if provided)
 		String cliZKNamespace = ENV.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);
-		if(cliZKNamespace != null && !cliZKNamespace.isEmpty()) {
+		if (cliZKNamespace != null && !cliZKNamespace.isEmpty()) {
 			configuration.setString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, cliZKNamespace);
 		}
 
