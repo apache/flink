@@ -18,39 +18,20 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import akka.actor.ActorRef;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * Answer to RegisterResource to indicate that the requested resource is unknown.
- * Sent by the ResourceManager to the JobManager.
+ * Notifies the ResourceManager that a TaskManager has been started in a container with the given
+ * resource id.
  */
-public class RegisterResourceFailed implements RequiresLeaderSessionID, java.io.Serializable {
+public class NotifyResourceStarted implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	/** Task Manager which tried to register */
-	private final ActorRef taskManager;
-
-	/** The id of the task manager resource */
 	private final ResourceID resourceID;
 
-	/** Error message */
-	private final String message;
-
-	public RegisterResourceFailed(ActorRef taskManager, ResourceID resourceId, String message) {
-		this.taskManager = taskManager;
-		this.resourceID = resourceId;
-		this.message = message;
-	}
-
-
-	public String getMessage() {
-		return message;
-	}
-
-	public ActorRef getTaskManager() {
-		return taskManager;
+	public NotifyResourceStarted(ResourceID resourceID) {
+		this.resourceID = resourceID;
 	}
 
 	public ResourceID getResourceID() {
@@ -59,10 +40,8 @@ public class RegisterResourceFailed implements RequiresLeaderSessionID, java.io.
 
 	@Override
 	public String toString() {
-		return "RegisterResourceFailed{" +
-			"taskManager=" + taskManager +
+		return "NotifyResourceStarted{" +
 			", resourceID=" + resourceID +
-			", message='" + message + '\'' +
 			'}';
 	}
 }

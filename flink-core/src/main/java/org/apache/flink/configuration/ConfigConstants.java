@@ -243,9 +243,26 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
 
 	/**
-	 *
+	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
+	 * exceeded without a successful registration, then the TaskManager terminates.
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
+
+	/**
+	 * The initial registration pause between two consecutive registration attempts. The pause
+	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
+	 */
+	public static final String TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "taskmanager.initial-registration-pause";
+
+	/**
+	 * The maximum registration pause between two consecutive registration attempts.
+	 */
+	public static final String TASK_MANAGER_MAX_REGISTARTION_PAUSE = "taskmanager.max-registration-pause";
+
+	/**
+	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 */
+	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
 	 * Time interval between two successive task cancellation attempts in milliseconds.
@@ -786,6 +803,21 @@ public final class ConfigConstants {
 	 * The default task manager's maximum registration duration
 	 */
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
+
+	/**
+	 * The default task manager's initial registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "500 ms";
+
+	/**
+	 * The default task manager's maximum registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE = "30 s";
+
+	/**
+	 * The default task manager's refused registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "10 s";
 
 	/**
 	 * The default setting for TaskManager memory eager allocation of managed memory
