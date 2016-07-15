@@ -64,8 +64,11 @@ mkdir -p "$FLINK_PID_DIR"
 # The lock is created on the PID directory since a lock file cannot be safely
 # removed. The daemon is started with the lock closed and the lock remains
 # active in this script until the script exits.
-exec 200<"$FLINK_PID_DIR"
-flock -x 200
+command -v flock >/dev/null 2>&1
+if [[ $? -eq 0 ]]; then
+    exec 200<"$FLINK_PID_DIR"
+    flock 200
+fi
 
 # Ascending ID depending on number of lines in pid file.
 # This allows us to start multiple daemon of each type.
