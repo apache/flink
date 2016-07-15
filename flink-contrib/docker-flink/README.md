@@ -10,9 +10,8 @@ https://docs.docker.com/compose/install/
 
 # Build
 
-Images are based on the official Java Alpine (OpenJDK 8) image and run
-supervisord to stay alive when running containers. If you want to build the
-flink image run:
+Images are based on the official Java Alpine (OpenJDK 8) image. If you want to
+build the flink image run:
 
     sh build.sh
 

@@ -19,10 +19,7 @@
 FROM java:8-jre-alpine
 
 # Install requirements
-RUN apk add --no-cache bash snappy supervisor
-
-# Configure supervisor
-ADD supervisor.conf /etc/supervisor/
+RUN apk add --no-cache bash snappy
 
 # Configure Flink version
 ARG FLINK_VERSION=1.0.3
@@ -36,6 +33,7 @@ RUN set -x && \
   awk '/preferred/ {gsub(/"/,""); print $2}')flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | \
   tar xvz -C /usr/local/ && \
   ln -s /usr/local/flink-$FLINK_VERSION /usr/local/flink && \
+  sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" /usr/local/flink/bin/flink-daemon.sh && \
   apk del build-dependencies && \
   rm -rf /var/cache/apk/*
 
