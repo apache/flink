@@ -24,6 +24,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-- Graph processing: [Gelly](gelly_guide.html)
+- Graph processing: [Gelly](gelly/index.html)
 - Machine Learning: [FlinkML](ml/index.html)
 - Relational Queries: [Table and SQL](table.html)
