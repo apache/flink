@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a Flink daemon.
-USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (jobmanager|taskmanager|zookeeper) [args]"
+USAGE="Usage: flink-daemon.sh (start|start-foreground|stop|stop-all) (jobmanager|taskmanager|zookeeper) [args]"
 
 STARTSTOP=$1
 DAEMON=$2
@@ -77,31 +77,36 @@ if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
 fi
 
 case $STARTSTOP in
+    (start|start-foreground)
+      # Rotate log files
+      rotateLogFile $log
+      rotateLogFile $out
 
-    (start)
-        # Rotate log files
-        rotateLogFile $log
-        rotateLogFile $out
-
-        # Print a warning if daemons are already running on host
-        if [ -f $pid ]; then
-          active=()
-          while IFS='' read -r p || [[ -n "$p" ]]; do
-            kill -0 $p >/dev/null 2>&1
-            if [ $? -eq 0 ]; then
-              active+=($p)
-            fi
-          done < "${pid}"
-
-          count="${#active[@]}"
-
-          if [ ${count} -gt 0 ]; then
-            echo "[INFO] $count instance(s) of $DAEMON are already running on $HOSTNAME."
+      # Print a warning if daemons are already running on host
+      if [ -f $pid ]; then
+        active=()
+        while IFS='' read -r p || [[ -n "$p" ]]; do
+          kill -0 $p >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            active+=($p)
           fi
-        fi
+        done < "${pid}"
 
+        count="${#active[@]}"
+
+        if [ ${count} -gt 0 ]; then
+          echo "[INFO] $count instance(s) of $DAEMON are already running on $HOSTNAME."
+        fi
+      fi
+
+      if [[ $STARTSTOP == "start-foreground" ]]; then
+        echo "Starting $DAEMON as a foreground process on host $HOSTNAME."
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 2>&1 < /dev/null
+      fi
+
+      if [[ $STARTSTOP == "start" ]]; then
         echo "Starting $DAEMON daemon on host $HOSTNAME."
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 2>&1 < /dev/null &
+        nohup $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 2>&1 < /dev/null &
 
         mypid=$!
 
@@ -112,6 +117,7 @@ case $STARTSTOP in
             echo "Error starting $DAEMON daemon."
             exit 1
         fi
+      fi
     ;;
 
     (stop)
