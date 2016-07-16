@@ -26,7 +26,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws.amazon.com/kinesis/streams/).
+The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws.amazon.com/kinesis/streams/). 
 
 To use the connector, add the following Maven dependency to your project:
 
@@ -50,7 +50,7 @@ mvn clean install -Pinclude-kinesis -DskipTests
 {% endhighlight %}
 
 
-The streaming connectors are not part of the binary distribution. See how to link with them for cluster
+The streaming connectors are not part of the binary distribution. See how to link with them for cluster 
 execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 ### Using the Amazon Kinesis Streams Service
@@ -231,8 +231,8 @@ consumer when calling this API can also be modified by using the other keys pref
 ### Kinesis Producer
 
 The `FlinkKinesisProducer` is used for putting data from a Flink stream into a Kinesis stream. Note that the producer is not participating in
-Flink's checkpointing and doesn't provide exactly-once processing guarantees.
-Also, the Kinesis producer does not guarantee that records are written in order to the shards (See [here](https://github.com/awslabs/amazon-kinesis-producer/issues/23) and [here](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecord.html#API_PutRecord_RequestSyntax) for more details).
+Flink's checkpointing and doesn't provide exactly-once processing guarantees. 
+Also, the Kinesis producer does not guarantee that records are written in order to the shards (See [here](https://github.com/awslabs/amazon-kinesis-producer/issues/23) and [here](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecord.html#API_PutRecord_RequestSyntax) for more details). 
 
 In case of a failure or a resharding, data will be written again to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
 
@@ -278,13 +278,13 @@ simpleStringStream.addSink(kinesis);
 The above is a simple example of using the producer. Configuration for the producer with the mandatory configuration values is supplied with a `java.util.Properties`
 instance as described above for the consumer. The example demonstrates producing a single Kinesis stream in the AWS region "us-east-1".
 
-Instead of a `SerializationSchema`, it also supports a `KinesisSerializationSchema`. The `KinesisSerializationSchema` allows to send the data to multiple streams. This is
+Instead of a `SerializationSchema`, it also supports a `KinesisSerializationSchema`. The `KinesisSerializationSchema` allows to send the data to multiple streams. This is 
 done using the `KinesisSerializationSchema.getTargetStream(T element)` method. Returning `null` there will instruct the producer to write the element to the default stream.
 Otherwise, the returned stream name is used.
 
 Other optional configuration keys for the producer can be found in `ProducerConfigConstants`.
-
-
+		
+		
 ### Using Non-AWS Kinesis Endpoints for Testing
 
 It is sometimes desirable to have Flink operate as a consumer or producer against a non-AWS Kinesis endpoint such as
