@@ -51,13 +51,14 @@ public class AWSUtil {
 			" (" + EnvironmentInformation.getRevisionInformation().commitId + ") Kinesis Connector");
 
 		AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(configProps);
-
+		AmazonKinesisClient client;
 		if (credentialsProvider != null) {
 			AmazonKinesisClient client =
 				new AmazonKinesisClient(credentialsProvider.getCredentials(), awsClientConfig);
 		} else {
 			AmazonKinesisClient client = new AmazonKinesisClient(awsClientConfig);
 		}
+
 		client.setRegion(Region.getRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION))));
 		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
 			client.setEndpoint(configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT));
