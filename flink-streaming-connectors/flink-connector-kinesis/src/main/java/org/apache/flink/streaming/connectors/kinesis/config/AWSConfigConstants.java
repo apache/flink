@@ -42,7 +42,7 @@ public class AWSConfigConstants {
 		/** Simply create AWS credentials by supplying the AWS access key ID and AWS secret key in the configuration properties */
 		BASIC,
 
-		/** Don't supply AWS credentials and rely on the AWS library auto-detecting, which supports ENV vars and AWS MetaData **/
+		/** A credentials provider chain will be used that searches for credentials in this order: ENV_VARS, SYS_PROPS, PROFILE in the AWS instance metadata **/
 		AUTO,
 	}
 
