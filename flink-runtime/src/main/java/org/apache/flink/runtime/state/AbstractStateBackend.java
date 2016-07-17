@@ -480,5 +480,10 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 		public long getStateSize() throws Exception {
 			return stream.getStateSize();
 		}
+
+		@Override
+		public void close() throws IOException {
+			stream.close();
+		}
 	}
 }

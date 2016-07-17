@@ -47,7 +47,7 @@ public class GangliaReporter extends ScheduledDropwizardReporter {
 				throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
 			}
 			String addressingMode = config.getString(ARG_MODE_ADDRESSING, "MULTICAST");
-			int ttl = config.getInteger(ARG_TTL, -1);
+			int ttl = config.getInteger(ARG_TTL, 1);
 			GMetric gMetric = new GMetric(host, port, GMetric.UDPAddressingMode.valueOf(addressingMode), ttl);
 
 			String prefix = config.getString(ARG_PREFIX, null);

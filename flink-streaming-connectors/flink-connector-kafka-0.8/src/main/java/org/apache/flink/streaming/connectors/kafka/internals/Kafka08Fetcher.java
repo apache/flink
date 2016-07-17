@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import kafka.common.TopicAndPartition;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.kafka.common.Node;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -65,11 +67,8 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	/** The properties that configure the Kafka connection */
 	private final Properties kafkaConfig;
 
-	/** The task name, to give more readable names to the spawned threads */
-	private final String taskName;
-
-	/** The class loader for dynamically loaded classes */
-	private final ClassLoader userCodeClassLoader;
+	/** The subtask's runtime context */
+	private final RuntimeContext runtimeContext;
 
 	/** The queue of partitions that are currently not assigned to a broker connection */
 	private final ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> unassignedPartitionsQueue;
@@ -78,7 +77,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	private final long invalidOffsetBehavior;
 
 	/** The interval in which to automatically commit (-1 if deactivated) */
-	private final long autoCommitInterval; 
+	private final long autoCommitInterval;
 
 	/** The handler that reads/writes offsets from/to ZooKeeper */
 	private volatile ZookeeperOffsetHandler zookeeperOffsetHandler;
@@ -96,14 +95,14 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long invalidOffsetBehavior,
-			long autoCommitInterval) throws Exception
+			long autoCommitInterval,
+			boolean useMetrics) throws Exception
 	{
-		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext);
+		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, useMetrics);
 
 		this.deserializer = checkNotNull(deserializer);
 		this.kafkaConfig = checkNotNull(kafkaProperties);
-		this.taskName = runtimeContext.getTaskNameWithSubtasks();
-		this.userCodeClassLoader = runtimeContext.getUserCodeClassLoader();
+		this.runtimeContext = runtimeContext;
 		this.invalidOffsetBehavior = invalidOffsetBehavior;
 		this.autoCommitInterval = autoCommitInterval;
 		this.unassignedPartitionsQueue = new ClosableBlockingQueue<>();
@@ -159,6 +158,12 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				periodicCommitter.setName("Periodic Kafka partition offset committer");
 				periodicCommitter.setDaemon(true);
 				periodicCommitter.start();
+			}
+
+			// register offset metrics
+			if (useMetrics) {
+				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
+				addOffsetStateGauge(kafkaMetricGroup);
 			}
 
 			// Main loop polling elements from the unassignedPartitions queue to the threads
@@ -324,6 +329,15 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		if (zkHandler != null) {
 			zkHandler.writeOffsets(offsets);
 		}
+
+		// Set committed offsets in topic partition state
+		KafkaTopicPartitionState<TopicAndPartition>[] partitions = subscribedPartitions();
+		for (KafkaTopicPartitionState<TopicAndPartition> partition : partitions) {
+			Long offset = offsets.get(partition.getKafkaTopicPartition());
+			if (offset != null) {
+				partition.setCommittedOffset(offset);
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -338,7 +352,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		// each thread needs its own copy of the deserializer, because the deserializer is
 		// not necessarily thread safe
 		final KeyedDeserializationSchema<T> clonedDeserializer =
-				InstantiationUtil.clone(deserializer, userCodeClassLoader);
+				InstantiationUtil.clone(deserializer, runtimeContext.getUserCodeClassLoader());
 
 		// seed thread with list of fetch partitions (otherwise it would shut down immediately again
 		SimpleConsumerThread<T> brokerThread = new SimpleConsumerThread<>(
@@ -346,7 +360,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				clonedDeserializer, invalidOffsetBehavior);
 
 		brokerThread.setName(String.format("SimpleConsumer - %s - broker-%s (%s:%d)",
-				taskName, leader.id(), leader.host(), leader.port()));
+				runtimeContext.getTaskName(), leader.id(), leader.host(), leader.port()));
 		brokerThread.setDaemon(true);
 		brokerThread.start();
 

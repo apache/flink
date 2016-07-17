@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -46,4 +47,7 @@ public class LocalStateHandle<T extends Serializable> implements StateHandle<T> 
 	public long getStateSize() {
 		return 0;
 	}
+
+	@Override
+	public void close() throws IOException {}
 }

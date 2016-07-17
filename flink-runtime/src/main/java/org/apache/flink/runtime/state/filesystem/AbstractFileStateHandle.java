@@ -20,18 +20,20 @@ package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.AbstractCloseableHandle;
+import org.apache.flink.runtime.state.StateObject;
 
 import java.io.IOException;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for state that is stored in a file.
  */
-public abstract class AbstractFileStateHandle implements java.io.Serializable {
-	
+public abstract class AbstractFileStateHandle extends AbstractCloseableHandle implements StateObject {
+
 	private static final long serialVersionUID = 350284443258002355L;
-	
+
 	/** The path to the file in the filesystem, fully describing the file system */
 	private final Path filePath;
 
@@ -44,7 +46,7 @@ public abstract class AbstractFileStateHandle implements java.io.Serializable {
 	 * @param filePath The path to the file that stores the state.
 	 */
 	protected AbstractFileStateHandle(Path filePath) {
-		this.filePath = requireNonNull(filePath);
+		this.filePath = checkNotNull(filePath);
 	}
 
 	/**
@@ -61,6 +63,7 @@ public abstract class AbstractFileStateHandle implements java.io.Serializable {
 	 * 
 	 * @throws Exception Thrown, if the file deletion (not the directory deletion) fails.
 	 */
+	@Override
 	public void discardState() throws Exception {
 		getFileSystem().delete(filePath, false);
 

@@ -1812,7 +1812,7 @@ class JobManager(
     val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
 
     for (garbageCollector <- garbageCollectors.asScala) {
-      val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
+      val gcGroup = metrics.addGroup(garbageCollector.getName)
       gcGroup.gauge[Long, Gauge[Long]]("Count", new Gauge[Long] {
         override def getValue: Long = garbageCollector.getCollectionCount
       })

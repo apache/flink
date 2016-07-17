@@ -358,7 +358,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 	}
 
 	@Override
-	public AbstractInvokable getOwningNepheleTask() {
+	public AbstractInvokable getContainingTask() {
 		return this.owner;
 	}
 

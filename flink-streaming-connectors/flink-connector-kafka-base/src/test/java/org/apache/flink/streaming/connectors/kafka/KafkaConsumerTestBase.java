@@ -40,6 +40,7 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.table.StreamTableEnvironment;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
@@ -51,6 +52,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -66,6 +68,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -96,8 +99,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -108,6 +114,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1173,12 +1180,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		producerProperties.setProperty("retries", "3");
 		kvStream.addSink(kafkaServer.getProducer(topic, schema, producerProperties, null));
 
-		JobExecutionResult result = env.execute("Write deletes to Kafka");
-
-		Map<String, Object> accuResults = result.getAllAccumulatorResults();
-		// there are 37 accumulator results in Kafka 0.9
-		// and 34 in Kafka 0.8
-		Assert.assertTrue("Not enough accumulators from Kafka Producer: " + accuResults.size(), accuResults.size() > 33);
+		env.execute("Write deletes to Kafka");
 
 		// ----------- Read the data again -------------------
 
@@ -1209,12 +1211,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Test that ensures that DeserializationSchema.isEndOfStream() is properly evaluated
-	 * and that the metrics for the consumer are properly reported.
+	 * Test that ensures that DeserializationSchema.isEndOfStream() is properly evaluated.
 	 *
 	 * @throws Exception
 	 */
-	public void runMetricsAndEndOfStreamTest() throws Exception {
+	public void runEndOfStreamTest() throws Exception {
 
 		final int ELEMENT_COUNT = 300;
 		final String topic = writeSequence("testEndOfStream", ELEMENT_COUNT, 1, 1);
@@ -1235,14 +1236,126 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		JobExecutionResult result = tryExecute(env1, "Consume " + ELEMENT_COUNT + " elements from Kafka");
 
-		Map<String, Object> accuResults = result.getAllAccumulatorResults();
-		// kafka 0.9 consumer: 39 results
-		if (kafkaServer.getVersion().equals("0.9")) {
-			assertTrue("Not enough accumulators from Kafka Consumer: " + accuResults.size(), accuResults.size() > 38);
+		deleteTestTopic(topic);
+	}
+
+	/**
+	 * Test metrics reporting for consumer
+	 *
+	 * @throws Exception
+	 */
+	public void runMetricsTest() throws Throwable {
+
+		// create a stream with 5 topics
+		final String topic = "metricsStream";
+		createTestTopic(topic, 5, 1);
+
+		final Tuple1<Throwable> error = new Tuple1<>(null);
+		Runnable job = new Runnable() {
+			@Override
+			public void run() {
+				try {
+					// start job writing & reading data.
+					final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+					env1.setParallelism(1);
+					env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+					env1.getConfig().disableSysoutLogging();
+					env1.disableOperatorChaining(); // let the source read everything into the network buffers
+
+					TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
+					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
+					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
+						@Override
+						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
+						}
+					});
+
+					DataStream<Tuple2<Integer, Integer>> fromGen = env1.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
+						boolean running = true;
+
+						@Override
+						public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+							int i = 0;
+							while (running) {
+								ctx.collect(Tuple2.of(i++, getRuntimeContext().getIndexOfThisSubtask()));
+								Thread.sleep(1);
+							}
+						}
+
+						@Override
+						public void cancel() {
+							running = false;
+						}
+					});
+
+					fromGen.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null));
+
+					env1.execute("Metrics test job");
+				} catch(Throwable t) {
+					LOG.warn("Got exception during execution", t);
+					if(!(t.getCause() instanceof JobCancellationException)) { // we'll cancel the job
+						error.f0 = t;
+					}
+				}
+			}
+		};
+		Thread jobThread = new Thread(job);
+		jobThread.start();
+
+		try {
+			// connect to JMX
+			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+			// wait until we've found all 5 offset metrics
+			Set<ObjectName> offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=current-offsets,*"), null);
+			while (offsetMetrics.size() < 5) { // test will time out if metrics are not properly working
+				if (error.f0 != null) {
+					// fail test early
+					throw error.f0;
+				}
+				offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=current-offsets,*"), null);
+				Thread.sleep(50);
+			}
+			Assert.assertEquals(5, offsetMetrics.size());
+			// we can't rely on the consumer to have touched all the partitions already
+			// that's why we'll wait until all five partitions have a positive offset.
+			// The test will fail if we never meet the condition
+			while (true) {
+				int numPosOffsets = 0;
+				// check that offsets are correctly reported
+				for (ObjectName object : offsetMetrics) {
+					Object offset = mBeanServer.getAttribute(object, "Value");
+					if((long) offset >= 0) {
+						numPosOffsets++;
+					}
+				}
+				if (numPosOffsets == 5) {
+					break;
+				}
+				// wait for the consumer to consume on all partitions
+				Thread.sleep(50);
+			}
+
+			// check if producer metrics are also available.
+			Set<ObjectName> producerMetrics = mBeanServer.queryNames(new ObjectName("*:key6=KafkaProducer,*"), null);
+			Assert.assertTrue("No producer metrics found", producerMetrics.size() > 30);
+
+
+			LOG.info("Found all JMX metrics. Cancelling job.");
+		} finally {
+			// cancel
+			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		}
+
+		while (jobThread.isAlive()) {
+			Thread.sleep(50);
+		}
+		if (error.f0 != null) {
+			throw error.f0;
 		}
 
 		deleteTestTopic(topic);
 	}
+
 
 	public static class FixedNumberDeserializationSchema implements DeserializationSchema<Tuple2<Integer, Integer>> {
 		

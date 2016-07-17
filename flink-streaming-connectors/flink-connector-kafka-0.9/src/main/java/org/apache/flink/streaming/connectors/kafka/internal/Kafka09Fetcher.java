@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
@@ -27,7 +28,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.ExceptionProxy;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
-import org.apache.flink.streaming.connectors.kafka.internals.metrics.DefaultKafkaMetricAccumulator;
+import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
@@ -73,9 +74,6 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	/** The maximum number of milliseconds to wait for a fetch batch */
 	private final long pollTimeout;
 
-	/** Flag whether to register Kafka metrics as Flink accumulators */
-	private final boolean forwardKafkaMetrics;
-
 	/** Mutex to guard against concurrent access to the non-threadsafe Kafka consumer */
 	private final Object consumerLock = new Object();
 
@@ -99,15 +97,14 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
-			boolean forwardKafkaMetrics) throws Exception
+			boolean useMetrics) throws Exception
 	{
-		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext);
+		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, useMetrics);
 
 		this.deserializer = deserializer;
 		this.runtimeContext = runtimeContext;
 		this.kafkaProperties = kafkaProperties;
 		this.pollTimeout = pollTimeout;
-		this.forwardKafkaMetrics = forwardKafkaMetrics;
 
 		// if checkpointing is enabled, we are not automatically committing to Kafka.
 		kafkaProperties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
@@ -178,23 +175,18 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		try {
 			consumer.assign(convertKafkaPartitions(subscribedPartitions()));
 
-			// register Kafka metrics to Flink accumulators
-			if (forwardKafkaMetrics) {
+			if (useMetrics) {
+				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
+				addOffsetStateGauge(kafkaMetricGroup);
+				// register Kafka metrics to Flink
 				Map<MetricName, ? extends Metric> metrics = consumer.metrics();
 				if (metrics == null) {
 					// MapR's Kafka implementation returns null here.
 					LOG.info("Consumer implementation does not support metrics");
 				} else {
-					// we have metrics, register them where possible
-					for (Map.Entry<MetricName, ? extends Metric> metric : metrics.entrySet()) {
-						String name = "KafkaConsumer-" + metric.getKey().name();
-						DefaultKafkaMetricAccumulator kafkaAccumulator =
-								DefaultKafkaMetricAccumulator.createFor(metric.getValue());
-
-						// best effort: we only add the accumulator if available.
-						if (kafkaAccumulator != null) {
-							runtimeContext.addAccumulator(name, kafkaAccumulator);
-						}
+					// we have Kafka metrics, register them
+					for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
+						kafkaMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
 					}
 				}
 			}
@@ -286,7 +278,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
 			Long offset = offsets.get(partition.getKafkaTopicPartition());
 			if (offset != null) {
-				offsetsToCommit.put(partition.getKafkaPartitionHandle(), new OffsetAndMetadata(offset, ""));
+				offsetsToCommit.put(partition.getKafkaPartitionHandle(), new OffsetAndMetadata(offset));
+				partition.setCommittedOffset(offset);
 			}
 		}
 

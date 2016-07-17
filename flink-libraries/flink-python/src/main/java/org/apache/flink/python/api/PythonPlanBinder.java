@@ -27,7 +27,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TupleCsvInputFormat;
-import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CoGroupRawOperator;
 import org.apache.flink.api.java.operators.CrossOperator.DefaultCross;
 import org.apache.flink.api.java.operators.Grouping;
@@ -274,7 +273,7 @@ public class PythonPlanBinder {
 	 */
 	protected enum Operation {
 		SOURCE_CSV, SOURCE_TEXT, SOURCE_VALUE, SOURCE_SEQ, SINK_CSV, SINK_TEXT, SINK_PRINT,
-		SORT, UNION, FIRST, DISTINCT, GROUPBY, AGGREGATE,
+		SORT, UNION, FIRST, DISTINCT, GROUPBY,
 		REBALANCE, PARTITION_HASH,
 		BROADCAST,
 		COGROUP, CROSS, CROSS_H, CROSS_T, FILTER, FLATMAP, GROUPREDUCE, JOIN, JOIN_H, JOIN_T, MAP, REDUCE, MAPPARTITION
@@ -314,9 +313,6 @@ public class PythonPlanBinder {
 					break;
 				case BROADCAST:
 					createBroadcastVariable(info);
-					break;
-				case AGGREGATE:
-					createAggregationOperation(info);
 					break;
 				case DISTINCT:
 					createDistinctOperation(info);
@@ -451,17 +447,6 @@ public class PythonPlanBinder {
 		c.setString(PLANBINDER_CONFIG_BCVAR_NAME_PREFIX + count, info.name);
 
 		op1.withParameters(c);
-	}
-
-	private void createAggregationOperation(PythonOperationInfo info) throws IOException {
-		DataSet op = (DataSet) sets.get(info.parentID);
-		AggregateOperator ao = op.aggregate(info.aggregates[0].agg, info.aggregates[0].field);
-
-		for (int x = 1; x < info.count; x++) {
-			ao = ao.and(info.aggregates[x].agg, info.aggregates[x].field);
-		}
-
-		sets.put(info.setID, ao.setParallelism(getParallelism(info)).name("Aggregation"));
 	}
 
 	@SuppressWarnings("unchecked")

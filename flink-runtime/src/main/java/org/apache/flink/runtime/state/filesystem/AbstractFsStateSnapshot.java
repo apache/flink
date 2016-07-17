@@ -27,7 +27,6 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +38,8 @@ import java.util.Map;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the state value.
  */
-public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD, FsStateBackend> {
+public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
+		extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD, FsStateBackend> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -95,9 +95,13 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 		}
 
 		// state restore
-		try (FSDataInputStream inStream = stateBackend.getFileSystem().open(getFilePath())) {
-			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(new DataInputStream(inStream));
+		ensureNotClosed();
 
+		try (FSDataInputStream inStream = stateBackend.getFileSystem().open(getFilePath())) {
+			// make sure the in-progress restore from the handle can be closed 
+			registerCloseable(inStream);
+
+			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(inStream);
 
 			final int numKeys = inView.readInt();
 			HashMap<N, Map<K, SV>> stateMap = new HashMap<>(numKeys);
@@ -114,7 +118,6 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 				}
 			}
 
-//			return new FsHeapValueState<>(stateBackend, keySerializer, namespaceSerializer, stateDesc, stateMap);
 			return createFsState(stateBackend, stateMap);
 		}
 		catch (Exception e) {

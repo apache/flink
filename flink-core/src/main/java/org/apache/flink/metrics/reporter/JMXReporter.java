@@ -167,7 +167,8 @@ public class JMXReporter implements MetricReporter {
 			// implementation error on our side
 			LOG.error("Metric did not comply with JMX MBean naming rules.", e);
 		} catch (InstanceAlreadyExistsException e) {
-			LOG.error("A metric with the name " + jmxName + " was already registered.", e);
+			LOG.debug("A metric with the name " + jmxName + " was already registered.", e);
+			LOG.error("A metric with the name " + jmxName + " was already registered.");
 		} catch (Throwable t) {
 			LOG.error("Failed to register metric", t);
 		}
