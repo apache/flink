@@ -72,7 +72,7 @@ public class PurgingTrigger<T, W extends Window> extends Trigger<T, W> {
 	@Override
 	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onMerge(window, ctx);
-		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
+		return triggerResult.isFire() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
 	}
 
 	@Override

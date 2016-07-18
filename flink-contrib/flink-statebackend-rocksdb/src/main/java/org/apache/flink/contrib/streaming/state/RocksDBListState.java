@@ -32,7 +32,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -94,7 +93,7 @@ public class RocksDBListState<K, N, V>
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 
 			if (valueBytes == null) {
-				return Collections.emptyList();
+				return null;
 			}
 
 			ByteArrayInputStream bais = new ByteArrayInputStream(valueBytes);
