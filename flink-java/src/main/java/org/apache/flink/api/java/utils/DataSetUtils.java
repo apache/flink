@@ -269,11 +269,9 @@ public final class DataSetUtils {
 	/**
 	 * Generate a stratified sample of DataSet.
 	 *
-	 * @param withReplacement whether element can be sampled multiple times.
-	 * @param fraction   probability that each element is chosen in each stratum, should be [0,1] without replacement,
-	 *                        and [0, ∞) with replacement. While fraction is larger than 1, the elements are
-	 *                        expected to be selected multi times into sample on average.
-	 * @return the sampled DataSet
+	 * @param withReplacement Whether element can be sampled multiple times.
+	 * @param fraction   The fraction is used to identify sample size in each stratum, should be [0,1]
+	 * @return The sampled DataSet
 	 */
 	public static <T> GroupReduceOperator<T, T> stratifiedSample(
 		DataSet <T> input,
@@ -286,12 +284,10 @@ public final class DataSetUtils {
 	/**
 	 * Generate a stratified sample of DataSet.
 	 *
-	 * @param withReplacement whether element can be sampled multiple times.
-	 * @param fraction   probability that each element is chosen in each stratum, should be [0,1] without replacement,
-	 *                        and [0, ∞) with replacement. While fraction is larger than 1, the elements are
-	 *                        expected to be selected multi times into sample on average.
-	 * @param seed            random number generator seed.
-	 * @return the sampled DataSet
+	 * @param withReplacement Whether element can be sampled multiple times.
+	 * @param fraction   The fraction is used to identify sample size in each stratum, should be [0,1]
+	 * @param seed            Random number generator seed.
+	 * @return The sampled DataSet
 	 */
 	public static <T> GroupReduceOperator<T, T> stratifiedSample(
 		DataSet <T> input,
