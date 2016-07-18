@@ -37,6 +37,7 @@ import org.apache.flink.api.java.functions.SampleWithFraction;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.PartitionOperator;
+import org.apache.flink.api.java.sampling.SimpleStratifiedSampler;
 import org.apache.flink.api.java.summarize.aggregation.SummaryAggregatorFactory;
 import org.apache.flink.api.java.summarize.aggregation.TupleSummaryAggregator;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -263,6 +264,42 @@ public final class DataSetUtils {
 		String callLocation = Utils.getCallLocationName();
 		SampleInCoordinator<T> sampleInCoordinator = new SampleInCoordinator<>(withReplacement, numSamples, seed);
 		return new GroupReduceOperator<>(mapPartitionOperator, input.getType(), sampleInCoordinator, callLocation);
+	}
+
+	/**
+	 * Generate a stratified sample of DataSet.
+	 *
+	 * @param withReplacement whether element can be sampled multiple times.
+	 * @param fraction   probability that each element is chosen in each stratum, should be [0,1] without replacement,
+	 *                        and [0, ∞) with replacement. While fraction is larger than 1, the elements are
+	 *                        expected to be selected multi times into sample on average.
+	 * @return the sampled DataSet
+	 */
+	public static <T> GroupReduceOperator<T, T> stratifiedSample(
+		DataSet <T> input,
+		final boolean withReplacement,
+		final double fraction) {
+
+		return stratifiedSample(input, withReplacement, fraction, Utils.RNG.nextLong());
+	}
+
+	/**
+	 * Generate a stratified sample of DataSet.
+	 *
+	 * @param withReplacement whether element can be sampled multiple times.
+	 * @param fraction   probability that each element is chosen in each stratum, should be [0,1] without replacement,
+	 *                        and [0, ∞) with replacement. While fraction is larger than 1, the elements are
+	 *                        expected to be selected multi times into sample on average.
+	 * @param seed            random number generator seed.
+	 * @return the sampled DataSet
+	 */
+	public static <T> GroupReduceOperator<T, T> stratifiedSample(
+		DataSet <T> input,
+		final boolean withReplacement,
+		final double fraction,
+		final long seed) {
+
+		return input.reduceGroup(new SimpleStratifiedSampler<T>(withReplacement, fraction, seed));
 	}
 
 	// --------------------------------------------------------------------------------------------
