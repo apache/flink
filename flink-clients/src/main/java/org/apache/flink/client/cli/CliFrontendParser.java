@@ -73,7 +73,7 @@ public class CliFrontendParser {
 			"Path to a savepoint to reset the job back to (for example file:///flink/savepoint-1537).");
 
 	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
-			"Disposes an existing savepoint.");
+			"Path of savepoint to dispose.");
 
 	// list specific options
 	static final Option RUNNING_OPTION = new Option("r", "running", false,
@@ -112,9 +112,6 @@ public class CliFrontendParser {
 
 		SAVEPOINT_PATH_OPTION.setRequired(false);
 		SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
-
-		SAVEPOINT_DISPOSE_OPTION.setRequired(false);
-		SAVEPOINT_DISPOSE_OPTION.setArgName("savepointPath");
 	}
 
 	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
@@ -195,6 +192,7 @@ public class CliFrontendParser {
 	private static Options getSavepointOptions(Options options) {
 		options = getJobManagerAddressOption(options);
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
+		options.addOption(JAR_OPTION);
 		return addCustomCliOptions(options, false);
 	}
 
@@ -234,6 +232,7 @@ public class CliFrontendParser {
 	private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
 		options = getJobManagerAddressOption(options);
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
+		options.addOption(JAR_OPTION);
 		return options;
 	}
 

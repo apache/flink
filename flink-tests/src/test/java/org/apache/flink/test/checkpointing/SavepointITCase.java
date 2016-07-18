@@ -30,6 +30,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
@@ -70,6 +71,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
@@ -345,7 +347,8 @@ public class SavepointITCase extends TestLogger {
 
 			LOG.info("Disposing savepoint " + savepointPath + ".");
 			Future<Object> disposeFuture = jobManager.ask(
-					new DisposeSavepoint(savepointPath), deadline.timeLeft());
+					new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty()),
+					deadline.timeLeft());
 
 			errMsg = "Failed to dispose savepoint " + savepointPath + ".";
 			Object resp = Await.result(disposeFuture, deadline.timeLeft());

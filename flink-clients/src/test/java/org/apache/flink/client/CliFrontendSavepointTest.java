@@ -18,20 +18,38 @@
 
 package org.apache.flink.client;
 
+import akka.dispatch.Futures;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
+import scala.Option;
+import scala.concurrent.Future;
 import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
+import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
+import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
+import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
+import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
+import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
+import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -42,6 +60,9 @@ public class CliFrontendSavepointTest {
 	private static PrintStream stdOut;
 	private static PrintStream stdErr;
 	private static ByteArrayOutputStream buffer;
+
+	@Rule
+	public TemporaryFolder tmp = new TemporaryFolder();
 
 	// ------------------------------------------------------------------------
 	// Trigger savepoint
@@ -58,14 +79,13 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.TriggerSavepoint(jobId)),
-					Mockito.any(FiniteDuration.class)))
+					Mockito.eq(new TriggerSavepoint(jobId)),
+					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
 			String savepointPath = "expectedSavepointPath";
 
-			triggerResponse.success(new JobManagerMessages
-					.TriggerSavepointSuccess(jobId, savepointPath));
+			triggerResponse.success(new TriggerSavepointSuccess(jobId, savepointPath));
 
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);
@@ -75,8 +95,8 @@ public class CliFrontendSavepointTest {
 
 			assertEquals(0, returnCode);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.TriggerSavepoint(jobId)),
-					Mockito.any(FiniteDuration.class));
+					Mockito.eq(new TriggerSavepoint(jobId)),
+					any(FiniteDuration.class));
 
 			assertTrue(buffer.toString().contains("expectedSavepointPath"));
 		}
@@ -96,14 +116,13 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.TriggerSavepoint(jobId)),
-					Mockito.any(FiniteDuration.class)))
+					Mockito.eq(new TriggerSavepoint(jobId)),
+					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
 			Exception testException = new Exception("expectedTestException");
 
-			triggerResponse.success(new JobManagerMessages
-					.TriggerSavepointFailure(jobId, testException));
+			triggerResponse.success(new TriggerSavepointFailure(jobId, testException));
 
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);
@@ -113,8 +132,8 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.TriggerSavepoint(jobId)),
-					Mockito.any(FiniteDuration.class));
+					Mockito.eq(new TriggerSavepoint(jobId)),
+					any(FiniteDuration.class));
 
 			assertTrue(buffer.toString().contains("expectedTestException"));
 		}
@@ -152,8 +171,8 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.TriggerSavepoint(jobId)),
-					Mockito.any(FiniteDuration.class)))
+					Mockito.eq(new TriggerSavepoint(jobId)),
+					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
 			triggerResponse.success("UNKNOWN RESPONSE");
@@ -166,8 +185,8 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.TriggerSavepoint(jobId)),
-					Mockito.any(FiniteDuration.class));
+					Mockito.eq(new TriggerSavepoint(jobId)),
+					any(FiniteDuration.class));
 
 			String errMsg = buffer.toString();
 			assertTrue(errMsg.contains("IllegalStateException"));
@@ -193,10 +212,10 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
-					Mockito.any(FiniteDuration.class))).thenReturn(triggerResponse.future());
+					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					any(FiniteDuration.class))).thenReturn(triggerResponse.future());
 
-			triggerResponse.success(JobManagerMessages.getDisposeSavepointSuccess());
+			triggerResponse.success(getDisposeSavepointSuccess());
 
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);
@@ -206,14 +225,73 @@ public class CliFrontendSavepointTest {
 
 			assertEquals(0, returnCode);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
-					Mockito.any(FiniteDuration.class));
+					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					any(FiniteDuration.class));
 
 			String outMsg = buffer.toString();
 			assertTrue(outMsg.contains(savepointPath));
 			assertTrue(outMsg.contains("disposed"));
 		}
 		finally {
+			restoreStdOutAndStdErr();
+		}
+	}
+
+	/**
+	 * Tests that a disposal failure due a  ClassNotFoundException triggers a
+	 * note about the JAR option.
+	 */
+	@Test
+	public void testDisposeClassNotFoundException() throws Exception {
+		replaceStdOutAndStdErr();
+
+		try {
+			Future<Object> classNotFoundFailure = Futures
+					.<Object>successful(new DisposeSavepointFailure(new ClassNotFoundException("Test exception")));
+
+			ActorGateway jobManager = mock(ActorGateway.class);
+			when(jobManager.ask(any(DisposeSavepoint.class), any(FiniteDuration.class)))
+					.thenReturn(classNotFoundFailure);
+
+			CliFrontend frontend = new MockCliFrontend(CliFrontendTestUtils.getConfigDir(), jobManager);
+
+			String[] parameters = { "-d", "any-path" };
+
+			int returnCode = frontend.savepoint(parameters);
+			assertTrue(returnCode != 0);
+
+			String out = buffer.toString();
+			assertTrue(out.contains("Please provide the program jar with which you have created " +
+					"the savepoint via -j <JAR> for disposal"));
+		} finally {
+			restoreStdOutAndStdErr();
+		}
+	}
+
+	/**
+	 * Tests disposal with a JAR file.
+	 */
+	@Test
+	public void testDisposeWithJar() throws Exception {
+		replaceStdOutAndStdErr();
+
+		try {
+			ActorGateway jobManager = mock(ActorGateway.class);
+			when(jobManager.ask(any(DisposeSavepoint.class), any(FiniteDuration.class)))
+					.thenReturn(Futures.successful(JobManagerMessages.getDisposeSavepointSuccess()));
+
+			CliFrontend frontend = new MockCliFrontend(CliFrontendTestUtils.getConfigDir(), jobManager);
+
+			// Fake JAR file
+			File f = tmp.newFile();
+			ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
+			out.close();
+
+			String[] parameters = { "-d", "any-path", "-j", f.getAbsolutePath() };
+
+			int returnCode = frontend.savepoint(parameters);
+			assertEquals(0, returnCode);
+		} finally {
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -229,14 +307,13 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
-					Mockito.any(FiniteDuration.class)))
+					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
 			Exception testException = new Exception("expectedTestException");
 
-			triggerResponse.success(new JobManagerMessages
-					.DisposeSavepointFailure(testException));
+			triggerResponse.success(new DisposeSavepointFailure(testException));
 
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);
@@ -246,8 +323,8 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
-					Mockito.any(FiniteDuration.class));
+					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					any(FiniteDuration.class));
 
 			assertTrue(buffer.toString().contains("expectedTestException"));
 		}
@@ -267,8 +344,8 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
-					Mockito.any(FiniteDuration.class)))
+					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
 			triggerResponse.success("UNKNOWN RESPONSE");
@@ -281,8 +358,8 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
-					Mockito.any(FiniteDuration.class));
+					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					any(FiniteDuration.class));
 
 			String errMsg = buffer.toString();
 			assertTrue(errMsg.contains("IllegalStateException"));

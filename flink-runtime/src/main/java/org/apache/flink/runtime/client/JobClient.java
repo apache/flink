@@ -25,7 +25,6 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
@@ -37,11 +36,9 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.util.SerializedThrowable;
-
 import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -51,7 +48,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -208,7 +204,7 @@ public class JobClient {
 
 		LOG.info("Checking and uploading JAR files");
 		try {
-			JobClient.uploadJarFiles(jobGraph, jobManagerGateway, timeout);
+			jobGraph.uploadUserJars(jobManagerGateway, timeout);
 		}
 		catch (IOException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),
@@ -260,45 +256,6 @@ public class JobClient {
 		}
 		else {
 			throw new JobExecutionException(jobGraph.getJobID(), "Unexpected response from JobManager: " + result);
-		}
-	}
-
-	/**
-	 * Uploads the specified jar files of the [[JobGraph]] jobGraph to the BlobServer of the
-	 * JobManager. The respective port is retrieved from the JobManager. This function issues a
-	 * blocking call.
-	 *
-	 * @param jobGraph   Flink job containing the information about the required jars
-	 * @param jobManagerGateway Gateway to the JobManager.
-	 * @param timeout    Timeout for futures
-	 * @throws IOException Thrown, if the file upload to the JobManager failed.
-	 */
-	public static void uploadJarFiles(JobGraph jobGraph, ActorGateway jobManagerGateway, FiniteDuration timeout)
-			throws IOException {
-		
-		if (jobGraph.hasUsercodeJarFiles()) {
-			Future<Object> futureBlobPort = jobManagerGateway.ask(
-					JobManagerMessages.getRequestBlobManagerPort(),
-					timeout);
-
-			int port;
-			try {
-				Object result = Await.result(futureBlobPort, timeout);
-				if (result instanceof Integer) {
-					port = (Integer) result;
-				} else {
-					throw new Exception("Expected port number (int) as answer, received " + result);
-				}
-			}
-			catch (Exception e) {
-				throw new IOException("Could not retrieve the JobManager's blob port.", e);
-			}
-
-			Option<String> jmHost = jobManagerGateway.actor().path().address().host();
-			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
-			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
-
-			jobGraph.uploadRequiredJarFiles(serverAddress);
 		}
 	}
 }

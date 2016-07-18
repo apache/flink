@@ -62,12 +62,8 @@ public class KeyGroupState implements Serializable {
 		return stateSize;
 	}
 
-	public void discard(ClassLoader classLoader) {
-		try {
-			keyGroupState.deserializeValue(classLoader).discardState();
-		} catch (Exception e) {
-			LOG.warn("Failed to discard checkpoint state: " + this, e);
-		}
+	public void discard(ClassLoader classLoader) throws Exception {
+		keyGroupState.deserializeValue(classLoader).discardState();
 	}
 
 	@Override

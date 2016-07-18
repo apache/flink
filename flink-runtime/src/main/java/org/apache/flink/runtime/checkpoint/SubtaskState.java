@@ -81,12 +81,8 @@ public class SubtaskState implements Serializable {
 		return duration;
 	}
 
-	public void discard(ClassLoader userClassLoader) {
-		try {
-			state.deserializeValue(userClassLoader).discardState();
-		} catch (Exception e) {
-			LOG.warn("Failed to discard checkpoint state: " + this, e);
-		}
+	public void discard(ClassLoader userClassLoader) throws Exception {
+		state.deserializeValue(userClassLoader).discardState();
 	}
 
 	// --------------------------------------------------------------------------------------------

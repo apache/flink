@@ -27,21 +27,23 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -539,6 +541,25 @@ public class JobGraph implements Serializable {
 			maxParallelism = Math.max(vertex.getParallelism(), maxParallelism);
 		}
 		return maxParallelism;
+	}
+
+	/**
+	 * Uploads the previously added user JAR files to the job manager through
+	 * the job manager's BLOB server. The respective port is retrieved from the
+	 * JobManager. This function issues a blocking call.
+	 *
+	 * @param jobManager JobManager actor gateway
+	 * @param askTimeout Ask timeout
+	 * @throws IOException Thrown, if the file upload to the JobManager failed.
+	 */
+	public void uploadUserJars(ActorGateway jobManager, FiniteDuration askTimeout) throws IOException {
+		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(jobManager, askTimeout, userJars);
+
+		for (BlobKey blobKey : blobKeys) {
+			if (!userJarBlobKeys.contains(blobKey)) {
+				userJarBlobKeys.add(blobKey);
+			}
+		}
 	}
 
 	@Override

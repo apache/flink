@@ -97,12 +97,14 @@ public class CompletedCheckpoint implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void discard(ClassLoader userClassLoader) {
-		for (TaskState state: taskStates.values()) {
-			state.discard(userClassLoader);
+	public void discard(ClassLoader userClassLoader) throws Exception {
+		try {
+			for (TaskState state : taskStates.values()) {
+				state.discard(userClassLoader);
+			}
+		} finally {
+			taskStates.clear();
 		}
-
-		taskStates.clear();
 	}
 
 	// --------------------------------------------------------------------------------------------

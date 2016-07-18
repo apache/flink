@@ -67,7 +67,7 @@ class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 	}
 
 	@Override
-	public void addCheckpoint(CompletedCheckpoint checkpoint) {
+	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 		checkpoints.addLast(checkpoint);
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
 			checkpoints.removeFirst().discard(userClassLoader);
@@ -90,7 +90,7 @@ class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 	}
 
 	@Override
-	public void discardAllCheckpoints() {
+	public void discardAllCheckpoints() throws Exception {
 		for (CompletedCheckpoint checkpoint : checkpoints) {
 			checkpoint.discard(userClassLoader);
 		}
