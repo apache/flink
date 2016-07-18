@@ -30,6 +30,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -83,9 +86,62 @@ public class TextInputFormatTest {
 			fail("Test erroneous");
 		}
 	}
-	
+
+	@Test
+	public void testNestedFileRead() {
+		String[] dirs = new String[] {"tmp/first/", "tmp/second/"};
+		List<String> expectedFiles = new ArrayList<>();
+
+		try {
+			for (String dir: dirs) {
+				// create input file
+				File tmpDir = new File(dir);
+				if (!tmpDir.exists()) {
+					tmpDir.mkdirs();
+				}
+
+				File tempFile = File.createTempFile("TextInputFormatTest", ".tmp", tmpDir);
+				tempFile.deleteOnExit();
+
+				expectedFiles.add("file:" + tempFile.getAbsolutePath());
+			}
+			File parentDir = new File("tmp");
+
+			TextInputFormat inputFormat = new TextInputFormat(new Path(parentDir.toURI().toString()));
+			inputFormat.setNestedFileEnumeration(true);
+			inputFormat.setNumLineSamples(10);
+
+			// this is to check if the setter overrides the configuration (as expected)
+			Configuration config = new Configuration();
+			config.setBoolean("recursive.file.enumeration", false);
+			config.setString("delimited-format.numSamples", "20");
+			inputFormat.configure(config);
+
+			assertTrue(inputFormat.getNestedFileEnumeration());
+			assertTrue(inputFormat.getNumLineSamples() == 10);
+
+			FileInputSplit[] splits = inputFormat.createInputSplits(expectedFiles.size());
+
+			List<String> paths = new ArrayList<>();
+			for (FileInputSplit split: splits) {
+				paths.add(split.getPath().toString());
+			}
+
+			Collections.sort(expectedFiles);
+			Collections.sort(paths);
+			for (int i = 0; i < expectedFiles.size(); i++) {
+				assertTrue(expectedFiles.get(i).equals(paths.get(i)));
+			}
+
+		} catch (Throwable t) {
+			System.err.println("test failed with exception: " + t.getMessage());
+			t.printStackTrace(System.err);
+			fail("Test erroneous");
+		}
+	}
+
 	/**
-	 * This tests cases when line ends with \r\n and \n is used as delimiter, the last \r should be removed 
+	 * This tests cases when line ends with \r\n and \n is used as delimiter, the last \r should be removed
 	 */
 	@Test
 	public void testRemovingTrailingCR() {
