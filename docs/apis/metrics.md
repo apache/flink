@@ -239,12 +239,12 @@ Metrics can be exposed to an external system by configuring a reporter in `conf/
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 
-By default Flink uses JMX to expose metrics.
-All non-JMXReporters are not part of the distribution. To use them you have to copy the respective fat jar to the `/lib` folder.
-
 The following sections list the supported reporters.
 
-### JMX
+### JMX (org.apache.flink.metrics.reporter.JMXReporter)
+
+You don't have to include an additional dependency since the JMX reporter is available by default
+but not activated.
 
 The port for JMX can be configured by setting the `metrics.jmx.port` key. This parameter expects either a single port
 or a port range, with the default being 9010-9025. The used port is shown in the relevant job or task manager log.
@@ -262,7 +262,7 @@ Dependency:
 Parameters:
 
 - `host` - the gmond host address configured under `udp_recv_channel.bind` in `gmond.conf`
-- `port` - the gmond port configured under `udp_recv_channel.port` in `gmond.conf` 
+- `port` - the gmond port configured under `udp_recv_channel.port` in `gmond.conf`
 - `tmax` - soft limit for how long an old metric should be retained
 - `dmax` - hard limit for how long an old metric should be retained
 - `ttl` - time-to-live for transmitted UDP packets
