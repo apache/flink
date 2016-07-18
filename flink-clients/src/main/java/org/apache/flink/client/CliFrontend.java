@@ -781,7 +781,7 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
-		if(result.isJobExecutionResults()) {
+		if (result.isJobExecutionResult()) {
 			logAndSysout("Program execution finished");
 			JobExecutionResult execResult = result.getJobExecutionResult();
 			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
