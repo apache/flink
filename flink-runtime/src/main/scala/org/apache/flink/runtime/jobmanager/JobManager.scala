@@ -2060,7 +2060,7 @@ object JobManager {
         try {
           webMonitor.stop()
         } catch {
-          case t =>
+          case t: Throwable =>
             LOG.warn("Could not properly stop the web monitor.", t)
         }
     }
