@@ -29,8 +29,8 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
-import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -71,8 +71,8 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(reduceNode, sinkNode.getInput().getSource());
 
 			// check that both reduce and combiner have the same strategy
-			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
 
 			// check the keys
 			assertEquals(new FieldList(0, 1), reduceNode.getKeys(0));
@@ -129,8 +129,8 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(keyProjector, sinkNode.getInput().getSource());
 
 			// check that both reduce and combiner have the same strategy
-			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
 
 			// check the keys
 			assertEquals(new FieldList(0), reduceNode.getKeys(0));
@@ -185,8 +185,8 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(reduceNode, sinkNode.getInput().getSource());
 
 			// check that both reduce and combiner have the same strategy
-			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
 
 			// check the keys
 			assertEquals(new FieldList(1), reduceNode.getKeys(0));

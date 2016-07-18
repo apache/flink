@@ -21,14 +21,13 @@ package org.apache.flink.api.java.operators.translation;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
-import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -50,31 +49,6 @@ import static org.junit.Assert.fail;
 public class DistinctTranslationTest {
 
 	@Test
-	public void testCombinable() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			DataSet<String> input = env.fromElements("1", "2", "1", "3");
-			
-			
-			DistinctOperator<String> op = input.distinct(new KeySelector<String, String>() {
-				public String getKey(String value) { return value; }
-			});
-			
-			op.output(new DiscardingOutputFormat<String>());
-			
-			Plan p = env.createProgramPlan();
-			
-			GroupReduceOperatorBase<?, ?, ?> reduceOp = (GroupReduceOperatorBase<?, ?, ?>) p.getDataSinks().iterator().next().getInput();
-			assertTrue(reduceOp.isCombinable());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
 	public void translateDistinctPlain() {
 		try {
 			final int parallelism = 8;
@@ -88,8 +62,8 @@ public class DistinctTranslationTest {
 
 			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			// currently distinct is translated to a GroupReduce
-			GroupReduceOperatorBase<?, ?, ?> reducer = (GroupReduceOperatorBase<?, ?, ?>) sink.getInput();
+			// currently distinct is translated to a Reduce
+			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
 			// check types
 			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
@@ -124,8 +98,8 @@ public class DistinctTranslationTest {
 
 			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			// currently distinct is translated to a GroupReduce
-			GroupReduceOperatorBase<?, ?, ?> reducer = (GroupReduceOperatorBase<?, ?, ?>) sink.getInput();
+			// currently distinct is translated to a Reduce
+			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
 			// check types
 			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
@@ -160,8 +134,8 @@ public class DistinctTranslationTest {
 
 			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			// currently distinct is translated to a GroupReduce
-			GroupReduceOperatorBase<?, ?, ?> reducer = (GroupReduceOperatorBase<?, ?, ?>) sink.getInput();
+			// currently distinct is translated to a Reduce
+			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
 			// check types
 			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
@@ -200,7 +174,8 @@ public class DistinctTranslationTest {
 
 			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			PlanUnwrappingReduceGroupOperator<?, ?, ?> reducer = (PlanUnwrappingReduceGroupOperator<?, ?, ?>) sink.getInput();
+			MapOperatorBase<?, ?, ?> keyRemover = (MapOperatorBase<?, ?, ?>) sink.getInput();
+			PlanUnwrappingReduceOperator<?, ?> reducer = (PlanUnwrappingReduceOperator<?, ?>) keyRemover.getInput();
 			MapOperatorBase<?, ?, ?> keyExtractor = (MapOperatorBase<?, ?, ?>) reducer.getInput();
 
 			// check the parallelisms
@@ -216,7 +191,10 @@ public class DistinctTranslationTest {
 			assertEquals(keyValueInfo, keyExtractor.getOperatorInfo().getOutputType());
 
 			assertEquals(keyValueInfo, reducer.getOperatorInfo().getInputType());
-			assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
+			assertEquals(keyValueInfo, reducer.getOperatorInfo().getOutputType());
+
+			assertEquals(keyValueInfo, keyRemover.getOperatorInfo().getInputType());
+			assertEquals(initialData.getType(), keyRemover.getOperatorInfo().getOutputType());
 
 			// check keys
 			assertEquals(KeyExtractingMapper.class, keyExtractor.getUserCodeWrapper().getUserCodeClass());
@@ -244,8 +222,8 @@ public class DistinctTranslationTest {
 
 			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 
-			// currently distinct is translated to a GroupReduce
-			GroupReduceOperatorBase<?, ?, ?> reducer = (GroupReduceOperatorBase<?, ?, ?>) sink.getInput();
+			// currently distinct is translated to a Reduce
+			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 
 			// check types
 			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
