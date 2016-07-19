@@ -38,7 +38,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
 
     StreamITCase.testResults = mutable.MutableList()
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f)
 
     val unionDs = ds1.unionAll(ds2).select('c)
 

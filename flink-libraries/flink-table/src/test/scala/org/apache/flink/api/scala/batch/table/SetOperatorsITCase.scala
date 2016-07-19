@@ -46,7 +46,7 @@ class SetOperatorsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f)
 
     val unionDs = ds1.unionAll(ds2).select('c)
 
@@ -61,7 +61,7 @@ class SetOperatorsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f)
 
     val unionDs = ds1.union(ds2).select('c)
 
@@ -105,14 +105,14 @@ class SetOperatorsITCase(
   }
 
   @Test(expected = classOf[ValidationException])
-  def testUnionDifferentFieldNames(): Unit = {
+  def testUnionDifferentColumnSize(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
-    // must fail. Union inputs have different field names.
+    // must fail. Union inputs have different column size.
     ds1.unionAll(ds2)
   }
 

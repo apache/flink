@@ -32,7 +32,7 @@ import scala.collection.JavaConversions._
 
 object TypeConverter {
 
-  val DEFAULT_ROW_TYPE = new RowTypeInfo(Seq(), Seq()).asInstanceOf[TypeInformation[Any]]
+  val DEFAULT_ROW_TYPE = new RowTypeInfo(Seq()).asInstanceOf[TypeInformation[Any]]
 
   /**
     * Determines the return type of Flink operators based on the logical fields, the expected
@@ -115,7 +115,7 @@ object TypeConverter {
 
       // Row is expected, create the arity for it
       case Some(typeInfo) if typeInfo.getTypeClass == classOf[Row] =>
-        new RowTypeInfo(logicalFieldTypes, logicalFieldNames)
+        new RowTypeInfo(logicalFieldTypes)
 
       // no physical type
       // determine type based on logical fields and configuration parameters
@@ -123,7 +123,7 @@ object TypeConverter {
         // no need for efficient types -> use Row
         // we cannot use efficient types if row arity > tuple arity or nullable
         if (!useEfficientTypes || logicalFieldTypes.length > Tuple.MAX_ARITY || nullable) {
-          new RowTypeInfo(logicalFieldTypes, logicalFieldNames)
+          new RowTypeInfo(logicalFieldTypes)
         }
         // use efficient type tuple or atomic type
         else {

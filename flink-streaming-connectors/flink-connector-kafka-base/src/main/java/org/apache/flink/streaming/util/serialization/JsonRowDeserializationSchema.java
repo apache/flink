@@ -118,7 +118,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 	@Override
 	public TypeInformation<Row> getProducedType() {
-		return new RowTypeInfo(fieldTypes, fieldNames);
+		return new RowTypeInfo(fieldTypes);
 	}
 
 	/**

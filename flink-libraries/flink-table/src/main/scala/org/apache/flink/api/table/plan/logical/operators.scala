@@ -283,11 +283,11 @@ case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
         s" ${left.output.size} and ${right.output.size}")
     }
     val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
-      l.resultType == r.resultType && l.name == r.name }
+      l.resultType == r.resultType }
     if (!sameSchema) {
       failValidation(s"Union two tables of different schema:" +
-        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+        s" [${left.output.map(a => a.resultType).mkString(", ")}] and" +
+        s" [${right.output.map(a => a.resultType).mkString(", ")}]")
     }
     resolvedUnion
   }
