@@ -43,11 +43,16 @@ object CallGenerator {
     val nullTerm = newName("isNull")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(returnType)
     val defaultValue = primitiveDefaultValue(returnType)
+    val nullCheckTerms = if(operands.nonEmpty) {
+      operands.map(_.nullTerm).mkString(" || ")
+    } else {
+      "false"
+    }
 
     val resultCode = if (nullCheck && operands.nonEmpty) {
       s"""
         |${operands.map(_.code).mkString("\n")}
-        |boolean $nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
+        |boolean $nullTerm = $nullCheckTerms;
         |$resultTypeTerm $resultTerm;
         |if ($nullTerm) {
         |  $resultTerm = $defaultValue;
