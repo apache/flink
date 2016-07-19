@@ -974,7 +974,7 @@ public final class ConfigConstants {
 
 	public static final String DEFAULT_ZOOKEEPER_DIR_KEY = "/flink";
 
-	public static final String DEFAULT_ZOOKEEPER_NAMESPACE_KEY = "/default_ns";
+	public static final String DEFAULT_ZOOKEEPER_NAMESPACE_KEY = "/default";
 
 	public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
 
