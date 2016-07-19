@@ -23,6 +23,7 @@ import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -114,8 +115,18 @@ public class AccumulatorHelper {
 	public static String getResultsFormated(Map<String, Object> map) {
 		StringBuilder builder = new StringBuilder();
 		for (Map.Entry<String, Object> entry : map.entrySet()) {
-			builder.append("- ").append(entry.getKey()).append(" (").append(entry.getValue().getClass().getName());
-			builder.append(")").append(": ").append(entry.getValue().toString()).append("\n");
+			// format all accumulators but ignore the ones that print eagerly
+			builder
+				.append("- ")
+				.append(entry.getKey())
+				.append(" (")
+				.append(entry.getValue().getClass().getName())
+				.append(")");
+			if (entry.getValue() instanceof Collection) {
+				builder.append(" [").append(((Collection) entry.getValue()).size()).append(" elements]");
+			} else {
+				builder.append(": ").append(entry.getValue().toString()).append(System.lineSeparator());
+			}
 		}
 		return builder.toString();
 	}
