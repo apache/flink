@@ -884,7 +884,7 @@ public class CliFrontend {
 		ClusterClient client;
 		try {
 			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
-			logAndSysout("Cluster retrieved: " + client.getClusterIdentifier());
+			logAndSysout("Cluster configuration: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
 				String applicationName = "Flink Application: " + programName;
