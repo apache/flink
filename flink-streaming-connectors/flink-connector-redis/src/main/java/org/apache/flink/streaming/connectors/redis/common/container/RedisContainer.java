@@ -29,7 +29,7 @@ import java.io.IOException;
 /**
  * Redis command container if we want to connect to a single Redis server or to Redis sentinels
  * If want to connect to a single Redis server, please use the first constructor {@link #RedisContainer(JedisPool)}.
- * If want to connect to a Redis sentinels, Please use the second constructor {@link #RedisContainer(JedisSentinelPool)}
+ * If want to connect to a Redis sentinels, please use the second constructor {@link #RedisContainer(JedisSentinelPool)}
  */
 public class RedisContainer implements RedisCommandsContainer, Closeable {
 
@@ -37,9 +37,8 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RedisContainer.class);
 
-	private final JedisPool jedisPool;
-	private final JedisSentinelPool jedisSentinelPool;
-
+	private transient JedisPool jedisPool;
+	private transient JedisSentinelPool jedisSentinelPool;
 
 	/**
 	 * Use this constructor if to connect with single Redis server.
@@ -68,11 +67,21 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	 */
 	@Override
 	public void close() throws IOException {
-		getInstance().close();
+		if (this.jedisPool != null) {
+			this.jedisPool.close();
+		}
+		if (this.jedisSentinelPool != null) {
+			this.jedisSentinelPool.close();
+		}
 	}
 
 	@Override
 	public void open() throws Exception {
+
+		// echo() tries to open a connection and echos back the
+		// message passed as argument. Here we use it to monitor
+		// if we can communicate with the cluster.
+
 		getInstance().echo("Test");
 	}
 
