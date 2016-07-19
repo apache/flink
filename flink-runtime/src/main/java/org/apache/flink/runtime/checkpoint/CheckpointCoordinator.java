@@ -280,10 +280,34 @@ public class CheckpointCoordinator {
 	/**
 	 * Shuts down the checkpoint coordinator.
 	 *
-	 * After this method has been called, the coordinator does not accept and further
-	 * messages and cannot trigger any further checkpoints.
+	 * <p>After this method has been called, the coordinator does not accept
+	 * and further messages and cannot trigger any further checkpoints. All
+	 * checkpoint state is discarded.
 	 */
 	public void shutdown() throws Exception {
+		shutdown(true);
+	}
+
+	/**
+	 * Suspends the checkpoint coordinator.
+	 *
+	 * <p>After this method has been called, the coordinator does not accept
+	 * and further messages and cannot trigger any further checkpoints.
+	 *
+	 * <p>The difference to shutdown is that checkpoint state in the store
+	 * and counter is kept around if possible to recover later.
+	 */
+	public void suspend() throws Exception {
+		shutdown(false);
+	}
+
+	/**
+	 * Shuts down the checkpoint coordinator.
+	 *
+	 * @param shutdownStoreAndCounter Depending on this flag the checkpoint
+	 * state services are shut down or suspended.
+	 */
+	private void shutdown(boolean shutdownStoreAndCounter) throws Exception {
 		synchronized (lock) {
 			try {
 				if (!shutdown) {
@@ -302,21 +326,23 @@ public class CheckpointCoordinator {
 						jobStatusListener = null;
 					}
 
-					checkpointIdCounter.stop();
-
 					// clear and discard all pending checkpoints
 					for (PendingCheckpoint pending : pendingCheckpoints.values()) {
 						pending.discard(userClassLoader);
 					}
 					pendingCheckpoints.clear();
 
-					// clean and discard all successful checkpoints
-					completedCheckpointStore.discardAllCheckpoints();
+					if (shutdownStoreAndCounter) {
+						completedCheckpointStore.shutdown();
+						checkpointIdCounter.shutdown();
+					} else {
+						completedCheckpointStore.suspend();
+						checkpointIdCounter.suspend();
+					}
 
 					onShutdown();
 				}
-			}
-			finally {
+			} finally {
 				// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
 				// shutdown hook itself.
 				if (shutdownHook != null && shutdownHook != Thread.currentThread()) {

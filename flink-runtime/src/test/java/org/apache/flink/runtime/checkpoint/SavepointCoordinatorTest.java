@@ -1109,7 +1109,12 @@ public class SavepointCoordinatorTest extends TestLogger {
 		}
 
 		@Override
-		public void stop() throws Exception {
+		public void shutdown() throws Exception {
+			started = false;
+		}
+
+		@Override
+		public void suspend() throws Exception {
 			started = false;
 		}
 

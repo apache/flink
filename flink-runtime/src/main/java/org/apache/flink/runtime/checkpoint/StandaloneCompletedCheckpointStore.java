@@ -90,11 +90,17 @@ class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 	}
 
 	@Override
-	public void discardAllCheckpoints() throws Exception {
+	public void shutdown() throws Exception {
 		for (CompletedCheckpoint checkpoint : checkpoints) {
 			checkpoint.discard(userClassLoader);
 		}
 
 		checkpoints.clear();
+	}
+
+	@Override
+	public void suspend() throws Exception {
+		// Do a regular shutdown, because we can't recovery anything
+		shutdown();
 	}
 }
