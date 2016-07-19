@@ -34,6 +34,7 @@ import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
+import org.apache.flink.api.java.sampling.SimpleStratifiedSampler;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.Preconditions;
@@ -197,6 +198,29 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		}
 		
 		return reduceGroup(new FirstReducer<T>(n));
+	}
+
+	/**
+	 * Generate a stratified sample of DataSet.
+	 *
+	 * @param withReplacement Whether element can be sampled multiple times.
+	 * @param fraction   Probability that each element is chosen in each stratum, should be [0,1]
+	 * @return The sampled DataSet
+	 */
+	public GroupReduceOperator<T, T> stratifiedSample(boolean withReplacement, double fraction) {
+		return stratifiedSample(withReplacement, fraction, Utils.RNG.nextLong());
+	}
+
+	/**
+	 * Generate a stratified sample of DataSet.
+	 *
+	 * @param withReplacement Whether element can be sampled multiple times.
+	 * @param fraction   Probability that each element is chosen in each stratum,, should be [0,1]
+	 * @param seed            Random number generator seed.
+	 * @return The sampled DataSet
+	 */
+	public GroupReduceOperator<T, T> stratifiedSample(boolean withReplacement, double fraction, long seed) {
+		return reduceGroup(new SimpleStratifiedSampler<T>(withReplacement, fraction, seed));
 	}
 
 	/**

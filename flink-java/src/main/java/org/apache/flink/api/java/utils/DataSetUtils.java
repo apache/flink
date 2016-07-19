@@ -37,7 +37,6 @@ import org.apache.flink.api.java.functions.SampleWithFraction;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.PartitionOperator;
-import org.apache.flink.api.java.sampling.SimpleStratifiedSampler;
 import org.apache.flink.api.java.summarize.aggregation.SummaryAggregatorFactory;
 import org.apache.flink.api.java.summarize.aggregation.TupleSummaryAggregator;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -266,37 +265,6 @@ public final class DataSetUtils {
 		return new GroupReduceOperator<>(mapPartitionOperator, input.getType(), sampleInCoordinator, callLocation);
 	}
 
-	/**
-	 * Generate a stratified sample of DataSet.
-	 *
-	 * @param withReplacement Whether element can be sampled multiple times.
-	 * @param fraction   The fraction is used to identify sample size in each stratum, should be [0,1]
-	 * @return The sampled DataSet
-	 */
-	public static <T> GroupReduceOperator<T, T> stratifiedSample(
-		DataSet <T> input,
-		final boolean withReplacement,
-		final double fraction) {
-
-		return stratifiedSample(input, withReplacement, fraction, Utils.RNG.nextLong());
-	}
-
-	/**
-	 * Generate a stratified sample of DataSet.
-	 *
-	 * @param withReplacement Whether element can be sampled multiple times.
-	 * @param fraction   The fraction is used to identify sample size in each stratum, should be [0,1]
-	 * @param seed            Random number generator seed.
-	 * @return The sampled DataSet
-	 */
-	public static <T> GroupReduceOperator<T, T> stratifiedSample(
-		DataSet <T> input,
-		final boolean withReplacement,
-		final double fraction,
-		final long seed) {
-
-		return input.reduceGroup(new SimpleStratifiedSampler<T>(withReplacement, fraction, seed));
-	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Partition

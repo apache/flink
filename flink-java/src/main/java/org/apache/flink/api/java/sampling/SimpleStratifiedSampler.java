@@ -23,13 +23,12 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 
 
 /**
- * A simple stratified sampler implementation. Each stratum is sampled with Reservoir Sampling.
+ * A simple stratified sampler implementation. Each stratum is sampled by Bernoulli Sampling without replacement
+ * and Poisson sampling with replacement.
  *
  * @param <T> The type of sample.
  * @see <a href="http://ebrain.io/stratified-sampling/">Stratified Sampling with Map Reduce</a>
@@ -51,24 +50,15 @@ public class SimpleStratifiedSampler<T> implements GroupReduceFunction<T, T>, Gr
 	@Override
 	public void reduce(Iterable<T> values, Collector<T> out) throws Exception {
 		RandomSampler<T> sampler;
-		int numSample;
-		Iterator<T> stratum = values.iterator();
 
-		//Read each item of each stratum to a local cache
-		Collection<T> cacheStratum = new ArrayList<>();
-		while (stratum.hasNext()) {
-			cacheStratum.add(stratum.next());
-		}
-
-		numSample = (int) (fraction * cacheStratum.size());
 		if (withReplacement) {
-			sampler = new ReservoirSamplerWithReplacement<T>(numSample, seed);
+			sampler = new PoissonSampler<T>(fraction, seed);
 		} else {
-			sampler = new ReservoirSamplerWithoutReplacement<T>(numSample, seed);
+			sampler = new BernoulliSampler<T>(fraction, seed);
 		}
 
 		//Sample each stratum
-		Iterator<T> sampled = sampler.sample(cacheStratum.iterator());
+		Iterator<T> sampled = sampler.sample(values.iterator());
 		while (sampled.hasNext()) {
 			out.collect(sampled.next());
 		}
