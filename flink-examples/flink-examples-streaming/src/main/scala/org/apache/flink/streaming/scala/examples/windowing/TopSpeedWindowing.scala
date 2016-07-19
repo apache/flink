@@ -53,7 +53,6 @@ object TopSpeedWindowing {
   case class CarEvent(carId: Int, speed: Int, distance: Double, time: Long)
 
   val numOfCars = 2
-  val numOfEvents = 100
   val evictionSec = 10
   val triggerMeters = 50d
 
@@ -80,11 +79,10 @@ object TopSpeedWindowing {
           val distances = Array.fill[Double](numOfCars)(0d)
           @Transient lazy val rand = new Random()
 
-          var counter = 0
           var isRunning:Boolean = true
 
           override def run(ctx: SourceContext[CarEvent]) = {
-            while (isRunning && counter < numOfEvents) {
+            while (isRunning) {
               Thread.sleep(100)
 
               for (carId <- 0 until numOfCars) {
@@ -95,7 +93,6 @@ object TopSpeedWindowing {
                 val record = CarEvent(carId, speeds(carId),
                   distances(carId), System.currentTimeMillis)
                 ctx.collect(record)
-                counter += 1
               }
             }
           }
