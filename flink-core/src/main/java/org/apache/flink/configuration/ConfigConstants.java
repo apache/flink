@@ -649,9 +649,6 @@ public final class ConfigConstants {
 
 	// ---------------------------- Metrics -----------------------------------
 
-	/** The port range from which JMX will pick one to listen for incoming connections. */
-	public static final String METRICS_JMX_PORT = "metrics.jmx.port";
-	
 	/** The class of the reporter to use. */
 	public static final String METRICS_REPORTER_CLASS = "metrics.reporter.class";
 	

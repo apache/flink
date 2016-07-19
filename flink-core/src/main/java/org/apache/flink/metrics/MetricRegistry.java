@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.groups.scope.ScopeFormat;
 import org.apache.flink.metrics.groups.scope.ScopeFormats;
-import org.apache.flink.metrics.reporter.JMXReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 

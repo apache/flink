@@ -19,7 +19,6 @@
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -62,6 +61,8 @@ public class JMXReporter implements MetricReporter {
 	private static final String PREFIX = "org.apache.flink.metrics:";
 	private static final String KEY_PREFIX = "key";
 
+	public static final String ARG_PORT = "port";
+
 	private static final Logger LOG = LoggerFactory.getLogger(JMXReporter.class);
 
 	// ------------------------------------------------------------------------
@@ -93,7 +94,9 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	private static JMXServer startJmxServer(Configuration config) {
-		Iterator<Integer> ports = NetUtils.getPortRangeFromString(config.getString(ConfigConstants.METRICS_JMX_PORT, "9010-9025"));
+		String portsConfig = config.getString(ARG_PORT, "9010-9025");
+
+		Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
 		JMXServer server = new JMXServer();
 		while (ports.hasNext()) {

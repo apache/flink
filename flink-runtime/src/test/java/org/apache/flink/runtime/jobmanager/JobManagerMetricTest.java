@@ -50,9 +50,10 @@ public class JobManagerMetricTest {
 	public void testJobManagerMetricAccess() throws Exception {
 		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 		Configuration flinkConfiguration = new Configuration();
-		
+
+		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_CLASS, "org.apache.flink.metrics.reporter.JMXReporter");
 		flinkConfiguration.setString(ConfigConstants.METRICS_SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
-		flinkConfiguration.setString(ConfigConstants.METRICS_JMX_PORT, "9060-9075");
+		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "-port 9060-9075");
 
 		TestingCluster flink = new TestingCluster(flinkConfiguration);
 
