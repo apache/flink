@@ -1123,7 +1123,11 @@ public class ExecutionGraph implements Serializable {
 			CheckpointCoordinator coord = this.checkpointCoordinator;
 			this.checkpointCoordinator = null;
 			if (coord != null) {
-				coord.shutdown();
+				if (state.isGloballyTerminalState()) {
+					coord.shutdown();
+				} else {
+					coord.suspend();
+				}
 			}
 
 			// We don't clean the checkpoint stats tracker, because we want
@@ -1135,8 +1139,13 @@ public class ExecutionGraph implements Serializable {
 		try {
 			CheckpointCoordinator coord = this.savepointCoordinator;
 			this.savepointCoordinator = null;
+
 			if (coord != null) {
-				coord.shutdown();
+				if (state.isGloballyTerminalState()) {
+					coord.shutdown();
+				} else {
+					coord.suspend();
+				}
 			}
 		} catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);

@@ -232,7 +232,9 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	}
 
 	@Override
-	public void discardAllCheckpoints() throws Exception {
+	public void shutdown() throws Exception {
+		LOG.info("Shutting down");
+
 		for (Tuple2<StateHandle<CompletedCheckpoint>, String> checkpoint : checkpointStateHandles) {
 			try {
 				removeFromZooKeeperAndDiscardCheckpoint(checkpoint);
@@ -248,6 +250,14 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		LOG.info("Removing {} from ZooKeeper", path);
 		ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, true);
+	}
+
+	@Override
+	public void suspend() throws Exception {
+		LOG.info("Suspending");
+
+		// Clear the local handles, but don't remove any state
+		checkpointStateHandles.clear();
 	}
 
 	/**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.zookeeper.StateStorageHelper;
@@ -31,6 +32,8 @@ import scala.concurrent.duration.FiniteDuration;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /**
  * Tests for basic {@link CompletedCheckpointStore} contract and ZooKeeper state handling.
@@ -105,5 +108,56 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		assertEquals(1, ZooKeeper.getClient().getChildren().forPath(CheckpointsPath).size());
 		assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 		assertEquals(expected[2], checkpoints.getLatestCheckpoint());
+	}
+
+	/**
+	 * Tests that shutdown discards all checkpoints.
+	 */
+	@Test
+	public void testShutdownDiscardsCheckpoints() throws Exception {
+		CuratorFramework client = ZooKeeper.getClient();
+
+		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
+		TestCheckpoint checkpoint = createCheckpoint(0);
+
+		store.addCheckpoint(checkpoint);
+		assertEquals(1, store.getNumberOfRetainedCheckpoints());
+		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
+
+		store.shutdown();
+
+		assertEquals(0, store.getNumberOfRetainedCheckpoints());
+		assertNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
+
+		store.recover();
+
+		assertEquals(0, store.getNumberOfRetainedCheckpoints());
+	}
+
+	/**
+	 * Tests that suspends keeps all checkpoints (as they can be recovered
+	 * later by the ZooKeeper store).
+	 */
+	@Test
+	public void testSuspendKeepsCheckpoints() throws Exception {
+		CuratorFramework client = ZooKeeper.getClient();
+
+		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
+		TestCheckpoint checkpoint = createCheckpoint(0);
+
+		store.addCheckpoint(checkpoint);
+		assertEquals(1, store.getNumberOfRetainedCheckpoints());
+		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
+
+		store.suspend();
+
+		assertEquals(0, store.getNumberOfRetainedCheckpoints());
+		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
+
+		// Recover again
+		store.recover();
+
+		CompletedCheckpoint recovered = store.getLatestCheckpoint();
+		assertEquals(checkpoint, recovered);
 	}
 }
