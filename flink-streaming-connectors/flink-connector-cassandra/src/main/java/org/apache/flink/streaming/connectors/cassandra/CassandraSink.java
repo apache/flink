@@ -271,8 +271,15 @@ public class CassandraSink<IN> {
 		public abstract CassandraSink<IN> build() throws Exception;
 
 		protected void sanityCheck() {
-			if (query == null || query.length() == 0) {
-				throw new IllegalArgumentException("Query must not be null or empty.");
+			if (input.getType() instanceof TupleTypeInfo) {
+				if (query == null || query.length() == 0) {
+					throw new IllegalArgumentException("Query must not be null or empty.");
+				}
+			} else {
+				if (query != null) {
+					throw new IllegalArgumentException("Specifying a query is not allowed when using a Pojo-Stream as input.");
+				}
+
 			}
 			if (builder == null) {
 				throw new IllegalArgumentException("Cassandra host information must be supplied using either setHost() or setClusterBuilder().");
