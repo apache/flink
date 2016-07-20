@@ -66,7 +66,7 @@ public class TriangleListing {
 		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex IDs for each triangle and" +
 			" for directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80));
 		System.out.println();
-		System.out.println("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>");
 		System.out.println();
 		System.out.println("options:");
 		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
