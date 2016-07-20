@@ -33,6 +33,8 @@ import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.junit.Assert.fail;
+
 public class RedisSinkTest extends TestLogger {
 
 	@Test(expected=NullPointerException.class)
@@ -103,15 +105,17 @@ public class RedisSinkTest extends TestLogger {
 		try {
 			redisSink.open(new Configuration());
 		} catch (Throwable e) {
+			Throwable init = e;
 
-			// search for nested ConnectionExceptions
+			// search for nested JedisConnectionExceptions
 			// because this is the expected behavior
 
 			int depth = 0;
 			while (!(e instanceof JedisConnectionException)) {
-				Throwable cause = e.getCause();
-				if (cause == null || depth++ == 20) {
-					throw e;
+				e = e.getCause();
+				if (e == null || depth++ == 20) {
+					init.printStackTrace();
+					fail("Test Failed: " + init.getMessage());
 				}
 			}
 		}
