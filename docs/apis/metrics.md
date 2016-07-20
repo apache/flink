@@ -246,8 +246,11 @@ The following sections list the supported reporters.
 You don't have to include an additional dependency since the JMX reporter is available by default
 but not activated.
 
-The port for JMX can be configured by setting the `metrics.jmx.port` key. This parameter expects either a single port
-or a port range, with the default being 9010-9025. The used port is shown in the relevant job or task manager log.
+Parameters:
+
+- `port` - the port on which JMX listens for connections. This can also be a port range. When a
+range is specified the actual port is shown in the relevant job or task manager log. Default:
+`9010-9025`.
 
 ### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
 Dependency:
