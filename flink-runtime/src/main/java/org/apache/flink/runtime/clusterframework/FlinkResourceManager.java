@@ -49,6 +49,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 
 import org.apache.flink.runtime.messages.RegistrationMessages;
@@ -110,7 +111,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	/** The service to find the right leader JobManager (to support high availability) */
 	private final LeaderRetrievalService leaderRetriever;
 
-	/** The currently registered resources */
+	/** The resources which have been registered at the ResourceManager. This indicates the set
+	 * of containers where a TaskManager has been started and registered at a JobManager.  */
 	private final Map<ResourceID, WorkerType> registeredWorkers;
 
 	/** List of listeners for info messages */
@@ -229,7 +231,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 
 			else if (message instanceof RegisterResource) {
 				RegisterResource msg = (RegisterResource) message;
-				handleRegisterResource(msg.getRegisterMessage());
+				handleRegisterResource(sender(), msg.getRegisterMessage());
 			}
 
 			// --- messages about JobManager leader status and registration
@@ -341,9 +343,10 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 
 	/**
 	 * Register a resource on which a TaskManager has been started
+	 * @param jobManager The sender (JobManager) of the message
 	 * @param msg The task manager's registration message
 	 */
-	private void handleRegisterResource(RegistrationMessages.RegisterTaskManager msg) {
+	private void handleRegisterResource(ActorRef jobManager, RegistrationMessages.RegisterTaskManager msg) {
 		ResourceID resourceID = msg.resourceId();
 
 		if (resourceID != null) {
@@ -362,6 +365,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 				}
 			}
 		}
+
+		// Acknowledge the resource registration
+		jobManager.tell(decorateMessage(Acknowledge.get()), self());
 	}
 
 	/**
@@ -451,8 +457,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	}
 
 	/**
-	 * This method disassociates from the current leader JobManager. All currently registered
-	 * TaskManagers are put under "awaiting registration".
+	 * This method disassociates from the current leader JobManager.
 	 */
 	private void jobManagerLostLeadership() {
 		if (jobManager != null) {
@@ -462,8 +467,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 			leaderSessionID = null;
 
 			infoMessageListeners.clear();
-
-			registeredWorkers.clear();
 		}
 	}
 

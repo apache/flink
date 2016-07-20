@@ -31,6 +31,7 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManage
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.yarn.messages.NotifyWhenResourcesRegistered;
@@ -176,6 +177,10 @@ public class YarnFlinkResourceManagerTest {
 
 				resourceManagerGateway.tell(new RegisterResourceManagerSuccessful(leader1, Collections.EMPTY_LIST));
 
+				for (int i = 0; i < containerList.size(); i++) {
+					expectMsgClass(deadline.timeLeft(), Acknowledge.class);
+				}
+
 				Future<Object> taskManagerRegisteredFuture = resourceManagerGateway.ask(new NotifyWhenResourcesRegistered(numInitialTaskManagers), deadline.timeLeft());
 
 				Await.ready(taskManagerRegisteredFuture, deadline.timeLeft());
@@ -194,6 +199,10 @@ public class YarnFlinkResourceManagerTest {
 							new RegistrationMessages.RegisterTaskManager(
 								YarnFlinkResourceManager.extractResourceID(container), null, null, 1)),
 						leader1Gateway);
+				}
+
+				for (int i = 0; i < containerList.size(); i++) {
+					expectMsgClass(deadline.timeLeft(), Acknowledge.class);
 				}
 
 				Future<Object> numberOfRegisteredResourcesFuture = resourceManagerGateway.ask(RequestNumberOfRegisteredResources.Instance, deadline.timeLeft());

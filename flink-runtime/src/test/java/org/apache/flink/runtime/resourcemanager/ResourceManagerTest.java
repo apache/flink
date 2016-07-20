@@ -32,6 +32,7 @@ import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJ
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -201,6 +202,8 @@ public class ResourceManagerTest {
 					1)),
 				fakeJobManager);
 
+			expectMsgClass(Acknowledge.class);
+
 			// check for number registration of registered resources
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
 			TestingResourceManager.GetRegisteredResourcesReply reply =
@@ -216,6 +219,8 @@ public class ResourceManagerTest {
 						1)),
 				fakeJobManager);
 
+			expectMsgClass(Acknowledge.class);
+
 			// check for number registration of registered resources
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
 			reply = expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
@@ -229,6 +234,8 @@ public class ResourceManagerTest {
 						null,
 						1)),
 				fakeJobManager);
+
+			expectMsgClass(Acknowledge.class);
 
 			// check for number registration of registered resources
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
@@ -267,6 +274,8 @@ public class ResourceManagerTest {
 						null,
 						1)),
 				fakeJobManager);
+
+			expectMsgClass(Acknowledge.class);
 
 			// check for number registration of registered resources
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
@@ -319,6 +328,8 @@ public class ResourceManagerTest {
 						1)),
 				fakeJobManager);
 
+			expectMsgClass(Acknowledge.class);
+
 			// Send task manager registration
 			resourceManager.tell(new RegisterResource(
 					new RegistrationMessages.RegisterTaskManager(resourceID2,
@@ -326,6 +337,8 @@ public class ResourceManagerTest {
 						null,
 						1)),
 				fakeJobManager);
+
+			expectMsgClass(Acknowledge.class);
 
 			// check for number registration of registered resources
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
