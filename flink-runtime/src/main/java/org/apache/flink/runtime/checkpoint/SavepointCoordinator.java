@@ -135,6 +135,8 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				throw new IllegalStateException("Failed to get checkpoint Id");
 			}
 
+			LOG.info("Triggering savepoint with ID " + checkpointId);
+
 			// Important: make sure to add the promise to the map before calling
 			// any methods that might trigger callbacks, which require the promise.
 			// Otherwise, the might be race conditions.
@@ -274,6 +276,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 	@Override
 	protected void onCancelCheckpoint(long canceledCheckpointId) {
+		LOG.info("Cancelling savepoint with checkpoint ID " + canceledCheckpointId);
 		Promise<String> promise = savepointPromises.remove(canceledCheckpointId);
 
 		if (promise != null) {
@@ -284,8 +287,12 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 	@Override
 	protected void onFullyAcknowledgedCheckpoint(CompletedCheckpoint checkpoint) {
 		// Sanity check
-		Promise<String> promise = checkNotNull(savepointPromises
-				.remove(checkpoint.getCheckpointID()));
+		Promise<String> promise = savepointPromises.remove(checkpoint.getCheckpointID());
+
+		if (promise == null) {
+			LOG.info("Pending savepoint with ID " + checkpoint.getCheckpointID() + "  has been " +
+					"removed before receiving acknowledgment.");
+		}
 
 		// Sanity check
 		if (promise.isCompleted()) {

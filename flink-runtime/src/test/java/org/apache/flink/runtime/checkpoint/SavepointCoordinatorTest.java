@@ -27,7 +27,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.apache.flink.runtime.state.LocalStateHandle;
@@ -54,6 +56,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -141,6 +144,77 @@ public class SavepointCoordinatorTest extends TestLogger {
 		CompletedCheckpoint savepoint = savepointStore.getState(savepointPath);
 		verifySavepoint(savepoint, jobId, checkpointId, timestamp,
 				vertices);
+
+		// Verify all promises removed
+		assertEquals(0, getSavepointPromises(coordinator).size());
+
+		coordinator.shutdown();
+	}
+
+	/**
+	 * This test triggers a checkpoint and then sends a decline checkpoint message from
+	 * one of the tasks. The expected behaviour is that said checkpoint is discarded and a new
+	 * checkpoint is triggered.
+	 */
+	@Test
+	public void testTriggerAndDeclineCheckpointSimple() throws Exception {
+		JobID jobId = new JobID();
+		long checkpointTimeout = 60 * 1000;
+		long timestamp = 1272635;
+		ExecutionVertex[] vertices = new ExecutionVertex[] {
+				mockExecutionVertex(jobId),
+				mockExecutionVertex(jobId) };
+		MockCheckpointIdCounter checkpointIdCounter = new MockCheckpointIdCounter();
+		HeapStateStore<CompletedCheckpoint> savepointStore = new HeapStateStore<>();
+
+		SavepointCoordinator coordinator = createSavepointCoordinator(
+				jobId,
+				checkpointTimeout,
+				vertices,
+				vertices,
+				vertices,
+				checkpointIdCounter,
+				savepointStore);
+
+		// Trigger the savepoint
+		Future<String> savepointPathFuture = coordinator.triggerSavepoint(timestamp);
+		assertFalse(savepointPathFuture.isCompleted());
+
+		long checkpointId = checkpointIdCounter.getLastReturnedCount();
+		assertEquals(0, checkpointId);
+
+		// Verify send trigger messages
+		for (ExecutionVertex vertex : vertices) {
+			verifyTriggerCheckpoint(vertex, checkpointId, timestamp);
+		}
+
+		PendingCheckpoint pendingCheckpoint = coordinator.getPendingCheckpoints()
+				.get(checkpointId);
+
+		verifyPendingCheckpoint(pendingCheckpoint, jobId, checkpointId,
+				timestamp, 0, 2, 0, false, false);
+
+		// Acknowledge and decline tasks
+		coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
+				jobId, vertices[0].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId, createSerializedStateHandle(vertices[0]), 0));
+
+		coordinator.receiveDeclineMessage(new DeclineCheckpoint(
+				jobId, vertices[1].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId, 0));
+
+
+		// The pending checkpoint is completed
+		assertTrue(pendingCheckpoint.isDiscarded());
+		assertEquals(0, coordinator.getSuccessfulCheckpoints().size());
+
+		// Verify that the future has been completed
+		assertTrue(savepointPathFuture.isCompleted());
+
+		try {
+			Await.result(savepointPathFuture.failed(), FiniteDuration.Zero());
+			fail("Did not throw expected exception");
+		} catch (Throwable ignored) {}
 
 		// Verify all promises removed
 		assertEquals(0, getSavepointPromises(coordinator).size());

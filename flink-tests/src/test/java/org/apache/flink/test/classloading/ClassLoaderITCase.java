@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.classloading;
 
+import akka.pattern.AskTimeoutException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -60,7 +62,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-public class ClassLoaderITCase {
+public class ClassLoaderITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClassLoaderITCase.class);
 
@@ -275,8 +277,9 @@ public class ClassLoaderITCase {
 		// Trigger savepoint
 		String savepointPath = null;
 		for (int i = 0; i < 20; i++) {
-			LOG.info("Triggering savepoint (" + (i+1) + "/20.");
+			LOG.info("Triggering savepoint (" + (i+1) + "/20).");
 			Future<Object> savepointFuture = jm.ask(new TriggerSavepoint(jobId), deadline.timeLeft());
+
 			Object savepointResponse = Await.result(savepointFuture, deadline.timeLeft());
 
 			if (savepointResponse.getClass() == TriggerSavepointSuccess.class) {

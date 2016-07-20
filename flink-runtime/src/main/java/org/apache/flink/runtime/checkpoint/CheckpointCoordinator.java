@@ -575,6 +575,8 @@ public class CheckpointCoordinator {
 				checkpoint.discard(userClassLoader);
 				rememberRecentCheckpointId(checkpointId);
 
+				onCancelCheckpoint(checkpointId);
+
 				boolean haveMoreRecentPending = false;
 				Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
 				while (entries.hasNext()) {
