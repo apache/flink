@@ -86,7 +86,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 
 	@Override
 	protected String getAlgorithmName() {
-		return VertexOutDegree.class.getName();
+		return VertexDegrees.class.getName();
 	}
 
 	@Override
