@@ -132,6 +132,10 @@ public class MetricRegistry {
 		return this.delimiter;
 	}
 
+	public MetricReporter getReporter() {
+		return reporter;
+	}
+
 	/**
 	 * Shuts down this registry and the associated {@link org.apache.flink.metrics.reporter.MetricReporter}.
 	 */
