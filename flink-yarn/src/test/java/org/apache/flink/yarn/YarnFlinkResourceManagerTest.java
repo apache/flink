@@ -34,6 +34,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.messages.NotifyWhenResourcesRegistered;
 import org.apache.flink.yarn.messages.RequestNumberOfRegisteredResources;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -71,7 +72,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class YarnFlinkResourceManagerTest {
+public class YarnFlinkResourceManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
