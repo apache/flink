@@ -19,12 +19,15 @@
 package org.apache.flink.test.windowing.sessionwindows;
 
 /**
- * Factory that produces events of keyed session streams
+ * Factory that produces events of keyed session generators
  *
- * @param <K>
- * @param <E>
+ * If types of generated events diverge more, we can consider also specify the input parameters to createEvent(...) as
+ * a generic object type (containing all the data).
+ *
+ * @param <K> type of produced event key
+ * @param <E> type of produced event
  */
-public interface StreamEventFactory<K, E> {
+public interface GeneratorEventFactory<K, E> {
 
 	/**
 	 * @param key             session key
@@ -33,7 +36,7 @@ public interface StreamEventFactory<K, E> {
 	 * @param eventTimestamp  event time
 	 * @param globalWatermark current value of the global watermark
 	 * @param timing          indicator for lateness
-	 * @return event for an keyed event stream
+	 * @return event for an keyed event generator
 	 */
 	E createEvent(K key,
 	              int sessionId,

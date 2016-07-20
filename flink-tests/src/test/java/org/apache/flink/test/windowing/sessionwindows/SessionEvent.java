@@ -40,11 +40,6 @@ public final class SessionEvent<K, V> {
 	public SessionEvent() {
 	}
 
-	/**
-	 * @param sessionKey
-	 * @param eventValue
-	 * @param eventTimestamp
-	 */
 	public SessionEvent(K sessionKey, V eventValue, long eventTimestamp) {
 		Preconditions.checkNotNull(sessionKey);
 		Preconditions.checkNotNull(eventValue);
@@ -53,46 +48,28 @@ public final class SessionEvent<K, V> {
 		setEventTimestamp(eventTimestamp);
 	}
 
-	/**
-	 * @return
-	 */
 	public K getSessionKey() {
 		return sessionKey;
 	}
 
-	/**
-	 * @param sessionKey
-	 */
 	public void setSessionKey(K sessionKey) {
 		Preconditions.checkNotNull(sessionKey);
 		this.sessionKey = sessionKey;
 	}
 
-	/**
-	 * @return
-	 */
 	public V getEventValue() {
 		return eventValue;
 	}
 
-	/**
-	 * @param eventValue
-	 */
 	public void setEventValue(V eventValue) {
 		Preconditions.checkNotNull(eventValue);
 		this.eventValue = eventValue;
 	}
 
-	/**
-	 * @return
-	 */
 	public long getEventTimestamp() {
 		return eventTimestamp;
 	}
 
-	/**
-	 * @param eventTimestamp
-	 */
 	public void setEventTimestamp(long eventTimestamp) {
 		this.eventTimestamp = eventTimestamp;
 	}
@@ -106,14 +83,6 @@ public final class SessionEvent<K, V> {
 				'}';
 	}
 
-	/**
-	 * @param sessionKey
-	 * @param eventValue
-	 * @param eventTimestamp
-	 * @param <K>
-	 * @param <V>
-	 * @return
-	 */
 	public static <K, V> SessionEvent<K, V> of(K sessionKey, V eventValue, long eventTimestamp) {
 		return new SessionEvent<>(sessionKey, eventValue, eventTimestamp);
 	}

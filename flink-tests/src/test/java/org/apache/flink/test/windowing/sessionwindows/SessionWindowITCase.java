@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.windowing.sessionwindows;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
@@ -34,6 +35,7 @@ import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
@@ -44,7 +46,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class SessionWindowITCase {
+/**
+ * ITCase for Session Windows
+ */
+public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 
 	// seed for the pseudo random engine of this test
 	private static final long RANDOM_SEED = 1234567;
@@ -81,7 +86,7 @@ public class SessionWindowITCase {
 
 	// number of parallel in-flight sessions generated in the test stream
 	private static final int PARALLEL_SESSIONS = 10;
-	
+
 	// names to address some counters used for result checks
 	private static final String SESSION_COUNTER_ON_TIME_KEY = "ALL_SESSIONS_ON_TIME_COUNT";
 	private static final String SESSION_COUNTER_LATE_KEY = "ALL_SESSIONS_LATE_COUNT";
@@ -99,7 +104,7 @@ public class SessionWindowITCase {
 					String, Tuple, TimeWindow> windowFunction) throws Exception {
 
 
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		WindowedStream<SessionEvent<Integer, TestEventPayload>, Tuple, TimeWindow> windowedStream
 				= env.addSource(dataSource).keyBy("sessionKey")
@@ -114,11 +119,20 @@ public class SessionWindowITCase {
 		}
 
 		windowedStream.apply(windowFunction).print();
-		env.execute();
+		JobExecutionResult result = env.execute();
+
+		// check that overall event counts match with our expectations. remember that late events within lateness will
+		// each trigger a window!
+		Assert.assertEquals(
+				(LATE_EVENTS_PER_SESSION + 1) * NUMBER_OF_SESSIONS * EVENTS_PER_SESSION,
+				result.getAccumulatorResult(SESSION_COUNTER_ON_TIME_KEY));
+		Assert.assertEquals(
+				NUMBER_OF_SESSIONS * (LATE_EVENTS_PER_SESSION * (LATE_EVENTS_PER_SESSION + 1) / 2),
+				result.getAccumulatorResult(SESSION_COUNTER_LATE_KEY));
 	}
 
 	/**
-	 * Window function that performs the correctness checks for this test case
+	 * Window function that performs correctness checks for this test case
 	 */
 	private static final class ValidatingWindowFunction extends RichWindowFunction<SessionEvent<Integer,
 			TestEventPayload>, String, Tuple, TimeWindow> {
@@ -170,8 +184,8 @@ public class SessionWindowITCase {
 				}
 			}
 
-			getRuntimeContext().getIntCounter(SESSION_COUNTER_ON_TIME_KEY).add(onTimeCount);
-			getRuntimeContext().getIntCounter(SESSION_COUNTER_LATE_KEY).add(lateCount);
+			getRuntimeContext().getLongCounter(SESSION_COUNTER_ON_TIME_KEY).add(onTimeCount);
+			getRuntimeContext().getLongCounter(SESSION_COUNTER_LATE_KEY).add(lateCount);
 
 			if (sessionEvents.size() >= EVENTS_PER_SESSION) { //on time events case or non-purging
 
@@ -186,23 +200,13 @@ public class SessionWindowITCase {
 				Assert.fail("Event count for session window " + timeWindow + " is too low: " + sessionEvents);
 			}
 		}
-
-		@Override
-		public void close() throws Exception {
-			Assert.assertEquals(
-					(LATE_EVENTS_PER_SESSION + 1) * NUMBER_OF_SESSIONS * EVENTS_PER_SESSION,
-					getRuntimeContext().getIntCounter(SESSION_COUNTER_ON_TIME_KEY).getLocalValuePrimitive());
-			Assert.assertEquals(
-					NUMBER_OF_SESSIONS * (LATE_EVENTS_PER_SESSION * (LATE_EVENTS_PER_SESSION + 1) / 2),
-					getRuntimeContext().getIntCounter(SESSION_COUNTER_LATE_KEY).getLocalValuePrimitive());
-		}
 	}
 
 	/**
 	 * A data source that is fed from a ParallelSessionsEventGenerator
 	 */
 	private static final class SessionEventGeneratorDataSource
-			implements ParallelSourceFunction<SessionEvent<Integer, TestEventPayload>> {
+			implements SourceFunction<SessionEvent<Integer, TestEventPayload>> {
 
 		static final long serialVersionUID = 11341498979L;
 
@@ -214,15 +218,15 @@ public class SessionWindowITCase {
 
 		@Override
 		public void run(SourceContext<SessionEvent<Integer, TestEventPayload>> ctx) {
-			ParallelSessionsEventGenerator<Integer, SessionEvent<Integer, TestEventPayload>> stream = createTestStream();
+			ParallelSessionsEventGenerator<Integer, SessionEvent<Integer, TestEventPayload>> generator = createGenerator();
 			this.isRunning = true;
 			//main data source driver loop
 			while (isRunning) {
 				synchronized (ctx.getCheckpointLock()) {
-					SessionEvent<Integer, TestEventPayload> evt = stream.nextEvent();
+					SessionEvent<Integer, TestEventPayload> evt = generator.nextEvent();
 					if (evt != null) {
 						ctx.collectWithTimestamp(evt, evt.getEventTimestamp());
-						ctx.emitWatermark(new Watermark(stream.getWatermark()));
+						ctx.emitWatermark(new Watermark(generator.getWatermark()));
 					} else {
 						break;
 					}
@@ -230,7 +234,7 @@ public class SessionWindowITCase {
 			}
 		}
 
-		private ParallelSessionsEventGenerator<Integer, SessionEvent<Integer, TestEventPayload>> createTestStream() {
+		private ParallelSessionsEventGenerator<Integer, SessionEvent<Integer, TestEventPayload>> createGenerator() {
 			LongRandomGenerator randomGenerator = new LongRandomGenerator(RANDOM_SEED);
 
 			Set<Integer> keys = new HashSet<>();
@@ -238,13 +242,13 @@ public class SessionWindowITCase {
 				keys.add(i);
 			}
 
-			StreamConfiguration streamConfiguration = StreamConfiguration.of(
+			GeneratorConfiguration generatorConfiguration = GeneratorConfiguration.of(
 					ALLOWED_LATENESS_MS,
 					LATE_EVENTS_PER_SESSION,
 					MAX_DROPPED_EVENTS_PER_SESSION,
 					MAX_ADDITIONAL_SESSION_GAP_MS);
-			StreamEventFactory<Integer, SessionEvent<Integer, TestEventPayload>> streamEventFactory =
-					new StreamEventFactory<Integer, SessionEvent<Integer, TestEventPayload>>() {
+			GeneratorEventFactory<Integer, SessionEvent<Integer, TestEventPayload>> generatorEventFactory =
+					new GeneratorEventFactory<Integer, SessionEvent<Integer, TestEventPayload>>() {
 						@Override
 						public SessionEvent<Integer, TestEventPayload> createEvent(
 								Integer key,
@@ -262,8 +266,8 @@ public class SessionWindowITCase {
 
 			EventGeneratorFactory<Integer, SessionEvent<Integer, TestEventPayload>> eventGeneratorFactory =
 					new EventGeneratorFactory<>(
-							streamConfiguration,
-							streamEventFactory,
+							generatorConfiguration,
+							generatorEventFactory,
 							MAX_SESSION_EVENT_GAP_MS,
 							EVENTS_PER_SESSION,
 							randomGenerator);

@@ -27,8 +27,8 @@ import java.util.List;
  * Implementation of EventGenerator that generates timely and late (in-lateness and after-lateness) events for
  * a single session.
  *
- * @param <K>
- * @param <E>
+ * @param <K> type of session key
+ * @param <E> type of session event
  */
 public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 
@@ -42,8 +42,8 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	// pseudo random engine
 	private final LongRandomGenerator randomGenerator;
 
-	// configuration for the generated session stream
-	private final SessionStreamConfiguration<K, E> configuration;
+	// configuration for the generated session generator
+	private final SessionGeneratorConfiguration<K, E> configuration;
 
 	// precomputed timestamps for the timely events (could be a list of primitive longs)
 	private final List<Long> orderedTimelyTimestamps;
@@ -61,11 +61,11 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	private EventGenerator<K, E> timingAwareEventGenerator;
 
 	/**
-	 * @param configuration   stream configuration
+	 * @param configuration   session generator configuration
 	 * @param randomGenerator random engine for the event generation
 	 */
 	public SessionEventGeneratorImpl(
-			SessionStreamConfiguration<K, E> configuration, LongRandomGenerator randomGenerator) {
+			SessionGeneratorConfiguration<K, E> configuration, LongRandomGenerator randomGenerator) {
 		Preconditions.checkNotNull(configuration);
 		Preconditions.checkNotNull(randomGenerator);
 
@@ -86,8 +86,8 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	 * @see EventGenerator
 	 */
 	@Override
-	public boolean canProduceEventAtWatermark(long globalWatermark) {
-		return timingAwareEventGenerator.canProduceEventAtWatermark(globalWatermark);
+	public boolean canGenerateEventAtWatermark(long globalWatermark) {
+		return timingAwareEventGenerator.canGenerateEventAtWatermark(globalWatermark);
 	}
 
 	/**
@@ -142,12 +142,6 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 		orderedTimelyTimestamps.add(generatedTimestamp);
 	}
 
-	/**
-	 * @param eventTimestamp
-	 * @param globalWatermark
-	 * @param timing
-	 * @return
-	 */
 	private E createEventFromTimestamp(long eventTimestamp, long globalWatermark, Timing timing) {
 		return getEventFactory().createEvent(
 				getKey(),
@@ -159,9 +153,9 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	/**
-	 * @return
+	 * @return a timestamp in the session that is timely
 	 */
-	private long generateTimelyTimestamp() {
+	private long generateTimelyInSessionTimestamp() {
 		int chosenTimestampIndex = randomGenerator.choseRandomIndex(orderedTimelyTimestamps);
 		// performance: consider that remove is an O(n) operation here, with n being the number of timely events but
 		// this should not matter too much for a IT case
@@ -169,14 +163,14 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	/**
-	 * @return
+	 * @return a timestamp in the session
 	 */
-	private long generateLateTimestamp() {
+	private long generateArbitraryInSessionTimestamp() {
 		return randomGenerator.randomLongBetween(minTimestamp, maxTimestamp + 1);
 	}
 
 	/**
-	 * @param globalWatermark
+	 * @param globalWatermark the current global watermark
 	 * @return true if the session window for this session has already triggered at global watermark
 	 */
 	private boolean isTriggered(long globalWatermark) {
@@ -184,7 +178,7 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	/**
-	 * @param globalWatermark
+	 * @param globalWatermark the current global watermark
 	 * @return true if all future generated events are after lateness w.r.t global watermark
 	 */
 	private boolean isAfterLateness(long globalWatermark) {
@@ -215,10 +209,10 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	private long getLateness() {
-		return configuration.getStreamConfiguration().getAllowedLateness();
+		return configuration.getGeneratorConfiguration().getAllowedLateness();
 	}
 
-	private StreamEventFactory<K, E> getEventFactory() {
+	private GeneratorEventFactory<K, E> getEventFactory() {
 		return configuration.getSessionConfiguration().getEventFactory();
 	}
 
@@ -231,11 +225,11 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	}
 
 	private int getLateEventsCount() {
-		return getTimelyEventsCount() + configuration.getStreamConfiguration().getLateEventsWithinLateness();
+		return getTimelyEventsCount() + configuration.getGeneratorConfiguration().getLateEventsWithinLateness();
 	}
 
 	private int getAllEventsCount() {
-		return getLateEventsCount() + configuration.getStreamConfiguration().getLateEventsAfterLateness();
+		return getLateEventsCount() + configuration.getGeneratorConfiguration().getLateEventsAfterLateness();
 	}
 
 	private boolean hasMoreTimelyEvents() {
@@ -251,32 +245,23 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	 */
 	@Override
 	public EventGenerator<K, E> getNextGenerator(long globalWatermark) {
-		StreamConfiguration streamConfiguration = configuration.getStreamConfiguration();
+		GeneratorConfiguration generatorConfiguration = configuration.getGeneratorConfiguration();
 		SessionConfiguration<K, E> sessionConfiguration = configuration.getSessionConfiguration();
 
 		//compute the start timestamp for the next session
-		long maxAdditionalGap = streamConfiguration.getMaxAdditionalSessionGap();
+		long maxAdditionalGap = generatorConfiguration.getMaxAdditionalSessionGap();
 		long nextStartTime = Math.max(
 				getAfterLatenessTimestamp() + randomGenerator.randomLongBetween(0, maxAdditionalGap),
 				globalWatermark);
 
-		sessionConfiguration = configuration.getSessionConfiguration().getFollowupSessionConfiguration(nextStartTime);
-		SessionStreamConfiguration<K, E> sessionStreamConfiguration =
-				new SessionStreamConfiguration<>(sessionConfiguration, streamConfiguration);
+		sessionConfiguration = sessionConfiguration.getFollowupSessionConfiguration(nextStartTime);
+		SessionGeneratorConfiguration<K, E> sessionGeneratorConfiguration =
+				new SessionGeneratorConfiguration<>(sessionConfiguration, generatorConfiguration);
 
-		return new SessionEventGeneratorImpl<>(sessionStreamConfiguration, randomGenerator);
+		return new SessionEventGeneratorImpl<>(sessionGeneratorConfiguration, randomGenerator);
 	}
 
-	public long getMinTimestamp() {
-		return minTimestamp;
-	}
-
-	public long getMaxTimestamp() {
-		return maxTimestamp;
-	}
-
-
-	abstract class AbstractEventGenerator implements EventGenerator<K, E> {
+	private abstract class AbstractEventGenerator implements EventGenerator<K, E> {
 		@Override
 		public K getKey() {
 			return configuration.getSessionConfiguration().getKey();
@@ -286,11 +271,11 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	/**
 	 * internal generator delegate for producing session events that are timely
 	 */
-	class TimelyGenerator extends AbstractEventGenerator {
+	private class TimelyGenerator extends AbstractEventGenerator {
 
 		@Override
 		public E generateEvent(long globalWatermark) {
-			return createEventFromTimestamp(generateTimelyTimestamp(), globalWatermark, Timing.TIMELY);
+			return createEventFromTimestamp(generateTimelyInSessionTimestamp(), globalWatermark, Timing.TIMELY);
 		}
 
 		@Override
@@ -299,7 +284,7 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 		}
 
 		@Override
-		public boolean canProduceEventAtWatermark(long globalWatermark) {
+		public boolean canGenerateEventAtWatermark(long globalWatermark) {
 			return true;
 		}
 
@@ -317,11 +302,11 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	/**
 	 * internal generator delegate for producing late session events with timestamps within the allowed lateness
 	 */
-	class InLatenessGenerator extends AbstractEventGenerator {
+	private class InLatenessGenerator extends AbstractEventGenerator {
 
 		@Override
 		public E generateEvent(long globalWatermark) {
-			return createEventFromTimestamp(generateLateTimestamp(), globalWatermark, Timing.IN_LATENESS);
+			return createEventFromTimestamp(generateArbitraryInSessionTimestamp(), globalWatermark, Timing.IN_LATENESS);
 		}
 
 		@Override
@@ -330,7 +315,7 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 		}
 
 		@Override
-		public boolean canProduceEventAtWatermark(long globalWatermark) {
+		public boolean canGenerateEventAtWatermark(long globalWatermark) {
 			return isTriggered(globalWatermark);
 		}
 
@@ -348,11 +333,11 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 	/**
 	 * internal generator delegate for producing late session events with timestamps after the lateness
 	 */
-	class AfterLatenessGenerator extends AbstractEventGenerator {
+	private class AfterLatenessGenerator extends AbstractEventGenerator {
 
 		@Override
 		public E generateEvent(long globalWatermark) {
-			return createEventFromTimestamp(generateLateTimestamp(), globalWatermark, Timing.AFTER_LATENESS);
+			return createEventFromTimestamp(generateArbitraryInSessionTimestamp(), globalWatermark, Timing.AFTER_LATENESS);
 		}
 
 		@Override
@@ -361,7 +346,7 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
 		}
 
 		@Override
-		public boolean canProduceEventAtWatermark(long globalWatermark) {
+		public boolean canGenerateEventAtWatermark(long globalWatermark) {
 			return isAfterLateness(globalWatermark);
 		}
 

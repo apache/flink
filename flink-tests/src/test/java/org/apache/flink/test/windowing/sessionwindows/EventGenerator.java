@@ -19,27 +19,31 @@
 package org.apache.flink.test.windowing.sessionwindows;
 
 /**
+ * Basic interface for event generators
+ *
  * @param <K> session key type
  * @param <E> session event type
  */
 public interface EventGenerator<K, E> {
 
 	/**
-	 * Only call this method if hasMoreEvents() is true and canProduceEventAtWatermark(...) is true.
+	 * Only call this method if hasMoreEvents() is true and canGenerateEventAtWatermark(...) is true.
 	 *
-	 * @param globalWatermark
+	 * @param globalWatermark the current global watermark to consider for event generation
 	 * @return a generated event
 	 */
 	E generateEvent(long globalWatermark);
 
 	/**
-	 * @param globalWatermark
-	 * @return true if the generator can produce events for the provided global watermark
+	 * @param globalWatermark the current global watermark to consider for event generation
+	 * @return true if, given the current global watermark, the generator can produce events. this might temporarily be
+	 * false, e.g. if a generator wants to produce late events w.r.t. a session, but the global watermark did not yet
+	 * advance to the point that timestamps from the session would be late
 	 */
-	boolean canProduceEventAtWatermark(long globalWatermark);
+	boolean canGenerateEventAtWatermark(long globalWatermark);
 
 	/**
-	 * @return true more events can been produced
+	 * @return true if, in general and for some global watermark, more events can been produced
 	 */
 	boolean hasMoreEvents();
 
@@ -49,7 +53,7 @@ public interface EventGenerator<K, E> {
 	long getLocalWatermark();
 
 	/**
-	 * @param globalWatermark
+	 * @param globalWatermark the current global watermark to consider for event generation
 	 * @return a successor for this generator if hasMoreEvents() is false
 	 */
 	EventGenerator<K, E> getNextGenerator(long globalWatermark);

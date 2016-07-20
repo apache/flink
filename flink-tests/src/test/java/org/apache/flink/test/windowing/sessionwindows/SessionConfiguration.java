@@ -21,8 +21,10 @@ package org.apache.flink.test.windowing.sessionwindows;
 import org.apache.flink.util.Preconditions;
 
 /**
- * @param <K>
- * @param <E>
+ * Configuration data for a session
+ *
+ * @param <K> type of session key
+ * @param <E> type of session event
  */
 public final class SessionConfiguration<K, E> {
 
@@ -42,23 +44,15 @@ public final class SessionConfiguration<K, E> {
 	private final int numberOfTimelyEvents;
 
 	// factory that produces the events for the session from metadata such as timestamps
-	private final StreamEventFactory<K, E> eventFactory;
+	private final GeneratorEventFactory<K, E> eventFactory;
 
-	/**
-	 * @param key
-	 * @param sessionId
-	 * @param gap
-	 * @param minEventTimestamp
-	 * @param numberOfTimelyEvents
-	 * @param eventFactory
-	 */
 	public SessionConfiguration(
 			K key,
 			int sessionId,
 			long gap,
 			long minEventTimestamp,
 			int numberOfTimelyEvents,
-			StreamEventFactory<K, E> eventFactory) {
+			GeneratorEventFactory<K, E> eventFactory) {
 
 		Preconditions.checkNotNull(key);
 		Preconditions.checkNotNull(eventFactory);
@@ -77,7 +71,7 @@ public final class SessionConfiguration<K, E> {
 		return key;
 	}
 
-	public StreamEventFactory<K, E> getEventFactory() {
+	public GeneratorEventFactory<K, E> getEventFactory() {
 		return eventFactory;
 	}
 
@@ -103,7 +97,7 @@ public final class SessionConfiguration<K, E> {
 			long timeout,
 			long startTimestamp,
 			int numberOfEvents,
-			StreamEventFactory<K, E> eventFactory) {
+			GeneratorEventFactory<K, E> eventFactory) {
 		return new SessionConfiguration<>(key, sessionId, timeout, startTimestamp, numberOfEvents, eventFactory);
 	}
 
