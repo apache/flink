@@ -648,7 +648,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		 * @return A list with containers from previous application attempt.
 		 */
 		private List<Container> getContainersFromPreviousAttempts(RegisterApplicationMasterResponse response) {
-			if (method != null) {
+			if (method != null && response != null) {
 				try {
 					@SuppressWarnings("unchecked")
 					List<Container> list = (List<Container>) method.invoke(response);
