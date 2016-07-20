@@ -133,6 +133,10 @@ public class MetricRegistry {
 		return this.delimiter;
 	}
 
+	public MetricReporter getReporter() {
+		return reporter;
+	}
+
 	private static JMXReporter startJmxReporter(Configuration config) {
 		JMXReporter reporter = null;
 		try {
