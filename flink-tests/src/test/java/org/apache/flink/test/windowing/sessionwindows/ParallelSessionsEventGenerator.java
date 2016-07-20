@@ -40,8 +40,8 @@ public class ParallelSessionsEventGenerator<K, E> {
 	// set of all possible keys for generated sessions
 	private final Set<K> sessionKeys;
 
-	// factory for streams that generate exactly one session
-	private final EventGeneratorFactory<K, E> streamFactory;
+	// factory for generators that generate exactly one session
+	private final EventGeneratorFactory<K, E> generatorFactory;
 
 	// list of sub-generators for the current sessions
 	private final List<EventGenerator<K, E>> subGeneratorLists;
@@ -54,20 +54,20 @@ public class ParallelSessionsEventGenerator<K, E> {
 
 	public ParallelSessionsEventGenerator(
 			Set<K> keys,
-			EventGeneratorFactory<K, E> streamFactory,
+			EventGeneratorFactory<K, E> generatorFactory,
 			int parallelSessions,
 			long sessionCountLimit,
 			LongRandomGenerator randomGenerator) {
 
 		Preconditions.checkNotNull(keys);
-		Preconditions.checkNotNull(streamFactory);
+		Preconditions.checkNotNull(generatorFactory);
 		Preconditions.checkArgument(parallelSessions > 0);
 		Preconditions.checkArgument(!keys.isEmpty());
 		Preconditions.checkNotNull(randomGenerator);
 
 		this.sessionKeys = keys;
 		this.randomGenerator = randomGenerator;
-		this.streamFactory = streamFactory;
+		this.generatorFactory = generatorFactory;
 		this.sessionCountLimit = sessionCountLimit;
 
 		this.subGeneratorLists = new ArrayList<>(parallelSessions);
@@ -75,7 +75,7 @@ public class ParallelSessionsEventGenerator<K, E> {
 	}
 
 	/**
-	 * @return
+	 * @return the next generated event
 	 */
 	public E nextEvent() {
 
@@ -96,7 +96,7 @@ public class ParallelSessionsEventGenerator<K, E> {
 			EventGenerator<K, E> subGenerator = subGeneratorLists.get(index);
 
 			// check if the sub-generator can produce an event under the current gloabl watermark
-			if (subGenerator.canProduceEventAtWatermark(globalWatermark)) {
+			if (subGenerator.canGenerateEventAtWatermark(globalWatermark)) {
 
 				E event = subGenerator.generateEvent(globalWatermark);
 
@@ -104,9 +104,9 @@ public class ParallelSessionsEventGenerator<K, E> {
 				if (!subGenerator.hasMoreEvents()) {
 
 					// replaces exhausted generator if the session limit is not met
-					if (streamFactory.getProducedGeneratorsCount() < sessionCountLimit) {
+					if (generatorFactory.getProducedGeneratorsCount() < sessionCountLimit) {
 						subGeneratorLists.set(index,
-								streamFactory.newSessionStreamForKey(
+								generatorFactory.newSessionGeneratorForKey(
 										randomGenerator.choseRandomElement(sessionKeys), getWatermark()));
 					} else {
 						// otherwise removes the sub-generator and shrinks the list of open sessions permanently
@@ -128,18 +128,18 @@ public class ParallelSessionsEventGenerator<K, E> {
 	public long getWatermark() {
 		long watermark = Long.MAX_VALUE;
 
-		for (EventGenerator<K, E> sessionEventStream : subGeneratorLists) {
-			watermark = Math.min(watermark, sessionEventStream.getLocalWatermark());
+		for (EventGenerator<K, E> eventGenerator : subGeneratorLists) {
+			watermark = Math.min(watermark, eventGenerator.getLocalWatermark());
 		}
 		return watermark;
 	}
 
 	/**
-	 * @param parallelSessions
+	 * @param parallelSessions the number of parallel sessions to initialize
 	 */
 	private void initParallelSessionGenerators(int parallelSessions) {
-		for (int i = 0; i < parallelSessions && streamFactory.getProducedGeneratorsCount() < sessionCountLimit; ++i) {
-			subGeneratorLists.add(streamFactory.newSessionStreamForKey(
+		for (int i = 0; i < parallelSessions && generatorFactory.getProducedGeneratorsCount() < sessionCountLimit; ++i) {
+			subGeneratorLists.add(generatorFactory.newSessionGeneratorForKey(
 					randomGenerator.choseRandomElement(sessionKeys), 0L));
 		}
 	}

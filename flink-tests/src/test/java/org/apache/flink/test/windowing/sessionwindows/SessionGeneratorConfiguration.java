@@ -21,50 +21,40 @@ package org.apache.flink.test.windowing.sessionwindows;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Configuration for a session event stream, consisting of the stream configuration and the session configuration.
+ * Configuration for a session event generator, consisting of the generator configuration and the session configuration.
  *
- * @param <K>
- * @param <E>
+ * @param <K> type of session key
+ * @param <E> type of session event
  */
-public final class SessionStreamConfiguration<K, E> {
+public final class SessionGeneratorConfiguration<K, E> {
 
 	private final SessionConfiguration<K, E> sessionConfiguration;
-	private final StreamConfiguration streamConfiguration;
+	private final GeneratorConfiguration generatorConfiguration;
 
-	/**
-	 * @param sessionConfiguration
-	 * @param streamConfiguration
-	 */
-	public SessionStreamConfiguration(
+	public SessionGeneratorConfiguration(
 			SessionConfiguration<K, E> sessionConfiguration,
-			StreamConfiguration streamConfiguration) {
+			GeneratorConfiguration generatorConfiguration) {
 
 		Preconditions.checkNotNull(sessionConfiguration);
-		Preconditions.checkNotNull(streamConfiguration);
+		Preconditions.checkNotNull(generatorConfiguration);
 
 		this.sessionConfiguration = sessionConfiguration;
-		this.streamConfiguration = streamConfiguration;
+		this.generatorConfiguration = generatorConfiguration;
 	}
 
-	/**
-	 * @return
-	 */
 	public SessionConfiguration<K, E> getSessionConfiguration() {
 		return sessionConfiguration;
 	}
 
-	/**
-	 * @return
-	 */
-	public StreamConfiguration getStreamConfiguration() {
-		return streamConfiguration;
+	public GeneratorConfiguration getGeneratorConfiguration() {
+		return generatorConfiguration;
 	}
 
 	@Override
 	public String toString() {
-		return "SessionStreamConfiguration{" +
+		return "SessionGeneratorConfiguration{" +
 				"sessionConfiguration=" + sessionConfiguration +
-				", streamConfiguration=" + streamConfiguration +
+				", generatorConfiguration=" + generatorConfiguration +
 				'}';
 	}
 }

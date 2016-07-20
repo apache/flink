@@ -25,17 +25,13 @@ public class LongRandomGenerator extends Random {
 
 	static final long serialVersionUID = 32523525277L;
 
-	/**
-	 *
-	 * @param seed
-	 */
 	public LongRandomGenerator(long seed) {
 		super(seed);
 	}
 
 	/**
-	 * @param minInclusive
-	 * @param maxExclusive
+	 * @param minInclusive lower bound for the returned value (inclusive)
+	 * @param maxExclusive upper bound for the returned value (exclusive)
 	 * @return random long between the provided min (inclusive) and max (exclusive)
 	 */
 	public long randomLongBetween(long minInclusive, long maxExclusive) {
@@ -54,8 +50,8 @@ public class LongRandomGenerator extends Random {
 	}
 
 	/**
-	 * @param collection
-	 * @return
+	 * @param collection collection to chose from
+	 * @return selects a valid random index from the collection's range of indices
 	 */
 	public int choseRandomIndex(Collection<?> collection) {
 		return nextInt(collection.size());

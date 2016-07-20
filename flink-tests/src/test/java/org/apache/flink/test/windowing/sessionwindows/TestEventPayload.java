@@ -37,12 +37,6 @@ public final class TestEventPayload {
 	// the timing characteristic of the event w.r.t. the watermark
 	private SessionEventGeneratorImpl.Timing timing;
 
-	/**
-	 * @param watermark
-	 * @param sessionId
-	 * @param eventSequenceNumber
-	 * @param timing
-	 */
 	public TestEventPayload(long watermark, int sessionId, int eventSequenceNumber, SessionEventGeneratorImpl.Timing timing) {
 		setWatermark(watermark);
 		setSessionId(sessionId);
@@ -105,13 +99,6 @@ public final class TestEventPayload {
 				'}';
 	}
 
-	/**
-	 * @param watermark
-	 * @param sessionId
-	 * @param eventId
-	 * @param timing
-	 * @return
-	 */
 	public static TestEventPayload of(long watermark, int sessionId, int eventId, SessionEventGeneratorImpl.Timing timing) {
 		return new TestEventPayload(watermark, sessionId, eventId, timing);
 	}

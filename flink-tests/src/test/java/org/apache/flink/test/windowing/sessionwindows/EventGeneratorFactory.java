@@ -27,7 +27,7 @@ import java.util.Map;
 /**
  * Produces the session event generators
  *
- * @param <K>
+ * @param <K> type of session keys
  */
 public class EventGeneratorFactory<K, E> {
 
@@ -38,10 +38,10 @@ public class EventGeneratorFactory<K, E> {
 	private final LongRandomGenerator randomGenerator;
 
 	// configuration for the streams that are simulated by the generators this factory creates
-	private final StreamConfiguration streamConfiguration;
+	private final GeneratorConfiguration generatorConfiguration;
 
 	// factory for the events that is employed be the event generators this factory creates
-	private final StreamEventFactory<K, E> eventFactory;
+	private final GeneratorEventFactory<K, E> eventFactory;
 
 	// number of timely events generators produce per session
 	private final int timelyEventsPerSession;
@@ -52,27 +52,20 @@ public class EventGeneratorFactory<K, E> {
 	// counter that tracks how many generators this has produced
 	private int producedGeneratorsCount;
 
-	/**
-	 * @param streamConfiguration
-	 * @param eventFactory
-	 * @param sessionTimeout
-	 * @param timelyEventsPerSession
-	 * @param randomGenerator
-	 */
 	public EventGeneratorFactory(
-			StreamConfiguration streamConfiguration,
-			StreamEventFactory<K, E> eventFactory,
+			GeneratorConfiguration generatorConfiguration,
+			GeneratorEventFactory<K, E> eventFactory,
 			long sessionTimeout,
 			int timelyEventsPerSession,
 			LongRandomGenerator randomGenerator) {
 
-		Preconditions.checkNotNull(streamConfiguration);
+		Preconditions.checkNotNull(generatorConfiguration);
 		Preconditions.checkNotNull(randomGenerator);
 		Preconditions.checkArgument(sessionTimeout >= 0);
 		Preconditions.checkArgument(timelyEventsPerSession >= 0);
 
 		this.latestGeneratorsByKey = new HashMap<>();
-		this.streamConfiguration = streamConfiguration;
+		this.generatorConfiguration = generatorConfiguration;
 		this.eventFactory = eventFactory;
 		this.randomGenerator = randomGenerator;
 		this.maxSessionEventGap = sessionTimeout;
@@ -81,11 +74,11 @@ public class EventGeneratorFactory<K, E> {
 	}
 
 	/**
-	 * @param key
-	 * @param globalWatermark
-	 * @return
+	 * @param key the key for the new session generator to instantiate
+	 * @param globalWatermark the current global watermark
+	 * @return a new event generator instance that generates events for the provided session key
 	 */
-	public EventGenerator<K, E> newSessionStreamForKey(K key, long globalWatermark) {
+	public EventGenerator<K, E> newSessionGeneratorForKey(K key, long globalWatermark) {
 		EventGenerator<K, E> eventGenerator = latestGeneratorsByKey.get(key);
 
 		if (eventGenerator == null) {
@@ -96,9 +89,9 @@ public class EventGeneratorFactory<K, E> {
 					globalWatermark,
 					timelyEventsPerSession,
 					eventFactory);
-			SessionStreamConfiguration<K, E> sessionStreamConfiguration =
-					new SessionStreamConfiguration<>(sessionConfiguration, streamConfiguration);
-			eventGenerator = new SessionEventGeneratorImpl<>(sessionStreamConfiguration, randomGenerator);
+			SessionGeneratorConfiguration<K, E> sessionGeneratorConfiguration =
+					new SessionGeneratorConfiguration<>(sessionConfiguration, generatorConfiguration);
+			eventGenerator = new SessionEventGeneratorImpl<>(sessionGeneratorConfiguration, randomGenerator);
 		} else {
 			eventGenerator = eventGenerator.getNextGenerator(globalWatermark);
 		}
@@ -107,23 +100,14 @@ public class EventGeneratorFactory<K, E> {
 		return eventGenerator;
 	}
 
-	/**
-	 * @return
-	 */
-	public StreamConfiguration getStreamConfiguration() {
-		return streamConfiguration;
+	public GeneratorConfiguration getGeneratorConfiguration() {
+		return generatorConfiguration;
 	}
 
-	/**
-	 * @return
-	 */
 	public long getMaxSessionEventGap() {
 		return maxSessionEventGap;
 	}
 
-	/**
-	 * @return
-	 */
 	public int getProducedGeneratorsCount() {
 		return producedGeneratorsCount;
 	}

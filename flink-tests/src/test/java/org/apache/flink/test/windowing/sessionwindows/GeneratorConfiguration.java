@@ -19,26 +19,26 @@
 package org.apache.flink.test.windowing.sessionwindows;
 
 /**
- * Configuration for event streams
+ * Configuration for event generators
  */
-public final class StreamConfiguration {
+public final class GeneratorConfiguration {
 
-	// allowed lateness for this stream (in ms)
+	// allowed lateness for this generator (in ms)
 	private final long allowedLateness;
 
-	// how many late events within lateness per session the stream will contain
+	// how many late events within lateness per session the generator will produce
 	private final int lateEventsWithinLateness;
 
-	// how many late events after lateness per session the stream will contain
+	// how many late events after lateness per session the generator will produce
 	private final int lateEventsAfterLateness;
 
-	// hint for the maximum additional gap used to in between two sessions
+	// hint for the maximum additional gap introduced between event times of two generators to separate sessions
 	private final long maxAdditionalSessionGap;
 
-	public StreamConfiguration(long allowedLateness,
-	                           int lateEventsWithinLateness,
-	                           int lateEventsAfterLateness,
-	                           long maxAdditionalSessionGap) {
+	public GeneratorConfiguration(long allowedLateness,
+	                              int lateEventsWithinLateness,
+	                              int lateEventsAfterLateness,
+	                              long maxAdditionalSessionGap) {
 		this.allowedLateness = allowedLateness;
 		this.lateEventsWithinLateness = lateEventsWithinLateness;
 		this.lateEventsAfterLateness = lateEventsAfterLateness;
@@ -61,11 +61,11 @@ public final class StreamConfiguration {
 		return maxAdditionalSessionGap;
 	}
 
-	public static StreamConfiguration of(long allowedLateness,
-	                                     int lateEventsPerSessionWithinLateness,
-	                                     int lateEventsPerSessionOutsideLateness,
-	                                     long maxAdditionalSessionGap) {
-		return new StreamConfiguration(
+	public static GeneratorConfiguration of(long allowedLateness,
+	                                        int lateEventsPerSessionWithinLateness,
+	                                        int lateEventsPerSessionOutsideLateness,
+	                                        long maxAdditionalSessionGap) {
+		return new GeneratorConfiguration(
 				allowedLateness,
 				lateEventsPerSessionWithinLateness,
 				lateEventsPerSessionOutsideLateness,
@@ -74,7 +74,7 @@ public final class StreamConfiguration {
 
 	@Override
 	public String toString() {
-		return "StreamConfiguration{" +
+		return "GeneratorConfiguration{" +
 				"allowedLateness=" + allowedLateness +
 				", lateEventsWithinLateness=" + lateEventsWithinLateness +
 				", lateEventsAfterLateness=" + lateEventsAfterLateness +
