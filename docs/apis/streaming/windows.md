@@ -515,6 +515,9 @@ and are considered when computing window results. If elements arrive after the a
 will be dropped. Flink will also make sure that any state held by the windowing operation is garbage
 collected once the watermark passes the end of a window plus the allowed lateness.
 
+<span class="label label-info">Default</span> By default, the allowed lateness is set to
+`0`. That is, elements that arrive behind the watermark will be dropped.
+
 You can specify an allowed lateness like this:
 
 <div class="codetabs" markdown="1">
