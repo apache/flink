@@ -51,8 +51,6 @@ import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -1154,7 +1152,7 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
-				EventTimeTrigger.create(),
+				PurgingTrigger.of(EventTimeTrigger.create()),
 				LATENESS);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -1409,7 +1407,7 @@ public class WindowOperatorTest {
 	}
 
 	@Test
-	public void testDropDueToLatenessSessionZeroLateness() throws Exception {
+	public void testDropDueToLatenessSessionZeroLatenessPurgingTrigger() throws Exception {
 		final int GAP_SIZE = 3;
 		final long LATENESS = 0;
 
@@ -1427,7 +1425,7 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
-				EventTimeTrigger.create(),
+				PurgingTrigger.of(EventTimeTrigger.create()),
 				LATENESS);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -1497,7 +1495,7 @@ public class WindowOperatorTest {
 	}
 
 	@Test
-	public void testDropDueToLatenessSessionZeroLatenessAccum() throws Exception {
+	public void testDropDueToLatenessSessionZeroLateness() throws Exception {
 		// same as testDropDueToLatenessSessionZeroLateness() but with an accumulating trigger, i.e.
 		// one that does not return FIRE_AND_PURGE when firing but just FIRE
 
@@ -1521,7 +1519,7 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
-				new EventTimeTriggerAccum(),
+				EventTimeTrigger.create(),
 				LATENESS);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -1587,7 +1585,7 @@ public class WindowOperatorTest {
 	}
 
 	@Test
-	public void testDropDueToLatenessSessionWithLateness() throws Exception {
+	public void testDropDueToLatenessSessionWithLatenessPurgingTrigger() throws Exception {
 
 		// this has the same output as testDropDueToLatenessSessionZeroLateness() because
 		// the allowed lateness is too small to make a difference
@@ -1609,7 +1607,7 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
-				EventTimeTrigger.create(),
+				PurgingTrigger.of(EventTimeTrigger.create()),
 				LATENESS);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -1675,7 +1673,7 @@ public class WindowOperatorTest {
 	}
 
 	@Test
-	public void testDropDueToLatenessSessionWithLatenessAccum() throws Exception {
+	public void testDropDueToLatenessSessionWithLateness() throws Exception {
 		// same as testDropDueToLatenessSessionWithLateness() but with an accumulating trigger, i.e.
 		// one that does not return FIRE_AND_PURGE when firing but just FIRE. The expected
 		// results are therefore slightly different.
@@ -1697,7 +1695,7 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
-				new EventTimeTriggerAccum(),
+				EventTimeTrigger.create(),
 				LATENESS);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -1775,7 +1773,7 @@ public class WindowOperatorTest {
 	}
 
 	@Test
-	public void testDropDueToLatenessSessionWithHugeLateness() throws Exception {
+	public void testDropDueToLatenessSessionWithHugeLatenessPurgingTrigger() throws Exception {
 
 		final int GAP_SIZE = 3;
 		final long LATENESS = 10000;
@@ -1794,7 +1792,7 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
-				EventTimeTrigger.create(),
+				PurgingTrigger.of(EventTimeTrigger.create()),
 				LATENESS);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -1865,7 +1863,7 @@ public class WindowOperatorTest {
 	}
 
 	@Test
-	public void testDropDueToLatenessSessionWithHugeLatenessAccum() throws Exception {
+	public void testDropDueToLatenessSessionWithHugeLateness() throws Exception {
 		final int GAP_SIZE = 3;
 		final long LATENESS = 10000;
 
@@ -1883,7 +1881,7 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
-				new EventTimeTriggerAccum(),
+				EventTimeTrigger.create(),
 				LATENESS);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -2112,62 +2110,6 @@ public class WindowOperatorTest {
 				}
 			}
 			return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
-		}
-	}
-
-	/**
-	 * A trigger that fires at the end of the window but does not
-	 * purge the state of the fired window. This is to test the state
-	 * garbage collection mechanism.
-	 */
-	public class EventTimeTriggerAccum extends Trigger<Object, TimeWindow> {
-		private static final long serialVersionUID = 1L;
-
-		private EventTimeTriggerAccum() {}
-
-		@Override
-		public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
-			if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
-				// if the watermark is already past the window fire immediately
-				return TriggerResult.FIRE;
-			} else {
-				ctx.registerEventTimeTimer(window.maxTimestamp());
-				return TriggerResult.CONTINUE;
-			}
-		}
-
-		@Override
-		public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) {
-			return time == window.maxTimestamp() ?
-				TriggerResult.FIRE :
-				TriggerResult.CONTINUE;
-		}
-
-		@Override
-		public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) throws Exception {
-			return TriggerResult.CONTINUE;
-		}
-
-		@Override
-		public void clear(TimeWindow window, TriggerContext ctx) throws Exception {
-			ctx.deleteEventTimeTimer(window.maxTimestamp());
-		}
-
-		@Override
-		public boolean canMerge() {
-			return true;
-		}
-
-		@Override
-		public TriggerResult onMerge(TimeWindow window,
-									 OnMergeContext ctx) {
-			ctx.registerEventTimeTimer(window.maxTimestamp());
-			return TriggerResult.CONTINUE;
-		}
-
-		@Override
-		public String toString() {
-			return "EventTimeTrigger()";
 		}
 	}
 }
