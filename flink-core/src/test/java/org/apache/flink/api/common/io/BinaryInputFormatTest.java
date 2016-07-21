@@ -41,7 +41,8 @@ public class BinaryInputFormatTest {
 			return record;
 		}
 	}
-	
+
+
 	@Test
 	public void testCreateInputSplitsWithOneFile() throws IOException {
 		// create temporary file with 3 blocks

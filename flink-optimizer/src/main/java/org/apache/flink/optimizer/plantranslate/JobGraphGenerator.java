@@ -30,6 +30,7 @@ import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
@@ -49,7 +50,6 @@ import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -107,10 +107,11 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	
 	public static final String MERGE_ITERATION_AUX_TASKS_KEY = "compiler.merge-iteration-aux";
 	
-	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
-	
+	private static final boolean mergeIterationAuxTasks =
+		GlobalConfiguration.loadConfiguration().getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
+
 	private static final TaskInChain ALREADY_VISITED_PLACEHOLDER = new TaskInChain(null, null, null, null);
-	
+
 	// ------------------------------------------------------------------------
 
 	private Map<PlanNode, JobVertex> vertices; // a map from optimizer nodes to job vertices
@@ -156,7 +157,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		this.useLargeRecordHandler = config.getBoolean(
 				ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY,
 				ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER);
-
 	}
 
 	/**
