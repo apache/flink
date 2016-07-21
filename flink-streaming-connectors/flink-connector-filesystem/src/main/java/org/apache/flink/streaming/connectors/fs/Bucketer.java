@@ -30,7 +30,10 @@ import java.io.Serializable;
  * a new element arrives it will ask the {@code Bucketer} if a new bucket should be started and
  * the old one closed. The {@code Bucketer} can, for example, decide to start new buckets
  * based on system time.
+ *
+ * @deprecated use {@link org.apache.flink.streaming.connectors.fs.bucketing.Bucketer} instead.
  */
+@Deprecated
 public interface Bucketer extends Serializable {
 
 	/**
