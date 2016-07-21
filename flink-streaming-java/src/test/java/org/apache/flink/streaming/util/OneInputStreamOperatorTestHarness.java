@@ -107,6 +107,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
+		when(mockTask.getUserCodeClassLoader()).thenReturn(this.getClass().getClassLoader());
 
 		try {
 			doAnswer(new Answer<AbstractStateBackend>() {
@@ -188,14 +189,21 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#snapshotOperatorState(long, long)} ()}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#snapshotOperatorState(long, long)}
 	 */
 	public StreamTaskState snapshot(long checkpointId, long timestamp) throws Exception {
 		return operator.snapshotOperatorState(checkpointId, timestamp);
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamTaskState, long)} ()}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#notifyOfCompletedCheckpoint(long)}
+	 */
+	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
+		operator.notifyOfCompletedCheckpoint(checkpointId);
+	}
+
+	/**
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamTaskState, long)}
 	 */
 	public void restore(StreamTaskState snapshot, long recoveryTimestamp) throws Exception {
 		operator.restoreState(snapshot, recoveryTimestamp);

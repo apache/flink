@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
+import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.hadoop.fs.Path;
 
 import java.io.Serializable;
@@ -42,5 +43,5 @@ public interface Bucketer<T> extends Serializable {
 	 * should include the {@code basePath} and also the {@code subtaskIndex} to avoid clashes with
 	 * parallel sinks.
 	 */
-	Path getBucketPath(Path basePath, T element);
+	Path getBucketPath(Clock clock, Path basePath, T element);
 }

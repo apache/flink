@@ -26,11 +26,12 @@ import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
-import org.apache.flink.streaming.connectors.fs.SystemClock;
 import org.apache.flink.streaming.connectors.fs.Writer;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -134,12 +135,12 @@ import java.util.Iterator;
  *
  * @param <T> Type of the elements emitted by this sink
  */
-public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeConfigurable, Checkpointed<BucketingSink.State<T>>, CheckpointListener {
+public class BucketingSink<T>
+		extends RichSinkFunction<T>
+		implements InputTypeConfigurable, Checkpointed<BucketingSink.State<T>>, CheckpointListener, Triggerable {
 	private static final long serialVersionUID = 1L;
 
 	private static Logger LOG = LoggerFactory.getLogger(BucketingSink.class);
-
-	private static Clock clock = new SystemClock();
 
 	// --------------------------------------------------------------------------------------------
 	//  User configuration values
@@ -286,6 +287,8 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 
 	private transient org.apache.hadoop.conf.Configuration hadoopConf;
 
+	private transient Clock clock;
+
 	/**
 	 * Creates a new {@code BucketingSink} that writes files to the given base directory.
 	 *
@@ -322,7 +325,22 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 		FileSystem fs = baseDirectory.getFileSystem(hadoopConf);
 		refTruncate = reflectTruncate(fs);
 
-		lastInactiveBucketCheck = clock.currentTimeMillis();
+		long currentProcessingTime =
+				((StreamingRuntimeContext) getRuntimeContext()).getCurrentProcessingTime();
+
+		lastInactiveBucketCheck = currentProcessingTime;
+
+		checkForInactiveBuckets(currentProcessingTime);
+
+		((StreamingRuntimeContext) getRuntimeContext()).registerTimer(
+				currentProcessingTime + inactiveBucketCheckInterval, this);
+
+		this.clock = new Clock() {
+			@Override
+			public long currentTimeMillis() {
+				return ((StreamingRuntimeContext) getRuntimeContext()).getCurrentProcessingTime();
+			}
+		};
 
 		// delete pending/in-progress files that might be left if we fail while
 		// no checkpoint has yet been done
@@ -357,16 +375,19 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 	@Override
 	public void close() throws Exception {
 		for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
-			closeCurrentPartFile(new Path(entry.getKey()), entry.getValue());
+			closeCurrentPartFile(entry.getValue());
 		}
 	}
 
 	@Override
 	public void invoke(T value) throws Exception {
-		Path bucketPath = bucketer.getBucketPath(new Path(basePath), value);
+		Path bucketPath = bucketer.getBucketPath(clock, new Path(basePath), value);
+
+		long currentProcessingTime =
+				((StreamingRuntimeContext) getRuntimeContext()).getCurrentProcessingTime();
 
 		if (!state.hasBucketState(bucketPath)) {
-			state.addBucketState(bucketPath, new BucketState<T>());
+			state.addBucketState(bucketPath, new BucketState<T>(currentProcessingTime));
 		}
 
 		BucketState<T> bucketState = state.getBucketState(bucketPath);
@@ -376,11 +397,7 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 		}
 
 		bucketState.writer.write(value);
-		bucketState.lastWrittenToTime = clock.currentTimeMillis();
-
-		if (clock.currentTimeMillis() - lastInactiveBucketCheck >= inactiveBucketCheckInterval) {
-			checkForInactiveBuckets();
-		}
+		bucketState.lastWrittenToTime = currentProcessingTime;
 	}
 
 	/**
@@ -408,20 +425,32 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 		return shouldRoll;
 	}
 
+	@Override
+	public void trigger(long timestamp) throws Exception {
+		long currentProcessingTime =
+				((StreamingRuntimeContext) getRuntimeContext()).getCurrentProcessingTime();
+
+		checkForInactiveBuckets(currentProcessingTime);
+
+		((StreamingRuntimeContext) getRuntimeContext()).registerTimer(
+				currentProcessingTime + inactiveBucketCheckInterval, this);
+	}
+
 	/**
 	 * Checks for inactive buckets, and closes them. This enables in-progress files to be moved to
 	 * the pending state and finalised on the next checkpoint.
 	 */
-	private void checkForInactiveBuckets() throws Exception {
+	private void checkForInactiveBuckets(long currentProcessingTime) throws Exception {
+
 		synchronized (state.bucketStates) {
 			for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
-				if (entry.getValue().lastWrittenToTime < clock.currentTimeMillis() - inactiveBucketThreshold) {
+				if (entry.getValue().lastWrittenToTime < currentProcessingTime - inactiveBucketThreshold) {
 					LOG.debug("BucketingSink {} closing bucket due to inactivity of over {} ms.",
 						subtaskIndex, inactiveBucketThreshold);
-					closeCurrentPartFile(new Path(entry.getKey()), entry.getValue());
+					closeCurrentPartFile(entry.getValue());
 				}
 			}
-			lastInactiveBucketCheck = clock.currentTimeMillis();
+			lastInactiveBucketCheck = currentProcessingTime;
 		}
 	}
 
@@ -432,7 +461,7 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 	 * This closes the old bucket file and retrieves a new bucket path from the {@code Bucketer}.
 	 */
 	private void openNewPartFile(Path bucketPath, BucketState<T> bucketState) throws Exception {
-		closeCurrentPartFile(bucketPath, bucketState);
+		closeCurrentPartFile(bucketState);
 
 		FileSystem fs = new Path(basePath).getFileSystem(hadoopConf);
 
@@ -479,7 +508,7 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 	 * This moves the current in-progress part file to a pending file and adds it to the list
 	 * of pending files in our bucket state.
 	 */
-	private void closeCurrentPartFile(Path bucketPath, BucketState<T> bucketState) throws Exception {
+	private void closeCurrentPartFile(BucketState<T> bucketState) throws Exception {
 		if (bucketState.isWriterOpen) {
 			bucketState.writer.close();
 			bucketState.isWriterOpen = false;
@@ -494,7 +523,8 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 			LOG.debug("Moving in-progress bucket {} to pending file {}",
 				inProgressPath,
 				pendingPath);
-			state.getBucketState(bucketPath).pendingFiles.add(currentPartPath.toString());
+			bucketState.pendingFiles.add(currentPartPath.toString());
+			bucketState.currentFile = null;
 		}
 	}
 
@@ -921,19 +951,6 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Setters intended for testing purposes only
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * This sets the internal {@link Clock} implementation. This method should only be used for testing.
-	 *
-	 * @param newClock The new clock to set.
-	 */
-	static void setClock(Clock newClock) {
-		clock = newClock;
-	}
-
-	// --------------------------------------------------------------------------------------------
 	//  Internal Classes
 	// --------------------------------------------------------------------------------------------
 
@@ -988,7 +1005,7 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 		/**
 		 * The time this bucket was last written to.
 		 */
-		long lastWrittenToTime = clock.currentTimeMillis();
+		long lastWrittenToTime;
 
 		/**
 		 * Pending files that accumulated since the last checkpoint.
@@ -1017,5 +1034,9 @@ public class BucketingSink<T> extends RichSinkFunction<T> implements InputTypeCo
 		 * The actual writer that we user for writing the part files.
 		 */
 		private transient Writer<T> writer;
+
+		public BucketState(long lastWrittenToTime) {
+			this.lastWrittenToTime = lastWrittenToTime;
+		}
 	}
 }

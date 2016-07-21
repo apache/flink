@@ -193,7 +193,7 @@ public class BucketingSinkMultipleActiveBucketsCase extends StreamingMultiplePro
 			.setInactiveBucketCheckInterval(5 * 60 * 1000L)
 			.setInactiveBucketThreshold(5 * 60 * 1000L);
 
-		BucketingSink.setClock(new ModifyableClock());
+//		BucketingSink.setClock(new ModifyableClock());
 
 		mapped.addSink(sink);
 
@@ -224,7 +224,7 @@ public class BucketingSinkMultipleActiveBucketsCase extends StreamingMultiplePro
 	private static class CustomBucketer implements Bucketer<Tuple2<Integer, String>> {
 
 		@Override
-		public Path getBucketPath(Path basePath, Tuple2<Integer, String> element) {
+		public Path getBucketPath(Clock clock, Path basePath, Tuple2<Integer, String> element) {
 			return new Path(basePath + "/" + element.f0.toString());
 		}
 

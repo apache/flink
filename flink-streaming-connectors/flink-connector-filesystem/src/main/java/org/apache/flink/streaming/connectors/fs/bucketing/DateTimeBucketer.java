@@ -59,9 +59,6 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 
 	private static final String DEFAULT_FORMAT_STRING = "yyyy-MM-dd--HH";
 
-	// We have this so that we can manually set it for tests.
-	private static Clock clock = new SystemClock();
-
 	private final String formatString;
 
 	private transient SimpleDateFormat dateFormatter;
@@ -92,7 +89,7 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 	}
 
 	@Override
-	public Path getBucketPath(Path basePath, T element) {
+	public Path getBucketPath(Clock clock, Path basePath, T element) {
 		String newDateTimeString = dateFormatter.format(new Date(clock.currentTimeMillis()));
 		return new Path(basePath + "/" + newDateTimeString);
 	}
@@ -102,14 +99,5 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 		return "DateTimeBucketer{" +
 				"formatString='" + formatString + '\'' +
 				'}';
-	}
-
-	/**
-	 * This sets the internal {@link Clock} implementation. This method should only be used for testing
-	 *
-	 * @param newClock The new clock to set.
-	 */
-	public static void setClock(Clock newClock) {
-		clock = newClock;
 	}
 }
