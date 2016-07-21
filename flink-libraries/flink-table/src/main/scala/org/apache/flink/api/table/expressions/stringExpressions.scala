@@ -142,23 +142,23 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
 }
 
 /**
-  * Returns subString of `str` from `begin`(inclusive) to `end`(not inclusive).
+  * Returns subString of `str` from `begin`(inclusive) for `length`.
   */
 case class SubString(
     str: Expression,
     begin: Expression,
-    end: Expression) extends Expression with InputTypeSpec {
+    length: Expression) extends Expression with InputTypeSpec {
 
   def this(str: Expression, begin: Expression) = this(str, begin, CharLength(str))
 
-  override private[flink] def children: Seq[Expression] = str :: begin :: end :: Nil
+  override private[flink] def children: Seq[Expression] = str :: begin :: length :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
-  override def toString: String = s"$str.subString($begin, $end)"
+  override def toString: String = s"$str.subString($begin, $length)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.SUBSTRING, children.map(_.toRexNode))
