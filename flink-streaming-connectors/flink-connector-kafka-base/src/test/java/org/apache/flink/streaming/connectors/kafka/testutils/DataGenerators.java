@@ -135,11 +135,18 @@ public class DataGenerators {
 					}
 				});
 
+		Properties props = new Properties();
+		props.putAll(FlinkKafkaProducerBase.getPropertiesFromBrokerList(testServer.getBrokerConnectionString()));
+		Properties secureProps = testServer.getSecureProperties();
+		if(secureProps != null) {
+			props.putAll(testServer.getSecureProperties());
+		}
+
 		stream
 				.rebalance()
 				.addSink(testServer.getProducer(topic,
 						new KeyedSerializationSchemaWrapper<>(new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig())),
-						FlinkKafkaProducerBase.getPropertiesFromBrokerList(testServer.getBrokerConnectionString()),
+						props,
 						new KafkaPartitioner<Integer>() {
 							@Override
 							public int partition(Integer next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
