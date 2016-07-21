@@ -288,7 +288,7 @@ public class JobManagerHARecoveryTest {
 
 			archiveRef = system.actorOf(Props.create(
 					MemoryArchivist.class,
-					10), "archive");
+					10), "archive-0");
 
 			jobManagerRef = createJobManagerActor(
 					"jobmanager-0",
