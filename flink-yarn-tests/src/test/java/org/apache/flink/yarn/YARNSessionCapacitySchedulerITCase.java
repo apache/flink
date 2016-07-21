@@ -23,10 +23,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Joiner;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -516,6 +518,27 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		} catch(Throwable t) {
 			LOG.warn("Error while detached yarn session was running", t);
 			Assert.fail(t.getMessage());
+		} finally {
+
+			//cleanup the yarn-properties file
+			String confDirPath = System.getenv("FLINK_CONF_DIR");
+			File configDirectory = new File(confDirPath);
+			LOG.info("testDetachedPerJobYarnClusterInternal: Using configuration directory " + configDirectory.getAbsolutePath());
+
+			// load the configuration
+			LOG.info("testDetachedPerJobYarnClusterInternal: Trying to load configuration file");
+			GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
+
+			try {
+				File yarnPropertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(GlobalConfiguration.loadConfiguration());
+				if(yarnPropertiesFile.exists()) {
+					LOG.info("testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}", yarnPropertiesFile.getAbsolutePath());
+					yarnPropertiesFile.delete();
+				}
+			} catch (Exception e) {
+				LOG.warn("testDetachedPerJobYarnClusterInternal: Exception while deleting the JobManager address file", e);
+			}
+
 		}
 	}
 

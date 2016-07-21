@@ -580,10 +580,11 @@ public class MesosApplicationMasterRunner {
 		// build the launch command
 		boolean hasLogback = new File(workingDirectory, "logback.xml").exists();
 		boolean hasLog4j = new File(workingDirectory, "log4j.properties").exists();
+		boolean hasKrb5 = false;
 
 		String launchCommand = BootstrapTools.getTaskManagerShellCommand(
 			flinkConfig, tmParams.containeredParameters(), ".", ".",
-			hasLogback, hasLog4j, taskManagerMainClass);
+			hasLogback, hasLog4j, hasKrb5, taskManagerMainClass);
 		cmd.setValue(launchCommand);
 
 		// build the environment variables

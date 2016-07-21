@@ -107,6 +107,13 @@ under the License.
 		<jackson.version>2.7.4</jackson.version>
 		<metrics.version>3.1.0</metrics.version>
 		<junit.version>4.11</junit.version>
+		<!--
+			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
+			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
+			Starting Hadoop 3, org.apache.kerby will be used instead of MiniKDC. We may have
+			to revisit the impact at that time.
+		-->
+		<minikdc.version>2.7.2</minikdc.version>
 	</properties>
 
 	<dependencies>
