@@ -27,10 +27,10 @@ import java.util.Properties;
 /**
  * Base class for {@link KafkaTableSink} that serializes data in JSON format
  */
-public abstract class KafkaJsonTableSinkBase extends KafkaTableSink {
+public abstract class KafkaJsonTableSink extends KafkaTableSink {
 
 	/**
-	 * Creates KafkaJsonTableSinkBase
+	 * Creates KafkaJsonTableSink
 	 *
 	 * @param topic topic in Kafka
 	 * @param properties properties to connect to Kafka
@@ -38,12 +38,12 @@ public abstract class KafkaJsonTableSinkBase extends KafkaTableSink {
 	 * @param fieldNames row field names
 	 * @param fieldTypes row field types
 	 */
-	public KafkaJsonTableSinkBase(String topic, Properties properties, KafkaPartitioner<Row> partitioner, String[] fieldNames, Class<?>[] fieldTypes) {
+	public KafkaJsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner, String[] fieldNames, Class<?>[] fieldTypes) {
 		super(topic, properties, new JsonRowSerializationSchema(fieldNames), partitioner, fieldNames, fieldTypes);
 	}
 
 	/**
-	 * Creates KafkaJsonTableSinkBase
+	 * Creates KafkaJsonTableSink
 	 *
 	 * @param topic topic in Kafka
 	 * @param properties properties to connect to Kafka
@@ -51,7 +51,7 @@ public abstract class KafkaJsonTableSinkBase extends KafkaTableSink {
 	 * @param fieldNames row field names
 	 * @param fieldTypes row field types
 	 */
-	public KafkaJsonTableSinkBase(String topic, Properties properties, KafkaPartitioner<Row> partitioner, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public KafkaJsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		super(topic, properties, new JsonRowSerializationSchema(fieldNames), partitioner, fieldNames, fieldTypes);
 	}
 

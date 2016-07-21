@@ -15,32 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.table.Row;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
-import org.junit.Test;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-public class Kafka08JsonTableSinkTest extends KafkaTableSinkTestBase {
-	@Test
-	public void kafka08JsonTableSinkTest() throws Exception {
-		testKafkaTableSink();
-	}
+public class TypeUtil {
+	private TypeUtil() {}
 
-	@Override
-	protected KafkaTableSink createTableSink() {
-		return new Kafka08JsonTableSink(
-			TOPIC,
-			createSinkProperties(),
-			createPartitioner(),
-			FIELD_NAMES,
-			FIELD_TYPES);
-	}
-
-	protected DeserializationSchema<Row> createRowDeserializationSchema() {
-		return new JsonRowDeserializationSchema(
-			FIELD_NAMES, FIELD_TYPES);
+	/**
+	 * Creates TypeInformation array for an array of Classes.
+	 * @param fieldTypes classes to extract type information from
+	 * @return type information
+	 */
+	public static TypeInformation<?>[] toTypeInfo(Class<?>[] fieldTypes) {
+		TypeInformation<?>[] typeInfos = new TypeInformation[fieldTypes.length];
+		for (int i = 0; i < fieldTypes.length; i++) {
+			typeInfos[i] = TypeExtractor.getForClass(fieldTypes[i]);
+		}
+		return typeInfos;
 	}
 }
-

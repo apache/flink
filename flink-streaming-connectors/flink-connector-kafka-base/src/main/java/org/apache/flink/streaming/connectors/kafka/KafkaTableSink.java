@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.sinks.StreamTableSink;
 import org.apache.flink.api.table.typeutils.RowTypeInfo;
@@ -28,6 +27,8 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
+
+import static org.apache.flink.streaming.util.TypeUtil.toTypeInfo;
 
 /**
  * A version-agnostic Kafka {@link StreamTableSink}.
@@ -115,16 +116,5 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
 		return fieldTypes;
-	}
-
-	/**
-	 * Creates TypeInformation array for an array of Classes.
-	 */
-	private static TypeInformation<?>[] toTypeInfo(Class<?>[] fieldTypes) {
-		TypeInformation<?>[] typeInfos = new TypeInformation[fieldTypes.length];
-		for (int i = 0; i < fieldTypes.length; i++) {
-			typeInfos[i] = TypeExtractor.getForClass(fieldTypes[i]);
-		}
-		return typeInfos;
 	}
 }

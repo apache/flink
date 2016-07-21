@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.test.util.SuccessException;
 
 import java.io.Serializable;
@@ -62,36 +62,8 @@ public abstract class KafkaTableSinkTestBase extends KafkaTestBase implements Se
 		return env;
 	}
 
-	private void createConsumingTopology(StreamExecutionEnvironment env) {
-		JsonRowDeserializationSchema jsonDeserializationSchema = new JsonRowDeserializationSchema(
-			FIELD_NAMES, FIELD_TYPES);
-
-		FlinkKafkaConsumerBase<Row> source = kafkaServer.getConsumer(TOPIC, jsonDeserializationSchema, standardProps);
-
-		env.addSource(source).setParallelism(PARALLELISM)
-				.map(new RichMapFunction<Row, Integer>() {
-					@Override
-					public Integer map(Row value) {
-						return (Integer) value.getField(0);
-					}
-				}).setParallelism(PARALLELISM)
-
-				.addSink(new SinkFunction<Integer>() {
-					HashSet<Integer> ids = new HashSet<>();
-					@Override
-					public void invoke(Integer value) throws Exception {
-						ids.add(value);
-
-						if (ids.size() == 100) {
-							throw new SuccessException();
-						}
-					}
-				}).setParallelism(1);
-	}
-
 	private void createProducingTopology(StreamExecutionEnvironment env) {
 		DataStream<Row> stream = env.addSource(new SourceFunction<Row>() {
-
 			private boolean running = true;
 
 			@Override
@@ -118,6 +90,32 @@ public abstract class KafkaTableSinkTestBase extends KafkaTestBase implements Se
 		kafkaTableSinkBase.emitDataStream(stream);
 	}
 
+	private void createConsumingTopology(StreamExecutionEnvironment env) {
+		DeserializationSchema<Row> deserializationSchema = createRowDeserializationSchema();
+
+		FlinkKafkaConsumerBase<Row> source = kafkaServer.getConsumer(TOPIC, deserializationSchema, standardProps);
+
+		env.addSource(source).setParallelism(PARALLELISM)
+			.map(new RichMapFunction<Row, Integer>() {
+				@Override
+				public Integer map(Row value) {
+					return (Integer) value.getField(0);
+				}
+			}).setParallelism(PARALLELISM)
+
+			.addSink(new SinkFunction<Integer>() {
+				HashSet<Integer> ids = new HashSet<>();
+				@Override
+				public void invoke(Integer value) throws Exception {
+					ids.add(value);
+
+					if (ids.size() == 100) {
+						throw new SuccessException();
+					}
+				}
+			}).setParallelism(1);
+	}
+
 	protected KafkaPartitioner<Row> createPartitioner() {
 		return new CustomPartitioner();
 	}
@@ -127,6 +125,9 @@ public abstract class KafkaTableSinkTestBase extends KafkaTestBase implements Se
 	}
 
 	protected abstract KafkaTableSink createTableSink();
+
+	protected abstract DeserializationSchema<Row> createRowDeserializationSchema();
+
 
 	public static class CustomPartitioner extends KafkaPartitioner<Row> implements Serializable {
 		@Override

@@ -27,7 +27,7 @@ import java.util.Properties;
 /**
  * Kafka 0.9 {@link KafkaTableSink} that serializes data in JSON format.
  */
-public class Kafka09JsonTableSink extends KafkaJsonTableSinkBase {
+public class Kafka09JsonTableSink extends KafkaJsonTableSink {
 	/**
 	 * Creates {@link KafkaTableSink} for Kafka 0.9
 	 *

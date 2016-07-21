@@ -17,6 +17,9 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.table.Row;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.junit.Test;
 
 public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
@@ -33,5 +36,10 @@ public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
 			createPartitioner(),
 			FIELD_NAMES,
 			FIELD_TYPES);
+	}
+
+	protected DeserializationSchema<Row> createRowDeserializationSchema() {
+		return new JsonRowDeserializationSchema(
+			FIELD_NAMES, FIELD_TYPES);
 	}
 }
