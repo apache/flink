@@ -430,7 +430,8 @@ public class JobManagerHARecoveryTest {
 
 			boolean cleanedUpFiles = false;
 			while (deadline.hasTimeLeft()) {
-				if (listFiles(rootPath).isEmpty()) {
+				File[] files = rootPath.listFiles();
+				if (files != null && files.length == 0) {
 					cleanedUpFiles = true;
 					break;
 				} else {
@@ -451,33 +452,6 @@ public class JobManagerHARecoveryTest {
 			if (taskManagerRef != null) {
 				taskManagerRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
 			}
-		}
-	}
-
-	/**
-	 * Recursively lists all files under the given base path.
-	 *
-	 * @param basePath Base path to start listing files from.
-	 * @return Collection of all files found under the base path.
-	 * @throws IOException If base path not found.
-	 */
-	private static Collection<File> listFiles(File basePath) throws IOException {
-		Preconditions.checkNotNull(basePath);
-
-		Set<File> files = new HashSet<>();
-
-		File[] listed = basePath.listFiles();
-		if (listed == null) {
-			throw new IOException(basePath + " not found");
-		} else {
-			for (File file : listed) {
-				if (file.isFile()) {
-					files.add(file);
-				} else {
-					files.addAll(listFiles(file));
-				}
-			}
-			return files;
 		}
 	}
 
