@@ -90,31 +90,33 @@ public class JMXReporter implements MetricReporter {
 
 	@Override
 	public void open(Configuration config) {
-		this.jmxServer = startJmxServer(config);
-	}
+		String portsConfig = config.getString(ARG_PORT, null);
 
-	private static JMXServer startJmxServer(Configuration config) {
-		String portsConfig = config.getString(ARG_PORT, "9010-9025");
+		if (portsConfig != null) {
+			Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
-		Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
-
-		JMXServer server = new JMXServer();
-		while (ports.hasNext()) {
-			int port = ports.next();
-			try {
-				server.start(port);
-				LOG.info("Started JMX server on port " + port + ".");
-				return server;
-			} catch (IOException ioe) { //assume port conflict
-				LOG.debug("Could not start JMX server on port " + port + ".", ioe);
+			JMXServer server = new JMXServer();
+			while (ports.hasNext()) {
+				int port = ports.next();
 				try {
-					server.stop();
-				} catch (Exception e) {
-					LOG.debug("Could not stop JMX server.", e);
+					server.start(port);
+					LOG.info("Started JMX server on port " + port + ".");
+					// only set our field if the server was actually started
+					jmxServer = server;
+					break;
+				} catch (IOException ioe) { //assume port conflict
+					LOG.debug("Could not start JMX server on port " + port + ".", ioe);
+					try {
+						server.stop();
+					} catch (Exception e) {
+						LOG.debug("Could not stop JMX server.", e);
+					}
 				}
 			}
+			if (jmxServer == null) {
+				throw new RuntimeException("Could not start JMX server on any configured port. Ports: " + portsConfig);
+			}
 		}
-		throw new RuntimeException("Could not start JMX server on any configured port.");
 	}
 
 	@Override
@@ -129,6 +131,9 @@ public class JMXReporter implements MetricReporter {
 	}
 	
 	public int getPort() {
+		if (jmxServer == null) {
+			throw new NullPointerException("No server was opened. Did you specify a port?");
+		}
 		return jmxServer.port;
 	}
 
