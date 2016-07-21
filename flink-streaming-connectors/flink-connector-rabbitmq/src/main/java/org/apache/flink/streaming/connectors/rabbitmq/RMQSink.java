@@ -39,7 +39,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
-	private String queueName;
+	protected String queueName;
 	private RMQConnectionConfig rmqConnectionConfig;
 	private transient Connection connection;
 	private transient Channel channel;
@@ -55,6 +55,15 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.schema = schema;
+	}
+
+	/**
+	 * Sets up the queue. The default implementation just declares the queue. The user may override
+	 * this method to have a custom setup for the queue (i.e. binding the queue to an exchange or
+	 * defining custom queue parameters)
+	 */
+	protected void setupQueue() throws IOException {
+		channel.queueDeclare(queueName, false, false, false, null);
 	}
 
 	/**
@@ -79,7 +88,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
-			channel.queueDeclare(queueName, false, false, false, null);
+			setupQueue();
 		} catch (IOException e) {
 			throw new RuntimeException("Error while creating the channel", e);
 		}
