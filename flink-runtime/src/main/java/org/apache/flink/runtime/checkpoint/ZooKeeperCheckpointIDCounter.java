@@ -91,14 +91,30 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	}
 
 	@Override
-	public void stop() throws Exception {
+	public void shutdown() throws Exception {
 		synchronized (startStopLock) {
 			if (isStarted) {
+				LOG.info("Shutting down.");
 				sharedCount.close();
 				client.getConnectionStateListenable().removeListener(connStateListener);
 
 				LOG.info("Removing {} from ZooKeeper", counterPath);
 				client.delete().deletingChildrenIfNeeded().inBackground().forPath(counterPath);
+
+				isStarted = false;
+			}
+		}
+	}
+
+	@Override
+	public void suspend() throws Exception {
+		synchronized (startStopLock) {
+			if (isStarted) {
+				LOG.info("Suspending.");
+				sharedCount.close();
+				client.getConnectionStateListenable().removeListener(connStateListener);
+
+				// Don't remove any state
 
 				isStarted = false;
 			}

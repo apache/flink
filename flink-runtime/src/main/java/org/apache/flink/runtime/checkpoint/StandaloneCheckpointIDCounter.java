@@ -33,12 +33,13 @@ public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 	private final AtomicLong checkpointIdCounter = new AtomicLong(1);
 
 	@Override
-	public void start() throws Exception {
-	}
+	public void start() throws Exception {}
 
 	@Override
-	public void stop() throws Exception {
-	}
+	public void shutdown() throws Exception {}
+
+	@Override
+	public void suspend() throws Exception {}
 
 	@Override
 	public long getAndIncrement() throws Exception {

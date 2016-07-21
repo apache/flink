@@ -362,7 +362,11 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 		}
 
 		@Override
-		public void discardAllCheckpoints() throws Exception {
+		public void shutdown() throws Exception {
+		}
+
+		@Override
+		public void suspend() throws Exception {
 		}
 
 		@Override
