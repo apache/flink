@@ -88,7 +88,7 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep2 = new JMXReporter();
 
 		Configuration cfg1 = new Configuration();
-		cfg1.setString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "-port 9020-9035");
+		cfg1.setString("port", "9020-9035");
 
 		rep1.open(cfg1);
 		rep2.open(cfg1);
@@ -137,7 +137,7 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep2 = new JMXReporter();
 
 		Configuration cfg1 = new Configuration();
-		cfg1.setString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "-port 9040-9055");
+		cfg1.setString("port", "9040-9055");
 		rep1.open(cfg1);
 		rep2.open(cfg1);
 

@@ -249,8 +249,9 @@ but not activated.
 Parameters:
 
 - `port` - the port on which JMX listens for connections. This can also be a port range. When a
-range is specified the actual port is shown in the relevant job or task manager log. Default:
-`9010-9025`.
+range is specified the actual port is shown in the relevant job or task manager log. If you don't
+specify a port no extra JMX server will be started. Metrics are still available on the default
+local JMX interface.
 
 ### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
 Dependency:
