@@ -58,7 +58,7 @@ public class TestingResourceManager extends StandaloneResourceManager {
 	protected void handleMessage(Object message) {
 
 		if (message instanceof GetRegisteredResources) {
-			sender().tell(new GetRegisteredResourcesReply(getRegisteredTaskManagers()), self());
+			sender().tell(new GetRegisteredResourcesReply(getStartedTaskManagers()), self());
 		} else if (message instanceof FailResource) {
 			ResourceID resourceID = ((FailResource) message).resourceID;
 			notifyWorkerFailed(resourceID, "Failed for test case.");

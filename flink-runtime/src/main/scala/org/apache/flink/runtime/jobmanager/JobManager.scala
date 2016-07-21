@@ -405,7 +405,7 @@ class JobManager(
 
       currentResourceManager match {
         case Some(rm) =>
-          val future = (rm ? decorateMessage(new RegisterResource(msg)))(timeout)
+          val future = (rm ? decorateMessage(new NotifyResourceStarted(msg.resourceId)))(timeout)
           future.onFailure {
             case t: Throwable =>
               t match {

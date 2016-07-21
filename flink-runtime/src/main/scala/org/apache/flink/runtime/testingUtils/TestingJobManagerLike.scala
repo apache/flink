@@ -341,7 +341,7 @@ trait TestingJobManagerLike extends FlinkActor {
     case msg @ (_: RegisterTaskManager) =>
       super.handleMessage(msg)
 
-      // dequeue all senders which wait for instanceManager.getNumberOfRegisteredTaskManagers or
+      // dequeue all senders which wait for instanceManager.getNumberOfStartedTaskManagers or
       // fewer registered TaskManagers
       while (waitForNumRegisteredTaskManagers.nonEmpty &&
         waitForNumRegisteredTaskManagers.head._1 <=

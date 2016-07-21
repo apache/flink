@@ -18,29 +18,30 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import org.apache.flink.runtime.messages.RegistrationMessages;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * Triggers a lookup at the ResourceManager to check if the resource for a TaskManager is registered.
+ * Notifies the ResourceManager that a TaskManager has been started in a container with the given
+ * resource id.
  */
-public class RegisterResource implements RequiresLeaderSessionID, java.io.Serializable {
+public class NotifyResourceStarted implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final RegistrationMessages.RegisterTaskManager registerMessage;
+	private final ResourceID resourceID;
 
-	public RegisterResource(RegistrationMessages.RegisterTaskManager registerMessage) {
-		this.registerMessage = registerMessage;
+	public NotifyResourceStarted(ResourceID resourceID) {
+		this.resourceID = resourceID;
 	}
 
-	public RegistrationMessages.RegisterTaskManager getRegisterMessage() {
-		return registerMessage;
+	public ResourceID getResourceID() {
+		return resourceID;
 	}
 
 	@Override
 	public String toString() {
-		return "RegisterResource{" +
-			", registerMessage=" + registerMessage +
+		return "NotifyResourceStarted{" +
+			", resourceID=" + resourceID +
 			'}';
 	}
 }

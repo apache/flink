@@ -22,7 +22,7 @@ import akka.actor.ActorRef;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.messages.RegisterResource;
+import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.yarn.messages.NotifyWhenResourcesRegistered;
 import org.apache.flink.yarn.messages.RequestNumberOfRegisteredResources;
@@ -88,19 +88,19 @@ public class TestingYarnFlinkResourceManager extends YarnFlinkResourceManager {
 	@Override
 	protected void handleMessage(Object message) {
 		if (message instanceof RequestNumberOfRegisteredResources) {
-			getSender().tell(getNumberOfRegisteredTaskManagers(), getSelf());
+			getSender().tell(getNumberOfStartedTaskManagers(), getSelf());
 		} else if (message instanceof NotifyWhenResourcesRegistered) {
 			NotifyWhenResourcesRegistered notifyMessage = (NotifyWhenResourcesRegistered) message;
 
-			if (getNumberOfRegisteredTaskManagers() >= notifyMessage.getNumberResources()) {
+			if (getNumberOfStartedTaskManagers() >= notifyMessage.getNumberResources()) {
 				getSender().tell(true, getSelf());
 			} else {
 				waitingQueue.offer(Tuple2.of(notifyMessage.getNumberResources(), getSender()));
 			}
-		} else if (message instanceof RegisterResource) {
+		} else if (message instanceof NotifyResourceStarted) {
 			super.handleMessage(message);
 
-			while (!waitingQueue.isEmpty() && waitingQueue.peek().f0 <= getNumberOfRegisteredTaskManagers()) {
+			while (!waitingQueue.isEmpty() && waitingQueue.peek().f0 <= getNumberOfStartedTaskManagers()) {
 				ActorRef receiver = waitingQueue.poll().f1;
 				receiver.tell(true, getSelf());
 			}

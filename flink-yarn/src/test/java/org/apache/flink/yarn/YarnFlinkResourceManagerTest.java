@@ -26,13 +26,12 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.messages.RegisterResource;
+import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.messages.NotifyWhenResourcesRegistered;
@@ -166,9 +165,7 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 					@Override
 					public Object answer(InvocationOnMock invocation) throws Throwable {
 						Container container = (Container) invocation.getArguments()[0];
-						resourceManagerGateway.tell(new RegisterResource(
-							new RegistrationMessages.RegisterTaskManager(
-								YarnFlinkResourceManager.extractResourceID(container), null, null, 1)),
+						resourceManagerGateway.tell(new NotifyResourceStarted(YarnFlinkResourceManager.extractResourceID(container)),
 							leader1Gateway);
 						return null;
 					}
@@ -196,9 +193,7 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 
 				for (Container container: containerList) {
 					resourceManagerGateway.tell(
-						new RegisterResource(
-							new RegistrationMessages.RegisterTaskManager(
-								YarnFlinkResourceManager.extractResourceID(container), null, null, 1)),
+						new NotifyResourceStarted(YarnFlinkResourceManager.extractResourceID(container)),
 						leader1Gateway);
 				}
 

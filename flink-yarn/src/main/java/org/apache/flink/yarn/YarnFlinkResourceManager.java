@@ -358,7 +358,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	}
 
 	@Override
-	protected void releaseRegisteredWorker(RegisteredYarnWorkerNode worker) {
+	protected void releaseStartedWorker(RegisteredYarnWorkerNode worker) {
 		releaseYarnContainer(worker.yarnContainer());
 	}
 
@@ -381,7 +381,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	}
 
 	@Override
-	protected RegisteredYarnWorkerNode workerRegistered(ResourceID resourceID) {
+	protected RegisteredYarnWorkerNode workerStarted(ResourceID resourceID) {
 		YarnContainerInLaunch inLaunch = containersInLaunch.remove(resourceID);
 		if (inLaunch == null) {
 			// Container was not in state "being launched", this can indicate that the TaskManager
@@ -406,7 +406,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 				accepted.add(new RegisteredYarnWorkerNode(yci.container()));
 			}
 			else {
-				if (isRegistered(resourceID)) {
+				if (isStarted(resourceID)) {
 					LOG.info("TaskManager {} has already been registered at the resource manager.", resourceID);
 				} else {
 					LOG.info("YARN container consolidation does not recognize TaskManager {}",
@@ -433,7 +433,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 	private void containersAllocated(List<Container> containers) {
 		final int numRequired = getDesignatedWorkerPoolSize();
-		final int numRegistered = getNumberOfRegisteredTaskManagers();
+		final int numRegistered = getNumberOfStartedTaskManagers();
 
 		for (Container container : containers) {
 			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
@@ -584,7 +584,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 	private void updateProgress() {
 		final int required = getDesignatedWorkerPoolSize();
-		final int available = getNumberOfRegisteredTaskManagers() + containersInLaunch.size();
+		final int available = getNumberOfStartedTaskManagers() + containersInLaunch.size();
 		final float progress = (required <= 0) ? 1.0f : available / (float) required;
 
 		if (resourceManagerCallbackHandler != null) {
