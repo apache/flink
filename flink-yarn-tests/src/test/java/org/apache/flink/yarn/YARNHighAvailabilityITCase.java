@@ -50,14 +50,14 @@ import java.util.concurrent.TimeUnit;
 
 public class YARNHighAvailabilityITCase extends YarnTestBase {
 
-	private static TestingServer zkServer;
+	protected static TestingServer zkServer;
 
-	private static ActorSystem actorSystem;
+	protected static ActorSystem actorSystem;
 
-	private static final int numberApplicationAttempts = 10;
+	protected static final int numberApplicationAttempts = 10;
 
 	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
+	public TemporaryFolder temp = new TemporaryFolder();
 
 	@BeforeClass
 	public static void setup() {
@@ -108,7 +108,11 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 
-		String fsStateHandlePath = tmp.getRoot().getPath();
+		String fsStateHandlePath = temp.getRoot().getPath();
+
+		// load the configuration
+		File configDirectory = new File(confDirPath);
+		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
 		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.loadConfiguration());
 		flinkYarnClient.setDynamicPropertiesEncoded("recovery.mode=zookeeper@@recovery.zookeeper.quorum=" +

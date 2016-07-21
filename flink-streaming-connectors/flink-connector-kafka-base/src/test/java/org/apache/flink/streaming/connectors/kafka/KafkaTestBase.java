@@ -31,6 +31,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,42 +75,24 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	protected static KafkaTestEnvironment kafkaServer;
 
+	@ClassRule
+	public static TemporaryFolder tempFolder = new TemporaryFolder();
+
+	protected static Properties secureProps = new Properties();
+
 	// ------------------------------------------------------------------------
 	//  Setup and teardown of the mini clusters
 	// ------------------------------------------------------------------------
 	
 	@BeforeClass
 	public static void prepare() throws IOException, ClassNotFoundException {
+
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Starting KafkaTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
-		
 
+		startClusters(false);
 
-		// dynamically load the implementation for the test
-		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
-		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
-
-		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
-
-		kafkaServer.prepare(NUMBER_OF_KAFKA_SERVERS);
-
-		standardProps = kafkaServer.getStandardProperties();
-		brokerConnectionStrings = kafkaServer.getBrokerConnectionString();
-
-		// start also a re-usable Flink mini cluster
-		Configuration flinkConfig = new Configuration();
-		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
-		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
-		flinkConfig.setString(ConfigConstants.METRICS_REPORTERS_LIST, "my_reporter");
-		flinkConfig.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-
-		flink = new LocalFlinkMiniCluster(flinkConfig, false);
-		flink.start();
-
-		flinkPort = flink.getLeaderRPCPort();
 	}
 
 	@AfterClass
@@ -118,16 +102,63 @@ public abstract class KafkaTestBase extends TestLogger {
 		LOG.info("    Shut down KafkaTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
 
+		shutdownClusters();
+
+		LOG.info("-------------------------------------------------------------------------");
+		LOG.info("    KafkaTestBase finished");
+		LOG.info("-------------------------------------------------------------------------");
+	}
+
+	protected static Configuration getFlinkConfiguration() {
+		Configuration flinkConfig = new Configuration();;
+		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
+		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
+		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
+		flinkConfig.setString(ConfigConstants.METRICS_REPORTERS_LIST, "my_reporter");
+		flinkConfig.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
+		return flinkConfig;
+	}
+
+	protected static void startClusters(boolean secureMode) throws ClassNotFoundException {
+
+		// dynamically load the implementation for the test
+		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
+		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
+
+		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
+
+		kafkaServer.prepare(NUMBER_OF_KAFKA_SERVERS, secureMode);
+
+		standardProps = kafkaServer.getStandardProperties();
+
+		brokerConnectionStrings = kafkaServer.getBrokerConnectionString();
+
+		if(kafkaServer.isSecureRunSupported() && secureMode) {
+			secureProps = kafkaServer.getSecureProperties();
+		}
+
+		// start also a re-usable Flink mini cluster
+		flink = new LocalFlinkMiniCluster(getFlinkConfiguration(), false);
+		flink.start();
+
+		flinkPort = flink.getLeaderRPCPort();
+
+	}
+
+	protected static void shutdownClusters() {
+
 		flinkPort = -1;
 		if (flink != null) {
 			flink.shutdown();
 		}
 
+		if(secureProps != null) {
+			secureProps.clear();
+		}
+
 		kafkaServer.shutdown();
 
-		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    KafkaTestBase finished");
-		LOG.info("-------------------------------------------------------------------------");
 	}
 
 
@@ -164,4 +195,5 @@ public abstract class KafkaTestBase extends TestLogger {
 	protected static void deleteTestTopic(String topic) {
 		kafkaServer.deleteTestTopic(topic);
 	}
+
 }
