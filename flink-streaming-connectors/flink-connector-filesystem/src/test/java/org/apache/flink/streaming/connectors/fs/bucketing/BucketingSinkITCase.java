@@ -467,7 +467,7 @@ public class BucketingSinkITCase extends StreamingMultipleProgramsTestBase {
 		final int NUM_ELEMENTS = 20;
 		final int PARALLELISM = 2;
 		final String outPath = hdfsURI + "/rolling-out";
-		DateTimeBucketer.setClock(new ModifyableClock());
+//		DateTimeBucketer.setClock(new ModifyableClock());
 		ModifyableClock.setCurrentTime(0);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
