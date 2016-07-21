@@ -90,7 +90,7 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 	public void testYarnFlinkResourceManagerJobManagerLostLeadership() throws Exception {
 		new JavaTestKit(system) {{
 
-			final Deadline deadline = new FiniteDuration(30, TimeUnit.SECONDS).fromNow();
+			final Deadline deadline = new FiniteDuration(3, TimeUnit.MINUTES).fromNow();
 
 			Configuration flinkConfig = new Configuration();
 			YarnConfiguration yarnConfig = new YarnConfiguration();

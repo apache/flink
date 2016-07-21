@@ -54,6 +54,30 @@ public class TestingYarnFlinkResourceManager extends YarnFlinkResourceManager {
 		ContainerLaunchContext taskManagerLaunchContext,
 		int yarnHeartbeatIntervalMillis,
 		int maxFailedContainers,
+		int numInitialTaskManagers) {
+
+		super(flinkConfig,
+			yarnConfig,
+			leaderRetrievalService,
+			applicationMasterHostName,
+			webInterfaceURL,
+			taskManagerParameters,
+			taskManagerLaunchContext,
+			yarnHeartbeatIntervalMillis,
+			maxFailedContainers,
+			numInitialTaskManagers);
+	}
+
+	public TestingYarnFlinkResourceManager(
+		Configuration flinkConfig,
+		YarnConfiguration yarnConfig,
+		LeaderRetrievalService leaderRetrievalService,
+		String applicationMasterHostName,
+		String webInterfaceURL,
+		ContaineredTaskManagerParameters taskManagerParameters,
+		ContainerLaunchContext taskManagerLaunchContext,
+		int yarnHeartbeatIntervalMillis,
+		int maxFailedContainers,
 		int numInitialTaskManagers,
 		YarnResourceManagerCallbackHandler callbackHandler,
 		AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient,

@@ -272,6 +272,11 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 				infoMessageListeners.remove(sender());
 			}
 
+			else if (message instanceof FatalErrorOccurred) {
+				FatalErrorOccurred fatalErrorOccurred = (FatalErrorOccurred) message;
+				fatalError(fatalErrorOccurred.message(), fatalErrorOccurred.error());
+			}
+
 			// --- unknown messages
 
 			else {
