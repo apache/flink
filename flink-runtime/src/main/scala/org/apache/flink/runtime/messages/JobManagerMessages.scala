@@ -23,6 +23,7 @@ import java.util.UUID
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
+import org.apache.flink.runtime.blob.BlobKey
 import org.apache.flink.runtime.client.{JobStatusMessage, SerializedJobExecutionResult}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{Instance, InstanceID}
@@ -447,8 +448,14 @@ object JobManagerMessages {
     * Disposes a savepoint.
     *
     * @param savepointPath The path of the savepoint to dispose.
+    * @param blobKeys BLOB keys if a user program JAR was uploaded for disposal.
+    *                 This is required when we dispose state which contains
+    *                 custom state instances (e.g. reducing state, rocksDB state).
     */
-  case class DisposeSavepoint(savepointPath: String) extends RequiresLeaderSessionID
+  case class DisposeSavepoint(
+      savepointPath: String,
+      blobKeys: Option[java.util.List[BlobKey]] = None)
+    extends RequiresLeaderSessionID
 
   /** Response after a successful savepoint dispose. */
   case object DisposeSavepointSuccess

@@ -24,6 +24,8 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.io.IOException;
+
 /**
  * Generic implementation of {@link ReducingState} based on a wrapped {@link ValueState}.
  *
@@ -118,9 +120,8 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 		public KvState<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> restoreState(
 			Backend stateBackend,
 			TypeSerializer<K> keySerializer,
-			ClassLoader classLoader,
-			long recoveryTimestamp) throws Exception {
-			return new GenericReducingState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader, recoveryTimestamp), reduceFunction);
+			ClassLoader classLoader) throws Exception {
+			return new GenericReducingState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader), reduceFunction);
 		}
 
 		@Override
@@ -131,6 +132,11 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 		@Override
 		public long getStateSize() throws Exception {
 			return wrappedSnapshot.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			wrappedSnapshot.close();
 		}
 	}
 }

@@ -341,7 +341,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * @param keyValueStateSnapshots The Map of snapshots
 	 */
 	@SuppressWarnings("unchecked,rawtypes")
-	public void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots, long recoveryTimestamp) throws Exception {
+	public void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots) throws Exception {
 		if (keyValueStateSnapshots != null) {
 			if (keyValueStatesByName == null) {
 				keyValueStatesByName = new HashMap<>();
@@ -350,8 +350,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			for (Map.Entry<String, KvStateSnapshot> state : keyValueStateSnapshots.entrySet()) {
 				KvState kvState = state.getValue().restoreState(this,
 					keySerializer,
-					userCodeClassLoader,
-					recoveryTimestamp);
+					userCodeClassLoader);
 				keyValueStatesByName.put(state.getKey(), kvState);
 			}
 			keyValueStates = keyValueStatesByName.values().toArray(new KvState[keyValueStatesByName.size()]);
@@ -480,6 +479,11 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 		@Override
 		public long getStateSize() throws Exception {
 			return stream.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			stream.close();
 		}
 	}
 }

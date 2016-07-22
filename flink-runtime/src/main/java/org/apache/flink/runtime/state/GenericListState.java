@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -120,9 +121,8 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 		public KvState<K, N, ListState<T>, ListStateDescriptor<T>, Backend> restoreState(
 			Backend stateBackend,
 			TypeSerializer<K> keySerializer,
-			ClassLoader classLoader,
-			long recoveryTimestamp) throws Exception {
-			return new GenericListState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader, recoveryTimestamp));
+			ClassLoader classLoader) throws Exception {
+			return new GenericListState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader));
 		}
 
 		@Override
@@ -133,6 +133,11 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 		@Override
 		public long getStateSize() throws Exception {
 			return wrappedSnapshot.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			wrappedSnapshot.close();
 		}
 	}
 }

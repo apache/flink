@@ -123,8 +123,13 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	}
 
 	@Test(timeout = 60000)
-	public void testMetricsAndEndOfStream() throws Exception {
-		runMetricsAndEndOfStreamTest();
+	public void testEndOfStream() throws Exception {
+		runEndOfStreamTest();
+	}
+
+	@Test(timeout = 60000)
+	public void testMetrics() throws Throwable {
+		runMetricsTest();
 	}
 
 	@Test

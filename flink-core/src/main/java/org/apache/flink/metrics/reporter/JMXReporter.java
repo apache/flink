@@ -19,7 +19,6 @@
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -62,6 +61,8 @@ public class JMXReporter implements MetricReporter {
 	private static final String PREFIX = "org.apache.flink.metrics:";
 	private static final String KEY_PREFIX = "key";
 
+	public static final String ARG_PORT = "port";
+
 	private static final Logger LOG = LoggerFactory.getLogger(JMXReporter.class);
 
 	// ------------------------------------------------------------------------
@@ -89,29 +90,33 @@ public class JMXReporter implements MetricReporter {
 
 	@Override
 	public void open(Configuration config) {
-		this.jmxServer = startJmxServer(config);
-	}
+		String portsConfig = config.getString(ARG_PORT, null);
 
-	private static JMXServer startJmxServer(Configuration config) {
-		Iterator<Integer> ports = NetUtils.getPortRangeFromString(config.getString(ConfigConstants.METRICS_JMX_PORT, "9010-9025"));
+		if (portsConfig != null) {
+			Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
-		JMXServer server = new JMXServer();
-		while (ports.hasNext()) {
-			int port = ports.next();
-			try {
-				server.start(port);
-				LOG.info("Started JMX server on port " + port + ".");
-				return server;
-			} catch (IOException ioe) { //assume port conflict
-				LOG.debug("Could not start JMX server on port " + port + ".", ioe);
+			JMXServer server = new JMXServer();
+			while (ports.hasNext()) {
+				int port = ports.next();
 				try {
-					server.stop();
-				} catch (Exception e) {
-					LOG.debug("Could not stop JMX server.", e);
+					server.start(port);
+					LOG.info("Started JMX server on port " + port + ".");
+					// only set our field if the server was actually started
+					jmxServer = server;
+					break;
+				} catch (IOException ioe) { //assume port conflict
+					LOG.debug("Could not start JMX server on port " + port + ".", ioe);
+					try {
+						server.stop();
+					} catch (Exception e) {
+						LOG.debug("Could not stop JMX server.", e);
+					}
 				}
 			}
+			if (jmxServer == null) {
+				throw new RuntimeException("Could not start JMX server on any configured port. Ports: " + portsConfig);
+			}
 		}
-		throw new RuntimeException("Could not start JMX server on any configured port.");
 	}
 
 	@Override
@@ -126,6 +131,9 @@ public class JMXReporter implements MetricReporter {
 	}
 	
 	public int getPort() {
+		if (jmxServer == null) {
+			throw new NullPointerException("No server was opened. Did you specify a port?");
+		}
 		return jmxServer.port;
 	}
 
@@ -167,7 +175,8 @@ public class JMXReporter implements MetricReporter {
 			// implementation error on our side
 			LOG.error("Metric did not comply with JMX MBean naming rules.", e);
 		} catch (InstanceAlreadyExistsException e) {
-			LOG.error("A metric with the name " + jmxName + " was already registered.", e);
+			LOG.debug("A metric with the name " + jmxName + " was already registered.", e);
+			LOG.error("A metric with the name " + jmxName + " was already registered.");
 		} catch (Throwable t) {
 			LOG.error("Failed to register metric", t);
 		}

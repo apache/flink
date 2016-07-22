@@ -21,10 +21,16 @@ package org.apache.flink.cep.nfa;
 import com.google.common.collect.LinkedHashMultimap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
+import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -452,6 +458,110 @@ public class NFA<T> implements Serializable {
 			return matcher.group(1) + index + matcher.group(2);
 		} else {
 			return name + "_" + index;
+		}
+	}
+
+	/**
+	 * {@link TypeSerializer} for {@link NFA} that uses Java Serialization.
+	 */
+	public static class Serializer<T> extends TypeSerializer<NFA<T>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean isImmutableType() {
+			return false;
+		}
+
+		@Override
+		public TypeSerializer<NFA<T>> duplicate() {
+			return this;
+		}
+
+		@Override
+		public NFA<T> createInstance() {
+			return null;
+		}
+
+		@Override
+		public NFA<T> copy(NFA<T> from) {
+			try {
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				ObjectOutputStream oos = new ObjectOutputStream(baos);
+
+				oos.writeObject(from);
+
+				oos.close();
+				baos.close();
+
+				byte[] data = baos.toByteArray();
+
+				ByteArrayInputStream bais = new ByteArrayInputStream(data);
+				ObjectInputStream ois = new ObjectInputStream(bais);
+
+				@SuppressWarnings("unchecked")
+				NFA<T> copy = (NFA<T>) ois.readObject();
+				return copy;
+			} catch (IOException|ClassNotFoundException e) {
+				throw new RuntimeException("Could not copy NFA.", e);
+			}
+		}
+
+		@Override
+		public NFA<T> copy(NFA<T> from, NFA<T> reuse) {
+			return copy(from);
+		}
+
+		@Override
+		public int getLength() {
+			return 0;
+		}
+
+		@Override
+		public void serialize(NFA<T> record, DataOutputView target) throws IOException {
+			ObjectOutputStream oos = new ObjectOutputStream(new DataOutputViewStream(target));
+			oos.writeObject(record);
+			oos.close();
+		}
+
+		@Override
+		public NFA<T> deserialize(DataInputView source) throws IOException {
+			ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(source));
+
+			try {
+				@SuppressWarnings("unchecked")
+				NFA<T> nfa = null;
+				nfa = (NFA<T>) ois.readObject();
+				return nfa;
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Could not deserialize NFA.", e);
+			}
+		}
+
+		@Override
+		public NFA<T> deserialize(NFA<T> reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			int size = source.readInt();
+			target.writeInt(size);
+			target.write(source, size);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof Serializer && ((Serializer) obj).canEqual(this);
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof Serializer;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
 		}
 	}
 }

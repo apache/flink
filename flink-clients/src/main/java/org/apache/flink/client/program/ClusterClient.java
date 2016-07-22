@@ -97,11 +97,11 @@ public abstract class ClusterClient {
 	private boolean printStatusDuringExecution = true;
 
 	/**
-	 * For interactive invocations, the Job ID is only available after the ContextEnvironment has
+	 * For interactive invocations, the job results are only available after the ContextEnvironment has
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
-	 * which lets us access the last JobID here.
+	 * which lets us access the execution result here.
 	 */
-	private JobID lastJobID;
+	private JobExecutionResult lastJobExecutionResult;
 
 	/** Switch for blocking/detached job submission of the client */
 	private boolean detachedJobSubmission = false;
@@ -335,7 +335,7 @@ public abstract class ClusterClient {
 				}
 				else {
 					// in blocking mode, we execute all Flink jobs contained in the user code and then return here
-					return new JobSubmissionResult(lastJobID);
+					return this.lastJobExecutionResult;
 				}
 			}
 			finally {
@@ -406,9 +406,9 @@ public abstract class ClusterClient {
 
 		try {
 			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
-			this.lastJobID = jobGraph.getJobID();
-			return JobClient.submitJobAndWait(actorSystemLoader.get(),
+			this.lastJobExecutionResult = JobClient.submitJobAndWait(actorSystemLoader.get(),
 				leaderRetrievalService, jobGraph, timeout, printStatusDuringExecution, classLoader);
+			return this.lastJobExecutionResult;
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
 		}

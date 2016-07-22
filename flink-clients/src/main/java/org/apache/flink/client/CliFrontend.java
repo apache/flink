@@ -44,6 +44,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -52,6 +53,8 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobClient;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -67,10 +70,9 @@ import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -604,11 +606,9 @@ public class CliFrontend {
 		SavepointOptions options;
 		try {
 			options = CliFrontendParser.parseSavepointCommand(args);
-		}
-		catch (CliArgsException e) {
+		} catch (CliArgsException e) {
 			return handleArgException(e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -620,9 +620,8 @@ public class CliFrontend {
 
 		if (options.isDispose()) {
 			// Discard
-			return disposeSavepoint(options, options.getDisposeSavepointPath());
-		}
-		else {
+			return disposeSavepoint(options);
+		} else {
 			// Trigger
 			String[] cleanedArgs = options.getArgs();
 			JobID jobId;
@@ -631,14 +630,12 @@ public class CliFrontend {
 				String jobIdString = cleanedArgs[0];
 				try {
 					jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
-				}
-				catch (Exception e) {
-					return handleError(new IllegalArgumentException(
+				} catch (Exception e) {
+					return handleArgException(new IllegalArgumentException(
 							"Error: The value for the Job ID is not a valid ID."));
 				}
-			}
-			else {
-				return handleError(new IllegalArgumentException(
+			} else {
+				return handleArgException(new IllegalArgumentException(
 						"Error: The value for the Job ID is not a valid ID. " +
 								"Specify a Job ID to trigger a savepoint."));
 			}
@@ -693,35 +690,77 @@ public class CliFrontend {
 	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint}
 	 * message to the job manager.
 	 */
-	private int disposeSavepoint(SavepointOptions options, String savepointPath) {
+	private int disposeSavepoint(SavepointOptions options) {
 		try {
+			String savepointPath = options.getSavepointPath();
+			if (savepointPath == null) {
+				throw new IllegalArgumentException("Missing required argument: savepoint path. " +
+						"Usage: bin/flink savepoint -d <savepoint-path>");
+			}
+
+			String jarFile = options.getJarFilePath();
+
 			ActorGateway jobManager = getJobManagerGateway(options);
-			logAndSysout("Disposing savepoint '" + savepointPath + "'.");
-			Future<Object> response = jobManager.ask(new DisposeSavepoint(savepointPath), clientTimeout);
+
+			List<BlobKey> blobKeys = null;
+			if (jarFile != null) {
+				logAndSysout("Disposing savepoint '" + savepointPath + "' with JAR " + jarFile + ".");
+
+				List<File> libs = null;
+				try {
+					libs = PackagedProgram.extractContainedLibraries(new File(jarFile).toURI().toURL());
+					if (!libs.isEmpty()) {
+						List<Path> libPaths = new ArrayList<>(libs.size());
+						for (File f : libs) {
+							libPaths.add(new Path(f.toURI()));
+						}
+
+						logAndSysout("Uploading JAR files.");
+						LOG.debug("JAR files: " + libPaths);
+						blobKeys = BlobClient.uploadJarFiles(jobManager, clientTimeout, libPaths);
+						LOG.debug("Blob keys: " + blobKeys.toString());
+					}
+				} finally {
+					if (libs != null) {
+						PackagedProgram.deleteExtractedLibraries(libs);
+					}
+				}
+			} else {
+				logAndSysout("Disposing savepoint '" + savepointPath + "'.");
+			}
+
+			Object msg = new DisposeSavepoint(savepointPath, Option.apply(blobKeys));
+			Future<Object> response = jobManager.ask(msg, clientTimeout);
 
 			Object result;
 			try {
 				logAndSysout("Waiting for response...");
 				result = Await.result(response, clientTimeout);
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new Exception("Disposing the savepoint with path" + savepointPath + " failed.", e);
 			}
 
 			if (result.getClass() == JobManagerMessages.getDisposeSavepointSuccess().getClass()) {
 				logAndSysout("Savepoint '" + savepointPath + "' disposed.");
 				return 0;
-			}
-			else if (result instanceof DisposeSavepointFailure) {
+			} else if (result instanceof DisposeSavepointFailure) {
 				DisposeSavepointFailure failure = (DisposeSavepointFailure) result;
-				throw failure.cause();
-			}
-			else {
+
+				if (failure.cause() instanceof ClassNotFoundException) {
+					throw new ClassNotFoundException("Savepoint disposal failed, because of a " +
+							"missing class. This is most likely caused by a custom state " +
+							"instance, which cannot be disposed without the user code class " +
+							"loader. Please provide the program jar with which you have created " +
+							"the savepoint via -j <JAR> for disposal.",
+							failure.cause().getCause());
+				} else {
+					throw failure.cause();
+				}
+			} else {
 				throw new IllegalStateException("Unknown JobManager response of type " +
 						result.getClass());
 			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 	}
@@ -742,7 +781,7 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
-		if(result.isJobExecutionResults()) {
+		if (result.isJobExecutionResult()) {
 			logAndSysout("Program execution finished");
 			JobExecutionResult execResult = result.getJobExecutionResult();
 			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
@@ -845,7 +884,7 @@ public class CliFrontend {
 		ClusterClient client;
 		try {
 			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
-			logAndSysout("Cluster retrieved: " + client.getClusterIdentifier());
+			logAndSysout("Cluster configuration: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
 				String applicationName = "Flink Application: " + programName;

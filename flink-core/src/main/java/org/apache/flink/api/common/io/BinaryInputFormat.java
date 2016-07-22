@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -85,14 +86,27 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
 
-		// read own parameters
-		this.blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
-		if (this.blockSize < 1 && this.blockSize != NATIVE_BLOCK_SIZE) {
+		// the if is to prevent the configure() method from
+		// overwriting the value set by the setter
+
+		if (this.blockSize == NATIVE_BLOCK_SIZE) {
+			long blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
+			setBlockSize(blockSize);
+		}
+	}
+
+	public void setBlockSize(long blockSize) {
+		if (blockSize < 1 && blockSize != NATIVE_BLOCK_SIZE) {
 			throw new IllegalArgumentException("The block size parameter must be set and larger than 0.");
 		}
-		if (this.blockSize > Integer.MAX_VALUE) {
-			throw new UnsupportedOperationException("Currently only block size up to Integer.MAX_VALUE are supported");
+		if (blockSize > Integer.MAX_VALUE) {
+			throw new UnsupportedOperationException("Currently only block sizes up to Integer.MAX_VALUE are supported");
 		}
+		this.blockSize = blockSize;
+	}
+
+	public long getBlockSize() {
+		return this.blockSize;
 	}
 
 	@Override
@@ -373,6 +387,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	//  Checkpointing
 	// --------------------------------------------------------------------------------------------
 
+	@PublicEvolving
 	@Override
 	public Tuple2<Long, Long> getCurrentState() throws IOException {
 		if (this.blockBasedInput == null) {
@@ -385,6 +400,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 		);
 	}
 
+	@PublicEvolving
 	@Override
 	public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");

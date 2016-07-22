@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import org.apache.flink.core.fs.Path;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Base implementation for input formats that split the input at a delimiter into records.
@@ -180,7 +182,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
-		
 		this.delimiter = delimiter;
 	}
 
@@ -189,6 +190,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 	
 	public void setDelimiter(String delimiter) {
+		if (delimiter == null) {
+			throw new IllegalArgumentException("Delimiter must not be null");
+		}
 		this.delimiter = delimiter.getBytes(UTF_8_CHARSET);
 	}
 	
@@ -224,7 +228,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		if (numLineSamples < 0) {
 			throw new IllegalArgumentException("Number of line samples must not be negative.");
 		}
-		
 		this.numLineSamples = numLineSamples;
 	}
 
@@ -259,23 +262,29 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
-		
-		String delimString = parameters.getString(RECORD_DELIMITER, null);
-		if (delimString != null) {
-			setDelimiter(delimString);
+
+		// the if() clauses are to prevent the configure() method from
+		// overwriting the values set by the setters
+
+		if (Arrays.equals(delimiter, new byte[] {'\n'})) {
+			String delimString = parameters.getString(RECORD_DELIMITER, null);
+			if (delimString != null) {
+				setDelimiter(delimString);
+			}
 		}
 		
 		// set the number of samples
-		String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
-		if (samplesString != null) {
-			try {
-				setNumLineSamples(Integer.parseInt(samplesString));
-			}
-			catch (NumberFormatException e) {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("Invalid value for number of samples to take: " + samplesString + ". Skipping sampling.");
+		if (numLineSamples == NUM_SAMPLES_UNDEFINED) {
+			String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
+			if (samplesString != null) {
+				try {
+					setNumLineSamples(Integer.parseInt(samplesString));
+				} catch (NumberFormatException e) {
+					if (LOG.isWarnEnabled()) {
+						LOG.warn("Invalid value for number of samples to take: " + samplesString + ". Skipping sampling.");
+					}
+					setNumLineSamples(0);
 				}
-				setNumLineSamples(0);
 			}
 		}
 	}
@@ -629,11 +638,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	//  Checkpointing
 	// --------------------------------------------------------------------------------------------
 
+	@PublicEvolving
 	@Override
 	public Long getCurrentState() throws IOException {
 		return this.offset;
 	}
 
+	@PublicEvolving
 	@Override
 	public void reopen(FileInputSplit split, Long state) throws IOException {
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");

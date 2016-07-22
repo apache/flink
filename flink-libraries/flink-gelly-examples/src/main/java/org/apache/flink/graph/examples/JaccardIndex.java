@@ -28,6 +28,7 @@ import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphCsvReader;
 import org.apache.flink.graph.asm.simple.undirected.Simplify;
 import org.apache.flink.graph.asm.translate.LongValueToIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
@@ -38,6 +39,7 @@ import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.types.StringValue;
 
 import java.text.NumberFormat;
 
@@ -70,7 +72,7 @@ public class JaccardIndex {
 		System.out.println("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]");
 		System.out.println();
 		System.out.println("options:");
-		System.out.println("  --input csv --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
+		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
 		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
 		System.out.println();
 		System.out.println("  --output print");
@@ -95,16 +97,29 @@ public class JaccardIndex {
 				String fieldDelimiter = StringEscapeUtils.unescapeJava(
 					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-				Graph<LongValue, NullValue, NullValue> graph = Graph
+				GraphCsvReader reader = Graph
 					.fromCsvReader(parameters.get("input_filename"), env)
 						.ignoreCommentsEdges("#")
 						.lineDelimiterEdges(lineDelimiter)
-						.fieldDelimiterEdges(fieldDelimiter)
-						.keyType(LongValue.class);
+						.fieldDelimiterEdges(fieldDelimiter);
 
-				ji = graph
-					.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
+				switch (parameters.get("type", "")) {
+					case "integer": {
+						ji = reader
+							.keyType(LongValue.class)
+							.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
+					} break;
 
+					case "string": {
+						ji = reader
+							.keyType(StringValue.class)
+							.run(new org.apache.flink.graph.library.similarity.JaccardIndex<StringValue, NullValue, NullValue>());
+					} break;
+
+					default:
+						printUsage();
+						return;
+				}
 				} break;
 
 			case "rmat": {

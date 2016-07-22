@@ -35,6 +35,13 @@ It allows you to easily detect complex event patterns in a stream of endless dat
 Complex events can then be constructed from matching sequences.
 This gives you the opportunity to quickly get hold of what's really important in your data.
 
+<span class="label label-danger">Attention</span> The events in the `DataStream` to which
+you want to apply pattern matching have to implement proper `equals()` and `hashCode()` methods
+because these are used for comparing and matching events.
+
+* This will be replaced by the TOC
+{:toc}
+
 ## Getting Started
 
 If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/apis/batch/index.html#linking-with-flink).
@@ -518,10 +525,10 @@ The collector can be used to emit an arbitrary number of events.
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
 DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.flatSelect{
-    (pattern: mutable.Map[String, Event], timestamp: Long, out: Collector[TimeoutEvent]) => 
+    (pattern: mutable.Map[String, Event], timestamp: Long, out: Collector[TimeoutEvent]) =>
         out.collect(TimeoutEvent())
 } {
-    (pattern: mutable.Map[String, Event], out: Collector[ComplexEvent]) => 
+    (pattern: mutable.Map[String, Event], out: Collector[ComplexEvent]) =>
         out.collect(ComplexEvent())
 }
 {% endhighlight %}

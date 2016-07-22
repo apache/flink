@@ -31,9 +31,9 @@ and connects by default to the running Flink master (JobManager) that was
 started from the same installation directory.
 
 A prerequisite to using the command line interface is that the Flink
-master (JobManager) has been started (via 
-`<flink-home>/bin/start-local.sh` or 
-`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is 
+master (JobManager) has been started (via
+`<flink-home>/bin/start-local.sh` or
+`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is
 available.
 
 The command line can be used to
@@ -116,11 +116,11 @@ The command line can be used to
 -   Stop a job (streaming jobs only):
 
         ./bin/flink stop <jobID>
-        
-        
+
+
 The difference between cancelling and stopping a (streaming) job is the following:
 
-On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as 
+On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as
 soon as possible.
 If operators are not not stopping after the cancel call, Flink will start interrupting the thread periodically
 until it stops.
@@ -142,7 +142,7 @@ This allows the job to finish processing all inflight data.
 
 Returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-#### **Restore a savepoint**:
+#### **Restore a savepoint**
 
 {% highlight bash %}
 ./bin/flink run -s <savepointPath> ...
@@ -150,13 +150,21 @@ Returns the path of the created savepoint. You need this path to restore and dis
 
 The run command has a savepoint flag to submit a job, which restores its state from a savepoint. The savepoint path is returned by the savepoint trigger command.
 
-#### **Dispose a savepoint**:
+#### **Dispose a savepoint**
 
 {% highlight bash %}
 ./bin/flink savepoint -d <savepointPath>
 {% endhighlight %}
 
 Disposes the savepoint at the given path. The savepoint path is returned by the savepoint trigger command.
+
+If you use custom state instances (for example custom reducing state or RocksDB state), you have to specify the path to the program JAR with which the savepoint was triggered in order to dispose the savepoint with the user code class loader:
+
+{% highlight bash %}
+./bin/flink savepoint -d <savepointPath> -j <jarFile>
+{% endhighlight %}
+
+Otherwise, you will run into a `ClassNotFoundException`.
 
 ## Usage
 
@@ -301,19 +309,14 @@ guarantees for a stop request.
 
 Action "savepoint" triggers savepoints for a running job or disposes existing ones.
 
-  Syntax: savepoint [OPTIONS] <Job ID>
-  "savepoint" action options:
-     -d,--dispose <savepointPath>   Disposes an existing savepoint.
-     -m,--jobmanager <host:port>    Address of the JobManager (master) to which
-                                    to connect. Specify 'yarn-cluster' as the
-                                    JobManager to deploy a YARN cluster for the
-                                    job. Use this flag to connect to a different
-                                    JobManager than the one specified in the
-                                    configuration.
-  Additional arguments if -m yarn-cluster is set:
-     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
-                                   connect to. Must not be set if JobManager HA
-                                   is used. In this case, JobManager RPC
-                                   location is automatically retrieved from
-                                   Zookeeper.
+ Syntax: savepoint [OPTIONS] <Job ID>
+ "savepoint" action options:
+    -d,--dispose <arg>            Path of savepoint to dispose.
+    -j,--jarfile <jarfile>        Flink program JAR file.
+    -m,--jobmanager <host:port>   Address of the JobManager (master) to which
+                                  to connect. Use this flag to connect to a
+                                  different JobManager than the one specified
+                                  in the configuration.
+ Options for yarn-cluster mode:
+    -yid,--yarnapplicationId <arg>   Attach to running YARN session
 ~~~

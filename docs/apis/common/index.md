@@ -840,7 +840,7 @@ public class WordWithCount {
     }
 }
 
-DataStream<Tuple2<String, Integer>> wordCounts = env.fromElements(
+DataStream<WordWithCount> wordCounts = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2));
 

@@ -55,6 +55,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
+import static org.apache.flink.configuration.ConfigConstants.ZOOKEEPER_NAMESPACE_KEY;
 
 /**
  * Class handling the command line interface to the YARN session.
@@ -94,10 +95,11 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private final Option CONTAINER;
 	private final Option SLOTS;
 	private final Option DETACHED;
+	private final Option ZOOKEEPER_NAMESPACE;
 	@Deprecated
 	private final Option STREAMING;
 	private final Option NAME;
-	
+
 	private final Options ALL_OPTIONS;
 
 	/**
@@ -107,7 +109,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private final Option DYNAMIC_PROPERTIES;
 
 	private final boolean acceptInteractiveInput;
-	
+
 	//------------------------------------ Internal fields -------------------------
 	private YarnClusterClient yarnCluster;
 	private boolean detachedMode = false;
@@ -132,7 +134,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		DETACHED = new Option(shortPrefix + "d", longPrefix + "detached", false, "Start detached");
 		STREAMING = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		NAME = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
-		
+		ZOOKEEPER_NAMESPACE = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
+
 		ALL_OPTIONS = new Options();
 		ALL_OPTIONS.addOption(FLINK_JAR);
 		ALL_OPTIONS.addOption(JM_MEMORY);
@@ -147,6 +150,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		ALL_OPTIONS.addOption(STREAMING);
 		ALL_OPTIONS.addOption(NAME);
 		ALL_OPTIONS.addOption(APPLICATION_ID);
+		ALL_OPTIONS.addOption(ZOOKEEPER_NAMESPACE);
 	}
 
 
@@ -320,6 +324,11 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			}
 		}
 
+		if (cmd.hasOption(ZOOKEEPER_NAMESPACE.getOpt())) {
+			String zookeeperNamespace = cmd.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt());
+			yarnClusterDescriptor.setZookeeperNamespace(zookeeperNamespace);
+		}
+
 		// ----- Convenience -----
 
 		// the number of slots available from YARN:
@@ -412,7 +421,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 					Thread.sleep(200);
 				}
 				//------------- handle interactive command by user. ----------------------
-				
+
 				if (readConsoleInput && in.ready()) {
 					String command = in.readLine();
 					switch (command) {
@@ -429,7 +438,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 							break;
 					}
 				}
-				
+
 				if (yarnCluster.hasBeenShutdown()) {
 					LOG.info("Stopping interactive command line interface, YARN cluster has been stopped.");
 					break;
@@ -475,23 +484,23 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			CommandLine cmdLine,
 			Configuration config) throws UnsupportedOperationException {
 
-		// first check for an application id
-		if (cmdLine.hasOption(APPLICATION_ID.getOpt())) {
-			String applicationID = cmdLine.getOptionValue(APPLICATION_ID.getOpt());
+		// first check for an application id, then try to load from yarn properties
+		String applicationID = cmdLine.hasOption(APPLICATION_ID.getOpt()) ?
+				cmdLine.getOptionValue(APPLICATION_ID.getOpt())
+				: loadYarnPropertiesFile(cmdLine, config);
+
+		if(null != applicationID) {
+			String zkNamespace = cmdLine.hasOption(ZOOKEEPER_NAMESPACE.getOpt()) ?
+					cmdLine.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt())
+					: config.getString(ZOOKEEPER_NAMESPACE_KEY, applicationID);
+			config.setString(ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
 			yarnDescriptor.setFlinkConfiguration(config);
 			return yarnDescriptor.retrieve(applicationID);
-		// then try to load from yarn properties
 		} else {
-			String applicationId = loadYarnPropertiesFile(cmdLine, config);
-			if (applicationId != null) {
-				AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
-				yarnDescriptor.setFlinkConfiguration(config);
-				return yarnDescriptor.retrieve(applicationId);
-			}
+			throw new UnsupportedOperationException("Could not resume a Yarn cluster.");
 		}
-
-		throw new UnsupportedOperationException("Could not resume a Yarn cluster.");
 	}
 
 	@Override

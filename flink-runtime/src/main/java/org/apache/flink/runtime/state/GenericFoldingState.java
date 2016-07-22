@@ -24,6 +24,8 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.io.IOException;
+
 /**
  * Generic implementation of {@link FoldingState} based on a wrapped {@link ValueState}.
  *
@@ -113,11 +115,10 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 		@Override
 		@SuppressWarnings("unchecked")
 		public KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> restoreState(
-			Backend stateBackend,
-			TypeSerializer<K> keySerializer,
-			ClassLoader classLoader,
-			long recoveryTimestamp) throws Exception {
-			return new GenericFoldingState((ValueState<ACC>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader, recoveryTimestamp), foldFunction);
+				Backend stateBackend,
+				TypeSerializer<K> keySerializer,
+				ClassLoader classLoader) throws Exception {
+			return new GenericFoldingState((ValueState<ACC>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader), foldFunction);
 		}
 
 		@Override
@@ -128,6 +129,11 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 		@Override
 		public long getStateSize() throws Exception {
 			return wrappedSnapshot.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			wrappedSnapshot.close();
 		}
 	}
 }

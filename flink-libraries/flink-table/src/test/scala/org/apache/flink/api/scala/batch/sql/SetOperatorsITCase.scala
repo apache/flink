@@ -46,12 +46,12 @@ class SetOperatorsITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT c FROM t1 UNION ALL (SELECT c FROM t2)"
+    val sqlQuery = "SELECT c FROM t1 UNION ALL (SELECT f FROM t2)"
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
+    tEnv.registerDataSet("t2", ds2, 'd, 'e, 'f)
 
     val result = tEnv.sql(sqlQuery)
 
@@ -66,12 +66,12 @@ class SetOperatorsITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT c FROM t1 UNION (SELECT c FROM t2)"
+    val sqlQuery = "SELECT c FROM t1 UNION (SELECT f FROM t2)"
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
+    tEnv.registerDataSet("t2", ds2, 'd, 'e, 'f)
 
     val result = tEnv.sql(sqlQuery)
 

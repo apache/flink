@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.groups.scope.ScopeFormat;
 import org.apache.flink.metrics.groups.scope.ScopeFormats;
-import org.apache.flink.metrics.reporter.JMXReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -49,6 +48,8 @@ public class MetricRegistry {
 
 	private final ScopeFormats scopeFormats;
 
+	private final char delimiter;
+
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
@@ -64,13 +65,22 @@ public class MetricRegistry {
 		}
 		this.scopeFormats = scopeFormats;
 
+		char delim;
+		try {
+			delim = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".").charAt(0);
+		} catch (Exception e) {
+			LOG.warn("Failed to parse delimiter, using default delimiter.", e);
+			delim = '.';
+		}
+		this.delimiter = delim;
+
 		// second, instantiate any custom configured reporters
 		
 		final String className = config.getString(ConfigConstants.METRICS_REPORTER_CLASS, null);
 		if (className == null) {
-			// by default, create JMX metrics
-			LOG.info("No metrics reporter configured, exposing metrics via JMX");
-			this.reporter = startJmxReporter(config);
+			// by default, don't report anything
+			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
+			this.reporter = null;
 			this.executor = null;
 		}
 		else {
@@ -109,8 +119,8 @@ public class MetricRegistry {
 			}
 			catch (Throwable t) {
 				shutdownExecutor();
-				LOG.error("Could not instantiate custom metrics reporter. Defaulting to JMX metrics export.", t);
-				reporter = startJmxReporter(config);
+				LOG.error("Could not instantiate metrics reporter. No metrics will be exposed/reported.", t);
+				reporter = null;
 			}
 
 			this.reporter = reporter;
@@ -118,21 +128,12 @@ public class MetricRegistry {
 		}
 	}
 
-	private static JMXReporter startJmxReporter(Configuration config) {
-		JMXReporter reporter = null;
-		try {
-			Configuration reporterConfig = new Configuration();
-			String portRange = config.getString(ConfigConstants.METRICS_JMX_PORT, null);
-			if (portRange != null) {
-				reporterConfig.setString(ConfigConstants.METRICS_JMX_PORT, portRange);
-			}
-			reporter = new JMXReporter();
-			reporter.open(reporterConfig);
-		} catch (Exception e) {
-			LOG.error("Failed to instantiate JMX reporter.", e);
-		} finally {
-			return reporter;
-		}
+	public char getDelimiter() {
+		return this.delimiter;
+	}
+
+	public MetricReporter getReporter() {
+		return reporter;
 	}
 
 	/**

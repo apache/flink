@@ -202,7 +202,7 @@ class Table(
     */
   def groupBy(fields: Expression*): GroupedTable = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Group by on stream tables is currently not supported.")
+      throw new ValidationException(s"Group by on stream tables is currently not supported.")
     }
     new GroupedTable(this, fields)
   }
@@ -392,7 +392,6 @@ class Table(
   }
 
   private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
-
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
@@ -464,14 +463,11 @@ class Table(
     * }}}
     */
   def union(right: Table): Table = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Union on stream tables is currently not supported.")
-    }
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, false).validate(tableEnv))
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, all = false).validate(tableEnv))
   }
 
   /**
@@ -491,7 +487,7 @@ class Table(
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, true).validate(tableEnv))
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
   }
 
   /**
@@ -509,9 +505,6 @@ class Table(
     * }}}
     */
   def intersect(right: Table): Table = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Intersect on stream tables is currently not supported.")
-    }
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException(
@@ -535,9 +528,6 @@ class Table(
     * }}}
     */
   def intersectAll(right: Table): Table = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Intersect on stream tables is currently not supported.")
-    }
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException(

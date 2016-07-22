@@ -134,6 +134,25 @@ public class FlinkYarnSessionCliTest {
 		Assert.assertEquals(6, client.getMaxSlots());
 	}
 
+	@Test
+	public void testZookeeperNamespaceProperty() throws Exception {
+
+		File confFile = tmp.newFile("flink-conf.yaml");
+		File jarFile = tmp.newFile("test.jar");
+		new CliFrontend(tmp.getRoot().getAbsolutePath());
+
+		String zkNamespaceCliInput = "flink_test_namespace";
+
+		String[] params =
+				new String[] {"-yn", "2", "-yz", zkNamespaceCliInput, jarFile.getAbsolutePath()};
+
+		RunOptions runOptions = CliFrontendParser.parseRunCommand(params);
+
+		FlinkYarnSessionCli yarnCLI = new TestCLI("y", "yarn");
+		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor("", runOptions.getCommandLine());
+		System.out.println(descriptor.getZookeeperNamespace());
+		Assert.assertEquals(zkNamespaceCliInput, descriptor.getZookeeperNamespace());
+	}
 
 	private static class TestCLI extends FlinkYarnSessionCli {
 

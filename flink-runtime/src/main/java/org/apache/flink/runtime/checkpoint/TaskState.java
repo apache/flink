@@ -142,7 +142,7 @@ public class TaskState implements Serializable {
 		return kvStates.size();
 	}
 
-	public void discard(ClassLoader classLoader) {
+	public void discard(ClassLoader classLoader) throws Exception {
 		for (SubtaskState subtaskState : subtaskStates.values()) {
 			subtaskState.discard(classLoader);
 		}

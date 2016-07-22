@@ -28,6 +28,7 @@ import org.apache.flink.dropwizard.metrics.FlinkCounterWrapper;
 import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkGaugeWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkHistogramWrapper;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -47,7 +48,7 @@ import java.util.SortedMap;
  * Dropwizard {@link com.codahale.metrics.Reporter}.
  */
 @PublicEvolving
-public abstract class ScheduledDropwizardReporter implements MetricReporter, Scheduled, Reporter {
+public abstract class ScheduledDropwizardReporter implements MetricReporter, Scheduled, Reporter, CharacterFilter {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -74,6 +75,15 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	}
 
 	// ------------------------------------------------------------------------
+	//  Getters
+	// ------------------------------------------------------------------------
+
+	// used for testing purposes
+	Map<Counter, String> getCounters() {
+		return counters;
+	}
+
+	// ------------------------------------------------------------------------
 	//  life cycle
 	// ------------------------------------------------------------------------
 
@@ -93,7 +103,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
-		final String fullName = group.getScopeString() + '.' + metricName;
+		final String fullName = group.getMetricIdentifier(metricName, this);
 
 		synchronized (this) {
 			if (metric instanceof Counter) {
@@ -138,6 +148,38 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 				registry.remove(fullName);
 			}
 		}
+	}
+
+	@Override
+	public String filterCharacters(String metricName) {
+		char[] chars = null;
+		final int strLen = metricName.length();
+		int pos = 0;
+
+		for (int i = 0; i < strLen; i++) {
+			final char c = metricName.charAt(i);
+			switch (c) {
+				case '.':
+					if (chars == null) {
+						chars = metricName.toCharArray();
+					}
+					chars[pos++] = '-';
+					break;
+				case '"':
+					if (chars == null) {
+						chars = metricName.toCharArray();
+					}
+					break;
+
+				default:
+					if (chars != null) {
+						chars[pos] = c;
+					}
+					pos++;
+			}
+		}
+
+		return chars == null ? metricName : new String(chars, 0, pos);
 	}
 
 	// ------------------------------------------------------------------------

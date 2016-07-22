@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,8 +110,8 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
+	public void restoreState(StreamTaskState state) throws Exception {
+		super.restoreState(state);
 		this.state = (ExactlyOnceState) state.getFunctionState();
 		out = null;
 	}
@@ -218,6 +219,30 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 			return stateSize;
 		}
 
+		@Override
+		public void close() throws IOException {
+			Throwable exception = null;
+
+			for (Tuple2<Long, StateHandle<DataInputView>> pair : pendingHandles.values()) {
+				StateHandle<DataInputView> handle = pair.f1;
+				if (handle != null) {
+					try {
+						handle.close();
+					}
+					catch (Throwable t) {
+						if (exception != null) {
+							exception = t;
+						}
+					}
+				}
+			}
+
+			if (exception != null) {
+				ExceptionUtils.rethrowIOException(exception);
+			}
+		}
+
+		@Override
 		public String toString() {
 			return this.pendingHandles.toString();
 		}

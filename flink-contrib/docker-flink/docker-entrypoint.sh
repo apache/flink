@@ -20,18 +20,14 @@
 
 if [ "$1" = "jobmanager" ]; then
     echo "Starting Job Manager"
-    sed -i -e "s/jobmanager.rpc.address: localhost/jobmanager.rpc.address: `hostname -i`/g" $FLINK_HOME/conf/flink-conf.yaml
+    sed -i -e "s/jobmanager.rpc.address: localhost/jobmanager.rpc.address: `hostname -f`/g" $FLINK_HOME/conf/flink-conf.yaml
     sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: `grep -c ^processor /proc/cpuinfo`/g" $FLINK_HOME/conf/flink-conf.yaml
-    $FLINK_HOME/bin/jobmanager.sh start cluster
     echo "config file: " && grep '^[^\n#]' $FLINK_HOME/conf/flink-conf.yaml
-    supervisord -c /etc/supervisor/supervisor.conf
-
+    $FLINK_HOME/bin/jobmanager.sh start cluster
 elif [ "$1" = "taskmanager" ]; then
     echo "Starting Task Manager"
-    $FLINK_HOME/bin/taskmanager.sh start
     echo "config file: " && grep '^[^\n#]' $FLINK_HOME/conf/flink-conf.yaml
-    supervisord -c /etc/supervisor/supervisor.conf
-
+    $FLINK_HOME/bin/taskmanager.sh start
 else
     $@
 fi

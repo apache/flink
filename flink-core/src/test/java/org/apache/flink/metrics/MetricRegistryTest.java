@@ -30,7 +30,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class MetricRegistryTest extends TestLogger {
 	
@@ -175,5 +176,19 @@ public class MetricRegistryTest extends TestLogger {
 		assertEquals("B", scopeConfig.getTaskManagerJobFormat().format());
 		assertEquals("C", scopeConfig.getTaskFormat().format());
 		assertEquals("D", scopeConfig.getOperatorFormat().format());
+	}
+
+	@Test
+	public void testConfigurableDelimiter() {
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
+		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A.B.C.D.E");
+
+		MetricRegistry registry = new MetricRegistry(config);
+
+		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id");
+		assertEquals("A_B_C_D_E_name", tmGroup.getMetricIdentifier("name"));
+
+		registry.shutdown();
 	}
 }

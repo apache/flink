@@ -18,17 +18,19 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 
 /**
  * A state handle that contains stream state in a byte array.
  */
-public final class ByteStreamStateHandle implements StreamStateHandle {
+public final class ByteStreamStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = -5280226231200217594L;
 	
@@ -45,8 +47,13 @@ public final class ByteStreamStateHandle implements StreamStateHandle {
 	}
 
 	@Override
-	public InputStream getState(ClassLoader userCodeClassLoader) {
-		return new ByteArrayInputStream(data);
+	public InputStream getState(ClassLoader userCodeClassLoader) throws Exception {
+		ensureNotClosed();
+
+		ByteArrayInputStream stream = new ByteArrayInputStream(data);
+		registerCloseable(stream);
+
+		return stream;
 	}
 
 	@Override
@@ -59,6 +66,18 @@ public final class ByteStreamStateHandle implements StreamStateHandle {
 
 	@Override
 	public <T extends Serializable> StateHandle<T> toSerializableHandle() {
-		return new SerializedStateHandle<T>(data);
+		SerializedStateHandle<T> serializableHandle = new SerializedStateHandle<T>(data);
+
+		// forward the closed status
+		if (isClosed()) {
+			try {
+				serializableHandle.close();
+			} catch (IOException e) {
+				// should not happen on a fresh handle, but forward anyways
+				throw new RuntimeException(e);
+			}
+		}
+
+		return serializableHandle;
 	}
 }

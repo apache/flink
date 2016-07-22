@@ -190,9 +190,9 @@ val graph = Graph.fromTuple2DataSet(edges, env)
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-DataSet<Tuple2<String, Long>> vertexTuples = env.readCsvFile("path/to/vertex/input");
+DataSet<Tuple2<String, Long>> vertexTuples = env.readCsvFile("path/to/vertex/input").types(String.class, Long.class);
 
-DataSet<Tuple3<String, String, Double>> edgeTuples = env.readCsvFile("path/to/edge/input");
+DataSet<Tuple3<String, String, Double>> edgeTuples = env.readCsvFile("path/to/edge/input").types(String.class, String.class, Double.class);
 
 Graph<String, Long, Double> graph = Graph.fromTupleDataSet(vertexTuples, edgeTuples, env);
 {% endhighlight %}

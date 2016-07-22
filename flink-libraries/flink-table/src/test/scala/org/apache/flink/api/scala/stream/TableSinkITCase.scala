@@ -38,7 +38,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
     val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
     tmpFile.deleteOnExit()
-    val path = "file:///" + tmpFile.getAbsolutePath
+    val path = tmpFile.toURI.toString
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

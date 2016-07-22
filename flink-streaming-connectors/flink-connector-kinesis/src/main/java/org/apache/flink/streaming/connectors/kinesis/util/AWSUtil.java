@@ -29,8 +29,8 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.CredentialProviderType;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 
 import java.util.Properties;
 
@@ -52,7 +52,10 @@ public class AWSUtil {
 
 		AmazonKinesisClient client =
 			new AmazonKinesisClient(AWSUtil.getCredentialsProvider(configProps).getCredentials(), awsClientConfig);
-		client.setRegion(Region.getRegion(Regions.fromName(configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION))));
+		client.setRegion(Region.getRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION))));
+		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
+			client.setEndpoint(configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT));
+		}
 		return client;
 	}
 
@@ -63,8 +66,8 @@ public class AWSUtil {
 	 * @return The corresponding AWS Credentials Provider instance
 	 */
 	public static AWSCredentialsProvider getCredentialsProvider(final Properties configProps) {
-		CredentialProviderType credentialProviderType = CredentialProviderType.valueOf(configProps.getProperty(
-			KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE, CredentialProviderType.BASIC.toString()));
+		CredentialProvider credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
+			AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, CredentialProvider.BASIC.toString()));
 
 		AWSCredentialsProvider credentialsProvider;
 
@@ -77,9 +80,9 @@ public class AWSUtil {
 				break;
 			case PROFILE:
 				String profileName = configProps.getProperty(
-					KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_PROFILE_NAME, null);
+					AWSConfigConstants.AWS_PROFILE_NAME, null);
 				String profileConfigPath = configProps.getProperty(
-					KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_PROFILE_PATH, null);
+					AWSConfigConstants.AWS_PROFILE_PATH, null);
 				credentialsProvider = (profileConfigPath == null)
 					? new ProfileCredentialsProvider(profileName)
 					: new ProfileCredentialsProvider(profileConfigPath, profileName);
@@ -90,8 +93,8 @@ public class AWSUtil {
 					@Override
 					public AWSCredentials getCredentials() {
 						return new BasicAWSCredentials(
-							configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID),
-							configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY));
+							configProps.getProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID),
+							configProps.getProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY));
 					}
 
 					@Override

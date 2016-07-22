@@ -352,7 +352,7 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 					LOG.info("Upload jar files to job manager {}.", jobManager.path());
 
 					try {
-						JobClient.uploadJarFiles(jobGraph, jobManagerGateway, timeout);
+						jobGraph.uploadUserJars(jobManagerGateway, timeout);
 					} catch (IOException exception) {
 						getSelf().tell(
 							decorateMessage(new JobManagerMessages.JobResultFailure(

@@ -201,7 +201,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 		task.getOperator().close();
 		task.getOperator().open();
 
-		task.getOperator().restoreState(states.get(states.size() - 1), 0);
+		task.getOperator().restoreState(states.get(states.size() - 1));
 
 		for (int x = 0; x < 20; x++) {
 			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));

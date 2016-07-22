@@ -32,7 +32,16 @@ import org.apache.flink.api.table.expressions._
  * [[org.apache.flink.api.table.expressions.ExpressionParser]].
  */
 trait ImplicitExpressionOperations {
-  def expr: Expression
+  private[flink] def expr: Expression
+
+  /**
+    * Enables literals on left side of binary expressions.
+    *
+    * e.g. 12.toExpr % 'a
+    *
+    * @return expression
+    */
+  def toExpr: Expression = expr
 
   def && (other: Expression) = And(expr, other)
   def || (other: Expression) = Or(expr, other)

@@ -20,6 +20,7 @@ source 'https://rubygems.org'
 
 # Dependencies required to build the Flink docs
 gem 'jekyll', '2.5.3'
+gem 'json', '2.0.1'
 gem 'kramdown', '1.10.0'
 gem 'pygments.rb', '0.6.3'
 gem 'therubyracer', '0.12.2'

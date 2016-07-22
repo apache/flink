@@ -745,7 +745,7 @@ class JobManager(
           sender() ! TriggerSavepointFailure(jobId, new IllegalArgumentException("Unknown job."))
       }
 
-    case DisposeSavepoint(savepointPath) =>
+    case DisposeSavepoint(savepointPath, blobKeys) =>
       val senderRef = sender()
       future {
         try {
@@ -755,8 +755,23 @@ class JobManager(
 
           log.debug(s"$savepoint")
 
-          // Discard the associated checkpoint
-          savepoint.discard(getClass.getClassLoader)
+          if (blobKeys.isDefined) {
+            // We don't need a real ID here for the library cache manager
+            val jid = new JobID()
+
+            try {
+              libraryCacheManager.registerJob(jid, blobKeys.get, java.util.Collections.emptyList())
+              val classLoader = libraryCacheManager.getClassLoader(jid)
+
+              // Discard with user code loader
+              savepoint.discard(classLoader)
+            } finally {
+              libraryCacheManager.unregisterJob(jid)
+            }
+          } else {
+            // Discard with system class loader
+            savepoint.discard(getClass.getClassLoader)
+          }
 
           // Dispose the savepoint
           savepointStore.disposeState(savepointPath)
@@ -1111,6 +1126,16 @@ class JobManager(
 
         log.info(s"Using restart strategy $restartStrategy for $jobId.")
 
+        val jobMetrics = jobManagerMetricGroup match {
+          case Some(group) =>
+            group.addJob(jobGraph.getJobID, jobGraph.getName) match {
+              case (jobGroup:Any) => jobGroup
+              case null => new UnregisteredMetricsGroup()
+            }
+          case None =>
+            new UnregisteredMetricsGroup()
+        }
+
         // see if there already exists an ExecutionGraph for the corresponding job ID
         executionGraph = currentJobs.get(jobGraph.getJobID) match {
           case Some((graph, currentJobInfo)) =>
@@ -1127,7 +1152,8 @@ class JobManager(
               restartStrategy,
               jobGraph.getUserJarBlobKeys,
               jobGraph.getClasspaths,
-              userCodeLoader)
+              userCodeLoader,
+              jobMetrics)
 
             currentJobs.put(jobGraph.getJobID, (graph, jobInfo))
             graph
@@ -1224,16 +1250,6 @@ class JobManager(
             if (isStatsDisabled) {
               new DisabledCheckpointStatsTracker()
             } else {
-
-              val jobMetrics = jobManagerMetricGroup match {
-                case Some(group) =>
-                  group.addJob(jobGraph.getJobID, jobGraph.getName) match {
-                    case (jobGroup:Any) => jobGroup
-                    case null => new UnregisteredMetricsGroup()
-                  }
-                case None =>
-                  new UnregisteredMetricsGroup()
-              }
               val historySize: Int = flinkConfiguration.getInteger(
                 ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
                 ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE)
@@ -1812,7 +1828,7 @@ class JobManager(
     val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
 
     for (garbageCollector <- garbageCollectors.asScala) {
-      val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
+      val gcGroup = metrics.addGroup(garbageCollector.getName)
       gcGroup.gauge[Long, Gauge[Long]]("Count", new Gauge[Long] {
         override def getValue: Long = garbageCollector.getCollectionCount
       })
@@ -2045,7 +2061,7 @@ object JobManager {
         try {
           webMonitor.stop()
         } catch {
-          case t =>
+          case t: Throwable =>
             LOG.warn("Could not properly stop the web monitor.", t)
         }
     }

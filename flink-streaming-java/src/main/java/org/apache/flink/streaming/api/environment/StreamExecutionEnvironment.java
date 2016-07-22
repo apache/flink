@@ -913,7 +913,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The data stream that represents the data read from the given file as text lines
 	 */
 	public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
-		Preconditions.checkNotNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path must not be null.");
+		Preconditions.checkNotNull(filePath.isEmpty(), "The file path must not be empty.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
@@ -1076,6 +1077,7 @@ public abstract class StreamExecutionEnvironment {
 
 		Preconditions.checkNotNull(inputFormat, "InputFormat must not be null.");
 		Preconditions.checkNotNull(filePath, "The file path must not be null.");
+		Preconditions.checkNotNull(filePath.isEmpty(), "The file path must not be empty.");
 
 		inputFormat.setFilePath(filePath);
 		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, filter, interval);
@@ -1222,23 +1224,24 @@ public abstract class StreamExecutionEnvironment {
 	private <OUT> DataStreamSource<OUT> createFileInput(FileInputFormat<OUT> inputFormat,
 														TypeInformation<OUT> typeInfo,
 														String sourceName,
-														FileProcessingMode watchType,
+														FileProcessingMode monitoringMode,
 														FilePathFilter pathFilter,
 														long interval) {
 
 		Preconditions.checkNotNull(inputFormat, "Unspecified file input format.");
 		Preconditions.checkNotNull(typeInfo, "Unspecified output type information.");
 		Preconditions.checkNotNull(sourceName, "Unspecified name for the source.");
-		Preconditions.checkNotNull(watchType, "Unspecified watchtype.");
+		Preconditions.checkNotNull(monitoringMode, "Unspecified monitoring mode.");
 		Preconditions.checkNotNull(pathFilter, "Unspecified path name filtering function.");
 
-		Preconditions.checkArgument(watchType.equals(FileProcessingMode.PROCESS_ONCE) ||
+		Preconditions.checkArgument(monitoringMode.equals(FileProcessingMode.PROCESS_ONCE) ||
 			interval >= ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL,
-			"The path monitoring interval cannot be less than 100 ms.");
+			"The path monitoring interval cannot be less than " +
+				ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL + " ms.");
 
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction = new ContinuousFileMonitoringFunction<>(
 			inputFormat, inputFormat.getFilePath().toString(),
-			pathFilter, watchType, getParallelism(), interval);
+			pathFilter, monitoringMode, getParallelism(), interval);
 
 		ContinuousFileReaderOperator<OUT, ?> reader = new ContinuousFileReaderOperator<>(inputFormat);
 

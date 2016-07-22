@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
@@ -169,6 +170,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.name("Initial scores")
 			.groupBy(0)
 			.reduce(new SumScores<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -185,6 +187,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.name("Hub")
 			.groupBy(0)
 			.reduce(new SumScore<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -194,6 +197,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -207,6 +211,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.name("Authority")
 			.groupBy(0)
 			.reduce(new SumScore<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -216,6 +221,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 

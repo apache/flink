@@ -16,26 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep;
+package org.apache.flink.metrics;
 
-public class StreamEvent<T> {
-	private final T event;
-	private final long timestamp;
+/**
+ * Interface for a character filter function. The filter function is given a string which the filter
+ * can transform. The returned string is the transformation result.
+ */
+public interface CharacterFilter {
 
-	public StreamEvent(T event, long timestamp) {
-		this.event = event;
-		this.timestamp = timestamp;
-	}
-
-	public long getTimestamp() {
-		return timestamp;
-	}
-
-	public T getEvent() {
-		return event;
-	}
-
-	public static <V> StreamEvent<V> of(V event, long timestamp) {
-		return new StreamEvent<>(event, timestamp);
-	}
+	/**
+	 * Filter the given string and generate a resulting string from it.
+	 *
+	 * For example, one implementation could filter out invalid characters from the input string.
+	 *
+	 * @param input Input string
+	 * @return Filtered result string
+	 */
+	String filterCharacters(String input);
 }

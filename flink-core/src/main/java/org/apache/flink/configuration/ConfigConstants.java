@@ -291,29 +291,27 @@ public final class ConfigConstants {
 	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
 	 * for other JVM memory usage.
 	 */
-	public static final String CONTAINERED_HEAP_CUTOFF_RATIO = "containered.heap-cutoff-ratio";
+	public static final String CONTAINERIZED_HEAP_CUTOFF_RATIO = "containerized.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of heap memory to remove in containers, as a safety margin.
 	 */
-	public static final String CONTAINERED_HEAP_CUTOFF_MIN = "containered.heap-cutoff-min";
+	public static final String CONTAINERIZED_HEAP_CUTOFF_MIN = "containerized.heap-cutoff-min";
 
 	/**
 	 * Prefix for passing custom environment variables to Flink's master process.
 	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
-	 * yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+	 * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
 	 * in the flink-conf.yaml.
 	 */
-	public static final String CONTAINERED_MASTER_ENV_PREFIX = "containered.application-master.env.";
+	public static final String CONTAINERIZED_MASTER_ENV_PREFIX = "containerized.master.env.";
 
 	/**
-	 * Similar to the {@see CONTAINERED_MASTER_ENV_PREFIX}, this configuration prefix allows
+	 * Similar to the {@see CONTAINERIZED_MASTER_ENV_PREFIX}, this configuration prefix allows
 	 * setting custom environment variables for the workers (TaskManagers)
 	 */
-	public static final String CONTAINERED_TASK_MANAGER_ENV_PREFIX = "containered.taskmanager.env.";
+	public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX = "containerized.taskmanager.env.";
 
-	// --------------------------Standalone Setup -----------------------------
-	
 	
 	// ------------------------ YARN Configuration ------------------------
 
@@ -324,12 +322,14 @@ public final class ConfigConstants {
 
 	/**
 	 * Percentage of heap space to remove from containers started by YARN.
+	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_RATIO}
 	 */
 	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_RATIO = "yarn.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
+	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_MIN}
 	 */
 	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
@@ -377,7 +377,7 @@ public final class ConfigConstants {
 	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
 	 * 	yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
 	 * in the flink-conf.yaml.
-	 * @deprecated Please use {@code CONTAINERED_MASTER_ENV_PREFIX}.
+	 * @deprecated Please use {@code CONTAINERIZED_MASTER_ENV_PREFIX}.
 	 */
 	@Deprecated
 	public static final String YARN_APPLICATION_MASTER_ENV_PREFIX = "yarn.application-master.env.";
@@ -391,7 +391,7 @@ public final class ConfigConstants {
 	/**
 	 * Similar to the {@see YARN_APPLICATION_MASTER_ENV_PREFIX}, this configuration prefix allows
 	 * setting custom environment variables.
-	 * @deprecated Please use {@code CONTAINERED_TASK_MANAGER_ENV_PREFIX}.
+	 * @deprecated Please use {@code CONTAINERIZED_TASK_MANAGER_ENV_PREFIX}.
 	 */
 	@Deprecated
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
@@ -626,6 +626,8 @@ public final class ConfigConstants {
 	/** ZooKeeper root path. */
 	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
 
+	public static final String ZOOKEEPER_NAMESPACE_KEY = "recovery.zookeeper.path.namespace";
+
 	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
 
 	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
@@ -649,9 +651,6 @@ public final class ConfigConstants {
 
 	// ---------------------------- Metrics -----------------------------------
 
-	/** The port range from which JMX will pick one to listen for incoming connections. */
-	public static final String METRICS_JMX_PORT = "metrics.jmx.port";
-	
 	/** The class of the reporter to use. */
 	public static final String METRICS_REPORTER_CLASS = "metrics.reporter.class";
 	
@@ -660,6 +659,9 @@ public final class ConfigConstants {
 	
 	/** The interval between reports. */
 	public static final String METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
+
+	/** The delimiter used to assemble the metric identifier. */
+	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
 
 	/** The scope format string that is applied to all metrics scoped to a JobManager. */
 	public static final String METRICS_SCOPE_NAMING_JM = "metrics.scope.jm";
@@ -968,6 +970,8 @@ public final class ConfigConstants {
 	// --------------------------- ZooKeeper ----------------------------------
 
 	public static final String DEFAULT_ZOOKEEPER_DIR_KEY = "/flink";
+
+	public static final String DEFAULT_ZOOKEEPER_NAMESPACE_KEY = "/default";
 
 	public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
 

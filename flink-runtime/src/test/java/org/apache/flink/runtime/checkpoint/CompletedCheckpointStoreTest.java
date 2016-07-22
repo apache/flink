@@ -171,7 +171,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			checkpoints.addCheckpoint(checkpoint);
 		}
 
-		checkpoints.discardAllCheckpoints();
+		checkpoints.shutdown();
 
 		// Empty state
 		assertNull(checkpoints.getLatestCheckpoint());
@@ -242,7 +242,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 
 		@Override
-		public void discard(ClassLoader userClassLoader) {
+		public void discard(ClassLoader userClassLoader) throws Exception {
 			super.discard(userClassLoader);
 
 			if (!isDiscarded) {

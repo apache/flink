@@ -74,11 +74,15 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
   Each *addressX:port* refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
 
-- **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all required coordination data is placed.
+- **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all cluster namespace nodes are placed.
 
-  <pre>recovery.zookeeper.path.root: /flink # important: customize per cluster</pre>
+  <pre>recovery.zookeeper.path.root: /flink
 
-  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate root nodes for each cluster.
+- **ZooKeeper namespace** (recommended): The *namespace ZooKeeper node*, under which all required coordination data for a cluster is placed.
+
+  <pre>recovery.zookeeper.path.namespace: /default_ns # important: customize per cluster</pre> 
+
+  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate namespaces for each cluster. By default, the Yarn cluster and the Yarn session automatically generate namespaces based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a namespace with the -z CLI option, in turn, overrides manual configuration. 
 
 - **State backend and storage directory** (required): JobManager meta data is persisted in the *state backend* and only a pointer to this state is stored in ZooKeeper. Currently, only the file system state backend is supported in HA mode.
 
@@ -98,7 +102,8 @@ After configuring the masters and the ZooKeeper quorum, you can use the provided
    <pre>
 recovery.mode: zookeeper
 recovery.zookeeper.quorum: localhost:2181
-recovery.zookeeper.path.root: /flink # important: customize per cluster
+recovery.zookeeper.path.root: /flink
+recovery.zookeeper.path.namespace: /cluster_one # important: customize per cluster
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 recovery.zookeeper.storageDir: hdfs:///flink/recovery</pre>
@@ -174,6 +179,8 @@ This means that the application can be restarted 10 times before YARN fails the 
 - **YARN 2.4.0 < version < 2.6.0**. TaskManager containers are kept alive across application master failures. This has the advantage that the startup time is faster and that the user does not have to wait for obtaining the container resources again.
 - **YARN 2.6.0 <= version**: Sets the attempt failure validity interval to the Flinks' Akka timeout value. The attempt failure validity interval says that an application is only killed after the system has seen the maximum number of application attempts during one interval. This avoids that a long lasting job will deplete it's application attempts.
 
+<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: Hadoop YARN 2.4.0 has a major bug (fixed in 2.5.0) preventing container restarts from a restarted Application Master/Job Manager container. See <a href="https://issues.apache.org/jira/browse/FLINK-4142">FLINK-4142</a> for details. We recommend using at least Hadoop 2.5.0 for high availability setups on YARN.</p>
+
 #### Example: Highly Available YARN Session
 
 1. **Configure recovery mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
@@ -181,7 +188,8 @@ This means that the application can be restarted 10 times before YARN fails the 
    <pre>
 recovery.mode: zookeeper
 recovery.zookeeper.quorum: localhost:2181
-recovery.zookeeper.path.root: /flink # important: customize per cluster
+recovery.zookeeper.path.root: /flink
+recovery.zookeeper.path.namespace: /cluster_one # important: customize per cluster
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 recovery.zookeeper.storageDir: hdfs:///flink/recovery

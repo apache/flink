@@ -22,6 +22,7 @@ import org.apache.commons.cli.Options;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
 import java.net.InetSocketAddress;
@@ -59,6 +60,11 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 			String addressWithPort = commandLine.getOptionValue(CliFrontendParser.ADDRESS_OPTION.getOpt());
 			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(addressWithPort);
 			setJobManagerAddressInConfig(config, jobManagerAddress);
+		}
+
+		if (commandLine.hasOption(CliFrontendParser.ZOOKEEPER_NAMESPACE_OPTION.getOpt())) {
+			String zkNamespace = commandLine.getOptionValue(CliFrontendParser.ZOOKEEPER_NAMESPACE_OPTION.getOpt());
+			config.setString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
 		}
 
 		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);

@@ -49,10 +49,10 @@ public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 	@Override
 	protected BinaryInputFormat<Record> createInputFormat() {
 		Configuration configuration = new Configuration();
-		configuration.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 
 		final SerializedInputFormat<Record> inputFormat = new SerializedInputFormat<Record>();
 		inputFormat.setFilePath(this.tempFile.toURI().toString());
+		inputFormat.setBlockSize(this.blockSize);
 
 		inputFormat.configure(configuration);
 		return inputFormat;

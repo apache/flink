@@ -37,6 +37,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 
 import static org.junit.Assert.assertEquals;
@@ -172,8 +173,8 @@ public class StreamTaskAsyncCheckpointTest {
 		}
 
 		@Override
-		public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-			super.restoreState(taskState, recoveryTimestamp);
+		public void restoreState(StreamTaskState taskState) throws Exception {
+			super.restoreState(taskState);
 		}
 	}
 
@@ -196,6 +197,9 @@ public class StreamTaskAsyncCheckpointTest {
 		public long getStateSize() {
 			return 0;
 		}
+
+		@Override
+		public void close() throws IOException {}
 	}
 
 	private static class TestStateHandle implements StateHandle<String> {
@@ -214,13 +218,15 @@ public class StreamTaskAsyncCheckpointTest {
 		}
 
 		@Override
-		public void discardState() throws Exception {
-		}
+		public void discardState() throws Exception {}
 
 		@Override
 		public long getStateSize() {
 			return 0;
 		}
+
+		@Override
+		public void close() throws IOException {}
 	}
 	
 	public static class DummyMapFunction<T> implements MapFunction<T, T> {

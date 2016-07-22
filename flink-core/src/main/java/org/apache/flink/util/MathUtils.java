@@ -65,7 +65,7 @@ public final class MathUtils {
 	 * power of two, it remains unchanged.
 	 * 
 	 * @param value The value to round down.
-	 * @return The closest value that is a power of to and less or equal than the given value.
+	 * @return The closest value that is a power of two and less or equal than the given value.
 	 */
 	public static int roundDownToPowerOf2(int value) {
 		return Integer.highestOneBit(value);

@@ -93,7 +93,7 @@ public class JobManagerGroupTest {
 		JobManagerMetricGroup group = new JobManagerMetricGroup(registry, "localhost");
 
 		assertArrayEquals(new String[]{"localhost", "jobmanager"}, group.getScopeComponents());
-		assertEquals("localhost.jobmanager", group.getScopeString());
+		assertEquals("localhost.jobmanager.name", group.getMetricIdentifier("name"));
 	}
 
 	@Test
@@ -103,6 +103,6 @@ public class JobManagerGroupTest {
 		JobManagerMetricGroup group = new JobManagerMetricGroup(registry, format, "host");
 
 		assertArrayEquals(new String[]{"constant", "host", "foo", "host"}, group.getScopeComponents());
-		assertEquals("constant.host.foo.host", group.getScopeString());
+		assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
 	}
 }

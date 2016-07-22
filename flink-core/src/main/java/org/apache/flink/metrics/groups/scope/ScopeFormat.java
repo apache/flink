@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.groups.scope;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.metrics.groups.JobMetricGroup;
 import org.apache.flink.metrics.groups.TaskManagerJobMetricGroup;
@@ -44,6 +45,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * exclude it (continuity of the namespace across failure and recovery).
  */
 public abstract class ScopeFormat {
+
+	private static CharacterFilter defaultFilter = new CharacterFilter() {
+		@Override
+		public String filterCharacters(String input) {
+			return input;
+		}
+	};
 
 	// ------------------------------------------------------------------------
 	//  Scope Format Special Characters
@@ -428,11 +436,32 @@ public abstract class ScopeFormat {
 	}
 
 	public static String concat(String... components) {
+		return concat(defaultFilter, '.', components);
+	}
+
+	public static String concat(CharacterFilter filter, String... components) {
+		return concat(filter, '.', components);
+	}
+
+	public static String concat(Character delimiter, String... components) {
+		return concat(defaultFilter, delimiter, components);
+	}
+
+	/**
+	 * Concatenates the given component names separated by the delimiter character. Additionally
+	 * the character filter is applied to all component names.
+	 *
+	 * @param filter Character filter to be applied to the component names
+	 * @param delimiter Delimiter to separate component names
+	 * @param components Array of component names
+	 * @return The concatenated component name
+	 */
+	public static String concat(CharacterFilter filter, Character delimiter, String... components) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(components[0]);
+		sb.append(filter.filterCharacters(components[0]));
 		for (int x = 1; x < components.length; x++) {
-			sb.append(SCOPE_SEPARATOR);
-			sb.append(components[x]);
+			sb.append(delimiter);
+			sb.append(filter.filterCharacters(components[x]));
 		}
 		return sb.toString();
 	}

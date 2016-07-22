@@ -35,7 +35,7 @@ import java.io.Serializable;
 public class FileSerializableStateHandle<T extends Serializable> extends AbstractFileStateHandle implements StateHandle<T> {
 
 	private static final long serialVersionUID = -657631394290213622L;
-	
+
 	/**
 	 * Creates a new FileSerializableStateHandle pointing to state at the given file path.
 	 * 
@@ -48,7 +48,12 @@ public class FileSerializableStateHandle<T extends Serializable> extends Abstrac
 	@Override
 	@SuppressWarnings("unchecked")
 	public T getState(ClassLoader classLoader) throws Exception {
+		ensureNotClosed();
+
 		try (FSDataInputStream inStream = getFileSystem().open(getFilePath())) {
+			// make sure any deserialization can be aborted
+			registerCloseable(inStream);
+
 			ObjectInputStream ois = new InstantiationUtil.ClassLoaderObjectInputStream(inStream, classLoader);
 			return (T) ois.readObject();
 		}

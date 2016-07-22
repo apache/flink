@@ -280,10 +280,34 @@ public class CheckpointCoordinator {
 	/**
 	 * Shuts down the checkpoint coordinator.
 	 *
-	 * After this method has been called, the coordinator does not accept and further
-	 * messages and cannot trigger any further checkpoints.
+	 * <p>After this method has been called, the coordinator does not accept
+	 * and further messages and cannot trigger any further checkpoints. All
+	 * checkpoint state is discarded.
 	 */
 	public void shutdown() throws Exception {
+		shutdown(true);
+	}
+
+	/**
+	 * Suspends the checkpoint coordinator.
+	 *
+	 * <p>After this method has been called, the coordinator does not accept
+	 * and further messages and cannot trigger any further checkpoints.
+	 *
+	 * <p>The difference to shutdown is that checkpoint state in the store
+	 * and counter is kept around if possible to recover later.
+	 */
+	public void suspend() throws Exception {
+		shutdown(false);
+	}
+
+	/**
+	 * Shuts down the checkpoint coordinator.
+	 *
+	 * @param shutdownStoreAndCounter Depending on this flag the checkpoint
+	 * state services are shut down or suspended.
+	 */
+	private void shutdown(boolean shutdownStoreAndCounter) throws Exception {
 		synchronized (lock) {
 			try {
 				if (!shutdown) {
@@ -302,21 +326,23 @@ public class CheckpointCoordinator {
 						jobStatusListener = null;
 					}
 
-					checkpointIdCounter.stop();
-
 					// clear and discard all pending checkpoints
 					for (PendingCheckpoint pending : pendingCheckpoints.values()) {
 						pending.discard(userClassLoader);
 					}
 					pendingCheckpoints.clear();
 
-					// clean and discard all successful checkpoints
-					completedCheckpointStore.discardAllCheckpoints();
+					if (shutdownStoreAndCounter) {
+						completedCheckpointStore.shutdown();
+						checkpointIdCounter.shutdown();
+					} else {
+						completedCheckpointStore.suspend();
+						checkpointIdCounter.suspend();
+					}
 
 					onShutdown();
 				}
-			}
-			finally {
+			} finally {
 				// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
 				// shutdown hook itself.
 				if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
@@ -575,6 +601,8 @@ public class CheckpointCoordinator {
 				checkpoint.discard(userClassLoader);
 				rememberRecentCheckpointId(checkpointId);
 
+				onCancelCheckpoint(checkpointId);
+
 				boolean haveMoreRecentPending = false;
 				Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
 				while (entries.hasNext()) {
@@ -732,7 +760,7 @@ public class CheckpointCoordinator {
 		recentPendingCheckpoints.addLast(id);
 	}
 
-	private void dropSubsumedCheckpoints(long timestamp) {
+	private void dropSubsumedCheckpoints(long timestamp) throws Exception {
 		Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
 		while (entries.hasNext()) {
 			PendingCheckpoint p = entries.next().getValue();
@@ -801,8 +829,6 @@ public class CheckpointCoordinator {
 				}
 			}
 
-			long recoveryTimestamp = System.currentTimeMillis();
-
 			for (Map.Entry<JobVertexID, TaskState> taskGroupStateEntry: latest.getTaskStates().entrySet()) {
 				TaskState taskState = taskGroupStateEntry.getValue();
 				ExecutionJobVertex executionJobVertex = tasks.get(taskGroupStateEntry.getKey());
@@ -833,7 +859,7 @@ public class CheckpointCoordinator {
 						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState.getUnwrappedKvStates(keyGroupPartitions.get(i));
 
 						Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt();
-						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap, recoveryTimestamp);
+						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap);
 					}
 
 					if (allOrNothingState && counter > 0 && counter < executionJobVertex.getParallelism()) {
@@ -926,7 +952,7 @@ public class CheckpointCoordinator {
 	//  Periodic scheduling of checkpoints
 	// --------------------------------------------------------------------------------------------
 
-	public void startCheckpointScheduler() {
+	public void startCheckpointScheduler() throws Exception {
 		synchronized (lock) {
 			if (shutdown) {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
@@ -949,7 +975,7 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	public void stopCheckpointScheduler() {
+	public void stopCheckpointScheduler() throws Exception {
 		synchronized (lock) {
 			triggerRequestQueued = false;
 			periodicScheduling = false;

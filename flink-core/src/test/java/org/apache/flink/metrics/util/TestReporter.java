@@ -36,4 +36,9 @@ public class TestReporter extends AbstractReporter {
 
 	@Override
 	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {}
+
+	@Override
+	public String filterCharacters(String input) {
+		return input;
+	}
 }

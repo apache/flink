@@ -25,33 +25,18 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 
 import scala.collection.mutable.ArrayBuffer
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.table.{Row, TableException}
+import org.apache.flink.api.table.Row
 
 /**
  * TypeInformation for [[Row]].
  */
-class RowTypeInfo(fieldTypes: Seq[TypeInformation[_]], fieldNames: Seq[String])
+class RowTypeInfo(fieldTypes: Seq[TypeInformation[_]])
   extends CaseClassTypeInfo[Row](
     classOf[Row],
     Array(),
     fieldTypes,
-    fieldNames)
+    for (i <- fieldTypes.indices) yield "f" + i)
 {
-
-  if (fieldTypes.length != fieldNames.length) {
-    throw new TableException("Number of field types and names is different.")
-  }
-  if (fieldNames.length != fieldNames.toSet.size) {
-    throw new TableException("Field names are not unique.")
-  }
-
-  def this(fieldTypes: Seq[TypeInformation[_]]) = {
-    this(fieldTypes, for (i <- fieldTypes.indices) yield "f" + i)
-  }
-
-  def this(fieldTypes: Array[TypeInformation[_]], fieldNames: Array[String]) = {
-    this(fieldTypes.toSeq, fieldNames.toSeq)
-  }
 
   def this(fieldTypes: Array[TypeInformation[_]]) = {
     this(fieldTypes.toSeq)

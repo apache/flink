@@ -20,10 +20,12 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.connectors.kafka.internals.metrics.DefaultKafkaMetricAccumulator;
+import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
@@ -46,7 +48,6 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -60,7 +61,6 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <IN> Type of the messages to write into Kafka.
  */
-@SuppressWarnings("SynchronizeOnNonFinalField")
 public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> implements Checkpointed<Serializable> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducerBase.class);
@@ -100,11 +100,6 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	protected final KafkaPartitioner<IN> partitioner;
 
 	/**
-	 * Unique ID identifying the producer
-	 */
-	private final String producerId;
-
-	/**
 	 * Flag indicating whether to accept failures (and log them), or to fail on failures
 	 */
 	protected boolean logFailuresOnly;
@@ -112,7 +107,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	/**
 	 * If true, the producer will wait until all outstanding records have been send to the broker.
 	 */
-	private boolean flushOnCheckpoint = false;
+	private boolean flushOnCheckpoint;
 	
 	// -------------------------------- Runtime fields ------------------------------------------
 
@@ -121,19 +116,15 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	/** The callback than handles error propagation or logging callbacks */
 	protected transient Callback callback;
-	
+
 	/** Errors encountered in the async producer are stored here */
 	protected transient volatile Exception asyncException;
 
-	/**
-	 * Number of unacknowledged records.
-	 */
-	protected long pendingRecords = 0;
+	/** Lock for accessing the pending records */
+	protected final SerializableObject pendingRecordsLock = new SerializableObject();
 
-	/**
-	 * Lock for accessing the pending records
-	 */
-	protected transient Object pendingRecordsLock;
+	/** Number of unacknowledged records. */
+	protected long pendingRecords;
 
 
 	/**
@@ -156,7 +147,6 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		this.producerConfig = producerConfig;
 
 		// set the producer configuration properties.
-
 		if (!producerConfig.contains(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
 			this.producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getCanonicalName());
 		} else {
@@ -183,7 +173,6 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		}
 
 		this.partitioner = customPartitioner;
-		this.producerId = UUID.randomUUID().toString();
 	}
 
 	// ---------------------------------- Properties --------------------------
@@ -233,23 +222,19 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		}
 
 		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into topic {}", 
-				ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), defaultTopicId);
+				ctx.getIndexOfThisSubtask() + 1, ctx.getNumberOfParallelSubtasks(), defaultTopicId);
 
 		// register Kafka metrics to Flink accumulators
-		if (!Boolean.valueOf(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
+		if (!Boolean.parseBoolean(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
 			Map<MetricName, ? extends Metric> metrics = this.producer.metrics();
 
 			if (metrics == null) {
 				// MapR's Kafka implementation returns null here.
 				LOG.info("Producer implementation does not support metrics");
 			} else {
+				final MetricGroup kafkaMetricGroup = getRuntimeContext().getMetricGroup().addGroup("KafkaProducer");
 				for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
-					String name = producerId + "-producer-" + metric.getKey().name();
-					DefaultKafkaMetricAccumulator kafkaAccumulator = DefaultKafkaMetricAccumulator.createFor(metric.getValue());
-					// best effort: we only add the accumulator if available.
-					if (kafkaAccumulator != null) {
-						getRuntimeContext().addAccumulator(name, kafkaAccumulator);
-					}
+					kafkaMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
 				}
 			}
 		}
@@ -257,9 +242,6 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		if (flushOnCheckpoint && !((StreamingRuntimeContext)this.getRuntimeContext()).isCheckpointingEnabled()) {
 			LOG.warn("Flushing on checkpoint is enabled, but checkpointing is not enabled. Disabling flushing.");
 			flushOnCheckpoint = false;
-		}
-		if (flushOnCheckpoint) {
-			pendingRecordsLock = new Object();
 		}
 
 		if (logFailuresOnly) {
@@ -332,14 +314,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //
 
 	private void acknowledgeMessage() {
-		if (!flushOnCheckpoint) {
-			// the logic is disabled
-			return;
-		}
-		synchronized (pendingRecordsLock) {
-			pendingRecords--;
-			if (pendingRecords == 0) {
-				pendingRecordsLock.notifyAll();
+		if (flushOnCheckpoint) {
+			synchronized (pendingRecordsLock) {
+				pendingRecords--;
+				if (pendingRecords == 0) {
+					pendingRecordsLock.notifyAll();
+				}
 			}
 		}
 	}

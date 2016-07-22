@@ -32,6 +32,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -56,11 +57,13 @@ import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.api.common.state.StateBackend;
-
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.HDFSCopyFromLocal;
 import org.apache.flink.streaming.util.HDFSCopyToLocal;
+
 import org.apache.hadoop.fs.FileSystem;
+
 import org.rocksdb.BackupEngine;
 import org.rocksdb.BackupableDBOptions;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -73,6 +76,7 @@ import org.rocksdb.RestoreOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -162,7 +166,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * checkpoints and when disposing the db. Otherwise, the asynchronous snapshot might try
 	 * iterating over a disposed db.
 	 */
-	private Object dbCleanupLock;
+	private final SerializableObject dbCleanupLock = new SerializableObject();
 
 	/**
 	 * Information about the k/v states as we create them. This is used to retrieve the
@@ -288,8 +292,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		} catch (IOException e) {
 			throw new RuntimeException("Error cleaning RocksDB data directory.", e);
 		}
-
-		dbCleanupLock = new Object();
 
 		List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(1);
 		// RocksDB seems to need this...
@@ -479,7 +481,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public final void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots, long recoveryTimestamp) throws Exception {
+	public final void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots) throws Exception {
 		if (keyValueStateSnapshots.size() == 0) {
 			return;
 		}
@@ -670,8 +672,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		public final KvState<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> restoreState(
 				RocksDBStateBackend stateBackend,
 				TypeSerializer<Object> keySerializer,
-				ClassLoader classLoader,
-				long recoveryTimestamp) throws Exception {
+				ClassLoader classLoader) throws Exception {
 			throw new RuntimeException("Should never happen.");
 		}
 
@@ -685,6 +686,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		public final long getStateSize() throws Exception {
 			FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
 			return fs.getContentSummary(new org.apache.hadoop.fs.Path(backupUri)).getLength();
+		}
+
+		@Override
+		public void close() throws IOException {
+			// cannot do much here
 		}
 	}
 
@@ -799,7 +805,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		 * Creates a new snapshot from the given state parameters.
 		 */
 		private FinalFullyAsyncSnapshot(StateHandle<DataInputView> stateHandle, long checkpointId) {
-			this.stateHandle = stateHandle;
+			this.stateHandle = requireNonNull(stateHandle);
 			this.checkpointId = checkpointId;
 		}
 
@@ -807,8 +813,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		public final KvState<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> restoreState(
 				RocksDBStateBackend stateBackend,
 				TypeSerializer<Object> keySerializer,
-				ClassLoader classLoader,
-				long recoveryTimestamp) throws Exception {
+				ClassLoader classLoader) throws Exception {
 			throw new RuntimeException("Should never happen.");
 		}
 
@@ -820,6 +825,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		@Override
 		public final long getStateSize() throws Exception {
 			return stateHandle.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			stateHandle.close();
 		}
 	}
 

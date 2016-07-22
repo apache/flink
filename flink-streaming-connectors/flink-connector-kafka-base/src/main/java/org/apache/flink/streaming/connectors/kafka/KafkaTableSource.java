@@ -123,7 +123,7 @@ abstract class KafkaTableSource implements StreamTableSource<Row> {
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		return new RowTypeInfo(fieldTypes, fieldNames);
+		return new RowTypeInfo(fieldTypes);
 	}
 
 	/**

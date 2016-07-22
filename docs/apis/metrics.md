@@ -162,6 +162,8 @@ public class MyMapper extends RichMapFunction<Long, Integer> {
 Every metric is assigned an identifier under which it will be reported that is based on 3 components: the user-provided name when registering the metric, an optional user-defined scope and a system-provided scope.
 For example, if `A.B` is the sytem scope, `C.D` the user scope and `E` the name, then the identifier for the metric will be `A.B.C.D.E`.
 
+You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in `conf/flink-conf.yaml`.
+
 ### User Scope
 
 You can define a user scope by calling either `MetricGroup#addGroup(String name)` or `MetricGroup#addGroup(int name)`.
@@ -237,15 +239,19 @@ Metrics can be exposed to an external system by configuring a reporter in `conf/
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 
-By default Flink uses JMX to expose metrics.
-All non-JMXReporters are not part of the distribution. To use them you have to copy the respective fat jar to the `/lib` folder.
-
 The following sections list the supported reporters.
 
-### JMX
+### JMX (org.apache.flink.metrics.reporter.JMXReporter)
 
-The port for JMX can be configured by setting the `metrics.jmx.port` key. This parameter expects either a single port
-or a port range, with the default being 9010-9025. The used port is shown in the relevant job or task manager log.
+You don't have to include an additional dependency since the JMX reporter is available by default
+but not activated.
+
+Parameters:
+
+- `port` - the port on which JMX listens for connections. This can also be a port range. When a
+range is specified the actual port is shown in the relevant job or task manager log. If you don't
+specify a port no extra JMX server will be started. Metrics are still available on the default
+local JMX interface.
 
 ### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
 Dependency:
@@ -260,7 +266,7 @@ Dependency:
 Parameters:
 
 - `host` - the gmond host address configured under `udp_recv_channel.bind` in `gmond.conf`
-- `port` - the gmond port configured under `udp_recv_channel.port` in `gmond.conf` 
+- `port` - the gmond port configured under `udp_recv_channel.port` in `gmond.conf`
 - `tmax` - soft limit for how long an old metric should be retained
 - `dmax` - hard limit for how long an old metric should be retained
 - `ttl` - time-to-live for transmitted UDP packets
@@ -404,8 +410,16 @@ Flink exposes the following system metrics:
         <td>The lowest watermark a task has received.</td>
       </tr>
       <tr>
+        <td>lastCheckpointDuration</td>
+        <td>The time it took to complete the last checkpoint.</td>
+      </tr>
+      <tr>
         <td>lastCheckpointSize</td>
         <td>The total size of the last checkpoint.</td>
+      </tr>
+      <tr>
+        <td>restartingTime</td>
+        <td>The time it took to restart the job.</td>
       </tr>
       <tr>
         <td>numBytesInLocal</td>

@@ -98,12 +98,14 @@ public class CheckpointMessagesTest {
 		}
 
 		@Override
-		public void discardState() throws Exception {
-		}
+		public void discardState() throws Exception {}
 
 		@Override
 		public long getStateSize() {
 			return 0;
 		}
+
+		@Override
+		public void close() throws IOException {}
 	}
 }

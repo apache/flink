@@ -88,7 +88,7 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep2 = new JMXReporter();
 
 		Configuration cfg1 = new Configuration();
-		cfg1.setString(ConfigConstants.METRICS_JMX_PORT, "9020-9035");
+		cfg1.setString("port", "9020-9035");
 
 		rep1.open(cfg1);
 		rep2.open(cfg1);
@@ -137,7 +137,7 @@ public class JMXReporterTest extends TestLogger {
 		JMXReporter rep2 = new JMXReporter();
 
 		Configuration cfg1 = new Configuration();
-		cfg1.setString(ConfigConstants.METRICS_JMX_PORT, "9040-9055");
+		cfg1.setString("port", "9040-9055");
 		rep1.open(cfg1);
 		rep2.open(cfg1);
 
@@ -197,6 +197,7 @@ public class JMXReporterTest extends TestLogger {
 
 		try {
 			Configuration config = new Configuration();
+			config.setString(ConfigConstants.METRICS_REPORTER_CLASS, "org.apache.flink.metrics.reporter.JMXReporter");
 
 			registry = new MetricRegistry(config);
 

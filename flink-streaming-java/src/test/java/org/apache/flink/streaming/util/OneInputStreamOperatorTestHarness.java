@@ -27,6 +27,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
+import org.apache.flink.runtime.state.AsynchronousStateHandle;
+import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -42,7 +45,10 @@ import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.Serializable;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 
@@ -76,6 +82,9 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	StreamTask<?, ?> mockTask;
 
+	// use this as default for tests
+	private AbstractStateBackend stateBackend = new MemoryStateBackend();
+
 	/**
 	 * Whether setup() was called on the operator. This is reset when calling close().
 	 */
@@ -86,12 +95,16 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		this(operator, new ExecutionConfig());
 	}
 
-	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator, ExecutionConfig executionConfig) {
+	public OneInputStreamOperatorTestHarness(
+			OneInputStreamOperator<IN, OUT> operator,
+			ExecutionConfig executionConfig) {
 		this(operator, executionConfig, DefaultTimeServiceProvider.create(Executors.newSingleThreadScheduledExecutor()));
 	}
 
-	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator, ExecutionConfig executionConfig,
-											TimeServiceProvider testTimeProvider) {
+	public OneInputStreamOperatorTestHarness(
+			OneInputStreamOperator<IN, OUT> operator,
+			ExecutionConfig executionConfig,
+			TimeServiceProvider testTimeProvider) {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<Object>();
 		this.config = new StreamConfig(new Configuration());
@@ -114,9 +127,9 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
 					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
 					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
-					MemoryStateBackend backend = MemoryStateBackend.create();
-					backend.initializeForJob(env, operatorIdentifier, keySerializer);
-					return backend;
+					OneInputStreamOperatorTestHarness.this.stateBackend.disposeAllStateForCurrentJob();
+					OneInputStreamOperatorTestHarness.this.stateBackend.initializeForJob(env, operatorIdentifier, keySerializer);
+					return OneInputStreamOperatorTestHarness.this.stateBackend;
 				}
 			}).when(mockTask).createStateBackend(any(String.class), any(TypeSerializer.class));
 		} catch (Exception e) {
@@ -141,6 +154,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				return timeServiceProvider.getCurrentProcessingTime();
 			}
 		}).when(mockTask).getCurrentProcessingTime();
+	}
+
+	public void setStateBackend(AbstractStateBackend stateBackend) {
+		this.stateBackend = stateBackend;
 	}
 
 	public Object getCheckpointLock() {
@@ -191,14 +208,37 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#snapshotOperatorState(long, long)} ()}
 	 */
 	public StreamTaskState snapshot(long checkpointId, long timestamp) throws Exception {
-		return operator.snapshotOperatorState(checkpointId, timestamp);
+		StreamTaskState snapshot = operator.snapshotOperatorState(checkpointId, timestamp);
+		// materialize asynchronous state handles
+		if (snapshot != null) {
+			if (snapshot.getFunctionState() instanceof AsynchronousStateHandle) {
+				AsynchronousStateHandle<Serializable> asyncState = (AsynchronousStateHandle<Serializable>) snapshot.getFunctionState();
+				snapshot.setFunctionState(asyncState.materialize());
+			}
+			if (snapshot.getOperatorState() instanceof AsynchronousStateHandle) {
+				AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) snapshot.getOperatorState();
+				snapshot.setOperatorState(asyncState.materialize());
+			}
+			if (snapshot.getKvStates() != null) {
+				Set<String> keys = snapshot.getKvStates().keySet();
+				HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = snapshot.getKvStates();
+				for (String key: keys) {
+					if (kvStates.get(key) instanceof AsynchronousKvStateSnapshot) {
+						AsynchronousKvStateSnapshot<?, ?, ?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) kvStates.get(key);
+						kvStates.put(key, asyncHandle.materialize());
+					}
+				}
+			}
+
+		}
+		return snapshot;
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamTaskState, long)} ()}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamTaskState)} ()}
 	 */
 	public void restore(StreamTaskState snapshot, long recoveryTimestamp) throws Exception {
-		operator.restoreState(snapshot, recoveryTimestamp);
+		operator.restoreState(snapshot);
 	}
 
 	/**
