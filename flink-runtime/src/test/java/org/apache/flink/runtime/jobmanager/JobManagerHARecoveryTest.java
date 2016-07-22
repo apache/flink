@@ -22,13 +22,16 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.HeapStateStore;
 import org.apache.flink.runtime.checkpoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -43,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -66,6 +70,9 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -73,6 +80,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -120,7 +128,6 @@ public class JobManagerHARecoveryTest {
 		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
 
 		try {
-
 			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 
 			MySubmittedJobGraphStore mySubmittedJobGraphStore = new MySubmittedJobGraphStore();
@@ -147,7 +154,7 @@ public class JobManagerHARecoveryTest {
 				myLeaderElectionService,
 				mySubmittedJobGraphStore,
 				new StandaloneCheckpointRecoveryFactory(),
-				new SavepointStore(new HeapStateStore()),
+				new SavepointStore(new HeapStateStore<CompletedCheckpoint>()),
 				jobRecoveryTimeout,
 				Option.apply(null));
 
@@ -175,6 +182,7 @@ public class JobManagerHARecoveryTest {
 			sourceJobVertex.setParallelism(slots);
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
+			BlockingInvokable.block();
 
 			Future<Object> isLeader = gateway.ask(
 				TestingJobManagerMessages.getNotifyWhenLeader(),
@@ -243,6 +251,245 @@ public class JobManagerHARecoveryTest {
 		}
 	}
 
+	/**
+	 * Tests that the persisted job is not removed from the job graph store
+	 * after the postStop method of the JobManager. Furthermore, it checks
+	 * that BLOBs of the JobGraph are recovered properly and cleaned up after
+	 * the job finishes.
+	 */
+	@Test
+	public void testBlobRecoveryAfterLostJobManager() throws Exception {
+		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
+		FiniteDuration jobRecoveryTimeout = new FiniteDuration(3, TimeUnit.SECONDS);
+		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
+		Configuration flinkConfiguration = new Configuration();
+		UUID leaderSessionID = UUID.randomUUID();
+		UUID newLeaderSessionID = UUID.randomUUID();
+		int slots = 2;
+
+		ActorRef archiveRef = null;
+		ActorRef jobManagerRef = null;
+		ActorRef taskManagerRef = null;
+
+		String haStoragePath = temporaryFolder.newFolder().toString();
+
+		flinkConfiguration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		flinkConfiguration.setString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, haStoragePath);
+		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
+
+		try {
+			MySubmittedJobGraphStore mySubmittedJobGraphStore = new MySubmittedJobGraphStore();
+			TestingLeaderElectionService myLeaderElectionService = new TestingLeaderElectionService();
+			TestingLeaderRetrievalService myLeaderRetrievalService = new TestingLeaderRetrievalService();
+
+			archiveRef = system.actorOf(Props.create(
+					MemoryArchivist.class,
+					10), "archive-0");
+
+			jobManagerRef = createJobManagerActor(
+					"jobmanager-0",
+					flinkConfiguration,
+					myLeaderElectionService,
+					mySubmittedJobGraphStore,
+					3600000,
+					timeout,
+					jobRecoveryTimeout, archiveRef);
+
+			ActorGateway jobManager = new AkkaActorGateway(jobManagerRef, leaderSessionID);
+
+			taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
+					flinkConfiguration,
+					ResourceID.generate(),
+					system,
+					"localhost",
+					Option.apply("taskmanager"),
+					Option.apply((LeaderRetrievalService) myLeaderRetrievalService),
+					true,
+					TestingTaskManager.class);
+
+			ActorGateway tmGateway = new AkkaActorGateway(taskManagerRef, leaderSessionID);
+
+			Future<Object> tmAlive = tmGateway.ask(TestingMessages.getAlive(), deadline.timeLeft());
+
+			Await.ready(tmAlive, deadline.timeLeft());
+
+			JobVertex sourceJobVertex = new JobVertex("Source");
+			sourceJobVertex.setInvokableClass(BlockingInvokable.class);
+			sourceJobVertex.setParallelism(slots);
+
+			JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
+			BlockingInvokable.block();
+
+			// Upload fake JAR file to first JobManager
+			File jarFile = temporaryFolder.newFile();
+			ZipOutputStream out = new ZipOutputStream(new FileOutputStream(jarFile));
+			out.close();
+
+			jobGraph.addJar(new Path(jarFile.toURI()));
+
+			jobGraph.uploadUserJars(jobManager, deadline.timeLeft());
+
+			Future<Object> isLeader = jobManager.ask(
+					TestingJobManagerMessages.getNotifyWhenLeader(),
+					deadline.timeLeft());
+
+			Future<Object> isConnectedToJobManager = tmGateway.ask(
+					new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManagerRef),
+					deadline.timeLeft());
+
+			// tell jobManager that he's the leader
+			myLeaderElectionService.isLeader(leaderSessionID);
+			// tell taskManager who's the leader
+			myLeaderRetrievalService.notifyListener(jobManager.path(), leaderSessionID);
+
+			Await.ready(isLeader, deadline.timeLeft());
+			Await.ready(isConnectedToJobManager, deadline.timeLeft());
+
+			// Wait for running
+			Future<Object> jobRunning = jobManager.ask(
+					new TestingJobManagerMessages.NotifyWhenJobStatus(jobGraph.getJobID(), JobStatus.RUNNING),
+					deadline.timeLeft());
+
+			// submit blocking job
+			Future<Object> jobSubmitted = jobManager.ask(
+					new JobManagerMessages.SubmitJob(jobGraph, ListeningBehaviour.DETACHED),
+					deadline.timeLeft());
+
+			Await.ready(jobSubmitted, deadline.timeLeft());
+
+			Await.ready(jobRunning, deadline.timeLeft());
+
+			// terminate the job manager
+			jobManagerRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
+
+			Future<Boolean> terminatedFuture = Patterns.gracefulStop(jobManagerRef, deadline.timeLeft());
+			Boolean terminated = Await.result(terminatedFuture, deadline.timeLeft());
+			assertTrue("Failed to stop job manager", terminated);
+
+			// job stays in the submitted job graph store
+			assertTrue(mySubmittedJobGraphStore.contains(jobGraph.getJobID()));
+
+			// start new job manager
+			myLeaderElectionService.reset();
+
+			jobManagerRef = createJobManagerActor(
+					"jobmanager-1",
+					flinkConfiguration,
+					myLeaderElectionService,
+					mySubmittedJobGraphStore,
+					500,
+					timeout,
+					jobRecoveryTimeout,
+					archiveRef);
+
+			jobManager = new AkkaActorGateway(jobManagerRef, newLeaderSessionID);
+
+			Future<Object> isAlive = jobManager.ask(TestingMessages.getAlive(), deadline.timeLeft());
+
+			isLeader = jobManager.ask(
+					TestingJobManagerMessages.getNotifyWhenLeader(),
+					deadline.timeLeft());
+
+			isConnectedToJobManager = tmGateway.ask(
+					new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManagerRef),
+					deadline.timeLeft());
+
+			Await.ready(isAlive, deadline.timeLeft());
+
+			// tell new jobManager that he's the leader
+			myLeaderElectionService.isLeader(newLeaderSessionID);
+			// tell taskManager who's the leader
+			myLeaderRetrievalService.notifyListener(jobManager.path(), newLeaderSessionID);
+
+			Await.ready(isLeader, deadline.timeLeft());
+			Await.ready(isConnectedToJobManager, deadline.timeLeft());
+
+			jobRunning = jobManager.ask(
+					new TestingJobManagerMessages.NotifyWhenJobStatus(jobGraph.getJobID(), JobStatus.RUNNING),
+					deadline.timeLeft());
+
+			// wait that the job is recovered and reaches state RUNNING
+			Await.ready(jobRunning, deadline.timeLeft());
+
+			Future<Object> jobFinished = jobManager.ask(
+					new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()),
+					deadline.timeLeft());
+
+			BlockingInvokable.unblock();
+
+			// wait til the job has finished
+			Await.ready(jobFinished, deadline.timeLeft());
+
+			// check that the job has been removed from the submitted job graph store
+			assertFalse(mySubmittedJobGraphStore.contains(jobGraph.getJobID()));
+
+			// Check that the BLOB store files are removed
+			File rootPath = new File(haStoragePath);
+
+			boolean cleanedUpFiles = false;
+			while (deadline.hasTimeLeft()) {
+				File[] files = rootPath.listFiles();
+				if (files != null && files.length == 0) {
+					cleanedUpFiles = true;
+					break;
+				} else {
+					Thread.sleep(100);
+				}
+			}
+
+			assertTrue("BlobStore files not cleaned up", cleanedUpFiles);
+		} finally {
+			if (archiveRef != null) {
+				archiveRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
+			}
+
+			if (jobManagerRef != null) {
+				jobManagerRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
+			}
+
+			if (taskManagerRef != null) {
+				taskManagerRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
+			}
+		}
+	}
+
+	/**
+	 * Creates a new JobManager actor.
+	 */
+	private ActorRef createJobManagerActor(
+			String name,
+			Configuration flinkConfiguration,
+			LeaderElectionService leaderElectionService,
+			SubmittedJobGraphStore submittedJobGraphs,
+			int blobCleanupInterval,
+			FiniteDuration timeout,
+			FiniteDuration jobRecoveryTimeout,
+			ActorRef archive) throws IOException {
+
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		InstanceManager instanceManager = new InstanceManager();
+		instanceManager.addInstanceListener(scheduler);
+
+		Props jobManagerProps = Props.create(
+				TestingJobManager.class,
+				flinkConfiguration,
+				new ForkJoinPool(),
+				instanceManager,
+				scheduler,
+				new BlobLibraryCacheManager(new BlobServer(flinkConfiguration), blobCleanupInterval),
+				archive,
+				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
+				timeout,
+				leaderElectionService,
+				submittedJobGraphs,
+				new StandaloneCheckpointRecoveryFactory(),
+				new SavepointStore(new HeapStateStore<CompletedCheckpoint>()),
+				jobRecoveryTimeout,
+				Option.apply(null));
+
+		return system.actorOf(jobManagerProps, name);
+	}
+
 	static class MySubmittedJobGraphStore implements SubmittedJobGraphStore {
 		Map<JobID, SubmittedJobGraph> storedJobs = new HashMap<>();
 
@@ -305,6 +552,10 @@ public class JobManagerHARecoveryTest {
 			synchronized (lock) {
 				lock.notifyAll();
 			}
+		}
+
+		public static void block() {
+			blocking = true;
 		}
 	}
 

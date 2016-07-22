@@ -143,7 +143,17 @@ class FileSystemBlobStore implements BlobStore {
 		try {
 			LOG.debug("Deleting {}.", blobPath);
 
-			FileSystem.get(new URI(blobPath)).delete(new Path(blobPath), true);
+			FileSystem fs = FileSystem.get(new URI(blobPath));
+			Path path = new Path(blobPath);
+
+			fs.delete(path, true);
+
+			// send a call to delete the directory containing the file. This will
+			// fail (and be ignored) when some files still exist.
+			try {
+				fs.delete(path.getParent(), false);
+				fs.delete(new Path(basePath), false);
+			} catch (IOException ignored) {}
 		}
 		catch (Exception e) {
 			LOG.warn("Failed to delete blob at " + blobPath);

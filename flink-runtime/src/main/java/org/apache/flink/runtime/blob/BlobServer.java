@@ -301,9 +301,6 @@ public class BlobServer extends Thread implements BlobService {
 				LOG.error("BLOB server failed to properly clean up its storage directory.");
 			}
 
-			// Clean up the recovery directory
-			blobStore.cleanUp();
-
 			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
 			// shutdown hook itself
 			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
