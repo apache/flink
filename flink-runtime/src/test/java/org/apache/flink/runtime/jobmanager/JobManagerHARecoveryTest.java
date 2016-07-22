@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.HeapStateStore;
 import org.apache.flink.runtime.checkpoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -58,7 +59,6 @@ import org.apache.flink.runtime.testingUtils.TestingMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.Preconditions;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -75,13 +75,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -133,7 +129,6 @@ public class JobManagerHARecoveryTest {
 		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
 
 		try {
-
 			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 
 			MySubmittedJobGraphStore mySubmittedJobGraphStore = new MySubmittedJobGraphStore();
@@ -160,7 +155,7 @@ public class JobManagerHARecoveryTest {
 				myLeaderElectionService,
 				mySubmittedJobGraphStore,
 				new StandaloneCheckpointRecoveryFactory(),
-				new SavepointStore(new HeapStateStore()),
+				new SavepointStore(new HeapStateStore<CompletedCheckpoint>()),
 				jobRecoveryTimeout,
 				Option.apply(null));
 
@@ -188,6 +183,7 @@ public class JobManagerHARecoveryTest {
 			sourceJobVertex.setParallelism(slots);
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
+			BlockingInvokable.block();
 
 			Future<Object> isLeader = gateway.ask(
 				TestingJobManagerMessages.getNotifyWhenLeader(),
@@ -271,6 +267,7 @@ public class JobManagerHARecoveryTest {
 		UUID leaderSessionID = UUID.randomUUID();
 		UUID newLeaderSessionID = UUID.randomUUID();
 		int slots = 2;
+
 		ActorRef archiveRef = null;
 		ActorRef jobManagerRef = null;
 		ActorRef taskManagerRef = null;
@@ -322,6 +319,7 @@ public class JobManagerHARecoveryTest {
 			sourceJobVertex.setParallelism(slots);
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
+			BlockingInvokable.block();
 
 			// Upload fake JAR file to first JobManager
 			File jarFile = temporaryFolder.newFile();
@@ -347,17 +345,17 @@ public class JobManagerHARecoveryTest {
 			Await.ready(isLeader, deadline.timeLeft());
 			Await.ready(isConnectedToJobManager, deadline.timeLeft());
 
+			// Wait for running
+			Future<Object> jobRunning = jobManager.ask(
+					new TestingJobManagerMessages.NotifyWhenJobStatus(jobGraph.getJobID(), JobStatus.RUNNING),
+					deadline.timeLeft());
+
 			// submit blocking job
 			Future<Object> jobSubmitted = jobManager.ask(
 					new JobManagerMessages.SubmitJob(jobGraph, ListeningBehaviour.DETACHED),
 					deadline.timeLeft());
 
 			Await.ready(jobSubmitted, deadline.timeLeft());
-
-			// Wait for running
-			Future<Object> jobRunning = jobManager.ask(
-					new TestingJobManagerMessages.NotifyWhenJobStatus(jobGraph.getJobID(), JobStatus.RUNNING),
-					deadline.timeLeft());
 
 			Await.ready(jobRunning, deadline.timeLeft());
 
@@ -485,7 +483,7 @@ public class JobManagerHARecoveryTest {
 				leaderElectionService,
 				submittedJobGraphs,
 				new StandaloneCheckpointRecoveryFactory(),
-				new SavepointStore(new HeapStateStore()),
+				new SavepointStore(new HeapStateStore<CompletedCheckpoint>()),
 				jobRecoveryTimeout,
 				Option.apply(null));
 
@@ -554,6 +552,10 @@ public class JobManagerHARecoveryTest {
 			synchronized (lock) {
 				lock.notifyAll();
 			}
+		}
+
+		public static void block() {
+			blocking = true;
 		}
 	}
 
