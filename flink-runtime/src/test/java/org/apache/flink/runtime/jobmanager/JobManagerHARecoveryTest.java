@@ -386,6 +386,8 @@ public class JobManagerHARecoveryTest {
 
 			Future<Object> isAlive = jobManager.ask(TestingMessages.getAlive(), deadline.timeLeft());
 
+			Await.ready(isAlive, deadline.timeLeft());
+
 			isLeader = jobManager.ask(
 					TestingJobManagerMessages.getNotifyWhenLeader(),
 					deadline.timeLeft());
@@ -393,8 +395,6 @@ public class JobManagerHARecoveryTest {
 			isConnectedToJobManager = tmGateway.ask(
 					new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManagerRef),
 					deadline.timeLeft());
-
-			Await.ready(isAlive, deadline.timeLeft());
 
 			// tell new jobManager that he's the leader
 			myLeaderElectionService.isLeader(newLeaderSessionID);
