@@ -140,16 +140,21 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 			Set<Long> checkpointsToRemove = new HashSet<>();
 			for (Long pastCheckpointId : pastCheckpointIds) {
 				if (pastCheckpointId <= checkpointId) {
-					if (!committer.isCheckpointCommitted(pastCheckpointId)) {
-						Tuple2<Long, StateHandle<DataInputView>> handle = state.pendingHandles.get(pastCheckpointId);
-						DataInputView in = handle.f1.getState(getUserCodeClassloader());
-						boolean success = sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
-						if (success) { //if the sending has failed we will retry on the next notify
-							committer.commitCheckpoint(pastCheckpointId);
+					try {
+						if (!committer.isCheckpointCommitted(pastCheckpointId)) {
+							Tuple2<Long, StateHandle<DataInputView>> handle = state.pendingHandles.get(pastCheckpointId);
+							DataInputView in = handle.f1.getState(getUserCodeClassloader());
+							boolean success = sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
+							if (success) { //if the sending has failed we will retry on the next notify
+								committer.commitCheckpoint(pastCheckpointId);
+								checkpointsToRemove.add(pastCheckpointId);
+							}
+						} else {
 							checkpointsToRemove.add(pastCheckpointId);
 						}
-					} else {
-						checkpointsToRemove.add(pastCheckpointId);
+					} catch (Exception e) {
+						LOG.error("Could not commit checkpoint.", e);
+						break; // we have to break here to prevent a new checkpoint from being committed before this one
 					}
 				}
 			}
