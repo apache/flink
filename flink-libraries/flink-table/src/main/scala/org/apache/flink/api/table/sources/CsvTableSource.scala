@@ -19,14 +19,12 @@
 package org.apache.flink.api.table.sources
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.io.TupleCsvInputFormat
-import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TupleTypeInfoBase}
+import org.apache.flink.api.java.io.CsvInputFormat
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.table.Row
-import org.apache.flink.core.fs.Path
+import org.apache.flink.api.table.{Row, TableException}
+import org.apache.flink.api.table.runtime.io.RowCsvInputFormat
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.java.io.RowCsvInputFormat
+import org.apache.flink.core.fs.Path
 
 /**
   * A [[TableSource]] for simple CSV files with a (logically) unlimited number of fields.
@@ -45,19 +43,23 @@ class CsvTableSource(
     path: String,
     fieldNames: Array[String],
     fieldTypes: Array[TypeInformation[_]],
-    fieldDelim: String = ",",
-    rowDelim: String = "\n",
+    fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER,
+    rowDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER,
     quoteCharacter: Character = null,
     ignoreFirstLine: Boolean = false,
     ignoreComments: String = null,
     lenient: Boolean = false)
   extends BatchTableSource[Row] {
 
+  if (fieldNames.length != fieldTypes.length) {
+    throw TableException("Number of field names and field types must be equal.")
+  }
+
+  private val returnType = new RowTypeInfo(fieldTypes)
+
   /** Returns the data of the table as a [[DataSet]] of [[Row]]. */
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
-
-    val typeInfo = getReturnType.asInstanceOf[RowTypeInfo]
-    val inputFormat = new RowCsvInputFormat(new Path(path), rowDelim, fieldDelim, typeInfo)
+    val inputFormat = new RowCsvInputFormat(new Path(path), returnType, rowDelim, fieldDelim)
 
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
@@ -68,7 +70,7 @@ class CsvTableSource(
       inputFormat.setCommentPrefix(ignoreComments)
     }
 
-    execEnv.createInput(inputFormat, typeInfo)
+    execEnv.createInput(inputFormat, returnType)
   }
 
   /** Returns the types of the table fields. */
@@ -81,7 +83,5 @@ class CsvTableSource(
   override def getNumberOfFields: Int = fieldNames.length
 
   /** Returns the [[RowTypeInfo]] for the return type of the [[CsvTableSource]]. */
-  override def getReturnType: RowTypeInfo = {
-    new RowTypeInfo(fieldTypes)
-  }
+  override def getReturnType: RowTypeInfo = returnType
 }
