@@ -131,7 +131,7 @@ public class MetricRegistryTest extends TestLogger {
 
 		MetricRegistry registry = new MetricRegistry(config);
 
-		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
+		TaskManagerMetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 		root.counter("rootCounter");
 		root.close();
 

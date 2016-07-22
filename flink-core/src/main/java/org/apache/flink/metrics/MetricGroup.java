@@ -27,33 +27,9 @@ import org.apache.flink.annotation.PublicEvolving;
  * hierarchy based on the group names.
  * 
  * <p>A MetricGroup is uniquely identified by it's place in the hierarchy and name.
- * 
- * <p>Metrics groups can be {@link #close() closed}. Upon closing, the group de-register all metrics
- * from any metrics reporter and any internal maps. Note that even closed metrics groups
- * return Counters, Gauges, etc to the code, to prevent exceptions in the monitored code.
- * These metrics simply do not get reported any more, when created on a closed group.
  */
 @PublicEvolving
 public interface MetricGroup {
-
-	// ------------------------------------------------------------------------
-	//  Closing
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Marks the group as closed.
-	 * Recursively unregisters all {@link Metric Metrics} contained in this group.
-	 * 
-	 * <p>Any metrics created after the call to this function will not be registered in
-	 * the {@link MetricRegistry} and not be reported to any reporter (like JMX).
-	 */
-	void close();
-
-	/**
-	 * Checks whether this MetricGroup has been closed. 
-	 * @return True if the group has been closed, false is the group is still open.
-	 */
-	boolean isClosed();
 
 	// ------------------------------------------------------------------------
 	//  Metrics

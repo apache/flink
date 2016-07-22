@@ -131,14 +131,10 @@ public class TaskMetricGroupTest {
 		TaskManagerJobMetricGroup taskManagerJobMetricGroup = new TaskManagerJobMetricGroup(registry, taskManagerMetricGroup, new JobID(), "job");
 		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(registry, taskManagerJobMetricGroup, new AbstractID(), new AbstractID(), "task", 0, 0);
 
-		IOMetricGroup ioMetricGroup = taskMetricGroup.getIOMetricGroup();
-
 		// the io metric should have registered predefined metrics
 		assertTrue(registry.getNumberRegisteredMetrics() > 0);
 
 		taskMetricGroup.close();
-
-		assertTrue(ioMetricGroup.isClosed());
 
 		// now alle registered metrics should have been unregistered
 		assertEquals(0, registry.getNumberRegisteredMetrics());

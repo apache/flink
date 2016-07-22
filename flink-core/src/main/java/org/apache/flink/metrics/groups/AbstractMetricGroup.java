@@ -49,6 +49,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * be strictly from parent group to subgroup. If at any point, a subgroup holds its group
  * lock and calls a parent method that also acquires the lock, it will create a deadlock
  * condition.
+ *
+ * <p>An AbstractMetricGroup can be {@link #close() closed}. Upon closing, the group de-register all metrics
+ * from any metrics reporter and any internal maps. Note that even closed metrics groups
+ * return Counters, Gauges, etc to the code, to prevent exceptions in the monitored code.
+ * These metrics simply do not get reported any more, when created on a closed group.
  */
 @Internal
 public abstract class AbstractMetricGroup implements MetricGroup {
@@ -65,7 +70,7 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	private final Map<String, Metric> metrics = new HashMap<>();
 
 	/** All metric subgroups of this group */
-	private final Map<String, MetricGroup> groups = new HashMap<>();
+	private final Map<String, AbstractMetricGroup> groups = new HashMap<>();
 
 	/** The metrics scope represented by this group.
 	 *  For example ["host-7", "taskmanager-2", "window_word_count", "my-mapper" ]. */
@@ -132,14 +137,13 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	//  Closing
 	// ------------------------------------------------------------------------
 
-	@Override
 	public void close() {
 		synchronized (this) {
 			if (!closed) {
 				closed = true;
 
 				// close all subgroups
-				for (MetricGroup group : groups.values()) {
+				for (AbstractMetricGroup group : groups.values()) {
 					group.close();
 				}
 				groups.clear();
@@ -153,7 +157,6 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 		}
 	}
 
-	@Override
 	public final boolean isClosed() {
 		return closed;
 	}
@@ -267,8 +270,8 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 							name + "'. Metric might not get properly reported. (" + scopeString + ')');
 				}
 
-				MetricGroup newGroup = new GenericMetricGroup(registry, this, name);
-				MetricGroup prior = groups.put(name, newGroup);
+				AbstractMetricGroup newGroup = new GenericMetricGroup(registry, this, name);
+				AbstractMetricGroup prior = groups.put(name, newGroup);
 				if (prior == null) {
 					// no prior group with that name
 					return newGroup;

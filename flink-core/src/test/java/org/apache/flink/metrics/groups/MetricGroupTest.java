@@ -26,7 +26,6 @@ import org.apache.flink.metrics.MetricRegistry;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -88,7 +87,7 @@ public class MetricGroupTest {
 		group.close();
 		assertTrue(group.isClosed());
 		
-		MetricGroup subgroup = group.addGroup("test subgroup");
+		AbstractMetricGroup subgroup = (AbstractMetricGroup) group.addGroup("test subgroup");
 		assertTrue(subgroup.isClosed());
 	}
 
