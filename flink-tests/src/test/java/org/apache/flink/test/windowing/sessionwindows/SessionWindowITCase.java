@@ -22,9 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -32,6 +30,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -114,8 +113,8 @@ public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 			windowedStream = windowedStream.allowedLateness(Time.milliseconds(ALLOWED_LATENESS_MS));
 		}
 
-		if (!PURGE_WINDOW_ON_FIRE) {
-			windowedStream = windowedStream.trigger(new NonPurgingEventTimeTriggerWrapper());
+		if (PURGE_WINDOW_ON_FIRE) {
+			windowedStream = windowedStream.trigger(PurgingTrigger.of(EventTimeTrigger.create()));
 		}
 
 		windowedStream.apply(windowFunction).print();
@@ -282,62 +281,6 @@ public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 		@Override
 		public void cancel() {
 			isRunning = false;
-		}
-	}
-
-	/**
-	 * Wrapper class that converts purging triggers into non-purging ones
-	 */
-	private static final class NonPurgingEventTimeTriggerWrapper
-			extends Trigger<SessionEvent<Integer, TestEventPayload>, TimeWindow> {
-
-		static final long serialVersionUID = 34763482396L;
-
-		EventTimeTrigger delegate = EventTimeTrigger.create();
-
-		@Override
-		public TriggerResult onElement(
-				SessionEvent<Integer, TestEventPayload> element,
-				long timestamp,
-				TimeWindow window,
-				TriggerContext ctx) throws Exception {
-			return removePurging(delegate.onElement(element, timestamp, window, ctx));
-
-		}
-
-		@Override
-		public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) throws Exception {
-			return removePurging(delegate.onProcessingTime(time, window, ctx));
-		}
-
-		@Override
-		public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) throws Exception {
-			return removePurging(delegate.onEventTime(time, window, ctx));
-		}
-
-		@Override
-		public boolean canMerge() {
-			return delegate.canMerge();
-		}
-
-		@Override
-		public TriggerResult onMerge(TimeWindow window, OnMergeContext ctx) throws Exception {
-			return removePurging(delegate.onMerge(window, ctx));
-		}
-
-		@Override
-		public void clear(TimeWindow window, TriggerContext ctx) throws Exception {
-			delegate.clear(window, ctx);
-		}
-
-		private TriggerResult removePurging(TriggerResult result) {
-			if (TriggerResult.PURGE == result) {
-				return TriggerResult.CONTINUE;
-			} else if (TriggerResult.FIRE_AND_PURGE == result) {
-				return TriggerResult.FIRE;
-			} else {
-				return result;
-			}
 		}
 	}
 }

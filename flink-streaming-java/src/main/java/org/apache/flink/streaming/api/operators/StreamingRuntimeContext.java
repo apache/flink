@@ -141,7 +141,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
 			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-			return operator.getPartitionedState(stateProperties);
+			ListState<T> originalState = operator.getPartitionedState(stateProperties);
+			return new UserFacingListState<T>(originalState);
 		} catch (Exception e) {
 			throw new RuntimeException("Error while getting state", e);
 		}

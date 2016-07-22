@@ -52,4 +52,5 @@ public class RichInputFormatTest {
 		assertEquals(inputFormat.getRuntimeContext().getIndexOfThisSubtask(), 1);
 		assertEquals(inputFormat.getRuntimeContext().getNumberOfParallelSubtasks(),3);
 	}
+
 }

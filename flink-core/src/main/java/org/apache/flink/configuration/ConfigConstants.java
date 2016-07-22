@@ -243,9 +243,26 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
 
 	/**
-	 *
+	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
+	 * exceeded without a successful registration, then the TaskManager terminates.
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
+
+	/**
+	 * The initial registration pause between two consecutive registration attempts. The pause
+	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
+	 */
+	public static final String TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "taskmanager.initial-registration-pause";
+
+	/**
+	 * The maximum registration pause between two consecutive registration attempts.
+	 */
+	public static final String TASK_MANAGER_MAX_REGISTARTION_PAUSE = "taskmanager.max-registration-pause";
+
+	/**
+	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 */
+	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
 	 * Time interval between two successive task cancellation attempts in milliseconds.
@@ -651,14 +668,34 @@ public final class ConfigConstants {
 
 	// ---------------------------- Metrics -----------------------------------
 
-	/** The class of the reporter to use. */
-	public static final String METRICS_REPORTER_CLASS = "metrics.reporter.class";
+	/**
+	 * The list of named reporters. Names are defined here and per-reporter configs
+	 * are given with the reporter config prefix and the reporter name.
+	 *
+	 * Example:
+	 * <pre>{@code
+	 * metrics.reporters = foo, bar
+	 *
+	 * metrics.reporter.foo.class = org.apache.flink.metrics.reporter.JMXReporter
+	 * metrics.reporter.foo.interval = 10
+	 *
+	 * metrics.reporter.bar.class = org.apache.flink.metrics.graphite.GraphiteReporter
+	 * metrics.reporter.bar.port = 1337
+	 * }</pre>
+	 */
+	public static final String METRICS_REPORTERS_LIST = "metrics.reporters";
+
+	/**
+	 * The prefix for per-reporter configs. Has to be combined with a reporter name and
+	 * the configs mentioned below.
+	 */
+	public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
+
+	/** The class of the reporter to use. This is used as a suffix in an actual reporter config */
+	public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
 	
-	/** A list of named parameters that are passed to the reporter. */
-	public static final String METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
-	
-	/** The interval between reports. */
-	public static final String METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
+	/** The interval between reports. This is used as a suffix in an actual reporter config */
+	public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
 
 	/** The delimiter used to assemble the metric identifier. */
 	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
@@ -786,6 +823,21 @@ public final class ConfigConstants {
 	 * The default task manager's maximum registration duration
 	 */
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
+
+	/**
+	 * The default task manager's initial registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "500 ms";
+
+	/**
+	 * The default task manager's maximum registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE = "30 s";
+
+	/**
+	 * The default task manager's refused registration pause.
+	 */
+	public static final String DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "10 s";
 
 	/**
 	 * The default setting for TaskManager memory eager allocation of managed memory

@@ -41,6 +41,11 @@ public class GlobalWindow extends Window {
 	}
 
 	@Override
+	public long getOffset() {
+		return 0;
+	}
+
+	@Override
 	public boolean equals(Object o) {
 		return this == o || !(o == null || getClass() != o.getClass());
 	}
@@ -101,7 +106,7 @@ public class GlobalWindow extends Window {
 
 		@Override
 		public GlobalWindow deserialize(GlobalWindow reuse,
-				DataInputView source) throws IOException {
+										DataInputView source) throws IOException {
 			source.readByte();
 			return GlobalWindow.INSTANCE;
 		}

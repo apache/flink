@@ -133,12 +133,7 @@ public class MergingWindowSetTest {
 		// retire the first batch of windows
 		windowSet.retireWindow(new TimeWindow(0, 6));
 
-		try {
-			windowSet.getStateWindow(new TimeWindow(0, 6));
-			fail("Expected exception");
-		} catch (IllegalStateException e) {
-			//ignore
-		}
+		assertTrue(windowSet.getStateWindow(new TimeWindow(0, 6)) == null);
 
 		assertTrue(windowSet.getStateWindow(new TimeWindow(10, 15)).equals(new TimeWindow(11, 14)));
 	}

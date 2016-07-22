@@ -54,7 +54,7 @@ public class CompletedCheckpoint implements Serializable {
 		long completionTimestamp,
 		Map<JobVertexID, TaskState> taskStates) {
 
-		this.job = job;
+		this.job = Preconditions.checkNotNull(job);
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;
 		this.duration = completionTimestamp - timestamp;
@@ -98,13 +98,11 @@ public class CompletedCheckpoint implements Serializable {
 	// --------------------------------------------------------------------------------------------
 	
 	public void discard(ClassLoader userClassLoader) throws Exception {
-		try {
-			for (TaskState state : taskStates.values()) {
-				state.discard(userClassLoader);
-			}
-		} finally {
-			taskStates.clear();
+		for (TaskState state: taskStates.values()) {
+			state.discard(userClassLoader);
 		}
+
+		taskStates.clear();
 	}
 
 	// --------------------------------------------------------------------------------------------

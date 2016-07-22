@@ -35,12 +35,13 @@ import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.metrics.{Gauge, MetricGroup, MetricRegistry => FlinkMetricRegistry}
-import org.apache.flink.metrics.groups.{JobManagerMetricGroup, UnregisteredMetricsGroup}
+import org.apache.flink.metrics.{Gauge, MetricGroup}
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
+import org.apache.flink.runtime.checkpoint.savepoint.{SavepointStoreFactory, SavepointStore}
 import org.apache.flink.runtime.checkpoint.stats.{CheckpointStatsTracker, SimpleCheckpointStatsTracker, DisabledCheckpointStatsTracker}
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.execution.SuppressRestartsException
@@ -70,6 +71,8 @@ import org.apache.flink.runtime.messages.checkpoint.{DeclineCheckpoint, Abstract
 
 import org.apache.flink.runtime.messages.webmonitor.InfoMessage
 import org.apache.flink.runtime.messages.webmonitor._
+import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
@@ -212,14 +215,6 @@ class JobManager(
         throw new RuntimeException("Could not start the checkpoint recovery service.", e)
     }
 
-    try {
-      savepointStore.start()
-    } catch {
-      case e: Exception =>
-        log.error("Could not start the savepoint store.", e)
-        throw new RuntimeException("Could not start the  savepoint store store.", e)
-    }
-
     jobManagerMetricGroup match {
       case Some(group) =>
         instantiateMetrics(group)
@@ -249,10 +244,10 @@ class JobManager(
     }
 
     try {
-      savepointStore.stop()
+      savepointStore.shutdown()
     } catch {
       case e: Exception =>
-        log.error("Could not stop the savepoint store.", e)
+        log.error("Could not shut down savepoint store.", e)
         throw new RuntimeException("Could not stop the  savepoint store store.", e)
     }
 
@@ -405,36 +400,23 @@ class JobManager(
 
       currentResourceManager match {
         case Some(rm) =>
-          val future = (rm ? decorateMessage(new RegisterResource(taskManager, msg)))(timeout)
-          future.onComplete {
-            case scala.util.Success(response) =>
-              // the resource manager is available and answered
-              self ! response
-            case scala.util.Failure(t) =>
+          val future = (rm ? decorateMessage(new NotifyResourceStarted(msg.resourceId)))(timeout)
+          future.onFailure {
+            case t: Throwable =>
               t match {
                 case _: TimeoutException =>
                   log.info("Attempt to register resource at ResourceManager timed out. Retrying")
                 case _ =>
                   log.warn("Failure while asking ResourceManager for RegisterResource. Retrying", t)
               }
-              // slow or unreachable resource manager, register anyway and let the rm reconnect
-              self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
               self ! decorateMessage(new ReconnectResourceManager(rm))
           }(context.dispatcher)
 
         case None =>
           log.info("Task Manager Registration but not connected to ResourceManager")
-          // ResourceManager not yet available
-          // sending task manager information later upon ResourceManager registration
-          self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
       }
 
-    case msg: RegisterResourceSuccessful =>
-
-      val originalMsg = msg.getRegistrationMessage
-      val taskManager = msg.getTaskManager
-
-      // ResourceManager knows about the resource, now let's try to register TaskManager
+      // ResourceManager is told about the resource, now let's try to register TaskManager
       if (instanceManager.isRegistered(taskManager)) {
         val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
 
@@ -446,10 +428,10 @@ class JobManager(
         try {
           val instanceID = instanceManager.registerTaskManager(
             taskManager,
-            originalMsg.resourceId,
-            originalMsg.connectionInfo,
-            originalMsg.resources,
-            originalMsg.numberOfSlots,
+            resourceId,
+            connectionInfo,
+            hardwareInformation,
+            numberOfSlots,
             leaderSessionID.orNull)
 
           taskManager ! decorateMessage(
@@ -468,24 +450,18 @@ class JobManager(
         }
       }
 
-    case msg: RegisterResourceFailed =>
-
-      val taskManager = msg.getTaskManager
-      val resourceId = msg.getResourceID
-      log.warn(s"TaskManager's resource id $resourceId failed to register at ResourceManager. " +
-        s"Refusing registration because of\n${msg.getMessage}.")
-
-      taskManager ! decorateMessage(
-        RefuseRegistration(new IllegalStateException(
-            s"Resource $resourceId not registered with resource manager.")))
-
     case msg: ResourceRemoved =>
       // we're being informed by the resource manager that a resource has become unavailable
       val resourceID = msg.resourceId()
       log.debug(s"Resource has been removed: $resourceID")
-      val instance = instanceManager.getRegisteredInstance(resourceID)
-      // trigger removal of task manager
-      handleTaskManagerTerminated(instance.getActorGateway.actor())
+
+      Option(instanceManager.getRegisteredInstance(resourceID)) match {
+        case Some(instance) =>
+          // trigger removal of task manager
+          handleTaskManagerTerminated(instance.getActorGateway.actor())
+        case None =>
+          log.debug(s"Resource $resourceID has not been registered at job manager.")
+      }
 
     case RequestNumberRegisteredTaskManager =>
       sender ! decorateMessage(instanceManager.getNumberOfRegisteredTaskManagers)
@@ -751,10 +727,6 @@ class JobManager(
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
 
-          val savepoint = savepointStore.getState(savepointPath)
-
-          log.debug(s"$savepoint")
-
           if (blobKeys.isDefined) {
             // We don't need a real ID here for the library cache manager
             val jid = new JobID()
@@ -764,17 +736,14 @@ class JobManager(
               val classLoader = libraryCacheManager.getClassLoader(jid)
 
               // Discard with user code loader
-              savepoint.discard(classLoader)
+              savepointStore.disposeSavepoint(savepointPath, classLoader)
             } finally {
               libraryCacheManager.unregisterJob(jid)
             }
           } else {
             // Discard with system class loader
-            savepoint.discard(getClass.getClassLoader)
+            savepointStore.disposeSavepoint(savepointPath, getClass.getClassLoader)
           }
-
-          // Dispose the savepoint
-          savepointStore.disposeState(savepointPath)
 
           senderRef ! DisposeSavepointSuccess
         } catch {
@@ -1128,7 +1097,7 @@ class JobManager(
 
         val jobMetrics = jobManagerMetricGroup match {
           case Some(group) =>
-            group.addJob(jobGraph.getJobID, jobGraph.getName) match {
+            group.addJob(jobGraph) match {
               case (jobGroup:Any) => jobGroup
               case null => new UnregisteredMetricsGroup()
             }
@@ -1237,7 +1206,7 @@ class JobManager(
             snapshotSettings.getVerticesToConfirm().asScala.map(idToVertex).asJava
 
           val completedCheckpoints = checkpointRecoveryFactory
-            .createCompletedCheckpoints(jobId, userCodeLoader)
+            .createCheckpointStore(jobId, userCodeLoader)
 
           val checkpointIdCounter = checkpointRecoveryFactory.createCheckpointIDCounter(jobId)
 
@@ -2381,8 +2350,7 @@ object JobManager {
     }
 
     LOG.info("Loading configuration from " + configDir)
-    GlobalConfiguration.loadConfiguration(configDir)
-    val configuration = GlobalConfiguration.getConfiguration()
+    val configuration = GlobalConfiguration.loadConfiguration(configDir)
 
     try {
       FileSystem.setDefaultScheme(configuration)

@@ -243,10 +243,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			Joiner joiner = Joiner.on(",");
 			// some modifications to the state
 			backend.setCurrentKey(1);
-			assertEquals("", joiner.join(state.get()));
+			assertEquals(null, state.get());
 			state.add("1");
 			backend.setCurrentKey(2);
-			assertEquals("", joiner.join(state.get()));
+			assertEquals(null, state.get());
 			state.add("2");
 			backend.setCurrentKey(1);
 			assertEquals("1", joiner.join(state.get()));
@@ -438,10 +438,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 			// some modifications to the state
 			backend.setCurrentKey(1);
-			assertEquals("Fold-Initial:", state.get());
+			assertEquals(null, state.get());
 			state.add(1);
 			backend.setCurrentKey(2);
-			assertEquals("Fold-Initial:", state.get());
+			assertEquals(null, state.get());
 			state.add(2);
 			backend.setCurrentKey(1);
 			assertEquals("Fold-Initial:,1", state.get());

@@ -111,6 +111,6 @@ public class SubtaskState implements Serializable {
 
 	@Override
 	public String toString() {
-		return String.format("StateForTask(Size: %d, Duration: %d, State: %s)", stateSize, duration, state);
+		return String.format("SubtaskState(Size: %d, Duration: %d, State: %s)", stateSize, duration, state);
 	}
 }

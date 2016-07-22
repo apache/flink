@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 
 /**
  * Generic implementation of {@link ListState} based on a wrapped {@link ValueState}.
@@ -82,11 +81,7 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 
 	@Override
 	public Iterable<T> get() throws Exception {
-		ArrayList<T> result = wrappedState.value();
-		if (result == null) {
-			return Collections.emptyList();
-		}
-		return result;
+		return wrappedState.value();
 	}
 
 	@Override

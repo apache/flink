@@ -120,7 +120,7 @@ trait ImplicitExpressionOperations {
   def power(other: Expression) = Power(expr, other)
 
   /**
-    * Calculates the absolute value of given one.
+    * Calculates the absolute value of given value.
     */
   def abs() = Abs(expr)
 
@@ -135,14 +135,14 @@ trait ImplicitExpressionOperations {
   def ceil() = Ceil(expr)
 
   /**
-    * Creates a substring of the given string between the given indices.
+    * Creates a substring of the given string at given index for a given length.
     *
     * @param beginIndex first character of the substring (starting at 1, inclusive)
-    * @param endIndex last character of the substring (starting at 1, inclusive)
+    * @param length number of characters of the substring
     * @return substring
     */
-  def substring(beginIndex: Expression, endIndex: Expression) =
-    SubString(expr, beginIndex, endIndex)
+  def substring(beginIndex: Expression, length: Expression) =
+    SubString(expr, beginIndex, length)
 
   /**
     * Creates a substring of the given string beginning at the given index to the end.
@@ -223,7 +223,7 @@ trait ImplicitExpressionOperations {
     */
   def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
 
-    /**
+  /**
     * Parses a timestamp String in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
     */
   def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)

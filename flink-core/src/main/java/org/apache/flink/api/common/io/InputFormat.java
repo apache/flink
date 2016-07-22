@@ -70,7 +70,7 @@ public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<
 	 * <p>
 	 * This method is always called first on a newly instantiated input format. 
 	 *  
-	 * @param parameters The configuration with all parameters.
+	 * @param parameters The configuration with all parameters (note: not the Flink config but the TaskConfig).
 	 */
 	void configure(Configuration parameters);
 	

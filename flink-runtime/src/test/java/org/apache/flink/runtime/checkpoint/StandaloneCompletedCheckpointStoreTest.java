@@ -42,7 +42,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	@Test
 	public void testShutdownDiscardsCheckpoints() throws Exception {
 		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
-		TestCheckpoint checkpoint = createCheckpoint(0);
+		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
@@ -60,7 +60,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	@Test
 	public void testSuspendDiscardsCheckpoints() throws Exception {
 		CompletedCheckpointStore store = createCompletedCheckpoints(1, ClassLoader.getSystemClassLoader());
-		TestCheckpoint checkpoint = createCheckpoint(0);
+		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());

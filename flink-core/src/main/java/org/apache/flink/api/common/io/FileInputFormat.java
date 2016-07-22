@@ -87,15 +87,19 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * The splitLength is set to -1L for reading the whole split.
 	 */
 	protected static final long READ_WHOLE_SPLIT_FLAG = -1L;
-	
+
 	static {
-		initDefaultsFromConfiguration();
+		initDefaultsFromConfiguration(GlobalConfiguration.loadConfiguration());
 		initDefaultInflaterInputStreamFactories();
 	}
-	
-	private static void initDefaultsFromConfiguration() {
-		
-		final long to = GlobalConfiguration.getLong(ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
+
+	/**
+	 * Initialize defaults for input format. Needs to be a static method because it is configured for local
+	 * cluster execution, see LocalFlinkMiniCluster.
+	 * @param configuration The configuration to load defaults from
+	 */
+	private static void initDefaultsFromConfiguration(Configuration configuration) {
+		final long to = configuration.getLong(ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
 			ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
 		if (to < 0) {
 			LOG.error("Invalid timeout value for filesystem stream opening: " + to + ". Using default value of " +
@@ -152,10 +156,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		} else {
 			return fileName.substring(lastPeriodIndex + 1);
 		}
-	}
-	
-	static long getDefaultOpeningTimeout() {
-		return DEFAULT_OPENING_TIMEOUT;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -224,11 +224,8 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	// --------------------------------------------------------------------------------------------	
 
 	public FileInputFormat() {}
-	
+
 	protected FileInputFormat(Path filePath) {
-		if (filePath == null) {
-			throw new IllegalArgumentException("The file path must not be null.");
-		}
 		this.filePath = filePath;
 	}
 	

@@ -35,10 +35,9 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.SavepointCoordinator;
-import org.apache.flink.runtime.checkpoint.StateStore;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointCoordinator;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
@@ -361,9 +360,9 @@ public class ExecutionGraph implements Serializable {
 			ActorSystem actorSystem,
 			UUID leaderSessionID,
 			CheckpointIDCounter checkpointIDCounter,
-			CompletedCheckpointStore completedCheckpointStore,
+			CompletedCheckpointStore checkpointStore,
 			RecoveryMode recoveryMode,
-			StateStore<CompletedCheckpoint> savepointStore,
+			SavepointStore savepointStore,
 			CheckpointStatsTracker statsTracker) throws Exception {
 
 		// simple sanity checks
@@ -396,7 +395,7 @@ public class ExecutionGraph implements Serializable {
 				tasksToCommitTo,
 				userClassLoader,
 				checkpointIDCounter,
-				completedCheckpointStore,
+				checkpointStore,
 				recoveryMode,
 				checkpointStatsTracker);
 

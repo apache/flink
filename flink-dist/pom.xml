@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.1-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -107,6 +107,19 @@ under the License.
 			<artifactId>flink-scala-shell_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-jmx</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
 
 	</dependencies>
 

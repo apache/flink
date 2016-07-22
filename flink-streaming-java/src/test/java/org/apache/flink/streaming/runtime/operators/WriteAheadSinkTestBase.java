@@ -219,7 +219,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 		verifyResultsDataDiscardingUponRestore(testHarness, task, (S) task.getOperator());
 	}
 
-	private StreamTaskState copyTaskState(StreamTaskState toCopy) throws IOException, ClassNotFoundException {
+	protected StreamTaskState copyTaskState(StreamTaskState toCopy) throws IOException, ClassNotFoundException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ObjectOutputStream oos = new ObjectOutputStream(baos);
 		oos.writeObject(toCopy);

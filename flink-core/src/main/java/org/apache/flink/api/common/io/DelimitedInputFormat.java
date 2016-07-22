@@ -20,13 +20,13 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -84,12 +84,18 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	private static int MAX_SAMPLE_LEN;
 
-	static { loadGlobalConfigParams(); }
-	
+	/**
+	 * @Deprecated Please use {@code loadConfigParameters(Configuration config}
+	 */
+	@Deprecated
 	protected static void loadGlobalConfigParams() {
-		int maxSamples = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
+		loadConfigParameters(GlobalConfiguration.loadConfiguration());
+	}
+
+	protected static void loadConfigParameters(Configuration parameters) {
+		int maxSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
 				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-		int minSamples = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
+		int minSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
 			ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
 		
 		if (maxSamples < 0) {
@@ -113,7 +119,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
 		}
 		
-		int maxLen = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
+		int maxLen = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
 				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 		if (maxLen <= 0) {
 			maxLen = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
@@ -164,13 +170,17 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// --------------------------------------------------------------------------------------------
 	//  Constructors & Getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
-	
+
 	public DelimitedInputFormat() {
-		super();
+		this(null, null);
 	}
-	
-	protected DelimitedInputFormat(Path filePath) {
+
+	protected DelimitedInputFormat(Path filePath, Configuration configuration) {
 		super(filePath);
+		if (configuration == null) {
+			configuration = GlobalConfiguration.loadConfiguration();
+		}
+		loadConfigParameters(configuration);
 	}
 	
 	

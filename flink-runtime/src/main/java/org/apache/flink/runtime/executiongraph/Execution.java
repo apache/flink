@@ -548,7 +548,7 @@ public class Execution implements Serializable {
 									consumerVertex.getExecutionGraph().getScheduler(),
 									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
 						} catch (Throwable t) {
-							fail(new IllegalStateException("Could not schedule consumer " +
+							consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
 									"vertex " + consumerVertex, t));
 						}
 

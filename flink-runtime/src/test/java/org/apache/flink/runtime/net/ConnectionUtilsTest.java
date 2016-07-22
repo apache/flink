@@ -19,7 +19,6 @@ package org.apache.flink.runtime.net;
 
 import static org.junit.Assert.*;
 
-import org.apache.flink.util.OperatingSystem;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -42,7 +41,8 @@ public class ConnectionUtilsTest {
 			InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
 
 			// check that it did not take forever
-			assertTrue(System.currentTimeMillis() - start < (OperatingSystem.isWindows() ? 30000 : 8000));
+			// this check can unfortunately not be too tight, or it will be flaky on some CI infrastructure
+			assertTrue(System.currentTimeMillis() - start < 30000);
 
 			// we should have found a heuristic address
 			assertNotNull(add);

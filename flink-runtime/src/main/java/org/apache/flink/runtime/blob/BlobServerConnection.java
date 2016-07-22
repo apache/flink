@@ -64,6 +64,9 @@ class BlobServerConnection extends Thread {
 	/** The BLOB server. */
 	private final BlobServer blobServer;
 
+	/** The HA blob store. */
+	private final BlobStore blobStore;
+
 	/**
 	 * Creates a new BLOB connection for a client request
 	 * 
@@ -80,6 +83,7 @@ class BlobServerConnection extends Thread {
 
 		this.clientSocket = clientSocket;
 		this.blobServer = blobServer;
+		this.blobStore = blobServer.getBlobStore();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -182,7 +186,7 @@ class BlobServerConnection extends Thread {
 				blobFile = this.blobServer.getStorageLocation(jobID, key);
 
 				if (!blobFile.exists()) {
-					blobServer.getBlobStore().get(jobID, key, blobFile);
+					blobStore.get(jobID, key, blobFile);
 				}
 			}
 			else if (contentAddressable == CONTENT_ADDRESSABLE) {
@@ -190,7 +194,7 @@ class BlobServerConnection extends Thread {
 				blobFile = blobServer.getStorageLocation(key);
 
 				if (!blobFile.exists()) {
-					blobServer.getBlobStore().get(key, blobFile);
+					blobStore.get(key, blobFile);
 				}
 			}
 			else {
@@ -320,7 +324,7 @@ class BlobServerConnection extends Thread {
 				Files.move(incomingFile, storageFile);
 				incomingFile = null;
 
-				blobServer.getBlobStore().put(storageFile, jobID, key);
+				blobStore.put(storageFile, jobID, key);
 
 				outputStream.write(RETURN_OKAY);
 			}
@@ -330,7 +334,7 @@ class BlobServerConnection extends Thread {
 				Files.move(incomingFile, storageFile);
 				incomingFile = null;
 
-				blobServer.getBlobStore().put(storageFile, blobKey);
+				blobStore.put(storageFile, blobKey);
 
 				// Return computed key to client for validation
 				outputStream.write(RETURN_OKAY);
@@ -390,7 +394,7 @@ class BlobServerConnection extends Thread {
 					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
 				}
 
-				blobServer.getBlobStore().delete(key);
+				blobStore.delete(key);
 			}
 			else if (type == NAME_ADDRESSABLE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
@@ -404,7 +408,7 @@ class BlobServerConnection extends Thread {
 					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
 				}
 
-				blobServer.getBlobStore().delete(jobID, key);
+				blobStore.delete(jobID, key);
 			}
 			else if (type == JOB_ID_SCOPE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
@@ -413,7 +417,7 @@ class BlobServerConnection extends Thread {
 
 				blobServer.deleteJobDirectory(jobID);
 
-				blobServer.getBlobStore().deleteAll(jobID);
+				blobStore.deleteAll(jobID);
 			}
 			else {
 				throw new IOException("Unrecognized addressing type: " + type);

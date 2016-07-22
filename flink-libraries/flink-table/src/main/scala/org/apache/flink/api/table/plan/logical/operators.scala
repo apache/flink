@@ -144,7 +144,7 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Distinct on stream tables is currently not supported.")
+      failValidation(s"Sort on stream tables is currently not supported.")
     }
     super.validate(tableEnv)
   }

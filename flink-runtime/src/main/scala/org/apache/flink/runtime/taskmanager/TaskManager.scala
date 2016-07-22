@@ -38,8 +38,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.memory.{HeapMemorySegment, HybridMemorySegment, MemorySegmentFactory, MemoryType}
-import org.apache.flink.metrics.groups.TaskManagerMetricGroup
-import org.apache.flink.metrics.{MetricGroup, Gauge => FlinkGauge, MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.metrics.{MetricGroup, Gauge => FlinkGauge}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
@@ -65,6 +64,8 @@ import org.apache.flink.runtime.messages.StackTraceSampleMessages.{ResponseStack
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
+import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
@@ -188,6 +189,10 @@ class TaskManager(
        connectionInfo.getHostname(),
        new UnmodifiableConfiguration(config.configuration),
        config.tmpDirPaths)
+
+  private var scheduledTaskManagerRegistration: Option[Cancellable] = None
+  private var currentRegistrationRun: UUID = UUID.randomUUID()
+
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
@@ -562,54 +567,60 @@ class TaskManager(
         jobManagerURL,
         timeout,
         deadline,
-        attempt) =>
+        attempt,
+        registrationRun) =>
 
-        if (isConnected) {
-          // this may be the case, if we queue another attempt and
-          // in the meantime, the registration is acknowledged
-          log.debug(
-            "TaskManager was triggered to register at JobManager, but is already registered")
-        } else if (deadline.exists(_.isOverdue())) {
-          // we failed to register in time. that means we should quit
-          log.error("Failed to register at the JobManager withing the defined maximum " +
-            "connect time. Shutting down ...")
+        if (registrationRun.equals(this.currentRegistrationRun)) {
+          if (isConnected) {
+            // this may be the case, if we queue another attempt and
+            // in the meantime, the registration is acknowledged
+            log.debug(
+              "TaskManager was triggered to register at JobManager, but is already registered")
+          } else if (deadline.exists(_.isOverdue())) {
+            // we failed to register in time. that means we should quit
+            log.error("Failed to register at the JobManager withing the defined maximum " +
+                        "connect time. Shutting down ...")
 
-          // terminate ourselves (hasta la vista)
-          self ! decorateMessage(PoisonPill)
-        } else {
-          if (!jobManagerAkkaURL.equals(Option(jobManagerURL))) {
-            throw new Exception("Invalid internal state: Trying to register at JobManager " +
-              s"$jobManagerURL even though the current JobManagerAkkaURL is set to " +
-              s"${jobManagerAkkaURL.getOrElse("")}")
+            // terminate ourselves (hasta la vista)
+            self ! decorateMessage(PoisonPill)
+          } else {
+            if (!jobManagerAkkaURL.equals(Option(jobManagerURL))) {
+              throw new Exception("Invalid internal state: Trying to register at JobManager " +
+                                    s"$jobManagerURL even though the current JobManagerAkkaURL " +
+                                    s"is set to ${jobManagerAkkaURL.getOrElse("")}")
+            }
+
+            log.info(s"Trying to register at JobManager $jobManagerURL " +
+                       s"(attempt $attempt, timeout: $timeout)")
+
+            val jobManager = context.actorSelection(jobManagerURL)
+
+            jobManager ! decorateMessage(
+              RegisterTaskManager(
+                resourceID,
+                connectionInfo,
+                resources,
+                numberOfSlots)
+            )
+
+            // the next timeout computes via exponential backoff with cap
+            val nextTimeout = (timeout * 2).min(config.maxRegistrationPause)
+
+            // schedule (with our timeout s delay) a check triggers a new registration
+            // attempt, if we are not registered by then
+            scheduledTaskManagerRegistration = Option(context.system.scheduler.scheduleOnce(
+              timeout,
+              self,
+              decorateMessage(TriggerTaskManagerRegistration(
+                jobManagerURL,
+                nextTimeout,
+                deadline,
+                attempt + 1,
+                registrationRun)
+              ))(context.dispatcher))
           }
-
-          log.info(s"Trying to register at JobManager $jobManagerURL " +
-            s"(attempt $attempt, timeout: $timeout)")
-
-          val jobManager = context.actorSelection(jobManagerURL)
-
-          jobManager ! decorateMessage(
-            RegisterTaskManager(
-              resourceID,
-              connectionInfo,
-              resources,
-              numberOfSlots)
-          )
-
-          // the next timeout computes via exponential backoff with cap
-          val nextTimeout = (timeout * 2).min(TaskManager.MAX_REGISTRATION_TIMEOUT)
-
-          // schedule (with our timeout s delay) a check triggers a new registration
-          // attempt, if we are not registered by then
-          context.system.scheduler.scheduleOnce(
-            timeout,
-            self,
-            decorateMessage(TriggerTaskManagerRegistration(
-              jobManagerURL,
-              nextTimeout,
-              deadline,
-              attempt + 1)
-            ))(context.dispatcher)
+        } else {
+          log.info(s"Discarding registration run with ID $registrationRun")
         }
 
       // successful registration. associate with the JobManager
@@ -667,20 +678,27 @@ class TaskManager(
 
           if(jobManagerAkkaURL.isDefined) {
             // try the registration again after some time
-            val delay: FiniteDuration = TaskManager.DELAY_AFTER_REFUSED_REGISTRATION
+            val delay: FiniteDuration = config.refusedRegistrationPause
             val deadline: Option[Deadline] = config.maxRegistrationDuration.map {
               timeout => timeout + delay fromNow
             }
 
-            context.system.scheduler.scheduleOnce(delay) {
-              self ! decorateMessage(
-                TriggerTaskManagerRegistration(
-                  jobManagerAkkaURL.get,
-                  TaskManager.INITIAL_REGISTRATION_TIMEOUT,
-                  deadline,
-                  1)
-              )
-            }(context.dispatcher)
+            // start a new registration run
+            currentRegistrationRun = UUID.randomUUID()
+
+            scheduledTaskManagerRegistration.foreach(_.cancel())
+
+            scheduledTaskManagerRegistration = Option(
+              context.system.scheduler.scheduleOnce(delay) {
+                self ! decorateMessage(
+                  TriggerTaskManagerRegistration(
+                    jobManagerAkkaURL.get,
+                    config.initialRegistrationPause,
+                    deadline,
+                    1,
+                    currentRegistrationRun)
+                )
+              }(context.dispatcher))
           }
         } else {
           // ignore RefuseRegistration messages which arrived after AcknowledgeRegistration
@@ -1092,11 +1110,7 @@ class TaskManager(
         jobName = tdd.getJobName
       }
       
-      val taskMetricGroup = taskManagerMetricGroup
-          .addTaskForJob(
-            tdd.getJobID, jobName,
-            tdd.getVertexID, tdd.getExecutionId, tdd.getTaskName,
-            tdd.getIndexInSubtaskGroup, tdd.getAttemptNumber)
+      val taskMetricGroup = taskManagerMetricGroup.addTaskForJob(tdd)
 
       val task = new Task(
         tdd,
@@ -1362,12 +1376,18 @@ class TaskManager(
       // begin attempts to reconnect
       val deadline: Option[Deadline] = config.maxRegistrationDuration.map(_.fromNow)
 
+      // start a new registration run
+      currentRegistrationRun = UUID.randomUUID()
+
+      scheduledTaskManagerRegistration.foreach(_.cancel())
+
       self ! decorateMessage(
         TriggerTaskManagerRegistration(
           jobManagerAkkaURL.get,
-          TaskManager.INITIAL_REGISTRATION_TIMEOUT,
+          config.initialRegistrationPause,
           deadline,
-          1)
+          1,
+          currentRegistrationRun)
       )
     }
   }
@@ -1414,13 +1434,6 @@ object TaskManager {
   /** Time (milli seconds) after which the TaskManager will start logging failed
     * connection attempts */
   val STARTUP_CONNECT_LOG_SUPPRESS = 10000L
-
-  /** The initial time for registration of the TaskManager with the JobManager */
-  val INITIAL_REGISTRATION_TIMEOUT: FiniteDuration = 500 milliseconds
-  /** The maximum time for registration of the TaskManager with the JobManager */
-  val MAX_REGISTRATION_TIMEOUT: FiniteDuration = 30 seconds
-
-  val DELAY_AFTER_REFUSED_REGISTRATION: FiniteDuration = 10 seconds
 
   val HEARTBEAT_INTERVAL: FiniteDuration = 5000 milliseconds
 
@@ -1513,7 +1526,6 @@ object TaskManager {
     val conf: Configuration = try {
       LOG.info("Loading configuration from " + cliConfig.getConfigDir())
       GlobalConfiguration.loadConfiguration(cliConfig.getConfigDir())
-      GlobalConfiguration.getConfiguration()
     }
     catch {
       case e: Exception => throw new Exception("Could not load configuration", e)
@@ -2119,13 +2131,67 @@ object TaskManager {
         e)
     }
 
+    val initialRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The initial registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
+    val maxRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_MAX_REGISTARTION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The maximum registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
+    val refusedRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The refused registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
     val taskManagerConfig = TaskManagerConfiguration(
       tmpDirs,
       cleanupInterval,
       timeout,
       finiteRegistrationDuration,
       slots,
-      configuration)
+      configuration,
+      initialRegistrationPause,
+      maxRegistrationPause,
+      refusedRegistrationPause)
 
     (taskManagerConfig, networkConfig, connectionInfo, memType)
   }

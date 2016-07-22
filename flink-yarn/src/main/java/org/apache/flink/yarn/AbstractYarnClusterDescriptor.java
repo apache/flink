@@ -81,8 +81,6 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties
 public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<YarnClusterClient> {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterDescriptor.class);
 
-	private static final String CONFIG_FILE_NAME = "flink-conf.yaml";
-
 	/**
 	 * Minimum memory requirements, checked by the Client.
 	 */
@@ -142,10 +140,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// tries to load the config through the environment, if it fails it can still be set through the setters
 		try {
 			this.configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
-			GlobalConfiguration.loadConfiguration(configurationDirectory);
-			this.flinkConfiguration = GlobalConfiguration.getConfiguration();
+			this.flinkConfiguration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
-			File confFile = new File(configurationDirectory + File.separator + CONFIG_FILE_NAME);
+			File confFile = new File(configurationDirectory + File.separator + GlobalConfiguration.FLINK_CONF_FILENAME);
 			if (!confFile.exists()) {
 				throw new RuntimeException("Unable to locate configuration file in " + confFile);
 			}
