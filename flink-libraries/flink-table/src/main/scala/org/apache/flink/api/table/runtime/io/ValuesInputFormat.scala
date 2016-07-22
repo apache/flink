@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.runtime
+package org.apache.flink.api.table.runtime.io
 
-import org.apache.flink.api.common.io.{NonParallelInput, GenericInputFormat}
+import org.apache.flink.api.common.io.{GenericInputFormat, NonParallelInput}
 import org.apache.flink.api.table.Row
 
 class ValuesInputFormat(val rows: Seq[Row])
