@@ -30,10 +30,10 @@ import java.util.UUID;
  */
 public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 
-	private String leaderAddress;
-	private UUID leaderSessionID;
+	private volatile String leaderAddress;
+	private volatile UUID leaderSessionID;
 
-	private LeaderRetrievalListener listener;
+	private volatile LeaderRetrievalListener listener;
 
 	public TestingLeaderRetrievalService() {
 		this(null, null);
