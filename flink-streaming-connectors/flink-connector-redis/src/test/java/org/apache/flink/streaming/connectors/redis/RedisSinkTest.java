@@ -105,18 +105,13 @@ public class RedisSinkTest extends TestLogger {
 		try {
 			redisSink.open(new Configuration());
 		} catch (Throwable e) {
-			Throwable init = e;
 
-			// search for nested JedisConnectionExceptions
+			// search for the JedisConnectionExceptions
 			// because this is the expected behavior
-
-			int depth = 0;
-			while (!(e instanceof JedisConnectionException)) {
-				e = e.getCause();
-				if (e == null || depth++ == 20) {
-					init.printStackTrace();
-					fail("Test Failed: " + init.getMessage());
-				}
+			
+			if (!(e instanceof JedisConnectionException)) {
+				e.printStackTrace();
+				fail("Test Failed: " + e.getMessage());
 			}
 		}
 	}
