@@ -96,8 +96,9 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		int size = 10;
 		String histogramMetricName = "histogram";
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestingReporter.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_INTERVAL, reportingInterval + " MILLISECONDS");
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "my_reporter");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestingReporter.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, reportingInterval + " MILLISECONDS");
 
 		MetricRegistry registry = null;
 
@@ -112,10 +113,9 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 
 			String fullMetricName = metricGroup.getMetricIdentifier(histogramMetricName);
 
-			Field f = registry.getClass().getDeclaredField("reporter");
-			f.setAccessible(true);
+			assertTrue(registry.getReporters().size() == 1);
 
-			MetricReporter reporter = (MetricReporter) f.get(registry);
+			MetricReporter reporter = registry.getReporters().get(0);
 
 			assertTrue(reporter instanceof TestingReporter);
 

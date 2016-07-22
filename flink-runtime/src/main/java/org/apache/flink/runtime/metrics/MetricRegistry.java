@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
@@ -30,6 +31,8 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -41,9 +44,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class MetricRegistry {
 	static final Logger LOG = LoggerFactory.getLogger(MetricRegistry.class);
-
-	private final MetricReporter reporter;
-	private final ScheduledExecutorService executor;
+	
+	private List<MetricReporter> reporters;
+	private ScheduledExecutorService executor;
 
 	private final ScopeFormats scopeFormats;
 
@@ -74,56 +77,68 @@ public class MetricRegistry {
 		this.delimiter = delim;
 
 		// second, instantiate any custom configured reporters
+		this.reporters = new ArrayList<>();
 
-		final String className = config.getString(ConfigConstants.METRICS_REPORTER_CLASS, null);
-		if (className == null) {
+		final String definedReporters = config.getString(ConfigConstants.METRICS_REPORTERS_LIST, null);
+
+		if (definedReporters == null) {
+			// no reporters defined
 			// by default, don't report anything
 			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
-			this.reporter = null;
 			this.executor = null;
-		}
-		else {
-			MetricReporter reporter;
-			ScheduledExecutorService executor = null;
-			try {
-				String configuredPeriod = config.getString(ConfigConstants.METRICS_REPORTER_INTERVAL, null);
-				TimeUnit timeunit = TimeUnit.SECONDS;
-				long period = 10;
+		} else {
+			// we have some reporters so
+			String[] namedReporters = definedReporters.split("\\s*,\\s*");
+			for (String namedReporter : namedReporters) {
 
-				if (configuredPeriod != null) {
-					try {
-						String[] interval = configuredPeriod.split(" ");
-						period = Long.parseLong(interval[0]);
-						timeunit = TimeUnit.valueOf(interval[1]);
-					}
-					catch (Exception e) {
-						LOG.error("Cannot parse report interval from config: " + configuredPeriod +
-							" - please use values like '10 SECONDS' or '500 MILLISECONDS'. " +
-							"Using default reporting interval.");
-					}
+				DelegatingConfiguration reporterConfig = new DelegatingConfiguration(config, ConfigConstants.METRICS_REPORTER_PREFIX + namedReporter + ".");
+				final String className = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, null);
+				if (className == null) {
+					LOG.error("No reporter class set for reporter " + namedReporter + ". Metrics might not be exposed/reported.");
+					continue;
 				}
 
-				MetricConfig reporterConfig = createReporterConfig(config);
+				try {
+					String configuredPeriod = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, null);
+					TimeUnit timeunit = TimeUnit.SECONDS;
+					long period = 10;
 
-				Class<?> reporterClass = Class.forName(className);
-				reporter = (MetricReporter) reporterClass.newInstance();
-				reporter.open(reporterConfig);
+					if (configuredPeriod != null) {
+						try {
+							String[] interval = configuredPeriod.split(" ");
+							period = Long.parseLong(interval[0]);
+							timeunit = TimeUnit.valueOf(interval[1]);
+						}
+						catch (Exception e) {
+							LOG.error("Cannot parse report interval from config: " + configuredPeriod +
+									" - please use values like '10 SECONDS' or '500 MILLISECONDS'. " +
+									"Using default reporting interval.");
+						}
+					}
 
-				if (reporter instanceof Scheduled) {
-					executor = Executors.newSingleThreadScheduledExecutor();
-					LOG.info("Periodically reporting metrics in intervals of {} {}", period, timeunit.name());
+					Class<?> reporterClass = Class.forName(className);
+					MetricReporter reporterInstance = (MetricReporter) reporterClass.newInstance();
 
-					executor.scheduleWithFixedDelay(new ReporterTask((Scheduled) reporter), period, period, timeunit);
+					MetricConfig metricConfig = new MetricConfig();
+					reporterConfig.addAllToProperties(metricConfig);
+					reporterInstance.open(metricConfig);
+
+					if (reporterInstance instanceof Scheduled) {
+						if (this.executor == null) {
+							executor = Executors.newSingleThreadScheduledExecutor();
+						}
+						LOG.info("Periodically reporting metrics in intervals of {} {} for reporter {} of type {}.", period, timeunit.name(), namedReporter, className);
+
+						executor.scheduleWithFixedDelay(
+								new ReporterTask((Scheduled) reporterInstance), period, period, timeunit);
+					}
+					reporters.add(reporterInstance);
+				}
+				catch (Throwable t) {
+					shutdownExecutor();
+					LOG.error("Could not instantiate metrics reporter" + namedReporter + ". Metrics might not be exposed/reported.", t);
 				}
 			}
-			catch (Throwable t) {
-				shutdownExecutor();
-				LOG.info("Could not instantiate metrics reporter. No metrics will be exposed/reported.", t);
-				reporter = null;
-			}
-
-			this.reporter = reporter;
-			this.executor = executor;
 		}
 	}
 
@@ -131,24 +146,27 @@ public class MetricRegistry {
 		return this.delimiter;
 	}
 
-	public MetricReporter getReporter() {
-		return reporter;
+	public List<MetricReporter> getReporters() {
+		return reporters;
 	}
 
 	/**
 	 * Shuts down this registry and the associated {@link org.apache.flink.metrics.reporter.MetricReporter}.
 	 */
 	public void shutdown() {
-		if (reporter != null) {
-			try {
-				reporter.close();
-			} catch (Throwable t) {
-				LOG.warn("Metrics reporter did not shut down cleanly", t);
+		if (reporters != null) {
+			for (MetricReporter reporter : reporters) {
+				try {
+					reporter.close();
+				} catch (Throwable t) {
+					LOG.warn("Metrics reporter did not shut down cleanly", t);
+				}
 			}
+			reporters = null;
 		}
 		shutdownExecutor();
 	}
-
+	
 	private void shutdownExecutor() {
 		if (executor != null) {
 			executor.shutdown();
@@ -180,8 +198,12 @@ public class MetricRegistry {
 	 */
 	public void register(Metric metric, String metricName, MetricGroup group) {
 		try {
-			if (reporter != null) {
-				reporter.notifyOfAddedMetric(metric, metricName, group);
+			if (reporters != null) {
+				for (MetricReporter reporter : reporters) {
+					if (reporter != null) {
+						reporter.notifyOfAddedMetric(metric, metricName, group);
+					}
+				}
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
@@ -197,8 +219,12 @@ public class MetricRegistry {
 	 */
 	public void unregister(Metric metric, String metricName, MetricGroup group) {
 		try {
-			if (reporter != null) {
-				reporter.notifyOfRemovedMetric(metric, metricName, group);
+			if (reporters != null) {
+				for (MetricReporter reporter : reporters) {
+					if (reporter != null) {
+						reporter.notifyOfRemovedMetric(metric, metricName, group);
+					}
+				}
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
@@ -208,17 +234,6 @@ public class MetricRegistry {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	static MetricConfig createReporterConfig(Configuration config) {
-		MetricConfig reporterConfig = new MetricConfig();
-
-		String[] arguments = config.getString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "").split(" ");
-		if (arguments.length > 1) {
-			for (int x = 0; x < arguments.length; x += 2) {
-				reporterConfig.setProperty(arguments[x].replace("--", ""), arguments[x + 1]);
-			}
-		}
-		return reporterConfig;
-	}
 
 	static ScopeFormats createScopeConfig(Configuration config) {
 		String jmFormat = config.getString(

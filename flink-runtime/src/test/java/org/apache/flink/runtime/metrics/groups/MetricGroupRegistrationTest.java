@@ -40,7 +40,8 @@ public class MetricGroupRegistrationTest {
 	@Test
 	public void testMetricInstantiation() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
 		MetricRegistry registry = new MetricRegistry(config);
 
