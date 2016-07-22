@@ -1306,8 +1306,10 @@ public class ExecutionGraph implements Serializable {
 
 	/**
 	 * Gauge which returns the last restarting time. Restarting time is the time between
-	 * JobStatus.RESTARTING and JobStatus.RUNNING. If it is still the initial job execution,
-	 * then the gauge will return 0.
+	 * JobStatus.RESTARTING and JobStatus.RUNNING or a terminal state if JobStatus.RUNNING was not
+	 * reached. If the job has not yet reached either of these states, then the time is measured
+	 * since reaching JobStatus.RESTARTING. If it is still the initial job execution, then the
+	 * gauge will return 0.
 	 */
 	private class RestartTimeGauge implements Gauge<Long> {
 
