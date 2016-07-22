@@ -19,8 +19,8 @@ package org.apache.flink.api.table.plan.logical
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.logical.LogicalProject
-import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.calcite.rel.logical.{LogicalSort, LogicalProject}
+import org.apache.calcite.rex.{RexLiteral, RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -145,6 +145,41 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
       failValidation(s"Distinct on stream tables is currently not supported.")
+    }
+    super.validate(tableEnv)
+  }
+}
+
+case class Offset(offset: Int, child: LogicalNode) extends UnaryNode {
+  override def output: Seq[Attribute] = child.output
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    child.construct(relBuilder)
+    relBuilder.limit(offset, -1)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new TableException(s"Offset on stream tables is currently not supported.")
+    }
+    super.validate(tableEnv)
+  }
+}
+
+case class Fetch(fetch: Int, child: LogicalNode) extends UnaryNode {
+  override def output: Seq[Attribute] = child.output
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    
+    val newChild = child.asInstanceOf[Offset].child
+    newChild.construct(relBuilder)
+    val relNode = child.toRelNode(relBuilder).asInstanceOf[LogicalSort]
+    relBuilder.limit(RexLiteral.intValue(relNode.offset), fetch)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new TableException(s"Fetch on stream tables is currently not supported.")
     }
     super.validate(tableEnv)
   }

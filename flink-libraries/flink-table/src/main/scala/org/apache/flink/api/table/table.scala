@@ -557,6 +557,34 @@ class Table(
   }
 
   /**
+   * OFFSET is called an argument since it is technically part of the ORDER BY clause.
+   * The OFFSET is the number of rows to skip before including them in the result.
+   *
+   * Example:
+   *
+   * {{{
+   *   tab.orderBy('name.desc).offset(3)
+   * }}}
+   */
+  def offset(offset: Int): Table = {
+    new Table(tableEnv, Offset(offset, logicalPlan).validate(tableEnv))
+  }
+
+  /**
+   * The FETCH argument is used to return a set number of rows.
+   * FETCH can’t be used by itself, it is used in conjunction with OFFSET.
+   *
+   * Example:
+   *
+   * {{{
+   *   tab.orderBy('name.desc).offset(3).fetch(5)
+   * }}}
+   */
+  def fetch(fetch: Int): Table = {
+    new Table(tableEnv, Fetch(fetch, logicalPlan).validate(tableEnv))
+  }
+
+  /**
     * Sorts the given [[Table]]. Similar to SQL ORDER BY.
     * The resulting Table is sorted globally sorted across all parallel partitions.
     *

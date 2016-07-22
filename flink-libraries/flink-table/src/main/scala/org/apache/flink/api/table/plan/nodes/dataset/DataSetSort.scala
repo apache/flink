@@ -18,17 +18,20 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import java.util
+import java.{util, lang}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.BatchTableEnvironment
 import org.apache.flink.api.table.typeutils.TypeConverter._
+import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
 
@@ -37,7 +40,9 @@ class DataSetSort(
     traitSet: RelTraitSet,
     inp: RelNode,
     collations: RelCollation,
-    rowType2: RelDataType)
+    rowType2: RelDataType,
+    offset: RexNode,             
+    fetch: RexNode)
   extends SingleRel(cluster, traitSet, inp)
   with DataSetRel{
 
@@ -47,7 +52,9 @@ class DataSetSort(
       traitSet,
       inputs.get(0),
       collations,
-      rowType2
+      rowType2,
+      offset,
+      fetch
     )
   }
 
@@ -71,11 +78,57 @@ class DataSetSort(
       partitionedDs = partitionedDs.sortPartition(fieldCollation._1, fieldCollation._2)
     }
 
+    val offsetAndFetchDS = if (offset != null) {
+      val offsetIndex = RexLiteral.intValue(offset)
+      val fetchIndex = if (fetch == null) {
+        Int.MaxValue
+      } else {
+        RexLiteral.intValue(fetch) + offsetIndex
+      }
+      if (currentParallelism != 1) {
+        val partitionCount = partitionedDs.mapPartition(
+          new MapPartitionFunction[Any, Int] {
+            override def mapPartition(value: lang.Iterable[Any], out: Collector[Int]): Unit = {
+              val iterator = value.iterator()
+              var count = 0
+              while (iterator.hasNext) {
+                count += 1
+                iterator -> iterator.next()
+              }
+              out.collect(count)
+            }
+          }).collect().asScala
+        
+        val countList = partitionCount.scanLeft(0)(_ + _)
+        partitionedDs.filter(new RichFilterFunction[Any] {
+          var count1 = 0
+
+          override def filter(value: Any): Boolean = {
+            val index = getRuntimeContext.getIndexOfThisSubtask
+            count1 += 1
+            offsetIndex - countList(index) < count1 &&
+              fetchIndex - countList(index) >= count1
+          }
+        })
+      } else {
+        partitionedDs.filter(new FilterFunction[Any] {
+          var count1 = 0
+
+          override def filter(value: Any): Boolean = {
+            count1 += 1
+            offsetIndex < count1 && fetchIndex >= count1
+          }
+        })
+      }
+    } else {
+    partitionedDs
+  }
+
     val inputType = partitionedDs.getType
     expectedType match {
 
       case None if config.getEfficientTypeUsage =>
-        partitionedDs
+        offsetAndFetchDS
 
       case _ =>
         val determinedType = determineReturnType(
@@ -96,11 +149,11 @@ class DataSetSort(
             getRowType.getFieldNames.asScala
           )
 
-          partitionedDs.map(mapFunc)
+          offsetAndFetchDS.map(mapFunc)
         }
         // no conversion necessary, forward
         else {
-          partitionedDs
+          offsetAndFetchDS
         }
     }
   }

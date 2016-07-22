@@ -606,6 +606,28 @@ Table result = in.orderBy("a.asc");
       </td>
     </tr>
 
+    <tr>
+      <td><strong>Offset</strong></td>
+      <td>
+        <p>Similar to a SQL OFFSET clause. Returns rows from offset position. It is technically part of the ORDER BY clause.</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.orderBy("a.asc").offset(3);
+{% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td><strong>Fetch</strong></td>
+      <td>
+        <p>Similar to a SQL FETCH clause. Returns a set number of rows. FETCH can’t be used by itself, it is used in conjunction with OFFSET.</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.orderBy("a.asc").offset(3).fetch(5);
+{% endhighlight %}
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
@@ -930,7 +952,6 @@ Among others, the following SQL features are not supported, yet:
 - Advanced types such as generic types, composite types (e.g. POJOs), and arrays within rows
 - Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
 - Non-equi joins and Cartesian products
-- Result selection by order position (`ORDER BY OFFSET FETCH`)
 - Grouping sets
 
 *Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
