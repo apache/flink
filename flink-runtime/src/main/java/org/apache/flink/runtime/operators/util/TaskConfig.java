@@ -25,9 +25,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
@@ -40,9 +38,8 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.Driver;
@@ -1162,184 +1159,5 @@ public class TaskConfig implements Serializable {
 	public boolean isSolutionSetUnmanaged() {
 		return config.getBoolean(SOLUTION_SET_OBJECTS, false);
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	//                          Utility class for nested Configurations
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * A configuration that manages a subset of keys with a common prefix from a given configuration.
-	 */
-	public static final class DelegatingConfiguration extends Configuration {
-		
-		private static final long serialVersionUID = 1L;
 
-		private final Configuration backingConfig;		// the configuration actually storing the data
-		
-		private String prefix;							// the prefix key by which keys for this config are marked
-		
-		// --------------------------------------------------------------------------------------------
-		
-		/**
-		 * Default constructor for serialization. Creates an empty delegating configuration.
-		 */
-		public DelegatingConfiguration() {
-			this.backingConfig = new Configuration();
-			this.prefix = "";
-		}
-		
-		/**
-		 * Creates a new delegating configuration which stores its key/value pairs in the given
-		 * configuration using the specifies key prefix.
-		 * 
-		 * @param backingConfig The configuration holding the actual config data.
-		 * @param prefix The prefix prepended to all config keys.
-		 */
-		public DelegatingConfiguration(Configuration backingConfig, String prefix)
-		{
-			this.backingConfig = backingConfig;
-			this.prefix = prefix;
-		}
-
-		// --------------------------------------------------------------------------------------------
-		
-		@Override
-		public String getString(String key, String defaultValue) {
-			return this.backingConfig.getString(this.prefix + key, defaultValue);
-		}
-		
-		@Override
-		public void setString(String key, String value) {
-			this.backingConfig.setString(this.prefix + key, value);
-		}
-
-		@Override
-		public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, ClassLoader classLoader) throws ClassNotFoundException {
-			return this.backingConfig.getClass(this.prefix + key, defaultValue, classLoader);
-		}
-
-		@Override
-		public void setClass(String key, Class<?> klazz) {
-			this.backingConfig.setClass(this.prefix + key, klazz);
-		}
-
-		@Override
-		public int getInteger(String key, int defaultValue) {
-			return this.backingConfig.getInteger(this.prefix + key, defaultValue);
-		}
-
-		@Override
-		public void setInteger(String key, int value) {
-			this.backingConfig.setInteger(this.prefix + key, value);
-		}
-
-		@Override
-		public long getLong(String key, long defaultValue) {
-			return this.backingConfig.getLong(this.prefix + key, defaultValue);
-		}
-
-		@Override
-		public void setLong(String key, long value) {
-			this.backingConfig.setLong(this.prefix + key, value);
-		}
-
-		@Override
-		public boolean getBoolean(String key, boolean defaultValue) {
-			return this.backingConfig.getBoolean(this.prefix + key, defaultValue);
-		}
-
-		@Override
-		public void setBoolean(String key, boolean value) {
-			this.backingConfig.setBoolean(this.prefix + key, value);
-		}
-
-		@Override
-		public float getFloat(String key, float defaultValue) {
-			return this.backingConfig.getFloat(this.prefix + key, defaultValue);
-		}
-
-		@Override
-		public void setFloat(String key, float value) {
-			this.backingConfig.setFloat(this.prefix + key, value);
-		}
-
-		@Override
-		public double getDouble(String key, double defaultValue) {
-			return this.backingConfig.getDouble(this.prefix + key, defaultValue);
-		}
-
-		@Override
-		public void setDouble(String key, double value) {
-			this.backingConfig.setDouble(this.prefix + key, value);
-		}
-		
-		@Override
-		public byte[] getBytes(final String key, final byte[] defaultValue) {
-			return this.backingConfig.getBytes(this.prefix + key, defaultValue);
-		}
-		
-		@Override
-		public void setBytes(final String key, final byte[] bytes) {
-			this.backingConfig.setBytes(this.prefix + key, bytes);
-		}
-		
-		@Override
-		public void addAll(Configuration other) {
-			this.addAll(other, "");
-		}
-		
-		@Override
-		public void addAll(Configuration other, String prefix) {
-			this.backingConfig.addAll(other, this.prefix + prefix);
-		}
-		
-		@Override
-		public String toString() {
-			return backingConfig.toString();
-		}
-		
-		@Override
-		public Set<String> keySet() {
-			final HashSet<String> set = new HashSet<String>();
-			final int prefixLen = this.prefix == null ? 0 : this.prefix.length();
-			
-			for (String key : this.backingConfig.keySet()) {
-				if (key.startsWith(this.prefix)) {
-					set.add(key.substring(prefixLen));
-				}
-			}
-			return set;
-		}
-		
-		// --------------------------------------------------------------------------------------------
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-			this.prefix = in.readUTF();
-			this.backingConfig.read(in);
-		}
-
-		@Override
-		public void write(DataOutputView out) throws IOException {
-			out.writeUTF(this.prefix);
-			this.backingConfig.write(out);
-		}
-		
-		// --------------------------------------------------------------------------------------------
-
-		@Override
-		public int hashCode() {
-			return this.prefix.hashCode() ^ this.backingConfig.hashCode();
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof DelegatingConfiguration) {
-				DelegatingConfiguration other = (DelegatingConfiguration) obj;
-				return this.prefix.equals(other.prefix) && this.backingConfig.equals(other.backingConfig);
-			} else {
-				return false;
-			}
-		}
-	}
 }

@@ -23,9 +23,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
-import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -38,8 +39,10 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.lang.management.ManagementFactory;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class JMXReporterTest extends TestLogger {
 
@@ -79,18 +82,24 @@ public class JMXReporterTest extends TestLogger {
 	@Test
 	public void testPortConflictHandling() throws Exception {
 		Configuration cfg = new Configuration();
+		cfg.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2");
+
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.port", "9020-9035");
+
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.port", "9020-9035");
+
 		MetricRegistry reg = new MetricRegistry(cfg);
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
 
-		JMXReporter rep1 = new JMXReporter();
-		JMXReporter rep2 = new JMXReporter();
+		List<MetricReporter> reporters = reg.getReporters();
 
-		MetricConfig cfg1 = new MetricConfig();
-		cfg1.setProperty("port", "9020-9035");
+		assertTrue(reporters.size() == 2);
 
-		rep1.open(cfg1);
-		rep2.open(cfg1);
+		MetricReporter rep1 = reporters.get(0);
+		MetricReporter rep2 = reporters.get(1);
 
 		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
 			@Override
@@ -114,8 +123,6 @@ public class JMXReporterTest extends TestLogger {
 		assertEquals(1, mBeanServer.getAttribute(objectName1, "Value"));
 		assertEquals(2, mBeanServer.getAttribute(objectName2, "Value"));
 
-		rep1.close();
-		rep2.close();
 		reg.shutdown();
 	}
 
@@ -127,17 +134,26 @@ public class JMXReporterTest extends TestLogger {
 	@Test
 	public void testJMXAvailability() throws Exception {
 		Configuration cfg = new Configuration();
+		cfg.setString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
+
+		cfg.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2");
+
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.port", "9040-9055");
+
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.port", "9040-9055");
+
 		MetricRegistry reg = new MetricRegistry(cfg);
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
 
-		JMXReporter rep1 = new JMXReporter();
-		JMXReporter rep2 = new JMXReporter();
+		List<MetricReporter> reporters = reg.getReporters();
 
-		MetricConfig cfg1 = new MetricConfig();
-		cfg1.setProperty("port", "9040-9055");
-		rep1.open(cfg1);
-		rep2.open(cfg1);
+		assertTrue(reporters.size() == 2);
+
+		MetricReporter rep1 = reporters.get(0);
+		MetricReporter rep2 = reporters.get(1);
 
 		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
 			@Override
@@ -156,29 +172,23 @@ public class JMXReporterTest extends TestLogger {
 		ObjectName objectName1 = new ObjectName(JMXReporter.generateJmxName("rep1", mg.getScopeComponents()));
 		ObjectName objectName2 = new ObjectName(JMXReporter.generateJmxName("rep2", mg.getScopeComponents()));
 
-		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + rep1.getPort() + "/jndi/rmi://localhost:" + rep1.getPort() + "/jmxrmi");
+		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter)rep1).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter)rep1).getPort() + "/jmxrmi");
 		JMXConnector jmxCon1 = JMXConnectorFactory.connect(url1);
 		MBeanServerConnection mCon1 = jmxCon1.getMBeanServerConnection();
 
 		assertEquals(1, mCon1.getAttribute(objectName1, "Value"));
 		assertEquals(2, mCon1.getAttribute(objectName2, "Value"));
 
-		url1 = null;
 		jmxCon1.close();
-		jmxCon1 = null;
-		mCon1 = null;
 
-		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + rep2.getPort() + "/jndi/rmi://localhost:" + rep2.getPort() + "/jmxrmi");
+		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter)rep2).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter)rep2).getPort() + "/jmxrmi");
 		JMXConnector jmxCon2 = JMXConnectorFactory.connect(url2);
 		MBeanServerConnection mCon2 = jmxCon2.getMBeanServerConnection();
 
 		assertEquals(1, mCon2.getAttribute(objectName1, "Value"));
 		assertEquals(2, mCon2.getAttribute(objectName2, "Value"));
 
-		url2 = null;
 		jmxCon2.close();
-		jmxCon2 = null;
-		mCon2 = null;
 
 		rep1.close();
 		rep2.close();
@@ -195,7 +205,8 @@ public class JMXReporterTest extends TestLogger {
 
 		try {
 			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTER_CLASS, JMXReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "jmx_test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 
 			registry = new MetricRegistry(config);
 

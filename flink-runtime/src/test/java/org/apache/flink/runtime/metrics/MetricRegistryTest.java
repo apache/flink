@@ -45,14 +45,65 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterInstantiation() {
 		Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
-		new MetricRegistry(config);
+		MetricRegistry metricRegistry = new MetricRegistry(config);
+
+		assertTrue(metricRegistry.getReporters().size() == 1);
 
 		Assert.assertTrue(TestReporter1.wasOpened);
 	}
 
 	protected static class TestReporter1 extends TestReporter {
+		public static boolean wasOpened = false;
+
+		@Override
+		public void open(MetricConfig config) {
+			wasOpened = true;
+		}
+	}
+
+	/**
+	 * Verifies that multiple reporters are instantiated correctly.
+	 */
+	@Test
+	public void testMultipleReporterInstantiation() {
+		Configuration config = new Configuration();
+
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1, test2,test3");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter11.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter12.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter13.class.getName());
+
+		MetricRegistry metricRegistry = new MetricRegistry(config);
+
+		assertTrue(metricRegistry.getReporters().size() == 3);
+
+		Assert.assertTrue(TestReporter11.wasOpened);
+		Assert.assertTrue(TestReporter12.wasOpened);
+		Assert.assertTrue(TestReporter13.wasOpened);
+	}
+
+	protected static class TestReporter11 extends TestReporter {
+		public static boolean wasOpened = false;
+
+		@Override
+		public void open(MetricConfig config) {
+			wasOpened = true;
+		}
+	}
+
+	protected static class TestReporter12 extends TestReporter {
+		public static boolean wasOpened = false;
+
+		@Override
+		public void open(MetricConfig config) {
+			wasOpened = true;
+		}
+	}
+
+	protected static class TestReporter13 extends TestReporter {
 		public static boolean wasOpened = false;
 
 		@Override
@@ -68,8 +119,10 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterArgumentForwarding() {
 		Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter2.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "--arg1 hello --arg2 world");
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg2", "world");
 
 		new MetricRegistry(config);
 	}
@@ -91,8 +144,10 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterScheduling() throws InterruptedException {
 		Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter3.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_INTERVAL, "50 MILLISECONDS");
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter3.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "50 MILLISECONDS");
 
 		new MetricRegistry(config);
 
@@ -125,12 +180,14 @@ public class MetricRegistryTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that reporters implementing the Listener interface are notified when Metrics are added or removed.
+	 * Verifies that reporters are notified of added/removed metrics.
 	 */
 	@Test
-	public void testListener() {
+	public void testReporterNotifications() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter6.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter6.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter7.class.getName());
 
 		MetricRegistry registry = new MetricRegistry(config);
 
@@ -140,9 +197,30 @@ public class MetricRegistryTest extends TestLogger {
 
 		assertTrue(TestReporter6.addCalled);
 		assertTrue(TestReporter6.removeCalled);
+		assertTrue(TestReporter7.addCalled);
+		assertTrue(TestReporter7.removeCalled);
 	}
 
 	protected static class TestReporter6 extends TestReporter {
+		public static boolean addCalled = false;
+		public static boolean removeCalled = false;
+
+		@Override
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+			addCalled = true;
+			assertTrue(metric instanceof Counter);
+			assertEquals("rootCounter", metricName);
+		}
+
+		@Override
+		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+			removeCalled = true;
+			Assert.assertTrue(metric instanceof Counter);
+			Assert.assertEquals("rootCounter", metricName);
+		}
+	}
+
+	protected static class TestReporter7 extends TestReporter {
 		public static boolean addCalled = false;
 		public static boolean removeCalled = false;
 
