@@ -39,11 +39,11 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
-	protected String queueName;
-	private RMQConnectionConfig rmqConnectionConfig;
-	private transient Connection connection;
-	private transient Channel channel;
-	private SerializationSchema<IN> schema;
+	protected final String queueName;
+	private final RMQConnectionConfig rmqConnectionConfig;
+	protected transient Connection connection;
+	protected transient Channel channel;
+	protected SerializationSchema<IN> schema;
 	private boolean logFailuresOnly = false;
 
 	/**
