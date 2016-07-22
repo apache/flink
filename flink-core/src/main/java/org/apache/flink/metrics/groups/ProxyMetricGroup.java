@@ -39,16 +39,6 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 	}
 
 	@Override
-	public final void close() {
-		// don't close the parent metric group because it can also contain other metrics
-	}
-
-	@Override
-	public final boolean isClosed() {
-		return parentMetricGroup.isClosed();
-	}
-
-	@Override
 	public final Counter counter(int name) {
 		return parentMetricGroup.counter(name);
 	}

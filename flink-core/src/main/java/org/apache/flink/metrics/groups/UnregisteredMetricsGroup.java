@@ -28,19 +28,9 @@ import org.apache.flink.metrics.SimpleCounter;
 /**
  * A special {@link MetricGroup} that does not register any metrics at the metrics registry
  * and any reporters.
- * 
- * <p>This metrics group appears always closed ({@link #isClosed()}).
  */
 @Internal
 public class UnregisteredMetricsGroup implements MetricGroup {
-
-	@Override
-	public void close() {}
-
-	@Override
-	public boolean isClosed() {
-		return true;
-	}
 
 	@Override
 	public Counter counter(int name) {

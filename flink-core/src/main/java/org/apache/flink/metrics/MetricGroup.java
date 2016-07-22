@@ -37,25 +37,6 @@ import org.apache.flink.annotation.PublicEvolving;
 public interface MetricGroup {
 
 	// ------------------------------------------------------------------------
-	//  Closing
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Marks the group as closed.
-	 * Recursively unregisters all {@link Metric Metrics} contained in this group.
-	 * 
-	 * <p>Any metrics created after the call to this function will not be registered in
-	 * the {@link MetricRegistry} and not be reported to any reporter (like JMX).
-	 */
-	void close();
-
-	/**
-	 * Checks whether this MetricGroup has been closed. 
-	 * @return True if the group has been closed, false is the group is still open.
-	 */
-	boolean isClosed();
-
-	// ------------------------------------------------------------------------
 	//  Metrics
 	// ------------------------------------------------------------------------
 

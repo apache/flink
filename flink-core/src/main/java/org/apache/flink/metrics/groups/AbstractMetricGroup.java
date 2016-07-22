@@ -65,7 +65,7 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	private final Map<String, Metric> metrics = new HashMap<>();
 
 	/** All metric subgroups of this group */
-	private final Map<String, MetricGroup> groups = new HashMap<>();
+	private final Map<String, AbstractMetricGroup> groups = new HashMap<>();
 
 	/** The metrics scope represented by this group.
 	 *  For example ["host-7", "taskmanager-2", "window_word_count", "my-mapper" ]. */
@@ -132,14 +132,13 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	//  Closing
 	// ------------------------------------------------------------------------
 
-	@Override
 	public void close() {
 		synchronized (this) {
 			if (!closed) {
 				closed = true;
 
 				// close all subgroups
-				for (MetricGroup group : groups.values()) {
+				for (AbstractMetricGroup group : groups.values()) {
 					group.close();
 				}
 				groups.clear();
@@ -153,7 +152,6 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 		}
 	}
 
-	@Override
 	public final boolean isClosed() {
 		return closed;
 	}
@@ -267,8 +265,8 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 							name + "'. Metric might not get properly reported. (" + scopeString + ')');
 				}
 
-				MetricGroup newGroup = new GenericMetricGroup(registry, this, name);
-				MetricGroup prior = groups.put(name, newGroup);
+				AbstractMetricGroup newGroup = new GenericMetricGroup(registry, this, name);
+				AbstractMetricGroup prior = groups.put(name, newGroup);
 				if (prior == null) {
 					// no prior group with that name
 					return newGroup;
