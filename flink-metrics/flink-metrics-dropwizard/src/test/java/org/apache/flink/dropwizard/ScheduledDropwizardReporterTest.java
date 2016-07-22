@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricRegistry;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.TaskManagerJobMetricGroup;
@@ -30,10 +31,10 @@ import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.util.AbstractID;
+
 import org.junit.Test;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -42,10 +43,10 @@ import static org.junit.Assert.assertTrue;
 public class ScheduledDropwizardReporterTest {
 
 	@Test
-	public void testInvalidCharacterReplacement() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+	public void testInvalidCharacterReplacement() {
 		ScheduledDropwizardReporter reporter = new ScheduledDropwizardReporter() {
 			@Override
-			public ScheduledReporter getReporter(Configuration config) {
+			public ScheduledReporter getReporter(MetricConfig config) {
 				return null;
 			}
 		};
@@ -112,7 +113,7 @@ public class ScheduledDropwizardReporterTest {
 	public static class TestingScheduledDropwizardReporter extends ScheduledDropwizardReporter {
 
 		@Override
-		public ScheduledReporter getReporter(Configuration config) {
+		public ScheduledReporter getReporter(MetricConfig config) {
 			return null;
 		}
 

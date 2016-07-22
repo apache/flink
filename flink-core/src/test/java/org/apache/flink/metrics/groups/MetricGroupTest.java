@@ -121,12 +121,12 @@ public class MetricGroupTest {
 		}
 
 		@Override
-		public void register(Metric metric, String name, AbstractMetricGroup parent) {
+		public void register(Metric metric, String name, MetricGroup parent) {
 			fail("Metric should never be registered");
 		}
 
 		@Override
-		public void unregister(Metric metric, String name, AbstractMetricGroup parent) {
+		public void unregister(Metric metric, String name, MetricGroup parent) {
 			fail("Metric should never be un-registered");
 		}
 	}

@@ -15,57 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics;
 
 /**
- * A simple low-overhead {@link org.apache.flink.metrics.Counter} that is not thread-safe.
+ * Histogram interface to be used with Flink's metrics system.
+ *
+ * The histogram allows to record values, get the current count of recorded values and create
+ * histogram statistics for the currently seen elements.
  */
-public class SimpleCounter implements Counter {
-	private long count;
+public interface Histogram extends Metric {
 
 	/**
-	 * Increment the current count by 1.
-	 */
-	@Override
-	public void inc() {
-		count++;
-	}
-
-	/**
-	 * Increment the current count by the given value.
+	 * Update the histogram with the given value.
 	 *
-	 * @param n value to increment the current count by
+	 * @param value Value to update the histogram with
 	 */
-	@Override
-	public void inc(long n) {
-		count += n;
-	}
+	void update(long value);
 
 	/**
-	 * Decrement the current count by 1.
-	 */
-	@Override
-	public void dec() {
-		count--;
-	}
-
-	/**
-	 * Decrement the current count by the given value.
+	 * Get the count of seen elements.
 	 *
-	 * @param n value to decrement the current count by
+	 * @return Count of seen elements
 	 */
-	@Override
-	public void dec(long n) {
-		count -= n;
-	}
+	long getCount();
 
 	/**
-	 * Returns the current count.
+	 * Create statistics for the currently recorded elements.
 	 *
-	 * @return current count
+	 * @return Statistics about the currently recorded elements
 	 */
-	@Override
-	public long getCount() {
-		return count;
-	}
+	HistogramStatistics getStatistics();
 }

@@ -18,15 +18,12 @@
 
 package org.apache.flink.metrics;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 /**
  * Histogram statistics represent the current snapshot of elements recorded in the histogram.
  *
  * The histogram statistics allow to calculate values for quantiles, the mean, the standard
  * deviation, the minimum and the maximum.
  */
-@PublicEvolving
 public abstract class HistogramStatistics {
 
 	/**

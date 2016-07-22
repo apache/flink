@@ -21,7 +21,6 @@ package org.apache.flink.metrics;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.groups.scope.ScopeFormat;
 import org.apache.flink.metrics.groups.scope.ScopeFormats;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -104,7 +103,7 @@ public class MetricRegistry {
 					}
 				}
 				
-				Configuration reporterConfig = createReporterConfig(config, timeunit, period);
+				MetricConfig reporterConfig = createReporterConfig(config);
 			
 				Class<?> reporterClass = Class.forName(className);
 				reporter = (MetricReporter) reporterClass.newInstance();
@@ -179,7 +178,7 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+	public void register(Metric metric, String metricName, MetricGroup group) {
 		try {
 			if (reporter != null) {
 				reporter.notifyOfAddedMetric(metric, metricName, group);
@@ -196,7 +195,7 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+	public void unregister(Metric metric, String metricName, MetricGroup group) {
 		try {
 			if (reporter != null) {
 				reporter.notifyOfRemovedMetric(metric, metricName, group);
@@ -209,16 +208,13 @@ public class MetricRegistry {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
-	static Configuration createReporterConfig(Configuration config, TimeUnit timeunit, long period) {
-		Configuration reporterConfig = new Configuration();
-		reporterConfig.setLong("period", period);
-		reporterConfig.setString("timeunit", timeunit.name());
+	static MetricConfig createReporterConfig(Configuration config) {
+		MetricConfig reporterConfig = new MetricConfig();
 
 		String[] arguments = config.getString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "").split(" ");
 		if (arguments.length > 1) {
 			for (int x = 0; x < arguments.length; x += 2) {
-				reporterConfig.setString(arguments[x].replace("--", ""), arguments[x + 1]);
+				reporterConfig.setProperty(arguments[x].replace("--", ""), arguments[x + 1]);
 			}
 		}
 		return reporterConfig;

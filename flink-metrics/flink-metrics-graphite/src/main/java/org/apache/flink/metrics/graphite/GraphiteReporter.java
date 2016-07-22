@@ -22,8 +22,8 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.graphite.Graphite;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
+import org.apache.flink.metrics.MetricConfig;
 
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 public class GraphiteReporter extends ScheduledDropwizardReporter {
 
 	@Override
-	public ScheduledReporter getReporter(Configuration config) {
+	public ScheduledReporter getReporter(MetricConfig config) {
 		String host = config.getString(ARG_HOST, null);
 		int port = config.getInteger(ARG_PORT, -1);
 

@@ -88,7 +88,7 @@ public class MetricGroupRegistrationTest {
 		public static String lastPassedName;
 
 		@Override
-		public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 			lastPassedMetric = metric;
 			lastPassedName = metricName;
 		}

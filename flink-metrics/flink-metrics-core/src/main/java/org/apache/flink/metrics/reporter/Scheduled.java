@@ -16,44 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics;
-
-import org.apache.flink.annotation.PublicEvolving;
+package org.apache.flink.metrics.reporter;
 
 /**
- * A Counter is a {@link Metric} that measures a count.
+ * Interface for reporters that actively send out data periodically.
  */
-@PublicEvolving
-public interface Counter extends Metric {
+public interface Scheduled {
 
 	/**
-	 * Increment the current count by 1.
+	 * Report the current measurements. This method is called periodically by the
+	 * metrics registry that uses the reporter.
 	 */
-	void inc();
-
-	/**
-	 * Increment the current count by the given value.
-	 *
-	 * @param n value to increment the current count by
-	 */
-	void inc(long n);
-
-	/**
-	 * Decrement the current count by 1.
-	 */
-	void dec();
-
-	/**
-	 * Decrement the current count by the given value.
-	 *
-	 * @param n value to decrement the current count by
-	 */
-	void dec(long n);
-
-	/**
-	 * Returns the current count.
-	 *
-	 * @return current count
-	 */
-	long getCount();
+	void report();
 }

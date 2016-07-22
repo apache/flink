@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -32,6 +33,7 @@ import org.apache.flink.util.Preconditions;
  */
 @Internal
 public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
+
 	private final P parentMetricGroup;
 
 	public ProxyMetricGroup(P parentMetricGroup) {
@@ -96,5 +98,20 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 	@Override
 	public final MetricGroup addGroup(String name) {
 		return parentMetricGroup.addGroup(name);
+	}
+
+	@Override
+	public String[] getScopeComponents() {
+		return parentMetricGroup.getScopeComponents();
+	}
+
+	@Override
+	public String getMetricIdentifier(String metricName) {
+		return parentMetricGroup.getMetricIdentifier(metricName);
+	}
+
+	@Override
+	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+		return parentMetricGroup.getMetricIdentifier(metricName, filter);
 	}
 }

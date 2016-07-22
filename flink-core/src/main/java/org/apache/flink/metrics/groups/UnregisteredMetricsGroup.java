@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -90,5 +91,27 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 	@Override
 	public MetricGroup addGroup(String name) {
 		return new UnregisteredMetricsGroup();
+	}
+
+	@Override
+	public String[] getScopeComponents() {
+		return new String[0];
+	}
+
+	@Override
+	public String getMetricIdentifier(String metricName) {
+		return metricName;
+	}
+
+	/**
+	 * Returns the fully qualified metric name, for example
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 *
+	 * @param metricName metric name
+	 * @param filter character filter which is applied to the scope components if not null.
+	 * @return fully qualified metric name
+	 */
+	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+		return metricName;
 	}
 }

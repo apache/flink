@@ -18,24 +18,24 @@
 
 package org.apache.flink.metrics.util;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 
 public class TestReporter extends AbstractReporter {
 
 	@Override
-	public void open(Configuration config) {}
+	public void open(MetricConfig config) {}
 
 	@Override
 	public void close() {}
 
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {}
+	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {}
+	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {}
 
 	@Override
 	public String filterCharacters(String input) {

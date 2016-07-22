@@ -18,8 +18,6 @@
 
 package org.apache.flink.metrics;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 /**
  * A MetricGroup is a named container for {@link Metric Metrics} and further metric subgroups.
  * 
@@ -33,7 +31,6 @@ import org.apache.flink.annotation.PublicEvolving;
  * return Counters, Gauges, etc to the code, to prevent exceptions in the monitored code.
  * These metrics simply do not get reported any more, when created on a closed group.
  */
-@PublicEvolving
 public interface MetricGroup {
 
 	// ------------------------------------------------------------------------
@@ -154,4 +151,36 @@ public interface MetricGroup {
 	 * @return the created group
 	 */
 	MetricGroup addGroup(String name);
+
+	// ------------------------------------------------------------------------
+	// Scope
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the scope as an array of the scope components, for example
+	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}
+	 *
+	 * @see #getMetricIdentifier(String)
+	 * @see #getMetricIdentifier(String, CharacterFilter)
+	 */
+	String[] getScopeComponents();
+
+	/**
+	 * Returns the fully qualified metric name, for example
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 *
+	 * @param metricName metric name
+	 * @return fully qualified metric name
+	 */
+	String getMetricIdentifier(String metricName);
+
+	/**
+	 * Returns the fully qualified metric name, for example
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 *
+	 * @param metricName metric name
+	 * @param filter character filter which is applied to the scope components if not null.
+	 * @return fully qualified metric name
+	 */
+	String getMetricIdentifier(String metricName, CharacterFilter filter);
 }

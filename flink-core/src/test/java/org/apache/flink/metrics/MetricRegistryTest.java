@@ -20,7 +20,6 @@ package org.apache.flink.metrics;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.metrics.groups.scope.ScopeFormats;
 import org.apache.flink.metrics.reporter.Scheduled;
@@ -53,7 +52,7 @@ public class MetricRegistryTest extends TestLogger {
 		public static boolean wasOpened = false;
 
 		@Override
-		public void open(Configuration config) {
+		public void open(MetricConfig config) {
 			wasOpened = true;
 		}
 	}
@@ -73,7 +72,7 @@ public class MetricRegistryTest extends TestLogger {
 
 	protected static class TestReporter2 extends TestReporter {
 		@Override
-		public void open(Configuration config) {
+		public void open(MetricConfig config) {
 			Assert.assertEquals("hello", config.getString("arg1", null));
 			Assert.assertEquals("world", config.getString("arg2", null));
 		}
@@ -144,14 +143,14 @@ public class MetricRegistryTest extends TestLogger {
 		public static boolean removeCalled = false;
 
 		@Override
-		public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 			addCalled = true;
 			assertTrue(metric instanceof Counter);
 			assertEquals("rootCounter", metricName);
 		}
 
 		@Override
-		public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 			removeCalled = true;
 			Assert.assertTrue(metric instanceof Counter);
 			Assert.assertEquals("rootCounter", metricName);

@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricRegistry;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.TaskManagerJobMetricGroup;
@@ -191,7 +192,7 @@ public class StatsDReporterTest extends TestLogger {
 	 */
 	public static class TestingStatsDReporter extends StatsDReporter {
 		@Override
-		public void open(Configuration configuration) {
+		public void open(MetricConfig configuration) {
 			// disable the socket creation
 		}
 

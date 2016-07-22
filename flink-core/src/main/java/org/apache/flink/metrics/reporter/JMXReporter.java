@@ -19,12 +19,12 @@
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +89,7 @@ public class JMXReporter implements MetricReporter {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void open(Configuration config) {
+	public void open(MetricConfig config) {
 		String portsConfig = config.getString(ARG_PORT, null);
 
 		if (portsConfig != null) {
@@ -142,7 +142,7 @@ public class JMXReporter implements MetricReporter {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 		final String name = generateJmxName(metricName, group.getScopeComponents());
 
 		AbstractBean jmxMetric;
@@ -183,7 +183,7 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 		try {
 			synchronized (this) {
 				final ObjectName jmxName = registeredMetrics.remove(metric);

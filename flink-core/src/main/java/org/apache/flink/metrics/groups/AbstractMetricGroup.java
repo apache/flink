@@ -88,6 +88,8 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	/**
 	 * Gets the scope as an array of the scope components, for example
 	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}
+	 * 
+	 * @see #getMetricIdentifier(String) 
 	 */
 	public String[] getScopeComponents() {
 		return scopeComponents;
@@ -99,7 +101,7 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	 * 
 	 * @param metricName metric name
 	 * @return fully qualified metric name
-     */
+	 */
 	public String getMetricIdentifier(String metricName) {
 		return getMetricIdentifier(metricName, null);
 	}

@@ -18,10 +18,9 @@
 
 package org.apache.flink.metrics.reporter;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
 
 /**
  * Reporters are used to export {@link Metric Metrics} to an external backend.
@@ -29,7 +28,6 @@ import org.apache.flink.metrics.groups.AbstractMetricGroup;
  * <p>Reporters are instantiated via reflection and must be public, non-abstract, and have a
  * public no-argument constructor.
  */
-@PublicEvolving
 public interface MetricReporter {
 
 	// ------------------------------------------------------------------------
@@ -44,7 +42,7 @@ public interface MetricReporter {
 	 *
 	 * @param config The configuration with all parameters.
 	 */
-	void open(Configuration config);
+	void open(MetricConfig config);
 
 	/**
 	 * Closes this reporter. Should be used to close channels, streams and release resources.
@@ -62,7 +60,7 @@ public interface MetricReporter {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group);
+	void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group);
 
 	/**
 	 * Called when a {@link Metric} was should be removed.
@@ -71,5 +69,5 @@ public interface MetricReporter {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group);
+	void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group);
 }

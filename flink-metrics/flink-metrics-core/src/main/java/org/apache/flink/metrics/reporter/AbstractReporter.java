@@ -18,13 +18,13 @@
 
 package org.apache.flink.metrics.reporter;
 
-import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.metrics.MetricGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,6 @@ import java.util.Map;
 /**
  * Base interface for custom metric reporters.
  */
-@PublicEvolving
 public abstract class AbstractReporter implements MetricReporter, CharacterFilter {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -43,7 +42,7 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 	protected final Map<Histogram, String> histograms = new HashMap<>();
 
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 		final String name = group.getMetricIdentifier(metricName, this);
 
 		synchronized (this) {
@@ -61,7 +60,7 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 		synchronized (this) {
 			if (metric instanceof Counter) {
 				counters.remove(metric);
