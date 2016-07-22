@@ -73,7 +73,7 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.self="override">
+						<configuration combine.self="append">
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-metrics-dropwizard</include>

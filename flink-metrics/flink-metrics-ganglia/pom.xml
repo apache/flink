@@ -79,13 +79,14 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.self="override">
+						<configuration combine.self="append">
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-metrics-dropwizard</include>
 									<include>io.dropwizard.metrics:metrics-core</include>
 									<include>io.dropwizard.metrics:metrics-ganglia</include>
 									<include>info.ganglia.gmetric4j:gmetric4j</include>
+									<include>org.acplt:oncrpc</include>
 								</includes>
 							</artifactSet>
 						</configuration>
