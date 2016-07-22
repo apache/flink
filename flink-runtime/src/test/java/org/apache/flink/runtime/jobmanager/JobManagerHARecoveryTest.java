@@ -35,7 +35,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.HeapStateStore;
 import org.apache.flink.runtime.checkpoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
@@ -327,7 +326,8 @@ public class JobManagerHARecoveryTest {
 			out.close();
 
 			jobGraph.addJar(new Path(jarFile.toURI()));
-			JobClient.uploadJarFiles(jobGraph, jobManager, deadline.timeLeft());
+
+			jobGraph.uploadUserJars(jobManager, deadline.timeLeft());
 
 			Future<Object> isLeader = jobManager.ask(
 					TestingJobManagerMessages.getNotifyWhenLeader(),
