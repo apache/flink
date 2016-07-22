@@ -410,8 +410,16 @@ Flink exposes the following system metrics:
         <td>The lowest watermark a task has received.</td>
       </tr>
       <tr>
+        <td>lastCheckpointDuration</td>
+        <td>The time it took to complete the last checkpoint.</td>
+      </tr>
+      <tr>
         <td>lastCheckpointSize</td>
         <td>The total size of the last checkpoint.</td>
+      </tr>
+      <tr>
+        <td>restartingTime</td>
+        <td>The time it took to restart the job.</td>
       </tr>
       <tr>
         <td>numBytesInLocal</td>
