@@ -35,8 +35,8 @@ import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.metrics.{Gauge, MetricGroup, MetricRegistry => FlinkMetricRegistry}
-import org.apache.flink.metrics.groups.{JobManagerMetricGroup, UnregisteredMetricsGroup}
+import org.apache.flink.metrics.{Gauge, MetricGroup}
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
@@ -71,6 +71,8 @@ import org.apache.flink.runtime.messages.checkpoint.{DeclineCheckpoint, Abstract
 
 import org.apache.flink.runtime.messages.webmonitor.InfoMessage
 import org.apache.flink.runtime.messages.webmonitor._
+import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
@@ -1114,7 +1116,7 @@ class JobManager(
 
         val jobMetrics = jobManagerMetricGroup match {
           case Some(group) =>
-            group.addJob(jobGraph.getJobID, jobGraph.getName) match {
+            group.addJob(jobGraph) match {
               case (jobGroup:Any) => jobGroup
               case null => new UnregisteredMetricsGroup()
             }

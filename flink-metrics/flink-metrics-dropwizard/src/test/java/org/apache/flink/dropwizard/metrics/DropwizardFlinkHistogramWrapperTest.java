@@ -29,9 +29,10 @@ import com.codahale.metrics.Timer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
-import org.apache.flink.metrics.MetricRegistry;
-import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -153,7 +154,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		TestingScheduledReporter scheduledReporter = null;
 
 		@Override
-		public ScheduledReporter getReporter(Configuration config) {
+		public ScheduledReporter getReporter(MetricConfig config) {
 			scheduledReporter = new TestingScheduledReporter(
 				registry,
 				getClass().getName(),
