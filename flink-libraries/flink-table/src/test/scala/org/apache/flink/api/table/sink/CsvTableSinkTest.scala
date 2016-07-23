@@ -47,7 +47,7 @@ class CsvTableSinkTest {
     val sink = new CsvTableSink(file.getAbsolutePath)
     writeToCsv(env, ds, sink)
 
-    val lines = Files.readAllLines(file.toPath)
+    val lines = Files.readAllLines(file.toPath, Charset.defaultCharset())
     assertEquals(Collections.singletonList("1,str,false"), lines)
   }
 
