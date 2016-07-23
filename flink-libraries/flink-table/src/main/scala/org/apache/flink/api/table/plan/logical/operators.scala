@@ -184,8 +184,8 @@ case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     val resolvedFilter = super.validate(tableEnv).asInstanceOf[Filter]
     if (resolvedFilter.condition.resultType != BOOLEAN_TYPE_INFO) {
-      failValidation(s"filter expression ${resolvedFilter.condition} of" +
-        s" ${resolvedFilter.condition.resultType} is not a boolean")
+      failValidation(s"Filter operator requires a boolean expression as input," +
+        s" but ${resolvedFilter.condition} is of type ${resolvedFilter.condition.resultType}")
     }
     resolvedFilter
   }
@@ -248,7 +248,7 @@ case class Aggregate(
       if (!expr.resultType.isKeyType) {
         failValidation(
           s"expression $expr cannot be used as a grouping expression " +
-            "because it's not a valid key type")
+            "because it's not a valid key type which must be hashable and comparable")
       }
     }
     resolvedAggregate
@@ -424,7 +424,8 @@ case class Join(
 
     val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
     if (!resolvedJoin.condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
-      failValidation(s"filter expression ${resolvedJoin.condition} is not a boolean")
+      failValidation(s"Filter operator requires a boolean expression as input, " + 
+        s"but ${resolvedJoin.condition} is of type ${resolvedJoin.joinType}")
     } else if (ambiguousName.nonEmpty) {
       failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
     }

@@ -37,7 +37,8 @@ case class CharLength(child: Expression) extends UnaryExpression {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"CharLength only accepts String input, get ${child.resultType}")
+      ValidationFailure(s"CharLength operator requires String input, " +
+        s"but $child is of type ${child.resultType}")
     }
   }
 
@@ -59,7 +60,8 @@ case class InitCap(child: Expression) extends UnaryExpression {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"InitCap only accepts String input, get ${child.resultType}")
+      ValidationFailure(s"InitCap operator requires String input, " + 
+        s"but $child is of type ${child.resultType}")
     }
   }
 
@@ -83,8 +85,8 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
     if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Like only accepts (String, String) input, " +
-        s"get (${str.resultType}, ${pattern.resultType})")
+      ValidationFailure(s"Like operator requires (String, String) input, " +
+        s"but ($str, $pattern) is of type (${str.resultType}, ${pattern.resultType})")
     }
   }
 
@@ -105,7 +107,8 @@ case class Lower(child: Expression) extends UnaryExpression {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Lower only accepts String input, get ${child.resultType}")
+      ValidationFailure(s"Lower operator requires String input, " +
+        s"but $child is of type ${child.resultType}")
     }
   }
 
@@ -129,8 +132,8 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
     if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Similar only accepts (String, String) input, " +
-        s"get (${str.resultType}, ${pattern.resultType})")
+      ValidationFailure(s"Similar operator requires (String, String) input, " +
+        s"but ($str, $pattern) is of type (${str.resultType}, ${pattern.resultType})")
     }
   }
 
@@ -208,7 +211,8 @@ case class Upper(child: Expression) extends UnaryExpression {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Upper only accepts String input, get ${child.resultType}")
+      ValidationFailure(s"Upper operator requires String input, " +
+        s"but $child is of type ${child.resultType}")
     }
   }
 
