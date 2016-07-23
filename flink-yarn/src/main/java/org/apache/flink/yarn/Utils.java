@@ -53,6 +53,8 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import static org.apache.flink.runtime.fs.util.FileSystemCopyUtils.copyFromLocalFile;
+
 /**
  * Utility class that provides helper methods to work with Apache Hadoop YARN.
  */
@@ -126,7 +128,7 @@ public final class Utils {
 		Path dst = new Path(homedir, suffix);
 
 		LOG.info("Copying from " + localRsrcPath + " to " + dst);
-		fs.copyFromLocalFile(localRsrcPath, dst);
+		copyFromLocalFile(fs,true,localRsrcPath, dst);
 		registerLocalResource(fs, dst, appMasterJar);
 		return dst;
 	}
