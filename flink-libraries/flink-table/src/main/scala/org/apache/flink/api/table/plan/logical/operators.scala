@@ -162,6 +162,9 @@ case class Offset(offset: Int, child: LogicalNode) extends UnaryNode {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
       throw new TableException(s"Offset on stream tables is currently not supported.")
     }
+    if (!child.validate(tableEnv).isInstanceOf[Sort]) {
+      throw new TableException(s"Offset operator must follow behind orderBy clause.")
+    }
     super.validate(tableEnv)
   }
 }
@@ -180,6 +183,9 @@ case class Fetch(fetch: Int, child: LogicalNode) extends UnaryNode {
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
       throw new TableException(s"Fetch on stream tables is currently not supported.")
+    }
+    if (!child.validate(tableEnv).isInstanceOf[Offset]) {
+      throw new TableException(s"Fetch operator must follow behind offset clause.")
     }
     super.validate(tableEnv)
   }

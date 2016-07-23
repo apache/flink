@@ -80,43 +80,43 @@ class DataSetSort(
 
     val offsetAndFetchDS = if (offset != null) {
       val offsetIndex = RexLiteral.intValue(offset)
-      val fetchIndex = if (fetch == null) {
-        Int.MaxValue
-      } else {
+      val fetchIndex = if (fetch != null) {
         RexLiteral.intValue(fetch) + offsetIndex
+      } else {
+        Int.MaxValue
       }
       if (currentParallelism != 1) {
         val partitionCount = partitionedDs.mapPartition(
           new MapPartitionFunction[Any, Int] {
             override def mapPartition(value: lang.Iterable[Any], out: Collector[Int]): Unit = {
               val iterator = value.iterator()
-              var count = 0
+              var elementCount = 0
               while (iterator.hasNext) {
-                count += 1
+                elementCount += 1
                 iterator -> iterator.next()
               }
-              out.collect(count)
+              out.collect(elementCount)
             }
           }).collect().asScala
         
         val countList = partitionCount.scanLeft(0)(_ + _)
         partitionedDs.filter(new RichFilterFunction[Any] {
-          var count1 = 0
+          var elementCount = 0
 
           override def filter(value: Any): Boolean = {
-            val index = getRuntimeContext.getIndexOfThisSubtask
-            count1 += 1
-            offsetIndex - countList(index) < count1 &&
-              fetchIndex - countList(index) >= count1
+            val partitionIndex = getRuntimeContext.getIndexOfThisSubtask
+            elementCount += 1
+            offsetIndex - countList(partitionIndex) < elementCount &&
+              fetchIndex - countList(partitionIndex) >= elementCount
           }
         })
       } else {
         partitionedDs.filter(new FilterFunction[Any] {
-          var count1 = 0
+          var elementCount = 0
 
           override def filter(value: Any): Boolean = {
-            count1 += 1
-            offsetIndex < count1 && fetchIndex >= count1
+            elementCount += 1
+            offsetIndex < elementCount && fetchIndex >= elementCount
           }
         })
       }
