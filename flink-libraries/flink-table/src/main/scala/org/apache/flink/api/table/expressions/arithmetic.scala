@@ -45,8 +45,8 @@ abstract class BinaryArithmetic extends BinaryExpression {
   // TODO: tighten this rule once we implemented type coercion rules during validation
   override private[flink] def validateInput(): ExprValidationResult = {
     if (!isNumeric(left.resultType) || !isNumeric(right.resultType)) {
-      ValidationFailure(s"$this requires both operands Numeric, got " +
-        s"${left.resultType} and ${right.resultType}")
+      ValidationFailure(s"$this requires both operands Numeric, get " +
+        s"$left : ${left.resultType} and $right : ${right.resultType}")
     } else {
       ValidationSuccess
     }
@@ -78,7 +78,7 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
       ValidationSuccess
     } else if (!isNumeric(left.resultType) || !isNumeric(right.resultType)) {
       ValidationFailure(s"$this requires Numeric or String input," +
-        s" get ${left.resultType} and ${right.resultType}")
+        s" get $left : ${left.resultType} and $right : ${right.resultType}")
     } else {
       ValidationSuccess
     }
