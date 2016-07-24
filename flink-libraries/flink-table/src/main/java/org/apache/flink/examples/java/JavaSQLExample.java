@@ -30,21 +30,21 @@ public class JavaSQLExample {
 
 	public static class WC {
 		public String word;
-		public long frequence;
+		public long frequency;
 
 		// Public constructor to make it a Flink POJO
 		public WC() {
 
 		}
 
-		public WC(String word, long frequence) {
+		public WC(String word, long frequency) {
 			this.word = word;
-			this.frequence = frequence;
+			this.frequency = frequency;
 		}
 
 		@Override
 		public String toString() {
-			return "WC " + word + " " + frequence;
+			return "WC " + word + " " + frequency;
 		}
 	}
 
@@ -58,10 +58,10 @@ public class JavaSQLExample {
 			new WC("Hello", 1));
 
 		// register the DataSet as table "WordCount"
-		tableEnv.registerDataSet("WordCount", input, "word, frequence");
+		tableEnv.registerDataSet("WordCount", input, "word, frequency");
 		// run a SQL query on the Table and retrieve the result as a new Table
 		Table table = tableEnv.sql(
-			"SELECT word, SUM(frequence) as frequence FROM WordCount GROUP BY word");
+			"SELECT word, SUM(frequency) as frequency FROM WordCount GROUP BY word");
 
 		DataSet<WC> result = tableEnv.toDataSet(table, WC.class);
 

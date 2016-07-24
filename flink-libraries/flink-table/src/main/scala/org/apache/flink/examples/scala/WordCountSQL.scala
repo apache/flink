@@ -34,9 +34,9 @@ object WordCountSQL {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
-    tEnv.registerDataSet("WordCount", input, 'word, 'frequence)
+    tEnv.registerDataSet("WordCount", input, 'word, 'frequency)
 
-    val table = tEnv.sql("SELECT word, SUM(frequence) FROM WordCount GROUP BY word")
+    val table = tEnv.sql("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")
 
     table.toDataSet[WC].print()
   }
