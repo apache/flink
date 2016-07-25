@@ -23,8 +23,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.connectors.fs.bucketing.BasePathBucketer;
-import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.flink.test.checkpointing.StreamFaultToleranceTestBase;
 import org.apache.flink.util.NetUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -39,11 +37,11 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -69,8 +67,6 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 	private static org.apache.hadoop.fs.FileSystem dfs;
 
 	private static String outPath;
-
-
 
 	@BeforeClass
 	public static void createHDFS() throws IOException {
