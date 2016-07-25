@@ -404,8 +404,6 @@ This section gives a brief overview of the available operators. You can find mor
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-<br/>
-
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -515,7 +513,7 @@ Table result = left.fullOuterJoin(right, "a = d").select("a, b, e");
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed. Both tables must have identical schema, i.e., field names and types.</p>
+        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed. Both tables must have identical types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -527,7 +525,7 @@ Table result = left.union(right);
     <tr>
       <td><strong>UnionAll</strong></td>
       <td>
-        <p>Similar to a SQL UNION ALL clause. Unions two tables. Both tables must have identical schema, i.e., field names and types.</p>
+        <p>Similar to a SQL UNION ALL clause. Unions two tables. Both tables must have identical types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -611,7 +609,6 @@ Table result = in.orderBy("a.asc");
 
 </div>
 <div data-lang="scala" markdown="1">
-<br />
 
 <table class="table table-bordered">
   <thead>
@@ -722,7 +719,7 @@ val result = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed, both tables must have identical schema(field names and types).</p>
+        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed, both tables must have identical types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
@@ -734,7 +731,7 @@ val result = left.union(right);
     <tr>
       <td><strong>UnionAll</strong></td>
       <td>
-        <p>Similar to a SQL UNION ALL clause. Unions two tables, both tables must have identical schema(field names and types).</p>
+        <p>Similar to a SQL UNION ALL clause. Unions two tables, both tables must have identical types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
