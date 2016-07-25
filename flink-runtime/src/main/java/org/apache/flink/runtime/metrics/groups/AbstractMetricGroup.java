@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 
 /**
@@ -80,8 +80,8 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	// ------------------------------------------------------------------------
 
 	public AbstractMetricGroup(MetricRegistry registry, String[] scope) {
-		this.registry = requireNonNull(registry);
-		this.scopeComponents = requireNonNull(scope);
+		this.registry = checkNotNull(registry);
+		this.scopeComponents = checkNotNull(scope);
 	}
 
 	/**

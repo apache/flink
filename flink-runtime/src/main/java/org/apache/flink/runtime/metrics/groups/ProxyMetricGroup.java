@@ -24,7 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Metric group which forwards all registration calls to its parent metric group.
@@ -36,8 +36,10 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 	private final P parentMetricGroup;
 
 	public ProxyMetricGroup(P parentMetricGroup) {
-		this.parentMetricGroup = requireNonNull(parentMetricGroup);
+		this.parentMetricGroup = checkNotNull(parentMetricGroup);
 	}
+
+	
 
 	@Override
 	public final void close() {
