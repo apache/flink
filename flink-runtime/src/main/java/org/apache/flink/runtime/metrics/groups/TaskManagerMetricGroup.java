@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.scope.TaskManagerScopeFormat;
 import org.apache.flink.util.AbstractID;
@@ -68,14 +69,17 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 	//  job groups
 	// ------------------------------------------------------------------------
 
-	public TaskMetricGroup addTaskForJob(
-			JobID jobId,
-			String jobName,
-			AbstractID vertexID,
-			AbstractID executionId,
-			String taskName,
-			int subtaskIndex,
-			int attemptNumber) {
+	public TaskMetricGroup addTaskForJob(TaskDeploymentDescriptor tdd) {
+		JobID jobId = tdd.getJobID();
+		String jobName = tdd.getJobName().length() == 0 
+			? tdd.getJobID().toString()
+			: tdd.getJobName();
+			
+		AbstractID vertexID = tdd.getVertexID();
+		AbstractID executionId = tdd.getExecutionId();
+		String taskName = tdd.getTaskName();
+		int subtaskIndex = tdd.getIndexInSubtaskGroup();
+		int attemptNumber = tdd.getAttemptNumber();
 
 		// we cannot strictly lock both our map modification and the job group modification
 		// because it might lead to a deadlock
@@ -93,8 +97,7 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 
 			// try to add another task. this may fail if we found a pre-existing job metrics
 			// group and it is closed concurrently
-			TaskMetricGroup taskGroup = currentJobGroup.addTask(
-					vertexID, executionId, taskName, subtaskIndex, attemptNumber);
+			TaskMetricGroup taskGroup = currentJobGroup.addTask(tdd);
 
 			if (taskGroup != null) {
 				// successfully added the next task

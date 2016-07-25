@@ -1130,7 +1130,7 @@ class JobManager(
 
         val jobMetrics = jobManagerMetricGroup match {
           case Some(group) =>
-            group.addJob(jobGraph.getJobID, jobGraph.getName) match {
+            group.addJob(jobGraph) match {
               case (jobGroup:Any) => jobGroup
               case null => new UnregisteredMetricsGroup()
             }

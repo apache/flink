@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.scope.JobManagerScopeFormat;
 
@@ -57,9 +58,9 @@ public class JobManagerMetricGroup extends ComponentMetricGroup {
 	//  job groups
 	// ------------------------------------------------------------------------
 
-	public JobManagerJobMetricGroup addJob(
-		JobID jobId,
-		String jobName) {
+	public JobManagerJobMetricGroup addJob(JobGraph job) {
+		JobID jobId = job.getJobID();
+		String jobName = job.getName();
 		// get or create a jobs metric group
 		JobManagerJobMetricGroup currentJobGroup;
 		synchronized (this) {

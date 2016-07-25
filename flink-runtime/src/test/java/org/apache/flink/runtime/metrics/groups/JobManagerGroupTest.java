@@ -19,6 +19,7 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.scope.JobManagerScopeFormat;
 import org.junit.Test;
@@ -44,9 +45,9 @@ public class JobManagerGroupTest {
 		final String jobName1 = "testjob";
 		final String jobName2 = "anotherJob";
 
-		JobManagerJobMetricGroup jmJobGroup11 = group.addJob(jid1, jobName1);
-		JobManagerJobMetricGroup jmJobGroup12 = group.addJob(jid1, jobName1);
-		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(jid2, jobName2);
+		JobManagerJobMetricGroup jmJobGroup11 = group.addJob(new JobGraph(jid1, jobName1));
+		JobManagerJobMetricGroup jmJobGroup12 = group.addJob(new JobGraph(jid1, jobName1));
+		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(new JobGraph(jid2, jobName2));
 
 		assertEquals(jmJobGroup11, jmJobGroup12);
 
@@ -74,8 +75,8 @@ public class JobManagerGroupTest {
 		final String jobName1 = "testjob";
 		final String jobName2 = "anotherJob";
 
-		JobManagerJobMetricGroup jmJobGroup11 = group.addJob(jid1, jobName1);
-		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(jid2, jobName2);
+		JobManagerJobMetricGroup jmJobGroup11 = group.addJob(new JobGraph(jid1, jobName1));
+		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(new JobGraph(jid2, jobName2));
 
 		group.close();
 

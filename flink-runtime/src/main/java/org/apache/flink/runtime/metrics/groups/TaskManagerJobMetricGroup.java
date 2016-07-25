@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.scope.TaskManagerJobScopeFormat;
 import org.apache.flink.util.AbstractID;
@@ -73,12 +74,12 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup {
 	//  adding / removing tasks
 	// ------------------------------------------------------------------------
 
-	public TaskMetricGroup addTask(
-		AbstractID vertexId,
-		AbstractID executionId,
-		String taskName,
-		int subtaskIndex,
-		int attemptNumber) {
+	public TaskMetricGroup addTask(TaskDeploymentDescriptor tdd) {
+		AbstractID vertexId = tdd.getVertexID();
+		AbstractID executionId = tdd.getExecutionId();
+		String taskName = tdd.getTaskName();
+		int subtaskIndex = tdd.getIndexInSubtaskGroup();
+		int attemptNumber = tdd.getAttemptNumber();
 
 		checkNotNull(executionId);
 

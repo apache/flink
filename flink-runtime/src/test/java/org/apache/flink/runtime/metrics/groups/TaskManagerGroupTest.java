@@ -18,13 +18,25 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.scope.TaskManagerScopeFormat;
 import org.apache.flink.util.AbstractID;
 
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
 
 import static org.junit.Assert.*;
 
@@ -35,7 +47,7 @@ public class TaskManagerGroupTest {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void addAndRemoveJobs() {
+	public void addAndRemoveJobs() throws IOException {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 
 		final TaskManagerMetricGroup group = new TaskManagerMetricGroup(
@@ -48,19 +60,79 @@ public class TaskManagerGroupTest {
 		final String jobName1 = "testjob";
 		final String jobName2 = "anotherJob";
 		
-		final AbstractID vertex11 = new AbstractID();
-		final AbstractID vertex12 = new AbstractID();
-		final AbstractID vertex13 = new AbstractID();
-		final AbstractID vertex21 = new AbstractID();
+		final JobVertexID vertex11 = new JobVertexID();
+		final JobVertexID vertex12 = new JobVertexID();
+		final JobVertexID vertex13 = new JobVertexID();
+		final JobVertexID vertex21 = new JobVertexID();
 
-		final AbstractID execution11 = new AbstractID();
-		final AbstractID execution12 = new AbstractID();
-		final AbstractID execution13 = new AbstractID();
-		final AbstractID execution21 = new AbstractID();
+		final ExecutionAttemptID execution11 = new ExecutionAttemptID();
+		final ExecutionAttemptID execution12 = new ExecutionAttemptID();
+		final ExecutionAttemptID execution13 = new ExecutionAttemptID();
+		final ExecutionAttemptID execution21 = new ExecutionAttemptID();
+
+		TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
+			jid1, 
+			jobName1, 
+			vertex11, 
+			execution11, 
+			new SerializedValue<>(new ExecutionConfig()), 
+			"test", 
+			17, 18, 0, 
+			new Configuration(), new Configuration(), 
+			"", 
+			new ArrayList<ResultPartitionDeploymentDescriptor>(), 
+			new ArrayList<InputGateDeploymentDescriptor>(), 
+			new ArrayList<BlobKey>(), 
+			new ArrayList<URL>(), 0);
+
+		TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
+			jid1,
+			jobName1,
+			vertex12,
+			execution12,
+			new SerializedValue<>(new ExecutionConfig()),
+			"test",
+			13, 18, 1,
+			new Configuration(), new Configuration(),
+			"",
+			new ArrayList<ResultPartitionDeploymentDescriptor>(),
+			new ArrayList<InputGateDeploymentDescriptor>(),
+			new ArrayList<BlobKey>(),
+			new ArrayList<URL>(), 0);
+
+		TaskDeploymentDescriptor tdd3 = new TaskDeploymentDescriptor(
+			jid2,
+			jobName2,
+			vertex21,
+			execution21,
+			new SerializedValue<>(new ExecutionConfig()),
+			"test",
+			7, 18, 2,
+			new Configuration(), new Configuration(),
+			"",
+			new ArrayList<ResultPartitionDeploymentDescriptor>(),
+			new ArrayList<InputGateDeploymentDescriptor>(),
+			new ArrayList<BlobKey>(),
+			new ArrayList<URL>(), 0);
+
+		TaskDeploymentDescriptor tdd4 = new TaskDeploymentDescriptor(
+			jid1,
+			jobName1,
+			vertex13,
+			execution13,
+			new SerializedValue<>(new ExecutionConfig()),
+			"test",
+			0, 18, 0,
+			new Configuration(), new Configuration(),
+			"",
+			new ArrayList<ResultPartitionDeploymentDescriptor>(),
+			new ArrayList<InputGateDeploymentDescriptor>(),
+			new ArrayList<BlobKey>(),
+			new ArrayList<URL>(), 0);
 		
-		TaskMetricGroup tmGroup11 = group.addTaskForJob(jid1, jobName1, vertex11, execution11, "test", 17, 0);
-		TaskMetricGroup tmGroup12 = group.addTaskForJob(jid1, jobName1, vertex12, execution12, "test", 13, 1);
-		TaskMetricGroup tmGroup21 = group.addTaskForJob(jid2, jobName2, vertex21, execution21, "test", 7, 2);
+		TaskMetricGroup tmGroup11 = group.addTaskForJob(tdd1);
+		TaskMetricGroup tmGroup12 = group.addTaskForJob(tdd2);
+		TaskMetricGroup tmGroup21 = group.addTaskForJob(tdd3);
 		
 		assertEquals(2, group.numRegisteredJobMetricGroups());
 		assertFalse(tmGroup11.parent().isClosed());
@@ -80,7 +152,7 @@ public class TaskManagerGroupTest {
 		assertEquals(1, group.numRegisteredJobMetricGroups());
 		
 		// add one more to job one
-		TaskMetricGroup tmGroup13 = group.addTaskForJob(jid1, jobName1, vertex13, execution13, "test", 0, 0);
+		TaskMetricGroup tmGroup13 = group.addTaskForJob(tdd4);
 		tmGroup12.close();
 		tmGroup13.close();
 
@@ -94,7 +166,7 @@ public class TaskManagerGroupTest {
 	}
 
 	@Test
-	public void testCloseClosesAll() {
+	public void testCloseClosesAll() throws IOException {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 		final TaskManagerMetricGroup group = new TaskManagerMetricGroup(
 				registry, "localhost", new AbstractID().toString());
@@ -106,17 +178,62 @@ public class TaskManagerGroupTest {
 		final String jobName1 = "testjob";
 		final String jobName2 = "anotherJob";
 
-		final AbstractID vertex11 = new AbstractID();
-		final AbstractID vertex12 = new AbstractID();
-		final AbstractID vertex21 = new AbstractID();
+		final JobVertexID vertex11 = new JobVertexID();
+		final JobVertexID vertex12 = new JobVertexID();
+		final JobVertexID vertex21 = new JobVertexID();
 
-		final AbstractID execution11 = new AbstractID();
-		final AbstractID execution12 = new AbstractID();
-		final AbstractID execution21 = new AbstractID();
+		final ExecutionAttemptID execution11 = new ExecutionAttemptID();
+		final ExecutionAttemptID execution12 = new ExecutionAttemptID();
+		final ExecutionAttemptID execution21 = new ExecutionAttemptID();
 
-		TaskMetricGroup tmGroup11 = group.addTaskForJob(jid1, jobName1, vertex11, execution11, "test", 17, 1);
-		TaskMetricGroup tmGroup12 = group.addTaskForJob(jid1, jobName1, vertex12, execution12, "test", 13, 2);
-		TaskMetricGroup tmGroup21 = group.addTaskForJob(jid2, jobName2, vertex21, execution21, "test", 7, 1);
+		TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
+			jid1,
+			jobName1,
+			vertex11,
+			execution11,
+			new SerializedValue<>(new ExecutionConfig()),
+			"test",
+			17, 18, 0,
+			new Configuration(), new Configuration(),
+			"",
+			new ArrayList<ResultPartitionDeploymentDescriptor>(),
+			new ArrayList<InputGateDeploymentDescriptor>(),
+			new ArrayList<BlobKey>(),
+			new ArrayList<URL>(), 0);
+
+		TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
+			jid1,
+			jobName1,
+			vertex12,
+			execution12,
+			new SerializedValue<>(new ExecutionConfig()),
+			"test",
+			13, 18, 1,
+			new Configuration(), new Configuration(),
+			"",
+			new ArrayList<ResultPartitionDeploymentDescriptor>(),
+			new ArrayList<InputGateDeploymentDescriptor>(),
+			new ArrayList<BlobKey>(),
+			new ArrayList<URL>(), 0);
+
+		TaskDeploymentDescriptor tdd3 = new TaskDeploymentDescriptor(
+			jid2,
+			jobName2,
+			vertex21,
+			execution21,
+			new SerializedValue<>(new ExecutionConfig()),
+			"test",
+			7, 18, 1,
+			new Configuration(), new Configuration(),
+			"",
+			new ArrayList<ResultPartitionDeploymentDescriptor>(),
+			new ArrayList<InputGateDeploymentDescriptor>(),
+			new ArrayList<BlobKey>(),
+			new ArrayList<URL>(), 0);
+
+		TaskMetricGroup tmGroup11 = group.addTaskForJob(tdd1);
+		TaskMetricGroup tmGroup12 = group.addTaskForJob(tdd2);
+		TaskMetricGroup tmGroup21 = group.addTaskForJob(tdd3);
 		
 		group.close();
 		
