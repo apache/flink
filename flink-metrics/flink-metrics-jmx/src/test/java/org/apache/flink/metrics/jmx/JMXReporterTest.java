@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.metrics.reporter;
+package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -26,7 +26,6 @@ import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -80,7 +79,6 @@ public class JMXReporterTest extends TestLogger {
 	@Test
 	public void testPortConflictHandling() throws Exception {
 		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter.class.getName());
 		MetricRegistry reg = new MetricRegistry(cfg);
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
@@ -129,7 +127,6 @@ public class JMXReporterTest extends TestLogger {
 	@Test
 	public void testJMXAvailability() throws Exception {
 		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestReporter.class.getName());
 		MetricRegistry reg = new MetricRegistry(cfg);
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");

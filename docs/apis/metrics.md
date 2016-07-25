@@ -230,7 +230,7 @@ or by assigning unique names to jobs and operators.
 Metrics can be exposed to an external system by configuring a reporter in `conf/flink-conf.yaml`.
 
 - `metrics.reporter.class`: The class of the reporter to use.
-  - Example: org.apache.flink.runtime.metrics.reporter.JMXReporter
+  - Example: org.apache.flink.metrics.jmx.JMXReporter
 - `metrics.reporter.arguments`: A list of named parameters that are passed to the reporter.
   - Example: --host localhost --port 9010
 - `metrics.reporter.interval`: The interval between reports.
@@ -241,7 +241,7 @@ If the Reporter should send out reports regularly you have to implement the `Sch
 
 The following sections list the supported reporters.
 
-### JMX (org.apache.flink.runtime.metrics.reporter.JMXReporter)
+### JMX (org.apache.flink.metrics.jmx.JMXReporter)
 
 You don't have to include an additional dependency since the JMX reporter is available by default
 but not activated.

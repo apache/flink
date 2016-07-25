@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.metrics.reporter;
+package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;

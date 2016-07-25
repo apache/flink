@@ -24,7 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
-import org.apache.flink.runtime.metrics.reporter.JMXReporter;
+import org.apache.flink.metrics.jmx.JMXReporter;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.junit.Test;
@@ -41,14 +41,14 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
-public class JobManagerMetricTest {
+public class JMXJobManagerMetricTest {
 	/**
-	 * Tests that metrics registered on the JobManager are actually accessible.
+	 * Tests that metrics registered on the JobManager are actually accessible via JMX.
 	 *
 	 * @throws Exception
 	 */
 	@Test
-	public void testJobManagerMetricAccess() throws Exception {
+	public void testJobManagerJMXMetricAccess() throws Exception {
 		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 		Configuration flinkConfiguration = new Configuration();
 
