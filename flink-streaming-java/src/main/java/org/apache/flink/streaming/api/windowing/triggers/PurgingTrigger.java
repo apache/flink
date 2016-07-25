@@ -44,19 +44,19 @@ public class PurgingTrigger<T, W extends Window> extends Trigger<T, W> {
 	@Override
 	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onElement(element, timestamp, window, ctx);
-		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
+		return triggerResult.isFire() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
 	}
 
 	@Override
 	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onEventTime(time, window, ctx);
-		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
+		return triggerResult.isFire() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
 	}
 
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onProcessingTime(time, window, ctx);
-		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
+		return triggerResult.isFire() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
 	}
 
 	@Override
