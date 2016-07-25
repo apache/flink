@@ -44,37 +44,19 @@ public class PurgingTrigger<T, W extends Window> extends Trigger<T, W> {
 	@Override
 	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onElement(element, timestamp, window, ctx);
-		if (triggerResult.isFire()) {
-			return TriggerResult.FIRE_AND_PURGE;
-		} else if (triggerResult.isPurge()) {
-			return TriggerResult.PURGE;
-		} else {
-			return TriggerResult.CONTINUE;
-		}
+		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
 	}
 
 	@Override
 	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onEventTime(time, window, ctx);
-		if (triggerResult.isFire()) {
-			return TriggerResult.FIRE_AND_PURGE;
-		} else if (triggerResult.isPurge()) {
-			return TriggerResult.PURGE;
-		} else {
-			return TriggerResult.CONTINUE;
-		}
+		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
 	}
 
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onProcessingTime(time, window, ctx);
-		if (triggerResult.isFire()) {
-			return TriggerResult.FIRE_AND_PURGE;
-		} else if (triggerResult.isPurge()) {
-			return TriggerResult.PURGE;
-		} else {
-			return TriggerResult.CONTINUE;
-		}
+		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
 	}
 
 	@Override
@@ -90,13 +72,7 @@ public class PurgingTrigger<T, W extends Window> extends Trigger<T, W> {
 	@Override
 	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onMerge(window, ctx);
-		if (triggerResult.isFire()) {
-			return TriggerResult.FIRE_AND_PURGE;
-		} else if (triggerResult.isPurge()) {
-			return TriggerResult.PURGE;
-		} else {
-			return TriggerResult.CONTINUE;
-		}
+		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : triggerResult;
 	}
 
 	@Override
