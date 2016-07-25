@@ -79,7 +79,7 @@ public class MetricRegistry {
 		final String className = config.getString(ConfigConstants.METRICS_REPORTER_CLASS, null);
 		if (className == null) {
 			// by default, don't report anything
-			LOG.info("Could not instantiate metrics reporter. No metrics will be exposed/reported.");
+			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
 			this.reporter = null;
 			this.executor = null;
 		}
