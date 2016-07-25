@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.metrics.reporter.JMXReporter;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.junit.Test;
@@ -51,7 +52,7 @@ public class JobManagerMetricTest {
 		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 		Configuration flinkConfiguration = new Configuration();
 
-		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_CLASS, "org.apache.flink.metrics.reporter.JMXReporter");
+		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_CLASS, JMXReporter.class.getName());
 		flinkConfiguration.setString(ConfigConstants.METRICS_SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
 		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "--port 9060-9075");
 
