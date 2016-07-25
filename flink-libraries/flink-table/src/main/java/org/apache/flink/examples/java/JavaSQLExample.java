@@ -49,6 +49,8 @@ public class JavaSQLExample {
 	}
 
 	public static void main(String[] args) throws Exception {
+
+		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 

@@ -30,6 +30,8 @@ object StreamSQLExample {
   case class Order(user: Long, product: String, amount: Int)
 
   def main(args: Array[String]): Unit = {
+
+    // set up execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
