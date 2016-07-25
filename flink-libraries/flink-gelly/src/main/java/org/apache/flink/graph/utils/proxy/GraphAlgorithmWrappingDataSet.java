@@ -21,6 +21,7 @@ package org.apache.flink.graph.utils.proxy;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.NoOpOperator;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 
@@ -32,27 +33,28 @@ import java.util.Map;
 
 /**
  * A {@link GraphAlgorithm} transforms an input {@link Graph} into an output of
- * type {@code T}. A {@code GraphAlgorithmDelegatingDataSet} wraps the resultant
- * {@link DataSet} with a delegating proxy object. The delegated object can be
- * replaced when the same algorithm is run on the same input with a mergeable
- * configuration. This allows algorithms to be composed of implicitly reusable
- * algorithms without publicly sharing intermediate {@link DataSet}s.
+ * type {@code T}. A {@code GraphAlgorithmWrappingDataSet} wraps the resultant
+ * {@link DataSet} with a {@code NoOpOperator}. The input to the wrapped
+ * operator can be replaced when the same algorithm is run on the same input
+ * with a mergeable configuration. This allows algorithms to be composed of
+ * implicitly reusable algorithms without publicly sharing intermediate
+ * {@link DataSet}s.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  * @param <T> output type
  */
-public abstract class GraphAlgorithmDelegatingDataSet<K, VV, EV, T>
+public abstract class GraphAlgorithmWrappingDataSet<K, VV, EV, T>
 implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 
 	// each algorithm and input pair may map to multiple configurations
-	private static Map<GraphAlgorithmDelegatingDataSet, List<GraphAlgorithmDelegatingDataSet>> cache =
-		Collections.synchronizedMap(new HashMap<GraphAlgorithmDelegatingDataSet, List<GraphAlgorithmDelegatingDataSet>>());
+	private static Map<GraphAlgorithmWrappingDataSet, List<GraphAlgorithmWrappingDataSet>> cache =
+		Collections.synchronizedMap(new HashMap<GraphAlgorithmWrappingDataSet, List<GraphAlgorithmWrappingDataSet>>());
 
 	private Graph<K,VV,EV> input;
 
-	private Delegate<DataSet<T>> delegate;
+	private NoOpOperator<T> wrappingOperator;
 
 	/**
 	 * Algorithms are identified by name rather than by class to allow subclassing.
@@ -70,7 +72,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 	 * @return true if and only if configuration has been merged and the
 	 *          algorithm's output can be reused
 	 */
-	protected abstract boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other);
+	protected abstract boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other);
 
 	/**
 	 * The implementation of the algorithm, renamed from {@link GraphAlgorithm#run(Graph)}.
@@ -99,11 +101,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 			return true;
 		}
 
-		if (! GraphAlgorithmDelegatingDataSet.class.isAssignableFrom(obj.getClass())) {
+		if (! GraphAlgorithmWrappingDataSet.class.isAssignableFrom(obj.getClass())) {
 			return false;
 		}
 
-		GraphAlgorithmDelegatingDataSet rhs = (GraphAlgorithmDelegatingDataSet) obj;
+		GraphAlgorithmWrappingDataSet rhs = (GraphAlgorithmWrappingDataSet) obj;
 
 		return new EqualsBuilder()
 			.append(input, rhs.input)
@@ -118,16 +120,15 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 		this.input = input;
 
 		if (cache.containsKey(this)) {
-			for (GraphAlgorithmDelegatingDataSet<K, VV, EV, T> other : cache.get(this)) {
+			for (GraphAlgorithmWrappingDataSet<K, VV, EV, T> other : cache.get(this)) {
 				if (mergeConfiguration(other)) {
 					// configuration has been merged so generate new output
 					DataSet<T> output = runInternal(input);
 
-					// update delegatee object and reuse delegate
-					other.delegate.setObject(output);
-					delegate = other.delegate;
+					other.wrappingOperator.setInput(output);
+					wrappingOperator = other.wrappingOperator;
 
-					return delegate.getProxy();
+					return wrappingOperator;
 				}
 			}
 		}
@@ -135,8 +136,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 		// no mergeable configuration found so generate new output
 		DataSet<T> output = runInternal(input);
 
-		// create a new delegate to wrap the algorithm output
-		delegate = new Delegate<>(output);
+		// create a new operator to wrap the algorithm output
+		wrappingOperator = new NoOpOperator<>(output, output.getType());
 
 		// cache this result
 		if (cache.containsKey(this)) {
@@ -145,6 +146,6 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 			cache.put(this, new ArrayList(Collections.singletonList(this)));
 		}
 
-		return delegate.getProxy();
+		return wrappingOperator;
 	}
 }
