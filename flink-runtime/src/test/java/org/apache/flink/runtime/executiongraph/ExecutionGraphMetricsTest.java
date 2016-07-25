@@ -274,18 +274,18 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		private final Map<String, Metric> metrics = new HashMap<>();
 
 		@Override
-		public void open(Configuration config) {}
+		public void open(MetricConfig config) {}
 
 		@Override
 		public void close() {}
 
 		@Override
-		public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 			metrics.put(metricName, metric);
 		}
 
 		@Override
-		public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 			metrics.remove(metricName);
 		}
 
