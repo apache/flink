@@ -21,6 +21,7 @@ package org.apache.flink.graph.utils.proxy;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.SingleInputOperator;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 
@@ -121,7 +122,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 			for (GraphAlgorithmDelegatingDataSet<K, VV, EV, T> other : cache.get(this)) {
 				if (mergeConfiguration(other)) {
 					// configuration has been merged so generate new output
-					DataSet<T> output = runInternal(input);
+					DataSet<T> output = checkOutput(runInternal(input));
 
 					// update delegatee object and reuse delegate
 					other.delegate.setObject(output);
@@ -133,7 +134,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 		}
 
 		// no mergeable configuration found so generate new output
-		DataSet<T> output = runInternal(input);
+		DataSet<T> output = checkOutput(runInternal(input));
 
 		// create a new delegate to wrap the algorithm output
 		delegate = new Delegate<>(output);
@@ -146,5 +147,23 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 		}
 
 		return delegate.getProxy();
+	}
+
+	/**
+	 * If the given DataSet is not of type SingleInputOperator then a "no-op"
+	 * map is appended which simply passes input to output. This guarantees
+	 * that the delegating class type does not change.
+	 *
+	 * @param output user-defined function output
+	 * @return a SingleInputOperator
+	 */
+	private DataSet<T> checkOutput(DataSet<T> output) {
+		if (output instanceof SingleInputOperator) {
+			return output;
+		} else {
+			return output
+				.map(new NoOp<T>())
+					.name("No-op");
+		}
 	}
 }

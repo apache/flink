@@ -21,6 +21,7 @@ package org.apache.flink.graph.utils.proxy;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.SingleInputOperator;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -127,7 +128,7 @@ implements GraphAlgorithm<IN_K, IN_VV, IN_EV, Graph<OUT_K, OUT_VV, OUT_EV>> {
 			for (GraphAlgorithmDelegatingGraph<IN_K, IN_VV, IN_EV, OUT_K, OUT_VV, OUT_EV> other : cache.get(this)) {
 				if (mergeConfiguration(other)) {
 					// configuration has been merged so generate new output
-					Graph<OUT_K, OUT_VV, OUT_EV> output = runInternal(input);
+					Graph<OUT_K, OUT_VV, OUT_EV> output = checkOutput(runInternal(input));
 
 					// update delegatee object and reuse delegate
 					other.verticesDelegate.setObject(output.getVertices());
@@ -142,7 +143,7 @@ implements GraphAlgorithm<IN_K, IN_VV, IN_EV, Graph<OUT_K, OUT_VV, OUT_EV>> {
 		}
 
 		// no mergeable configuration found so generate new output
-		Graph<OUT_K, OUT_VV, OUT_EV> output = runInternal(input);
+		Graph<OUT_K, OUT_VV, OUT_EV> output = checkOutput(runInternal(input));
 
 		// create a new delegate to wrap the algorithm output
 		verticesDelegate = new Delegate<>(output.getVertices());
@@ -156,5 +157,31 @@ implements GraphAlgorithm<IN_K, IN_VV, IN_EV, Graph<OUT_K, OUT_VV, OUT_EV>> {
 		}
 
 		return Graph.fromDataSet(verticesDelegate.getProxy(), edgesDelegate.getProxy(), output.getContext());
+	}
+
+	/**
+	 * If the given Graph vertex and edge DataSets are not of type SingleInputOperator
+	 * then a "no-op" map is appended which simply passes input to output. This
+	 * guarantees that the delegating class type does not change.
+	 *
+	 * @param output user-defined function output
+	 * @return a Graph with vertex and edge sets of type SingleInputOperator
+	 */
+	private Graph<OUT_K, OUT_VV, OUT_EV> checkOutput(Graph<OUT_K, OUT_VV, OUT_EV> output) {
+		DataSet<Vertex<OUT_K, OUT_VV>> vertices = output.getVertices();
+		if (!(vertices instanceof SingleInputOperator)) {
+			vertices = vertices
+				.map(new NoOp<Vertex<OUT_K, OUT_VV>>())
+					.name("No-op");
+		}
+
+		DataSet<Edge<OUT_K, OUT_EV>> edges = output.getEdges();
+		if (!(edges instanceof SingleInputOperator)) {
+			edges = edges
+				.map(new NoOp<Edge<OUT_K, OUT_EV>>())
+					.name("No-op");
+		}
+
+		return Graph.fromDataSet(vertices, edges, output.getContext());
 	}
 }
