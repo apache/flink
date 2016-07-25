@@ -36,7 +36,6 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-
 /**
  * Abstract {@link MetricGroup} that contains key functionality for adding metrics and groups.
  * 

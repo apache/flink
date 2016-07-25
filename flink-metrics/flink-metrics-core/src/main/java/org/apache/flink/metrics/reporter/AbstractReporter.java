@@ -18,7 +18,6 @@
 
 package org.apache.flink.metrics.reporter;
 
-
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;

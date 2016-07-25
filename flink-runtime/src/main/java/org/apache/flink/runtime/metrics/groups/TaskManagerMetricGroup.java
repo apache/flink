@@ -46,7 +46,6 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 		this(registry, registry.getScopeFormats().getTaskManagerFormat(), hostname, taskManagerId);
 	}
 
-
 	public TaskManagerMetricGroup(
 			MetricRegistry registry,
 			TaskManagerScopeFormat scopeFormat,

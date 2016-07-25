@@ -39,8 +39,6 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 		this.parentMetricGroup = checkNotNull(parentMetricGroup);
 	}
 
-	
-
 	@Override
 	public final void close() {
 		// don't close the parent metric group because it can also contain other metrics

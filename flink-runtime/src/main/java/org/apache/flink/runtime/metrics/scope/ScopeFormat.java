@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class represents the format after which the "scope" (or namespace) of the various
@@ -158,7 +158,7 @@ public abstract class ScopeFormat {
 	// ------------------------------------------------------------------------
 
 	protected ScopeFormat(String format, ScopeFormat parent, String[] variables) {
-		requireNonNull(format, "format is null");
+		checkNotNull(format, "format is null");
 
 		final String[] rawComponents = format.split("\\" + SCOPE_SEPARATOR);
 
