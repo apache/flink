@@ -35,11 +35,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
   * @param path The path to the CSV file.
   * @param fieldNames The names of the table fields.
   * @param fieldTypes The types of the table fields.
-  * @param fieldDelim The field delimiter, ',' by default.
-  * @param rowDelim The row delimiter, '\n' by default.
-  * @param quoteCharacter An optional quote character for String values, disabled by default.
+  * @param fieldDelim The field delimiter, "," by default.
+  * @param rowDelim The row delimiter, "\n" by default.
+  * @param quoteCharacter An optional quote character for String values, null by default.
   * @param ignoreFirstLine Flag to ignore the first line, false by default.
-  * @param ignoreComments An optional prefix to indicate comments, disabled by default.
+  * @param ignoreComments An optional prefix to indicate comments, null by default.
   * @param lenient Flag to skip records with parse error instead to fail, false by default.
   */
 class CsvTableSource(
@@ -54,6 +54,18 @@ class CsvTableSource(
     lenient: Boolean = false)
   extends BatchTableSource[Row]
   with StreamTableSource[Row] {
+
+  /**
+  * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
+  * (logically) unlimited number of fields.
+  *
+  * @param path The path to the CSV file.
+  * @param fieldNames The names of the table fields.
+  * @param fieldTypes The types of the table fields.
+  */
+  def this(path: String, fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]) =
+    this(path, fieldNames, fieldTypes, CsvInputFormat.DEFAULT_FIELD_DELIMITER,
+      CsvInputFormat.DEFAULT_LINE_DELIMITER, null, false, null, false)
 
   if (fieldNames.length != fieldTypes.length) {
     throw TableException("Number of field names and field types must be equal.")

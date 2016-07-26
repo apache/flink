@@ -252,6 +252,89 @@ tableEnvironment.registerTableSource("kafka-source", kafkaTableSource);
 Table result = tableEnvironment.ingest("kafka-source");
 ```
 
+#### CsvTableSource
+
+The `CsvTableSource` is already included in `flink-table` without additional dependecies.
+
+It can be configured with the following properties:
+
+ - `path` The path to the CSV file, required.
+ - `fieldNames` The names of the table fields, required.
+ - `fieldTypes` The types of the table fields, required.
+ - `fieldDelim` The field delimiter, `","` by default.
+ - `rowDelim` The row delimiter, `"\n"` by default.
+ - `quoteCharacter` An optional quote character for String values, `null` by default.
+ - `ignoreFirstLine` Flag to ignore the first line, `false` by default.
+ - `ignoreComments` An optional prefix to indicate comments, `null` by default.
+ - `lenient` Flag to skip records with parse error instead to fail, `false` by default.
+
+You can create the source as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+CsvTableSource csvTableSource = new CsvTableSource(
+    "/path/to/your/file.csv",
+    new String[] { "name", "id", "score", "comments" },
+    new TypeInformation<?>[] {
+      Types.STRING(),
+      Types.INT(),
+      Types.DOUBLE(),
+      Types.STRING()
+    },
+    "#",    // fieldDelim
+    "$",    // rowDelim
+    null,   // quoteCharacter
+    true,   // ignoreFirstLine
+    "%",    // ignoreComments
+    false); // lenient
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val csvTableSource = new CsvTableSource(
+    "/path/to/your/file.csv",
+    Array("name", "id", "score", "comments"),
+    Array(
+      Types.STRING,
+      Types.INT,
+      Types.DOUBLE,
+      Types.STRING
+    ),
+    fieldDelim = "#",
+    rowDelim = "$",
+    ignoreFirstLine = true,
+    ignoreComments = "%")
+{% endhighlight %}
+</div>
+</div>
+
+You can work with the Table as explained in the rest of the Table API guide in both stream and batch `TableEnvironment`s:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+tableEnvironment.registerTableSource("mycsv", csvTableSource);
+
+Table streamTable = streamTableEnvironment.ingest("mycsv");
+
+Table batchTable = batchTableEnvironment.scan("mycsv");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+tableEnvironment.registerTableSource("mycsv", csvTableSource)
+
+val streamTable = streamTableEnvironment.ingest("mycsv")
+
+val batchTable = batchTableEnvironment.scan("mycsv")
+{% endhighlight %}
+</div>
+</div>
+
+
 Table API
 ----------
 The Table API provides methods to apply relational operations on DataSets and Datastreams both in Scala and Java.
