@@ -20,8 +20,6 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.IntValue;
-import org.apache.flink.types.parser.IntValueParser;
-import org.apache.flink.types.parser.FieldParser;
 
 
 public class IntValueParserTest extends ParserTestBase<IntValue> {

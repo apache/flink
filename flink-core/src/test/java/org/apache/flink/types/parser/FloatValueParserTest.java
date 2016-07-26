@@ -20,8 +20,6 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.FloatValue;
-import org.apache.flink.types.parser.FloatValueParser;
-import org.apache.flink.types.parser.FieldParser;
 
 
 public class FloatValueParserTest extends ParserTestBase<FloatValue> {

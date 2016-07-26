@@ -19,9 +19,6 @@
 
 package org.apache.flink.types.parser;
 
-import org.apache.flink.types.parser.FieldParser;
-import org.apache.flink.types.parser.LongParser;
-
 
 public class LongParserTest extends ParserTestBase<Long> {
 

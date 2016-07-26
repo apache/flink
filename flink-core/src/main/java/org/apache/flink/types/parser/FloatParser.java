@@ -39,6 +39,10 @@ public class FloatParser extends FieldParser<Float> {
 
 		while (i < limit) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
+				if (i == startPos) {
+					setErrorState(ParseErrorState.EMPTY_STRING);
+					return -1;
+				}
 				break;
 			}
 			i++;

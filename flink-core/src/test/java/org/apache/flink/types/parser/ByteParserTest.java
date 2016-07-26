@@ -19,9 +19,6 @@
 
 package org.apache.flink.types.parser;
 
-import org.apache.flink.types.parser.ByteParser;
-import org.apache.flink.types.parser.FieldParser;
-
 
 public class ByteParserTest extends ParserTestBase<Byte> {
 

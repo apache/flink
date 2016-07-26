@@ -47,7 +47,7 @@ public class StringParser extends FieldParser<String> {
 		final int delimLimit = limit - delimiter.length + 1;
 
 		if(quotedStringParsing && bytes[i] == quoteCharacter) {
-			// quoted string parsing enabled and first character Vis a quote
+			// quoted string parsing enabled and first character is a quote
 			i++;
 
 			// search for ending quote character, continue when it is escaped
@@ -84,10 +84,16 @@ public class StringParser extends FieldParser<String> {
 
 			if (i >= delimLimit) {
 				// no delimiter found. Take the full string
+				if (limit == startPos) {
+					setErrorState(ParseErrorState.EMPTY_STRING); // mark empty string
+				}
 				this.result = new String(bytes, startPos, limit - startPos);
 				return limit;
 			} else {
 				// delimiter found.
+				if (i == startPos) {
+					setErrorState(ParseErrorState.EMPTY_STRING); // mark empty string
+				}
 				this.result = new String(bytes, startPos, i - startPos);
 				return i + delimiter.length;
 			}

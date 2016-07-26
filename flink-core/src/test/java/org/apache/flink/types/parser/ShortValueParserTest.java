@@ -20,8 +20,6 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.ShortValue;
-import org.apache.flink.types.parser.ShortValueParser;
-import org.apache.flink.types.parser.FieldParser;
 
 
 public class ShortValueParserTest extends ParserTestBase<ShortValue> {

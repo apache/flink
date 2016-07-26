@@ -20,8 +20,6 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.parser.DoubleValueParser;
-import org.apache.flink.types.parser.FieldParser;
 
 
 public class DoubleValueParserTest extends ParserTestBase<DoubleValue> {

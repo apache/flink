@@ -19,9 +19,6 @@
 
 package org.apache.flink.types.parser;
 
-import org.apache.flink.types.parser.FieldParser;
-import org.apache.flink.types.parser.IntParser;
-
 
 public class IntParserTest extends ParserTestBase<Integer> {
 
