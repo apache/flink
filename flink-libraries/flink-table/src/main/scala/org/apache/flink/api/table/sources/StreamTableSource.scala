@@ -27,6 +27,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
   */
 trait StreamTableSource[T] extends TableSource[T] {
 
-  /** Returns the data of the table as a [[DataStream]]. */
+  /**
+    * Returns the data of the table as a [[DataStream]].
+    *
+    * NOTE: This method is for internal use only for defining a [[TableSource]].
+    *       Do not use it in Table API programs.
+    */
   def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T]
 }
