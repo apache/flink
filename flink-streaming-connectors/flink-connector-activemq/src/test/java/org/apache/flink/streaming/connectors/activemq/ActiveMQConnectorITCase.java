@@ -126,7 +126,7 @@ public class ActiveMQConnectorITCase {
 
 		env.addSource(source)
 			.addSink(new SinkFunction<String>() {
-				final HashSet<Integer> set = new HashSet<Integer>();
+				final HashSet<Integer> set = new HashSet<>();
 				@Override
 				public void invoke(String value) throws Exception {
 					int val = Integer.parseInt(value.split("-")[1]);

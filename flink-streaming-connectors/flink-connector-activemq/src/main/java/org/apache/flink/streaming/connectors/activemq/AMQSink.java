@@ -25,6 +25,7 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.DeliveryMode;
 import javax.jms.Destination;
@@ -40,7 +41,7 @@ public class AMQSink<IN> extends RichSinkFunction<IN> {
 	private final ActiveMQConnectionFactory connectionFactory;
 	private final String queueName;
 	private final SerializationSchema<IN> serializationSchema;
-	private boolean logFailuresOnly;
+	private boolean logFailuresOnly = false;
 	private transient MessageProducer producer;
 	private transient Session session;
 	private transient Connection connection;
@@ -94,28 +95,44 @@ public class AMQSink<IN> extends RichSinkFunction<IN> {
 	public void invoke(IN value) {
 		try {
 			byte[] bytes = serializationSchema.serialize(value);
-			ActiveMQBytesMessage message = (ActiveMQBytesMessage) session.createBytesMessage();
+			BytesMessage message = session.createBytesMessage();
 			message.writeBytes(bytes);
-			message.storeContent();
 			producer.send(message);
 		} catch (JMSException e) {
-			e.printStackTrace();
+			if (logFailuresOnly) {
+				LOG.error("Failed to send message to ActiveMQ", e);
+			} else {
+				throw new RuntimeException("Failed to send message to ActiveMQ", e);
+			}
 		}
 	}
 
 	@Override
 	public void close() {
-		// Clean up
+		RuntimeException t = null;
 		try {
 			session.close();
 		} catch (JMSException e) {
-			e.printStackTrace();
+			if (logFailuresOnly) {
+				LOG.error("Failed to close ActiveMQ session", e);
+			} else {
+				t = new RuntimeException("Failed to close ActiveMQ session", e);
+			}
 		}
 
 		try {
 			connection.close();
 		} catch (JMSException e) {
-			e.printStackTrace();
+			if (logFailuresOnly) {
+				LOG.error("Failed to close ActiveMQ connection", e);
+			} else {
+				t = t == null ? new RuntimeException("Failed to close ActiveMQ session", e)
+					          : t;
+			}
+		}
+
+		if (t != null) {
+			throw t;
 		}
 	}
 
