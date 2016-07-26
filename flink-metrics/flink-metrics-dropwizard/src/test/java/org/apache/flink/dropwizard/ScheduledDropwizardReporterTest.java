@@ -31,10 +31,10 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
-
 import org.junit.Test;
 
-import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -43,7 +43,7 @@ import static org.junit.Assert.assertTrue;
 public class ScheduledDropwizardReporterTest {
 
 	@Test
-	public void testInvalidCharacterReplacement() {
+	public void testInvalidCharacterReplacement() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		ScheduledDropwizardReporter reporter = new ScheduledDropwizardReporter() {
 			@Override
 			public ScheduledReporter getReporter(MetricConfig config) {
@@ -68,7 +68,11 @@ public class ScheduledDropwizardReporterTest {
 		String taskManagerId = "tas:kMana::ger";
 		String counterName = "testCounter";
 
-		configuration.setString(ConfigConstants.METRICS_REPORTER_CLASS, "org.apache.flink.dropwizard.ScheduledDropwizardReporterTest$TestingScheduledDropwizardReporter");
+		configuration.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		configuration.setString(
+				ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+				"org.apache.flink.dropwizard.ScheduledDropwizardReporterTest$TestingScheduledDropwizardReporter");
+
 		configuration.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 		configuration.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
 
@@ -84,10 +88,10 @@ public class ScheduledDropwizardReporterTest {
 
 		taskMetricGroup.counter(counterName, myCounter);
 
-		Field reporterField = MetricRegistry.class.getDeclaredField("reporter");
-		reporterField.setAccessible(true);
+		List<MetricReporter> reporters = metricRegistry.getReporters();
 
-		MetricReporter metricReporter = (MetricReporter) reporterField.get(metricRegistry);
+		assertTrue(reporters.size() == 1);
+		MetricReporter metricReporter = reporters.get(0);
 
 		assertTrue("Reporter should be of type ScheduledDropwizardReporter", metricReporter instanceof ScheduledDropwizardReporter);
 

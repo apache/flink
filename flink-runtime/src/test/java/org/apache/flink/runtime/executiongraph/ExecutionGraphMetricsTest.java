@@ -85,7 +85,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		JobGraph jobGraph = new JobGraph("Test Job", jobVertex);
 
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTER_CLASS, TestingReporter.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestingReporter.class.getName());
 
 		Configuration jobConfig = new Configuration();
 
@@ -93,7 +94,9 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 		MetricRegistry metricRegistry = new MetricRegistry(config);
 
-		MetricReporter reporter = metricRegistry.getReporter();
+		assertTrue(metricRegistry.getReporters().size() == 1);
+
+		MetricReporter reporter = metricRegistry.getReporters().get(0);
 
 		assertTrue(reporter instanceof TestingReporter);
 

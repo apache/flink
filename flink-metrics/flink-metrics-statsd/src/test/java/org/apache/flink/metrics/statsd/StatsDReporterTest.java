@@ -36,12 +36,12 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,7 +73,11 @@ public class StatsDReporterTest extends TestLogger {
 		String taskManagerId = "tas:kMana::ger";
 		String counterName = "testCounter";
 
-		configuration.setString(ConfigConstants.METRICS_REPORTER_CLASS, "org.apache.flink.metrics.statsd.StatsDReporterTest$TestingStatsDReporter");
+		configuration.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		configuration.setString(
+				ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+				"org.apache.flink.metrics.statsd.StatsDReporterTest$TestingStatsDReporter");
+
 		configuration.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 		configuration.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
 
@@ -89,10 +93,11 @@ public class StatsDReporterTest extends TestLogger {
 
 		taskMetricGroup.counter(counterName, myCounter);
 
-		Field reporterField = MetricRegistry.class.getDeclaredField("reporter");
-		reporterField.setAccessible(true);
+		List<MetricReporter> reporters = metricRegistry.getReporters();
 
-		MetricReporter metricReporter = (MetricReporter) reporterField.get(metricRegistry);
+		assertTrue(reporters.size() == 1);
+
+		MetricReporter metricReporter = reporters.get(0);
 
 		assertTrue("Reporter should be of type StatsDReporter", metricReporter instanceof StatsDReporter);
 
@@ -138,9 +143,11 @@ public class StatsDReporterTest extends TestLogger {
 			int port = receiver.getPort();
 
 			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTER_CLASS, StatsDReporter.class.getName());
-			config.setString(ConfigConstants.METRICS_REPORTER_INTERVAL, "1 SECONDS");
-			config.setString(ConfigConstants.METRICS_REPORTER_ARGUMENTS, "--host localhost --port " + port);
+			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
 
 			registry = new MetricRegistry(config);
 
@@ -308,6 +315,7 @@ public class StatsDReporterTest extends TestLogger {
 					byte[] buffer = new byte[1024];
 
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
 					socket.receive(packet);
 
 					String line = new String(packet.getData(), 0, packet.getLength());

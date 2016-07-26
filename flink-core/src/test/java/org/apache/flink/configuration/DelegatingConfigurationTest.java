@@ -17,9 +17,9 @@
  */
 
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.configuration;
 
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -27,9 +27,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Comparator;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.operators.util.TaskConfig.DelegatingConfiguration;
-import org.junit.Test;
+import static org.junit.Assert.assertTrue;
 
 
 public class DelegatingConfigurationTest {

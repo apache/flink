@@ -668,14 +668,34 @@ public final class ConfigConstants {
 
 	// ---------------------------- Metrics -----------------------------------
 
-	/** The class of the reporter to use. */
-	public static final String METRICS_REPORTER_CLASS = "metrics.reporter.class";
+	/**
+	 * The list of named reporters. Names are defined here and per-reporter configs
+	 * are given with the reporter config prefix and the reporter name.
+	 *
+	 * Example:
+	 * <pre>{@code
+	 * metrics.reporters = foo, bar
+	 *
+	 * metrics.reporter.foo.class = org.apache.flink.metrics.reporter.JMXReporter
+	 * metrics.reporter.foo.interval = 10
+	 *
+	 * metrics.reporter.bar.class = org.apache.flink.metrics.graphite.GraphiteReporter
+	 * metrics.reporter.bar.port = 1337
+	 * }</pre>
+	 */
+	public static final String METRICS_REPORTERS_LIST = "metrics.reporters";
+
+	/**
+	 * The prefix for per-reporter configs. Has to be combined with a reporter name and
+	 * the configs mentioned below.
+	 */
+	public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
+
+	/** The class of the reporter to use. This is used as a suffix in an actual reporter config */
+	public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
 	
-	/** A list of named parameters that are passed to the reporter. */
-	public static final String METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
-	
-	/** The interval between reports. */
-	public static final String METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
+	/** The interval between reports. This is used as a suffix in an actual reporter config */
+	public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
 
 	/** The delimiter used to assemble the metric identifier. */
 	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
