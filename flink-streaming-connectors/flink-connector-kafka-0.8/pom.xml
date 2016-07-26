@@ -131,7 +131,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-metrics-jmx</artifactId>
 			<version>${project.version}</version>
-			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
 
