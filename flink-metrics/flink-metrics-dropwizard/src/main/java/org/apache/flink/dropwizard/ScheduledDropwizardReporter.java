@@ -23,7 +23,6 @@ import com.codahale.metrics.Reporter;
 import com.codahale.metrics.ScheduledReporter;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.metrics.FlinkCounterWrapper;
 import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkGaugeWrapper;
@@ -33,7 +32,8 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.slf4j.Logger;
@@ -88,7 +88,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void open(Configuration config) {
+	public void open(MetricConfig config) {
 		this.reporter = getReporter(config);
 	}
 
@@ -102,7 +102,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 		final String fullName = group.getMetricIdentifier(metricName, this);
 
 		synchronized (this) {
@@ -130,7 +130,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 		synchronized (this) {
 			String fullName;
 			
@@ -200,5 +200,5 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 		this.reporter.report(gauges, counters, histograms, meters, timers);
 	}
 
-	public abstract ScheduledReporter getReporter(Configuration config);
+	public abstract ScheduledReporter getReporter(MetricConfig config);
 }

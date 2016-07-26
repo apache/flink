@@ -19,11 +19,11 @@
 package org.apache.flink.metrics.statsd;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -61,7 +61,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	private InetSocketAddress address;
 
 	@Override
-	public void open(Configuration config) {
+	public void open(MetricConfig config) {
 		String host = config.getString(ARG_HOST, null);
 		int port = config.getInteger(ARG_PORT, -1);
 

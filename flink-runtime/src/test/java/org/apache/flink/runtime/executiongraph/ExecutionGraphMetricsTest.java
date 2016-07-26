@@ -23,10 +23,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.MetricRegistry;
-import org.apache.flink.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -44,6 +42,8 @@ import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.Messages;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -274,18 +274,18 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		private final Map<String, Metric> metrics = new HashMap<>();
 
 		@Override
-		public void open(Configuration config) {}
+		public void open(MetricConfig config) {}
 
 		@Override
 		public void close() {}
 
 		@Override
-		public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 			metrics.put(metricName, metric);
 		}
 
 		@Override
-		public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 			metrics.remove(metricName);
 		}
 
