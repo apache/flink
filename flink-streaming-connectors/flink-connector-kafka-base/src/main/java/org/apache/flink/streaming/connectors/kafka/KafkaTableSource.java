@@ -98,6 +98,10 @@ abstract class KafkaTableSource implements StreamTableSource<Row> {
 				"Number of provided field names and types does not match.");
 	}
 
+	/**
+	 * NOTE: This method is for internal use only for defining a TableSource.
+	 *       Do not use it in Table API programs.
+	 */
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment env) {
 		// Version-specific Kafka consumer
