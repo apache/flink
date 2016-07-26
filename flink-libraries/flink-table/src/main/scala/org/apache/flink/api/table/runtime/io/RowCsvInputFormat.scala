@@ -36,7 +36,8 @@ class RowCsvInputFormat(
     rowTypeInfo: RowTypeInfo,
     lineDelimiter: String = DEFAULT_LINE_DELIMITER,
     fieldDelimiter: String = DEFAULT_FIELD_DELIMITER,
-    includedFieldsMask: Array[Boolean] = null)
+    includedFieldsMask: Array[Boolean] = null,
+    emptyColumnAsNull: Boolean = false)
   extends CsvInputFormat[Row](filePath) {
 
   if (rowTypeInfo.getArity == 0) {
@@ -134,8 +135,8 @@ class RowCsvInputFormat(
           holders(output))
 
         if (!isLenient && (parser.getErrorState ne ParseErrorState.NONE)) {
-          // Row is able to handle null values
-          if (parser.getErrorState ne ParseErrorState.EMPTY_STRING) {
+          // the error state EMPTY_COLUMN is ignored
+          if (parser.getErrorState ne ParseErrorState.EMPTY_COLUMN) {
             throw new ParseException(s"Parsing error for column $field of row '"
               + new String(bytes, offset, numBytes)
               + s"' originated by ${parser.getClass.getSimpleName}: ${parser.getErrorState}.")
@@ -143,8 +144,11 @@ class RowCsvInputFormat(
         }
         holders(output) = parser.getLastResult
 
-        // check parse result
-        if (startPos < 0) {
+        // check parse result:
+        // the result is null if it is invalid
+        // or empty with emptyColumnAsNull enabled
+        if (startPos < 0 ||
+            (emptyColumnAsNull && (parser.getErrorState eq ParseErrorState.EMPTY_COLUMN))) {
           holders(output) = null
           startPos = skipFields(bytes, latestValidPos, limit, fieldDelimiter)
         }

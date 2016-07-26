@@ -69,8 +69,8 @@ public abstract class FieldParser<T> {
 		/** The parser found characters between the end of the quoted string and the delimiter. */
 		UNQUOTED_CHARS_AFTER_QUOTED_STRING,
 
-		/** The string is empty. */
-		EMPTY_STRING,
+		/** The column is empty. */
+		EMPTY_COLUMN,
 
 		/** Invalid Boolean value **/
 		BOOLEAN_INVALID

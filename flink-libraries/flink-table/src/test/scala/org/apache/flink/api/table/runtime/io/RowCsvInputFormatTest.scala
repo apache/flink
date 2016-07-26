@@ -379,39 +379,40 @@ class RowCsvInputFormatTest {
   @Test
   def testEmptyFields() {
     val fileContent =
-      "|0|0|0|0|0|\n" +
-        "1||1|1|1|1|\n" +
-        "2|2||2|2|2|\n" +
-        "3|3|3||3|3|\n" +
-        "4|4|4|4||4|\n" +
-        "5|5|5|5|5||\n"
+      ",,,,,,,,\n" +
+      ",,,,,,,,\n" +
+      ",,,,,,,,\n" +
+      ",,,,,,,,\n" +
+      ",,,,,,,,\n" +
+      ",,,,,,,,\n" +
+      ",,,,,,,,\n" +
+      ",,,,,,,,\n"
 
     val split = createTempFile(fileContent)
 
-    // TODO: FLOAT_TYPE_INFO and DOUBLE_TYPE_INFO don't handle correctly null values
     val typeInfo = new RowTypeInfo(Seq(
-      BasicTypeInfo.SHORT_TYPE_INFO,
+      BasicTypeInfo.BOOLEAN_TYPE_INFO,
+      BasicTypeInfo.BYTE_TYPE_INFO,
+      BasicTypeInfo.DOUBLE_TYPE_INFO,
+      BasicTypeInfo.FLOAT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.LONG_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.BYTE_TYPE_INFO))
+      BasicTypeInfo.SHORT_TYPE_INFO,
+      BasicTypeInfo.STRING_TYPE_INFO))
 
-    val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo)
-    format.setFieldDelimiter("|")
+    val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo, emptyColumnAsNull = true)
+    format.setFieldDelimiter(",")
     format.configure(new Configuration)
     format.open(split)
 
-    var result = new Row(6)
+    var result = new Row(8)
     val linesCnt = fileContent.split("\n").length
 
-    var i = 0
-    while (i < linesCnt) {
+    for (i <- 0 until linesCnt) yield {
       result = format.nextRecord(result)
       assertNull(result.productElement(i))
-      i += 1
     }
-    
+
     // ensure no more rows
     assertNull(format.nextRecord(result))
     assertTrue(format.reachedEnd)
