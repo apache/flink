@@ -528,7 +528,7 @@ val wordCounts = words.keyBy("word").window(/*window specification*/)
 // or, as a case class, which is less typing
 case class WC(word: String, count: Int)
 val words: DataStream[WC] = // [...]
-val wordCounts = words.keyBy("word").reduce(/*window specification*/)
+val wordCounts = words.keyBy("word").window(/*window specification*/)
 {% endhighlight %}
 
 **Field Expression Syntax**:
