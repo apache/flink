@@ -200,8 +200,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 			Savepoint savepoint = savepointStore.loadSavepoint(savepointPath);
 
-			long recoveryTimestamp = System.currentTimeMillis();
-
 			for (TaskState taskState : savepoint.getTaskStates()) {
 				ExecutionJobVertex executionJobVertex = tasks.get(taskState.getJobVertexID());
 
@@ -292,8 +290,9 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 		Promise<String> promise = savepointPromises.remove(checkpoint.getCheckpointID());
 
 		if (promise == null) {
-			LOG.info("Pending savepoint with ID " + checkpoint.getCheckpointID() + "  has been " +
+			LOG.warn("Pending savepoint with ID " + checkpoint.getCheckpointID() + "  has been " +
 					"removed before receiving acknowledgment.");
+			return;
 		}
 
 		// Sanity check
