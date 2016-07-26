@@ -20,8 +20,6 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.ByteValue;
-import org.apache.flink.types.parser.ByteValueParser;
-import org.apache.flink.types.parser.FieldParser;
 
 
 public class ByteValueParserTest extends ParserTestBase<ByteValue> {
