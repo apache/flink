@@ -169,4 +169,9 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {
 		return operators.values();
 	}
+
+	@Override
+	protected String getGroupName(CharacterFilter filter) {
+		return "task";
+	}
 }

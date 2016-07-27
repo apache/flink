@@ -135,5 +135,10 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {
 		return jobs.values();
 	}
+
+	@Override
+	protected String getGroupName(CharacterFilter filter) {
+		return "taskmanager";
+	}
 }
 
