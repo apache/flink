@@ -20,7 +20,6 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.JobManagerScopeFormat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,15 +37,7 @@ public class JobManagerMetricGroup extends ComponentMetricGroup {
 	private final String hostname;
 
 	public JobManagerMetricGroup(MetricRegistry registry, String hostname) {
-		this(registry, registry.getScopeFormats().getJobManagerFormat(), hostname);
-	}
-
-	public JobManagerMetricGroup(
-		MetricRegistry registry,
-		JobManagerScopeFormat scopeFormat,
-		String hostname) {
-
-		super(registry, scopeFormat.formatScope(hostname));
+		super(registry, registry.getScopeFormats().getJobManagerFormat().formatScope(hostname));
 		this.hostname = hostname;
 	}
 

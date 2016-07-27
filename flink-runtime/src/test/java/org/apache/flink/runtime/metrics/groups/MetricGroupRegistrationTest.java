@@ -111,5 +111,6 @@ public class MetricGroupRegistrationTest {
 		MetricGroup group3 = root.addGroup("group");
 		Assert.assertTrue(group1 == group2 && group2 == group3);
 
+		registry.shutdown();
 	}
 }

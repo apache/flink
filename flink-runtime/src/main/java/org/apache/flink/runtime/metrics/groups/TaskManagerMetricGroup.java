@@ -21,7 +21,6 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.TaskManagerScopeFormat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,15 +41,7 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 
 
 	public TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
-		this(registry, registry.getScopeFormats().getTaskManagerFormat(), hostname, taskManagerId);
-	}
-
-	public TaskManagerMetricGroup(
-			MetricRegistry registry,
-			TaskManagerScopeFormat scopeFormat,
-			String hostname, String taskManagerId) {
-
-		super(registry, scopeFormat.formatScope(hostname, taskManagerId));
+		super(registry, registry.getScopeFormats().getTaskManagerFormat().formatScope(hostname, taskManagerId));
 		this.hostname = hostname;
 		this.taskManagerId = taskManagerId;
 	}

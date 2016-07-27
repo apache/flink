@@ -53,6 +53,8 @@ public class MetricRegistryTest extends TestLogger {
 		assertTrue(metricRegistry.getReporters().size() == 1);
 
 		Assert.assertTrue(TestReporter1.wasOpened);
+
+		metricRegistry.shutdown();
 	}
 
 	protected static class TestReporter1 extends TestReporter {
@@ -83,6 +85,8 @@ public class MetricRegistryTest extends TestLogger {
 		Assert.assertTrue(TestReporter11.wasOpened);
 		Assert.assertTrue(TestReporter12.wasOpened);
 		Assert.assertTrue(TestReporter13.wasOpened);
+
+		metricRegistry.shutdown();
 	}
 
 	protected static class TestReporter11 extends TestReporter {
@@ -124,7 +128,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg2", "world");
 
-		new MetricRegistry(config);
+		new MetricRegistry(config).shutdown();
 	}
 
 	protected static class TestReporter2 extends TestReporter {
@@ -149,7 +153,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "50 MILLISECONDS");
 
-		new MetricRegistry(config);
+		MetricRegistry registry = new MetricRegistry(config);
 
 		long start = System.currentTimeMillis();
 		for (int x = 0; x < 10; x++) {
@@ -168,6 +172,8 @@ public class MetricRegistryTest extends TestLogger {
 			Assert.assertTrue("Too many report were triggered.", maxAllowedReports >= reportCount);
 		}
 		Assert.assertTrue("No report was triggered.", TestReporter3.reportCount > 0);
+
+		registry.shutdown();
 	}
 
 	protected static class TestReporter3 extends TestReporter implements Scheduled {
@@ -199,6 +205,8 @@ public class MetricRegistryTest extends TestLogger {
 		assertTrue(TestReporter6.removeCalled);
 		assertTrue(TestReporter7.addCalled);
 		assertTrue(TestReporter7.removeCalled);
+
+		registry.shutdown();
 	}
 
 	protected static class TestReporter6 extends TestReporter {

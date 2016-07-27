@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.TaskScopeFormat;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
@@ -65,26 +64,11 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 			@Nullable String taskName,
 			int subtaskIndex,
 			int attemptNumber) {
-		
-		this(registry, parent, registry.getScopeFormats().getTaskFormat(),
-				vertexId, executionId, taskName, subtaskIndex, attemptNumber);
-	}
+		super(registry, registry.getScopeFormats().getTaskFormat().formatScope(
+			checkNotNull(parent), vertexId, checkNotNull(executionId), taskName, subtaskIndex, attemptNumber));
 
-	public TaskMetricGroup(
-			MetricRegistry registry,
-			TaskManagerJobMetricGroup parent,
-			TaskScopeFormat scopeFormat, 
-			@Nullable AbstractID vertexId,
-			AbstractID executionId,
-			@Nullable String taskName,
-			int subtaskIndex,
-			int attemptNumber) {
-
-		super(registry, scopeFormat.formatScope(
-				parent, vertexId, executionId, taskName, subtaskIndex, attemptNumber));
-
-		this.parent = checkNotNull(parent);
-		this.executionId = checkNotNull(executionId);
+		this.parent = parent;
+		this.executionId = executionId;
 		this.vertexId = vertexId;
 		this.taskName = taskName;
 		this.subtaskIndex = subtaskIndex;
