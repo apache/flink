@@ -15,104 +15,126 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.streaming.connectors.activemq;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import scala.Array;
 
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.Destination;
 import javax.jms.JMSException;
+import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-public class AMQSinkTest {
+public class AMQSourceTest {
 
 	private final String QUEUE_NAME = "queue";
 
 	private ActiveMQConnectionFactory connectionFactory;
-	private MessageProducer producer;
 	private Session session;
 	private Connection connection;
 	private Destination destination;
+	private MessageConsumer consumer;
 	private BytesMessage message;
 
-	private AMQSink<String> amqSink;
-	private SerializationSchema<String> serializationSchema;
+	private AMQSource<String> amqSource;
+	private SimpleStringSchema serializationSchema;
 
 	@Before
 	public void before() throws Exception {
 		connectionFactory = mock(ActiveMQConnectionFactory.class);
-		producer = mock(MessageProducer.class);
 		session = mock(Session.class);
 		connection = mock(Connection.class);
 		destination = mock(Destination.class);
+		consumer = mock(MessageConsumer.class);
+
 		message = mock(BytesMessage.class);
 
 		when(connectionFactory.createConnection()).thenReturn(connection);
 		when(connection.createSession(anyBoolean(), anyInt())).thenReturn(session);
-//		when(session.createQueue(QUEUE_NAME)).thenReturn((Queue) destination);
-		when(session.createProducer(null)).thenReturn(producer);
-		when(session.createBytesMessage()).thenReturn(message);
+		when(consumer.receive(anyInt())).thenReturn(message);
+		when(session.createConsumer(any(Destination.class))).thenReturn(consumer);
 
 		serializationSchema = new SimpleStringSchema();
-		amqSink = new AMQSink<>(connectionFactory, QUEUE_NAME, serializationSchema);
-		amqSink.open(new Configuration());
+		amqSource = new AMQSource<>(connectionFactory, QUEUE_NAME, serializationSchema);
+		amqSource.open(new Configuration());
 	}
 
 	@Test
-	public void messageSentToProducer() throws Exception {
-		byte[] expectedMessage = serializationSchema.serialize("msg");
-		amqSink.invoke("msg");
+	public void parseReceivedMessage() throws Exception {
+		amqSource = new AMQSource<>(connectionFactory, QUEUE_NAME, serializationSchema, new SingleLoopRunChecker());
+		amqSource.open(new Configuration());
 
-		verify(producer).send(message);
-		verify(message).writeBytes(expectedMessage);
+		SourceFunction.SourceContext<String> context = mock(SourceFunction.SourceContext.class);
+		final byte[] bytes = serializationSchema.serialize("msg");
+		when(context.getCheckpointLock()).thenReturn(new Object());
+		when(message.getBodyLength()).thenReturn((long) bytes.length);
+		when(message.readBytes(any(byte[].class))).thenAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				byte[] inputBytes = (byte[]) invocationOnMock.getArguments()[0];
+				Array.copy(bytes, 0, inputBytes, 0, bytes.length);
+				return null;
+			}
+		});
+
+		amqSource.run(context);
+
+		verify(context).collect("msg");
 	}
 
 	@Test
-	public void exceptionOnSendAreNotThrown() throws Exception {
-		when(session.createBytesMessage()).thenThrow(JMSException.class);
-		amqSink.setLogFailuresOnly(true);
+	public void closeResources() throws Exception {
+		amqSource.close();
 
-		amqSink.invoke("msg");
-	}
-
-	@Test(expected = RuntimeException.class)
-	public void exceptionOnSendAreThrownByDefault() throws Exception {
-		when(session.createBytesMessage()).thenThrow(JMSException.class);
-
-		amqSink.invoke("msg");
-	}
-
-	@Test
-	public void sessionAndConnectionAreClosed() throws Exception {
-		amqSink.close();
+		verify(consumer).close();
 		verify(session).close();
 		verify(connection).close();
 	}
 
 	@Test
-	public void connectionCloseExceptionIsIgnored() throws Exception {
+	public void consumerCloseExceptionShouldBePased() throws Exception {
+		doThrow(new JMSException("consumer")).when(consumer).close();
 		doThrow(new JMSException("session")).when(session).close();
 		doThrow(new JMSException("connection")).when(connection).close();
 
 		try {
-			amqSink.close();
+			amqSource.close();
+			fail("Should throw an exception");
+		} catch (RuntimeException ex) {
+			assertEquals("consumer", ex.getCause().getMessage());
+		}
+	}
+
+	@Test
+	public void sessionCloseExceptionShouldBePased() throws Exception {
+		doThrow(new JMSException("session")).when(session).close();
+		doThrow(new JMSException("connection")).when(connection).close();
+
+		try {
+			amqSource.close();
 			fail("Should throw an exception");
 		} catch (RuntimeException ex) {
 			assertEquals("session", ex.getCause().getMessage());
@@ -120,11 +142,11 @@ public class AMQSinkTest {
 	}
 
 	@Test
-	public void connectionCloseExceptionIsPassed() throws Exception {
+	public void connectionCloseExceptionShouldBePased() throws Exception {
 		doThrow(new JMSException("connection")).when(connection).close();
 
 		try {
-			amqSink.close();
+			amqSource.close();
 			fail("Should throw an exception");
 		} catch (RuntimeException ex) {
 			assertEquals("connection", ex.getCause().getMessage());
@@ -132,11 +154,27 @@ public class AMQSinkTest {
 	}
 
 	@Test
-	public void exceptionDuringCloseAsIgnored() throws Exception {
+	public void exceptionsShouldNotBePassedIfLogFailuresOnly() throws Exception {
+		doThrow(new JMSException("consumer")).when(consumer).close();
 		doThrow(new JMSException("session")).when(session).close();
 		doThrow(new JMSException("connection")).when(connection).close();
 
-		amqSink.setLogFailuresOnly(true);
-		amqSink.close();
+		amqSource.setLogFailuresOnly(true);
+		amqSource.close();
+	}
+
+	class SingleLoopRunChecker implements AMQSource.RunningChecker {
+
+		int count = 0;
+
+		@Override
+		public boolean isRunning() {
+			return (count++ == 0);
+		}
+
+		@Override
+		public void setIsRunning(boolean isRunning) {
+
+		}
 	}
 }

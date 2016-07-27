@@ -37,34 +37,6 @@ import javax.jms.MessageConsumer;
 import javax.jms.Session;
 import java.util.List;
 
-/**
- * RabbitMQ source (consumer) which reads from a queue and acknowledges messages on checkpoints.
- * When checkpointing is enabled, it guarantees exactly-once processing semantics.
- *
- * RabbitMQ requires messages to be acknowledged. On failures, RabbitMQ will re-resend all messages
- * which have not been acknowledged previously. When a failure occurs directly after a completed
- * checkpoint, all messages part of this checkpoint might be processed again because they couldn't
- * be acknowledged before failure. This case is handled by the {@link MessageAcknowledgingSourceBase}
- * base class which deduplicates the messages using the correlation id.
- *
- * RabbitMQ's Delivery Tags do NOT represent unique ids / offsets. That's why the source uses the
- * Correlation ID in the message properties to check for duplicate messages. Note that the
- * correlation id has to be set at the producer. If the correlation id is not set, messages may
- * be produced more than once in corner cases.
- *
- * This source can be operated in three different modes:
- *
- * 1) Exactly-once (when checkpointed) with RabbitMQ transactions and messages with
- *    unique correlation IDs.
- * 2) At-least-once (when checkpointed) with RabbitMQ transactions but no deduplication mechanism
- *    (correlation id is not set).
- * 3) No strong delivery guarantees (without checkpointing) with RabbitMQ auto-commit mode.
- *
- * Users may overwrite the setupConnectionFactory() method to pass their setup their own
- * ConnectionFactory in case the constructor parameters are not sufficient.
- *
- * @param <OUT> The type of the data read from RabbitMQ.
- */
 public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, Long>
 	implements ResultTypeQueryable<OUT> {
 
@@ -73,19 +45,37 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	private final ActiveMQConnectionFactory connectionFactory;
 	private final String queueName;
 	private final DeserializationSchema<OUT> deserializationSchema;
-	private transient volatile boolean running = false;
+	private boolean logFailuresOnly = false;
+	private transient RunningChecker runningChecker;
 	private transient Connection connection;
 	private transient Session session;
 	private transient MessageConsumer consumer;
 
 	public AMQSource(ActiveMQConnectionFactory connectionFactory, String queueName, DeserializationSchema<OUT> deserializationSchema) {
+		this(connectionFactory, queueName, deserializationSchema, new RunningCheckerImpl());
+	}
+
+	AMQSource(ActiveMQConnectionFactory connectionFactory, String queueName, DeserializationSchema<OUT> deserializationSchema, RunningChecker runningChecker) {
 		super(String.class);
 		this.connectionFactory = connectionFactory;
 		this.queueName = queueName;
 		this.deserializationSchema = deserializationSchema;
+		this.runningChecker = runningChecker;
 	}
 
-	@Override
+	/**
+	 * Defines whether the producer should fail on errors, or only log them.
+	 * If this is set to true, then exceptions will be only logged, if set to false,
+	 * exceptions will be eventually thrown and cause the streaming program to
+	 * fail (and enter recovery).
+	 *
+	 * @param logFailuresOnly The flag to indicate logging-only on exceptions.
+	 */
+	public void setLogFailuresOnly(boolean logFailuresOnly) {
+		this.logFailuresOnly = logFailuresOnly;
+	}
+
+		@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
 		// Create a Connection
@@ -108,26 +98,46 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		// Create a MessageConsumer from the Session to the Topic or
 		// Queue
 		consumer = session.createConsumer(destination);
-		running = true;
+		runningChecker.setIsRunning(true);
 	}
 
 	@Override
 	public void close() throws Exception {
 		super.close();
+		RuntimeException exception = null;
 		try {
 			consumer.close();
 		} catch (JMSException e) {
-			e.printStackTrace();
+			if (logFailuresOnly) {
+				LOG.error("Failed to close ActiveMQ session", e);
+			} else {
+				exception = new RuntimeException("Failed to close ActiveMQ consumer", e);
+			}
 		}
 		try {
 			session.close();
 		} catch (JMSException e) {
-			e.printStackTrace();
+			if (logFailuresOnly) {
+				LOG.error("Failed to close ActiveMQ session", e);
+			} else {
+				exception = exception == null ? new RuntimeException("Failed to close ActiveMQ session", e)
+					                          : exception;
+			}
+
 		}
 		try {
 			connection.close();
 		} catch (JMSException e) {
-			e.printStackTrace();
+			if (logFailuresOnly) {
+				LOG.error("Failed to close ActiveMQ session", e);
+			} else {
+				exception = exception == null ? new RuntimeException("Failed to close ActiveMQ connection", e)
+					                          : exception;
+			}
+		}
+
+		if (exception != null) {
+			throw exception;
 		}
 	}
 
@@ -138,7 +148,7 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	@Override
 	public void run(SourceContext<OUT> ctx) throws Exception {
-		while (running) {
+		while (runningChecker.isRunning()) {
 			synchronized (ctx.getCheckpointLock()) {
 				// Wait for a message
 				Message message = consumer.receive(1000);
@@ -158,11 +168,30 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	@Override
 	public void cancel() {
-		running = false;
+		runningChecker.setIsRunning(false);
 	}
 
 	@Override
 	public TypeInformation<OUT> getProducedType() {
 		return deserializationSchema.getProducedType();
+	}
+
+	interface RunningChecker {
+		boolean isRunning();
+		void setIsRunning(boolean isRunning);
+	}
+
+	private static class RunningCheckerImpl implements RunningChecker {
+
+		private volatile boolean isRunning = false;
+
+		@Override
+		public boolean isRunning() {
+			return isRunning;
+		}
+
+		public void setIsRunning(boolean isRunning) {
+			this.isRunning = isRunning;
+		}
 	}
 }
