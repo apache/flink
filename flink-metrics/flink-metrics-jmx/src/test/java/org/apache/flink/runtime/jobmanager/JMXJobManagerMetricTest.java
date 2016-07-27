@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+import org.junit.Assert;
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -38,6 +39,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -83,8 +85,9 @@ public class JMXJobManagerMetricTest {
 			Await.ready(jobRunning, deadline.timeLeft());
 
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
-			ObjectName objectName1 = new ObjectName("org.apache.flink.metrics:key0=jobmanager,key1=TestingJob,name=lastCheckpointSize");
-			assertEquals(-1L, mBeanServer.getAttribute(objectName1, "Value"));
+			Set<ObjectName> nameSet = mBeanServer.queryNames(new ObjectName("org.apache.flink.jobmanager.job.lastCheckpointSize:job_name=TestingJob,*"), null);
+			Assert.assertEquals(1, nameSet.size());
+			assertEquals(-1L, mBeanServer.getAttribute(nameSet.iterator().next(), "Value"));
 
 			Future<Object> jobFinished = flink.getLeaderGateway(deadline.timeLeft())
 				.ask(new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()), deadline.timeLeft());

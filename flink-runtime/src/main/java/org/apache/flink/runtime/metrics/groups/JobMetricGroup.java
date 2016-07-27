@@ -81,4 +81,9 @@ public abstract class JobMetricGroup<C extends ComponentMetricGroup<C>> extends 
 		variables.put(ScopeFormat.SCOPE_JOB_ID, jobId.toString());
 		variables.put(ScopeFormat.SCOPE_JOB_NAME, jobName);
 	}
+
+	@Override
+	protected String getGroupName(CharacterFilter filter) {
+		return "job";
+	}
 }

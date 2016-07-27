@@ -83,4 +83,9 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {
 		return Collections.emptyList();
 	}
+
+	@Override
+	protected String getGroupName(CharacterFilter filter) {
+		return "operator";
+	}
 }
