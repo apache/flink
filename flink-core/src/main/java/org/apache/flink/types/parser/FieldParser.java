@@ -19,6 +19,8 @@
 
 package org.apache.flink.types.parser;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -208,6 +210,8 @@ public abstract class FieldParser<T> {
 		PARSERS.put(Float.class, FloatParser.class);
 		PARSERS.put(Double.class, DoubleParser.class);
 		PARSERS.put(Boolean.class, BooleanParser.class);
+		PARSERS.put(BigDecimal.class, BigDecParser.class);
+		PARSERS.put(BigInteger.class, BigIntParser.class);
 
 		// value types
 		PARSERS.put(ByteValue.class, ByteValueParser.class);
