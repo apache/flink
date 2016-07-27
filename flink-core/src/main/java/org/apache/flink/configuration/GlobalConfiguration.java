@@ -71,7 +71,7 @@ public final class GlobalConfiguration {
 	public static Configuration loadConfiguration(final String configDir) {
 
 		if (configDir == null) {
-			throw new IllegalConfigurationException("Given configuration directory is null, cannot load configuration");
+			throw new IllegalArgumentException("Given configuration directory is null, cannot load configuration");
 		}
 
 		final File confDirFile = new File(configDir);

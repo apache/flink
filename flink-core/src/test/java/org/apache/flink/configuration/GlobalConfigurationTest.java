@@ -91,6 +91,11 @@ public class GlobalConfigurationTest extends TestLogger {
 		}
 	}
 
+	@Test(expected = IllegalArgumentException.class)
+	public void testFailIfNull() {
+		GlobalConfiguration.loadConfiguration(null);
+	}
+
 	@Test(expected = IllegalConfigurationException.class)
 	public void testFailIfNotLoaded() {
 		GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
