@@ -107,5 +107,10 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {
 		return jobs.values();
 	}
+
+	@Override
+	protected String getGroupName(CharacterFilter filter) {
+		return "jobmanager";
+	}
 }
 

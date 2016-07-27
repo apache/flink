@@ -25,6 +25,7 @@ import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
@@ -40,8 +41,12 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.lang.management.ManagementFactory;
+import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
+import static org.apache.flink.metrics.jmx.JMXReporter.JMX_DOMAIN_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -65,14 +70,20 @@ public class JMXReporterTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that the JMXReporter properly generates the JMX name.
+	 * Verifies that the JMXReporter properly generates the JMX table.
 	 */
 	@Test
-	public void testGenerateName() {
-		String[] scope = {"value0", "value1", "\"value2 (test),=;:?'"};
-		String jmxName = JMXReporter.generateJmxName("TestMetric", scope);
+	public void testGenerateTable() {
+		Map<String, String> vars = new HashMap<>();
+		vars.put("key0", "value0");
+		vars.put("key1", "value1");
+		vars.put("\"key2,=;:?'", "\"value2 (test),=;:?'");
 
-		assertEquals("org.apache.flink.metrics:key0=value0,key1=value1,key2=value2_(test)------,name=TestMetric", jmxName);
+		Hashtable<String, String> jmxTable = JMXReporter.generateJmxTable(vars);
+
+		assertEquals("value0", jmxTable.get("key0"));
+		assertEquals("value1", jmxTable.get("key1"));
+		assertEquals("value2_(test)------", jmxTable.get("key2------"));
 	}
 
 	/**
@@ -102,28 +113,34 @@ public class JMXReporterTest extends TestLogger {
 		MetricReporter rep1 = reporters.get(0);
 		MetricReporter rep2 = reporters.get(1);
 
-		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
+		Gauge<Integer> g1 = new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return 1;
 			}
-		}, "rep1", new TaskManagerMetricGroup(reg, "host", "tm"));
-
-		rep2.notifyOfAddedMetric(new Gauge<Integer>() {
+		};
+		Gauge<Integer> g2 = new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return 2;
 			}
-		}, "rep2", new TaskManagerMetricGroup(reg, "host", "tm"));
+		};
+
+		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
+		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
 
 		MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-		ObjectName objectName1 = new ObjectName(JMXReporter.generateJmxName("rep1", mg.getScopeComponents()));
-		ObjectName objectName2 = new ObjectName(JMXReporter.generateJmxName("rep2", mg.getScopeComponents()));
+		ObjectName objectName1 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep1", JMXReporter.generateJmxTable(mg.getAllVariables()));
+		ObjectName objectName2 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep2", JMXReporter.generateJmxTable(mg.getAllVariables()));
 
 		assertEquals(1, mBeanServer.getAttribute(objectName1, "Value"));
 		assertEquals(2, mBeanServer.getAttribute(objectName2, "Value"));
 
+		rep1.notifyOfRemovedMetric(g1, "rep1", null);
+		rep1.notifyOfRemovedMetric(g2, "rep2", null);
+		
+		mg.close();
 		reg.shutdown();
 	}
 
@@ -156,22 +173,25 @@ public class JMXReporterTest extends TestLogger {
 		MetricReporter rep1 = reporters.get(0);
 		MetricReporter rep2 = reporters.get(1);
 
-		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
+		Gauge<Integer> g1 = new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return 1;
 			}
-		}, "rep1", new TaskManagerMetricGroup(reg, "host", "tm"));
-
-		rep2.notifyOfAddedMetric(new Gauge<Integer>() {
+		};
+		Gauge<Integer> g2 = new Gauge<Integer>() {
 			@Override
 			public Integer getValue() {
 				return 2;
 			}
-		}, "rep2", new TaskManagerMetricGroup(reg, "host", "tm"));
+		};
 
-		ObjectName objectName1 = new ObjectName(JMXReporter.generateJmxName("rep1", mg.getScopeComponents()));
-		ObjectName objectName2 = new ObjectName(JMXReporter.generateJmxName("rep2", mg.getScopeComponents()));
+		rep1.notifyOfAddedMetric(g1, "rep1", new FrontMetricGroup<>(0, new TaskManagerMetricGroup(reg, "host", "tm")));
+
+		rep2.notifyOfAddedMetric(g2, "rep2", new FrontMetricGroup<>(1, new TaskManagerMetricGroup(reg, "host", "tm")));
+
+		ObjectName objectName1 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep1", JMXReporter.generateJmxTable(mg.getAllVariables()));
+		ObjectName objectName2 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep2", JMXReporter.generateJmxTable(mg.getAllVariables()));
 
 		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter)rep1).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter)rep1).getPort() + "/jmxrmi");
 		JMXConnector jmxCon1 = JMXConnectorFactory.connect(url1);
@@ -189,10 +209,14 @@ public class JMXReporterTest extends TestLogger {
 		assertEquals(1, mCon2.getAttribute(objectName1, "Value"));
 		assertEquals(2, mCon2.getAttribute(objectName2, "Value"));
 
+		rep1.notifyOfRemovedMetric(g1, "rep1", null);
+		rep1.notifyOfRemovedMetric(g2, "rep2", null);
+
 		jmxCon2.close();
 
 		rep1.close();
 		rep2.close();
+		mg.close();
 		reg.shutdown();
 	}
 
@@ -219,7 +243,7 @@ public class JMXReporterTest extends TestLogger {
 
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-			ObjectName objectName = new ObjectName(JMXReporter.generateJmxName(histogramName, metricGroup.getScopeComponents()));
+			ObjectName objectName = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager." + histogramName, JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
 
 			MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
 
@@ -269,7 +293,7 @@ public class JMXReporterTest extends TestLogger {
 
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-			ObjectName objectName = new ObjectName(JMXReporter.generateJmxName(meterName, metricGroup.getScopeComponents()));
+			ObjectName objectName = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager." + meterName, JMXReporter.generateJmxTable(metricGroup.getAllVariables()));
 
 			MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
 
