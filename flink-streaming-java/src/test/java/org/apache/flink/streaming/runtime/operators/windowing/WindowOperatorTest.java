@@ -2077,7 +2077,7 @@ public class WindowOperatorTest {
 			}
 			int sum = 0;
 
-			for (Tuple2<String, Integer> t: input) {
+			for (Tuple2<String, Integer> t : input) {
 				sum += t.f1;
 			}
 			out.collect(new Tuple2<>(key, sum));

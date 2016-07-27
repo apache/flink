@@ -434,7 +434,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected void processEventTimeWatermark(Watermark mark, TriggerResult triggerResult) {
 		if (triggerResult.isFire()) {
-			if(getEventTimeFunction() != null) {
+			if (getEventTimeFunction() != null) {
 				getEventTimeFunction().onWatermark(mark);
 			}
 		}

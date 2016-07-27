@@ -61,12 +61,12 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	
 	/** Flag to prevent duplicate function.close() calls in close() and dispose() */
 	private transient boolean functionsClosed = false;
-	
-	
+
+
 	public AbstractUdfStreamOperator(F userFunction) {
 		this.userFunction = requireNonNull(userFunction);
-		if(userFunction instanceof  EventTimeFunction) {
-			this.eventTimeFunction = (EventTimeFunction)this.userFunction;
+		if (userFunction instanceof EventTimeFunction) {
+			this.eventTimeFunction = (EventTimeFunction) this.userFunction;
 		}
 	}
 

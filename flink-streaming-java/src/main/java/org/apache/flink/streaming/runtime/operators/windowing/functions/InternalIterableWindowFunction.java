@@ -89,15 +89,15 @@ public final class InternalIterableWindowFunction<IN, OUT, KEY, W extends Window
 
 	@Override
 	public void onWatermark(Watermark watermark) {
-		if(this.wrappedFunction instanceof EventTimeFunction) {
+		if (this.wrappedFunction instanceof EventTimeFunction) {
 			((EventTimeFunction) this.wrappedFunction).onWatermark(watermark);
 		}
 	}
 
 	@Override
 	public WindowTimer createTimer(long timestamp, KEY key, W window) {
-		if(this.wrappedFunction instanceof EventTimeFunction) {
-			return ((EventTimeFunction)this.wrappedFunction).createTimer(timestamp, key, window);
+		if (this.wrappedFunction instanceof EventTimeFunction) {
+			return ((EventTimeFunction) this.wrappedFunction).createTimer(timestamp, key, window);
 		}
 		return null;
 	}
