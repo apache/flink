@@ -84,6 +84,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	private static int MAX_SAMPLE_LEN;
 
+	/**
+	 * @Deprecated Please use {@code loadConfigParameters(Configuration config}
+	 */
+	@Deprecated
+	protected static void loadGlobalConfigParams() {
+		loadConfigParameters(GlobalConfiguration.loadConfiguration());
+	}
 
 	protected static void loadConfigParameters(Configuration parameters) {
 		int maxSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
