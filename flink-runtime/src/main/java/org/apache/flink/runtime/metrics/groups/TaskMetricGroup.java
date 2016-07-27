@@ -65,10 +65,10 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 			int subtaskIndex,
 			int attemptNumber) {
 		super(registry, registry.getScopeFormats().getTaskFormat().formatScope(
-			parent, vertexId, executionId, taskName, subtaskIndex, attemptNumber));
+			checkNotNull(parent), vertexId, checkNotNull(executionId), taskName, subtaskIndex, attemptNumber));
 
-		this.parent = checkNotNull(parent);
-		this.executionId = checkNotNull(executionId);
+		this.parent = parent;
+		this.executionId = executionId;
 		this.vertexId = vertexId;
 		this.taskName = taskName;
 		this.subtaskIndex = subtaskIndex;

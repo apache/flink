@@ -39,9 +39,9 @@ public class JobManagerJobMetricGroup extends JobMetricGroup {
 			JobManagerMetricGroup parent,
 			JobID jobId,
 			@Nullable String jobName) {
-		super(registry, jobId, jobName, registry.getScopeFormats().getJobManagerJobFormat().formatScope(parent, jobId, jobName));
+		super(registry, jobId, jobName, registry.getScopeFormats().getJobManagerJobFormat().formatScope(checkNotNull(parent), jobId, jobName));
 
-		this.parent = checkNotNull(parent);
+		this.parent = parent;
 	}
 
 	public final JobManagerMetricGroup parent() {

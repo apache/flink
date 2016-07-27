@@ -33,8 +33,8 @@ public class OperatorMetricGroup extends ComponentMetricGroup {
 	private final TaskMetricGroup parent;
 
 	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, String operatorName) {
-		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(parent, operatorName));
-		this.parent = checkNotNull(parent);
+		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(checkNotNull(parent), operatorName));
+		this.parent = parent;
 	}
 
 	// ------------------------------------------------------------------------
