@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WindowTimer;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
@@ -190,16 +191,16 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	public void processWatermark(Watermark mark) throws Exception {
 		boolean fire;
 		do {
-			Timer<K, W> timer = watermarkTimersQueue.peek();
-			if (timer != null && timer.timestamp <= mark.getTimestamp()) {
+			WindowTimer<K, W> timer = watermarkTimersQueue.peek();
+			if (timer != null && timer.getTimestamp() <= mark.getTimestamp()) {
 				fire = true;
 
 				watermarkTimers.remove(timer);
 				watermarkTimersQueue.remove();
 
-				context.key = timer.key;
-				context.window = timer.window;
-				setKeyContext(timer.key);
+				context.key = timer.getKey();
+				context.window = timer.getWindow();
+				setKeyContext(timer.getKey());
 
 				ListState<StreamRecord<IN>> windowState;
 				MergingWindowSet<W> mergingWindows = null;
@@ -212,11 +213,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
 				}
 
-				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
+				TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
 				fireOrContinue(triggerResult, context.window, windowState);
-
-				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(timer.window, timer.timestamp))) {
-					cleanup(timer.window, windowState, mergingWindows);
+				processEventTimeWatermark(mark, triggerResult);
+				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(timer.getWindow(), timer.getTimestamp()))) {
+					cleanup(timer.getWindow(), windowState, mergingWindows);
 				}
 
 			} else {
@@ -238,16 +239,16 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		processingTimeTimerTimestamps.remove(time, processingTimeTimerTimestamps.count(time));
 
 		do {
-			Timer<K, W> timer = processingTimeTimersQueue.peek();
-			if (timer != null && timer.timestamp <= time) {
+			WindowTimer<K, W> timer = processingTimeTimersQueue.peek();
+			if (timer != null && timer.getTimestamp() <= time) {
 				fire = true;
 
 				processingTimeTimers.remove(timer);
 				processingTimeTimersQueue.remove();
 
-				context.key = timer.key;
-				context.window = timer.window;
-				setKeyContext(timer.key);
+				context.key = timer.getKey();
+				context.window = timer.getWindow();
+				setKeyContext(timer.getKey());
 
 				ListState<StreamRecord<IN>> windowState;
 				MergingWindowSet<W> mergingWindows = null;
@@ -260,11 +261,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
 				}
 
-				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
+				TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
 				fireOrContinue(triggerResult, context.window, windowState);
 
-				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(timer.window, timer.timestamp))) {
-					cleanup(timer.window, windowState, mergingWindows);
+				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(timer.getWindow(), timer.getTimestamp()))) {
+					cleanup(timer.getWindow(), windowState, mergingWindows);
 				}
 
 			} else {

@@ -49,6 +49,8 @@ import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.watermark.DefaultTimer;
+import org.apache.flink.streaming.api.watermark.WindowTimer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -169,15 +171,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	/**
 	 * Processing time timers that are currently in-flight.
 	 */
-	protected transient PriorityQueue<Timer<K, W>> processingTimeTimersQueue;
-	protected transient Set<Timer<K, W>> processingTimeTimers;
+	protected transient PriorityQueue<WindowTimer<K, W>> processingTimeTimersQueue;
+	protected transient Set<WindowTimer<K, W>> processingTimeTimers;
 	protected transient Multiset<Long> processingTimeTimerTimestamps;
 
 	/**
 	 * Current waiting watermark callbacks.
 	 */
-	protected transient Set<Timer<K, W>> watermarkTimers;
-	protected transient PriorityQueue<Timer<K, W>> watermarkTimersQueue;
+	protected transient Set<WindowTimer<K, W>> watermarkTimers;
+	protected transient PriorityQueue<WindowTimer<K, W>> watermarkTimersQueue;
 
 	protected transient Map<K, MergingWindowSet<W>> mergingWindowsByKey;
 
@@ -391,16 +393,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	public void processWatermark(Watermark mark) throws Exception {
 		boolean fire;
 		do {
-			Timer<K, W> timer = watermarkTimersQueue.peek();
-			if (timer != null && timer.timestamp <= mark.getTimestamp()) {
+			WindowTimer<K, W> timer = watermarkTimersQueue.peek();
+			if (timer != null && timer.getTimestamp() <= mark.getTimestamp()) {
 				fire = true;
 
 				watermarkTimers.remove(timer);
 				watermarkTimersQueue.remove();
 
-				context.key = timer.key;
-				context.window = timer.window;
-				setKeyContext(timer.key);
+				context.key = timer.getKey();
+				context.window = timer.getWindow();
+				setKeyContext(timer.getKey());
 
 				AppendingState<IN, ACC> windowState;
 				MergingWindowSet<W> mergingWindows = null;
@@ -413,11 +415,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
 				}
 
-				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
+				TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
 				fireOrContinue(triggerResult, context.window, windowState);
-
-				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(timer.window, timer.timestamp))) {
-					cleanup(timer.window, windowState, mergingWindows);
+				processEventTimeWatermark(mark, triggerResult);
+				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(timer.getWindow(), timer.getTimestamp()))) {
+					cleanup(timer.getWindow(), windowState, mergingWindows);
 				}
 
 			} else {
@@ -430,6 +432,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		this.currentWatermark = mark.getTimestamp();
 	}
 
+	protected void processEventTimeWatermark(Watermark mark, TriggerResult triggerResult) {
+		if (triggerResult.isFire()) {
+			if(getEventTimeFunction() != null) {
+				getEventTimeFunction().onWatermark(mark);
+			}
+		}
+	}
+
 	@Override
 	public void trigger(long time) throws Exception {
 		boolean fire;
@@ -439,16 +449,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		processingTimeTimerTimestamps.remove(time, processingTimeTimerTimestamps.count(time));
 
 		do {
-			Timer<K, W> timer = processingTimeTimersQueue.peek();
-			if (timer != null && timer.timestamp <= time) {
+			WindowTimer<K, W> timer = processingTimeTimersQueue.peek();
+			if (timer != null && timer.getTimestamp() <= time) {
 				fire = true;
 
 				processingTimeTimers.remove(timer);
 				processingTimeTimersQueue.remove();
 
-				context.key = timer.key;
-				context.window = timer.window;
-				setKeyContext(timer.key);
+				context.key = timer.getKey();
+				context.window = timer.getWindow();
+				setKeyContext(timer.getKey());
 
 				AppendingState<IN, ACC> windowState;
 				MergingWindowSet<W> mergingWindows = null;
@@ -461,11 +471,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
 				}
 
-				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
+				TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
 				fireOrContinue(triggerResult, context.window, windowState);
 
-				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(timer.window, timer.timestamp))) {
-					cleanup(timer.window, windowState, mergingWindows);
+				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(timer.getWindow(), timer.getTimestamp()))) {
+					cleanup(timer.getWindow(), windowState, mergingWindows);
 				}
 
 			} else {
@@ -685,7 +695,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public void registerProcessingTimeTimer(long time) {
-			Timer<K, W> timer = new Timer<>(time, key, window);
+			WindowTimer<K, W> timer = getTimer(time, key, window);
 			// make sure we only put one timer per key into the queue
 			if (processingTimeTimers.add(timer)) {
 				processingTimeTimersQueue.add(timer);
@@ -699,7 +709,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public void registerEventTimeTimer(long time) {
-			Timer<K, W> timer = new Timer<>(time, key, window);
+			WindowTimer<K, W> timer = getTimer(time, key, window);
 			if (watermarkTimers.add(timer)) {
 				watermarkTimersQueue.add(timer);
 			}
@@ -707,7 +717,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public void deleteProcessingTimeTimer(long time) {
-			Timer<K, W> timer = new Timer<>(time, key, window);
+			WindowTimer<K, W> timer = getTimer(time, key, window);
 
 			if (processingTimeTimers.remove(timer)) {
 				processingTimeTimersQueue.remove(timer);
@@ -715,7 +725,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			//If there are no timers left for this timestamp, remove it from queue and cancel TriggerTask
 			if (processingTimeTimerTimestamps.remove(time,1) == 1) {
-				ScheduledFuture<?> triggerTaskFuture = processingTimeTimerFutures.remove(timer.timestamp);
+				ScheduledFuture<?> triggerTaskFuture = processingTimeTimerFutures.remove(timer.getTimestamp());
 				if (triggerTaskFuture != null && !triggerTaskFuture.isDone()) {
 					triggerTaskFuture.cancel(false);
 				}
@@ -724,7 +734,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public void deleteEventTimeTimer(long time) {
-			Timer<K, W> timer = new Timer<>(time, key, window);
+			WindowTimer<K, W> timer = getTimer(time, key, window);
 			if (watermarkTimers.remove(timer)) {
 				watermarkTimersQueue.remove(timer);
 			}
@@ -755,60 +765,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		public String toString() {
 			return "Context{" +
 				"key=" + key +
-				", window=" + window +
-				'}';
-		}
-	}
-
-	/**
-	 * Internal class for keeping track of in-flight timers.
-	 */
-	protected static class Timer<K, W extends Window> implements Comparable<Timer<K, W>> {
-		protected long timestamp;
-		protected K key;
-		protected W window;
-
-		public Timer(long timestamp, K key, W window) {
-			this.timestamp = timestamp;
-			this.key = key;
-			this.window = window;
-		}
-
-		@Override
-		public int compareTo(Timer<K, W> o) {
-			return Long.compare(this.timestamp, o.timestamp);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()){
-				return false;
-			}
-
-			Timer<?, ?> timer = (Timer<?, ?>) o;
-
-			return timestamp == timer.timestamp
-				&& key.equals(timer.key)
-				&& window.equals(timer.window);
-
-		}
-
-		@Override
-		public int hashCode() {
-			int result = (int) (timestamp ^ (timestamp >>> 32));
-			result = 31 * result + key.hashCode();
-			result = 31 * result + window.hashCode();
-			return result;
-		}
-
-		@Override
-		public String toString() {
-			return "Timer{" +
-				"timestamp=" + timestamp +
-				", key=" + key +
 				", window=" + window +
 				'}';
 		}
@@ -866,7 +822,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			K key = keySerializer.deserialize(in);
 			W window = windowSerializer.deserialize(in);
 			long timestamp = in.readLong();
-			Timer<K, W> timer = new Timer<>(timestamp, key, window);
+			WindowTimer<K, W> timer = getTimer(timestamp, key, window);
 			watermarkTimers.add(timer);
 			watermarkTimersQueue.add(timer);
 		}
@@ -878,7 +834,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			K key = keySerializer.deserialize(in);
 			W window = windowSerializer.deserialize(in);
 			long timestamp = in.readLong();
-			Timer<K, W> timer = new Timer<>(timestamp, key, window);
+			WindowTimer<K, W> timer = getTimer(timestamp, key, window);
 			processingTimeTimersQueue.add(timer);
 			processingTimeTimers.add(timer);
 		}
@@ -894,17 +850,17 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	private void snapshotTimers(DataOutputView out) throws IOException {
 		out.writeInt(watermarkTimersQueue.size());
-		for (Timer<K, W> timer : watermarkTimersQueue) {
-			keySerializer.serialize(timer.key, out);
-			windowSerializer.serialize(timer.window, out);
-			out.writeLong(timer.timestamp);
+		for (WindowTimer<K, W> timer : watermarkTimersQueue) {
+			keySerializer.serialize(timer.getKey(), out);
+			windowSerializer.serialize(timer.getWindow(), out);
+			out.writeLong(timer.getTimestamp());
 		}
 
 		out.writeInt(processingTimeTimers.size());
-		for (Timer<K,W> timer : processingTimeTimers) {
-			keySerializer.serialize(timer.key, out);
-			windowSerializer.serialize(timer.window, out);
-			out.writeLong(timer.timestamp);
+		for (WindowTimer<K,W> timer : processingTimeTimers) {
+			keySerializer.serialize(timer.getKey(), out);
+			windowSerializer.serialize(timer.getWindow(), out);
+			out.writeLong(timer.getTimestamp());
 		}
 
 		out.writeInt(processingTimeTimerTimestamps.entrySet().size());
@@ -936,5 +892,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	@VisibleForTesting
 	public StateDescriptor<? extends AppendingState<IN, ACC>, ?> getStateDescriptor() {
 		return windowStateDescriptor;
+	}
+
+	private WindowTimer<K, W> getTimer(long timestamp, K key, W window) {
+		if (getEventTimeFunction() != null) {
+			WindowTimer timer = getEventTimeFunction().createTimer(timestamp, key, window);
+			if(timer != null) {
+				return timer;
+			}
+		}
+		return new DefaultTimer<K, W>(timestamp, key, window);
 	}
 }

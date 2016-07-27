@@ -26,16 +26,19 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.watermark.EventTimeFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WindowTimer;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 /**
- * Internal window function for wrapping an {@link AllWindowFunction} that takes an {@code Iterable}
+ * Internal event time window function for wrapping an {@link AllWindowFunction} that takes an {@code Iterable}
  * when the window state also is an {@code Iterable}.
  */
 public final class InternalIterableAllWindowFunction<IN, OUT, W extends Window>
 		extends InternalWindowFunction<Iterable<IN>, OUT, Byte, W>
-		implements RichFunction {
+		implements RichFunction, EventTimeFunction<Byte, W> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -82,5 +85,20 @@ public final class InternalIterableAllWindowFunction<IN, OUT, W extends Window>
 		if (OutputTypeConfigurable.class.isAssignableFrom(this.wrappedFunction.getClass())) {
 			((OutputTypeConfigurable<OUT>)this.wrappedFunction).setOutputType(outTypeInfo, executionConfig);
 		}
+	}
+
+	@Override
+	public void onWatermark(Watermark watermark) {
+		if(this.wrappedFunction instanceof EventTimeFunction) {
+			((EventTimeFunction) this.wrappedFunction).onWatermark(watermark);
+		}
+	}
+
+	@Override
+	public WindowTimer createTimer(long timestamp, Byte key, W window) {
+		if(this.wrappedFunction instanceof EventTimeFunction) {
+			return ((EventTimeFunction) this.wrappedFunction).createTimer(timestamp, key, window);
+		}
+		return null;
 	}
 }

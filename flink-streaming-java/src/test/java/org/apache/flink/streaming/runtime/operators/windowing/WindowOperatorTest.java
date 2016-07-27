@@ -35,7 +35,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.watermark.DefaultTimer;
+import org.apache.flink.streaming.api.watermark.EventTimeFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WindowTimer;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
@@ -225,6 +228,48 @@ public class WindowOperatorTest {
 
 		// we close once in the rest...
 		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testSlidingEventTimeWindowsApplyWithEventTime() throws Exception {
+		closeCalled.set(0);
+
+		final int WINDOW_SIZE = 3;
+		final int WINDOW_SLIDE = 1;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
+			SlidingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS), Time.of(WINDOW_SLIDE, TimeUnit.SECONDS)),
+			new TimeWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new RichSumReducerWithEventTime<TimeWindow>()),
+			EventTimeTrigger.create(),
+			0);
+
+		operator.setInputType(inputType, new ExecutionConfig());
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.open();
+
+		testSlidingEventTimeWindows(testHarness);
+
+		testHarness.close();
+
+		// we close once in the rest...
+		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+
+		Assert.assertEquals("EventTimeFunction's watermark should be called", 8, RichSumReducerWithEventTime.count);
 	}
 
 	private void testTumblingEventTimeWindows(OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness) throws Exception {
@@ -887,9 +932,9 @@ public class WindowOperatorTest {
 		operator.setInputType(inputType, new ExecutionConfig());
 		testHarness.open();
 
-		WindowOperator.Timer<String, TimeWindow> timer1 = new WindowOperator.Timer<>(1L, "key1", new TimeWindow(1L, 2L));
-		WindowOperator.Timer<String, TimeWindow> timer2 = new WindowOperator.Timer<>(3L, "key1", new TimeWindow(1L, 2L));
-		WindowOperator.Timer<String, TimeWindow> timer3 = new WindowOperator.Timer<>(2L, "key1", new TimeWindow(1L, 2L));
+		DefaultTimer<String, TimeWindow> timer1 = new DefaultTimer<>(1L, "key1", new TimeWindow(1L, 2L));
+		DefaultTimer<String, TimeWindow> timer2 = new DefaultTimer<>(3L, "key1", new TimeWindow(1L, 2L));
+		DefaultTimer<String, TimeWindow> timer3 = new DefaultTimer<>(2L, "key1", new TimeWindow(1L, 2L));
 		operator.processingTimeTimers.add(timer1);
 		operator.processingTimeTimers.add(timer2);
 		operator.processingTimeTimers.add(timer3);
@@ -2001,6 +2046,53 @@ public class WindowOperatorTest {
 
 		}
 
+	}
+
+	public static class RichSumReducerWithEventTime<W extends Window> extends RichWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, W>
+		implements EventTimeFunction<String, W> {
+		private static final long serialVersionUID = 1L;
+
+		private boolean openCalled = false;
+		private static int count = 0;
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+			openCalled = true;
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+			closeCalled.incrementAndGet();
+		}
+
+		@Override
+		public void apply(String key,
+						  W window,
+						  Iterable<Tuple2<String, Integer>> input,
+						  Collector<Tuple2<String, Integer>> out) throws Exception {
+
+			if (!openCalled) {
+				fail("Open was not called");
+			}
+			int sum = 0;
+
+			for (Tuple2<String, Integer> t: input) {
+				sum += t.f1;
+			}
+			out.collect(new Tuple2<>(key, sum));
+
+		}
+
+		@Override
+		public void onWatermark(Watermark watermark) {
+			count++;
+		}
+
+		@Override
+		public WindowTimer createTimer(long timestamp, String key, W window) {
+			return new DefaultTimer(timestamp, key, window);
+		}
 	}
 
 	@SuppressWarnings("unchecked")

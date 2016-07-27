@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.streaming.api.watermark.EventTimeFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
@@ -55,6 +56,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	
 	/** the user function */
 	protected final F userFunction;
+
+	protected EventTimeFunction eventTimeFunction;
 	
 	/** Flag to prevent duplicate function.close() calls in close() and dispose() */
 	private transient boolean functionsClosed = false;
@@ -62,6 +65,9 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	
 	public AbstractUdfStreamOperator(F userFunction) {
 		this.userFunction = requireNonNull(userFunction);
+		if(userFunction instanceof  EventTimeFunction) {
+			this.eventTimeFunction = (EventTimeFunction)this.userFunction;
+		}
 	}
 
 	/**
@@ -71,7 +77,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	public F getUserFunction() {
 		return userFunction;
 	}
-	
+
+	public EventTimeFunction getEventTimeFunction() {
+		return eventTimeFunction;
+	}
+
 	// ------------------------------------------------------------------------
 	//  operator life cycle
 	// ------------------------------------------------------------------------
