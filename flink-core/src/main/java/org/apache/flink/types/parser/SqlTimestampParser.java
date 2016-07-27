@@ -19,21 +19,21 @@
 
 package org.apache.flink.types.parser;
 
-import java.math.BigInteger;
+import java.sql.Timestamp;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Parses a text field into a {@link java.math.BigInteger}.
+ * Parses a text field into a {@link Timestamp}.
  */
 @PublicEvolving
-public class BigIntParser extends FieldParser<BigInteger> {
+public class SqlTimestampParser extends FieldParser<Timestamp> {
 
-	private static final BigInteger BIG_INTEGER_INSTANCE = BigInteger.ZERO;
+	private static final Timestamp TIMESTAMP_INSTANCE = new Timestamp(0L);
 
-	private BigInteger result;
+	private Timestamp result;
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, BigInteger reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Timestamp reusable) {
 		final int endPos = nextStringEndPos(bytes, startPos, limit, delimiter);
 		if (endPos < 0) {
 			return -1;
@@ -47,26 +47,26 @@ public class BigIntParser extends FieldParser<BigInteger> {
 
 		String str = new String(bytes, startPos, endPos - startPos);
 		try {
-			this.result = new BigInteger(str);
+			this.result = Timestamp.valueOf(str);
 			return (endPos == limit) ? limit : endPos + delimiter.length;
-		} catch (NumberFormatException e) {
+		} catch (IllegalArgumentException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
 		}
 	}
 
 	@Override
-	public BigInteger createValue() {
-		return BIG_INTEGER_INSTANCE;
+	public Timestamp createValue() {
+		return TIMESTAMP_INSTANCE;
 	}
 
 	@Override
-	public BigInteger getLastResult() {
+	public Timestamp getLastResult() {
 		return this.result;
 	}
 
 	/**
-	 * Static utility to parse a field of type BigInteger from a byte sequence that represents text
+	 * Static utility to parse a field of type Timestamp from a byte sequence that represents text
 	 * characters
 	 * (such as when read from a file stream).
 	 *
@@ -77,12 +77,12 @@ public class BigIntParser extends FieldParser<BigInteger> {
 	 * @throws IllegalArgumentException Thrown when the value cannot be parsed because the text
 	 * represents not a correct number.
 	 */
-	public static final BigInteger parseField(byte[] bytes, int startPos, int length) {
+	public static final Timestamp parseField(byte[] bytes, int startPos, int length) {
 		return parseField(bytes, startPos, length, (char) 0xffff);
 	}
 
 	/**
-	 * Static utility to parse a field of type BigInteger from a byte sequence that represents text
+	 * Static utility to parse a field of type Timestamp from a byte sequence that represents text
 	 * characters
 	 * (such as when read from a file stream).
 	 *
@@ -94,7 +94,7 @@ public class BigIntParser extends FieldParser<BigInteger> {
 	 * @throws IllegalArgumentException Thrown when the value cannot be parsed because the text
 	 * represents not a correct number.
 	 */
-	public static final BigInteger parseField(byte[] bytes, int startPos, int length, char delimiter) {
+	public static final Timestamp parseField(byte[] bytes, int startPos, int length, char delimiter) {
 		final int limitedLen = nextStringLength(bytes, startPos, length, delimiter);
 
 		if (limitedLen > 0 &&
@@ -103,6 +103,6 @@ public class BigIntParser extends FieldParser<BigInteger> {
 		}
 
 		final String str = new String(bytes, startPos, limitedLen);
-		return new BigInteger(str);
+		return Timestamp.valueOf(str);
 	}
 }

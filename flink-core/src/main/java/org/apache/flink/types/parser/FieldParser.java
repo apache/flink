@@ -174,6 +174,49 @@ public abstract class FieldParser<T> {
 	public ParseErrorState getErrorState() {
 		return this.errorState;
 	}
+
+	/**
+	 * Returns the end position of a string. Sets the error state if the column is empty.
+	 *
+	 * @return the end position of the string or -1 if an error occurred
+	 */
+	protected final int nextStringEndPos(byte[] bytes, int startPos, int limit, byte[] delimiter) {
+		int endPos = startPos;
+
+		final int delimLimit = limit - delimiter.length + 1;
+
+		while (endPos < limit) {
+			if (endPos < delimLimit && delimiterNext(bytes, endPos, delimiter)) {
+				if (endPos == startPos) {
+					setErrorState(ParseErrorState.EMPTY_COLUMN);
+					return -1;
+				}
+				break;
+			}
+			endPos++;
+		}
+
+		return endPos;
+	}
+
+	/**
+	 * Returns the length of a string. Throws an exception if the column is empty.
+	 *
+	 * @return the length of the string
+	 */
+	protected static final int nextStringLength(byte[] bytes, int startPos, int length, char delimiter) {
+		if (length <= 0) {
+			throw new IllegalArgumentException("Invalid input: Empty string");
+		}
+		int limitedLength = 0;
+		final byte delByte = (byte) delimiter;
+
+		while (limitedLength < length && bytes[startPos + limitedLength] != delByte) {
+			limitedLength++;
+		}
+
+		return limitedLength;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Mapping from types to parsers
@@ -222,5 +265,10 @@ public abstract class FieldParser<T> {
 		PARSERS.put(FloatValue.class, FloatValueParser.class);
 		PARSERS.put(DoubleValue.class, DoubleValueParser.class);
 		PARSERS.put(BooleanValue.class, BooleanValueParser.class);
+
+		// SQL date/time types
+		PARSERS.put(java.sql.Time.class, SqlTimeParser.class);
+		PARSERS.put(java.sql.Date.class, SqlDateParser.class);
+		PARSERS.put(java.sql.Timestamp.class, SqlTimestampParser.class);
 	}
 }
