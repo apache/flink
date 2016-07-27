@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics;
 
+import java.util.Map;
+
 /**
  * A MetricGroup is a named container for {@link Metric Metrics} and further metric subgroups.
  * 
@@ -140,6 +142,14 @@ public interface MetricGroup {
 	 * @see #getMetricIdentifier(String, CharacterFilter)
 	 */
 	String[] getScopeComponents();
+
+	/**
+	 * Returns a map of all variables and their associated value, for example
+	 * {@code {"<host>"="host-7", "<tm_id>"="taskmanager-2"}}
+	 * 
+	 * @return map of all variables and their associated value
+     */
+	Map<String, String> getAllVariables();
 
 	/**
 	 * Returns the fully qualified metric name, for example
