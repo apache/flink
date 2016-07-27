@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,14 +31,14 @@ import java.util.Map;
  * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do
  * not contain tasks any more
  */
-public class JobManagerMetricGroup extends ComponentMetricGroup {
+public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetricGroup> {
 
 	private final Map<JobID, JobManagerJobMetricGroup> jobs = new HashMap<>();
 
 	private final String hostname;
 
 	public JobManagerMetricGroup(MetricRegistry registry, String hostname) {
-		super(registry, registry.getScopeFormats().getJobManagerFormat().formatScope(hostname));
+		super(registry, registry.getScopeFormats().getJobManagerFormat().formatScope(hostname), null);
 		this.hostname = hostname;
 	}
 
@@ -84,6 +85,15 @@ public class JobManagerMetricGroup extends ComponentMetricGroup {
 
 	public int numRegisteredJobMetricGroups() {
 		return jobs.size();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Component Metric Group Specifics
+	// ------------------------------------------------------------------------
+
+	@Override
+	protected void putVariables(Map<String, String> variables) {
+		variables.put(ScopeFormat.SCOPE_ACTOR_HOST, hostname);
 	}
 
 	@Override

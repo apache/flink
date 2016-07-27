@@ -15,33 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.junit.Test;
 
-/**
- * A simple named {@link org.apache.flink.metrics.MetricGroup} that is used to hold
- * subgroups of metrics.
- */
-public class GenericMetricGroup extends AbstractMetricGroup<AbstractMetricGroup> {
+import static org.junit.Assert.assertTrue;
 
-	public GenericMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {
-		super(registry, makeScopeComponents(parent, name), parent);
-	}
+public class AbstractMetricGroupTest {
+	/**
+	 * Verifies that no {@link NullPointerException} is thrown when {@link AbstractMetricGroup#getAllVariables()} is
+	 * called and the parent is null.
+	 */
+	@Test
+	public void testGetAllVariables() {
+		MetricRegistry registry = new MetricRegistry(new Configuration());
 
-	// ------------------------------------------------------------------------
-
-	private static String[] makeScopeComponents(AbstractMetricGroup parent, String name) {
-		if (parent != null) {
-			String[] parentComponents = parent.getScopeComponents();
-			if (parentComponents != null && parentComponents.length > 0) {
-				String[] parts = new String[parentComponents.length + 1];
-				System.arraycopy(parentComponents, 0, parts, 0, parentComponents.length);
-				parts[parts.length - 1] = name;
-				return parts;
-			}
-		}
-		return new String[] { name };
+		AbstractMetricGroup group = new AbstractMetricGroup<AbstractMetricGroup>(registry, new String[0], null) {
+		};
+		assertTrue(group.getAllVariables().isEmpty());
+		
+		registry.shutdown();
 	}
 }
