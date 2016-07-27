@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 
@@ -47,17 +48,18 @@ import org.junit.Test;
 
 public class DelimitedInputFormatTest {
 	
-	private final DelimitedInputFormat<String> format = new MyTextInputFormat();
+	private DelimitedInputFormat<String> format;
 	
 	// --------------------------------------------------------------------------------------------
 
 	@Before
 	public void setup() {
+		format = new MyTextInputFormat();
 		this.format.setFilePath(new Path("file:///some/file/that/will/not/be/read"));
 	}
 	
 	@After
-	public void setdown() throws Exception {
+	public void shutdown() throws Exception {
 		if (this.format != null) {
 			this.format.close();
 		}

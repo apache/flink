@@ -21,7 +21,6 @@ package org.apache.flink.configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -38,15 +37,6 @@ import static org.junit.Assert.fail;
 
 public class FilesystemSchemeConfigTest {
 
-	@Before
-	public void resetSingleton() throws SecurityException, NoSuchFieldException, IllegalArgumentException,
-		IllegalAccessException {
-		// reset GlobalConfiguration between tests
-		Field instance = GlobalConfiguration.class.getDeclaredField("SINGLETON");
-		instance.setAccessible(true);
-		instance.set(null, null);
-	}
-	
 	@Test
 	public void testExplicitFilesystemScheme() {
 		testSettingFilesystemScheme(false, "fs.default-scheme: otherFS://localhost:1234/", true);
@@ -65,7 +55,12 @@ public class FilesystemSchemeConfigTest {
 	private void testSettingFilesystemScheme(boolean useDefaultScheme,
 											String configFileScheme, boolean useExplicitScheme) {
 		final File tmpDir = getTmpDir();
-		final File confFile = createRandomFile(tmpDir, ".yaml");
+		final File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+		try {
+			confFile.createNewFile();
+		} catch (IOException e) {
+			throw new RuntimeException("Couldn't create file", e);
+		}
 		final File testFile = new File(tmpDir.getAbsolutePath() + File.separator + "testing.txt");
 
 		try {
@@ -83,8 +78,7 @@ public class FilesystemSchemeConfigTest {
 				fail(e.getMessage());
 			}
 
-			GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
-			Configuration conf = GlobalConfiguration.getConfiguration();
+			Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
 
 			try {
 				FileSystem.setDefaultScheme(conf);

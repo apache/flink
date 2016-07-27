@@ -97,14 +97,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 		System.setErr(ERR);
 	}
 
-	@Before
-	public void clearConfig() throws NoSuchFieldException, IllegalAccessException {
-		// reset GlobalConfiguration between tests
-		Field instance = GlobalConfiguration.class.getDeclaredField("SINGLETON");
-		instance.setAccessible(true);
-		instance.set(null, null);
-	}
-
 	private static final String TEST_YARN_JOB_MANAGER_ADDRESS = "22.33.44.55";
 	private static final int TEST_YARN_JOB_MANAGER_PORT = 6655;
 	private static final ApplicationId TEST_YARN_APPLICATION_ID =

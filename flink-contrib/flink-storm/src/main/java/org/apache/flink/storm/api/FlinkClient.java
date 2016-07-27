@@ -242,7 +242,7 @@ public class FlinkClient {
 			}
 		}
 
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, this.jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, this.jobManagerPort);
 
@@ -271,7 +271,7 @@ public class FlinkClient {
 	 * @return Flink's internally used {@link JobID}.
 	 */
 	JobID getTopologyJobId(final String id) {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
 			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
 		}
@@ -311,7 +311,7 @@ public class FlinkClient {
 	}
 
 	private FiniteDuration getTimeout() {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
 			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
 		}
@@ -320,7 +320,7 @@ public class FlinkClient {
 	}
 
 	private ActorRef getJobManager() throws IOException {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 
 		ActorSystem actorSystem;
 		try {

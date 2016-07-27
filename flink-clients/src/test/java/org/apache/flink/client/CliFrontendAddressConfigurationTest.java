@@ -48,11 +48,6 @@ public class CliFrontendAddressConfigurationTest {
 		CliFrontendTestUtils.pipeSystemOutToNull();
 	}
 
-	@Before
-	public void clearConfig() {
-		CliFrontendTestUtils.clearGlobalConfiguration();
-	}
-
 	@Test
 	public void testValidConfig() {
 		try {

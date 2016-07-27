@@ -380,13 +380,13 @@ object ScalaShellITCase {
     val repl = externalJars match {
       case Some(ej) => new FlinkILoop(
         host, port,
-        GlobalConfiguration.getConfiguration,
+        GlobalConfiguration.loadConfiguration(),
         Option(Array(ej)),
         in, new PrintWriter(out))
 
       case None => new FlinkILoop(
         host, port,
-        GlobalConfiguration.getConfiguration,
+        GlobalConfiguration.loadConfiguration(),
         in, new PrintWriter(out))
     }
 

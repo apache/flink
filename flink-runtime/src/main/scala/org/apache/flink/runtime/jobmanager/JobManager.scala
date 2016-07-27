@@ -2350,8 +2350,7 @@ object JobManager {
     }
 
     LOG.info("Loading configuration from " + configDir)
-    GlobalConfiguration.loadConfiguration(configDir)
-    val configuration = GlobalConfiguration.getConfiguration()
+    val configuration = GlobalConfiguration.loadConfiguration(configDir)
 
     try {
       FileSystem.setDefaultScheme(configuration)

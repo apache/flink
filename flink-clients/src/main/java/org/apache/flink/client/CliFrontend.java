@@ -153,9 +153,7 @@ public class CliFrontend {
 
 		// load the configuration
 		LOG.info("Trying to load configuration file");
-		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-		System.setProperty(ConfigConstants.ENV_FLINK_CONF_DIR, configDirectory.getAbsolutePath());
-		this.config = GlobalConfiguration.getConfiguration();
+		this.config = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
 		try {
 			FileSystem.setDefaultScheme(config);
