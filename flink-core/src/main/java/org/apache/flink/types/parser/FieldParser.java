@@ -222,5 +222,10 @@ public abstract class FieldParser<T> {
 		PARSERS.put(FloatValue.class, FloatValueParser.class);
 		PARSERS.put(DoubleValue.class, DoubleValueParser.class);
 		PARSERS.put(BooleanValue.class, BooleanValueParser.class);
+
+		// SQL date/time types
+		PARSERS.put(java.sql.Time.class, SqlTimeParser.class);
+		PARSERS.put(java.sql.Date.class, SqlDateParser.class);
+		PARSERS.put(java.sql.Timestamp.class, SqlTimestampParser.class);
 	}
 }

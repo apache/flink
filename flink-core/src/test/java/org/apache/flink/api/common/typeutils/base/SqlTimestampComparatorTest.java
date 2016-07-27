@@ -40,9 +40,9 @@ public class SqlTimestampComparatorTest extends ComparatorTestBase<Timestamp> {
 	protected Timestamp[] getSortedTestData() {
 		return new Timestamp[] {
 			Timestamp.valueOf("1970-01-01 00:00:00.000"),
-			Timestamp.valueOf("1990-10-14 02:42:85.123"),
-			Timestamp.valueOf("1990-10-14 02:42:85.123000001"),
-			Timestamp.valueOf("1990-10-14 02:42:85.123000002"),
+			Timestamp.valueOf("1990-10-14 02:42:25.123"),
+			Timestamp.valueOf("1990-10-14 02:42:25.123000001"),
+			Timestamp.valueOf("1990-10-14 02:42:25.123000002"),
 			Timestamp.valueOf("2013-08-12 14:15:59.478"),
 			Timestamp.valueOf("2013-08-12 14:15:59.479"),
 			Timestamp.valueOf("2040-05-12 18:00:45.999")
