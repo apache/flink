@@ -16,33 +16,48 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.typeutils.base;
+
+package org.apache.flink.types.parser;
+
 
 import java.sql.Time;
-import org.apache.flink.api.common.typeutils.ComparatorTestBase;
-import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-public class SqlTimeComparatorTest extends ComparatorTestBase<Time> {
-
-	@SuppressWarnings("unchecked")
-	@Override
-	protected TypeComparator<Time> createComparator(boolean ascending) {
-		return (TypeComparator) new DateComparator(ascending);
-	}
+public class SqlTimeParserTest extends ParserTestBase<Time> {
 
 	@Override
-	protected TypeSerializer<Time> createSerializer() {
-		return new SqlTimeSerializer();
-	}
-
-	@Override
-	protected Time[] getSortedTestData() {
-		return new Time[] {
-			Time.valueOf("00:00:00"),
-			Time.valueOf("02:42:25"),
-			Time.valueOf("14:15:59"),
-			Time.valueOf("18:00:45")
+	public String[] getValidTestValues() {
+		return new String[] {
+			"00:00:00", "02:42:25", "14:15:51", "18:00:45", "23:59:58", "0:0:0"
 		};
+	}
+
+	@Override
+	public Time[] getValidTestResults() {
+		return new Time[] {
+			Time.valueOf("00:00:00"), Time.valueOf("02:42:25"), Time.valueOf("14:15:51"),
+			Time.valueOf("18:00:45"), Time.valueOf("23:59:58"), Time.valueOf("0:0:0")
+		};
+	}
+
+	@Override
+	public String[] getInvalidTestValues() {
+		return new String[] {
+			" 00:00:00", "00:00:00 ", "00:00::00", "00x00:00", "2013/08/12", " ", "\t"
+		};
+	}
+
+	@Override
+	public boolean allowsEmptyField() {
+		return false;
+	}
+
+	@Override
+	public FieldParser<Time> getParser() {
+		return new SqlTimeParser();
+	}
+
+	@Override
+	public Class<Time> getTypeClass() {
+		return Time.class;
 	}
 }
