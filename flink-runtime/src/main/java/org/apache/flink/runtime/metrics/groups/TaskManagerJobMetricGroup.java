@@ -20,7 +20,6 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.TaskManagerJobScopeFormat;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
@@ -50,20 +49,8 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup {
 			TaskManagerMetricGroup parent,
 			JobID jobId,
 			@Nullable String jobName) {
-
-		this(registry, checkNotNull(parent), registry.getScopeFormats().getTaskManagerJobFormat(), jobId, jobName);
-	}
-
-	public TaskManagerJobMetricGroup(
-			MetricRegistry registry,
-			TaskManagerMetricGroup parent,
-			TaskManagerJobScopeFormat scopeFormat,
-			JobID jobId,
-			@Nullable String jobName) {
-
-		super(registry, jobId, jobName, scopeFormat.formatScope(parent, jobId, jobName));
-
-		this.parent = checkNotNull(parent);
+		super(registry, jobId, jobName, registry.getScopeFormats().getTaskManagerJobFormat().formatScope(checkNotNull(parent), jobId, jobName));
+		this.parent = parent;
 	}
 
 	public final TaskManagerMetricGroup parent() {

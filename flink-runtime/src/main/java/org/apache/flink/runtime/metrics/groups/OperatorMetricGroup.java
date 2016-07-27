@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.OperatorScopeFormat;
 
 import java.util.Collections;
 
@@ -34,16 +33,7 @@ public class OperatorMetricGroup extends ComponentMetricGroup {
 	private final TaskMetricGroup parent;
 
 	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, String operatorName) {
-		this(registry, parent, registry.getScopeFormats().getOperatorFormat(), operatorName);
-	}
-
-	public OperatorMetricGroup(
-			MetricRegistry registry,
-			TaskMetricGroup parent,
-			OperatorScopeFormat scopeFormat,
-			String operatorName) {
-
-		super(registry, scopeFormat.formatScope(parent, operatorName));
+		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(parent, operatorName));
 		this.parent = checkNotNull(parent);
 	}
 
