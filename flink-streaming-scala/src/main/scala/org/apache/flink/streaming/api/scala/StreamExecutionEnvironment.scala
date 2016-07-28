@@ -59,10 +59,28 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+    * Sets the maximum degree of parallelism defined for the program.
+    * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+    * defines the number of key groups used for partitioned state.
+    **/
+  def setMaxParallelism(maxParallelism: Int): Unit = {
+    javaEnv.setMaxParallelism(maxParallelism)
+  }
+
+  /**
    * Returns the default parallelism for this execution environment. Note that this
    * value can be overridden by individual operations using [[DataStream#setParallelism(int)]]
    */
   def getParallelism = javaEnv.getParallelism
+
+  /**
+    * Returns the maximum degree of parallelism defined for the program.
+    *
+    * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+    * defines the number of key groups used for partitioned state.
+    *
+    */
+  def getMaxParallelism = javaEnv.getMaxParallelism
 
   /**
    * Sets the maximum time frequency (milliseconds) for the flushing of the
