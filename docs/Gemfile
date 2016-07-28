@@ -18,6 +18,8 @@
 
 source 'https://rubygems.org'
 
+ruby '>=1.9.0'
+
 # Dependencies required to build the Flink docs
 gem 'jekyll', '2.5.3'
 gem 'kramdown', '1.10.0'
