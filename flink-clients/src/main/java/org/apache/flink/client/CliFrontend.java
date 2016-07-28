@@ -1058,8 +1058,7 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	public static String getConfigurationDirectoryFromEnv() {
-		String envLocation = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		String location = envLocation != null ? envLocation : System.getProperty(ConfigConstants.ENV_FLINK_CONF_DIR);
+		String location = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 
 		if (location != null) {
 			if (new File(location).exists()) {
