@@ -225,7 +225,7 @@ public class CoGroupedStreams<T1, T2> {
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
 		 */
-		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function) {
+		public <T> SingleOutputStreamOperator<T> apply(CoGroupFunction<T1, T2, T> function) {
 
 			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
 					function,
@@ -244,7 +244,7 @@ public class CoGroupedStreams<T1, T2> {
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
 		 */
-		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+		public <T> SingleOutputStreamOperator<T> apply(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
 			function = input1.getExecutionEnvironment().clean(function);
 
@@ -253,9 +253,11 @@ public class CoGroupedStreams<T1, T2> {
 			
 			DataStream<TaggedUnion<T1, T2>> taggedInput1 = input1
 					.map(new Input1Tagger<T1, T2>())
+					.setParallelism(input1.getParallelism())
 					.returns(unionType);
 			DataStream<TaggedUnion<T1, T2>> taggedInput2 = input2
 					.map(new Input2Tagger<T1, T2>())
+					.setParallelism(input2.getParallelism())
 					.returns(unionType);
 
 			DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);

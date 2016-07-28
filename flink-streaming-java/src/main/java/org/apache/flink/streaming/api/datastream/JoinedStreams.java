@@ -220,7 +220,7 @@ public class JoinedStreams<T1, T2> {
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
 		 */
-		public <T> DataStream<T> apply(JoinFunction<T1, T2, T> function) {
+		public <T> SingleOutputStreamOperator<T> apply(JoinFunction<T1, T2, T> function) {
 			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
 					function,
 					JoinFunction.class,
@@ -238,7 +238,7 @@ public class JoinedStreams<T1, T2> {
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
 		 */
-		public <T> DataStream<T> apply(FlatJoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+		public <T> SingleOutputStreamOperator<T> apply(FlatJoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
 			function = input1.getExecutionEnvironment().clean(function);
 
@@ -256,7 +256,7 @@ public class JoinedStreams<T1, T2> {
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
 		 */
-		public <T> DataStream<T> apply(FlatJoinFunction<T1, T2, T> function) {
+		public <T> SingleOutputStreamOperator<T> apply(FlatJoinFunction<T1, T2, T> function) {
 			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
 					function,
 					JoinFunction.class,
@@ -274,7 +274,7 @@ public class JoinedStreams<T1, T2> {
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
 		 */
-		public <T> DataStream<T> apply(JoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+		public <T> SingleOutputStreamOperator<T> apply(JoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
 			function = input1.getExecutionEnvironment().clean(function);
 
