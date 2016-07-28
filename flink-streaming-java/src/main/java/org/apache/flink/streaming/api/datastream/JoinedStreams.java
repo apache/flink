@@ -237,6 +237,22 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
+		 *
+		 * <p>
+		 *     Note: This is a temporary workaround while the {@link #apply(JoinFunction)} method has the wrong return type.
+		 * </p>
+		 * @deprecated This method will be replaced by {@link #apply(JoinFunction)} in Flink 2.0.
+		 * So use the {@link #apply(JoinFunction)} in the future.
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(JoinFunction<T1, T2, T> function) {
+			return (SingleOutputStreamOperator<T>) apply(function);
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
 		 */
 		public <T> DataStream<T> apply(FlatJoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
@@ -250,6 +266,23 @@ public class JoinedStreams<T1, T2> {
 					.evictor(evictor)
 					.apply(new FlatJoinCoGroupFunction<>(function), resultType);
 
+		}
+
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
+		 *
+		 * <p>
+		 *     Note: This is a temporary workaround while the {@link #apply(FlatJoinFunction, TypeInformation)} method has the wrong return type.
+		 * </p>
+		 * @deprecated This method will be replaced by {@link #apply(FlatJoinFunction, TypeInformation)} in Flink 2.0.
+		 * So use the {@link #apply(FlatJoinFunction, TypeInformation)} in the future.
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(FlatJoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+			return (SingleOutputStreamOperator<T>) apply(function, resultType);
 		}
 
 		/**
@@ -273,6 +306,22 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
+		 *
+		 * <p>
+		 *     Note: This is a temporary workaround while the {@link #apply(FlatJoinFunction)} method has the wrong return type.
+		 * </p>
+		 * @deprecated This method will be replaced by {@link #apply(FlatJoinFunction)} in Flink 2.0.
+		 * So use the {@link #apply(FlatJoinFunction)} in the future.
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(FlatJoinFunction<T1, T2, T> function) {
+			return (SingleOutputStreamOperator<T>) apply(function);
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
 		 */
 		public <T> DataStream<T> apply(JoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
@@ -286,6 +335,22 @@ public class JoinedStreams<T1, T2> {
 					.evictor(evictor)
 					.apply(new JoinCoGroupFunction<>(function), resultType);
 
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
+		 *
+		 * <p>
+		 *     Note: This is a temporary workaround while the {@link #apply(JoinFunction, TypeInformation)} method has the wrong return type.
+		 * </p>
+		 * @deprecated This method will be replaced by {@link #apply(JoinFunction, TypeInformation)} in Flink 2.0.
+		 * So use the {@link #apply(JoinFunction, TypeInformation)} in the future.
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(JoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+			return (SingleOutputStreamOperator<T>) apply(function, resultType);
 		}
 	}
 	
