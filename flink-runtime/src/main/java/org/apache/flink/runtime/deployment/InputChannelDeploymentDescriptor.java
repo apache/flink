@@ -48,6 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class InputChannelDeploymentDescriptor implements Serializable {
 
+	private static final long serialVersionUID = 373711381640454080L;
 	private static Logger LOG = LoggerFactory.getLogger(InputChannelDeploymentDescriptor.class);
 
 	/** The ID of the partition the input channel is going to consume. */

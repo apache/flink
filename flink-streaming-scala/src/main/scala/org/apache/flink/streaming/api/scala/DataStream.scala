@@ -133,6 +133,17 @@ class DataStream[T](stream: JavaStream[T]) {
     this
   }
 
+  def setMaxParallelism(maxParallelism: Int): DataStream[T] = {
+    stream match {
+      case ds: SingleOutputStreamOperator[T] => ds.setMaxParallelism(maxParallelism)
+      case _ =>
+        throw new UnsupportedOperationException("Operator " + stream + " cannot set the maximum" +
+                                                  "paralllelism")
+    }
+
+    this
+  }
+
   /**
    * Gets the name of the current data stream. This name is
    * used by the visualization and logging during runtime.
