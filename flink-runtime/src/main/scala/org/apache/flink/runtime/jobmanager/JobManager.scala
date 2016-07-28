@@ -1245,7 +1245,6 @@ class JobManager(
             snapshotSettings.getCheckpointTimeout,
             snapshotSettings.getMinPauseBetweenCheckpoints,
             snapshotSettings.getMaxConcurrentCheckpoints,
-            parallelism,
             triggerVertices,
             ackVertices,
             confirmVertices,

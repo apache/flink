@@ -881,7 +881,6 @@ public class SavepointCoordinatorTest extends TestLogger {
 				jobId,
 				checkpointTimeout,
 				checkpointTimeout,
-				42,
 				triggerVertices,
 				ackVertices,
 				commitVertices,

@@ -89,7 +89,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			JobID jobId,
 			long baseInterval,
 			long checkpointTimeout,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -103,7 +102,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				checkpointTimeout,
 				0L,
 				Integer.MAX_VALUE,
-				numberKeyGroups,
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
@@ -219,7 +217,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 					}
 
 					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(
-							numberKeyGroups,
+							executionJobVertex.getMaxParallelism(),
 							executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getTaskVertices().length; i++) {

@@ -151,15 +151,12 @@ public class CheckpointCoordinator {
 	/** Helper for tracking checkpoint statistics  */
 	private final CheckpointStatsTracker statsTracker;
 
-	protected final int numberKeyGroups;
-
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
 			JobID job,
 			long baseInterval,
 			long checkpointTimeout,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -168,7 +165,7 @@ public class CheckpointCoordinator {
 			CompletedCheckpointStore completedCheckpointStore,
 			RecoveryMode recoveryMode) throws Exception {
 
-		this(job, baseInterval, checkpointTimeout, 0L, Integer.MAX_VALUE, numberKeyGroups,
+		this(job, baseInterval, checkpointTimeout, 0L, Integer.MAX_VALUE,
 				tasksToTrigger, tasksToWaitFor, tasksToCommitTo,
 				userClassLoader, checkpointIDCounter, completedCheckpointStore, recoveryMode,
 				new DisabledCheckpointStatsTracker());
@@ -180,7 +177,6 @@ public class CheckpointCoordinator {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpointAttempts,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -248,7 +244,6 @@ public class CheckpointCoordinator {
 			this.shutdownHook = null;
 		}
 
-		this.numberKeyGroups = numberKeyGroups;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -844,7 +839,7 @@ public class CheckpointCoordinator {
 
 					int counter = 0;
 
-					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(numberKeyGroups, executionJobVertex.getParallelism());
+					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(executionJobVertex.getMaxParallelism(), executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
 						SubtaskState subtaskState = taskState.getState(i);
