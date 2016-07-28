@@ -253,6 +253,8 @@ public class AllWindowTranslationTest {
 
 		try {
 			windowedStream.fold("", new FoldFunction<String, String>() {
+				private static final long serialVersionUID = -8722899157560218917L;
+
 				@Override
 				public String fold(String accumulator, String value) throws Exception {
 					return accumulator;
@@ -278,6 +280,8 @@ public class AllWindowTranslationTest {
 
 		try {
 			windowedStream.trigger(new Trigger<String, TimeWindow>() {
+				private static final long serialVersionUID = 8360971631424870421L;
+
 				@Override
 				public TriggerResult onElement(String element,
 						long timestamp,

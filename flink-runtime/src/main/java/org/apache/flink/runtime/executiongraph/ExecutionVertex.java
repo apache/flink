@@ -187,6 +187,10 @@ public class ExecutionVertex {
 		return this.subTaskIndex;
 	}
 
+	public int getMaxParallelism() {
+		return this.jobVertex.getMaxParallelism();
+	}
+
 	public int getNumberOfInputs() {
 		return this.inputEdges.length;
 	}

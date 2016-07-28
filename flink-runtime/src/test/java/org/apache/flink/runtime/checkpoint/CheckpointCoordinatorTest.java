@@ -86,7 +86,6 @@ public class CheckpointCoordinatorTest {
 					600000,
 					600000,
 					0, Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] {},
@@ -140,7 +139,6 @@ public class CheckpointCoordinatorTest {
 					600000,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] {},
@@ -192,7 +190,6 @@ public class CheckpointCoordinatorTest {
 					600000,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] {},
@@ -245,7 +242,6 @@ public class CheckpointCoordinatorTest {
 					600000,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
@@ -371,7 +367,6 @@ public class CheckpointCoordinatorTest {
 					600000,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
@@ -493,7 +488,6 @@ public class CheckpointCoordinatorTest {
 					600000,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
@@ -645,7 +639,6 @@ public class CheckpointCoordinatorTest {
 					600000,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
 					new ExecutionVertex[] { commitVertex },
@@ -782,7 +775,6 @@ public class CheckpointCoordinatorTest {
 					600000,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
 					new ExecutionVertex[] { commitVertex },
@@ -905,7 +897,6 @@ public class CheckpointCoordinatorTest {
 					200,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] { commitVertex },
@@ -975,7 +966,6 @@ public class CheckpointCoordinatorTest {
 					200000,
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] { commitVertex },
@@ -1056,7 +1046,6 @@ public class CheckpointCoordinatorTest {
 					200000,    // timeout is very long (200 s)
 					0,
 					Integer.MAX_VALUE,
-					42,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex },
 					new ExecutionVertex[] { commitVertex },
@@ -1149,7 +1138,6 @@ public class CheckpointCoordinatorTest {
 					200000,    // timeout is very long (200 s)
 					500,    // 500ms delay between checkpoints
 					10,
-					42,
 					new ExecutionVertex[] { vertex1 },
 					new ExecutionVertex[] { vertex1 },
 					new ExecutionVertex[] { vertex1 },
@@ -1235,7 +1223,6 @@ public class CheckpointCoordinatorTest {
 				600000,
 				0,
 				Integer.MAX_VALUE,
-				42,
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
@@ -1374,7 +1361,6 @@ public class CheckpointCoordinatorTest {
 				600000,
 				0,
 				Integer.MAX_VALUE,
-				42,
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
@@ -1462,7 +1448,6 @@ public class CheckpointCoordinatorTest {
 					200000,    // timeout is very long (200 s)
 					0L,        // no extra delay
 					maxConcurrentAttempts,
-					42,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex },
 					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
@@ -1534,7 +1519,6 @@ public class CheckpointCoordinatorTest {
 					200000,    // timeout is very long (200 s)
 					0L,        // no extra delay
 					maxConcurrentAttempts, // max two concurrent checkpoints
-					42,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex },
 					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
@@ -1615,7 +1599,6 @@ public class CheckpointCoordinatorTest {
 					200000,    // timeout is very long (200 s)
 					0L,        // no extra delay
 					2, // max two concurrent checkpoints
-					42,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex },
 					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter(),

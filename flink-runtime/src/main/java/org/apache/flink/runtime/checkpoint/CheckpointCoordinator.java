@@ -155,8 +155,6 @@ public class CheckpointCoordinator {
 	/** Helper for tracking checkpoint statistics  */
 	private final CheckpointStatsTracker statsTracker;
 
-	private final int numberKeyGroups;
-
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -165,7 +163,6 @@ public class CheckpointCoordinator {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpointAttempts,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -202,7 +199,6 @@ public class CheckpointCoordinator {
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.userClassLoader = checkNotNull(userClassLoader);
 		this.statsTracker = checkNotNull(statsTracker);
-		this.numberKeyGroups = numberKeyGroups;
 
 		this.timer = new Timer("Checkpoint Timer", true);
 
@@ -797,7 +793,7 @@ public class CheckpointCoordinator {
 
 					int counter = 0;
 
-					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(numberKeyGroups, executionJobVertex.getParallelism());
+					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(executionJobVertex.getMaxParallelism(), executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
 						SubtaskState subtaskState = taskState.getState(i);

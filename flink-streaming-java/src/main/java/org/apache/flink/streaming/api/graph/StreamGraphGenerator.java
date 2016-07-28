@@ -144,6 +144,31 @@ public class StreamGraphGenerator {
 
 		LOG.debug("Transforming " + transform);
 
+		if (transform.getMaxParallelism() <= 0) {
+			// if the max parallelism hasn't been set, then first use the job wide max parallelism
+			// from theExecutionConfig. If this value has not been specified either, then use the
+			// parallelism of the operator.
+			int maxParallelism = env.getConfig().getMaxParallelism();
+
+			if (maxParallelism <= 0) {
+				maxParallelism = transform.getParallelism();
+
+				/**
+				 * TODO: Remove once the parallelism settings works properly in Flink (FLINK-3885)
+				 * Currently, the parallelism will be set to 1 on the JobManager iff it encounters
+				 * a negative parallelism value. We need to know this for the
+				 * KeyGroupStreamPartitioner on the client-side. Thus, we already set the value to
+				 * 1 here.
+				 */
+				if (maxParallelism <= 0) {
+					transform.setParallelism(1);
+					maxParallelism = 1;
+				}
+			}
+
+			transform.setMaxParallelism(maxParallelism);
+		}
+
 		// call at least once to trigger exceptions about MissingTypeInfo
 		transform.getOutputType();
 
@@ -309,11 +334,12 @@ public class StreamGraphGenerator {
 
 		// create the fake iteration source/sink pair
 		Tuple2<StreamNode, StreamNode> itSourceAndSink = streamGraph.createIterationSourceAndSink(
-				iterate.getId(),
-				getNewIterationNodeId(),
-				getNewIterationNodeId(),
-				iterate.getWaitTime(),
-				iterate.getParallelism());
+			iterate.getId(),
+			getNewIterationNodeId(),
+			getNewIterationNodeId(),
+			iterate.getWaitTime(),
+			iterate.getParallelism(),
+			iterate.getMaxParallelism());
 
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;
@@ -377,7 +403,8 @@ public class StreamGraphGenerator {
 				getNewIterationNodeId(),
 				getNewIterationNodeId(),
 				coIterate.getWaitTime(),
-				coIterate.getParallelism());
+				coIterate.getParallelism(),
+				coIterate.getMaxParallelism());
 
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;
@@ -430,6 +457,7 @@ public class StreamGraphGenerator {
 			streamGraph.setInputFormat(source.getId(), fs.getFormat());
 		}
 		streamGraph.setParallelism(source.getId(), source.getParallelism());
+		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
 		return Collections.singleton(source.getId());
 	}
 
@@ -450,6 +478,7 @@ public class StreamGraphGenerator {
 				"Sink: " + sink.getName());
 
 		streamGraph.setParallelism(sink.getId(), sink.getParallelism());
+		streamGraph.setMaxParallelism(sink.getId(), sink.getMaxParallelism());
 
 		for (Integer inputId: inputIds) {
 			streamGraph.addEdge(inputId,
@@ -498,6 +527,7 @@ public class StreamGraphGenerator {
 		}
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
+		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
 		for (Integer inputId: inputIds) {
 			streamGraph.addEdge(inputId, transform.getId(), 0);
@@ -545,6 +575,7 @@ public class StreamGraphGenerator {
 
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
+		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
 		for (Integer inputId: inputIds1) {
 			streamGraph.addEdge(inputId,

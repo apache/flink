@@ -94,6 +94,8 @@ public class RescalePartitionerTest extends TestLogger {
 
 		// get input data
 		DataStream<String> text = env.addSource(new ParallelSourceFunction<String>() {
+			private static final long serialVersionUID = 7772338606389180774L;
+
 			@Override
 			public void run(SourceContext<String> ctx) throws Exception {
 
@@ -108,6 +110,8 @@ public class RescalePartitionerTest extends TestLogger {
 		DataStream<Tuple2<String, Integer>> counts = text
 			.rescale()
 			.flatMap(new FlatMapFunction<String, Tuple2<String, Integer>>() {
+				private static final long serialVersionUID = -5255930322161596829L;
+
 				@Override
 				public void flatMap(String value,
 					Collector<Tuple2<String, Integer>> out) throws Exception {
