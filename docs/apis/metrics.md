@@ -420,7 +420,7 @@ Flink exposes the following system metrics:
     </tr>
     <tr>
       <tr>
-        <th rowspan="5"><strong>Task</strong></t>
+        <th rowspan="7"><strong>Task</strong></t>
         <td>currentLowWatermark</td>
         <td>The lowest watermark a task has received.</td>
       </tr>
