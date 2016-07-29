@@ -110,7 +110,7 @@ public class TaskManagerConfigurationTest {
 	@Test
 	public void testDefaultFsParameterLoading() {
 		final File tmpDir = getTmpDir();
-		final File confFile =  new File(tmpDir, UUID.randomUUID().toString() + ".yaml");
+		final File confFile =  new File(tmpDir, "flink-conf.yaml");
 
 		try {
 			final URI defaultFS = new URI("otherFS", null, "localhost", 1234, null, null, null);
@@ -119,9 +119,7 @@ public class TaskManagerConfigurationTest {
 			pw1.println("fs.default-scheme: "+ defaultFS);
 			pw1.close();
 
-			String filepath = confFile.getAbsolutePath();
-
-			String[] args = new String[]{"--configDir:"+filepath};
+			String[] args = new String[]{"--configDir:" + tmpDir};
 			TaskManager.parseArgsAndLoadConfig(args);
 
 			Field f = FileSystem.class.getDeclaredField("defaultScheme");
