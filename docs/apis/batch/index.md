@@ -56,7 +56,7 @@ Example Program
 
 The following program is a complete, working example of WordCount. You can copy &amp; paste the code
 to run it locally. You only have to include the correct Flink's library into your project
-(see Section [Linking with Flink](#linking-with-flink)) and specify the imports. Then you are ready
+(see Section [Linking with Flink]({{ site.baseurl }}/apis/common/index.html#linking-with-flink)) and specify the imports. Then you are ready
 to go!
 
 <div class="codetabs" markdown="1">
@@ -787,7 +787,7 @@ is not supported by the API out-of-the-box. To use this feature, you should use 
 </div>
 </div>
 
-The [parallelism](#parallel-execution) of a transformation can be defined by `setParallelism(int)` while
+The [parallelism]({{ site.baseurl }}/apis/common/index.html#parallel-execution) of a transformation can be defined by `setParallelism(int)` while
 `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is
 possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
 
@@ -1208,7 +1208,7 @@ myResult.output(
 
 #### Locally Sorted Output
 
-The output of a data sink can be locally sorted on specified fields in specified orders using [tuple field positions](#define-keys-for-tuples) or [field expressions](#define-keys-using-field-expressions). This works for every output format.
+The output of a data sink can be locally sorted on specified fields in specified orders using [tuple field positions]({{ site.baseurl }}/apis/common/index.html#define-keys-for-tuples) or [field expressions]({{ site.baseurl }}/apis/common/index.html#define-keys-using-field-expressions). This works for every output format.
 
 The following examples show how to use this feature:
 
@@ -1291,7 +1291,7 @@ values map { tuple => tuple._1 + " - " + tuple._2 }
 
 #### Locally Sorted Output
 
-The output of a data sink can be locally sorted on specified fields in specified orders using [tuple field positions](#define-keys-for-tuples) or [field expressions](#define-keys-using-field-expressions). This works for every output format.
+The output of a data sink can be locally sorted on specified fields in specified orders using [tuple field positions]({{ site.baseurl }}/apis/common/index.html#define-keys-for-tuples) or [field expressions]({{ site.baseurl }}/apis/common/index.html#define-keys-using-field-expressions). This works for every output format.
 
 The following examples show how to use this feature:
 
@@ -1780,7 +1780,7 @@ This information is used by the optimizer to infer whether a data property such 
 partitioning is preserved by a function.
 For functions that operate on groups of input elements such as `GroupReduce`, `GroupCombine`, `CoGroup`, and `MapPartition`, all fields that are defined as forwarded fields must always be jointly forwarded from the same input element. The forwarded fields of each element that is emitted by a group-wise function may originate from a different element of the function's input group.
 
-Field forward information is specified using [field expressions](#define-keys-using-field-expressions).
+Field forward information is specified using [field expressions]({{ site.baseurl }}/apis/common/index.html#define-keys-using-field-expressions).
 Fields that are forwarded to the same position in the output can be specified by their position.
 The specified position must be valid for the input and output data type and have the same type.
 For example the String `"f2"` declares that the third field of a Java input tuple is always equal to the third field in the output tuple.
@@ -1849,7 +1849,7 @@ Non-forwarded field information for group-wise operators such as `GroupReduce`, 
 **IMPORTANT**: The specification of non-forwarded fields information is optional. However if used,
 **ALL!** non-forwarded fields must be specified, because all other fields are considered to be forwarded in place. It is safe to declare a forwarded field as non-forwarded.
 
-Non-forwarded fields are specified as a list of [field expressions](#define-keys-using-field-expressions). The list can be either given as a single String with field expressions separated by semicolons or as multiple Strings.
+Non-forwarded fields are specified as a list of [field expressions]({{ site.baseurl }}/apis/common/index.html#define-keys-using-field-expressions). The list can be either given as a single String with field expressions separated by semicolons or as multiple Strings.
 For example both `"f1; f3"` and `"f1", "f3"` declare that the second and fourth field of a Java tuple
 are not preserved in place and all other fields are preserved in place.
 Non-forwarded field information can only be specified for functions which have identical input and output types.
@@ -1900,7 +1900,7 @@ Fields which are only unmodified forwarded to the output without evaluating thei
 **IMPORTANT**: The specification of read fields information is optional. However if used,
 **ALL!** read fields must be specified. It is safe to declare a non-read field as read.
 
-Read fields are specified as a list of [field expressions](#define-keys-using-field-expressions). The list can be either given as a single String with field expressions separated by semicolons or as multiple Strings.
+Read fields are specified as a list of [field expressions]({{ site.baseurl }}/apis/common/index.html#define-keys-using-field-expressions). The list can be either given as a single String with field expressions separated by semicolons or as multiple Strings.
 For example both `"f1; f3"` and `"f1", "f3"` declare that the second and fourth field of a Java tuple are read and evaluated by the function.
 
 Read field information is specified as function class annotations using the following annotations:
