@@ -684,7 +684,7 @@ public class CheckpointCoordinator {
 					message.getStateSize(),
 					null)) { // TODO: Give KV-state to the acknowledgeTask method
 					if (checkpoint.isFullyAcknowledged()) {
-						completed = checkpoint.toCompletedCheckpoint();
+						completed = checkpoint.finalizeCheckpoint();
 
 						completedCheckpointStore.addCheckpoint(completed);
 

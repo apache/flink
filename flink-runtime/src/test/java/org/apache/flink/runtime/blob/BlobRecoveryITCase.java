@@ -139,6 +139,12 @@ public class BlobRecoveryITCase {
 					assertEquals(expected[i], actual[j]);
 				}
 			}
+
+			// Remove again
+			client.delete(keys[0]);
+			client.delete(keys[1]);
+			client.delete(jobId[0], testKey[0]);
+			client.delete(jobId[1], testKey[1]);
 		}
 		finally {
 			for (BlobServer s : server) {

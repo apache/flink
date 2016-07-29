@@ -98,15 +98,15 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	// --------------------------------------------------------------------------------------------
 	//  Constructors and getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected GenericCsvInputFormat() {
 		super();
 	}
-	
+
 	protected GenericCsvInputFormat(Path filePath) {
-		super(filePath);
+		super(filePath, null);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	public int getNumberOfFieldsTotal() {

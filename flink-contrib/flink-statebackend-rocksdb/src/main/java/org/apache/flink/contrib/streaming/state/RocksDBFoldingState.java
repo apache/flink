@@ -93,7 +93,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			byte[] key = baos.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
-				return stateDesc.getDefaultValue();
+				return null;
 			}
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 		} catch (IOException|RocksDBException e) {

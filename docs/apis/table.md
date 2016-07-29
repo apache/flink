@@ -252,6 +252,89 @@ tableEnvironment.registerTableSource("kafka-source", kafkaTableSource);
 Table result = tableEnvironment.ingest("kafka-source");
 ```
 
+#### CsvTableSource
+
+The `CsvTableSource` is already included in `flink-table` without additional dependecies.
+
+It can be configured with the following properties:
+
+ - `path` The path to the CSV file, required.
+ - `fieldNames` The names of the table fields, required.
+ - `fieldTypes` The types of the table fields, required.
+ - `fieldDelim` The field delimiter, `","` by default.
+ - `rowDelim` The row delimiter, `"\n"` by default.
+ - `quoteCharacter` An optional quote character for String values, `null` by default.
+ - `ignoreFirstLine` Flag to ignore the first line, `false` by default.
+ - `ignoreComments` An optional prefix to indicate comments, `null` by default.
+ - `lenient` Flag to skip records with parse error instead to fail, `false` by default.
+
+You can create the source as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+CsvTableSource csvTableSource = new CsvTableSource(
+    "/path/to/your/file.csv",
+    new String[] { "name", "id", "score", "comments" },
+    new TypeInformation<?>[] {
+      Types.STRING(),
+      Types.INT(),
+      Types.DOUBLE(),
+      Types.STRING()
+    },
+    "#",    // fieldDelim
+    "$",    // rowDelim
+    null,   // quoteCharacter
+    true,   // ignoreFirstLine
+    "%",    // ignoreComments
+    false); // lenient
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val csvTableSource = new CsvTableSource(
+    "/path/to/your/file.csv",
+    Array("name", "id", "score", "comments"),
+    Array(
+      Types.STRING,
+      Types.INT,
+      Types.DOUBLE,
+      Types.STRING
+    ),
+    fieldDelim = "#",
+    rowDelim = "$",
+    ignoreFirstLine = true,
+    ignoreComments = "%")
+{% endhighlight %}
+</div>
+</div>
+
+You can work with the Table as explained in the rest of the Table API guide in both stream and batch `TableEnvironment`s:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+tableEnvironment.registerTableSource("mycsv", csvTableSource);
+
+Table streamTable = streamTableEnvironment.ingest("mycsv");
+
+Table batchTable = batchTableEnvironment.scan("mycsv");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+tableEnvironment.registerTableSource("mycsv", csvTableSource)
+
+val streamTable = streamTableEnvironment.ingest("mycsv")
+
+val batchTable = batchTableEnvironment.scan("mycsv")
+{% endhighlight %}
+</div>
+</div>
+
+
 Table API
 ----------
 The Table API provides methods to apply relational operations on DataSets and Datastreams both in Scala and Java.
@@ -404,8 +487,6 @@ This section gives a brief overview of the available operators. You can find mor
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-<br/>
-
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -515,7 +596,7 @@ Table result = left.fullOuterJoin(right, "a = d").select("a, b, e");
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed. Both tables must have identical schema, i.e., field names and types.</p>
+        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -527,7 +608,7 @@ Table result = left.union(right);
     <tr>
       <td><strong>UnionAll</strong></td>
       <td>
-        <p>Similar to a SQL UNION ALL clause. Unions two tables. Both tables must have identical schema, i.e., field names and types.</p>
+        <p>Similar to a SQL UNION ALL clause. Unions two tables. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -611,7 +692,6 @@ Table result = in.orderBy("a.asc");
 
 </div>
 <div data-lang="scala" markdown="1">
-<br />
 
 <table class="table table-bordered">
   <thead>
@@ -722,7 +802,7 @@ val result = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed, both tables must have identical schema(field names and types).</p>
+        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed, both tables must have identical field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
@@ -734,7 +814,7 @@ val result = left.union(right);
     <tr>
       <td><strong>UnionAll</strong></td>
       <td>
-        <p>Similar to a SQL UNION ALL clause. Unions two tables, both tables must have identical schema(field names and types).</p>
+        <p>Similar to a SQL UNION ALL clause. Unions two tables, both tables must have identical field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c);

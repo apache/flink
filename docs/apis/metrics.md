@@ -227,21 +227,36 @@ or by assigning unique names to jobs and operators.
 
 ## Reporter
 
-Metrics can be exposed to an external system by configuring a reporter in `conf/flink-conf.yaml`.
+Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`.
 
-- `metrics.reporter.class`: The class of the reporter to use.
-  - Example: org.apache.flink.metrics.reporter.JMXReporter
-- `metrics.reporter.arguments`: A list of named parameters that are passed to the reporter.
-  - Example: --host localhost --port 9010
-- `metrics.reporter.interval`: The interval between reports.
-  - Example: 10 SECONDS
+- `metrics.reporters`: The list of named reporters.
+- `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
+- `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
+- `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
+
+All reporters must at least have the `class` property, some allow specifying a reporting `interval`. Below,
+we will list more settings specific to each reporter.
+
+Example reporter configuration that specifies multiple reporters:
+
+```
+metrics.reporters: my_jmx_reporter,my_other_reporter
+
+metrics.reporter.my_jmx_reporter.class: org.apache.flink.metrics.jmx.JMXReporter
+metrics.reporter.my_jmx_reporter.port: 9020-9040
+
+metrics.reporter.my_other_reporter.class: org.apache.flink.metrics.graphite.GraphiteReporter
+metrics.reporter.my_other_reporter.host: 192.168.1.1
+metrics.reporter.my_other_reporter.port: 10000
+
+```
 
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 
 The following sections list the supported reporters.
 
-### JMX (org.apache.flink.metrics.reporter.JMXReporter)
+### JMX (org.apache.flink.metrics.jmx.JMXReporter)
 
 You don't have to include an additional dependency since the JMX reporter is available by default
 but not activated.

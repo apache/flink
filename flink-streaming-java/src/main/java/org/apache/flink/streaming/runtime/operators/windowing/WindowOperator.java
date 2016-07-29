@@ -334,12 +334,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 				// drop if the window is already late
 				if (isLate(actualWindow)) {
-					LOG.info("Dropped element " + element+ " for window " + actualWindow + " due to lateness.");
 					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
 
 				W stateWindow = mergingWindows.getStateWindow(actualWindow);
+				if (stateWindow == null) {
+					throw new IllegalStateException("Window " + window + " is not in in-flight window set.");
+				}
+
 				AppendingState<IN, ACC> windowState = getPartitionedState(
 					stateWindow, windowSerializer, windowStateDescriptor);
 				windowState.add(element.getValue());
@@ -351,7 +354,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				// on the (possibly merged) window
 				TriggerResult triggerResult = context.onElement(element);
 				TriggerResult combinedTriggerResult = TriggerResult.merge(triggerResult, mergeTriggerResult.f0);
-				fireOrContinue(combinedTriggerResult, actualWindow, windowState);
+
+				if (combinedTriggerResult.isFire()) {
+					ACC contents = windowState.get();
+					if (contents == null) {
+						continue;
+					}
+					fire(actualWindow, contents);
+				}
 
 				if (combinedTriggerResult.isPurge()) {
 					cleanup(actualWindow, windowState, mergingWindows);
@@ -364,7 +374,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 				// drop if the window is already late
 				if (isLate(window)) {
-					LOG.info("Dropped element " + element + " for window " + window + " due to lateness.");
 					continue;
 				}
 
@@ -376,7 +385,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				context.window = window;
 
 				TriggerResult triggerResult = context.onElement(element);
-				fireOrContinue(triggerResult, window, windowState);
+
+				if (triggerResult.isFire()) {
+					ACC contents = windowState.get();
+					if (contents == null) {
+						continue;
+					}
+					fire(window, contents);
+				}
 
 				if (triggerResult.isPurge()) {
 					cleanup(window, windowState, null);
@@ -408,16 +424,30 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				if (windowAssigner instanceof MergingWindowAssigner) {
 					mergingWindows = getMergingWindowSet();
 					W stateWindow = mergingWindows.getStateWindow(context.window);
+					if (stateWindow == null) {
+						// then the window is already purged and this is a cleanup
+						// timer set due to allowed lateness that has nothing to clean,
+						// so it is safe to just ignore
+						continue;
+					}
 					windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
 				} else {
 					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
 				}
 
-				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
-				fireOrContinue(triggerResult, context.window, windowState);
+				ACC contents = windowState.get();
+				if (contents == null) {
+					// if we have no state, there is nothing to do
+					continue;
+				}
 
-				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(timer.window, timer.timestamp))) {
-					cleanup(timer.window, windowState, mergingWindows);
+				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
+				if (triggerResult.isFire()) {
+					fire(context.window, contents);
+				}
+
+				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp))) {
+					cleanup(context.window, windowState, mergingWindows);
 				}
 
 			} else {
@@ -456,16 +486,30 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				if (windowAssigner instanceof MergingWindowAssigner) {
 					mergingWindows = getMergingWindowSet();
 					W stateWindow = mergingWindows.getStateWindow(context.window);
+					if (stateWindow == null) {
+						// then the window is already purged and this is a cleanup
+						// timer set due to allowed lateness that has nothing to clean,
+						// so it is safe to just ignore
+						continue;
+					}
 					windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
 				} else {
 					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
 				}
 
-				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
-				fireOrContinue(triggerResult, context.window, windowState);
+				ACC contents = windowState.get();
+				if (contents == null) {
+					// if we have no state, there is nothing to do
+					continue;
+				}
 
-				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(timer.window, timer.timestamp))) {
-					cleanup(timer.window, windowState, mergingWindows);
+				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
+				if (triggerResult.isFire()) {
+					fire(context.window, contents);
+				}
+
+				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp))) {
+					cleanup(context.window, windowState, mergingWindows);
 				}
 
 			} else {
@@ -487,7 +531,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			mergingWindows.retireWindow(window);
 		}
 		context.clear();
-		deleteCleanupTimer(window);
 	}
 
 	/**
@@ -495,15 +538,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * The caller must ensure that the correct key is set in the state backend and the context object.
 	 */
 	@SuppressWarnings("unchecked")
-	private void fireOrContinue(TriggerResult triggerResult,
-								W window,
-								AppendingState<IN, ACC> windowState) throws Exception {
-		if (!triggerResult.isFire()) {
-			return;
-		}
-
+	private void fire(W window, ACC contents) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
-		ACC contents = windowState.get();
 		userFunction.apply(context.key, context.window, contents, timestampedCollector);
 	}
 

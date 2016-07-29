@@ -34,9 +34,11 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-metrics-core</module>
 		<module>flink-metrics-dropwizard</module>
 		<module>flink-metrics-ganglia</module>
 		<module>flink-metrics-graphite</module>
+		<module>flink-metrics-jmx</module>
 		<module>flink-metrics-statsd</module>
 	</modules>
 </project>

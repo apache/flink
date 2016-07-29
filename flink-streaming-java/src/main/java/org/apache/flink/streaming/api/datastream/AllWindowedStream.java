@@ -89,7 +89,7 @@ public class AllWindowedStream<T, W extends Window> {
 	private Evictor<? super T, ? super W> evictor;
 
 	/** The user-specified allowed lateness. */
-	private long allowedLateness = Long.MAX_VALUE;
+	private long allowedLateness = 0L;
 
 	@PublicEvolving
 	public AllWindowedStream(DataStream<T> input,
@@ -113,11 +113,11 @@ public class AllWindowedStream<T, W extends Window> {
 	}
 
 	/**
-	 * Sets the allowed lateness to a user-specified value.
-	 * If not explicitly set, the allowed lateness is {@link Long#MAX_VALUE}.
-	 * Setting the allowed lateness is only valid for event-time windows.
-	 * If a value different than 0 is provided with a processing-time
-	 * {@link WindowAssigner}, then an exception is thrown.
+	 * Sets the time by which elements are allowed to be late. Elements that
+	 * arrive behind the watermark by more than the specified time will be dropped.
+	 * By default, the allowed lateness is {@code 0L}.
+	 *
+	 * <p>Setting an allowed lateness is only valid for event-time windows.
 	 */
 	@PublicEvolving
 	public AllWindowedStream<T, W> allowedLateness(Time lateness) {

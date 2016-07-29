@@ -150,7 +150,7 @@ Default value is 1.
 - `restart-strategy.fixed-delay.delay`: Delay between restart attempts, used if the default restart strategy is set to "fixed-delay".
 Default value is the `akka.ask.timeout`.
 
-- `restart-strategy.failure-rate.max-failures-per-interval`: Maximum number of restarts in given time interval before failing a job in "failure-rate" strategy. 
+- `restart-strategy.failure-rate.max-failures-per-interval`: Maximum number of restarts in given time interval before failing a job in "failure-rate" strategy.
 Default value is 1.
 
 - `restart-strategy.failure-rate.failure-rate-interval`: Time interval for measuring failure rate in "failure-rate" strategy.
@@ -288,7 +288,7 @@ of the JobManager, because the same ActorSystem is used. Its not possible to use
 
 - `recovery.zookeeper.path.root`: (Default '/flink') Defines the root dir under which the ZooKeeper recovery mode will create namespace directories.
 
-- `recovery.zookeeper.path.namespace`: (Default '/default_ns' in standalone mode, or the <yarn-application-id> under Yarn) Defines the subdirectory under the root dir where the ZooKeeper recovery mode will create znodes. This allows to isolate multiple applications on the same ZooKeeper. 
+- `recovery.zookeeper.path.namespace`: (Default '/default_ns' in standalone mode, or the <yarn-application-id> under Yarn) Defines the subdirectory under the root dir where the ZooKeeper recovery mode will create znodes. This allows to isolate multiple applications on the same ZooKeeper.
 
 - `recovery.zookeeper.path.latch`: (Default '/leaderlatch') Defines the znode of the leader latch which is used to elect the leader.
 
@@ -312,7 +312,13 @@ of the JobManager, because the same ActorSystem is used. Its not possible to use
 
 ## Metrics
 
-- `metrics.jmx.port`: (Default: 9010-9025) Defines the port used by JMX.
+- `metrics.reporters`: The list of named reporters, i.e. "foo,bar".
+
+- `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
+
+- `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
+
+- `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
 
 - `metrics.scope.jm`: (Default: &lt;host&gt;.jobmanager) Defines the scope format string that is applied to all metrics scoped to a JobManager.
 

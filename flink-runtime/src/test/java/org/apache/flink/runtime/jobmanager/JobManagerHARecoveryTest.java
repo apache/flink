@@ -33,9 +33,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.HeapStateStore;
-import org.apache.flink.runtime.checkpoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
@@ -158,7 +157,7 @@ public class JobManagerHARecoveryTest {
 				myLeaderElectionService,
 				mySubmittedJobGraphStore,
 				checkpointStateFactory,
-				new SavepointStore(new HeapStateStore()),
+				new HeapSavepointStore(),
 				jobRecoveryTimeout,
 				Option.apply(null));
 
@@ -349,7 +348,7 @@ public class JobManagerHARecoveryTest {
 		public void stop() {}
 
 		@Override
-		public CompletedCheckpointStore createCompletedCheckpoints(JobID jobId, ClassLoader userClassLoader) throws Exception {
+		public CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader) throws Exception {
 			return store;
 		}
 

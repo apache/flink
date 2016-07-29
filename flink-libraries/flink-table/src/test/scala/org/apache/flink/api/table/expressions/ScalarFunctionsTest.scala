@@ -18,10 +18,9 @@
 
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{Row, Types}
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.junit.Test
@@ -484,21 +483,21 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
   def typeInfo = {
     new RowTypeInfo(Seq(
-      STRING_TYPE_INFO,
-      BOOLEAN_TYPE_INFO,
-      BYTE_TYPE_INFO,
-      SHORT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      FLOAT_TYPE_INFO,
-      DOUBLE_TYPE_INFO,
-      INT_TYPE_INFO,
-      STRING_TYPE_INFO,
-      BYTE_TYPE_INFO,
-      SHORT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      FLOAT_TYPE_INFO,
-      DOUBLE_TYPE_INFO,
-      INT_TYPE_INFO,
-      BIG_DEC_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
+      Types.STRING,
+      Types.BOOLEAN,
+      Types.BYTE,
+      Types.SHORT,
+      Types.LONG,
+      Types.FLOAT,
+      Types.DOUBLE,
+      Types.INT,
+      Types.STRING,
+      Types.BYTE,
+      Types.SHORT,
+      Types.LONG,
+      Types.FLOAT,
+      Types.DOUBLE,
+      Types.INT,
+      Types.DECIMAL)).asInstanceOf[TypeInformation[Any]]
   }
 }

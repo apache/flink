@@ -27,9 +27,7 @@ import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -85,15 +83,8 @@ public class FsListState<K, N, V>
 		if (currentNSState == null) {
 			currentNSState = state.get(currentNamespace);
 		}
-		if (currentNSState != null) {
-			List<V> result = currentNSState.get(currentKey);
-			if (result == null) {
-				return Collections.emptyList();
-			} else {
-				return result;
-			}
-		}
-		return Collections.emptyList();
+		return currentNSState != null ?
+			currentNSState.get(currentKey) : null;
 	}
 
 	@Override

@@ -46,10 +46,6 @@ public class BlobLibraryCacheManagerTest {
 
 	@Test
 	public void testLibraryCacheManagerCleanup() {
-		Configuration config = new Configuration();
-
-		config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1);
-		GlobalConfiguration.includeConfiguration(config);
 
 		JobID jid = new JobID();
 		List<BlobKey> keys = new ArrayList<BlobKey>();

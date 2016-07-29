@@ -110,7 +110,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 		String fsStateHandlePath = tmp.getRoot().getPath();
 
-		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.getConfiguration());
+		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.loadConfiguration());
 		flinkYarnClient.setDynamicPropertiesEncoded("recovery.mode=zookeeper@@recovery.zookeeper.quorum=" +
 			zkServer.getConnectString() + "@@yarn.application-attempts=" + numberApplicationAttempts +
 			"@@" + ConfigConstants.STATE_BACKEND + "=FILESYSTEM" +

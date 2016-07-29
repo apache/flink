@@ -32,7 +32,11 @@ public class JobVertexID extends AbstractID {
 	public JobVertexID() {
 		super();
 	}
-	
+
+	public JobVertexID(long lowerPart, long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
 	public JobVertexID(byte[] bytes) {
 		super(bytes);
 	}

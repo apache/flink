@@ -88,11 +88,8 @@ public class FsFoldingState<K, N, T, ACC>
 		if (currentNSState == null) {
 			currentNSState = state.get(currentNamespace);
 		}
-		if (currentNSState != null) {
-			ACC value = currentNSState.get(currentKey);
-			return value != null ? value : stateDesc.getDefaultValue();
-		}
-		return stateDesc.getDefaultValue();
+		return currentNSState != null ?
+			currentNSState.get(currentKey) : null;
 	}
 
 	@Override

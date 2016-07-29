@@ -176,20 +176,24 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 	 * This method is public because its being used in the HadoopDataSource.
 	 */
 	public static org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+
+		org.apache.flink.configuration.Configuration flinkConfiguration =
+			GlobalConfiguration.loadConfiguration();
+
 		Configuration retConf = new org.apache.hadoop.conf.Configuration();
 
 		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
 		// the hdfs configuration
 		// Try to load HDFS configuration from Hadoop's own configuration files
 		// 1. approach: Flink configuration
-		final String hdfsDefaultPath = GlobalConfiguration.getString(ConfigConstants.HDFS_DEFAULT_CONFIG, null);
+		final String hdfsDefaultPath = flinkConfiguration.getString(ConfigConstants.HDFS_DEFAULT_CONFIG, null);
 		if (hdfsDefaultPath != null) {
 			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
 		} else {
 			LOG.debug("Cannot find hdfs-default configuration file");
 		}
 
-		final String hdfsSitePath = GlobalConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
+		final String hdfsSitePath = flinkConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
 		if (hdfsSitePath != null) {
 			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
 		} else {
@@ -198,7 +202,7 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 		
 		// 2. Approach environment variables
 		String[] possibleHadoopConfPaths = new String[4]; 
-		possibleHadoopConfPaths[0] = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
+		possibleHadoopConfPaths[0] = flinkConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
 		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
 		
 		if (System.getenv("HADOOP_HOME") != null) {
