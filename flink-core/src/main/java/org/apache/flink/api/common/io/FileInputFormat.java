@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.compression.Bzip2InputStreamFactory;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
+import org.apache.flink.api.common.io.compression.XZInputStreamFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -119,6 +120,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 				DeflateInflaterInputStreamFactory.getInstance(),
 				GzipInflaterInputStreamFactory.getInstance(),
 				Bzip2InputStreamFactory.getInstance(),
+				XZInputStreamFactory.getInstance(),
 		};
 		for (InflaterInputStreamFactory<?> inputStreamFactory : defaultFactories) {
 			for (String fileExtension : inputStreamFactory.getCommonFileExtensions()) {
