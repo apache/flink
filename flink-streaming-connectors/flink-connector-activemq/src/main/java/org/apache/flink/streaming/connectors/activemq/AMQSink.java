@@ -32,6 +32,16 @@ import javax.jms.JMSException;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
 
+/**
+ * Sink class for writing data into ActiveMQ queue.
+ * <p>
+ * To create an instance of AMQSink class one should initialize and configure an
+ * instance of a connection factory that will be used to create a connection.
+ * Every input message is converted into a byte array using a serialization
+ * schema and being sent into a message queue.
+ *
+ * @param <IN> type of input messages
+ */
 public class AMQSink<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
@@ -45,6 +55,13 @@ public class AMQSink<IN> extends RichSinkFunction<IN> {
 	private transient Session session;
 	private transient Connection connection;
 
+	/**
+	 * Create AMQSink.
+	 *
+	 * @param connectionFactory factory for creating ActiveMQ connection
+	 * @param queueName name of a queue to write to
+	 * @param serializationSchema schema to serialize input message into a byte array
+	 */
 	public AMQSink(ActiveMQConnectionFactory connectionFactory, String queueName, SerializationSchema<IN> serializationSchema) {
 		this.connectionFactory = connectionFactory;
 		this.queueName = queueName;

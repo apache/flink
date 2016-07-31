@@ -41,6 +41,18 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 
+/**
+ * Source for reading messages from an ActiveMQ queue.
+ * <p>
+ * To create an instance of AMQSink class one should initialize and configure an
+ * instance of a connection factory that will be used to create a connection.
+ * This source is waiting for incoming messages from ActiveMQ and converts them from
+ * an array of bytes into an instance of the output type. If an incoming
+ * message is not a message with an array of bytes, this message is ignored
+ * and warning message is logged.
+ *
+ * @param <OUT> type of output messages
+ */
 public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	implements ResultTypeQueryable<OUT> {
 
@@ -57,10 +69,25 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	private boolean autoAck;
 	private HashMap<String, Message> unaknowledgedMessages = new HashMap<>();
 
+	/**
+	 * Create AMQSource.
+	 *
+	 * @param connectionFactory factory that will be used to create a connection with ActiveMQ
+	 * @param queueName name of an ActiveMQ queue to read from
+	 * @param deserializationSchema schema to deserialize incoming messages
+	 */
 	public AMQSource(ActiveMQConnectionFactory connectionFactory, String queueName, DeserializationSchema<OUT> deserializationSchema) {
 		this(connectionFactory, queueName, deserializationSchema, new RunningCheckerImpl());
 	}
 
+	/**
+	 * Create AMQSource.
+	 *
+	 * @param connectionFactory factory that will be used to create a connection with ActiveMQ
+	 * @param queueName name of an ActiveMQ queue to read from
+	 * @param deserializationSchema schema to deserialize incoming messages
+	 * @param runningChecker running checker that is used to decide if the source is still running
+	 */
 	AMQSource(ActiveMQConnectionFactory connectionFactory, String queueName, DeserializationSchema<OUT> deserializationSchema, RunningChecker runningChecker) {
 		super(String.class);
 		this.connectionFactory = connectionFactory;
