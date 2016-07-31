@@ -18,31 +18,37 @@
 package org.apache.flink.streaming.connectors.activemq;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
-import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.test.util.SuccessException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.HashSet;
-import org.apache.flink.test.util.SuccessException;
+import java.util.Random;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 public class ActiveMQConnectorITCase {
 
-	public static final int MESSAGES_NUM = 100;
+	public static final int MESSAGES_NUM = 10000;
 	public static final String QUEUE_NAME = "queue";
 	private static ForkableFlinkMiniCluster flink;
 	private static int flinkPort;
@@ -123,7 +129,6 @@ public class ActiveMQConnectorITCase {
 			new SimpleStringSchema()
 		);
 
-
 		env.addSource(source)
 			.addSink(new SinkFunction<String>() {
 				final HashSet<Integer> set = new HashSet<>();
@@ -138,4 +143,90 @@ public class ActiveMQConnectorITCase {
 				}
 			});
 	}
+
+	@Test
+	public void testAMQTopologyWithCheckpointing() throws Exception {
+		ActiveMQConnectionFactory connectionFactory = createConnectionFactory();
+		AMQSink<String> sink = new AMQSink<>(
+			connectionFactory,
+			"queue2",
+			new SimpleStringSchema()
+		);
+		sink.open(new Configuration());
+
+		for (int i = 0; i < MESSAGES_NUM; i++) {
+			sink.invoke("amq-" + i);
+		}
+
+		final AMQSource<String> source = new AMQSource<>(
+			connectionFactory,
+			"queue2",
+			new SimpleStringSchema()
+		);
+		RuntimeContext runtimeContext = createMockRuntimeContext();
+		source.setRuntimeContext(runtimeContext);
+		source.open(new Configuration());
+
+		final TestSourceContext sourceContext = new TestSourceContext();
+		Thread thread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					source.run(sourceContext);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+		thread.start();
+
+		Deadline deadline = FiniteDuration.apply(5, "s").fromNow();
+		while (deadline.hasTimeLeft() && sourceContext.getIdsNum() < MESSAGES_NUM) {
+			Thread.sleep(100);
+			Random random = new Random();
+			long checkpointId = random.nextLong();
+			synchronized (sourceContext.getCheckpointLock()) {
+				source.snapshotState(checkpointId, System.currentTimeMillis());
+				source.notifyCheckpointComplete(checkpointId);
+			}
+		}
+		assertEquals(MESSAGES_NUM, sourceContext.getIdsNum());
+	}
+
+	private RuntimeContext createMockRuntimeContext() {
+		StreamingRuntimeContext runtimeContext = mock(StreamingRuntimeContext.class);
+		when(runtimeContext.isCheckpointingEnabled()).thenReturn(true);
+		return runtimeContext;
+	}
+
+	class TestSourceContext implements SourceFunction.SourceContext<String> {
+
+		private HashSet<Integer> ids = new HashSet<>();
+		private Object contextLock = new Object();
+		@Override
+		public void collect(String value) {
+			int val = Integer.parseInt(value.split("-")[1]);
+			ids.add(val);
+		}
+
+		@Override
+		public void collectWithTimestamp(String element, long timestamp) { }
+
+		@Override
+		public void emitWatermark(Watermark mark) { }
+
+		@Override
+		public Object getCheckpointLock() {
+			return contextLock;
+		}
+
+		@Override
+		public void close() { }
+
+		public int getIdsNum() {
+			synchronized (contextLock) {
+				return ids.size();
+			}
+		}
+	};
 }

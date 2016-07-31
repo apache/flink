@@ -18,9 +18,10 @@
 package org.apache.flink.streaming.connectors.activemq;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,8 +34,9 @@ import javax.jms.Connection;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
 import javax.jms.Session;
+
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -43,14 +45,16 @@ import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 public class AMQSourceTest {
 
+	private static final long CHECKPOINT_ID = 1;
 	private final String QUEUE_NAME = "queue";
+	private final String MSG_ID = "msgId";
 
 	private ActiveMQConnectionFactory connectionFactory;
 	private Session session;
@@ -61,6 +65,7 @@ public class AMQSourceTest {
 
 	private AMQSource<String> amqSource;
 	private SimpleStringSchema serializationSchema;
+	SourceFunction.SourceContext<String> context;
 
 	@Before
 	public void before() throws Exception {
@@ -69,6 +74,7 @@ public class AMQSourceTest {
 		connection = mock(Connection.class);
 		destination = mock(Destination.class);
 		consumer = mock(MessageConsumer.class);
+		context = mock(SourceFunction.SourceContext.class);
 
 		message = mock(BytesMessage.class);
 
@@ -76,20 +82,24 @@ public class AMQSourceTest {
 		when(connection.createSession(anyBoolean(), anyInt())).thenReturn(session);
 		when(consumer.receive(anyInt())).thenReturn(message);
 		when(session.createConsumer(any(Destination.class))).thenReturn(consumer);
+		when(context.getCheckpointLock()).thenReturn(new Object());
+		when(message.getJMSMessageID()).thenReturn(MSG_ID);
 
 		serializationSchema = new SimpleStringSchema();
-		amqSource = new AMQSource<>(connectionFactory, QUEUE_NAME, serializationSchema);
+		amqSource = new AMQSource<>(connectionFactory, QUEUE_NAME, serializationSchema, new SingleLoopRunChecker());
+		amqSource.setRuntimeContext(createRuntimeContext());
 		amqSource.open(new Configuration());
+	}
+
+	private RuntimeContext createRuntimeContext() {
+		StreamingRuntimeContext runtimeContext = mock(StreamingRuntimeContext.class);
+		when(runtimeContext.isCheckpointingEnabled()).thenReturn(true);
+		return runtimeContext;
 	}
 
 	@Test
 	public void parseReceivedMessage() throws Exception {
-		amqSource = new AMQSource<>(connectionFactory, QUEUE_NAME, serializationSchema, new SingleLoopRunChecker());
-		amqSource.open(new Configuration());
-
-		SourceFunction.SourceContext<String> context = mock(SourceFunction.SourceContext.class);
 		final byte[] bytes = serializationSchema.serialize("msg");
-		when(context.getCheckpointLock()).thenReturn(new Object());
 		when(message.getBodyLength()).thenReturn((long) bytes.length);
 		when(message.readBytes(any(byte[].class))).thenAnswer(new Answer<Object>() {
 			@Override
@@ -103,6 +113,49 @@ public class AMQSourceTest {
 		amqSource.run(context);
 
 		verify(context).collect("msg");
+	}
+
+	@Test
+	public void acknowledgeReceivedMessage() throws Exception {
+		amqSource.run(context);
+		amqSource.acknowledgeIDs(CHECKPOINT_ID, Collections.singletonList(MSG_ID));
+
+		verify(message).acknowledge();
+	}
+
+	@Test
+	public void handleUnknownIds() throws Exception {
+		amqSource.run(context);
+		amqSource.acknowledgeIDs(CHECKPOINT_ID, Collections.singletonList("unknown-id"));
+
+		verify(message, never()).acknowledge();
+	}
+
+	@Test
+	public void doNotAcknowledgeMessageTwice() throws Exception {
+		amqSource.run(context);
+		amqSource.acknowledgeIDs(CHECKPOINT_ID, Collections.singletonList(MSG_ID));
+		amqSource.acknowledgeIDs(CHECKPOINT_ID, Collections.singletonList(MSG_ID));
+
+		verify(message, times(1)).acknowledge();
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void throwAcknowledgeExceptionByDefault() throws Exception {
+		doThrow(JMSException.class).when(message).acknowledge();
+
+		amqSource.run(context);
+		amqSource.acknowledgeIDs(CHECKPOINT_ID, Collections.singletonList(MSG_ID));
+	}
+
+	@Test
+	public void doNotThrowAcknowledgeExceptionByDefault() throws Exception {
+		amqSource.setLogFailuresOnly(true);
+
+		doThrow(JMSException.class).when(message).acknowledge();
+
+		amqSource.run(context);
+		amqSource.acknowledgeIDs(CHECKPOINT_ID, Collections.singletonList(MSG_ID));
 	}
 
 	@Test

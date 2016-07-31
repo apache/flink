@@ -18,11 +18,13 @@
 package org.apache.flink.streaming.connectors.activemq;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.ActiveMQSession;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourceBase;
-import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +37,11 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.Session;
+import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
 
-public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, Long>
+public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	implements ResultTypeQueryable<OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AMQSource.class);
@@ -46,10 +50,12 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	private final String queueName;
 	private final DeserializationSchema<OUT> deserializationSchema;
 	private boolean logFailuresOnly = false;
-	private transient RunningChecker runningChecker;
+	private RunningChecker runningChecker;
 	private transient Connection connection;
 	private transient Session session;
 	private transient MessageConsumer consumer;
+	private boolean autoAck;
+	private HashMap<String, Message> unaknowledgedMessages = new HashMap<>();
 
 	public AMQSource(ActiveMQConnectionFactory connectionFactory, String queueName, DeserializationSchema<OUT> deserializationSchema) {
 		this(connectionFactory, queueName, deserializationSchema, new RunningCheckerImpl());
@@ -75,7 +81,7 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		this.logFailuresOnly = logFailuresOnly;
 	}
 
-		@Override
+	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
 		// Create a Connection
@@ -85,12 +91,22 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		connection.setExceptionListener(new ExceptionListener() {
 			@Override
 			public void onException(JMSException e) {
-
+				LOG.error("Received ActiveMQ exception", e);
 			}
 		});
 
+		RuntimeContext runtimeContext = getRuntimeContext();
+		int acknowledgeType;
+		if (runtimeContext instanceof StreamingRuntimeContext
+			&& ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled()) {
+			autoAck = false;
+			acknowledgeType = ActiveMQSession.INDIVIDUAL_ACKNOWLEDGE;
+		} else {
+			autoAck = true;
+			acknowledgeType = ActiveMQSession.AUTO_ACKNOWLEDGE;
+		}
 		// Create a Session
-		session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+		session = connection.createSession(false, acknowledgeType);
 
 		// Create the destination (Topic or Queue)
 		Destination destination = session.createQueue(queueName);
@@ -142,25 +158,43 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	}
 
 	@Override
-	protected void acknowledgeSessionIDs(List<Long> longs) {
-
+	protected void acknowledgeIDs(long checkpointId, List<String> UIds) {
+		try {
+			for (String messageId : UIds) {
+				Message unacknowledgedMessage = unaknowledgedMessages.get(messageId);
+				if (unacknowledgedMessage != null) {
+					unacknowledgedMessage.acknowledge();
+					unaknowledgedMessages.remove(messageId);
+				} else {
+					LOG.warn("Tried to acknowledge unknown ActiveMQ message id: {}", messageId);
+				}
+			}
+		} catch (JMSException e) {
+			if (logFailuresOnly) {
+				LOG.error("Failed to acknowledge ActiveMQ message");
+			} else {
+				throw new RuntimeException("Failed to acknowledge ActiveMQ message");
+			}
+		}
 	}
 
 	@Override
 	public void run(SourceContext<OUT> ctx) throws Exception {
 		while (runningChecker.isRunning()) {
+			Message message = consumer.receive(1000);
 			synchronized (ctx.getCheckpointLock()) {
-				// Wait for a message
-				Message message = consumer.receive(1000);
-
 				if (message instanceof BytesMessage) {
 					BytesMessage bytesMessage = (BytesMessage) message;
 					byte[] bytes = new byte[(int) bytesMessage.getBodyLength()];
 					bytesMessage.readBytes(bytes);
 					OUT value = deserializationSchema.deserialize(bytes);
 					ctx.collect(value);
+					if (!autoAck) {
+						addId(bytesMessage.getJMSMessageID());
+						unaknowledgedMessages.put(bytesMessage.getJMSMessageID(), bytesMessage);
+					}
 				} else {
-					System.out.println("Received: " + message);
+					LOG.warn("Active MQ source received non bytes message: {}");
 				}
 			}
 		}
@@ -181,7 +215,7 @@ public class AMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		void setIsRunning(boolean isRunning);
 	}
 
-	private static class RunningCheckerImpl implements RunningChecker {
+	private static class RunningCheckerImpl implements RunningChecker, Serializable {
 
 		private volatile boolean isRunning = false;
 
