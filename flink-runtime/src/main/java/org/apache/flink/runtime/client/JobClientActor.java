@@ -125,6 +125,11 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 		else if (message instanceof JobManagerLeaderAddress) {
 			JobManagerLeaderAddress msg = (JobManagerLeaderAddress) message;
 
+			if (jobManager != null) {
+				// only print this message when we had been connected to a JobManager before
+				logAndPrintMessage("New JobManager elected. Connecting to " + msg.address());
+			}
+
 			disconnectFromJobManager();
 
 			this.leaderSessionID = msg.leaderSessionID();
@@ -143,6 +148,8 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 			// Resolved JobManager ActorRef
 			JobManagerActorRef msg = (JobManagerActorRef) message;
 			connectToJobManager(msg.jobManager());
+
+			logAndPrintMessage("Connected to JobManager at " +  msg.jobManager());
 
 			if (jobGraph != null && !jobSuccessfullySubmitted) {
 				// if we haven't yet submitted the job successfully
@@ -278,6 +285,13 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 	@Override
 	protected UUID getLeaderSessionID() {
 		return leaderSessionID;
+	}
+
+	private void logAndPrintMessage(String message) {
+		LOG.info(message);
+		if (sysoutUpdates) {
+			System.out.println(message);
+		}
 	}
 
 	private void logAndPrintMessage(ExecutionGraphMessages.ExecutionStateChanged message) {
