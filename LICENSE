@@ -305,9 +305,11 @@ Open Font License (OFT) - http://scripts.sil.org/OFL
 -----------------------------------------------------------------------
  The ISC License
 -----------------------------------------------------------------------
- 
- The Apache Flink project contains code under the ISC license from the following files:
-  - simplejmx (http://256.com/sources/simplejmx/) Copyright (c) - Gray Watson
+
+The Apache Flink project contains or reuses code that is licensed under the ISC license
+from the following projects:
+
+  - simplejmx (http://256stuff.com/sources/simplejmx/) Copyright (c) - Gray Watson
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby
 granted, provided that this permission notice appear in all copies.
