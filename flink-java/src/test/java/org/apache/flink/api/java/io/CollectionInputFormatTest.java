@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -75,6 +76,13 @@ public class CollectionInputFormatTest {
 		@Override
 		public int hashCode() {
 			return id;
+		}
+
+		@Override
+		public String toString() {
+			return "ElementType{" +
+				"id=" + id +
+				'}';
 		}
 	}
 
@@ -253,7 +261,34 @@ public class CollectionInputFormatTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	@Test
+	public void testToStringOnSmallCollection() {
+		CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<>(
+			Lists.newArrayList(new ElementType(1), new ElementType(2)),
+			new TestSerializer(true, false)
+		);
+
+		assertEquals("[ElementType{id=1}, ElementType{id=2}]", inputFormat.toString());
+	}
+
+	@Test
+	public void testToStringOnBigCollection() {
+		ArrayList<ElementType> list = new ArrayList<>();
+		for (int i = 0; i < 10; i++) {
+			list.add(new ElementType(i));
+		}
+		CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<>(
+			list,
+			new TestSerializer(true, false)
+		);
+
+		assertEquals(
+			"[ElementType{id=0}, ElementType{id=1}, ElementType{id=2}, " +
+			"ElementType{id=3}, ElementType{id=4}, ElementType{id=5}, ...]",
+			inputFormat.toString());
+	}
+
 	private static class TestException extends IOException{
 		private static final long serialVersionUID = 1L;
 	}
