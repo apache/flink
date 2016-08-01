@@ -45,6 +45,7 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
             case ne: NamedExpression => ne
             case expr if !expr.valid => u
             case c @ Cast(ne: NamedExpression, tp) => Alias(c, s"${ne.name}-$tp")
+            case gcf: GetCompositeField => Alias(gcf, gcf.aliasName().getOrElse(s"_c$i"))
             case other => Alias(other, s"_c$i")
           }
           case _ =>

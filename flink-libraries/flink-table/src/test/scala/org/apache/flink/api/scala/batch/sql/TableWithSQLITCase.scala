@@ -96,4 +96,22 @@ class TableWithSQLITCase(
     val results = result2.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testSelectWithCompositeType(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT MyTable.a2, MyTable.a1._2 FROM MyTable"
+
+    val ds = env.fromElements(((12, true), "Hello")).toTable(tEnv).as('a1, 'a2)
+    tEnv.registerTable("MyTable", ds)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "Hello,true\n"
+
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }

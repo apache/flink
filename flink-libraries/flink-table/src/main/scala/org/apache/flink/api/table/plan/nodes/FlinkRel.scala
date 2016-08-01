@@ -35,19 +35,32 @@ trait FlinkRel {
     localExprsTable: Option[List[RexNode]]): String = {
 
     expr match {
-      case i: RexInputRef => inFields.get(i.getIndex)
-      case l: RexLiteral => l.toString
+      case i: RexInputRef =>
+        inFields.get(i.getIndex)
+
+      case l: RexLiteral =>
+        l.toString
+
       case l: RexLocalRef if localExprsTable.isEmpty =>
-        throw new IllegalArgumentException("Encountered RexLocalRef without local expression table")
+        throw new IllegalArgumentException("Encountered RexLocalRef without " +
+          "local expression table")
+
       case l: RexLocalRef =>
         val lExpr = localExprsTable.get(l.getIndex)
         getExpressionString(lExpr, inFields, localExprsTable)
-      case c: RexCall => {
+
+      case c: RexCall =>
         val op = c.getOperator.toString
         val ops = c.getOperands.map(getExpressionString(_, inFields, localExprsTable))
         s"$op(${ops.mkString(", ")})"
-      }
-      case _ => throw new IllegalArgumentException("Unknown expression type: " + expr)
+
+      case fa: RexFieldAccess =>
+        val referenceExpr = getExpressionString(fa.getReferenceExpr, inFields, localExprsTable)
+        val field = fa.getField.getName
+        s"$referenceExpr.$field"
+
+      case _ =>
+        throw new IllegalArgumentException(s"Unknown expression type '${expr.getClass}': $expr")
     }
   }
 

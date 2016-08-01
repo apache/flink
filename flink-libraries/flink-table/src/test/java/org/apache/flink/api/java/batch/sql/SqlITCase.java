@@ -52,7 +52,7 @@ public class SqlITCase extends TableProgramsTestBase {
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		resultSet.print();
+
 		List<Row> results = resultSet.collect();
 		String expected = "3,World,false,1944-12-24,12.5444444500000000\n" +
 			"2,Hello,true,1944-02-24,12.6666666650000000\n" +
