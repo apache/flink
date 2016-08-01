@@ -120,9 +120,8 @@ final class FlinkTopologyContext extends TopologyContext {
 	 * @throws UnsupportedOperationException
 	 * 		at every invocation
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
-	public IMetric registerMetric(final String name, final IMetric metric, final int timeBucketSizeInSecs) {
+	public <T extends IMetric> T registerMetric(final String name, final T metric, final int timeBucketSizeInSecs) {
 		throw new UnsupportedOperationException("Metrics are not supported by Flink");
 	}
 

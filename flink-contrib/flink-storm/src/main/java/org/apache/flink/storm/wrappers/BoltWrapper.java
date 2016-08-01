@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.generated.GlobalStreamId;
@@ -25,8 +26,6 @@ import backtype.storm.topology.IRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.MessageId;
 import backtype.storm.utils.Utils;
-
-import com.google.common.collect.Sets;
 
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -43,6 +42,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+
+import static java.util.Arrays.asList;
 
 /**
  * A {@link BoltWrapper} wraps an {@link IRichBolt} in order to execute the Storm bolt within a Flink Streaming program.
@@ -135,9 +136,9 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not within range
 	 *             [1;25].
 	 */
-	public BoltWrapper(final IRichBolt bolt, final String[] rawOutputs)
+	public BoltWrapper(final IRichBolt bolt, final String[] rawOutputs) 
 			throws IllegalArgumentException {
-		this(bolt, null, Sets.newHashSet(rawOutputs));
+		this(bolt, null, asList(rawOutputs));
 	}
 
 	/**
@@ -157,8 +158,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
 	 *             [1;25].
 	 */
-	public BoltWrapper(final IRichBolt bolt, final Collection<String> rawOutputs)
-			throws IllegalArgumentException {
+	public BoltWrapper(final IRichBolt bolt, final Collection<String> rawOutputs) throws IllegalArgumentException {
 		this(bolt, null, rawOutputs);
 	}
 
@@ -181,9 +181,12 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
-	public BoltWrapper(final IRichBolt bolt, final Fields inputSchema, final String[] rawOutputs)
+	public BoltWrapper(
+			final IRichBolt bolt,
+			final Fields inputSchema,
+			final String[] rawOutputs) 
 			throws IllegalArgumentException {
-		this(bolt, inputSchema, Sets.newHashSet(rawOutputs));
+		this(bolt, inputSchema, asList(rawOutputs));
 	}
 
 	/**
