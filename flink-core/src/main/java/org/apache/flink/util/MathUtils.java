@@ -135,10 +135,7 @@ public final class MathUtils {
 		code *= 0x1b873593;
 
 		code = Integer.rotateLeft(code, 13);
-		// By the MurmurHash algorithm the following should be "code = code * 5 + 0xe6546b64;" (see FLINK-3623)
-		// but correcting the algorithm is a breaking change (see FLINK-4154). The effect of the resulting skew
-		// increases with increased parallelism (see FLINK-4154).
-		code *= 0xe6546b64;
+		code = code * 5 + 0xe6546b64;
 
 		code ^= 4;
 		code ^= code >>> 16;

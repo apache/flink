@@ -74,7 +74,8 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
 
       override def run(ctx: SourceContext[(Int, Int)]): Unit = {
         0 until numElements foreach {
-          i => ctx.collect((MathUtils.murmurHash(i) % numKeys, i))
+          // keys '1' and '2' hash to different buckets
+          i => ctx.collect((1 + (MathUtils.murmurHash(i)) % numKeys, i))
         }
       }
 
