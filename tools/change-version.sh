@@ -17,8 +17,8 @@
 # limitations under the License.
 ################################################################################
 
-OLD="1.0-SNAPSHOT"
-NEW="1.1-SNAPSHOT"
+OLD="1.1-SNAPSHOT"
+NEW="1.2-SNAPSHOT"
 
 
 HERE=` basename "$PWD"`
@@ -27,8 +27,39 @@ if [[ "$HERE" != "tools" ]]; then
     exit 1;
 fi
 
-# change version in all pom files
-find .. -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'"$OLD"'</version>#<version>'"$NEW"'</version>#' {} \;
+changePoms(){
+    # change version in all pom files
+    find .. -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'"$OLD"'</version>#<version>'"$NEW"'</version>#' {} \;
 
-# change version of the quickstart property
-find .. -name 'pom.xml' -type f -exec perl -pi -e 's#<flink.version>'"$OLD"'</flink.version>#<flink.version>'"$NEW"'</flink.version>#' {} \;
+    # change version of the quickstart property
+    find .. -name 'pom.xml' -type f -exec perl -pi -e 's#<flink.version>'"$OLD"'</flink.version>#<flink.version>'"$NEW"'</flink.version>#' {} \;
+}
+
+changeDocs(){
+    # change documentation versions, handles changing from and to snapshots
+    find .. -name '_config.yml' -type f -exec perl -pi -e "s#version: \"$OLD\"#version: \"$NEW\"#" {} \;
+
+    if [[ "$OLD" =~ [0-9]*-SNAPSHOT ]]
+    then
+        OLD_HADOOP=`echo $OLD | cut -d "-" -f1`-hadoop1-`echo $OLD | cut -d "-" -f2`
+    else
+        OLD_HADOOP=`echo $OLD | cut -d "-" -f1`-hadoop1
+    fi
+
+    if [[ "$NEW" =~ [0-9]*-SNAPSHOT ]]
+    then
+        NEW_HADOOP=`echo $NEW | cut -d "-" -f1`-hadoop1-`echo $NEW | cut -d "-" -f2`
+    else
+        NEW_HADOOP=`echo $NEW | cut -d "-" -f1`-hadoop1
+    fi
+
+    find .. -name '_config.yml' -type f -exec perl -pi -e "s#version_hadoop1: \"$OLD_HADOOP\"#version_hadoop1: \"$NEW_HADOOP\"#" {} \;
+
+    OLD_SHORT=`echo $OLD | cut -d "-" -f1`
+    NEW_SHORT=`echo $NEW | cut -d "-" -f1`
+    find .. -name '_config.yml' -type f -exec perl -pi -e "s#version_short: \"$OLD_SHORT\"#version_short: \"$NEW_SHORT\"#" {} \;
+}
+
+changePoms
+# change docs is disabled by default as the script gets invoked from the prepare release script
+#changeDocs
