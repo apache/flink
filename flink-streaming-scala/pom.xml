@@ -215,7 +215,7 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Exclude generated classes from api compatibilty checks -->
+			<!-- Exclude generated classes from api compatibility checks -->
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
