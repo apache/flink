@@ -142,8 +142,8 @@ public class AMQSink<IN> extends RichSinkFunction<IN> {
 			if (logFailuresOnly) {
 				LOG.error("Failed to close ActiveMQ connection", e);
 			} else {
-				t = t == null ? new RuntimeException("Failed to close ActiveMQ session", e)
-					          : t;
+				t = t == null		? new RuntimeException("Failed to close ActiveMQ session", e)
+								: t;
 			}
 		}
 

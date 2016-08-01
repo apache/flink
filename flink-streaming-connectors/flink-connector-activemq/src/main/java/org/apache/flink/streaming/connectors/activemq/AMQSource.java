@@ -163,8 +163,8 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 			if (logFailuresOnly) {
 				LOG.error("Failed to close ActiveMQ session", e);
 			} else {
-				exception = exception == null ? new RuntimeException("Failed to close ActiveMQ session", e)
-					                          : exception;
+				exception = exception == null	? new RuntimeException("Failed to close ActiveMQ session", e)
+												: exception;
 			}
 
 		}
@@ -174,8 +174,8 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 			if (logFailuresOnly) {
 				LOG.error("Failed to close ActiveMQ session", e);
 			} else {
-				exception = exception == null ? new RuntimeException("Failed to close ActiveMQ connection", e)
-					                          : exception;
+				exception = exception == null	? new RuntimeException("Failed to close ActiveMQ connection", e)
+												: exception;
 			}
 		}
 
