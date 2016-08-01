@@ -56,7 +56,7 @@ Check the __JobManager's web frontend__ at [http://localhost:8081](http://localh
 
 ## Run Example
 
-Now, we are going to run the [SocketTextStreamWordCount example](https://github.com/apache/flink/blob/release-1.0.0/flink-quickstart/flink-quickstart-java/src/main/resources/archetype-resources/src/main/java/SocketTextStreamWordCount.java) and read text from a socket and count the number of distinct words.
+Now, we are going to run the [SocketWindowWordCount example](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java) and read text from a socket and count the number of distinct words.
 
 * First of all, we use **netcat** to start local server via
 
@@ -67,10 +67,8 @@ Now, we are going to run the [SocketTextStreamWordCount example](https://github.
 * Submit the Flink program:
 
   ~~~bash
-  $ bin/flink run examples/streaming/SocketTextStreamWordCount.jar \
-    --hostname localhost \
-    --port 9000
-  Printing result to stdout. Use --output to specify output path.
+  $ bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
+
   03/08/2016 17:21:56 Job execution switched to status RUNNING.
   03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
   03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to DEPLOYING
