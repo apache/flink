@@ -34,10 +34,19 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<repositories>
+		<repository>
+			<id>clojars</id>
+			<url>https://clojars.org/repo/</url>
+			<releases><enabled>true</enabled></releases>
+			<snapshots><enabled>false</enabled></snapshots>
+		</repository>
+	</repositories>
+	
 	<dependencies>
-		
+
 		<!-- core dependencies -->
-		
+
 		<dependency>
 			<!-- Together with the dependency management section in flink-parent, this
 			pins the Kryo version of transitive dependencies to the Flink Kryo version -->
@@ -92,6 +101,28 @@ under the License.
 					<groupId>org.jgrapht</groupId>
 					<artifactId>jgrapht-core</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>compojure</groupId>
+					<artifactId>compojure</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.esotericsoftware.reflectasm</groupId>
+					<artifactId>reflectasm</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.twitter</groupId>
+					<artifactId>chill-java</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-fileupload</groupId>
+					<artifactId>commons-fileupload</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+				
+
 			</exclusions>
 		</dependency>
 
