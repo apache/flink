@@ -131,6 +131,8 @@ public class MetricRegistry {
 
 						executor.scheduleWithFixedDelay(
 								new ReporterTask((Scheduled) reporterInstance), period, period, timeunit);
+					} else {
+						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
 					reporters.add(reporterInstance);
 				}
