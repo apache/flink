@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.Row
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 /**
   * Tests all SQL expressions that are currently supported according to the documentation.
@@ -135,6 +135,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("CAST(2 AS DOUBLE)", "2.0")
   }
 
+  @Ignore // TODO we need a special code path that flattens ROW types
   @Test
   def testValueConstructorFunctions(): Unit = {
     testSqlApi("ROW('hello world', 12)", "hello world") // test base only returns field 0

@@ -19,7 +19,7 @@ package org.apache.flink.api.table.plan.logical
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.table.{StreamTableEnvironment, TableEnvironment, ValidationException}
+import org.apache.flink.api.table.{TableEnvironment, ValidationException}
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.trees.TreeNode
 import org.apache.flink.api.table.typeutils.TypeCoercion

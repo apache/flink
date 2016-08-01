@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.table.plan
 
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.plan.logical.LogicalNode
+import org.apache.flink.api.table.plan.logical.{LogicalNode, Project}
 
 import scala.collection.mutable.ListBuffer
 
@@ -159,11 +160,35 @@ object ProjectionTranslator {
   /**
     * Expands an UnresolvedFieldReference("*") to parent's full project list.
     */
-  def expandProjectList(exprs: Seq[Expression], parent: LogicalNode): Seq[Expression] = {
+  def expandProjectList(
+      exprs: Seq[Expression],
+      parent: LogicalNode,
+      tableEnv: TableEnvironment)
+    : Seq[Expression] = {
+
     val projectList = new ListBuffer[Expression]
+
     exprs.foreach {
       case n: UnresolvedFieldReference if n.name == "*" =>
         projectList ++= parent.output.map(a => UnresolvedFieldReference(a.name))
+
+      case Flattening(unresolved) =>
+        // simulate a simple project to resolve fields using current parent
+        val project = Project(Seq(UnresolvedAlias(unresolved)), parent).validate(tableEnv)
+        val resolvedExpr = project
+          .output
+          .headOption
+          .getOrElse(throw new RuntimeException("Could not find resolved composite."))
+        resolvedExpr.validateInput()
+        val newProjects = resolvedExpr.resultType match {
+          case ct: CompositeType[_] =>
+            (0 until ct.getArity).map { idx =>
+              projectList += GetCompositeField(unresolved, ct.getFieldNames()(idx))
+            }
+          case _ =>
+            projectList += unresolved
+        }
+
       case e: Expression => projectList += e
     }
     projectList
