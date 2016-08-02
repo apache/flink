@@ -196,7 +196,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 
 		Table filtered = table
 				.groupBy("word")
-				.select("word.frequency as frequency, word")
+				.select("word.count as frequency, word")
 				.filter("frequency = 2");
 
 		List<String> result = tableEnv.toDataSet(filtered, WC.class)
