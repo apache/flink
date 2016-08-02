@@ -23,11 +23,18 @@ import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.TableEnvironment
 
 /**
- * Simple example for demonstrating the use of the Table API for a Word Count.
- */
+  * Simple example for demonstrating the use of the Table API for a Word Count in Scala.
+  *
+  * This example shows how to:
+  *  - Convert DataSets to Tables
+  *  - Apply group, aggregate, select, and filter operations
+  *
+  */
 object WordCountTable {
 
-  case class WC(word: String, count: Int)
+  // *************************************************************************
+  //     PROGRAM
+  // *************************************************************************
 
   def main(args: Array[String]): Unit = {
 
@@ -39,9 +46,17 @@ object WordCountTable {
     val expr = input.toTable(tEnv)
     val result = expr
       .groupBy('word)
-      .select('word, 'count.sum as 'count)
+      .select('word, 'frequency.sum as 'frequency)
+      .filter('frequency === 2)
       .toDataSet[WC]
 
     result.print()
   }
+
+  // *************************************************************************
+  //     USER DATA TYPES
+  // *************************************************************************
+
+  case class WC(word: String, frequency: Long)
+
 }

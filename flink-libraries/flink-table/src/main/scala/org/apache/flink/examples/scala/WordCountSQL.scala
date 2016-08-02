@@ -22,10 +22,19 @@ import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.TableEnvironment
 
 /**
-  * Simple example that shows how the Batch SQL used in Scala.
+  * Simple example that shows how the Batch SQL API is used in Scala.
+  *
+  * This example shows how to:
+  *  - Convert DataSets to Tables
+  *  - Register a Table under a name
+  *  - Run a SQL query on the registered Table
+  *
   */
 object WordCountSQL {
-  case class WC(word: String, count: Int)
+
+  // *************************************************************************
+  //     PROGRAM
+  // *************************************************************************
 
   def main(args: Array[String]): Unit = {
 
@@ -34,10 +43,20 @@ object WordCountSQL {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
+
+    // register the DataSet as table "WordCount"
     tEnv.registerDataSet("WordCount", input, 'word, 'frequency)
 
+    // run a SQL query on the Table and retrieve the result as a new Table
     val table = tEnv.sql("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")
 
     table.toDataSet[WC].print()
   }
+
+  // *************************************************************************
+  //     USER DATA TYPES
+  // *************************************************************************
+
+  case class WC(word: String, frequency: Long)
+
 }

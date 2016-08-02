@@ -23,11 +23,19 @@ import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 
 /**
-  * Simple example for demonstrating the use of SQL on Stream Table.
+  * Simple example for demonstrating the use of SQL on a Stream Table.
+  *
+  * This example shows how to:
+  *  - Convert DataStreams to Tables
+  *  - Register a Table under a name
+  *  - Run a StreamSQL query on the registered Table
+  *
   */
 object StreamSQLExample {
 
-  case class Order(user: Long, product: String, amount: Int)
+	// *************************************************************************
+	//     PROGRAM
+	// *************************************************************************
 
   def main(args: Array[String]): Unit = {
 
@@ -45,11 +53,11 @@ object StreamSQLExample {
       Order(2L, "rubber", 3),
       Order(4L, "beer", 1)))
 
-    // register the DataStream under the name "OrderA" and "OrderB"
+    // register the DataStreams under the name "OrderA" and "OrderB"
     tEnv.registerDataStream("OrderA", orderA, 'user, 'product, 'amount)
     tEnv.registerDataStream("OrderB", orderB, 'user, 'product, 'amount)
 
-    // Union two tables
+    // union the two tables
     val result = tEnv.sql(
       "SELECT STREAM * FROM OrderA WHERE amount > 2 UNION ALL " +
         "SELECT STREAM * FROM OrderB WHERE amount < 2")
@@ -58,5 +66,11 @@ object StreamSQLExample {
 
     env.execute()
   }
+
+	// *************************************************************************
+	//     USER DATA TYPES
+	// *************************************************************************
+
+  case class Order(user: Long, product: String, amount: Int)
 
 }
