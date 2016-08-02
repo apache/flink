@@ -34,7 +34,9 @@ under the License.
 
 	<packaging>jar</packaging>
 
+
 	<repositories>
+		<!-- This repository is needed as a stable source for some Clojure libraries -->
 		<repository>
 			<id>clojars</id>
 			<url>https://clojars.org/repo/</url>
@@ -42,24 +44,30 @@ under the License.
 			<snapshots><enabled>false</enabled></snapshots>
 		</repository>
 	</repositories>
-	
+
+
 	<dependencies>
 
 		<!-- core dependencies -->
 
-		<dependency>
-			<!-- Together with the dependency management section in flink-parent, this
+		<!-- Together with the dependency management section in flink-parent, this
 			pins the Kryo version of transitive dependencies to the Flink Kryo version -->
+		<dependency>
 			<groupId>com.esotericsoftware.kryo</groupId>
 			<artifactId>kryo</artifactId>
+			<scope>provided</scope>
 		</dependency>
 
+		<!-- Core streaming API -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
+		<!-- we only need the Apache Storm API, not all the runtime and web UI functionality,
+			so we exclude many of the unnecessary and possibly conflicting dependencies -->
 		<dependency>
 			<groupId>org.apache.storm</groupId>
 			<artifactId>storm-core</artifactId>
@@ -121,8 +129,14 @@ under the License.
 					<groupId>javax.servlet</groupId>
 					<artifactId>servlet-api</artifactId>
 				</exclusion>
-				
-
+				<exclusion>
+					<groupId>clout</groupId>
+					<artifactId>clout</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>hiccup</groupId>
+					<artifactId>hiccup</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
