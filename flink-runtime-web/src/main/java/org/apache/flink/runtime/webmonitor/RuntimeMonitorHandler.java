@@ -29,6 +29,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 
+import java.net.URLDecoder;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -82,10 +83,15 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 				queryParams.put(key, routed.queryParam(key));
 			}
 
+			Map<String, String> pathParams = new HashMap<>(routed.pathParams().size());
+			for (String key : routed.pathParams().keySet()) {
+				pathParams.put(key, URLDecoder.decode(routed.pathParams().get(key), ENCODING.toString()));
+			}
+
 			InetSocketAddress address = (InetSocketAddress) ctx.channel().localAddress();
 			queryParams.put(WEB_MONITOR_ADDRESS_KEY, address.getHostName() + ":" + address.getPort());
 
-			String result = handler.handleRequest(routed.pathParams(), queryParams, jobManager);
+			String result = handler.handleRequest(pathParams, queryParams, jobManager);
 			byte[] bytes = result.getBytes(ENCODING);
 
 			response = new DefaultFullHttpResponse(
