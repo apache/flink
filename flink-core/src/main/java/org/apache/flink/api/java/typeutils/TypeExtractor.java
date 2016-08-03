@@ -345,12 +345,22 @@ public class TypeExtractor {
 			if (m != null) {
 				// check for lambda type erasure
 				validateLambdaGenericParameters(m);
-				
+
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				final int paramLen = m.getGenericParameterTypes().length - 1;
-				final Type input = (outputTypeArgumentIndex >= 0) ? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
-				validateInputType((inputTypeArgumentIndex >= 0) ? extractTypeArgument(input, inputTypeArgumentIndex) : input, inType);
-				if(function instanceof ResultTypeQueryable) {
+
+				// method references "this" implicitly
+				if (paramLen < 0) {
+					// methods declaring class can also be a super class of the input type
+					// we only validate if the method exists in input type
+					validateInputContainsMethod(m, inType);
+				}
+				else {
+					final Type input = (outputTypeArgumentIndex >= 0) ? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
+					validateInputType((inputTypeArgumentIndex >= 0) ? extractTypeArgument(input, inputTypeArgumentIndex) : input, inType);
+				}
+
+				if (function instanceof ResultTypeQueryable) {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
 				return new TypeExtractor().privateCreateTypeInfo(
@@ -1234,7 +1244,17 @@ public class TypeExtractor {
 			}
 		}
 	}
-	
+
+	private static void validateInputContainsMethod(Method m, TypeInformation<?> typeInfo) {
+		List<Method> methods = getAllDeclaredMethods(typeInfo.getTypeClass());
+		for (Method method : methods) {
+			if (method.equals(m)) {
+				return;
+			}
+		}
+		throw new InvalidTypesException("Type contains no method '" + m.getName() + "'.");
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Utility methods
 	// --------------------------------------------------------------------------------------------
