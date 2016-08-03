@@ -110,10 +110,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 		}catch (Exception e) {
 			this.rs.close();
 			//workaround for timeout on scan
-			StringBuffer logMsg = new StringBuffer("Error after scan of ")
-					.append(scannedRows)
-					.append(" rows. Retry with a new scanner...");
-			LOG.warn(logMsg.toString(), e);
+			LOG.warn("Error after scan of " + scannedRows + " rows. Retry with a new scanner...", e);
 			this.scan.setStartRow(lastRow);
 			this.rs = table.getScanner(scan);
 			Result res = this.rs.next();
@@ -241,7 +238,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	 *        End key of the region
 	 * @return true, if this region needs to be included as part of the input (default).
 	 */
-	private static boolean includeRegionInSplit(final byte[] startKey, final byte[] endKey) {
+	protected boolean includeRegionInSplit(final byte[] startKey, final byte[] endKey) {
 		return true;
 	}
 
