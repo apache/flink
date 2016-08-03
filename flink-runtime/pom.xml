@@ -189,6 +189,11 @@ under the License.
 			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.reflections</groupId>
+			<artifactId>reflections</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<build>
