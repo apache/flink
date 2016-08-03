@@ -56,7 +56,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	protected transient Scan scan;
 
 	/** HBase iterator wrapper */
-	private ResultScanner rs;
+	private ResultScanner resultScanner;
 
 	private byte[] lastRow;
 	private int scannedRows;
@@ -76,6 +76,12 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	public void configure(Configuration parameters) {
 	}
 
+	@Override
+	public void openInputFormat() throws IOException {
+		table = createTable();
+		scan = getScanner();
+	}
+
 	/** Create an {@link HTable} instance and set it into this format */
 	private HTable createTable() {
 		LOG.info("Initializing HBaseConfiguration");
@@ -91,29 +97,45 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	}
 
 	@Override
+	public void open(TableInputSplit split) throws IOException {
+		if (split == null){
+			throw new IOException("Input split is null!");
+		}
+
+		logSplitInfo("opening", split);
+		scan.setStartRow(split.getStartRow());
+		lastRow = split.getEndRow();
+		scan.setStopRow(lastRow);
+
+		resultScanner = table.getScanner(scan);
+		endReached = false;
+		scannedRows = 0;
+	}
+
+	@Override
 	public boolean reachedEnd() throws IOException {
 		return this.endReached;
 	}
 
 	@Override
 	public T nextRecord(T reuse) throws IOException {
-		if (this.rs == null){
+		if (this.resultScanner == null){
 			throw new IOException("No table result scanner provided!");
 		}
 		try{
-			Result res = this.rs.next();
+			Result res = this.resultScanner.next();
 			if (res != null){
 				scannedRows++;
 				lastRow = res.getRow();
 				return mapResultToTuple(res);
 			}
 		}catch (Exception e) {
-			this.rs.close();
+			this.resultScanner.close();
 			//workaround for timeout on scan
 			LOG.warn("Error after scan of " + scannedRows + " rows. Retry with a new scanner...", e);
 			this.scan.setStartRow(lastRow);
-			this.rs = table.getScanner(scan);
-			Result res = this.rs.next();
+			this.resultScanner = table.getScanner(scan);
+			Result res = this.resultScanner.next();
 			if (res != null) {
 				scannedRows++;
 				lastRow = res.getRow();
@@ -126,43 +148,27 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	}
 
 	@Override
-	public void open(TableInputSplit split) throws IOException {
-		if (split == null){
-			throw new IOException("Input split is null!");
+	public void close() throws IOException {
+		LOG.info("Closing split (scanned {} rows)", scannedRows);
+		this.lastRow = null;
+		try {
+			if(resultScanner !=null) {
+				this.resultScanner.close();
+			}
+		} finally {
+			this.resultScanner = null;
 		}
-
-		this.table = createTable();
-		if (table == null){
-			throw new IOException("No HTable provided!");
-		}
-
-		this.scan = getScanner();
-		if (scan == null){
-			throw new IOException("No Scan instance provided");
-		}
-
-		logSplitInfo("opening", split);
-		scan.setStartRow(split.getStartRow());
-		lastRow = split.getEndRow();
-		scan.setStopRow(lastRow);
-
-		this.rs = table.getScanner(scan);
-		this.endReached = false;
-		this.scannedRows = 0;
 	}
 
 	@Override
-	public void close() throws IOException {
-		if(rs!=null){
-			this.rs.close();
-			this.rs = null;
-		}
-		if(table!=null){
-			this.table.close();
+	public void closeInputFormat() throws IOException {
+		try {
+			if(table!=null) {
+				this.table.close();
+			}
+		} finally {
 			this.table = null;
 		}
-		LOG.info("Closing split (scanned {} rows)", scannedRows);
-		this.lastRow = null;
 	}
 
 	@Override
