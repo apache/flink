@@ -47,6 +47,7 @@ under the License.
 		<module>flink-connector-nifi</module>
 		<module>flink-connector-cassandra</module>
 		<module>flink-connector-redis</module>
+		<module>flink-connector-hbase</module>
 	</modules>
 
 	<!-- See main pom.xml for explanation of profiles -->
