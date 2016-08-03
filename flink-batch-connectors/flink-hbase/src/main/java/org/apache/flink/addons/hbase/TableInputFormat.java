@@ -74,8 +74,6 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	 */
 	@Override
 	public void configure(Configuration parameters) {
-		this.table = createTable();
-		this.scan = getScanner();
 	}
 
 	/** Create an {@link HTable} instance and set it into this format */
@@ -135,9 +133,13 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 		if (split == null){
 			throw new IOException("Input split is null!");
 		}
+
+		this.table = createTable();
 		if (table == null){
 			throw new IOException("No HTable provided!");
 		}
+
+		this.scan = getScanner();
 		if (scan == null){
 			throw new IOException("No Scan instance provided");
 		}
@@ -156,9 +158,11 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	public void close() throws IOException {
 		if(rs!=null){
 			this.rs.close();
+			this.rs = null;
 		}
 		if(table!=null){
 			this.table.close();
+			this.table = null;
 		}
 		LOG.info("Closing split (scanned {} rows)", scannedRows);
 		this.lastRow = null;
