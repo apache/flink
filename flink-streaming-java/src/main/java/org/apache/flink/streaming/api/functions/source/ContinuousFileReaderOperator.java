@@ -328,7 +328,11 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 				synchronized (checkpointLock) {
 					LOG.info("Reader terminated, and exiting...");
 
-					this.format.closeInputFormat();
+					try {
+						this.format.closeInputFormat();
+					} catch (IOException e) {
+						// Ignoring
+					}
 					this.isSplitOpen = false;
 					this.currentSplit = null;
 					this.isRunning = false;

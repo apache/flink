@@ -135,14 +135,14 @@ public final class ReplicatingInputFormat<OT, S extends InputSplit> extends Rich
 	}
 
 	@Override
-	public void openInputFormat() {
+	public void openInputFormat() throws IOException {
 		if (this.replicatedIF instanceof RichInputFormat) {
 			((RichInputFormat)this.replicatedIF).openInputFormat();
 		}
 	}
 
 	@Override
-	public void closeInputFormat() {
+	public void closeInputFormat() throws IOException {
 		if (this.replicatedIF instanceof RichInputFormat) {
 			((RichInputFormat)this.replicatedIF).closeInputFormat();
 		}
