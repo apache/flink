@@ -74,4 +74,16 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+
+	<build>
+		<plugins>
+			<!-- activate API compatibility checks -->
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>

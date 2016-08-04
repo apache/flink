@@ -106,6 +106,13 @@ under the License.
 
 	<build>
 		<plugins>
+
+			<!-- activate API compatibility checks -->
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+			</plugin>
+
 			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
