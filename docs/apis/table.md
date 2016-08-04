@@ -211,7 +211,7 @@ A custom `TableSource` can be defined by implementing the `BatchTableSource` or 
 ### Available Table Sources
 
 | **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
-| `CsvTableSouce` | `flink-table` | Y | Y | A simple source for CSV files with up to 25 fields.
+| `CsvTableSouce` | `flink-table` | Y | Y | A simple source for CSV files.
 | `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for JSON data.
 | `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for JSON data.
 
@@ -929,7 +929,7 @@ suffixed = cast | as | aggregation | nullCheck | if | functionCall ;
 
 cast = composite , ".cast(" , dataType , ")" ;
 
-dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOL" | "BOOLEAN" | "STRING" | "DECIMAL" | "DATE" | "TIME" | "TIMESTAMP";
+dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | "STRING" | "DECIMAL" | "DATE" | "TIME" | "TIMESTAMP";
 
 as = composite , ".as(" , fieldReference , ")" ;
 
@@ -939,7 +939,7 @@ nullCheck = composite , ( ".isNull" | ".isNotNull" ) , [ "()" ] ;
 
 if = composite , ".?(" , expression , "," , expression , ")" ;
 
-functionCall = composite , "." , functionIdentifier , "(" , [ expression , { "," , expression } ] , ")"
+functionCall = composite , "." , functionIdentifier , "(" , [ expression , { "," , expression } ] , ")" ;
 
 atom = ( "(" , expression , ")" ) | literal | nullLiteral | fieldReference ;
 
@@ -1007,7 +1007,6 @@ Among others, the following SQL features are not supported, yet:
 
 - Time interval data type (`INTERVAL`)
 - Timestamps are limited to milliseconds precision
-- Advanced types such as generic types, composite types (e.g. POJOs), and arrays within rows
 - Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
 - Non-equi joins and Cartesian products
 - Result selection by order position (`ORDER BY OFFSET FETCH`)
@@ -1057,8 +1056,811 @@ The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, an
 
 {% top %}
 
+### SQL Syntax
+
+Flink uses [Apache Calcite](https://calcite.apache.org/docs/reference.html) for SQL parsing. Currently, Flink SQL only supports query-related SQL syntax and only a subset of the comprehensive SQL standard. The following BNF-grammar describes the supported SQL features:
+
+```
+
+query:
+  values
+  | {
+      select
+      | selectWithoutFrom
+      | query UNION [ ALL ] query
+      | query EXCEPT query
+      | query INTERSECT query
+    }
+    [ ORDER BY orderItem [, orderItem ]* ]
+
+orderItem:
+  expression [ ASC | DESC ]
+
+select:
+  SELECT [ STREAM ] [ ALL | DISTINCT ]
+  { * | projectItem [, projectItem ]* }
+  FROM tableExpression
+  [ WHERE booleanExpression ]
+  [ GROUP BY { groupItem [, groupItem ]* } ]
+  [ HAVING booleanExpression ]
+
+selectWithoutFrom:
+  SELECT [ ALL | DISTINCT ]
+  { * | projectItem [, projectItem ]* }
+
+projectItem:
+  expression [ [ AS ] columnAlias ]
+  | tableAlias . *
+
+tableExpression:
+  tableReference [, tableReference ]*
+  | tableExpression [ NATURAL ] [ LEFT | RIGHT | FULL ] JOIN tableExpression [ joinCondition ]
+
+joinCondition:
+  ON booleanExpression
+  | USING '(' column [, column ]* ')'
+
+tableReference:
+  tablePrimary
+  [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
+
+tablePrimary:
+  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
+
+values:
+  VALUES expression [, expression ]*
+
+groupItem:
+  expression
+  | '(' ')'
+  | '(' expression [, expression ]* ')'
+
+```
+
+
+{% top %}
+
+### Reserved Keywords
+
+Although not every SQL feature is implemented yet, some string combinations are already reserved as keywords for future use. If you want to use one of the following strings as a field name, make sure to surround them with backticks (e.g. `` `value` ``, `` `count` ``).
+
+{% highlight sql %}
+
+A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, ALWAYS, AND, ANY, ARE, ARRAY, AS, ASC, ASENSITIVE, ASSERTION, ASSIGNMENT, ASYMMETRIC, AT, ATOMIC, ATTRIBUTE, ATTRIBUTES, AUTHORIZATION, AVG, BEFORE, BEGIN, BERNOULLI, BETWEEN, BIGINT, BINARY, BIT, BLOB, BOOLEAN, BOTH, BREADTH, BY, C, CALL, CALLED, CARDINALITY, CASCADE, CASCADED, CASE, CAST, CATALOG, CATALOG_NAME, CEIL, CEILING, CENTURY, CHAIN, CHAR, CHARACTER, CHARACTERISTICTS, CHARACTERS, CHARACTER_LENGTH, CHARACTER_SET_CATALOG, CHARACTER_SET_NAME, CHARACTER_SET_SCHEMA, CHAR_LENGTH, CHECK, CLASS_ORIGIN, CLOB, CLOSE, COALESCE, COBOL, COLLATE, COLLATION, COLLATION_CATALOG, COLLATION_NAME, COLLATION_SCHEMA, COLLECT, COLUMN, COLUMN_NAME, COMMAND_FUNCTION, COMMAND_FUNCTION_CODE, COMMIT, COMMITTED, CONDITION, CONDITION_NUMBER, CONNECT, CONNECTION, CONNECTION_NAME, CONSTRAINT, CONSTRAINTS, CONSTRAINT_CATALOG, CONSTRAINT_NAME, CONSTRAINT_SCHEMA, CONSTRUCTOR, CONTAINS, CONTINUE, CONVERT, CORR, CORRESPONDING, COUNT, COVAR_POP, COVAR_SAMP, CREATE, CROSS, CUBE, CUME_DIST, CURRENT, CURRENT_CATALOG, CURRENT_DATE, CURRENT_DEFAULT_TRANSFORM_GROUP, CURRENT_PATH, CURRENT_ROLE, CURRENT_SCHEMA, CURRENT_TIME, CURRENT_TIMESTAMP, CURRENT_TRANSFORM_GROUP_FOR_TYPE, CURRENT_USER, CURSOR, CURSOR_NAME, CYCLE, DATA, DATABASE, DATE, DATETIME_INTERVAL_CODE, DATETIME_INTERVAL_PRECISION, DAY, DEALLOCATE, DEC, DECADE, DECIMAL, DECLARE, DEFAULT, DEFAULTS, DEFERRABLE, DEFERRED, DEFINED, DEFINER, DEGREE, DELETE, DENSE_RANK, DEPTH, DEREF, DERIVED, DESC, DESCRIBE, DESCRIPTION, DESCRIPTOR, DETERMINISTIC, DIAGNOSTICS, DISALLOW, DISCONNECT, DISPATCH, DISTINCT, DOMAIN, DOUBLE, DOW, DOY, DROP, DYNAMIC, DYNAMIC_FUNCTION, DYNAMIC_FUNCTION_CODE, EACH, ELEMENT, ELSE, END, END-EXEC, EPOCH, EQUALS, ESCAPE, EVERY, EXCEPT, EXCEPTION, EXCLUDE, EXCLUDING, EXEC, EXECUTE, EXISTS, EXP, EXPLAIN, EXTEND, EXTERNAL, EXTRACT, FALSE, FETCH, FILTER, FINAL, FIRST, FIRST_VALUE, FLOAT, FLOOR, FOLLOWING, FOR, FOREIGN, FORTRAN, FOUND, FRAC_SECOND, FREE, FROM, FULL, FUNCTION, FUSION, G, GENERAL, GENERATED, GET, GLOBAL, GO, GOTO, GRANT, GRANTED, GROUP, GROUPING, HAVING, HIERARCHY, HOLD, HOUR, IDENTITY, IMMEDIATE, IMPLEMENTATION, IMPORT, IN, INCLUDING, INCREMENT, INDICATOR, INITIALLY, INNER, INOUT, INPUT, INSENSITIVE, INSERT, INSTANCE, INSTANTIABLE, INT, INTEGER, INTERSECT, INTERSECTION, INTERVAL, INTO, INVOKER, IS, ISOLATION, JAVA, JOIN, K, KEY, KEY_MEMBER, KEY_TYPE, LABEL, LANGUAGE, LARGE, LAST, LAST_VALUE, LATERAL, LEADING, LEFT, LENGTH, LEVEL, LIBRARY, LIKE, LIMIT, LN, LOCAL, LOCALTIME, LOCALTIMESTAMP, LOCATOR, LOWER, M, MAP, MATCH, MATCHED, MAX, MAXVALUE, MEMBER, MERGE, MESSAGE_LENGTH, MESSAGE_OCTET_LENGTH, MESSAGE_TEXT, METHOD, MICROSECOND, MILLENNIUM, MIN, MINUTE, MINVALUE, MOD, MODIFIES, MODULE, MONTH, MORE, MULTISET, MUMPS, NAME, NAMES, NATIONAL, NATURAL, NCHAR, NCLOB, NESTING, NEW, NEXT, NO, NONE, NORMALIZE, NORMALIZED, NOT, NULL, NULLABLE, NULLIF, NULLS, NUMBER, NUMERIC, OBJECT, OCTETS, OCTET_LENGTH, OF, OFFSET, OLD, ON, ONLY, OPEN, OPTION, OPTIONS, OR, ORDER, ORDERING, ORDINALITY, OTHERS, OUT, OUTER, OUTPUT, OVER, OVERLAPS, OVERLAY, OVERRIDING, PAD, PARAMETER, PARAMETER_MODE, PARAMETER_NAME, PARAMETER_ORDINAL_POSITION, PARAMETER_SPECIFIC_CATALOG, PARAMETER_SPECIFIC_NAME, PARAMETER_SPECIFIC_SCHEMA, PARTIAL, PARTITION, PASCAL, PASSTHROUGH, PATH, PERCENTILE_CONT, PERCENTILE_DISC, PERCENT_RANK, PLACING, PLAN, PLI, POSITION, POWER, PRECEDING, PRECISION, PREPARE, PRESERVE, PRIMARY, PRIOR, PRIVILEGES, PROCEDURE, PUBLIC, QUARTER, RANGE, RANK, READ, READS, REAL, RECURSIVE, REF, REFERENCES, REFERENCING, REGR_AVGX, REGR_AVGY, REGR_COUNT, REGR_INTERCEPT, REGR_R2, REGR_SLOPE, REGR_SXX, REGR_SXY, REGR_SYY, RELATIVE, RELEASE, REPEATABLE, RESET, RESTART, RESTRICT, RESULT, RETURN, RETURNED_CARDINALITY, RETURNED_LENGTH, RETURNED_OCTET_LENGTH, RETURNED_SQLSTATE, RETURNS, REVOKE, RIGHT, ROLE, ROLLBACK, ROLLUP, ROUTINE, ROUTINE_CATALOG, ROUTINE_NAME, ROUTINE_SCHEMA, ROW, ROWS, ROW_COUNT, ROW_NUMBER, SAVEPOINT, SCALE, SCHEMA, SCHEMA_NAME, SCOPE, SCOPE_CATALOGS, SCOPE_NAME, SCOPE_SCHEMA, SCROLL, SEARCH, SECOND, SECTION, SECURITY, SELECT, SELF, SENSITIVE, SEQUENCE, SERIALIZABLE, SERVER, SERVER_NAME, SESSION, SESSION_USER, SET, SETS, SIMILAR, SIMPLE, SIZE, SMALLINT, SOME, SOURCE, SPACE, SPECIFIC, SPECIFICTYPE, SPECIFIC_NAME, SQL, SQLEXCEPTION, SQLSTATE, SQLWARNING, SQL_TSI_DAY, SQL_TSI_FRAC_SECOND, SQL_TSI_HOUR, SQL_TSI_MICROSECOND, SQL_TSI_MINUTE, SQL_TSI_MONTH, SQL_TSI_QUARTER, SQL_TSI_SECOND, SQL_TSI_WEEK, SQL_TSI_YEAR, SQRT, START, STATE, STATEMENT, STATIC, STDDEV_POP, STDDEV_SAMP, STREAM, STRUCTURE, STYLE, SUBCLASS_ORIGIN, SUBMULTISET, SUBSTITUTE, SUBSTRING, SUM, SYMMETRIC, SYSTEM, SYSTEM_USER, TABLE, TABLESAMPLE, TABLE_NAME, TEMPORARY, THEN, TIES, TIME, TIMESTAMP, TIMESTAMPADD, TIMESTAMPDIFF, TIMEZONE_HOUR, TIMEZONE_MINUTE, TINYINT, TO, TOP_LEVEL_COUNT, TRAILING, TRANSACTION, TRANSACTIONS_ACTIVE, TRANSACTIONS_COMMITTED, TRANSACTIONS_ROLLED_BACK, TRANSFORM, TRANSFORMS, TRANSLATE, TRANSLATION, TREAT, TRIGGER, TRIGGER_CATALOG, TRIGGER_NAME, TRIGGER_SCHEMA, TRIM, TRUE, TYPE, UESCAPE, UNBOUNDED, UNCOMMITTED, UNDER, UNION, UNIQUE, UNKNOWN, UNNAMED, UNNEST, UPDATE, UPPER, UPSERT, USAGE, USER, USER_DEFINED_TYPE_CATALOG, USER_DEFINED_TYPE_CODE, USER_DEFINED_TYPE_NAME, USER_DEFINED_TYPE_SCHEMA, USING, VALUE, VALUES, VARBINARY, VARCHAR, VARYING, VAR_POP, VAR_SAMP, VERSION, VIEW, WEEK, WHEN, WHENEVER, WHERE, WIDTH_BUCKET, WINDOW, WITH, WITHIN, WITHOUT, WORK, WRAPPER, WRITE, XML, YEAR, ZONE
+
+{% endhighlight %}
+
+{% top %}
+
+Data Types
+----------
+
+The Table API is built on top of Flink's DataSet and DataStream API. Internally, it also uses Flink's `TypeInformation` to distinguish between types. The Table API does not support all Flink types so far. All supported simple types are listed in `org.apache.flink.api.table.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
+
+| Table API              | SQL             | Java type              |
+| :--------------------- | :-------------- | :--------------------- |
+| `Types.STRING`         | `VARCHAR`       | `java.lang.String`     |
+| `Types.BOOLEAN`        | `BOOLEAN`       | `java.lang.Boolean`    |
+| `Types.BYTE`           | `TINYINT`       | `java.lang.Byte`       |
+| `Types.SHORT`          | `SMALLINT`      | `java.lang.Short`      |
+| `Types.INT`            | `INTEGER, INT`  | `java.lang.Integer`    |
+| `Types.LONG`           | `BIGINT`        | `java.lang.Long`       |
+| `Types.FLOAT`          | `REAL, FLOAT`   | `java.lang.Float`      |
+| `Types.DOUBLE`         | `DOUBLE`        | `java.lang.Double`     |
+| `Types.DECIMAL`        | `DECIMAL`       | `java.math.BigDecimal` |
+| `Types.DATE`           | `DATE`          | `java.sql.Date`        |
+| `Types.TIME`           | `TIME`          | `java.sql.Time`        |
+| `Types.TIMESTAMP`      | `TIMESTAMP`     | `java.sql.Timestamp`   |
+
+Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and arrays can be fields of a row but can not be accessed yet. They are treated like a black box within Table API and SQL.
+
+{% top %}
+
+Scalar Functions
+----------------
+
+Both the Table API and SQL come with a set of built-in scalar functions for data transformations. This section gives a brief overview of the available scalar function so far.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+<br/>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Function</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.exp()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the Euler's number raised to the given power.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.log10()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the base 10 logarithm of given value.</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.ln()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the natural logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.power(NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the given number raised to the power of the other value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.abs()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the absolute value of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.floor()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the largest integer less than or equal to a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.ceil()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the smallest integer greater than or equal to a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.substring(INT, INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string at the given index for the given length. The index starts at 1 and is inclusive, i.e., the character at the index is included in the substring. The substring has the specified length or less.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.substring(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string beginning at the given index to the end. The start index starts at 1 and is inclusive.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.trim(LEADING, STRING)
+STRING.trim(TRAILING, STRING)
+STRING.trim(BOTH, STRING)
+STRING.trim(BOTH)
+STRING.trim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Removes leading and/or trailing characters from the given string. By default, whitespaces at both sides are removed.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.charLength()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the length of a String.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.upperCase()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns all of the characters in a string in upper case using the rules of the default locale.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.lowerCase()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns all of the characters in a string in lower case using the rules of the default locale.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.initCap()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.like(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified LIKE pattern. E.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.similar(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.toDate()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a date string in the form "yy-mm-dd" to a SQL date.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.toTime()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a time string in the form "hh:mm:ss" to a SQL time.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.toTimestamp()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL timestamp.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+</div>
+<div data-lang="scala" markdown="1">
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Function</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.exp()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the Euler's number raised to the given power.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.log10()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the base 10 logarithm of given value.</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.ln()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the natural logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.power(NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the given number raised to the power of the other value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.abs()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the absolute value of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.floor()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the largest integer less than or equal to a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.ceil()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the smallest integer greater than or equal to a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.substring(INT, INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string at the given index for the given length. The index starts at 1 and is inclusive, i.e., the character at the index is included in the substring. The substring has the specified length or less.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.substring(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string beginning at the given index to the end. The start index starts at 1 and is inclusive.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.trim(
+  leading = true,
+  trailing = true,
+  character = " ")
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Removes leading and/or trailing characters from the given string.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.charLength()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the length of a String.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.upperCase()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns all of the characters in a string in upper case using the rules of the default locale.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.lowerCase()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns all of the characters in a string in lower case using the rules of the default locale.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.initCap()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.like(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified LIKE pattern. E.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.similar(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.toDate
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a date string in the form "yy-mm-dd" to a SQL date.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.toTime
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a time string in the form "hh:mm:ss" to a SQL time.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.toTimestamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL timestamp.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+<div data-lang="SQL" markdown="1">
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Function</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight sql %}
+EXP(NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the Euler's number raised to the given power.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+LOG10(NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the base 10 logarithm of given value.</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        {% highlight sql %}
+LN(NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the natural logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+POWER(NUMERIC, NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the given number raised to the power of the other value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+ABS(NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the absolute value of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+FLOOR(NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the largest integer less than or equal to a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+CEIL(NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the smallest integer greater than or equal to a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+SUBSTRING(VARCHAR, INT, INT)
+SUBSTRING(VARCHAR FROM INT FOR INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string at the given index for the given length. The index starts at 1 and is inclusive, i.e., the character at the index is included in the substring. The substring has the specified length or less.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+SUBSTRING(VARCHAR, INT)
+SUBSTRING(VARCHAR FROM INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string beginning at the given index to the end. The start index starts at 1 and is inclusive.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+TRIM(LEADING VARCHAR FROM VARCHAR)
+TRIM(TRAILING VARCHAR FROM VARCHAR)
+TRIM(BOTH VARCHAR FROM VARCHAR)
+TRIM(VARCHAR)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Removes leading and/or trailing characters from the given string. By default, whitespaces at both sides are removed.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+CHAR_LENGTH(VARCHAR)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the length of a String.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+UPPER(VARCHAR)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns all of the characters in a string in upper case using the rules of the default locale.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+LOWER(VARCHAR)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns all of the characters in a string in lower case using the rules of the default locale.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+INITCAP(VARCHAR)
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+VARCHAR LIKE VARCHAR
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified LIKE pattern. E.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+VARCHAR SIMILAR TO VARCHAR
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+DATE VARCHAR
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a date string in the form "yy-mm-dd" to a SQL date.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+TIME VARCHAR
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a time string in the form "hh:mm:ss" to a SQL time.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+TIMESTAMP VARCHAR
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL timestamp.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+</div>
+
+{% top %}
+
 Writing Tables to External Sinks
-----
+--------------------------------
 
 A `Table` can be written to a `TableSink`, which is a generic interface to support a wide variety of file formats (e.g. CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ). A batch `Table` can only be written to a `BatchTableSink`, a streaming table requires a `StreamTableSink`. A `TableSink` can implement both interfaces at the same time.
 
@@ -1106,7 +1908,7 @@ env.execute()
 
 Runtime Configuration
 ----
-The Table API provides a configuration (the so-called `TableConfig`) to modify runtime behavior. It can be accessed either through `TableEnvironment` or passed to the `toDataSet`/`toDataStream` method when using Scala implicit conversion.
+The Table API provides a configuration (the so-called `TableConfig`) to modify runtime behavior. It can be accessed through the `TableEnvironment`.
 
 ### Null Handling
 By default, the Table API supports `null` values. Null handling can be disabled to improve preformance by setting the `nullCheck` property in the `TableConfig` to `false`.

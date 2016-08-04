@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.examples.scala
 
 import org.apache.flink.api.scala._
@@ -23,14 +22,15 @@ import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.TableEnvironment
 
 /**
-  * Simple example for demonstrating the use of the Table API for a Word Count in Scala.
+  * Simple example that shows how the Batch SQL API is used in Scala.
   *
   * This example shows how to:
   *  - Convert DataSets to Tables
-  *  - Apply group, aggregate, select, and filter operations
+  *  - Register a Table under a name
+  *  - Run a SQL query on the registered Table
   *
   */
-object WordCountTable {
+object WordCountSQL {
 
   // *************************************************************************
   //     PROGRAM
@@ -43,14 +43,14 @@ object WordCountTable {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
-    val expr = input.toTable(tEnv)
-    val result = expr
-      .groupBy('word)
-      .select('word, 'frequency.sum as 'frequency)
-      .filter('frequency === 2)
-      .toDataSet[WC]
 
-    result.print()
+    // register the DataSet as table "WordCount"
+    tEnv.registerDataSet("WordCount", input, 'word, 'frequency)
+
+    // run a SQL query on the Table and retrieve the result as a new Table
+    val table = tEnv.sql("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")
+
+    table.toDataSet[WC].print()
   }
 
   // *************************************************************************

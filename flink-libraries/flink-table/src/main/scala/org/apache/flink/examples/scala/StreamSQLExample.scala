@@ -15,22 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.examples.scala
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 
 /**
-  * Simple example for demonstrating the use of the Table API for a Word Count in Scala.
+  * Simple example for demonstrating the use of SQL on a Stream Table.
   *
   * This example shows how to:
-  *  - Convert DataSets to Tables
-  *  - Apply group, aggregate, select, and filter operations
+  *  - Convert DataStreams to Tables
+  *  - Register a Table under a name
+  *  - Run a StreamSQL query on the registered Table
   *
   */
-object WordCountTable {
+object StreamSQLExample {
 
   // *************************************************************************
   //     PROGRAM
@@ -39,24 +40,37 @@ object WordCountTable {
   def main(args: Array[String]): Unit = {
 
     // set up execution environment
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
-    val expr = input.toTable(tEnv)
-    val result = expr
-      .groupBy('word)
-      .select('word, 'frequency.sum as 'frequency)
-      .filter('frequency === 2)
-      .toDataSet[WC]
+    val orderA: DataStream[Order] = env.fromCollection(Seq(
+      Order(1L, "beer", 3),
+      Order(1L, "diaper", 4),
+      Order(3L, "rubber", 2)))
 
-    result.print()
+    val orderB: DataStream[Order] = env.fromCollection(Seq(
+      Order(2L, "pen", 3),
+      Order(2L, "rubber", 3),
+      Order(4L, "beer", 1)))
+
+    // register the DataStreams under the name "OrderA" and "OrderB"
+    tEnv.registerDataStream("OrderA", orderA, 'user, 'product, 'amount)
+    tEnv.registerDataStream("OrderB", orderB, 'user, 'product, 'amount)
+
+    // union the two tables
+    val result = tEnv.sql(
+      "SELECT STREAM * FROM OrderA WHERE amount > 2 UNION ALL " +
+        "SELECT STREAM * FROM OrderB WHERE amount < 2")
+
+    result.toDataStream[Order].print()
+
+    env.execute()
   }
 
   // *************************************************************************
   //     USER DATA TYPES
   // *************************************************************************
 
-  case class WC(word: String, frequency: Long)
+  case class Order(user: Long, product: String, amount: Int)
 
 }

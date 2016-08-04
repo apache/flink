@@ -26,9 +26,9 @@
 # to reference a specific Flink version, because this is the only place where
 # we change the version for the complete docs when forking of a release branch
 # etc.
-version: "1.1-SNAPSHOT"
-version_hadoop1: "1.1-hadoop1-SNAPSHOT"
-version_short: "1.1" # Used for the top navbar w/o snapshot suffix
+version: "1.2-SNAPSHOT"
+version_hadoop1: "1.2-hadoop1-SNAPSHOT"
+version_short: "1.2" # Used for the top navbar w/o snapshot suffix
 
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.10"
@@ -41,9 +41,9 @@ github_url: "https://github.com/apache/flink"
 download_url: "http://flink.apache.org/downloads.html"
 
 # Setup quickstart uses this => to be changed
-FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.9.1/flink-0.9.1-bin-hadoop1.tgz"
-FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.9.1/flink-0.9.1-bin-hadoop2.tgz"
-FLINK_DOWNLOAD_URL_YARN_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.9.1/flink-0.9.1-bin-hadoop2-yarn.tgz"
+FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.1.0/flink-1.1.0-bin-hadoop1.tgz"
+FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.1.0/flink-1.1.0-bin-hadoop2.tgz"
+FLINK_DOWNLOAD_URL_YARN_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.1.0/flink-1.1.0-bin-hadoop2-yarn.tgz"
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG

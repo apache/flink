@@ -50,6 +50,14 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f0.substring(1, f7)",
       "SUBSTRING(f0, 1, f7)",
       "Thi")
+
+    testSqlApi(
+      "SUBSTRING(f0 FROM 2 FOR 1)",
+      "h")
+
+    testSqlApi(
+      "SUBSTRING(f0 FROM 2)",
+      "his is a test String.")
   }
 
   @Test

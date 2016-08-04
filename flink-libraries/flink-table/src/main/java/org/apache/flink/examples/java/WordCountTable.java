@@ -24,48 +24,62 @@ import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.table.TableEnvironment;
 
 /**
- * Very simple example that shows how the Java Table API can be used.
- */
-public class JavaTableExample {
+  * Simple example for demonstrating the use of the Table API for a Word Count in Java.
+  *
+  * This example shows how to:
+  *  - Convert DataSets to Tables
+  *  - Apply group, aggregate, select, and filter operations
+  *
+  */
+public class WordCountTable {
 
-	public static class WC {
-		public String word;
-		public long count;
-
-		// Public constructor to make it a Flink POJO
-		public WC() {
-
-		}
-
-		public WC(String word, long count) {
-			this.word = word;
-			this.count = count;
-		}
-
-		@Override
-		public String toString() {
-			return "WC " + word + " " + count;
-		}
-	}
+	// *************************************************************************
+	//     PROGRAM
+	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<WC> input = env.fromElements(
 				new WC("Hello", 1),
 				new WC("Ciao", 1),
 				new WC("Hello", 1));
 
-		Table table = tableEnv.fromDataSet(input);
+		Table table = tEnv.fromDataSet(input);
 
 		Table filtered = table
 				.groupBy("word")
-				.select("word.count as count, word")
-				.filter("count = 2");
+				.select("word, frequency.sum as frequency")
+				.filter("frequency = 2");
 
-		DataSet<WC> result = tableEnv.toDataSet(filtered, WC.class);
+		DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
 
 		result.print();
 	}
+
+	// *************************************************************************
+	//     USER DATA TYPES
+	// *************************************************************************
+
+	public static class WC {
+		public String word;
+		public long frequency;
+
+		// public constructor to make it a Flink POJO
+		public WC() {
+
+		}
+
+		public WC(String word, long frequency) {
+			this.word = word;
+			this.frequency = frequency;
+		}
+
+		@Override
+		public String toString() {
+			return "WC " + word + " " + frequency;
+		}
+	}
+
 }
