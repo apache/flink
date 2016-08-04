@@ -84,7 +84,7 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public <S extends RpcServer, C extends RpcGateway> C startServer(S methodHandler, Class<C> rpcClientClass) {
+	public <S extends RpcServer, C extends RpcGateway> C startServer(S methodHandler) {
 		ActorRef ref;
 		C self;
 		if (methodHandler instanceof TaskExecutor) {
@@ -115,9 +115,9 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public <T> void stopServer(T server) {
-		if (server instanceof AkkaGateway) {
-			AkkaGateway akkaClient = (AkkaGateway) server;
+	public <C extends RpcGateway> void stopServer(C selfGateway) {
+		if (selfGateway instanceof AkkaGateway) {
+			AkkaGateway akkaClient = (AkkaGateway) selfGateway;
 
 			if (actors.contains(akkaClient.getActorRef())) {
 				akkaClient.getActorRef().tell(PoisonPill.getInstance(), ActorRef.noSender());

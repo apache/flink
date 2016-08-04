@@ -21,11 +21,11 @@ package org.apache.flink.runtime.rpc.akka.jobmaster;
 import akka.actor.ActorRef;
 import akka.pattern.AskableActorRef;
 import akka.util.Timeout;
+import org.apache.flink.runtime.rpc.akka.RunnableAkkaGateway;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.akka.AkkaGateway;
 import org.apache.flink.runtime.rpc.akka.messages.HandleRegistrationResponse;
 import org.apache.flink.runtime.rpc.akka.messages.TriggerResourceManagerRegistration;
 import org.apache.flink.runtime.rpc.akka.messages.UpdateTaskExecutionState;
@@ -33,7 +33,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import scala.concurrent.Future;
 import scala.reflect.ClassTag$;
 
-public class JobMasterAkkaGateway implements JobMasterGateway, AkkaGateway {
+public class JobMasterAkkaGateway extends RunnableAkkaGateway implements JobMasterGateway {
 	private final AskableActorRef actorRef;
 	private final Timeout timeout;
 

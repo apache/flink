@@ -20,14 +20,14 @@ package org.apache.flink.runtime.rpc.akka.jobmaster;
 
 import akka.actor.ActorRef;
 import akka.actor.Status;
-import akka.actor.UntypedActor;
+import org.apache.flink.runtime.rpc.akka.RunnableAkkaActor;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.akka.messages.HandleRegistrationResponse;
 import org.apache.flink.runtime.rpc.akka.messages.TriggerResourceManagerRegistration;
 import org.apache.flink.runtime.rpc.akka.messages.UpdateTaskExecutionState;
 
-public class JobMasterAkkaActor extends UntypedActor {
+public class JobMasterAkkaActor extends RunnableAkkaActor {
 	private final JobMaster jobMaster;
 
 	public JobMasterAkkaActor(JobMaster jobMaster) {
@@ -57,7 +57,7 @@ public class JobMasterAkkaActor extends UntypedActor {
 
 			jobMaster.handleRegistrationResponse(registrationResponse.getRegistrationResponse(), registrationResponse.getResourceManagerGateway());
 		} else {
-			throw new RuntimeException("Unknown message type received: " + message.getClass());
+			super.onReceive(message);
 		}
 	}
 }

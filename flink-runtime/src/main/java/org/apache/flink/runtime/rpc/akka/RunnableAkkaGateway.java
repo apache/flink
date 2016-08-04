@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.runtime.rpc.akka;
 
-import scala.concurrent.Future;
+import akka.actor.ActorRef;
+import org.apache.flink.runtime.rpc.RunnableRpcGateway;
+import org.apache.flink.runtime.rpc.akka.messages.RunnableMessage;
 
-public interface RpcService {
-	<C extends RpcGateway> Future<C> connect(String address, Class<C> clazz);
-
-	<S extends RpcServer, C extends RpcGateway> C startServer(S methodHandler);
-
-	<C extends RpcGateway> void stopServer(C gateway);
-
-	void stopService();
+public abstract class RunnableAkkaGateway implements RunnableRpcGateway, AkkaGateway {
+	@Override
+	public void runAsync(Runnable runnable) {
+		getActorRef().tell(new RunnableMessage(runnable), ActorRef.noSender());
+	}
 }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-import com.sun.xml.internal.ws.util.CompletedFuture;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -193,5 +191,44 @@ public class DirectExecutorService implements ExecutorService {
 	@Override
 	public void execute(Runnable command) {
 		command.run();
+	}
+
+	public static class CompletedFuture<V> implements Future<V> {
+		private final V value;
+		private final Exception exception;
+
+		public CompletedFuture(V value, Exception exception) {
+			this.value = value;
+			this.exception = exception;
+		}
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			return false;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			return false;
+		}
+
+		@Override
+		public boolean isDone() {
+			return true;
+		}
+
+		@Override
+		public V get() throws InterruptedException, ExecutionException {
+			if (exception != null) {
+				throw new ExecutionException(exception);
+			} else {
+				return value;
+			}
+		}
+
+		@Override
+		public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			return get();
+		}
 	}
 }

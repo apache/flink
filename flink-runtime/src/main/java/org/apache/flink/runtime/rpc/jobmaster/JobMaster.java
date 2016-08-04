@@ -37,32 +37,19 @@ import scala.concurrent.Future;
 
 import java.util.concurrent.ExecutorService;
 
-public class JobMaster implements RpcServer<JobMasterGateway> {
+public class JobMaster extends RpcServer<JobMasterGateway> {
 	private final Logger LOG = LoggerFactory.getLogger(JobMaster.class);
-	private final RpcService rpcService;
 	private final ExecutionContext executionContext;
-	private JobMasterGateway self;
 
 	private ResourceManagerGateway resourceManager = null;
 
 	public JobMaster(RpcService rpcService, ExecutorService executorService) {
-		this.rpcService = rpcService;
+		super(rpcService);
 		executionContext = ExecutionContext$.MODULE$.fromExecutor(executorService);
 	}
 
 	public ResourceManagerGateway getResourceManager() {
 		return resourceManager;
-	}
-
-	@Override
-	public void start() {
-		// start rpc server
-		self = rpcService.startServer(this, JobMasterGateway.class);
-	}
-
-	@Override
-	public void shutDown() {
-		rpcService.stopServer(getSelf());
 	}
 
 	@RpcMethod
@@ -73,12 +60,19 @@ public class JobMaster implements RpcServer<JobMasterGateway> {
 
 	@RpcMethod
 	public void triggerResourceManagerRegistration(final String address) {
-		Future<ResourceManagerGateway> resourceManagerFuture = rpcService.connect(address, ResourceManagerGateway.class);
+		Future<ResourceManagerGateway> resourceManagerFuture = getRpcService().connect(address, ResourceManagerGateway.class);
 
 		Future<RegistrationResponse> registrationResponseFuture = resourceManagerFuture.flatMap(new Mapper<ResourceManagerGateway, Future<RegistrationResponse>>() {
 			@Override
-			public Future<RegistrationResponse> apply(ResourceManagerGateway resourceManagerGateway) {
- 				return resourceManagerGateway.registerJobMaster(new JobMasterRegistration());
+			public Future<RegistrationResponse> apply(final ResourceManagerGateway resourceManagerGateway) {
+				runAsync(new Runnable() {
+					@Override
+					public void run() {
+						resourceManager = resourceManagerGateway;
+					}
+				});
+
+				return resourceManagerGateway.registerJobMaster(new JobMasterRegistration());
 			}
 		}, executionContext);
 
@@ -102,9 +96,5 @@ public class JobMaster implements RpcServer<JobMasterGateway> {
 
 	public boolean isConnected() {
 		return resourceManager != null;
-	}
-
-	public JobMasterGateway getSelf() {
-		return self;
 	}
 }

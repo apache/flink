@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.runtime.rpc.akka.messages;
 
-import scala.concurrent.Future;
+public class RunnableMessage {
+	private final Runnable runnable;
 
-public interface RpcService {
-	<C extends RpcGateway> Future<C> connect(String address, Class<C> clazz);
+	public RunnableMessage(Runnable runnable) {
+		this.runnable = runnable;
+	}
 
-	<S extends RpcServer, C extends RpcGateway> C startServer(S methodHandler);
-
-	<C extends RpcGateway> void stopServer(C gateway);
-
-	void stopService();
+	public Runnable getRunnable() {
+		return runnable;
+	}
 }

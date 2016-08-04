@@ -20,14 +20,14 @@ package org.apache.flink.runtime.rpc.akka.taskexecutor;
 
 import akka.actor.ActorRef;
 import akka.actor.Status;
-import akka.actor.UntypedActor;
 import akka.dispatch.OnComplete;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.rpc.akka.RunnableAkkaActor;
 import org.apache.flink.runtime.rpc.akka.messages.CancelTask;
 import org.apache.flink.runtime.rpc.akka.messages.ExecuteTask;
 import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutorGateway;
 
-public class TaskExecutorAkkaActor extends UntypedActor {
+public class TaskExecutorAkkaActor extends RunnableAkkaActor {
 	private final TaskExecutorGateway taskExecutor;
 
 	public TaskExecutorAkkaActor(TaskExecutorGateway taskExecutor) {
@@ -71,7 +71,7 @@ public class TaskExecutorAkkaActor extends UntypedActor {
 				getContext().dispatcher()
 			);
 		} else {
-			throw new RuntimeException("Encountered unknown message type: " + message.getClass());
+			super.onReceive(message);
 		}
 	}
 }

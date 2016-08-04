@@ -26,23 +26,12 @@ import scala.concurrent.ExecutionContext$;
 
 import java.util.concurrent.ExecutorService;
 
-public class ResourceManager implements RpcServer<ResourceManagerGateway> {
-	private final RpcService rpcService;
+public class ResourceManager extends RpcServer<ResourceManagerGateway> {
 	private final ExecutionContext executionContext;
 
-	private ResourceManagerGateway self;
-
 	public ResourceManager(RpcService rpcService, ExecutorService executorService) {
-		this.rpcService = rpcService;
+		super(rpcService);
 		this.executionContext = ExecutionContext$.MODULE$.fromExecutor(executorService);
-	}
-
-	public void start() {
-		self = rpcService.startServer(this, ResourceManagerGateway.class);
-	}
-
-	public void shutDown() {
-		rpcService.stopServer(getSelf());
 	}
 
 	@RpcMethod
@@ -55,9 +44,5 @@ public class ResourceManager implements RpcServer<ResourceManagerGateway> {
 	public SlotAssignment requestSlot(SlotRequest slotRequest) {
 		System.out.println("SlotRequest: " + slotRequest);
 		return new SlotAssignment();
-	}
-
-	public ResourceManagerGateway getSelf() {
-		return self;
 	}
 }

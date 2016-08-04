@@ -20,14 +20,14 @@ package org.apache.flink.runtime.rpc.akka.resourcemanager;
 
 import akka.actor.ActorRef;
 import akka.actor.Status;
-import akka.actor.UntypedActor;
+import org.apache.flink.runtime.rpc.akka.RunnableAkkaActor;
 import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.resourcemanager.SlotAssignment;
 import org.apache.flink.runtime.rpc.akka.messages.RegisterJobMaster;
 import org.apache.flink.runtime.rpc.akka.messages.RequestSlot;
 
-public class ResourceManagerAkkaActor extends UntypedActor {
+public class ResourceManagerAkkaActor extends RunnableAkkaActor {
 	private final ResourceManager resourceManager;
 
 	public ResourceManagerAkkaActor(ResourceManager resourceManager) {
@@ -57,7 +57,7 @@ public class ResourceManagerAkkaActor extends UntypedActor {
 				sender.tell(new Status.Failure(e), getSelf());
 			}
 		} else {
-			throw new RuntimeException("Encountered unknown message type: " + message.getClass());
+			super.onReceive(message);
 		}
 	}
 }

@@ -18,14 +18,6 @@
 
 package org.apache.flink.runtime.rpc;
 
-import scala.concurrent.Future;
-
-public interface RpcService {
-	<C extends RpcGateway> Future<C> connect(String address, Class<C> clazz);
-
-	<S extends RpcServer, C extends RpcGateway> C startServer(S methodHandler);
-
-	<C extends RpcGateway> void stopServer(C gateway);
-
-	void stopService();
+public interface RunnableRpcGateway {
+	void runAsync(Runnable runnable);
 }

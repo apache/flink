@@ -18,12 +18,21 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.runtime.rpc.akka.RunnableAkkaGateway;
+
 /**
- * Marker interface for rpc servers. Every rpc server should implement this interface.
+ * Base class for rpc servers. Every rpc server should implement this interface.
  *
- * @param <C> Rpc client counter part matching the RpcServer
+ * @param <C> Rpc gateway counter part matching the RpcServer
  */
-public interface RpcServer<C extends RpcGateway> {
+public abstract class RpcServer<C extends RpcGateway> {
+	private final RpcService rpcService;
+	private C self;
+
+	public RpcServer(RpcService rpcService) {
+		this.rpcService = rpcService;
+	}
+
 	/**
 	 * Get self-gateway which should be used to run asynchronous rpc calls on the server.
 	 *
@@ -32,9 +41,23 @@ public interface RpcServer<C extends RpcGateway> {
 	 *
 	 * @return Self gateway
 	 */
-	C getSelf();
+	public C getSelf() {
+		return self;
+	}
 
-	void start();
+	public void runAsync(Runnable runnable) {
+		((RunnableAkkaGateway) self).runAsync(runnable);
+	}
 
-	void shutDown();
+	public RpcService getRpcService() {
+		return rpcService;
+	}
+
+	public void start() {
+		self = rpcService.startServer(this);
+	}
+
+	public void shutDown() {
+		rpcService.stopServer(self);
+	}
 }

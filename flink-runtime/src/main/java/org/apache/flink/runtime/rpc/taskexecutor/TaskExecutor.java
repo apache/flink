@@ -31,24 +31,13 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
-public class TaskExecutor implements RpcServer<TaskExecutorGateway> {
-	private final RpcService rpcService;
+public class TaskExecutor extends RpcServer<TaskExecutorGateway> {
 	private final ExecutionContext executionContext;
 	private final Set<ExecutionAttemptID> tasks = new HashSet<>();
 
-	private TaskExecutorGateway self;
-
 	public TaskExecutor(RpcService rpcService, ExecutorService executorService) {
-		this.rpcService = rpcService;
+		super(rpcService);
 		this.executionContext = ExecutionContexts$.MODULE$.fromExecutor(executorService);
-	}
-
-	public void start() {
-		self = rpcService.startServer(this, TaskExecutorGateway.class);
-	}
-
-	public void shutDown() {
-		rpcService.stopServer(getSelf());
 	}
 
 	@RpcMethod
@@ -64,9 +53,5 @@ public class TaskExecutor implements RpcServer<TaskExecutorGateway> {
 		} else {
 			throw new Exception("Could not find task.");
 		}
-	}
-
-	public TaskExecutorGateway getSelf() {
-		return self;
 	}
 }

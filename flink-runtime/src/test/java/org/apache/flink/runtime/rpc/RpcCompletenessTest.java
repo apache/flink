@@ -48,27 +48,25 @@ public class RpcCompletenessTest extends TestLogger {
 
 		for (Class<? extends RpcServer> rpcServer :classes){
 			c = rpcServer;
-			Type[] interfaces = c.getGenericInterfaces();
+			Type superClass = c.getGenericSuperclass();
 
 			boolean foundRpcServerInterface = false;
 
-			for (Type in: interfaces) {
-				if (in instanceof ParameterizedType) {
-					ParameterizedType parameterizedType = (ParameterizedType) in;
+			if (superClass instanceof ParameterizedType) {
+				ParameterizedType parameterizedType = (ParameterizedType) superClass;
 
-					if (parameterizedType.getRawType() == RpcServer.class) {
-						foundRpcServerInterface = true;
-						Type[] typeArguments = parameterizedType.getActualTypeArguments();
+				if (parameterizedType.getRawType() == RpcServer.class) {
+					foundRpcServerInterface = true;
+					Type[] typeArguments = parameterizedType.getActualTypeArguments();
 
-						assertEquals(1, typeArguments.length);
-						assertTrue(typeArguments[0] instanceof Class<?>);
+					assertEquals(1, typeArguments.length);
+					assertTrue(typeArguments[0] instanceof Class<?>);
 
-						Type rpcGatewayType = typeArguments[0];
+					Type rpcGatewayType = typeArguments[0];
 
-						assertTrue(rpcGatewayType instanceof Class);
+					assertTrue(rpcGatewayType instanceof Class);
 
-						checkCompleteness(rpcServer, (Class<?>) rpcGatewayType);
-					}
+					checkCompleteness(rpcServer, (Class<?>) rpcGatewayType);
 				}
 			}
 

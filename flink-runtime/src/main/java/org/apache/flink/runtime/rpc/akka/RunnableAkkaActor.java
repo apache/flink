@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.runtime.rpc.akka;
 
-import scala.concurrent.Future;
+import akka.actor.UntypedActor;
+import org.apache.flink.runtime.rpc.akka.messages.RunnableMessage;
 
-public interface RpcService {
-	<C extends RpcGateway> Future<C> connect(String address, Class<C> clazz);
-
-	<S extends RpcServer, C extends RpcGateway> C startServer(S methodHandler);
-
-	<C extends RpcGateway> void stopServer(C gateway);
-
-	void stopService();
+public class RunnableAkkaActor extends UntypedActor {
+	@Override
+	public void onReceive(Object message) throws Exception {
+		if (message instanceof RunnableMessage) {
+			((RunnableMessage) message).getRunnable().run();
+		} else {
+			throw new RuntimeException("Unknown message " + message);
+		}
+	}
 }
