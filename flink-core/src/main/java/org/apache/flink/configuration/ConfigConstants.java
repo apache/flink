@@ -493,7 +493,13 @@ public final class ConfigConstants {
 	 * The config parameter defining the flink web directory to be used by the webmonitor.
 	 */
 	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
-	
+
+	/**
+	 * The config parameter defining the directory for uploading the job jars. If not specified a dynamic directory
+	 * will be used under the directory specified by JOB_MANAGER_WEB_TMPDIR_KEY.
+	 */
+	public static final String JOB_MANAGER_WEB_UPLOAD_DIR_KEY = "jobmanager.web.upload.dir";
+
 	/**
 	 * The config parameter defining the number of archived jobs for the jobmanager
 	 */
