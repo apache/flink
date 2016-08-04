@@ -22,15 +22,19 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 
+import org.apache.flink.runtime.state.memory.MemListState;
 import org.junit.Test;
 
 import org.mockito.invocation.InvocationOnMock;
@@ -54,7 +58,7 @@ public class StreamingRuntimeContextTest {
 		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 		
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
-				createMockOp(descriptorCapture, config),
+				createDescriptorCapturingMockOp(descriptorCapture, config),
 				createMockEnvironment(),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
@@ -78,7 +82,7 @@ public class StreamingRuntimeContextTest {
 		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
-				createMockOp(descriptorCapture, config),
+				createDescriptorCapturingMockOp(descriptorCapture, config),
 				createMockEnvironment(),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
@@ -107,7 +111,7 @@ public class StreamingRuntimeContextTest {
 		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
-				createMockOp(descriptorCapture, config),
+				createDescriptorCapturingMockOp(descriptorCapture, config),
 				createMockEnvironment(),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
@@ -121,13 +125,29 @@ public class StreamingRuntimeContextTest {
 		assertTrue(serializer instanceof KryoSerializer);
 		assertTrue(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
 	}
+
+	@Test
+	public void testListStateReturnsEmptyListByDefault() throws Exception {
+
+		StreamingRuntimeContext context = new StreamingRuntimeContext(
+				createPlainMockOp(),
+				createMockEnvironment(),
+				Collections.<String, Accumulator<?, ?>>emptyMap());
+
+		ListStateDescriptor<String> descr = new ListStateDescriptor<>("name", String.class);
+		ListState<String> state = context.getListState(descr);
+
+		Iterable<String> value = state.get();
+		assertNotNull(value);
+		assertFalse(value.iterator().hasNext());
+	}
 	
 	// ------------------------------------------------------------------------
 	//  
 	// ------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	private static AbstractStreamOperator<?> createMockOp(
+	private static AbstractStreamOperator<?> createDescriptorCapturingMockOp(
 			final AtomicReference<Object> ref, final ExecutionConfig config) throws Exception {
 		
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
@@ -143,6 +163,27 @@ public class StreamingRuntimeContextTest {
 					}
 				});
 		
+		return operatorMock;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static AbstractStreamOperator<?> createPlainMockOp() throws Exception {
+
+		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
+		when(operatorMock.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
+		when(operatorMock.getPartitionedState(any(ListStateDescriptor.class))).thenAnswer(
+				new Answer<ListState<String>>() {
+
+					@Override
+					public ListState<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
+						ListStateDescriptor<String> descr =
+							(ListStateDescriptor<String>) invocationOnMock.getArguments()[0];
+						return new MemListState<String, Void, String>(
+								StringSerializer.INSTANCE, VoidSerializer.INSTANCE, descr);
+					}
+				});
+
 		return operatorMock;
 	}
 	

@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.1-SNAPSHOT</version>
+	<version>1.2-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -115,7 +115,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>force-shading</artifactId>
-			<version>1.1-SNAPSHOT</version>
+			<version>1.2-SNAPSHOT</version>
 		</dependency>
 
 		<!-- Add the 'javax.annotation' annotations (JSR305), such as '@Nullable' -->
@@ -931,11 +931,7 @@ under the License.
 						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
-						<exclude>CHANGELOG</exclude>
-						<exclude>CONTRIBUTING.md</exclude>
-						<exclude>CONTRIBUTORS</exclude>
-						<exclude>DEPENDENCIES</exclude>
-						<exclude>PULL_REQUEST_TEMPLATE.md</exclude>
+						<exclude>.github/**</exclude>
 						<!-- Build files -->
 						<exclude>**/*.iml</exclude>
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
