@@ -46,7 +46,7 @@ class EnumValueTypeInfo[E <: Enumeration](val enum: E, val clazz: Class[E#Value]
   @PublicEvolving
   override def getTypeClass = clazz
   @PublicEvolving
-  override def getGenericParameters = List.empty[TypeInformation[_]].asJava
+  override def getGenericParameters = Map.empty[String, TypeInformation[_]].asJava
 
 
   @PublicEvolving
