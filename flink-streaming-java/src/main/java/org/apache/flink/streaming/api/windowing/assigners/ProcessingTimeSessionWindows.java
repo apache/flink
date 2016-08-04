@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.TimeZone;
 
 /**
  * A {@link WindowAssigner} that windows elements into sessions based on the current processing
@@ -45,15 +46,17 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	private static final long serialVersionUID = 1L;
 
 	protected long sessionTimeout;
+	protected long offsetMillis;
 
-	protected ProcessingTimeSessionWindows(long sessionTimeout) {
+	protected ProcessingTimeSessionWindows(long sessionTimeout, long offsetMillis) {
 		this.sessionTimeout = sessionTimeout;
+		this.offsetMillis = offsetMillis;
 	}
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		long currentProcessingTime = context.getCurrentProcessingTime();
-		return Collections.singletonList(new TimeWindow(currentProcessingTime, currentProcessingTime + sessionTimeout));
+		return Collections.singletonList(new TimeWindow(currentProcessingTime, currentProcessingTime + sessionTimeout, offsetMillis));
 	}
 
 	@Override
@@ -63,7 +66,7 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 
 	@Override
 	public String toString() {
-		return "ProcessingTimeSessionWindows(" + sessionTimeout + ")";
+		return "ProcessingTimeSessionWindows(sessionTimeout=" + sessionTimeout + ", offsetMillis=" + offsetMillis + ")";
 	}
 
 	/**
@@ -74,7 +77,33 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	 * @return The policy.
 	 */
 	public static ProcessingTimeSessionWindows withGap(Time size) {
-		return new ProcessingTimeSessionWindows(size.toMilliseconds());
+		return new ProcessingTimeSessionWindows(size.toMilliseconds(), 0);
+	}
+
+
+	/**
+	 * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns
+	 * elements to sessions based on the element timestamp.
+	 *
+	 * @param size The session timeout, i.e. the time gap between sessions
+	 * @param timezone The target timezone which you want the windows to be aligned with.
+	 * @return The policy.
+	 */
+	public static ProcessingTimeSessionWindows withGap(Time size, TimeZone timezone) {
+		return new ProcessingTimeSessionWindows(size.toMilliseconds(), timezone.getRawOffset());
+	}
+
+
+	/**
+	 * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns
+	 * elements to sessions based on the element timestamp.
+	 *
+	 * @param size The session timeout, i.e. the time gap between sessions
+	 * @param offsetMillis The offset in milliseconds which you want the windows to be aligned with.
+	 * @return The policy.
+	 */
+	public static ProcessingTimeSessionWindows withGap(Time size, long offsetMillis) {
+		return new ProcessingTimeSessionWindows(size.toMilliseconds(), offsetMillis);
 	}
 
 	@Override

@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.TimeZone;
 
 /**
  * A {@link WindowAssigner} that windows elements into sliding windows based on the current
@@ -49,9 +50,12 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 
 	private final long slide;
 
-	private SlidingProcessingTimeWindows(long size, long slide) {
+	private final long offsetMillis;
+
+	private SlidingProcessingTimeWindows(long size, long slide, long offsetMillis) {
 		this.size = size;
 		this.slide = slide;
+		this.offsetMillis = offsetMillis;
 	}
 
 	@Override
@@ -60,9 +64,9 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 		List<TimeWindow> windows = new ArrayList<>((int) (size / slide));
 		long lastStart = timestamp - timestamp % slide;
 		for (long start = lastStart;
-			start > timestamp - size;
-			start -= slide) {
-			windows.add(new TimeWindow(start, start + size));
+			 start > timestamp - size;
+			 start -= slide) {
+			windows.add(new TimeWindow(start, start + size, offsetMillis));
 		}
 		return windows;
 	}
@@ -82,7 +86,7 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 
 	@Override
 	public String toString() {
-		return "SlidingProcessingTimeWindows(" + size + ", " + slide + ")";
+		return "SlidingProcessingTimeWindows(size=" + size + ", slide=" + slide + ", offsetMillis=" + offsetMillis + ")";
 	}
 
 	/**
@@ -94,7 +98,33 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 	 * @return The time policy.
 	 */
 	public static SlidingProcessingTimeWindows of(Time size, Time slide) {
-		return new SlidingProcessingTimeWindows(size.toMilliseconds(), slide.toMilliseconds());
+		return new SlidingProcessingTimeWindows(size.toMilliseconds(), slide.toMilliseconds(), 0);
+	}
+
+	/**
+	 * Creates a new {@code SlidingProcessingTimeWindows} {@link WindowAssigner} that assigns
+	 * elements to sliding time windows based on the element timestamp.
+	 *
+	 * @param size The size of the generated windows.
+	 * @param slide The slide interval of the generated windows.
+	 * @param timezone The target timezone which you want the windows to be aligned with.
+	 * @return The time policy.
+	 */
+	public static SlidingProcessingTimeWindows of(Time size, Time slide, TimeZone timezone) {
+		return new SlidingProcessingTimeWindows(size.toMilliseconds(), slide.toMilliseconds(), timezone.getRawOffset());
+	}
+
+	/**
+	 * Creates a new {@code SlidingProcessingTimeWindows} {@link WindowAssigner} that assigns
+	 * elements to sliding time windows based on the element timestamp.
+	 *
+	 * @param size The size of the generated windows.
+	 * @param slide The slide interval of the generated windows.
+	 * @param offsetMillis The offset in milliseconds which you want the windows to be aligned with.
+	 * @return The time policy.
+	 */
+	public static SlidingProcessingTimeWindows of(Time size, Time slide, long offsetMillis) {
+		return new SlidingProcessingTimeWindows(size.toMilliseconds(), slide.toMilliseconds(), offsetMillis);
 	}
 
 	@Override
