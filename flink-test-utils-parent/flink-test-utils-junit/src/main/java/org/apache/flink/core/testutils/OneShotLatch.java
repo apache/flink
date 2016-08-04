@@ -42,7 +42,7 @@ public final class OneShotLatch {
 	}
 
 	/**
-	 * Waits until {@link #trigger())} is called. Once {@code trigger()} has been called this
+	 * Waits until {@link #trigger())} is called. Once {@code #trigger()} has been called this
 	 * call will always return immediately.
 	 */
 	public void await() throws InterruptedException {
