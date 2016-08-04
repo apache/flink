@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
+
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -56,7 +57,6 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -87,23 +87,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times (for recovery,
  * or other re-computation), this class tracks the state of a single execution of that vertex and the resources.
  * 
- * NOTE ABOUT THE DESIGN RATIONAL:
+ * <p>NOTE ABOUT THE DESIGN RATIONAL:
  * 
- * In several points of the code, we need to deal with possible concurrent state changes and actions.
+ * <p>In several points of the code, we need to deal with possible concurrent state changes and actions.
  * For example, while the call to deploy a task (send it to the TaskManager) happens, the task gets cancelled.
  * 
- * We could lock the entire portion of the code (decision to deploy, deploy, set state to running) such that
+ * <p>We could lock the entire portion of the code (decision to deploy, deploy, set state to running) such that
  * it is guaranteed that any "cancel command" will only pick up after deployment is done and that the "cancel
  * command" call will never overtake the deploying call.
  * 
- * This blocks the threads big time, because the remote calls may take long. Depending of their locking behavior, it
+ * <p>This blocks the threads big time, because the remote calls may take long. Depending of their locking behavior, it
  * may even result in distributed deadlocks (unless carefully avoided). We therefore use atomic state updates and
  * occasional double-checking to ensure that the state after a completed call is as expected, and trigger correcting
  * actions if it is not. Many actions are also idempotent (like canceling).
  */
-public class Execution implements Serializable {
-
-	private static final long serialVersionUID = 42L;
+public class Execution {
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
@@ -136,15 +134,16 @@ public class Execution implements Serializable {
 
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 
+	/** The state with which the execution attempt should start */
 	private SerializedValue<StateHandle<?>> operatorState;
 
-	private Map<Integer, SerializedValue<StateHandle<?>>> operatorKvState;
-
 	/** The execution context which is used to execute futures. */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ExecutionContext executionContext;
 
-	/* Lock for updating the accumulators atomically. */
+	// ------------------------- Accumulators ---------------------------------
+	
+	/* Lock for updating the accumulators atomically. Prevents final accumulators to be overwritten
+	* by partial accumulators on a late heartbeat*/
 	private final SerializableObject accumulatorLock = new SerializableObject();
 
 	/* Continuously updated map of user-defined accumulators */
@@ -217,7 +216,7 @@ public class Execution implements Serializable {
 	}
 
 	public boolean isFinished() {
-		return state == FINISHED || state == FAILED || state == CANCELED;
+		return state.isTerminal();
 	}
 
 	/**
@@ -236,14 +235,18 @@ public class Execution implements Serializable {
 	}
 
 	public void setInitialState(
-		SerializedValue<StateHandle<?>> initialState,
-		Map<Integer, SerializedValue<StateHandle<?>>> initialKvState) {
+			SerializedValue<StateHandle<?>> initialState,
+			Map<Integer, SerializedValue<StateHandle<?>>> initialKvState) {
+
+		if (initialKvState != null && initialKvState.size() > 0) {
+			throw new UnsupportedOperationException("Error: inconsistent handling of key/value state snapshots");
+		}
 
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
+
 		this.operatorState = initialState;
-		this.operatorKvState = initialKvState;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -371,7 +374,6 @@ public class Execution implements Serializable {
 				attemptId,
 				slot,
 				operatorState,
-				operatorKvState,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs

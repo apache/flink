@@ -469,7 +469,6 @@ public class StreamingJobGraphGenerator {
 				if (vertex.isInputVertex()) {
 					triggerVertices.add(vertex.getID());
 				}
-				// TODO: add check whether the user function implements the checkpointing interface
 				commitVertices.add(vertex.getID());
 				ackVertices.add(vertex.getID());
 			}
