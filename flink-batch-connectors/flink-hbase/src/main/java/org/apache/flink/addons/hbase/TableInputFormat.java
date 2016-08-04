@@ -67,8 +67,6 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	protected abstract T mapResultToTuple(Result r);
 
 	/**
-	 * creates a {@link Scan} object and a {@link HTable} connection
-	 *
 	 * @param parameters
 	 * @see Configuration
 	 */
@@ -76,6 +74,9 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	public void configure(Configuration parameters) {
 	}
 
+	/**
+	 * Creates a {@link Scan} object and opens the {@link HTable} connection
+	 */
 	@Override
 	public void openInputFormat() throws IOException {
 		table = createTable();
@@ -98,7 +99,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 
 	@Override
 	public void open(TableInputSplit split) throws IOException {
-		if (split == null){
+		if (split == null) {
 			throw new IOException("Input split is null!");
 		}
 
