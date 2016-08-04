@@ -32,4 +32,14 @@ under the License.
 	<artifactId>flink-metrics-core</artifactId>
 	<name>flink-metrics-core</name>
 
+	<build>
+		<plugins>
+			<!-- activate API compatibility checks -->
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>
