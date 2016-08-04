@@ -498,7 +498,7 @@ public final class ConfigConstants {
 	 * The config parameter defining the directory for uploading the job jars. If not specified a dynamic directory
 	 * will be used under the directory specified by JOB_MANAGER_WEB_TMPDIR_KEY.
 	 */
-	public static final String JOB_MANAGER_WEB_UPLOADDIR_KEY = "jobmanager.web.uploaddir";
+	public static final String JOB_MANAGER_WEB_UPLOAD_DIR_KEY = "jobmanager.web.upload.dir";
 
 	/**
 	 * The config parameter defining the number of archived jobs for the jobmanager

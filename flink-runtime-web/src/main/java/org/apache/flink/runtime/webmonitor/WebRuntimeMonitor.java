@@ -452,10 +452,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 	}
 
 	private File getUploadDir(Configuration configuration) {
-		File baseDir = new File(configuration.getString(ConfigConstants.JOB_MANAGER_WEB_UPLOADDIR_KEY,
+		File baseDir = new File(configuration.getString(ConfigConstants.JOB_MANAGER_WEB_UPLOAD_DIR_KEY,
 			getBaseDirStr(configuration)));
 
-		boolean uploadDirSpecified = configuration.containsKey(ConfigConstants.JOB_MANAGER_WEB_UPLOADDIR_KEY);
+		boolean uploadDirSpecified = configuration.containsKey(ConfigConstants.JOB_MANAGER_WEB_UPLOAD_DIR_KEY);
 		return uploadDirSpecified ? baseDir : new File(baseDir, "flink-web-" + UUID.randomUUID());
 	}
 }

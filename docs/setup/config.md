@@ -119,7 +119,7 @@ If you are on YARN, then it is sufficient to authenticate the client with Kerber
 - `jobmanager.web.tmpdir`: This configuration parameter allows defining the Flink web directory to be used by the web interface. The web interface
 will copy its static files into the directory. Also uploaded job jars are stored in the directory if not overridden. By default, the temporary directory is used.
 
-- `jobmanager.web.uploaddir`: The config parameter defining the directory for uploading the job jars. If not specified a dynamic directory
+- `jobmanager.web.upload.dir`: The config parameter defining the directory for uploading the job jars. If not specified a dynamic directory
 will be used under the directory specified by jobmanager.web.tmpdir.
 
 - `fs.overwrite-files`: Specifies whether file output writers should overwrite existing files by default. Set to *true* to overwrite by default, *false* otherwise. (DEFAULT: false)
