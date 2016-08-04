@@ -47,8 +47,10 @@ abstract class CaseClassTypeInfo[T <: Product](
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
 
   @PublicEvolving
-  override def getGenericParameters: java.util.List[TypeInformation[_]] = {
-    typeParamTypeInfos.toList.asJava
+  override def getGenericParameters: java.util.Map[String, TypeInformation[_]] = {
+    typeParamTypeInfos.zipWithIndex.map { case (info, index) =>
+      "T" + (index + 1) -> info
+    }.toMap[String, TypeInformation[_]].asJava
   }
 
   private val REGEX_INT_FIELD: String = "[0-9]+"

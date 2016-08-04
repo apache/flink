@@ -251,3 +251,45 @@ env.getConfig().addDefaultKryoSerializer(Class<?> type, Class<? extends Serializ
 {% endhighlight %}
 
 There are different variants of these methods available.
+
+## Defining Type Information using a Factory
+
+A type information factory allows for plugging-in user-defined type information into the Flink type system.
+You have to implement `org.apache.flink.api.common.typeinfo.TypeInfoFactory` to return your custom type information. 
+The factory is called during the type extraction phase if the corresponding type has been annotated 
+with the `@org.apache.flink.api.common.typeinfo.TypeInfo` annotation. 
+
+Type information factories can be used in both the Java and Scala API.
+
+In a hierarchy of types the closest factory 
+will be chosen while traversing upwards, however, a built-in factory has highest precedence. A factory has 
+also higher precendence than Flink's built-in types, therefore you should know what you are doing.
+
+The following example shows how to annotate a custom type `MyTuple` and supply custom type information for it using a factory in Java.
+
+The annotated custom type:
+{% highlight java %}
+@TypeInfo(MyTupleTypeInfoFactory.class)
+public class MyTuple<T0, T1> {
+  public T0 myfield0;
+  public T1 myfield1;
+}
+{% endhighlight %}
+
+The factory supplying custom type information:
+{% highlight java %}
+public class MyTupleTypeInfoFactory extends TypeInfoFactory<MyTuple> {
+
+  @Override
+  public TypeInformation<MyTuple> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
+    return new MyTupleTypeInfo(genericParameters.get("T0"), genericParameters.get("T1"));
+  }
+}
+{% endhighlight %}
+
+The method `createTypeInfo(Type, Map<String, TypeInformation<?>>)` creates type information for the type the factory is targeted for. 
+The parameters provide additional information about the type itself as well as the type's generic type parameters if available.
+
+If your type contains generic parameters that might need to be derived from the input type of a Flink function, make sure to also 
+implement `org.apache.flink.api.common.typeinfo.TypeInformation#getGenericParameters` for a bidirectional mapping of generic 
+parameters to type information.
