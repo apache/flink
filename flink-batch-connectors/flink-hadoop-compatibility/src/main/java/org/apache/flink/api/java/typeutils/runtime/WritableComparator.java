@@ -18,8 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-
+import com.esotericsoftware.kryo.Kryo;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -27,9 +26,9 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.NormalizableKey;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.io.Writable;
-
-import com.esotericsoftware.kryo.Kryo;
 import org.objenesis.strategy.StdInstantiatorStrategy;
+
+import java.io.IOException;
 
 public class WritableComparator<T extends Writable & Comparable<T>> extends TypeComparator<T> {
 	

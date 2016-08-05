@@ -70,13 +70,12 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Hadoop is only needed here for serialization interoperability with the Writable type -->
+		<!-- The common collections are needed for some hash tables used in the collection execution -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>${shading-artifact.name}</artifactId>
-			<version>${project.version}</version>
+			<groupId>commons-collections</groupId>
+			<artifactId>commons-collections</artifactId>
 		</dependency>
-
+		
 		<!-- test dependencies -->
 
 		<dependency>
@@ -117,6 +116,7 @@ under the License.
 					<parameter>
 						<excludes combine.children="append">
 							<exclude>org.apache.flink.api.common.ExecutionConfig#CONFIG_KEY</exclude>
+							<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
