@@ -93,9 +93,11 @@ prepare() {
   cd flink
   git checkout -b "release-$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
   rm -f .gitignore
+  rm -f .gitattributes
   rm -f .travis.yml
   rm -f deploysettings.xml
   rm -f CHANGELOG
+  rm -rf .github
   cd ..
 }
 

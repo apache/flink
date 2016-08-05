@@ -931,11 +931,7 @@ under the License.
 						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
-						<exclude>CHANGELOG</exclude>
-						<exclude>CONTRIBUTING.md</exclude>
-						<exclude>CONTRIBUTORS</exclude>
-						<exclude>DEPENDENCIES</exclude>
-						<exclude>PULL_REQUEST_TEMPLATE.md</exclude>
+						<exclude>.github/**</exclude>
 						<!-- Build files -->
 						<exclude>**/*.iml</exclude>
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
