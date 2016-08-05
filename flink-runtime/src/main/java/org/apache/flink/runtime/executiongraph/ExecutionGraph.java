@@ -183,7 +183,7 @@ public class ExecutionGraph {
 	/** The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
 	 * from results than need to be materialized. */
-	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
+	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
 	/** Flag to indicate whether the Graph has been archived */
 	private boolean isArchived = false;
@@ -717,7 +717,7 @@ public class ExecutionGraph {
 
 			switch (scheduleMode) {
 
-				case FROM_SOURCES:
+				case LAZY_FROM_SOURCES:
 					// simply take the vertices without inputs.
 					for (ExecutionJobVertex ejv : this.tasks.values()) {
 						if (ejv.getJobVertex().isInputVertex()) {
@@ -726,15 +726,12 @@ public class ExecutionGraph {
 					}
 					break;
 
-				case ALL:
+				case EAGER:
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 						ejv.scheduleAll(scheduler, allowQueuedScheduling);
 					}
 					break;
 
-				case BACKTRACKING:
-					// go back from vertices that need computation to the ones we need to run
-					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
 				default:
 					throw new JobException("Schedule mode is invalid.");
 			}

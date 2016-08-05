@@ -343,7 +343,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       val jobGraph = new JobGraph("Forwarding Job", sender, forwarder, receiver)
 
-      jobGraph.setScheduleMode(ScheduleMode.ALL)
+      jobGraph.setScheduleMode(ScheduleMode.EAGER)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 1)
       val jmGateway = cluster.getLeaderGateway(1 seconds)

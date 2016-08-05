@@ -113,7 +113,7 @@ public class StreamingJobGraphGenerator {
 		jobGraph = new JobGraph(streamGraph.getJobName());
 
 		// make sure that all vertices start immediately
-		jobGraph.setScheduleMode(ScheduleMode.ALL);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
 		init();
 
