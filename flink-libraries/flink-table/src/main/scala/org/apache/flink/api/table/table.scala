@@ -557,34 +557,6 @@ class Table(
   }
 
   /**
-   * OFFSET is called an argument since it is technically part of the ORDER BY clause.
-   * The OFFSET is the number of rows to skip before including them in the result.
-   *
-   * Example:
-   *
-   * {{{
-   *   tab.orderBy('name.desc).offset(3)
-   * }}}
-   */
-  def offset(offset: Int): Table = {
-    new Table(tableEnv, Offset(offset, logicalPlan).validate(tableEnv))
-  }
-
-  /**
-   * The FETCH argument is used to return a set number of rows.
-   * FETCH can’t be used by itself, it is used in conjunction with OFFSET.
-   *
-   * Example:
-   *
-   * {{{
-   *   tab.orderBy('name.desc).offset(3).fetch(5)
-   * }}}
-   */
-  def fetch(fetch: Int): Table = {
-    new Table(tableEnv, Fetch(fetch, logicalPlan).validate(tableEnv))
-  }
-
-  /**
     * Sorts the given [[Table]]. Similar to SQL ORDER BY.
     * The resulting Table is sorted globally sorted across all parallel partitions.
     *
@@ -597,6 +569,49 @@ class Table(
   def orderBy(fields: String): Table = {
     val parsedFields = ExpressionParser.parseExpressionList(fields)
     orderBy(parsedFields: _*)
+  }
+
+  /**
+   * LIMIT is called an argument since it is technically part of the ORDER BY clause.
+   * The statement is used to retrieve records from table and limit the number of records 
+   * returned based on a limit value.
+   *
+   * Example:
+   *
+   * {{{
+   *   tab.orderBy('name.desc).limit(3)
+   * }}}
+   * 
+   * @param offset  The number of rows to skip before including them in the result.
+   */
+  def limit(offset: Int): Table = {
+    if (offset < 0) {
+      throw new ValidationException("Offset should be greater than or equal to zero.")
+    }
+    new Table(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
+  }
+
+  /**
+   * LIMIT is called an argument since it is technically part of the ORDER BY clause.
+   * The statement is used to retrieve records from table and limit the number of records 
+   * returned based on a limit value.
+   *
+   * Example:
+   *
+   * {{{
+   *   tab.orderBy('name.desc).limit(3, 5)
+   * }}}
+   *
+   * @param offset The number of rows to skip before including them in the result.
+   * @param fetch The number of records returned.
+   */
+  def limit(offset: Int, fetch: Int): Table = {
+    if (offset < 0 || fetch < 1) {
+      throw new ValidationException(
+        "Offset should be greater than or equal to zero and" +
+          " fetch should be greater than or equal to one.")
+    }
+    new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
   }
 
   /**

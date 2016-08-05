@@ -105,7 +105,7 @@ class SortITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val t = ds.toTable(tEnv).orderBy('_1.asc).offset(3)
+    val t = ds.toTable(tEnv).orderBy('_1.asc).limit(3)
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int])
 
@@ -123,7 +123,7 @@ class SortITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val t = ds.toTable(tEnv).orderBy('_1.asc).offset(3).fetch(5)
+    val t = ds.toTable(tEnv).orderBy('_1.asc).limit(3, 5)
     implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int])
 

@@ -150,42 +150,20 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
   }
 }
 
-case class Offset(offset: Int, child: LogicalNode) extends UnaryNode {
+case class Limit(offset: Int, fetch: Int, child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
-    relBuilder.limit(offset, -1)
+    relBuilder.limit(offset, fetch)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Offset on stream tables is currently not supported.")
+      throw new TableException(s"Limit on stream tables is currently not supported.")
     }
     if (!child.validate(tableEnv).isInstanceOf[Sort]) {
-      throw new TableException(s"Offset operator must follow behind orderBy clause.")
-    }
-    super.validate(tableEnv)
-  }
-}
-
-case class Fetch(fetch: Int, child: LogicalNode) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    
-    val newChild = child.asInstanceOf[Offset].child
-    newChild.construct(relBuilder)
-    val relNode = child.toRelNode(relBuilder).asInstanceOf[LogicalSort]
-    relBuilder.limit(RexLiteral.intValue(relNode.offset), fetch)
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Fetch on stream tables is currently not supported.")
-    }
-    if (!child.validate(tableEnv).isInstanceOf[Offset]) {
-      throw new TableException(s"Fetch operator must follow behind offset clause.")
+      throw new TableException(s"Limit operator must follow behind orderBy clause.")
     }
     super.validate(tableEnv)
   }

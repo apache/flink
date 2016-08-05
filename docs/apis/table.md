@@ -607,23 +607,17 @@ Table result = in.orderBy("a.asc");
     </tr>
 
     <tr>
-      <td><strong>Offset</strong></td>
+      <td><strong>Limit</strong></td>
       <td>
-        <p>Similar to a SQL OFFSET clause. Returns rows from offset position. It is technically part of the ORDER BY clause.</p>
+        <p>Similar to a SQL LIMIT clause. Returns specified number of rows from offset position. It is technically part of the ORDER BY clause.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.orderBy("a.asc").offset(3);
+Table result = in.orderBy("a.asc").limit(3);
 {% endhighlight %}
-      </td>
-    </tr>
-    
-    <tr>
-      <td><strong>Fetch</strong></td>
-      <td>
-        <p>Similar to a SQL FETCH clause. Returns a set number of rows. FETCH can’t be used by itself, it is used in conjunction with OFFSET.</p>
+or
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.orderBy("a.asc").offset(3).fetch(5);
+Table result = in.orderBy("a.asc").limit(3, 5);
 {% endhighlight %}
       </td>
     </tr>
