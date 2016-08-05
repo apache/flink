@@ -131,8 +131,13 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 			}
 
 			VersionedValue<Integer> current = sharedCount.getVersionedValue();
+			int newCount = current.getValue() + 1;
 
-			Integer newCount = current.getValue() + 1;
+			if (newCount < 0) {
+				// overflow and wrap around
+				throw new Exception("Checkpoint counter overflow. ZooKeeper checkpoint counter only supports " +
+						"checkpoints Ids up to " + Integer.MAX_VALUE);
+			}
 
 			if (sharedCount.trySetCount(current, newCount)) {
 				return current.getValue();
@@ -161,7 +166,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	 * Connection state listener. In case of {@link ConnectionState#SUSPENDED} or {@link
 	 * ConnectionState#LOST} we are not guaranteed to read a current count from ZooKeeper.
 	 */
-	private class SharedCountConnectionStateListener implements ConnectionStateListener {
+	private static class SharedCountConnectionStateListener implements ConnectionStateListener {
 
 		private volatile ConnectionState lastState;
 
