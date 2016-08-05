@@ -18,7 +18,7 @@
 package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.api.common.functions.FilterFunction
-import org.apache.flink.cep.pattern.{AndFilterFunction, SubtypeFilterFunction, Pattern => JPattern}
+import org.apache.flink.cep.pattern.{AndFilterFunction, Quantifier, SubtypeFilterFunction, Pattern => JPattern}
 import org.junit.Assert._
 import org.junit.Test
 import org.apache.flink.cep.Event
@@ -183,6 +183,41 @@ class PatternTest {
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "subevent")
     assertEquals(preprevious.getName, "start")
+  }
+
+  @Test
+  def testOptionalPattern(): Unit = {
+    val pattern = Pattern.begin[Event]("start").optional()
+
+    assertEquals(Quantifier.OPTIONAL, pattern.getQuantifier())
+  }
+
+  @Test
+  def testOneOrManyPattern(): Unit = {
+    val pattern = Pattern.begin[Event]("start").oneOrMany()
+
+    assertEquals(Quantifier.ONE_OR_MANY, pattern.getQuantifier())
+  }
+
+  @Test
+  def testZeroOrManyPattern(): Unit = {
+    val pattern = Pattern.begin[Event]("start").zeroOrMany()
+
+    assertEquals(Quantifier.ZERO_OR_MANY, pattern.getQuantifier())
+  }
+
+  @Test
+  def testCountPattern(): Unit = {
+    val pattern = Pattern.begin[Event]("start").count(5)
+    assertEquals(5, pattern.getMinCount())
+    assertEquals(5, pattern.getMaxCount())
+  }
+
+  @Test
+  def testRangePattern(): Unit = {
+    val pattern = Pattern.begin[Event]("start").count(5, 10)
+    assertEquals(5, pattern.getMinCount())
+    assertEquals(10, pattern.getMaxCount())
   }
 
   def checkCongruentRepresentations[T, _ <: T](pattern: Pattern[T, _ <: T],
