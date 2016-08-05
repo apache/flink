@@ -50,6 +50,8 @@ public class Pattern<T, F extends T> {
 	// filter condition for an event to be matched
 	private FilterFunction<F> filterFunction;
 
+	public Quantifier quantifier = Quantifier.NONE;
+
 	// window length in which the pattern match has to occur
 	private Time windowTime;
 
@@ -118,13 +120,33 @@ public class Pattern<T, F extends T> {
 	 * between first and the last event must not be longer than the window time.
 	 *
 	 * @param windowTime Time of the matching window
-	 * @return The same pattenr operator with the new window length
+	 * @return The same pattern operator with the new window length
 	 */
 	public Pattern<T, F> within(Time windowTime) {
 		if (windowTime != null) {
 			this.windowTime = windowTime;
 		}
 
+		return this;
+	}
+
+	/**
+	 * Defines that this pattern may be repeated one or many times.
+	 *
+	 * @return The same pattern operator that can be repeated many times
+	 */
+	public Pattern<T, F> oneOrMany() {
+		this.quantifier = Quantifier.ONE_OR_MORE;
+		return this;
+	}
+
+	/**
+	 * Defines that this pattern is optional
+	 *
+	 * @return The same pattern operator that is optional
+	 */
+	public Pattern<T, F> optional() {
+		this.quantifier = Quantifier.OPTIONAL;
 		return this;
 	}
 
@@ -165,4 +187,7 @@ public class Pattern<T, F extends T> {
 		return new Pattern<X, X>(name, null);
 	}
 
+	public Quantifier getQuantifier() {
+		return quantifier;
+	}
 }
