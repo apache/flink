@@ -25,6 +25,8 @@ import akka.actor.UntypedActor;
 import akka.testkit.TestActorRef;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -139,6 +141,13 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 			flink.start(true);
 
 			JobGraph jobGraph = createBlockingJobGraph();
+
+			// Set restart strategy to guard against shut down races.
+			// If the TM fails before the JM, it might happen that the
+			// Job is failed, leading to state removal.
+			ExecutionConfig ec = new ExecutionConfig();
+			ec.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 100));
+			jobGraph.setExecutionConfig(ec);
 
 			ActorGateway jobManager = flink.getLeaderGateway(deadline.timeLeft());
 
