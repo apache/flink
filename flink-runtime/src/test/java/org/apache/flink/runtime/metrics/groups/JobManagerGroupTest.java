@@ -22,13 +22,16 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class JobManagerGroupTest {
+public class JobManagerGroupTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 	//  adding and removing jobs
@@ -115,5 +118,14 @@ public class JobManagerGroupTest {
 		assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
 
 		registry.shutdown();
+	}
+
+	@Test
+	public void testCreateQueryServiceMetricInfo() {
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+		JobManagerMetricGroup jm = new JobManagerMetricGroup(registry, "host");
+
+		QueryScopeInfo.JobManagerQueryScopeInfo info = jm.createQueryServiceMetricInfo(new DummyCharacterFilter());
+		assertEquals("", info.scope);
 	}
 }

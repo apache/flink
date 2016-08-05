@@ -21,13 +21,12 @@ package org.apache.flink.metrics.jmx;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -284,59 +283,6 @@ public class JMXReporterTest extends TestLogger {
 			if (registry != null) {
 				registry.shutdown();
 			}
-		}
-	}
-
-	static class TestingHistogram implements Histogram {
-
-		@Override
-		public void update(long value) {
-
-		}
-
-		@Override
-		public long getCount() {
-			return 1;
-		}
-
-		@Override
-		public HistogramStatistics getStatistics() {
-			return new HistogramStatistics() {
-				@Override
-				public double getQuantile(double quantile) {
-					return quantile;
-				}
-
-				@Override
-				public long[] getValues() {
-					return new long[0];
-				}
-
-				@Override
-				public int size() {
-					return 3;
-				}
-
-				@Override
-				public double getMean() {
-					return 4;
-				}
-
-				@Override
-				public double getStdDev() {
-					return 5;
-				}
-
-				@Override
-				public long getMax() {
-					return 6;
-				}
-
-				@Override
-				public long getMin() {
-					return 7;
-				}
-			};
 		}
 	}
 }

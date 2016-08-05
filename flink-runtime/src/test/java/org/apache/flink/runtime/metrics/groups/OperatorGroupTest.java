@@ -21,9 +21,12 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.Map;
@@ -31,9 +34,8 @@ import java.util.Map;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 
-public class OperatorGroupTest {
+public class OperatorGroupTest extends TestLogger {
 
 	@Test
 	public void testGenerateScopeDefault() {
@@ -90,5 +92,24 @@ public class OperatorGroupTest {
 		String actualValue = variables.get(key);
 		assertNotNull(actualValue);
 		assertEquals(expectedValue, actualValue);
+	}
+
+	@Test
+	public void testCreateQueryServiceMetricInfo() {
+		JobID jid = new JobID();
+		AbstractID vid = new AbstractID();
+		AbstractID eid = new AbstractID();
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
+		TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
+		OperatorMetricGroup operator = new OperatorMetricGroup(registry, task, "operator");
+
+		QueryScopeInfo.OperatorQueryScopeInfo info = operator.createQueryServiceMetricInfo(new DummyCharacterFilter());
+		assertEquals("", info.scope);
+		assertEquals(jid.toString(), info.jobID);
+		assertEquals(vid.toString(), info.vertexID);
+		assertEquals(4, info.subtaskIndex);
+		assertEquals("operator", info.operatorName);
 	}
 }

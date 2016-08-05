@@ -132,7 +132,8 @@ class TaskManager(
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
     protected val numberOfSlots: Int,
-    protected val leaderRetrievalService: LeaderRetrievalService)
+    protected val leaderRetrievalService: LeaderRetrievalService,
+    protected val metricsRegistry: FlinkMetricRegistry)
   extends FlinkActor
   with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -158,7 +159,6 @@ class TaskManager(
   /** Registry of metrics periodically transmitted to the JobManager */
   private val metricRegistry = TaskManager.createMetricsRegistry()
 
-  private var metricsRegistry : FlinkMetricRegistry = _
   private var taskManagerMetricGroup : TaskManagerMetricGroup = _
 
   /** Metric serialization */
@@ -276,11 +276,7 @@ class TaskManager(
     
     // failsafe shutdown of the metrics registry
     try {
-      val reg = metricsRegistry
-      metricsRegistry = null
-      if (reg != null) {
-        reg.shutdown()
-      }
+      metricsRegistry.shutdown()
     } catch {
       case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
     }
@@ -985,8 +981,6 @@ class TaskManager(
     else {
       libraryCacheManager = Some(new FallbackLibraryCacheManager)
     }
-
-    metricsRegistry = new FlinkMetricRegistry(config.configuration)
     
     taskManagerMetricGroup = 
       new TaskManagerMetricGroup(metricsRegistry, this.runtimeInfo.getHostname, id.toString)
@@ -1064,9 +1058,12 @@ class TaskManager(
       network.getKvStateRegistry.unregisterListener()
     }
     
-    // stop the metrics reporters
-    metricsRegistry.shutdown()
-    metricsRegistry = null
+    // failsafe shutdown of the metrics registry
+    try {
+      metricsRegistry.shutdown()
+    } catch {
+      case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
+    }
   }
 
   protected def handleJobManagerDisconnect(jobManager: ActorRef, msg: String): Unit = {
@@ -1849,7 +1846,8 @@ object TaskManager {
       memoryManager,
       ioManager,
       network,
-      leaderRetrievalService) = createTaskManagerComponents(
+      leaderRetrievalService,
+      metricsRegistry) = createTaskManagerComponents(
       configuration,
       resourceID,
       taskManagerHostname,
@@ -1865,7 +1863,10 @@ object TaskManager {
       memoryManager,
       ioManager,
       network,
-      leaderRetrievalService)
+      leaderRetrievalService,
+      metricsRegistry)
+
+    metricsRegistry.startQueryService(actorSystem)
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)
@@ -1881,7 +1882,8 @@ object TaskManager {
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
-    leaderRetrievalService: LeaderRetrievalService
+    leaderRetrievalService: LeaderRetrievalService,
+    metricsRegistry: FlinkMetricRegistry
   ): Props = {
     Props(
       taskManagerClass,
@@ -1892,7 +1894,8 @@ object TaskManager {
       ioManager,
       networkEnvironment,
       taskManagerConfig.numberOfSlots,
-      leaderRetrievalService)
+      leaderRetrievalService,
+      metricsRegistry)
   }
 
   def createTaskManagerComponents(
@@ -1906,7 +1909,8 @@ object TaskManager {
       MemoryManager,
       IOManager,
       NetworkEnvironment,
-      LeaderRetrievalService) = {
+      LeaderRetrievalService,
+      FlinkMetricRegistry) = {
 
     val (taskManagerConfig : TaskManagerConfiguration,
     netConfig: NetworkEnvironmentConfiguration,
@@ -2081,12 +2085,15 @@ object TaskManager {
       case None => LeaderRetrievalUtils.createLeaderRetrievalService(configuration)
     }
 
+    val metricsRegistry = new FlinkMetricRegistry(configuration)
+
     (taskManagerConfig,
       taskManagerLocation,
       memoryManager,
       ioManager,
       network,
-      leaderRetrievalService)
+      leaderRetrievalService,
+      metricsRegistry)
   }
 
 

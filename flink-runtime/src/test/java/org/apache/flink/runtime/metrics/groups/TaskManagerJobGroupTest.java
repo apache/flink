@@ -23,12 +23,15 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-public class TaskManagerJobGroupTest {
+public class TaskManagerJobGroupTest extends TestLogger {
 
 	@Test
 	public void testGenerateScopeDefault() {
@@ -89,5 +92,17 @@ public class TaskManagerJobGroupTest {
 				"peter.test-tm-id.some-constant." + jid + ".name",
 				jmGroup.getMetricIdentifier("name"));
 		registry.shutdown();
+	}
+
+	@Test
+	public void testCreateQueryServiceMetricInfo() {
+		JobID jid = new JobID();
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
+
+		QueryScopeInfo.JobQueryScopeInfo info = job.createQueryServiceMetricInfo(new DummyCharacterFilter());
+		assertEquals("", info.scope);
+		assertEquals(jid.toString(), info.jobID);
 	}
 }

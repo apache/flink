@@ -47,6 +47,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 
@@ -138,7 +139,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 				ioManager,
 				network,
 				numberOfSlots,
-				leaderRetrievalService);
+				leaderRetrievalService,
+				new MetricRegistry(config));
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 
