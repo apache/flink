@@ -18,7 +18,9 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
@@ -33,6 +35,10 @@ public class AbstractMetricGroupTest {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 
 		AbstractMetricGroup group = new AbstractMetricGroup<AbstractMetricGroup<?>>(registry, new String[0], null) {
+			@Override
+			protected QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
+				return null;
+			}
 		};
 		assertTrue(group.getAllVariables().isEmpty());
 		

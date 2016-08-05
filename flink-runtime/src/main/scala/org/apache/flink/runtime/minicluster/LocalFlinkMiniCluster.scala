@@ -203,7 +203,8 @@ class LocalFlinkMiniCluster(
     memoryManager,
     ioManager,
     network,
-    leaderRetrievalService) = TaskManager.createTaskManagerComponents(
+    leaderRetrievalService,
+    metricsRegistry) = TaskManager.createTaskManagerComponents(
       config,
       resourceID,
       hostname, // network interface to bind to
@@ -219,6 +220,8 @@ class LocalFlinkMiniCluster(
       ioManager,
       network,
       leaderRetrievalService)
+
+    metricsRegistry.startQueryService(system)
 
     system.actorOf(props, taskManagerActorName)
   }
