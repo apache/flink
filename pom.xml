@@ -235,6 +235,13 @@ under the License.
 				<version>2.4</version>
 			</dependency>
 
+			<!--- commons collections needs to be pinned to this critical security fix version -->
+			<dependency>
+				<groupId>commons-collections</groupId>
+				<artifactId>commons-collections</artifactId>
+				<version>3.2.2</version>
+			</dependency>
+
 			<!-- common-beanutils-bean-collections is used by flink-shaded-hadoop2 -->
 			<dependency>
 				<groupId>commons-beanutils</groupId>
