@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.HashMap;
@@ -53,6 +55,11 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 
 	public String taskManagerId() {
 		return taskManagerId;
+	}
+
+	@Override
+	protected QueryScopeInfo.TaskManagerQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
+		return new QueryScopeInfo.TaskManagerQueryScopeInfo(this.taskManagerId);
 	}
 
 	// ------------------------------------------------------------------------

@@ -22,12 +22,15 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-public class JobManagerJobGroupTest {
+public class JobManagerJobGroupTest extends TestLogger {
 
 	@Test
 	public void testGenerateScopeDefault() {
@@ -91,5 +94,17 @@ public class JobManagerJobGroupTest {
 				jmGroup.getMetricIdentifier("name"));
 
 		registry.shutdown();
+	}
+
+	@Test
+	public void testCreateQueryServiceMetricInfo() {
+		JobID jid = new JobID();
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+		JobManagerMetricGroup jm = new JobManagerMetricGroup(registry, "host");
+		JobManagerJobMetricGroup jmj = new JobManagerJobMetricGroup(registry, jm, jid, "jobname");
+
+		QueryScopeInfo.JobQueryScopeInfo info = jmj.createQueryServiceMetricInfo(new DummyCharacterFilter());
+		assertEquals("", info.scope);
+		assertEquals(jid.toString(), info.jobID);
 	}
 }

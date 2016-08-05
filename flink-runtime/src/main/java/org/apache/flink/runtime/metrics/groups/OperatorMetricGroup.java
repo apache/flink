@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.Collections;
@@ -41,6 +43,15 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 	
 	public final TaskMetricGroup parent() {
 		return parent;
+	}
+
+	@Override
+	protected QueryScopeInfo.OperatorQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
+		return new QueryScopeInfo.OperatorQueryScopeInfo(
+			this.parent.parent.jobId.toString(),
+			this.parent.vertexId.toString(),
+			this.parent.subtaskIndex,
+			filter.filterCharacters(this.operatorName));
 	}
 	
 	// ------------------------------------------------------------------------

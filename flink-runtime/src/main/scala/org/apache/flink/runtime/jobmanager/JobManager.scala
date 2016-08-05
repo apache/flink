@@ -2750,6 +2750,12 @@ object JobManager {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)
       case None => actorSystem.actorOf(jobManagerProps)
     }
+    
+    metricsRegistry match {
+      case Some(registry) =>
+        registry.startQueryService(actorSystem)
+      case None =>
+    }
 
     (jobManager, archive)
   }

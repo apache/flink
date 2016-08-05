@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.metrics;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
@@ -26,6 +28,8 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.slf4j.Logger;
@@ -47,6 +51,7 @@ public class MetricRegistry {
 	
 	private List<MetricReporter> reporters;
 	private ScheduledExecutorService executor;
+	private ActorRef queryService;
 
 	private final ScopeFormats scopeFormats;
 
@@ -144,6 +149,19 @@ public class MetricRegistry {
 		}
 	}
 
+	/**
+	 * Initializes the MetricQueryService.
+	 * 
+	 * @param actorSystem ActorSystem to create the MetricQueryService on
+     */
+	public void startQueryService(ActorSystem actorSystem) {
+		try {
+			queryService = MetricQueryService.startMetricQueryService(actorSystem);
+		} catch (Exception e) {
+			LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
+		}
+	}
+
 	public char getDelimiter() {
 		return this.delimiter;
 	}
@@ -207,6 +225,9 @@ public class MetricRegistry {
 					}
 				}
 			}
+			if (queryService != null) {
+				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, (AbstractMetricGroup) group);
+			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
 		}
@@ -227,6 +248,9 @@ public class MetricRegistry {
 						reporter.notifyOfRemovedMetric(metric, metricName, group);
 					}
 				}
+			}
+			if (queryService != null) {
+				MetricQueryService.notifyOfRemovedMetric(queryService, metric);
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);

@@ -29,9 +29,12 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -40,7 +43,7 @@ import java.util.ArrayList;
 
 import static org.junit.Assert.*;
 
-public class TaskManagerGroupTest {
+public class TaskManagerGroupTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 	//  adding and removing jobs
@@ -268,5 +271,15 @@ public class TaskManagerGroupTest {
 		assertArrayEquals(new String[] { "constant", "host", "foo", "host" }, group.getScopeComponents());
 		assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
 		registry.shutdown();
+	}
+
+	@Test
+	public void testCreateQueryServiceMetricInfo() {
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+
+		QueryScopeInfo.TaskManagerQueryScopeInfo info = tm.createQueryServiceMetricInfo(new DummyCharacterFilter());
+		assertEquals("", info.scope);
+		assertEquals("id", info.taskManagerID);
 	}
 }
