@@ -58,8 +58,7 @@ public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 	}
 
 	@Override
-	public TriggerResult onMerge(TimeWindow window,
-								 OnMergeContext ctx) {
+	public TriggerResult onMerge(TimeWindow window, OnMergeContext ctx) {
 		ctx.registerProcessingTimeTimer(window.maxTimestamp() - window.getOffset());
 		return TriggerResult.CONTINUE;
 	}

@@ -64,8 +64,8 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 		List<TimeWindow> windows = new ArrayList<>((int) (size / slide));
 		long lastStart = timestamp - timestamp % slide;
 		for (long start = lastStart;
-			 start > timestamp - size;
-			 start -= slide) {
+			start > timestamp - size;
+			start -= slide) {
 			windows.add(new TimeWindow(start, start + size, offsetMillis));
 		}
 		return windows;

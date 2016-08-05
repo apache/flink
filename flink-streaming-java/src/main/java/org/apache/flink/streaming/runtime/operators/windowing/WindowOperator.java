@@ -185,13 +185,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
 	public WindowOperator(WindowAssigner<? super IN, W> windowAssigner,
-						  TypeSerializer<W> windowSerializer,
-						  KeySelector<IN, K> keySelector,
-						  TypeSerializer<K> keySerializer,
-						  StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
-						  InternalWindowFunction<ACC, OUT, K, W> windowFunction,
-						  Trigger<? super IN, ? super W> trigger,
-						  long allowedLateness) {
+						TypeSerializer<W> windowSerializer,
+						KeySelector<IN, K> keySelector,
+						TypeSerializer<K> keySerializer,
+						StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+						InternalWindowFunction<ACC, OUT, K, W> windowFunction,
+						Trigger<? super IN, ? super W> trigger,
+						long allowedLateness) {
 
 		super(windowFunction);
 
@@ -309,8 +309,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				W actualWindow = mergingWindows.addWindow(window, new MergingWindowSet.MergeFunction<W>() {
 					@Override
 					public void merge(W mergeResult,
-									  Collection<W> mergedWindows, W stateWindowResult,
-									  Collection<W> mergedStateWindows) throws Exception {
+									Collection<W> mergedWindows, W stateWindowResult,
+									Collection<W> mergedStateWindows) throws Exception {
 						context.key = key;
 						context.window = mergeResult;
 
@@ -524,8 +524,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * correct key is set in the state backend and the context object.
 	 */
 	private void cleanup(W window,
-						 AppendingState<IN, ACC> windowState,
-						 MergingWindowSet<W> mergingWindows) throws Exception {
+						AppendingState<IN, ACC> windowState,
+						MergingWindowSet<W> mergingWindows) throws Exception {
 		windowState.clear();
 		if (mergingWindows != null) {
 			mergingWindows.retireWindow(window);
@@ -662,8 +662,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
-																	   Class<S> stateType,
-																	   S defaultState) {
+																		Class<S> stateType,
+																		S defaultState) {
 			requireNonNull(stateType, "The state type class must not be null");
 
 			TypeInformation<S> typeInfo;
@@ -681,8 +681,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
-																	   TypeInformation<S> stateType,
-																	   S defaultState) {
+																		TypeInformation<S> stateType,
+																		S defaultState) {
 
 			requireNonNull(name, "The name of the state must not be null");
 			requireNonNull(stateType, "The state type information must not be null");
