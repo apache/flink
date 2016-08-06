@@ -82,26 +82,17 @@ public class NFACompiler {
 			// return a factory for empty NFAs
 			return new NFAFactoryImpl<T>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling);
 		} else {
-			// set of all generated states
-			long windowTime;
-
 			ArrayList<Pattern<T, ?>> patterns = createPatternsList(pattern);
+			// set of all generated states
 			Map<String, State<T>> states = createStatesFrom(patterns);
-			Pattern<T, ?> succeedingPattern = null;
-			Pattern<T, ?> currentPattern = pattern;
-			State<T> succeedingState = null;
-			State<T> currentState = states.get(patterns.get(patterns.size() - 1).getName());
+
+			long windowTime = pattern.getWindowTime() != null ? pattern.getWindowTime().toMilliseconds() : 0L;
 
 			// we're traversing the pattern from the end to the beginning --> the first state is the final state
-
-
-			windowTime = currentPattern.getWindowTime() != null ? currentPattern.getWindowTime().toMilliseconds() : 0L;
-
 			for (int i = patterns.size() - 2; i >= 0; i--) {
-				succeedingPattern = patterns.get(i + 1);
-				currentPattern = patterns.get(i);
-				succeedingState = states.get(succeedingPattern.getName());
-				currentState = states.get(currentPattern.getName());
+				Pattern<T, ?> succeedingPattern = patterns.get(i + 1);
+				Pattern<T, ?> currentPattern = patterns.get(i);
+				State<T> currentState = states.get(currentPattern.getName());
 
 				Time currentWindowTime = currentPattern.getWindowTime();
 
