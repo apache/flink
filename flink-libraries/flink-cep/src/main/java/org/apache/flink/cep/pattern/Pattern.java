@@ -76,6 +76,10 @@ public class Pattern<T, F extends T> {
 		return windowTime;
 	}
 
+	public Quantifier getQuantifier() {
+		return quantifier;
+	}
+
 	/**
 	 * Specifies a filter condition which has to be fulfilled by an event in order to be matched.
 	 *
@@ -185,9 +189,5 @@ public class Pattern<T, F extends T> {
 	 */
 	public static <X> Pattern<X, X> begin(final String name) {
 		return new Pattern<X, X>(name, null);
-	}
-
-	public Quantifier getQuantifier() {
-		return quantifier;
 	}
 }
