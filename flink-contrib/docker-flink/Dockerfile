@@ -22,23 +22,23 @@ FROM java:8-jre-alpine
 RUN apk add --no-cache bash snappy
 
 # Configure Flink version
-ARG FLINK_VERSION=1.0.3
+ARG FLINK_VERSION=1.1.0
 ARG HADOOP_VERSION=27
 ARG SCALA_VERSION=2.11
+
+# Flink environment variables
+ENV FLINK_HOME /usr/local/flink
+ENV PATH $PATH:$FLINK_HOME/bin
 
 # Install build dependencies and flink
 RUN set -x && \
   apk --update add --virtual build-dependencies curl && \
-  curl -s $(curl -s https://www.apache.org/dyn/closer.cgi\?as_json\=1 | \
-  awk '/preferred/ {gsub(/"/,""); print $2}')flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | \
+  curl -s https://archive.apache.org/dist/flink/flink-$FLINK_VERSION/flink-$FLINK_VERSION-bin-hadoop$HADOOP_VERSION-scala_$SCALA_VERSION.tgz | \
   tar xvz -C /usr/local/ && \
-  ln -s /usr/local/flink-$FLINK_VERSION /usr/local/flink && \
+  ln -s /usr/local/flink-$FLINK_VERSION $FLINK_HOME && \
   sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" /usr/local/flink/bin/flink-daemon.sh && \
   apk del build-dependencies && \
   rm -rf /var/cache/apk/*
-
-ENV FLINK_HOME /usr/local/flink
-ENV PATH $PATH:$FLINK_HOME/bin
 
 # Configure container
 ADD docker-entrypoint.sh $FLINK_HOME/bin/
