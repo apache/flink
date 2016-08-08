@@ -37,7 +37,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointCoordinator;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -215,9 +214,6 @@ public class ExecutionGraph {
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
 	private CheckpointCoordinator checkpointCoordinator;
 
-	/** The coordinator for savepoints, if snapshot checkpoints are enabled */
-	private transient SavepointCoordinator savepointCoordinator;
-
 	/** Checkpoint stats tracker separate from the coordinator in order to be
 	 * available after archiving. */
 	private CheckpointStatsTracker checkpointStatsTracker;
@@ -226,7 +222,7 @@ public class ExecutionGraph {
 	private ExecutionContext executionContext;
 
 	/** Registered KvState instances reported by the TaskManagers. */
-	private transient KvStateLocationRegistry kvStateLocationRegistry;
+	private KvStateLocationRegistry kvStateLocationRegistry;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
@@ -392,6 +388,7 @@ public class ExecutionGraph {
 				userClassLoader,
 				checkpointIDCounter,
 				checkpointStore,
+				savepointStore,
 				recoveryMode,
 				checkpointStatsTracker);
 
@@ -399,25 +396,6 @@ public class ExecutionGraph {
 		// job status changes (running -> on, all other states -> off)
 		registerJobStatusListener(
 				checkpointCoordinator.createActivatorDeactivator(actorSystem, leaderSessionID));
-
-		// Savepoint Coordinator
-		savepointCoordinator = new SavepointCoordinator(
-				jobID,
-				interval,
-				checkpointTimeout,
-				numberKeyGroups,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				// Important: this counter needs to be shared with the periodic
-				// checkpoint coordinator.
-				checkpointIDCounter,
-				savepointStore,
-				checkpointStatsTracker);
-
-		registerJobStatusListener(savepointCoordinator
-				.createActivatorDeactivator(actorSystem, leaderSessionID));
 	}
 
 	/**
@@ -432,23 +410,14 @@ public class ExecutionGraph {
 		}
 
 		if (checkpointCoordinator != null) {
-			checkpointCoordinator.shutdown();
+			checkpointCoordinator.suspend();
 			checkpointCoordinator = null;
 			checkpointStatsTracker = null;
-		}
-
-		if (savepointCoordinator != null) {
-			savepointCoordinator.shutdown();
-			savepointCoordinator = null;
 		}
 	}
 
 	public CheckpointCoordinator getCheckpointCoordinator() {
 		return checkpointCoordinator;
-	}
-
-	public SavepointCoordinator getSavepointCoordinator() {
-		return savepointCoordinator;
 	}
 
 	public KvStateLocationRegistry getKvStateLocationRegistry() {
@@ -924,17 +893,7 @@ public class ExecutionGraph {
 
 				// if we have checkpointed state, reload it into the executions
 				if (checkpointCoordinator != null) {
-					boolean restored = checkpointCoordinator
-							.restoreLatestCheckpointedState(getAllVertices(), false, false);
-
-					// TODO(uce) Temporary work around to restore initial state on
-					// failure during recovery. Will be superseded by FLINK-3397.
-					if (!restored && savepointCoordinator != null) {
-						String savepointPath = savepointCoordinator.getSavepointRestorePath();
-						if (savepointPath != null) {
-							savepointCoordinator.restoreSavepoint(getAllVertices(), savepointPath);
-						}
-					}
+					checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
 				}
 			}
 
@@ -961,33 +920,6 @@ public class ExecutionGraph {
 	}
 
 	/**
-	 * Restores the execution state back to a savepoint.
-	 *
-	 * <p>The execution vertices need to be in state {@link ExecutionState#CREATED} when calling
-	 * this method. The operation might block. Make sure that calls don't block the job manager
-	 * actor.
-	 *
-	 * @param savepointPath The path of the savepoint to rollback to.
-	 * @throws IllegalStateException If checkpointing is disabled
-	 * @throws IllegalStateException If checkpoint coordinator is shut down
-	 * @throws Exception If failure during rollback
-	 */
-	public void restoreSavepoint(String savepointPath) throws Exception {
-		synchronized (progressLock) {
-			if (savepointCoordinator != null) {
-				LOG.info("Restoring savepoint: " + savepointPath + ".");
-
-				savepointCoordinator.restoreSavepoint(
-						getAllVertices(), savepointPath);
-			}
-			else {
-				// Sanity check
-				throw new IllegalStateException("Checkpointing disabled.");
-			}
-		}
-	}
-
-	/**
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
 	public void prepareForArchiving() {
@@ -1000,6 +932,7 @@ public class ExecutionGraph {
 		scheduler = null;
 		checkpointCoordinator = null;
 		executionContext = null;
+		kvStateLocationRegistry = null;
 
 		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
 			vertex.prepareForArchiving();
@@ -1128,21 +1061,6 @@ public class ExecutionGraph {
 
 			// We don't clean the checkpoint stats tracker, because we want
 			// it to be available after the job has terminated.
-		} catch (Exception e) {
-			LOG.error("Error while cleaning up after execution", e);
-		}
-
-		try {
-			CheckpointCoordinator coord = this.savepointCoordinator;
-			this.savepointCoordinator = null;
-
-			if (coord != null) {
-				if (state.isGloballyTerminalState()) {
-					coord.shutdown();
-				} else {
-					coord.suspend();
-				}
-			}
 		} catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
 		}
