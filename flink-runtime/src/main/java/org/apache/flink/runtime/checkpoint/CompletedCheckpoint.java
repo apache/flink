@@ -20,11 +20,12 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Map;
-import java.util.Objects;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A successful checkpoint describes a checkpoint after all required tasks acknowledged it (with their state)
@@ -47,19 +48,33 @@ public class CompletedCheckpoint implements Serializable {
 	/** States of the different task groups belonging to this checkpoint */
 	private final Map<JobVertexID, TaskState> taskStates;
 
-	public CompletedCheckpoint(
-		JobID job,
-		long checkpointID,
-		long timestamp,
-		long completionTimestamp,
-		Map<JobVertexID, TaskState> taskStates) {
+	/** Flag to indicate whether the completed checkpoint data should be deleted when this
+	 * handle to the checkpoint is disposed */
+	private final boolean deleteStateWhenDisposed;
 
-		this.job = Preconditions.checkNotNull(job);
+	// ------------------------------------------------------------------------
+
+	public CompletedCheckpoint(
+			JobID job,
+			long checkpointID,
+			long timestamp,
+			long completionTimestamp,
+			Map<JobVertexID, TaskState> taskStates,
+			boolean deleteStateWhenDisposed) {
+
+		checkArgument(checkpointID >= 0);
+		checkArgument(timestamp >= 0);
+		checkArgument(completionTimestamp >= 0);
+
+		this.job = checkNotNull(job);
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;
 		this.duration = completionTimestamp - timestamp;
-		this.taskStates = Preconditions.checkNotNull(taskStates);
+		this.taskStates = checkNotNull(taskStates);
+		this.deleteStateWhenDisposed = deleteStateWhenDisposed;
 	}
+
+	// ------------------------------------------------------------------------
 
 	public JobID getJobId() {
 		return job;
@@ -96,10 +111,12 @@ public class CompletedCheckpoint implements Serializable {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public void discard(ClassLoader userClassLoader) throws Exception {
-		for (TaskState state: taskStates.values()) {
-			state.discard(userClassLoader);
+		if (deleteStateWhenDisposed) {
+			for (TaskState state: taskStates.values()) {
+				state.discard(userClassLoader);
+			}
 		}
 
 		taskStates.clear();
@@ -107,27 +124,6 @@ public class CompletedCheckpoint implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof CompletedCheckpoint) {
-			CompletedCheckpoint other = (CompletedCheckpoint) obj;
-
-			return job.equals(other.job) && checkpointID == other.checkpointID &&
-				timestamp == other.timestamp && duration == other.duration &&
-				taskStates.equals(other.taskStates);
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		return (int) (this.checkpointID ^ this.checkpointID >>> 32) +
-			31 * ((int) (this.timestamp ^ this.timestamp >>> 32) +
-				31 * ((int) (this.duration ^ this.duration >>> 32) +
-					31 * Objects.hash(job, taskStates)));
-	}
-	
 	@Override
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);

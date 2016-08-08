@@ -41,7 +41,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
-import org.apache.flink.runtime.checkpoint.savepoint.{SavepointStoreFactory, SavepointStore}
+import org.apache.flink.runtime.checkpoint.savepoint.{SavepointLoader, SavepointStoreFactory, SavepointStore}
 import org.apache.flink.runtime.checkpoint.stats.{CheckpointStatsTracker, SimpleCheckpointStatsTracker, DisabledCheckpointStatsTracker}
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.execution.SuppressRestartsException
@@ -290,7 +290,7 @@ class JobManager(
 
     // failsafe shutdown of the metrics registry
     try {
-      metricsRegistry.map(_.shutdown())
+      metricsRegistry.foreach(_.shutdown())
     } catch {
       case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
     }
@@ -686,9 +686,9 @@ class JobManager(
     case TriggerSavepoint(jobId) =>
       currentJobs.get(jobId) match {
         case Some((graph, _)) =>
-          val savepointCoordinator = graph.getSavepointCoordinator()
+          val checkpointCoordinator = graph.getCheckpointCoordinator()
 
-          if (savepointCoordinator != null) {
+          if (checkpointCoordinator != null) {
             // Immutable copy for the future
             val senderRef = sender()
 
@@ -696,7 +696,7 @@ class JobManager(
               try {
                 // Do this async, because checkpoint coordinator operations can
                 // contain blocking calls to the state backend or ZooKeeper.
-                val savepointFuture = savepointCoordinator.triggerSavepoint(
+                val savepointFuture = checkpointCoordinator.triggerSavepoint(
                   System.currentTimeMillis())
 
                 savepointFuture.onComplete {
@@ -1294,17 +1294,37 @@ class JobManager(
       // because it is a blocking operation
       future {
         try {
+
           if (isRecovery) {
+            // this is a recovery of a master failure (this master takes over)
             executionGraph.restoreLatestCheckpointedState()
-          } else {
+          }
+          else {
+            // load a savepoint only if this is not starting from a newer checkpoint
+            // as part of an master failure recovery
             val snapshotSettings = jobGraph.getSnapshotSettings
             if (snapshotSettings != null) {
               val savepointPath = snapshotSettings.getSavepointPath()
-
-              // Reset state back to savepoint
+              
               if (savepointPath != null) {
+                // got a savepoint
                 try {
-                  executionGraph.restoreSavepoint(savepointPath)
+                  log.info(s"Starting job from savepoint '$savepointPath'.")
+
+                  // load the savepoint as a checkpoint into the system
+                  val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
+                    jobId, executionGraph.getAllVertices, savepointStore, savepointPath)
+
+                  executionGraph.getCheckpointCoordinator.getCheckpointStore
+                      .addCheckpoint(savepoint)
+                  
+                  // Reset the checkpoint ID counter
+                  val nextCheckpointId: Long = savepoint.getCheckpointID + 1
+                  log.info(s"Reset the checkpoint ID to $nextCheckpointId")
+                  executionGraph.getCheckpointCoordinator.getCheckpointIdCounter
+                      .setCount(nextCheckpointId)
+                  
+                  executionGraph.restoreLatestCheckpointedState()
                 } catch {
                   case e: Exception =>
                     throw new SuppressRestartsException(e)
@@ -1367,21 +1387,13 @@ class JobManager(
         currentJobs.get(jid) match {
           case Some((graph, _)) =>
             val checkpointCoordinator = graph.getCheckpointCoordinator()
-            val savepointCoordinator = graph.getSavepointCoordinator()
 
-            if (checkpointCoordinator != null && savepointCoordinator != null) {
+            if (checkpointCoordinator != null) {
               future {
                 try {
-                  if (checkpointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
-                    // OK, this is the common case
-                  }
-                  else {
-                    // Try the savepoint coordinator if the message was not addressed
-                    // to the periodic checkpoint coordinator.
-                    if (!savepointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
-                      log.info("Received message for non-existing checkpoint " +
-                        ackMessage.getCheckpointId)
-                    }
+                  if (!checkpointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
+                    log.info("Received message for non-existing checkpoint " +
+                      ackMessage.getCheckpointId)
                   }
                 }
                 catch {
@@ -1404,21 +1416,13 @@ class JobManager(
         currentJobs.get(jid) match {
           case Some((graph, _)) =>
             val checkpointCoordinator = graph.getCheckpointCoordinator()
-            val savepointCoordinator = graph.getSavepointCoordinator()
 
-            if (checkpointCoordinator != null && savepointCoordinator != null) {
+            if (checkpointCoordinator != null) {
               future {
                 try {
                   if (checkpointCoordinator.receiveDeclineMessage(declineMessage)) {
-                    // OK, this is the common case
-                  }
-                  else {
-                    // Try the savepoint coordinator if the message was not addressed
-                    // to the periodic checkpoint coordinator.
-                    if (!savepointCoordinator.receiveDeclineMessage(declineMessage)) {
-                      log.info("Received message for non-existing checkpoint " +
-                        declineMessage.getCheckpointId)
-                    }
+                    log.info("Received message for non-existing checkpoint " +
+                      declineMessage.getCheckpointId)
                   }
                 }
                 catch {
