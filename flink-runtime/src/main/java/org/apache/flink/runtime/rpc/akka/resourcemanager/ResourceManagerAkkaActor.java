@@ -20,12 +20,14 @@ package org.apache.flink.runtime.rpc.akka.resourcemanager;
 
 import akka.actor.ActorRef;
 import akka.actor.Status;
+import akka.pattern.Patterns;
 import org.apache.flink.runtime.rpc.akka.RunnableAkkaActor;
 import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.resourcemanager.SlotAssignment;
 import org.apache.flink.runtime.rpc.akka.messages.RegisterJobMaster;
 import org.apache.flink.runtime.rpc.akka.messages.RequestSlot;
+import scala.concurrent.Future;
 
 public class ResourceManagerAkkaActor extends RunnableAkkaActor {
 	private final ResourceManager resourceManager;
@@ -42,8 +44,8 @@ public class ResourceManagerAkkaActor extends RunnableAkkaActor {
 			RegisterJobMaster registerJobMaster = (RegisterJobMaster) message;
 
 			try {
-				RegistrationResponse response = resourceManager.registerJobMaster(registerJobMaster.getJobMasterRegistration());
-				sender.tell(new Status.Success(response), getSelf());
+				Future<RegistrationResponse> response = resourceManager.registerJobMaster(registerJobMaster.getJobMasterRegistration());
+				Patterns.pipe(response, getContext().dispatcher()).to(sender());
 			} catch (Exception e) {
 				sender.tell(new Status.Failure(e), getSelf());
 			}

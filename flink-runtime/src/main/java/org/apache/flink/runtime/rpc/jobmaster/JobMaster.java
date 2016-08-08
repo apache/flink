@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rpc.jobmaster;
 
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.resourcemanager.JobMasterRegistration;
@@ -34,14 +35,25 @@ import scala.Tuple2;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
 import scala.concurrent.Future;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
 
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class JobMaster extends RpcServer<JobMasterGateway> {
 	private final Logger LOG = LoggerFactory.getLogger(JobMaster.class);
 	private final ExecutionContext executionContext;
 
+	private final FiniteDuration initialRegistrationTimeout = new FiniteDuration(500, TimeUnit.MILLISECONDS);
+	private final FiniteDuration maxRegistrationTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
+	private final FiniteDuration registrationDuration = new FiniteDuration(365, TimeUnit.DAYS);
+
 	private ResourceManagerGateway resourceManager = null;
+
+	private UUID currentRegistrationRun;
 
 	public JobMaster(RpcService rpcService, ExecutorService executorService) {
 		super(rpcService);
@@ -59,38 +71,111 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public void triggerResourceManagerRegistration(final String address) {
+	public void registerAtResourceManager(final String address) {
+		currentRegistrationRun = UUID.randomUUID();
+
 		Future<ResourceManagerGateway> resourceManagerFuture = getRpcService().connect(address, ResourceManagerGateway.class);
 
-		Future<RegistrationResponse> registrationResponseFuture = resourceManagerFuture.flatMap(new Mapper<ResourceManagerGateway, Future<RegistrationResponse>>() {
-			@Override
-			public Future<RegistrationResponse> apply(final ResourceManagerGateway resourceManagerGateway) {
+		handleResourceManagerRegistration(
+			new JobMasterRegistration(getAddress()),
+			1,
+			resourceManagerFuture,
+			currentRegistrationRun,
+			initialRegistrationTimeout,
+			maxRegistrationTimeout,
+			registrationDuration.fromNow());
+	}
+
+	void handleResourceManagerRegistration(
+		final JobMasterRegistration jobMasterRegistration,
+		final int attemptNumber,
+		final Future<ResourceManagerGateway> resourceManagerFuture,
+		final UUID registrationRun,
+		final FiniteDuration timeout,
+		final FiniteDuration maxTimeout,
+		final Deadline deadline) {
+
+		// filter out concurrent registration runs
+		if (registrationRun.equals(currentRegistrationRun)) {
+
+			LOG.info("Start registration attempt #{}.", attemptNumber);
+
+			if (deadline.isOverdue()) {
+				// we've exceeded our registration deadline. This means that we have to shutdown the JobMaster
+				LOG.error("Exceeded registration deadline without successfully registering at the ResourceManager.");
 				runAsync(new Runnable() {
 					@Override
 					public void run() {
-						resourceManager = resourceManagerGateway;
+						shutDown();
 					}
 				});
+			} else {
+				Future<RegistrationResponse> registrationResponseFuture = resourceManagerFuture.flatMap(new Mapper<ResourceManagerGateway, Future<RegistrationResponse>>() {
+					@Override
+					public Future<RegistrationResponse> apply(ResourceManagerGateway resourceManagerGateway) {
+						return resourceManagerGateway.registerJobMaster(jobMasterRegistration, timeout);
+					}
+				}, executionContext);
 
-				return resourceManagerGateway.registerJobMaster(new JobMasterRegistration());
-			}
-		}, executionContext);
+				registrationResponseFuture.zip(resourceManagerFuture).onComplete(new OnComplete<Tuple2<RegistrationResponse, ResourceManagerGateway>>() {
+					@Override
+					public void onComplete(Throwable failure, Tuple2<RegistrationResponse, ResourceManagerGateway> tuple) throws Throwable {
+						if (failure != null) {
+							if (failure instanceof TimeoutException) {
+								// we haven't received an answer in the given timeout interval,
+								// so increase it and try again.
+								FiniteDuration newTimeout = timeout.$times(2L).min(maxTimeout);
 
-		resourceManagerFuture.zip(registrationResponseFuture).onComplete(new OnComplete<Tuple2<ResourceManagerGateway, RegistrationResponse>>() {
-			@Override
-			public void onComplete(Throwable failure, Tuple2<ResourceManagerGateway, RegistrationResponse> success) throws Throwable {
-				if (failure != null) {
-					LOG.info("Registration at resource manager {} failed. Tyr again.", address);
-				} else {
-					getSelf().handleRegistrationResponse(success._2(), success._1());
-				}
+								handleResourceManagerRegistration(
+									jobMasterRegistration,
+									attemptNumber + 1,
+									resourceManagerFuture,
+									registrationRun,
+									newTimeout,
+									maxTimeout,
+									deadline);
+							} else {
+								LOG.error("Received unknown error while registering at the ResourceManager.", failure);
+								runAsync(new Runnable() {
+									@Override
+									public void run() {
+										shutDown();
+									}
+								});
+							}
+						} else {
+							final RegistrationResponse response = tuple._1();
+							final ResourceManagerGateway gateway = tuple._2();
+
+							if (response.isSuccess()) {
+								runAsync(new Runnable() {
+									@Override
+									public void run() {
+										finishResourceManagerRegistration(gateway, response.getInstanceID());
+									}
+								});
+							} else {
+								// our registration attempt was refused. Start over.
+								handleResourceManagerRegistration(
+									jobMasterRegistration,
+									1,
+									resourceManagerFuture,
+									registrationRun,
+									initialRegistrationTimeout,
+									maxTimeout,
+									deadline);
+							}
+						}
+					}
+				}, executionContext);
 			}
-		}, executionContext);
+		} else {
+			LOG.info("Discard out-dated registration run.");
+		}
 	}
 
-	@RpcMethod
-	public void handleRegistrationResponse(RegistrationResponse response, ResourceManagerGateway resourceManager) {
-		System.out.println("Received registration response: " + response);
+	void finishResourceManagerRegistration(ResourceManagerGateway resourceManager, InstanceID instanceID) {
+		LOG.info("Successfully registered at the ResourceManager under instance id {}.", instanceID);
 		this.resourceManager = resourceManager;
 	}
 

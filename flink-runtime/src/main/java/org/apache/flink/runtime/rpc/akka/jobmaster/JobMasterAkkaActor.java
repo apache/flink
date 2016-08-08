@@ -23,7 +23,6 @@ import akka.actor.Status;
 import org.apache.flink.runtime.rpc.akka.RunnableAkkaActor;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.akka.messages.HandleRegistrationResponse;
 import org.apache.flink.runtime.rpc.akka.messages.TriggerResourceManagerRegistration;
 import org.apache.flink.runtime.rpc.akka.messages.UpdateTaskExecutionState;
 
@@ -51,11 +50,7 @@ public class JobMasterAkkaActor extends RunnableAkkaActor {
 		} else if (message instanceof TriggerResourceManagerRegistration) {
 			TriggerResourceManagerRegistration triggerResourceManagerRegistration = (TriggerResourceManagerRegistration) message;
 
-			jobMaster.triggerResourceManagerRegistration(triggerResourceManagerRegistration.getAddress());
-		} else if (message instanceof HandleRegistrationResponse) {
-			HandleRegistrationResponse registrationResponse = (HandleRegistrationResponse) message;
-
-			jobMaster.handleRegistrationResponse(registrationResponse.getRegistrationResponse(), registrationResponse.getResourceManagerGateway());
+			jobMaster.registerAtResourceManager(triggerResourceManagerRegistration.getAddress());
 		} else {
 			super.onReceive(message);
 		}

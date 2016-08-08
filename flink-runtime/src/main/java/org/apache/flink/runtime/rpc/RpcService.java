@@ -28,4 +28,6 @@ public interface RpcService {
 	<C extends RpcGateway> void stopServer(C gateway);
 
 	void stopService();
+
+	<C extends RpcGateway> String getAddress(C gateway);
 }

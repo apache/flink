@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rpc.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.rpc.akka.messages.RegisterJobMaster;
 import org.apache.flink.runtime.rpc.akka.messages.RequestSlot;
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
 public class ResourceManagerAkkaGateway extends RunnableAkkaGateway implements ResourceManagerGateway {
@@ -39,6 +40,12 @@ public class ResourceManagerAkkaGateway extends RunnableAkkaGateway implements R
 	public ResourceManagerAkkaGateway(ActorRef actorRef, Timeout timeout) {
 		this.actorRef = new AskableActorRef(actorRef);
 		this.timeout = timeout;
+	}
+
+	@Override
+	public Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration, FiniteDuration timeout) {
+		return actorRef.ask(new RegisterJobMaster(jobMasterRegistration), new Timeout(timeout))
+			.mapTo(ClassTag$.MODULE$.<RegistrationResponse>apply(RegistrationResponse.class));
 	}
 
 	@Override

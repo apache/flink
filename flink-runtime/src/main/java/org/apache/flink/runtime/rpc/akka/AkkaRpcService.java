@@ -28,6 +28,7 @@ import akka.actor.Props;
 import akka.dispatch.Mapper;
 import akka.pattern.AskableActorSelection;
 import akka.util.Timeout;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
@@ -131,5 +132,14 @@ public class AkkaRpcService implements RpcService {
 	public void stopService() {
 		actorSystem.shutdown();
 		actorSystem.awaitTermination();
+	}
+
+	@Override
+	public <C extends RpcGateway> String getAddress(C gateway) {
+		if (gateway instanceof AkkaGateway) {
+			return AkkaUtils.getAkkaURL(actorSystem, ((AkkaGateway) gateway).getActorRef());
+		} else {
+			throw new RuntimeException("Cannot get address for non " + AkkaGateway.class.getName() + ".");
+		}
 	}
 }

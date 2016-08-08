@@ -18,14 +18,31 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
+import akka.actor.Status;
 import akka.actor.UntypedActor;
+import org.apache.flink.runtime.rpc.akka.messages.CallableMessage;
 import org.apache.flink.runtime.rpc.akka.messages.RunnableMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RunnableAkkaActor extends UntypedActor {
+	private static final Logger LOG = LoggerFactory.getLogger(RunnableAkkaActor.class);
+
 	@Override
 	public void onReceive(Object message) throws Exception {
 		if (message instanceof RunnableMessage) {
-			((RunnableMessage) message).getRunnable().run();
+			try {
+				((RunnableMessage) message).getRunnable().run();
+			} catch (Exception e) {
+				LOG.error("Encountered error while executing runnable.", e);
+			}
+		} else if (message instanceof CallableMessage<?>) {
+			try {
+				Object result = ((CallableMessage<?>) message).getCallable().call();
+				sender().tell(new Status.Success(result), getSelf());
+			} catch (Exception e) {
+				sender().tell(new Status.Failure(e), getSelf());
+			}
 		} else {
 			throw new RuntimeException("Unknown message " + message);
 		}

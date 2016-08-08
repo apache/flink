@@ -18,6 +18,13 @@
 
 package org.apache.flink.runtime.rpc;
 
+import akka.util.Timeout;
+import scala.concurrent.Future;
+
+import java.util.concurrent.Callable;
+
 public interface RunnableRpcGateway {
 	void runAsync(Runnable runnable);
+
+	<V> Future<V> callAsync(Callable<V> callable, Timeout timeout);
 }

@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.rpc;
 
+import akka.util.Timeout;
 import org.apache.flink.runtime.rpc.akka.RunnableAkkaGateway;
+import scala.concurrent.Future;
+
+import java.util.concurrent.Callable;
 
 /**
  * Base class for rpc servers. Every rpc server should implement this interface.
@@ -49,6 +53,10 @@ public abstract class RpcServer<C extends RpcGateway> {
 		((RunnableAkkaGateway) self).runAsync(runnable);
 	}
 
+	public <V> Future<V> callAsync(Callable<V> callable, Timeout timeout) {
+		return ((RunnableAkkaGateway) self).callAsync(callable, timeout);
+	}
+
 	public RpcService getRpcService() {
 		return rpcService;
 	}
@@ -59,5 +67,9 @@ public abstract class RpcServer<C extends RpcGateway> {
 
 	public void shutDown() {
 		rpcService.stopServer(self);
+	}
+
+	public String getAddress() {
+		return rpcService.getAddress(self);
 	}
 }

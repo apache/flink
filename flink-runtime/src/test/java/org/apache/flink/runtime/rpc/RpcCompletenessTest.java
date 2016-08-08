@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.util.TestLogger;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.reflections.Reflections;
 import scala.concurrent.Future;
@@ -38,6 +39,7 @@ import static org.junit.Assert.fail;
 
 public class RpcCompletenessTest extends TestLogger {
 
+	@Ignore
 	@Test
 	public void testRpcCompleteness() {
 		Reflections reflections = new Reflections("org.apache.flink");

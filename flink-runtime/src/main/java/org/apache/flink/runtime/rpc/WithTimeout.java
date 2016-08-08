@@ -16,20 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.resourcemanager;
+package org.apache.flink.runtime.rpc;
 
-import java.io.Serializable;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class JobMasterRegistration implements Serializable {
-	private static final long serialVersionUID = 8411214999193765202L;
-
-	private final String address;
-
-	public JobMasterRegistration(String address) {
-		this.address = address;
-	}
-
-	public String getAddress() {
-		return address;
-	}
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface WithTimeout {
+	String value();
 }

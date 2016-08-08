@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.resourcemanager;
+package org.apache.flink.runtime.rpc.akka.messages;
 
-import java.io.Serializable;
+import java.util.concurrent.Callable;
 
-public class JobMasterRegistration implements Serializable {
-	private static final long serialVersionUID = 8411214999193765202L;
+public class CallableMessage<V> {
+	private final Callable<V> callable;
 
-	private final String address;
-
-	public JobMasterRegistration(String address) {
-		this.address = address;
+	public CallableMessage(Callable<V> callable) {
+		this.callable = callable;
 	}
 
-	public String getAddress() {
-		return address;
+	public Callable<V> getCallable() {
+		return callable;
 	}
 }

@@ -19,12 +19,23 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorRef;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.flink.runtime.rpc.RunnableRpcGateway;
+import org.apache.flink.runtime.rpc.akka.messages.CallableMessage;
 import org.apache.flink.runtime.rpc.akka.messages.RunnableMessage;
+import scala.concurrent.Future;
+
+import java.util.concurrent.Callable;
 
 public abstract class RunnableAkkaGateway implements RunnableRpcGateway, AkkaGateway {
 	@Override
 	public void runAsync(Runnable runnable) {
 		getActorRef().tell(new RunnableMessage(runnable), ActorRef.noSender());
+	}
+
+	@Override
+	public <V> Future<V> callAsync(Callable<V> callable, Timeout timeout) {
+		return (Future<V>) Patterns.ask(getActorRef(), new CallableMessage(callable), timeout);
 	}
 }
