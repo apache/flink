@@ -47,6 +47,9 @@ Flink releases because of the licensing issue. Therefore, you need to build the 
 Download the Flink source or check it out from the git repository. Then, use the following Maven command to build the module:
 {% highlight bash %}
 mvn clean install -Pinclude-kinesis -DskipTests
+# In Maven 3.3 the shading of flink-dist doesn't work properly in one run, so we need to run mvn for flink-dist again. 
+cd flink-dist
+mvn clean install -Pinclude-kinesis -DskipTests
 {% endhighlight %}
 
 
