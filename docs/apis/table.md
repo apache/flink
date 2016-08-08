@@ -925,11 +925,13 @@ unary = [ "!" | "-" ] , composite ;
 
 composite = suffixed | atom ;
 
-suffixed = cast | as | aggregation | nullCheck | if | functionCall ;
+suffixed = interval | cast | as | aggregation | nullCheck | if | functionCall ;
+
+interval = composite , "." , ("year" | "month" | "day" | "hour" | "minute" | "second" | "milli") ;
 
 cast = composite , ".cast(" , dataType , ")" ;
 
-dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | "STRING" | "DECIMAL" | "DATE" | "TIME" | "TIMESTAMP";
+dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | "STRING" | "DECIMAL" | "DATE" | "TIME" | "TIMESTAMP" | "INTERVAL_MONTHS" | "INTERVAL_MILLIS" ;
 
 as = composite , ".as(" , fieldReference , ")" ;
 
@@ -953,6 +955,8 @@ column names and function names follow Java identifier syntax. Expressions speci
 If working with exact numeric values or large decimals is required, the Table API also supports Java's BigDecimal type. In the Scala Table API decimals can be defined by `BigDecimal("123456")` and in Java by appending a "p" for precise e.g. `123456p`.
 
 In order to work with temporal values the Table API supports Java SQL's Date, Time, and Timestamp types. In the Scala Table API literals can be defined by using `java.sql.Date.valueOf("2016-06-27")`, `java.sql.Time.valueOf("10:10:42")`, or `java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")`. The Java and Scala Table API also support calling `"2016-06-27".toDate()`, `"10:10:42".toTime()`, and `"2016-06-27 10:10:42.123".toTimestamp()` for converting Strings into temporal types. *Note:* Since Java's temporal SQL types are time zone dependent, please make sure that the Flink Client and all TaskManagers use the same time zone.
+
+Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTHS`) or number of milliseconds (`Types.INTERVAL_MILLIS`). Intervals of same type can be added or subtracted (e.g. `2.hour + 10.minutes`). Intervals of milliseconds can be added to time points (e.g. `"2016-08-10".toDate + 5.day`).
 
 {% top %}
 
@@ -1005,8 +1009,8 @@ The current version supports selection (filter), projection, inner equi-joins, g
 
 Among others, the following SQL features are not supported, yet:
 
-- Time interval data type (`INTERVAL`)
-- Timestamps are limited to milliseconds precision
+- Timestamps and intervals are limited to milliseconds precision
+- Interval arithmetic is currenly limited
 - Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
 - Non-equi joins and Cartesian products
 - Result selection by order position (`ORDER BY OFFSET FETCH`)
@@ -1137,20 +1141,22 @@ Data Types
 
 The Table API is built on top of Flink's DataSet and DataStream API. Internally, it also uses Flink's `TypeInformation` to distinguish between types. The Table API does not support all Flink types so far. All supported simple types are listed in `org.apache.flink.api.table.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
 
-| Table API              | SQL             | Java type              |
-| :--------------------- | :-------------- | :--------------------- |
-| `Types.STRING`         | `VARCHAR`       | `java.lang.String`     |
-| `Types.BOOLEAN`        | `BOOLEAN`       | `java.lang.Boolean`    |
-| `Types.BYTE`           | `TINYINT`       | `java.lang.Byte`       |
-| `Types.SHORT`          | `SMALLINT`      | `java.lang.Short`      |
-| `Types.INT`            | `INTEGER, INT`  | `java.lang.Integer`    |
-| `Types.LONG`           | `BIGINT`        | `java.lang.Long`       |
-| `Types.FLOAT`          | `REAL, FLOAT`   | `java.lang.Float`      |
-| `Types.DOUBLE`         | `DOUBLE`        | `java.lang.Double`     |
-| `Types.DECIMAL`        | `DECIMAL`       | `java.math.BigDecimal` |
-| `Types.DATE`           | `DATE`          | `java.sql.Date`        |
-| `Types.TIME`           | `TIME`          | `java.sql.Time`        |
-| `Types.TIMESTAMP`      | `TIMESTAMP`     | `java.sql.Timestamp`   |
+| Table API              | SQL                         | Java type              |
+| :--------------------- | :-------------------------- | :--------------------- |
+| `Types.STRING`         | `VARCHAR`                   | `java.lang.String`     |
+| `Types.BOOLEAN`        | `BOOLEAN`                   | `java.lang.Boolean`    |
+| `Types.BYTE`           | `TINYINT`                   | `java.lang.Byte`       |
+| `Types.SHORT`          | `SMALLINT`                  | `java.lang.Short`      |
+| `Types.INT`            | `INTEGER, INT`              | `java.lang.Integer`    |
+| `Types.LONG`           | `BIGINT`                    | `java.lang.Long`       |
+| `Types.FLOAT`          | `REAL, FLOAT`               | `java.lang.Float`      |
+| `Types.DOUBLE`         | `DOUBLE`                    | `java.lang.Double`     |
+| `Types.DECIMAL`        | `DECIMAL`                   | `java.math.BigDecimal` |
+| `Types.DATE`           | `DATE`                      | `java.sql.Date`        |
+| `Types.TIME`           | `TIME`                      | `java.sql.Time`        |
+| `Types.TIMESTAMP`      | `TIMESTAMP(3)`              | `java.sql.Timestamp`   |
+| `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
+| `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
 
 Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and arrays can be fields of a row but can not be accessed yet. They are treated like a black box within Table API and SQL.
 

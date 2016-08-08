@@ -17,8 +17,11 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation, BasicTypeInfo}
+import org.apache.calcite.avatica.util.DateTimeUtils.{MILLIS_PER_DAY, MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.ExpressionParserException
+import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
+import org.apache.flink.api.table.typeutils.IntervalTypeInfo
 
 import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
@@ -57,6 +60,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val TO_DATE: Keyword = Keyword("toDate")
   lazy val TO_TIME: Keyword = Keyword("toTime")
   lazy val TO_TIMESTAMP: Keyword = Keyword("toTimestamp")
+  lazy val YEAR: Keyword = Keyword("year")
+  lazy val MONTH: Keyword = Keyword("month")
+  lazy val DAY: Keyword = Keyword("day")
+  lazy val HOUR: Keyword = Keyword("hour")
+  lazy val MINUTE: Keyword = Keyword("minute")
+  lazy val SECOND: Keyword = Keyword("second")
+  lazy val MILLI: Keyword = Keyword("milli")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
@@ -68,6 +78,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val dataType: PackratParser[TypeInformation[_]] =
     "BYTE" ^^ { ti => BasicTypeInfo.BYTE_TYPE_INFO } |
       "SHORT" ^^ { ti => BasicTypeInfo.SHORT_TYPE_INFO } |
+      "INTERVAL_MONTHS" ^^ {
+        ti => IntervalTypeInfo.INTERVAL_MONTHS.asInstanceOf[TypeInformation[_]]
+      } |
+      "INTERVAL_MILLIS" ^^ {
+        ti => IntervalTypeInfo.INTERVAL_MILLIS.asInstanceOf[TypeInformation[_]]
+      } |
       "INT" ^^ { ti => BasicTypeInfo.INT_TYPE_INFO } |
       "LONG" ^^ { ti => BasicTypeInfo.LONG_TYPE_INFO } |
       "FLOAT" ^^ { ti => BasicTypeInfo.FLOAT_TYPE_INFO } |
@@ -81,10 +97,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // Literals
 
+  // same as floatingPointNumber but we do not allow trailing dot "12.d" or "2."
+  lazy val floatingPointNumberFlink: Parser[String] =
+    """-?(\d+(\.\d+)?|\d*\.\d+)([eE][+-]?\d+)?[fFdD]?""".r
+
   lazy val numberLiteral: PackratParser[Expression] =
     (wholeNumber <~ ("l" | "L")) ^^ { n => Literal(n.toLong) } |
       (decimalNumber <~ ("p" | "P")) ^^ { n => Literal(BigDecimal(n)) } |
-      (floatingPointNumber | decimalNumber) ^^ {
+      (floatingPointNumberFlink | decimalNumber) ^^ {
         n =>
           if (n.matches("""-?\d+""")) {
             Literal(n.toInt)
@@ -109,7 +129,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val nullLiteral: PackratParser[Expression] = NULL ~ "(" ~> dataType <~ ")" ^^ {
-    case dt => Null(dt)
+    dt => Null(dt)
   }
 
   lazy val literalExpr: PackratParser[Expression] =
@@ -169,7 +189,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val suffixTrimWithoutArgs = composite <~ ".trim" ~ opt("()") ^^ {
-    case e =>
+    e =>
       Trim(TrimConstants.TRIM_BOTH, TrimConstants.TRIM_DEFAULT_CHAR, e)
   }
 
@@ -198,10 +218,29 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixToTime: PackratParser[Expression] =
     composite <~ "." ~ TO_TIME ~ opt("()") ^^ { e => Cast(e, SqlTimeTypeInfo.TIME) }
 
+  lazy val suffixTimeInterval : PackratParser[Expression] =
+    composite ~ "." ~ (YEAR | MONTH | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
+
+    case expr ~ _ ~ YEAR.key => toMonthInterval(expr, 12)
+
+    case expr ~ _ ~ MONTH.key => toMonthInterval(expr, 1)
+
+    case expr ~ _ ~ DAY.key => toMilliInterval(expr, MILLIS_PER_DAY)
+
+    case expr ~ _ ~ HOUR.key => toMilliInterval(expr, MILLIS_PER_HOUR)
+
+    case expr ~ _ ~ MINUTE.key => toMilliInterval(expr, MILLIS_PER_MINUTE)
+
+    case expr ~ _ ~ SECOND.key => toMilliInterval(expr, MILLIS_PER_SECOND)
+
+    case expr ~ _ ~ MILLI.key => toMilliInterval(expr, 1)
+  }
+
   lazy val suffixed: PackratParser[Expression] =
-    suffixIsNull | suffixIsNotNull | suffixSum | suffixMin | suffixMax | suffixCount | suffixAvg |
-      suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixIf | suffixFunctionCall |
-        suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime
+    suffixTimeInterval | suffixIsNull | suffixIsNotNull | suffixSum | suffixMin | suffixMax |
+      suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs |
+      suffixIf | suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime |
+      suffixFunctionCall // function call must always be at the end
 
   // prefix operators
 
@@ -263,7 +302,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixed: PackratParser[Expression] =
     prefixIsNull | prefixIsNotNull | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
-      prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixFunctionCall
+      prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf |
+      prefixFunctionCall // function call must always be at the end
 
   // suffix/prefix composite
 
@@ -339,10 +379,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     parseAll(expressionList, expression) match {
       case Success(lst, _) => lst
 
-      case Failure(msg, _) => throw new ExpressionParserException(
+      case Failure(msg, _) => throw ExpressionParserException(
         "Could not parse expression: " + msg)
 
-      case Error(msg, _) => throw new ExpressionParserException(
+      case Error(msg, _) => throw ExpressionParserException(
         "Could not parse expression: " + msg)
     }
   }
@@ -352,7 +392,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case Success(lst, _) => lst
 
       case fail =>
-        throw new ExpressionParserException("Could not parse expression: " + fail.toString)
+        throw ExpressionParserException("Could not parse expression: " + fail.toString)
     }
   }
 }

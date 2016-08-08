@@ -27,10 +27,10 @@ import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.{Row, Types}
 import org.junit.Test
 
-class TimeTypesTest extends ExpressionTestBase {
+class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
-  def testTimeLiterals(): Unit = {
+  def testTimePointLiterals(): Unit = {
     testAllApis(
       "1990-10-14".toDate,
       "'1990-10-14'.toDate",
@@ -84,7 +84,52 @@ class TimeTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testTimeInput(): Unit = {
+  def testTimeIntervalLiterals(): Unit = {
+    testAllApis(
+      1.year,
+      "1.year",
+      "INTERVAL '1' YEAR",
+      "+1-00")
+
+    testAllApis(
+      1.month,
+      "1.month",
+      "INTERVAL '1' MONTH",
+      "+0-01")
+
+    testAllApis(
+      12.day,
+      "12.day",
+      "INTERVAL '12' DAY",
+      "+12 00:00:00.000")
+
+    testAllApis(
+      1.hour,
+      "1.hour",
+      "INTERVAL '1' HOUR",
+      "+0 01:00:00.000")
+
+    testAllApis(
+      3.minute,
+      "3.minute",
+      "INTERVAL '3' MINUTE",
+      "+0 00:03:00.000")
+
+    testAllApis(
+      3.second,
+      "3.second",
+      "INTERVAL '3' SECOND",
+      "+0 00:00:03.000")
+
+    testAllApis(
+      3.milli,
+      "3.milli",
+      "INTERVAL '0.003' SECOND",
+      "+0 00:00:00.003")
+  }
+
+  @Test
+  def testTimePointInput(): Unit = {
     testAllApis(
       'f0,
       "f0",
@@ -105,7 +150,22 @@ class TimeTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testTimeCasting(): Unit = {
+  def testTimeIntervalInput(): Unit = {
+    testAllApis(
+      'f9,
+      "f9",
+      "f9",
+      "+2-00")
+
+    testAllApis(
+      'f10,
+      "f10",
+      "f10",
+      "+0 00:00:12.000")
+  }
+
+  @Test
+  def testTimePointCasting(): Unit = {
     testAllApis(
       'f0.cast(Types.TIMESTAMP),
       "f0.cast(TIMESTAMP)",
@@ -168,7 +228,20 @@ class TimeTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testTimeComparison(): Unit = {
+  def testTimeIntervalCasting(): Unit = {
+    testTableApi(
+      'f7.cast(Types.INTERVAL_MONTHS),
+      "f7.cast(INTERVAL_MONTHS)",
+      "+1000-00")
+
+    testTableApi(
+      'f8.cast(Types.INTERVAL_MILLIS),
+      "f8.cast(INTERVAL_MILLIS)",
+      "+16979 07:23:33.000")
+  }
+
+  @Test
+  def testTimePointComparison(): Unit = {
     testAllApis(
       'f0 < 'f3,
       "f0 < f3",
@@ -200,10 +273,91 @@ class TimeTypesTest extends ExpressionTestBase {
       "true")
   }
 
+  @Test
+  def testTimeIntervalArithmetic(): Unit = {
+    testAllApis(
+      12.month < 24.month,
+      "12.month < 24.month",
+      "INTERVAL '12' MONTH < INTERVAL '24' MONTH",
+      "true")
+
+    testAllApis(
+      8.milli > 10.milli,
+      "8.milli > 10.milli",
+      "INTERVAL '0.008' SECOND > INTERVAL '0.010' SECOND",
+      "false")
+
+    testAllApis(
+      8.year === 8.year,
+      "8.year === 8.year",
+      "INTERVAL '8' YEAR = INTERVAL '8' YEAR",
+      "true")
+
+    testAllApis(
+      8.year + 10.month,
+      "8.year + 10.month",
+      "INTERVAL '8' YEAR + INTERVAL '10' MONTH",
+      "+8-10")
+
+    testAllApis(
+      8.hour + 10.minute + 12.second + 5.milli,
+      "8.hour + 10.minute + 12.second + 5.milli",
+      "INTERVAL '8' HOUR + INTERVAL '10' MINUTE + INTERVAL '12.005' SECOND",
+      "+0 08:10:12.005")
+
+    testAllApis(
+      1.minute - 10.second,
+      "1.minute - 10.second",
+      "INTERVAL '1' MINUTE - INTERVAL '10' SECOND",
+      "+0 00:00:50.000")
+
+    testAllApis(
+      2.year - 12.month,
+      "2.year - 12.month",
+      "INTERVAL '2' YEAR - INTERVAL '12' MONTH",
+      "+1-00")
+
+    testAllApis(
+      -'f9.cast(Types.INTERVAL_MONTHS),
+      "-f9.cast(INTERVAL_MONTHS)",
+      "-CAST(f9 AS INTERVAL YEAR)",
+      "-2-00")
+
+    testAllApis(
+      'f0 + 2.day,
+      "f0 + 2.day",
+      "f0 + INTERVAL '2' DAY",
+      "1990-10-16")
+
+    testAllApis(
+      30.day + 'f0,
+      "30.day + f0",
+      "INTERVAL '30' DAY + f0",
+      "1990-11-13")
+
+    testAllApis(
+      'f1 + 12.hour,
+      "f1 + 12.hour",
+      "f1 + INTERVAL '12' HOUR",
+      "22:20:45")
+
+    testAllApis(
+      24.hour + 'f1,
+      "24.hour + f1",
+      "INTERVAL '24' HOUR + f1",
+      "10:20:45")
+
+    testAllApis(
+      'f2 + 10.day + 4.milli,
+      "f2 + 10.day + 4.milli",
+      "f2 + INTERVAL '10 00:00:00.004' DAY TO SECOND",
+      "1990-10-24 10:20:45.127")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(9)
+    val testData = new Row(11)
     testData.setField(0, Date.valueOf("1990-10-14"))
     testData.setField(1, Time.valueOf("10:20:45"))
     testData.setField(2, Timestamp.valueOf("1990-10-14 10:20:45.123"))
@@ -213,6 +367,8 @@ class TimeTypesTest extends ExpressionTestBase {
     testData.setField(6, Timestamp.valueOf("1990-10-14 00:00:00.0"))
     testData.setField(7, 12000)
     testData.setField(8, 1467012213000L)
+    testData.setField(9, 24)
+    testData.setField(10, 12000L)
     testData
   }
 
@@ -226,6 +382,8 @@ class TimeTypesTest extends ExpressionTestBase {
       Types.TIME,
       Types.TIMESTAMP,
       Types.INT,
-      Types.LONG)).asInstanceOf[TypeInformation[Any]]
+      Types.LONG,
+      Types.INTERVAL_MONTHS,
+      Types.INTERVAL_MILLIS)).asInstanceOf[TypeInformation[Any]]
   }
 }

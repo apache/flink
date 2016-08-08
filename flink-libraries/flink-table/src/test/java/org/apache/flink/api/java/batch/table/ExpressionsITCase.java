@@ -192,11 +192,12 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 					"a.cast(STRING) + a.cast(STRING)," +
 					"CAST(ISNULL(b), INT)," +
 					"ISNULL(CAST(b, INT).abs()) === false," +
-					"((((true) === true) || false).cast(STRING) + 'X ').trim");
+					"((((true) === true) || false).cast(STRING) + 'X ').trim," +
+					"12.isNull");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "false,10,55,0,true,trueX";
+		String expected = "false,10,55,0,true,trueX,false";
 		compareResultAsText(results, expected);
 	}
 
