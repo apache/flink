@@ -138,7 +138,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV0> {
 					serializedValue = new SerializedValue<>(null);
 				} else {
 					byte[] serializedData = new byte[length];
-					dis.read(serializedData, 0, length);
+					dis.readFully(serializedData, 0, length);
 					serializedValue = SerializedValue.fromBytes(serializedData);
 				}
 
@@ -165,7 +165,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV0> {
 					serializedValue = new SerializedValue<>(null);
 				} else {
 					byte[] serializedData = new byte[length];
-					dis.read(serializedData, 0, length);
+					dis.readFully(serializedData, 0, length);
 					serializedValue = SerializedValue.fromBytes(serializedData);
 				}
 
