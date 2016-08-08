@@ -97,10 +97,16 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		ZooKeeper.shutdown();
+		try {
+			ZooKeeper.shutdown();
+		} catch (Exception ignored) {
+		}
 
-		if (FileStateBackendBasePath != null) {
-			FileUtils.deleteDirectory(FileStateBackendBasePath);
+		try {
+			if (FileStateBackendBasePath != null) {
+				FileUtils.deleteDirectory(FileStateBackendBasePath);
+			}
+		} catch (IOException ignored) {
 		}
 	}
 
