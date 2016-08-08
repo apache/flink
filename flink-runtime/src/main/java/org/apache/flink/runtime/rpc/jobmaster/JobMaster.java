@@ -40,16 +40,23 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class JobMaster extends RpcServer<JobMasterGateway> {
 	private final Logger LOG = LoggerFactory.getLogger(JobMaster.class);
 	private final ExecutionContext executionContext;
+	private final ScheduledExecutorService scheduledExecutorService;
 
 	private final FiniteDuration initialRegistrationTimeout = new FiniteDuration(500, TimeUnit.MILLISECONDS);
 	private final FiniteDuration maxRegistrationTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
 	private final FiniteDuration registrationDuration = new FiniteDuration(365, TimeUnit.DAYS);
+	private final long failedRegistrationDelay = 10000;
+
+	private ScheduledFuture<?> scheduledRegistration;
 
 	private ResourceManagerGateway resourceManager = null;
 
@@ -58,6 +65,7 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 	public JobMaster(RpcService rpcService, ExecutorService executorService) {
 		super(rpcService);
 		executionContext = ExecutionContext$.MODULE$.fromExecutor(executorService);
+		scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
 	}
 
 	public ResourceManagerGateway getResourceManager() {
@@ -124,16 +132,23 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 							if (failure instanceof TimeoutException) {
 								// we haven't received an answer in the given timeout interval,
 								// so increase it and try again.
-								FiniteDuration newTimeout = timeout.$times(2L).min(maxTimeout);
+								final FiniteDuration newTimeout = timeout.$times(2L).min(maxTimeout);
 
-								handleResourceManagerRegistration(
-									jobMasterRegistration,
-									attemptNumber + 1,
-									resourceManagerFuture,
-									registrationRun,
-									newTimeout,
-									maxTimeout,
-									deadline);
+								// we have to execute handleResourceManagerRegistration in the main thread
+								// because we need consistency wrt currentRegistrationRun
+								runAsync(new Runnable() {
+									@Override
+									public void run() {
+										handleResourceManagerRegistration(
+											jobMasterRegistration,
+											attemptNumber + 1,
+											resourceManagerFuture,
+											registrationRun,
+											newTimeout,
+											maxTimeout,
+											deadline);
+									}
+								});
 							} else {
 								LOG.error("Received unknown error while registering at the ResourceManager.", failure);
 								runAsync(new Runnable() {
@@ -155,15 +170,29 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 									}
 								});
 							} else {
-								// our registration attempt was refused. Start over.
-								handleResourceManagerRegistration(
-									jobMasterRegistration,
-									1,
-									resourceManagerFuture,
-									registrationRun,
-									initialRegistrationTimeout,
-									maxTimeout,
-									deadline);
+								LOG.info("The registration was refused. Try again.");
+
+								scheduledExecutorService.schedule(new Runnable() {
+									@Override
+									public void run() {
+										// we have to execute handleResourceManagerRegistration in the main thread
+										// because we need consistency wrt currentRegistrationRun
+										runAsync(new Runnable() {
+											@Override
+											public void run() {
+												// our registration attempt was refused. Start over.
+												handleResourceManagerRegistration(
+													jobMasterRegistration,
+													1,
+													resourceManagerFuture,
+													registrationRun,
+													initialRegistrationTimeout,
+													maxTimeout,
+													deadline);
+											}
+										});
+									}
+								}, failedRegistrationDelay, TimeUnit.MILLISECONDS);
 							}
 						}
 					}
