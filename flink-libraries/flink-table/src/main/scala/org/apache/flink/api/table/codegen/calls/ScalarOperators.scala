@@ -17,12 +17,14 @@
  */
 package org.apache.flink.api.table.codegen.calls
 
-import org.apache.calcite.avatica.util.DateTimeUtils
+import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
+import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression}
+import org.apache.flink.api.table.typeutils.IntervalTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 
 object ScalarOperators {
@@ -70,10 +72,8 @@ object ScalarOperators {
           s"$operandTerm.negate()"
         } else if (isDecimal(operand.resultType) && operator == "+") {
           s"$operandTerm"
-        } else if (isNumeric(operand.resultType)) {
+        } else {
           s"$operator($operandTerm)"
-        }  else {
-          throw new CodeGenException("Unsupported unary operator.")
         }
     }
   }
@@ -396,7 +396,23 @@ object ScalarOperators {
     // Date/Time/Timestamp -> String
     case (dtt: SqlTimeTypeInfo[_], STRING_TYPE_INFO) =>
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
-        (operandTerm) => s"""${internalToTemporalCode(dtt, operandTerm)}.toString()"""
+        (operandTerm) => s"""${internalToTimePointCode(dtt, operandTerm)}.toString()"""
+      }
+
+    // Interval Months -> String
+    case (IntervalTypeInfo.INTERVAL_MONTHS, STRING_TYPE_INFO) =>
+      val method = qualifyMethod(BuiltInMethod.INTERVAL_YEAR_MONTH_TO_STRING.method)
+      val timeUnitRange = qualifyEnum(TimeUnitRange.YEAR_TO_MONTH)
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"$method($operandTerm, $timeUnitRange)"
+      }
+
+    // Interval Millis -> String
+    case (IntervalTypeInfo.INTERVAL_MILLIS, STRING_TYPE_INFO) =>
+      val method = qualifyMethod(BuiltInMethod.INTERVAL_DAY_TIME_TO_STRING.method)
+      val timeUnitRange = qualifyEnum(TimeUnitRange.DAY_TO_SECOND)
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"$method($operandTerm, $timeUnitRange, 3)" // milli second precision
       }
 
     // * (not Date/Time/Timestamp) -> String
@@ -508,25 +524,28 @@ object ScalarOperators {
             s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
       }
 
-    // Date -> Integer, Time -> Integer
-    case (SqlTimeTypeInfo.DATE, INT_TYPE_INFO) | (SqlTimeTypeInfo.TIME, INT_TYPE_INFO) =>
-      internalExprCasting(operand, INT_TYPE_INFO)
-
+    // internal temporal casting
+    // Date -> Integer
+    // Time -> Integer
     // Timestamp -> Long
-    case (SqlTimeTypeInfo.TIMESTAMP, LONG_TYPE_INFO) =>
-      internalExprCasting(operand, LONG_TYPE_INFO)
-
     // Integer -> Date
-    case (INT_TYPE_INFO, SqlTimeTypeInfo.DATE) =>
-      internalExprCasting(operand, SqlTimeTypeInfo.DATE)
-
     // Integer -> Time
-    case (INT_TYPE_INFO, SqlTimeTypeInfo.TIME) =>
-      internalExprCasting(operand, SqlTimeTypeInfo.TIME)
-
     // Long -> Timestamp
-    case (LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) =>
-      internalExprCasting(operand, SqlTimeTypeInfo.TIMESTAMP)
+    // Integer -> Interval Months
+    // Long -> Interval Millis
+    // Interval Months -> Integer
+    // Interval Millis -> Long
+    case (SqlTimeTypeInfo.DATE, INT_TYPE_INFO) |
+         (SqlTimeTypeInfo.TIME, INT_TYPE_INFO) |
+         (SqlTimeTypeInfo.TIMESTAMP, LONG_TYPE_INFO) |
+         (INT_TYPE_INFO, SqlTimeTypeInfo.DATE) |
+         (INT_TYPE_INFO, SqlTimeTypeInfo.TIME) |
+         (LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) |
+         (INT_TYPE_INFO, IntervalTypeInfo.INTERVAL_MONTHS) |
+         (LONG_TYPE_INFO, IntervalTypeInfo.INTERVAL_MILLIS) |
+         (IntervalTypeInfo.INTERVAL_MONTHS, INT_TYPE_INFO) |
+         (IntervalTypeInfo.INTERVAL_MONTHS, LONG_TYPE_INFO) =>
+      internalExprCasting(operand, targetType)
 
     case (from, to) =>
       throw new CodeGenException(s"Unsupported cast from '$from' to '$to'.")
@@ -589,6 +608,60 @@ object ScalarOperators {
 
       GeneratedExpression(resultTerm, nullTerm, operatorCode, resultType)
     }
+  }
+
+  def generateTemporalPlusMinus(
+      plus: Boolean,
+      nullCheck: Boolean,
+      left: GeneratedExpression,
+      right: GeneratedExpression)
+    : GeneratedExpression = {
+
+    val operator = if (plus) "+" else "-"
+
+    (left.resultType, right.resultType) match {
+      case (l: IntervalTypeInfo[_], r: IntervalTypeInfo[_]) if l == r =>
+        generateArithmeticOperator(operator, nullCheck, l, left, right)
+
+      case (SqlTimeTypeInfo.DATE, IntervalTypeInfo.INTERVAL_MILLIS) |
+           (IntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.DATE) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
+          if (isTimePoint(left.resultType)) {
+            (leftTerm, rightTerm) => s"$leftTerm + ((int) ($rightTerm / ${MILLIS_PER_DAY}L))"
+          } else {
+            (leftTerm, rightTerm) => s"((int) ($leftTerm / ${MILLIS_PER_DAY}L)) + $rightTerm"
+          }
+        }
+
+      case (SqlTimeTypeInfo.TIME, IntervalTypeInfo.INTERVAL_MILLIS) |
+           (IntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.TIME) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
+          if (isTimePoint(left.resultType)) {
+            (leftTerm, rightTerm) => s"$leftTerm + ((int) ($rightTerm))"
+          } else {
+            (leftTerm, rightTerm) => s"((int) ($leftTerm)) + $rightTerm"
+          }
+        }
+
+      case (SqlTimeTypeInfo.TIMESTAMP, IntervalTypeInfo.INTERVAL_MILLIS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (leftTerm, rightTerm) => s"$leftTerm + $rightTerm"
+        }
+
+      // TODO more operations when CALCITE-308 is fixed
+
+      case _ =>
+        throw new CodeGenException("Unsupported temporal arithmetic.")
+    }
+  }
+
+  def generateUnaryIntervalPlusMinus(
+      plus: Boolean,
+      nullCheck: Boolean,
+      operand: GeneratedExpression)
+    : GeneratedExpression = {
+    val operator = if (plus) "+" else "-"
+    generateUnaryArithmeticOperator(operator, nullCheck, operand.resultType, operand)
   }
 
   // ----------------------------------------------------------------------------------------------

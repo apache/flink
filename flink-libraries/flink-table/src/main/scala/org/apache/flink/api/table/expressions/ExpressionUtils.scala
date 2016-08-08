@@ -15,31 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
+package org.apache.flink.api.table.expressions
+
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.typeutils.IntervalTypeInfo
 
-/**
-  * This class enumerates all supported types of the Table API.
-  */
-object Types {
+object ExpressionUtils {
 
-  val STRING = BasicTypeInfo.STRING_TYPE_INFO
-  val BOOLEAN = BasicTypeInfo.BOOLEAN_TYPE_INFO
+  private[flink] def toMonthInterval(expr: Expression, multiplier: Int): Expression = expr match {
+    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
+      Literal(value * multiplier, IntervalTypeInfo.INTERVAL_MONTHS)
+    case _ =>
+      Cast(Mul(expr, Literal(multiplier)), IntervalTypeInfo.INTERVAL_MONTHS)
+  }
 
-  val BYTE = BasicTypeInfo.BYTE_TYPE_INFO
-  val SHORT = BasicTypeInfo.SHORT_TYPE_INFO
-  val INT = BasicTypeInfo.INT_TYPE_INFO
-  val LONG = BasicTypeInfo.LONG_TYPE_INFO
-  val FLOAT = BasicTypeInfo.FLOAT_TYPE_INFO
-  val DOUBLE = BasicTypeInfo.DOUBLE_TYPE_INFO
-  val DECIMAL = BasicTypeInfo.BIG_DEC_TYPE_INFO
-
-  val DATE = SqlTimeTypeInfo.DATE
-  val TIME = SqlTimeTypeInfo.TIME
-  val TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP
-  val INTERVAL_MONTHS = IntervalTypeInfo.INTERVAL_MONTHS
-  val INTERVAL_MILLIS = IntervalTypeInfo.INTERVAL_MILLIS
+  private[flink] def toMilliInterval(expr: Expression, multiplier: Long): Expression = expr match {
+    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
+      Literal(value * multiplier, IntervalTypeInfo.INTERVAL_MILLIS)
+    case _ =>
+      Cast(Mul(expr, Literal(multiplier)), IntervalTypeInfo.INTERVAL_MILLIS)
+  }
 
 }
