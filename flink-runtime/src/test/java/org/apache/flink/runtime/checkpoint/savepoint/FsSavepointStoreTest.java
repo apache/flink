@@ -58,7 +58,7 @@ public class FsSavepointStoreTest {
 		assertEquals(0, tmp.getRoot().listFiles().length);
 
 		// Store
-		SavepointV0 stored = new SavepointV0(1929292, SavepointV01Test.createTaskStates(4, 24));
+		SavepointV0 stored = new SavepointV0(1929292, SavepointV0Test.createTaskStates(4, 24));
 		String path = store.storeSavepoint(stored);
 		assertEquals(1, tmp.getRoot().listFiles().length);
 
@@ -122,7 +122,7 @@ public class FsSavepointStoreTest {
 		assertEquals(1, tmp.getRoot().listFiles().length);
 
 		// Savepoint v0
-		Savepoint savepoint = new SavepointV0(checkpointId, SavepointV01Test.createTaskStates(4, 32));
+		Savepoint savepoint = new SavepointV0(checkpointId, SavepointV0Test.createTaskStates(4, 32));
 		String pathSavepoint = store.storeSavepoint(savepoint);
 		assertEquals(2, tmp.getRoot().listFiles().length);
 

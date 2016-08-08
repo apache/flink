@@ -36,13 +36,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class SavepointV01Test {
+public class SavepointV0Test {
 
 	/**
 	 * Simple test of savepoint methods.
 	 */
 	@Test
-	public void testSavepointV1() throws Exception {
+	public void testSavepointV0() throws Exception {
 		long checkpointId = ThreadLocalRandom.current().nextLong(Integer.MAX_VALUE);
 		int numTaskStates = 4;
 		int numSubtaskStates = 16;

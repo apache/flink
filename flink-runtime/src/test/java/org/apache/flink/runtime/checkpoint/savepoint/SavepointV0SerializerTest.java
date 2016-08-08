@@ -27,16 +27,16 @@ import java.io.ByteArrayInputStream;
 
 import static org.junit.Assert.assertEquals;
 
-public class SavepointV01SerializerTest {
+public class SavepointV0SerializerTest {
 
 	/**
 	 * Test serialization of {@link SavepointV0} instance.
 	 */
 	@Test
 	public void testSerializeDeserializeV1() throws Exception {
-		SavepointV0 expected = new SavepointV0(123123, SavepointV01Test.createTaskStates(8, 32));
+		SavepointV0 expected = new SavepointV0(123123, SavepointV0Test.createTaskStates(8, 32));
 
-		SavepointV1Serializer serializer = SavepointV1Serializer.INSTANCE;
+		SavepointV0Serializer serializer = SavepointV0Serializer.INSTANCE;
 
 		// Serialize
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();

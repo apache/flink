@@ -31,7 +31,7 @@ public class SavepointSerializers {
 	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(1);
 
 	static {
-		SERIALIZERS.put(SavepointV0.VERSION, SavepointV1Serializer.INSTANCE);
+		SERIALIZERS.put(SavepointV0.VERSION, SavepointV0Serializer.INSTANCE);
 	}
 
 	/**
