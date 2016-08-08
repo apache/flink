@@ -23,7 +23,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -264,8 +263,11 @@ public class CollectionInputFormatTest {
 
 	@Test
 	public void testToStringOnSmallCollection() {
+		ArrayList<ElementType> smallList = new ArrayList<>();
+		smallList.add(new ElementType(1));
+		smallList.add(new ElementType(2));
 		CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<>(
-			Lists.newArrayList(new ElementType(1), new ElementType(2)),
+			smallList,
 			new TestSerializer(true, false)
 		);
 
