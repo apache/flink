@@ -26,35 +26,11 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 public class WritableTypeInfoTest extends TestLogger {
-
-	public static class TestClass implements Writable {
-		@Override
-		public void write(DataOutput dataOutput) throws IOException {
-
-		}
-
-		@Override
-		public void readFields(DataInput dataInput) throws IOException {
-
-		}
-	}
-
-	public static class AlternateClass implements Writable {
-		@Override
-		public void write(DataOutput dataOutput) throws IOException {
-
-		}
-
-		@Override
-		public void readFields(DataInput dataInput) throws IOException {
-
-		}
-	}
-
-
+	
 	@Test
 	public void testWritableTypeInfoEquality() {
 		WritableTypeInfo<TestClass> tpeInfo1 = new WritableTypeInfo<>(TestClass.class);
@@ -70,5 +46,27 @@ public class WritableTypeInfoTest extends TestLogger {
 		WritableTypeInfo<AlternateClass> tpeInfo2 = new WritableTypeInfo<>(AlternateClass.class);
 
 		assertNotEquals(tpeInfo1, tpeInfo2);
+	}
+
+	// ------------------------------------------------------------------------
+	//  test types
+	// ------------------------------------------------------------------------
+
+	public static class TestClass implements Writable {
+
+		@Override
+		public void write(DataOutput dataOutput) throws IOException {}
+
+		@Override
+		public void readFields(DataInput dataInput) throws IOException {}
+	}
+
+	public static class AlternateClass implements Writable {
+
+		@Override
+		public void write(DataOutput dataOutput) throws IOException {}
+
+		@Override
+		public void readFields(DataInput dataInput) throws IOException {}
 	}
 }

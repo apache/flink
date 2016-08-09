@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -62,8 +63,6 @@ import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Value;
 
-import org.apache.hadoop.io.Writable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +96,12 @@ public class TypeExtractor {
 	 * Field type: String.class
 	 *
 	 */
-	
+
+	/** The name of the class representing Hadoop's writable */
+	private static final String HADOOP_WRITABLE_CLASS = "org.apache.hadoop.io.Writable";
+
+	private static final String HADOOP_WRITABLE_TYPEINFO_CLASS = "org.apache.flink.api.java.typeutils.WritableTypeInfo";
+
 	private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
 	protected TypeExtractor() {
@@ -1119,21 +1123,6 @@ public class TypeExtractor {
 				validateInfo(new ArrayList<Type>(typeHierarchy), subTypes[0], eti.getLeftType());
 				validateInfo(new ArrayList<Type>(typeHierarchy), subTypes[1], eti.getRightType());
 			}
-			// check for Writable
-			else if (typeInfo instanceof WritableTypeInfo<?>) {
-				// check if writable at all
-				if (!(type instanceof Class<?> && Writable.class.isAssignableFrom((Class<?>) type))) {
-					throw new InvalidTypesException("Writable type expected.");
-				}
-				
-				// check writable type contents
-				Class<?> clazz;
-				if (((WritableTypeInfo<?>) typeInfo).getTypeClass() != (clazz = (Class<?>) type)) {
-					throw new InvalidTypesException("Writable type '"
-							+ ((WritableTypeInfo<?>) typeInfo).getTypeClass().getCanonicalName() + "' expected but was '"
-							+ clazz.getCanonicalName() + "'.");
-				}
-			}
 			// check for primitive array
 			else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
 				Type component;
@@ -1236,6 +1225,10 @@ public class TypeExtractor {
 							+ ((GenericTypeInfo<?>) typeInfo).getTypeClass().getCanonicalName() + "' or a subclass of it expected but was '"
 							+ clazz.getCanonicalName() + "'.");
 				}
+			}
+			// check for Writable
+			else {
+				validateIfWritable(typeInfo, type);
 			}
 		} else {
 			type = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) type);
@@ -1546,8 +1539,8 @@ public class TypeExtractor {
 		}
 		
 		// check for writable types
-		if(Writable.class.isAssignableFrom(clazz) && !Writable.class.equals(clazz)) {
-			return (TypeInformation<OUT>) WritableTypeInfo.getWritableTypeInfo((Class<? extends Writable>) clazz);
+		if (isHadoopWritable(clazz)) {
+			return createHadoopWritableTypeInfo(clazz);
 		}
 
 		// check for basic types
@@ -1902,6 +1895,85 @@ public class TypeExtractor {
 		}
 		else {
 			return privateGetForClass((Class<X>) value.getClass(), new ArrayList<Type>());
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities to handle Hadoop's 'Writable' type via reflection
+	// ------------------------------------------------------------------------
+
+	// visible for testing
+	static boolean isHadoopWritable(Class<?> typeClass) {
+		// check if this is directly the writable interface
+		if (typeClass.getName().equals(HADOOP_WRITABLE_CLASS)) {
+			return false;
+		}
+
+		Class<?>[] interfaces = typeClass.getInterfaces();
+		for (Class<?> c : interfaces) {
+			if (c.getName().equals("org.apache.hadoop.io.Writable")) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	// visible for testing
+	public static <T> TypeInformation<T> createHadoopWritableTypeInfo(Class<T> clazz) {
+		checkNotNull(clazz);
+
+		Class<?> typeInfoClass;
+		try {
+			typeInfoClass = Class.forName(HADOOP_WRITABLE_TYPEINFO_CLASS, false, TypeExtractor.class.getClassLoader());
+		}
+		catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not load the TypeInformation for the class '"
+					+ HADOOP_WRITABLE_CLASS + "'. You may be missing the 'flink-hadoop-compatibility' dependency.");
+		}
+
+		try {
+			Constructor<?> constr = typeInfoClass.getConstructor(Class.class);
+
+			@SuppressWarnings("unchecked")
+			TypeInformation<T> typeInfo = (TypeInformation<T>) constr.newInstance(clazz);
+			return typeInfo;
+		}
+		catch (NoSuchMethodException | IllegalAccessException | InstantiationException e) {
+			throw new RuntimeException("Incompatible versions of the Hadoop Compatibility classes found.");
+		}
+		catch (InvocationTargetException e) {
+			throw new RuntimeException("Cannot create Hadoop Writable Type info", e.getTargetException());
+		}
+	}
+
+	// visible for testing
+	static void validateIfWritable(TypeInformation<?> typeInfo, Type type) {
+		try {
+			// try to load the writable type info
+			
+			Class<?> writableTypeInfoClass = Class
+					.forName(HADOOP_WRITABLE_TYPEINFO_CLASS, false, typeInfo.getClass().getClassLoader());
+			
+			if (writableTypeInfoClass.isAssignableFrom(typeInfo.getClass())) {
+				// this is actually a writable type info
+				// check if the type is a writable
+				if (!(type instanceof Class && isHadoopWritable((Class<?>) type))) {
+					throw new InvalidTypesException(HADOOP_WRITABLE_CLASS + " type expected");
+				}
+
+				// check writable type contents
+				Class<?> clazz = (Class<?>) type;
+				if (typeInfo.getTypeClass() != clazz) {
+					throw new InvalidTypesException("Writable type '"
+							+ typeInfo.getTypeClass().getCanonicalName() + "' expected but was '"
+							+ clazz.getCanonicalName() + "'.");
+				}
+			}
+		}
+		catch (ClassNotFoundException e) {
+			// class not present at all, so cannot be that type info
+			// ignore
 		}
 	}
 }

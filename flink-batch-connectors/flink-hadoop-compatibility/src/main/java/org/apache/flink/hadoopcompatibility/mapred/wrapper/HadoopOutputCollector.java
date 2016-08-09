@@ -27,14 +27,11 @@ import java.io.IOException;
 /**
  * A Hadoop OutputCollector that wraps a Flink OutputCollector.
  * On each call of collect() the data is forwarded to the wrapped Flink collector.
- * 
  */
-@SuppressWarnings("rawtypes")
-public final class HadoopOutputCollector<KEY,VALUE>
-		implements OutputCollector<KEY,VALUE> {
+public final class HadoopOutputCollector<KEY,VALUE> implements OutputCollector<KEY,VALUE> {
 
 	private Collector<Tuple2<KEY,VALUE>> flinkCollector;
-	
+
 	private final Tuple2<KEY,VALUE> outTuple = new Tuple2<KEY, VALUE>();
 
 	/**
@@ -55,10 +52,8 @@ public final class HadoopOutputCollector<KEY,VALUE>
 	 */
 	@Override
 	public void collect(final KEY key, final VALUE val) throws IOException {
-
 		this.outTuple.f0 = key;
 		this.outTuple.f1 = val;
 		this.flinkCollector.collect(outTuple);
 	}
-	
 }

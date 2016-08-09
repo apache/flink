@@ -18,10 +18,9 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.Value;
 import org.junit.Assert;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -40,8 +39,10 @@ import org.apache.flink.types.MapValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
-import org.apache.hadoop.io.Writable;
+
 import org.junit.Test;
+
+import java.io.IOException;
 
 public class TypeInfoParserTest {
 	
@@ -166,11 +167,21 @@ public class TypeInfoParserTest {
 		Assert.assertTrue(ti instanceof GenericTypeInfo);
 		Assert.assertEquals(Class.class, ((GenericTypeInfo<?>) ti).getTypeClass());
 	}
+
+	public static class MyValue implements Value {
+		private static final long serialVersionUID = 8607223484689147046L;
+
+		@Override
+		public void write(DataOutputView out) throws IOException {}
+
+		@Override
+		public void read(DataInputView in) throws IOException {}
+	}
 	
 	public static class MyPojo {
 		public Integer basic;
 		public Tuple2<String, Integer> tuple;
-		public MyWritable hadoopCitizen;
+		public Value valueType;
 		public String[] array;
 	}
 	
@@ -180,7 +191,7 @@ public class TypeInfoParserTest {
 				"org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyPojo<"
 				+ "basic=Integer,"
 				+ "tuple=Tuple2<String, Integer>,"
-				+ "hadoopCitizen=Writable<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyWritable>,"
+				+ "valueType=Writable<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyValue>,"
 				+ "array=String[]"
 				+ ">");
 		Assert.assertTrue(ti instanceof PojoTypeInfo);
@@ -190,7 +201,7 @@ public class TypeInfoParserTest {
 		Assert.assertEquals("basic", pti.getPojoFieldAt(1).getField().getName());
 		Assert.assertTrue(pti.getPojoFieldAt(1).getTypeInformation() instanceof BasicTypeInfo);
 		Assert.assertEquals("hadoopCitizen", pti.getPojoFieldAt(2).getField().getName());
-		Assert.assertTrue(pti.getPojoFieldAt(2).getTypeInformation() instanceof WritableTypeInfo);
+		Assert.assertTrue(pti.getPojoFieldAt(2).getTypeInformation() instanceof ValueTypeInfo);
 		Assert.assertEquals("tuple", pti.getPojoFieldAt(3).getField().getName());
 		Assert.assertTrue(pti.getPojoFieldAt(3).getTypeInformation() instanceof TupleTypeInfo);
 	}
@@ -209,28 +220,7 @@ public class TypeInfoParserTest {
 		Assert.assertEquals("basic", pti.getPojoFieldAt(0).getField().getName());
 		Assert.assertTrue(pti.getPojoFieldAt(0).getTypeInformation() instanceof BasicTypeInfo);
 	}
-	
-	public static class MyWritable implements Writable {
 
-		@Override
-		public void write(DataOutput out) throws IOException {
-			
-		}
-
-		@Override
-		public void readFields(DataInput in) throws IOException {
-			
-		}
-		
-	}
-	
-	@Test
-	public void testWritableType() {
-		TypeInformation<?> ti = TypeInfoParser.parse("Writable<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyWritable>");
-		Assert.assertTrue(ti instanceof WritableTypeInfo<?>);
-		Assert.assertEquals(MyWritable.class, ((WritableTypeInfo<?>) ti).getTypeClass());
-	}
-	
 	@Test
 	public void testObjectArrays() {
 		TypeInformation<?> ti = TypeInfoParser.parse("java.lang.Class[]");
