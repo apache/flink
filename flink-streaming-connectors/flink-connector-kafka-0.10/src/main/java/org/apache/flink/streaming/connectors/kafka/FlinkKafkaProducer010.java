@@ -17,121 +17,182 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.util.Properties;
 
 
 /**
- * Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.8.
+ * Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.10.x
  *
- * Please note that this producer does not have any reliability guarantees.
- *
- * @param <IN> Type of the messages to write into Kafka.
+ * Implementation note: This Producer wraps a Flink Kafka 0.9 Producer, overriding only
+ * the "processElement" / "invoke" method.
  */
-public class FlinkKafkaProducer010<IN> extends FlinkKafkaProducerBase<IN> {
+public class FlinkKafkaProducer010<T> extends StreamSink<T> {
 
-	private static final long serialVersionUID = 1L;
+	/**
+	 * Flag controlling whether we are writing the Flink record's timestamp into Kafka.
+	 */
+	private boolean writeTimestampToKafka = false;
 
-	// ------------------- Keyless serialization schema constructors ----------------------
+	// ---------------------- "Constructors" for the producer ------------------ //
 
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
 	 * the topic.
 	 *
-	 * @param brokerList
-	 *			Comma separated addresses of the brokers
-	 * @param topicId
-	 * 			ID of the Kafka topic.
-	 * @param serializationSchema
-	 * 			User defined (keyless) serialization schema.
+	 * @param inStream The stream to write to Kafka
+	 * @param topicId ID of the Kafka topic.
+	 * @param serializationSchema User defined serialization schema supporting key/value messages
+	 * @param producerConfig Properties with the producer configuration.
 	 */
-	public FlinkKafkaProducer010(String brokerList, String topicId, SerializationSchema<IN> serializationSchema) {
-		this(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), getPropertiesFromBrokerList(brokerList), new FixedPartitioner<IN>());
+	public static <T> FlinkKafkaProducer010Configuration writeToKafka(DataStream<T> inStream,
+										String topicId,
+										KeyedSerializationSchema<T> serializationSchema,
+										Properties producerConfig) {
+		return writeToKafka(inStream, topicId, serializationSchema, producerConfig, new FixedPartitioner<T>());
 	}
+
 
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. the sink produces a DataStream to
 	 * the topic.
 	 *
-	 * @param topicId
-	 * 			ID of the Kafka topic.
-	 * @param serializationSchema
-	 * 			User defined (keyless) serialization schema.
-	 * @param producerConfig
-	 * 			Properties with the producer configuration.
+	 * @param inStream The stream to write to Kafka
+	 * @param topicId ID of the Kafka topic.
+	 * @param serializationSchema User defined (keyless) serialization schema.
+	 * @param producerConfig Properties with the producer configuration.
 	 */
-	public FlinkKafkaProducer010(String topicId, SerializationSchema<IN> serializationSchema, Properties producerConfig) {
-		this(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, new FixedPartitioner<IN>());
-	}
-
-	/**
-	 * Creates a FlinkKafkaProducer for a given topic. the sink produces a DataStream to
-	 * the topic.
-	 *
-	 * @param topicId The topic to write data to
-	 * @param serializationSchema A (keyless) serializable serialization schema for turning user objects into a kafka-consumable byte[]
-	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
-	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions (when passing null, we'll use Kafka's partitioner)
-	 */
-	public FlinkKafkaProducer010(String topicId, SerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner<IN> customPartitioner) {
-		this(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, customPartitioner);
-
-	}
-
-	// ------------------- Key/Value serialization schema constructors ----------------------
-
-	/**
-	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
-	 * the topic.
-	 *
-	 * @param brokerList
-	 *			Comma separated addresses of the brokers
-	 * @param topicId
-	 * 			ID of the Kafka topic.
-	 * @param serializationSchema
-	 * 			User defined serialization schema supporting key/value messages
-	 */
-	public FlinkKafkaProducer010(String brokerList, String topicId, KeyedSerializationSchema<IN> serializationSchema) {
-		this(topicId, serializationSchema, getPropertiesFromBrokerList(brokerList), new FixedPartitioner<IN>());
+	public static <T> FlinkKafkaProducer010Configuration writeToKafka(DataStream<T> inStream,
+										String topicId,
+										SerializationSchema<T> serializationSchema,
+										Properties producerConfig) {
+		return writeToKafka(inStream, topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, new FixedPartitioner<T>());
 	}
 
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
 	 * the topic.
-	 *
-	 * @param topicId
-	 * 			ID of the Kafka topic.
-	 * @param serializationSchema
-	 * 			User defined serialization schema supporting key/value messages
-	 * @param producerConfig
-	 * 			Properties with the producer configuration.
+	 *  @param inStream The stream to write to Kafka
+	 *  @param topicId The name of the target topic
+	 *  @param serializationSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
+	 *  @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
+	 *  @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions.
 	 */
-	public FlinkKafkaProducer010(String topicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig) {
-		this(topicId, serializationSchema, producerConfig, new FixedPartitioner<IN>());
+	public static <T> FlinkKafkaProducer010Configuration<T> writeToKafka(DataStream<T> inStream,
+																String topicId,
+																KeyedSerializationSchema<T> serializationSchema,
+																Properties producerConfig,
+																KafkaPartitioner<T> customPartitioner) {
+		GenericTypeInfo<Object> objectTypeInfo = new GenericTypeInfo<>(Object.class);
+		FlinkKafkaProducer010<T> kafkaProducer = new FlinkKafkaProducer010<>(topicId, serializationSchema, producerConfig, customPartitioner);
+		SingleOutputStreamOperator<Object> transformation = inStream.transform("FlinKafkaProducer 0.10.x", objectTypeInfo, kafkaProducer);
+		return new FlinkKafkaProducer010Configuration<>(transformation, kafkaProducer);
 	}
 
 	/**
-	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
-	 * the topic.
-	 *
-	 * @param topicId The topic to write data to
-	 * @param serializationSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
-	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
-	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions.
+	 * Configuration object returned by the writeToKafka() call.
 	 */
-	public FlinkKafkaProducer010(String topicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner<IN> customPartitioner) {
-		super(topicId, serializationSchema, producerConfig, customPartitioner);
-	}
+	public static class FlinkKafkaProducer010Configuration<T> extends DataStreamSink<T> {
 
-	@Override
-	protected void flush() {
-		if (this.producer != null) {
-			producer.flush();
+		private final FlinkKafkaProducer09 wrapped09producer;
+		private final FlinkKafkaProducer010 producer;
+
+		private FlinkKafkaProducer010Configuration(DataStream stream, FlinkKafkaProducer010<T> producer) {
+			super(stream, producer);
+			this.producer = producer;
+			this.wrapped09producer = (FlinkKafkaProducer09) producer.userFunction;
+		}
+
+		/**
+		 * Defines whether the producer should fail on errors, or only log them.
+		 * If this is set to true, then exceptions will be only logged, if set to false,
+		 * exceptions will be eventually thrown and cause the streaming program to
+		 * fail (and enter recovery).
+		 *
+		 * @param logFailuresOnly The flag to indicate logging-only on exceptions.
+		 */
+		public void setLogFailuresOnly(boolean logFailuresOnly) {
+			this.wrapped09producer.setLogFailuresOnly(logFailuresOnly);
+		}
+
+		/**
+		 * If set to true, the Flink producer will wait for all outstanding messages in the Kafka buffers
+		 * to be acknowledged by the Kafka producer on a checkpoint.
+		 * This way, the producer can guarantee that messages in the Kafka buffers are part of the checkpoint.
+		 *
+		 * @param flush Flag indicating the flushing mode (true = flush on checkpoint)
+		 */
+		public void setFlushOnCheckpoint(boolean flush) {
+			this.wrapped09producer.setFlushOnCheckpoint(flush);
+		}
+
+		/**
+		 * If set to true, Flink will write the (event time) timestamp attached to each record into Kafka.
+		 * Timestamps must be positive for Kafka to accept them.
+		 *
+		 * @param writeTimestampToKafka Flag indicating if Flink's internal timestamps are written to Kafka.
+		 */
+		public void setWriteTimestampToKafka(boolean writeTimestampToKafka) {
+			this.producer.writeTimestampToKafka = writeTimestampToKafka;
 		}
 	}
+
+	/**
+	 * Create internal Kafka producer, and pass it as a UDF to the StreamSink.
+	 *
+	 */
+	private FlinkKafkaProducer010(String topicId, KeyedSerializationSchema<T> serializationSchema, Properties producerConfig, KafkaPartitioner<T> customPartitioner) {
+		super(new FlinkKafkaProducer09<>(topicId, serializationSchema, producerConfig, customPartitioner));
+	}
+
+	/**
+	 * This method contains the timestamp specific operations
+	 */
+	@Override
+	public void processElement(StreamRecord<T> element) throws Exception {
+		// usually, we would call: userFunction.invoke(element.getValue());
+
+		final FlinkKafkaProducer09<T> internalProducer = (FlinkKafkaProducer09<T>) userFunction;
+		final T next = element.getValue();
+
+		internalProducer.checkErroneous();
+
+		byte[] serializedKey = internalProducer.schema.serializeKey(next);
+		byte[] serializedValue = internalProducer.schema.serializeValue(next);
+		String targetTopic = internalProducer.schema.getTargetTopic(next);
+		if (targetTopic == null) {
+			targetTopic = internalProducer.defaultTopicId;
+		}
+
+		Long timestamp = null;
+		if(this.writeTimestampToKafka) {
+			timestamp = element.getTimestamp();
+		}
+
+		ProducerRecord<byte[], byte[]> record;
+		if (internalProducer.partitioner == null) {
+			record = new ProducerRecord<>(targetTopic, null, timestamp, serializedKey, serializedValue);
+		} else {
+			record = new ProducerRecord<>(targetTopic, internalProducer.partitioner.partition(next, serializedKey, serializedValue, internalProducer.partitions.length), timestamp, serializedKey, serializedValue);
+		}
+		if (internalProducer.flushOnCheckpoint) {
+			synchronized (internalProducer.pendingRecordsLock) {
+				internalProducer.pendingRecords++;
+			}
+		}
+		internalProducer.producer.send(record, internalProducer.callback);
+	}
+	
 }

@@ -107,7 +107,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	/**
 	 * If true, the producer will wait until all outstanding records have been send to the broker.
 	 */
-	private boolean flushOnCheckpoint;
+	protected boolean flushOnCheckpoint;
 	
 	// -------------------------------- Runtime fields ------------------------------------------
 
@@ -139,7 +139,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		requireNonNull(defaultTopicId, "TopicID not set");
 		requireNonNull(serializationSchema, "serializationSchema not set");
 		requireNonNull(producerConfig, "producerConfig not set");
-		ClosureCleaner.ensureSerializable(customPartitioner);
+		ClosureCleaner.clean(customPartitioner, true);
 		ClosureCleaner.ensureSerializable(serializationSchema);
 
 		this.defaultTopicId = defaultTopicId;

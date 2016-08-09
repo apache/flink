@@ -18,8 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.TestLogger;
 
@@ -38,6 +42,8 @@ import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.Future;
@@ -61,7 +67,7 @@ public class KafkaProducerTest extends TestLogger {
 		try {
 			// mock kafka producer
 			KafkaProducer<?, ?> kafkaProducerMock = mock(KafkaProducer.class);
-			
+
 			// partition setup
 			when(kafkaProducerMock.partitionsFor(anyString())).thenReturn(
 					Collections.singletonList(new PartitionInfo("mock_topic", 42, null, null, null)));
@@ -76,21 +82,21 @@ public class KafkaProducerTest extends TestLogger {
 						return null;
 					}
 				});
-			
+
 			// make sure the FlinkKafkaProducer instantiates our mock producer
 			whenNew(KafkaProducer.class).withAnyArguments().thenReturn(kafkaProducerMock);
-			
+
 			// (1) producer that propagates errors
 
-			FlinkKafkaProducer010<String> producerPropagating = new FlinkKafkaProducer010<>(
-					"mock_topic", new SimpleStringSchema(), new Properties(), null);
 
-			producerPropagating.setRuntimeContext(new MockRuntimeContext(17, 3));
-			producerPropagating.open(new Configuration());
-			
+			FlinkKafkaProducer010<String> producerPropagating = newProducer();
+
+			((RichFunction)producerPropagating.getUserFunction()).setRuntimeContext(new MockRuntimeContext(17, 3));
+			producerPropagating.open();
+
 			try {
-				producerPropagating.invoke("value");
-				producerPropagating.invoke("value");
+				producerPropagating.processElement(new StreamRecord<>("value", 1L));
+				producerPropagating.processElement(new StreamRecord<>("value", 1L));
 				fail("This should fail with an exception");
 			}
 			catch (Exception e) {
@@ -98,22 +104,34 @@ public class KafkaProducerTest extends TestLogger {
 				assertNotNull(e.getCause().getMessage());
 				assertTrue(e.getCause().getMessage().contains("Test error"));
 			}
+			// avoid reuse
+			producerPropagating = null;
 
 			// (2) producer that only logs errors
 
-			FlinkKafkaProducer010<String> producerLogging = new FlinkKafkaProducer010<>(
-					"mock_topic", new SimpleStringSchema(), new Properties(), null);
-			producerLogging.setLogFailuresOnly(true);
-			
-			producerLogging.setRuntimeContext(new MockRuntimeContext(17, 3));
-			producerLogging.open(new Configuration());
+			FlinkKafkaProducer010<String> producerLogging = newProducer();
+			((FlinkKafkaProducer09)producerLogging.getUserFunction()).setLogFailuresOnly(true);
 
-			producerLogging.invoke("value");
-			producerLogging.invoke("value");
+			((RichFunction)producerLogging.getUserFunction()).setRuntimeContext(new MockRuntimeContext(17, 3));
+			producerLogging.open();
+
+			producerLogging.processElement(new StreamRecord<>("value", 1L));
+			producerLogging.processElement(new StreamRecord<>("value", 1L));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	private static FlinkKafkaProducer010 newProducer() {
+		try {
+			Class<FlinkKafkaProducer010> prodClass = FlinkKafkaProducer010.class;
+			Constructor<FlinkKafkaProducer010> ctor = prodClass.getDeclaredConstructor(String.class, KeyedSerializationSchema.class, Properties.class, KafkaPartitioner.class);
+			ctor.setAccessible(true);
+			return ctor.newInstance("mock_topic", new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), new Properties(), null);
+		} catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+			throw new RuntimeException("Error while creating producer", e);
 		}
 	}
 }

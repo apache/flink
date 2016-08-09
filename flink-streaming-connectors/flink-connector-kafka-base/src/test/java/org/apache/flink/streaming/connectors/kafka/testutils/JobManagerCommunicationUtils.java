@@ -54,6 +54,10 @@ public class JobManagerCommunicationUtils {
 	}
 
 	public static void cancelCurrentJob(ActorGateway jobManager) throws Exception {
+		cancelCurrentJob(jobManager, null);
+	}
+
+	public static void cancelCurrentJob(ActorGateway jobManager, String name) throws Exception {
 		JobStatusMessage status = null;
 		
 		for (int i = 0; i < 200; i++) {
@@ -78,7 +82,16 @@ public class JobManagerCommunicationUtils {
 			else if (jobs.size() == 1) {
 				status = jobs.get(0);
 			}
-			else {
+			else if(name != null) {
+				for(JobStatusMessage msg: jobs) {
+					if(msg.getJobName().equals(name)) {
+						status = msg;
+					}
+				}
+				if(status == null) {
+					throw new Exception("Could not cancel job - no job matched expected name = '" + name +"' in " + jobs);
+				}
+			} else {
 				throw new Exception("Could not cancel job - more than one running job.");
 			}
 		}

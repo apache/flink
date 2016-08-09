@@ -28,20 +28,10 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -64,30 +54,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * is constructed. That means that the client that submits the program needs to be able to
  * reach the Kafka brokers or ZooKeeper.</p>
  */
-public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumerBase<T> {
+public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer010.class);
-
-	/**  Configuration key to change the polling timeout **/
-	public static final String KEY_POLL_TIMEOUT = "flink.poll-timeout";
-
-	/** Boolean configuration key to disable metrics tracking **/
-	public static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
-
-	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
-	 * available. If 0, returns immediately with any records that are available now. */
-	public static final long DEFAULT_POLL_TIMEOUT = 100L;
-
-	// ------------------------------------------------------------------------
-
-	/** User-supplied properties for Kafka **/
-	private final Properties properties;
-
-	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
-	 * available. If 0, returns immediately with any records that are available now */
-	private final long pollTimeout;
 
 	// ------------------------------------------------------------------------
 
@@ -151,51 +121,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer010(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		super(deserializer);
-
-		checkNotNull(topics, "topics");
-		this.properties = checkNotNull(props, "props");
-		setDeserializer(this.properties);
-
-		// configure the polling timeout
-		try {
-			if (properties.containsKey(KEY_POLL_TIMEOUT)) {
-				this.pollTimeout = Long.parseLong(properties.getProperty(KEY_POLL_TIMEOUT));
-			} else {
-				this.pollTimeout = DEFAULT_POLL_TIMEOUT;
-			}
-		}
-		catch (Exception e) {
-			throw new IllegalArgumentException("Cannot parse poll timeout for '" + KEY_POLL_TIMEOUT + '\'', e);
-		}
-
-		// read the partitions that belong to the listed topics
-		final List<KafkaTopicPartition> partitions = new ArrayList<>();
-
-		try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(this.properties)) {
-			for (final String topic: topics) {
-				// get partitions for each topic
-				List<PartitionInfo> partitionsForTopic = consumer.partitionsFor(topic);
-				// for non existing topics, the list might be null.
-				if (partitionsForTopic != null) {
-					partitions.addAll(convertToFlinkKafkaTopicPartition(partitionsForTopic));
-				}
-			}
-		}
-
-		if (partitions.isEmpty()) {
-			throw new RuntimeException("Unable to retrieve any partitions for the requested topics " + topics);
-		}
-
-		// we now have a list of partitions which is the same for all parallel consumer instances.
-		LOG.info("Got {} partitions from these topics: {}", partitions.size(), topics);
-
-		if (LOG.isInfoEnabled()) {
-			logPartitionInfo(LOG, partitions);
-		}
-
-		// register these partitions
-		setSubscribedPartitions(partitions);
+		super(topics, deserializer, props);
 	}
 
 	@Override
@@ -212,48 +138,5 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumerBase<T> {
 				watermarksPeriodic, watermarksPunctuated,
 				runtimeContext, deserializer,
 				properties, pollTimeout, useMetrics);
-		
-	}
-
-	// ------------------------------------------------------------------------
-	//  Utilities 
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Converts a list of Kafka PartitionInfo's to Flink's KafkaTopicPartition (which are serializable)
-	 * 
-	 * @param partitions A list of Kafka PartitionInfos.
-	 * @return A list of KafkaTopicPartitions
-	 */
-	private static List<KafkaTopicPartition> convertToFlinkKafkaTopicPartition(List<PartitionInfo> partitions) {
-		checkNotNull(partitions);
-
-		List<KafkaTopicPartition> ret = new ArrayList<>(partitions.size());
-		for (PartitionInfo pi : partitions) {
-			ret.add(new KafkaTopicPartition(pi.topic(), pi.partition()));
-		}
-		return ret;
-	}
-
-	/**
-	 * Makes sure that the ByteArrayDeserializer is registered in the Kafka properties.
-	 * 
-	 * @param props The Kafka properties to register the serializer in.
-	 */
-	private static void setDeserializer(Properties props) {
-		final String deSerName = ByteArrayDeserializer.class.getCanonicalName();
-
-		Object keyDeSer = props.get(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
-		Object valDeSer = props.get(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
-
-		if (keyDeSer != null && !keyDeSer.equals(deSerName)) {
-			LOG.warn("Ignoring configured key DeSerializer ({})", ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
-		}
-		if (valDeSer != null && !valDeSer.equals(deSerName)) {
-			LOG.warn("Ignoring configured value DeSerializer ({})", ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
-		}
-
-		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, deSerName);
-		props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, deSerName);
 	}
 }
