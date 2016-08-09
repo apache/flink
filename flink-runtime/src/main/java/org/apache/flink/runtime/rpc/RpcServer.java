@@ -20,6 +20,9 @@ package org.apache.flink.runtime.rpc;
 
 import akka.util.Timeout;
 import org.apache.flink.runtime.rpc.akka.RunnableAkkaGateway;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 import java.util.concurrent.Callable;
@@ -30,8 +33,12 @@ import java.util.concurrent.Callable;
  * @param <C> Rpc gateway counter part matching the RpcServer
  */
 public abstract class RpcServer<C extends RpcGateway> {
+
+	protected final Logger log = LoggerFactory.getLogger(getClass());
+
 	private final RpcService rpcService;
 	private C self;
+	private MainThreadExecutionContext mainThreadExecutionContext;
 
 	public RpcServer(RpcService rpcService) {
 		this.rpcService = rpcService;
@@ -57,12 +64,17 @@ public abstract class RpcServer<C extends RpcGateway> {
 		return ((RunnableAkkaGateway) self).callAsync(callable, timeout);
 	}
 
+	public ExecutionContext getMainThreadExecutionContext() {
+		return mainThreadExecutionContext;
+	}
+
 	public RpcService getRpcService() {
 		return rpcService;
 	}
 
 	public void start() {
 		self = rpcService.startServer(this);
+		mainThreadExecutionContext = new MainThreadExecutionContext((RunnableAkkaGateway) self);
 	}
 
 	public void shutDown() {
@@ -71,5 +83,34 @@ public abstract class RpcServer<C extends RpcGateway> {
 
 	public String getAddress() {
 		return rpcService.getAddress(self);
+	}
+
+	public class MainThreadExecutionContext implements ExecutionContext {
+		private final RunnableAkkaGateway gateway;
+
+		public MainThreadExecutionContext(RunnableAkkaGateway gateway) {
+			this.gateway = gateway;
+		}
+
+		@Override
+		public void execute(Runnable runnable) {
+			gateway.runAsync(runnable);
+		}
+
+		@Override
+		public void reportFailure(final Throwable t) {
+			gateway.runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.error("Encountered failure in the main thread execution context.", t);
+					shutDown();
+				}
+			});
+		}
+
+		@Override
+		public ExecutionContext prepare() {
+			return this;
+		}
 	}
 }

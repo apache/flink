@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.jobmaster;
 
+import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -41,7 +42,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -55,8 +55,6 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 	private final FiniteDuration maxRegistrationTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
 	private final FiniteDuration registrationDuration = new FiniteDuration(365, TimeUnit.DAYS);
 	private final long failedRegistrationDelay = 10000;
-
-	private ScheduledFuture<?> scheduledRegistration;
 
 	private ResourceManagerGateway resourceManager = null;
 
@@ -111,21 +109,16 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 			if (deadline.isOverdue()) {
 				// we've exceeded our registration deadline. This means that we have to shutdown the JobMaster
 				LOG.error("Exceeded registration deadline without successfully registering at the ResourceManager.");
-				runAsync(new Runnable() {
-					@Override
-					public void run() {
-						shutDown();
-					}
-				});
+				shutDown();
 			} else {
-				Future<RegistrationResponse> registrationResponseFuture = resourceManagerFuture.flatMap(new Mapper<ResourceManagerGateway, Future<RegistrationResponse>>() {
+				Future<Tuple2<RegistrationResponse, ResourceManagerGateway>> registrationResponseFuture = resourceManagerFuture.flatMap(new Mapper<ResourceManagerGateway, Future<Tuple2<RegistrationResponse, ResourceManagerGateway>>>() {
 					@Override
-					public Future<RegistrationResponse> apply(ResourceManagerGateway resourceManagerGateway) {
-						return resourceManagerGateway.registerJobMaster(jobMasterRegistration, timeout);
+					public Future<Tuple2<RegistrationResponse, ResourceManagerGateway>> apply(ResourceManagerGateway resourceManagerGateway) {
+						return resourceManagerGateway.registerJobMaster(jobMasterRegistration, timeout).zip(Futures.successful(resourceManagerGateway));
 					}
 				}, executionContext);
 
-				registrationResponseFuture.zip(resourceManagerFuture).onComplete(new OnComplete<Tuple2<RegistrationResponse, ResourceManagerGateway>>() {
+				registrationResponseFuture.onComplete(new OnComplete<Tuple2<RegistrationResponse, ResourceManagerGateway>>() {
 					@Override
 					public void onComplete(Throwable failure, Tuple2<RegistrationResponse, ResourceManagerGateway> tuple) throws Throwable {
 						if (failure != null) {
@@ -134,41 +127,24 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 								// so increase it and try again.
 								final FiniteDuration newTimeout = timeout.$times(2L).min(maxTimeout);
 
-								// we have to execute handleResourceManagerRegistration in the main thread
-								// because we need consistency wrt currentRegistrationRun
-								runAsync(new Runnable() {
-									@Override
-									public void run() {
-										handleResourceManagerRegistration(
-											jobMasterRegistration,
-											attemptNumber + 1,
-											resourceManagerFuture,
-											registrationRun,
-											newTimeout,
-											maxTimeout,
-											deadline);
-									}
-								});
+								handleResourceManagerRegistration(
+									jobMasterRegistration,
+									attemptNumber + 1,
+									resourceManagerFuture,
+									registrationRun,
+									newTimeout,
+									maxTimeout,
+									deadline);
 							} else {
 								LOG.error("Received unknown error while registering at the ResourceManager.", failure);
-								runAsync(new Runnable() {
-									@Override
-									public void run() {
-										shutDown();
-									}
-								});
+								shutDown();
 							}
 						} else {
 							final RegistrationResponse response = tuple._1();
 							final ResourceManagerGateway gateway = tuple._2();
 
 							if (response.isSuccess()) {
-								runAsync(new Runnable() {
-									@Override
-									public void run() {
-										finishResourceManagerRegistration(gateway, response.getInstanceID());
-									}
-								});
+								finishResourceManagerRegistration(gateway, response.getInstanceID());
 							} else {
 								LOG.info("The registration was refused. Try again.");
 
@@ -196,7 +172,7 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 							}
 						}
 					}
-				}, executionContext);
+				}, getMainThreadExecutionContext()); // use the main thread execution context to execute the call back in the main thread
 			}
 		} else {
 			LOG.info("Discard out-dated registration run.");

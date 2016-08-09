@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.rpc.resourcemanager;
 
 import akka.dispatch.Mapper;
-import akka.dispatch.Recover;
-import akka.util.Timeout;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcServer;
@@ -32,14 +30,11 @@ import scala.concurrent.Future;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class ResourceManager extends RpcServer<ResourceManagerGateway> {
 	private final ExecutionContext executionContext;
 	private final Map<JobMasterGateway, InstanceID> jobMasterGateways;
-	private final Timeout callableTimeout = new Timeout(10, TimeUnit.SECONDS);
 
 	public ResourceManager(RpcService rpcService, ExecutorService executorService) {
 		super(rpcService);
@@ -51,36 +46,21 @@ public class ResourceManager extends RpcServer<ResourceManagerGateway> {
 	public Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration) {
 		Future<JobMasterGateway> jobMasterFuture = getRpcService().connect(jobMasterRegistration.getAddress(), JobMasterGateway.class);
 
-		return jobMasterFuture.flatMap(new Mapper<JobMasterGateway, Future<RegistrationResponse>>() {
+		return jobMasterFuture.map(new Mapper<JobMasterGateway, RegistrationResponse>() {
 			@Override
-			public Future<RegistrationResponse> apply(final JobMasterGateway jobMasterGateway) {
-				Future<InstanceID> instanceIDFuture = callAsync(new Callable<InstanceID> () {
-					@Override
-					public InstanceID call() throws Exception {
-						if (jobMasterGateways.containsKey(jobMasterGateway)) {
-							return jobMasterGateways.get(jobMasterGateway);
-						} else {
-							InstanceID instanceID = new InstanceID();
-							jobMasterGateways.put(jobMasterGateway, instanceID);
+			public RegistrationResponse apply(final JobMasterGateway jobMasterGateway) {
+				InstanceID instanceID;
 
-							return instanceID;
-						}
-					}
-				}, callableTimeout);
+				if (jobMasterGateways.containsKey(jobMasterGateway)) {
+					instanceID = jobMasterGateways.get(jobMasterGateway);
+				} else {
+					instanceID = new InstanceID();
+					jobMasterGateways.put(jobMasterGateway, instanceID);
+				}
 
-				return instanceIDFuture.map(new Mapper<InstanceID, RegistrationResponse>() {
-					@Override
-					public RegistrationResponse apply(InstanceID parameter) {
-						return new RegistrationResponse(true, parameter);
-					}
-				}, executionContext).recover(new Recover<RegistrationResponse>() {
-					@Override
-					public RegistrationResponse recover(Throwable failure) throws Throwable {
-						return new RegistrationResponse(false, null);
-					}
-				}, executionContext);
+				return new RegistrationResponse(true, instanceID);
 			}
-		}, executionContext);
+		}, getMainThreadExecutionContext());
 	}
 
 	@RpcMethod
