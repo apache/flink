@@ -214,7 +214,6 @@ public class RocksDBAsyncKVSnapshotTest {
 
 		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
-		backend.enableFullyAsyncSnapshots();
 
 		streamConfig.setStateBackend(backend);
 

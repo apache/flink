@@ -50,7 +50,6 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.KvState;
@@ -59,20 +58,12 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.api.common.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.util.SerializableObject;
-import org.apache.flink.streaming.util.HDFSCopyFromLocal;
-import org.apache.flink.streaming.util.HDFSCopyToLocal;
 
-import org.apache.hadoop.fs.FileSystem;
-
-import org.rocksdb.BackupEngine;
-import org.rocksdb.BackupableDBOptions;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
-import org.rocksdb.Env;
 import org.rocksdb.ReadOptions;
-import org.rocksdb.RestoreOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
@@ -109,9 +100,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	/** The state backend that stores the non-partitioned state */
 	private final AbstractStateBackend nonPartitionedStateBackend;
-
-	/** Whether we do snapshots fully asynchronous */
-	private boolean fullyAsyncBackup = false;
 
 	/** Operator identifier that is used to uniqueify the RocksDB storage path. */
 	private String operatorIdentifier;
@@ -389,70 +377,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			return new HashMap<>();
 		}
 
-		if (fullyAsyncBackup) {
-			return performFullyAsyncSnapshot(checkpointId, timestamp);
-		} else {
-			return performSemiAsyncSnapshot(checkpointId, timestamp);
-		}
-	}
-
-	/**
-	 * Performs a checkpoint by using the RocksDB backup feature to backup to a directory.
-	 * This backup is the asynchronously copied to the final checkpoint location.
-	 */
-	private HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> performSemiAsyncSnapshot(long checkpointId, long timestamp) throws Exception {
-		// We don't snapshot individual k/v states since everything is stored in a central
-		// RocksDB data base. Create a dummy KvStateSnapshot that holds the information about
-		// that checkpoint. We use the in injectKeyValueStateSnapshots to restore.
-
-		final File localBackupPath = new File(instanceBasePath, "local-chk-" + checkpointId);
-		final URI backupUri = new URI(instanceCheckpointPath + "/chk-" + checkpointId);
-
-		if (!localBackupPath.exists()) {
-			if (!localBackupPath.mkdirs()) {
-				throw new RuntimeException("Could not create local backup path " + localBackupPath);
-			}
-		}
-
-		long startTime = System.currentTimeMillis();
-
-		BackupableDBOptions backupOptions = new BackupableDBOptions(localBackupPath.getAbsolutePath());
-		// we disabled the WAL
-		backupOptions.setBackupLogFiles(false);
-		// no need to sync since we use the backup only as intermediate data before writing to FileSystem snapshot
-		backupOptions.setSync(false);
-
-		try (BackupEngine backupEngine = BackupEngine.open(Env.getDefault(), backupOptions)) {
-			// wait before flush with "true"
-			backupEngine.createNewBackup(db, true);
-		}
-
-		long endTime = System.currentTimeMillis();
-		LOG.info("RocksDB (" + instanceRocksDBPath + ") backup (synchronous part) took " + (endTime - startTime) + " ms.");
-
-		// draw a copy in case it get's changed while performing the async snapshot
-		List<StateDescriptor> kvStateInformationCopy = new ArrayList<>();
-		for (Tuple2<ColumnFamilyHandle, StateDescriptor> state: kvStateInformation.values()) {
-			kvStateInformationCopy.add(state.f1);
-		}
-		SemiAsyncSnapshot dummySnapshot = new SemiAsyncSnapshot(localBackupPath,
-				backupUri,
-				kvStateInformationCopy,
-				checkpointId);
-
-
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> result = new HashMap<>();
-		result.put("dummy_state", dummySnapshot);
-		return result;
-	}
-
-	/**
-	 * Performs a checkpoint by drawing a {@link org.rocksdb.Snapshot} from RocksDB and then
-	 * iterating over all key/value pairs in RocksDB to store them in the final checkpoint
-	 * location. The only synchronous part is the drawing of the {@code Snapshot} which
-	 * is essentially free.
-	 */
-	private HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> performFullyAsyncSnapshot(long checkpointId, long timestamp) throws Exception {
 		// we draw a snapshot from RocksDB then iterate over all keys at that point
 		// and store them in the backup location
 
@@ -477,6 +401,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> result = new HashMap<>();
 		result.put("dummy_state", dummySnapshot);
+
 		return result;
 	}
 
@@ -487,83 +412,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		}
 
 		KvStateSnapshot dummyState = keyValueStateSnapshots.get("dummy_state");
-		if (dummyState instanceof FinalSemiAsyncSnapshot) {
-			restoreFromSemiAsyncSnapshot((FinalSemiAsyncSnapshot) dummyState);
-		} else if (dummyState instanceof FinalFullyAsyncSnapshot) {
+		if (dummyState instanceof FinalFullyAsyncSnapshot) {
 			restoreFromFullyAsyncSnapshot((FinalFullyAsyncSnapshot) dummyState);
 		} else {
 			throw new RuntimeException("Unknown RocksDB snapshot: " + dummyState);
-		}
-	}
-
-	private void restoreFromSemiAsyncSnapshot(FinalSemiAsyncSnapshot snapshot) throws Exception {
-		// This does mostly the same work as initializeForJob, we remove the existing RocksDB
-		// directory and create a new one from the backup.
-		// This must be refactored. The StateBackend should either be initialized from
-		// scratch or from a snapshot.
-
-		if (!instanceBasePath.exists()) {
-			if (!instanceBasePath.mkdirs()) {
-				throw new RuntimeException("Could not create RocksDB data directory.");
-			}
-		}
-
-		db.dispose();
-
-		// clean it, this will remove the last part of the path but RocksDB will recreate it
-		try {
-			if (instanceRocksDBPath.exists()) {
-				LOG.warn("Deleting already existing db directory {}.", instanceRocksDBPath);
-				FileUtils.deleteDirectory(instanceRocksDBPath);
-			}
-		} catch (IOException e) {
-			throw new RuntimeException("Error cleaning RocksDB data directory.", e);
-		}
-
-		final File localBackupPath = new File(instanceBasePath, "chk-" + snapshot.checkpointId);
-
-		if (localBackupPath.exists()) {
-			try {
-				LOG.warn("Deleting already existing local backup directory {}.", localBackupPath);
-				FileUtils.deleteDirectory(localBackupPath);
-			} catch (IOException e) {
-				throw new RuntimeException("Error cleaning RocksDB local backup directory.", e);
-			}
-		}
-
-		HDFSCopyToLocal.copyToLocal(snapshot.backupUri, instanceBasePath);
-
-		try (BackupEngine backupEngine = BackupEngine.open(Env.getDefault(), new BackupableDBOptions(localBackupPath.getAbsolutePath()))) {
-			backupEngine.restoreDbFromLatestBackup(instanceRocksDBPath.getAbsolutePath(), instanceRocksDBPath.getAbsolutePath(), new RestoreOptions(true));
-		} catch (RocksDBException|IllegalArgumentException e) {
-			throw new RuntimeException("Error while restoring RocksDB state from " + localBackupPath, e);
-		} finally {
-			try {
-				FileUtils.deleteDirectory(localBackupPath);
-			} catch (IOException e) {
-				LOG.error("Error cleaning up local restore directory " + localBackupPath, e);
-			}
-		}
-
-
-		List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(snapshot.stateDescriptors.size());
-		for (StateDescriptor stateDescriptor: snapshot.stateDescriptors) {
-			columnFamilyDescriptors.add(new ColumnFamilyDescriptor(stateDescriptor.getName().getBytes(), getColumnOptions()));
-		}
-
-		// RocksDB seems to need this...
-		columnFamilyDescriptors.add(new ColumnFamilyDescriptor("default".getBytes()));
-		List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(snapshot.stateDescriptors.size());
-		try {
-
-			db = RocksDB.open(getDbOptions(), instanceRocksDBPath.getAbsolutePath(), columnFamilyDescriptors, columnFamilyHandles);
-			this.kvStateInformation = new HashMap<>();
-			for (int i = 0; i < snapshot.stateDescriptors.size(); i++) {
-				this.kvStateInformation.put(snapshot.stateDescriptors.get(i).getName(), new Tuple2<>(columnFamilyHandles.get(i), snapshot.stateDescriptors.get(i)));
-			}
-
-		} catch (RocksDBException e) {
-			throw new RuntimeException("Error while opening RocksDB instance.", e);
 		}
 	}
 
@@ -601,96 +453,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			}
 		} catch (EOFException e) {
 			// expected
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Semi-asynchronous Backup Classes
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Upon snapshotting the RocksDB backup is created synchronously. The asynchronous part is
-	 * copying the backup to a (possibly) remote filesystem. This is done in {@link #materialize()}.
-	 */
-	private static class SemiAsyncSnapshot extends AsynchronousKvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> {
-		private static final long serialVersionUID = 1L;
-		private final File localBackupPath;
-		private final URI backupUri;
-		private final List<StateDescriptor> stateDescriptors;
-		private final long checkpointId;
-
-		private SemiAsyncSnapshot(File localBackupPath,
-				URI backupUri,
-				List<StateDescriptor> columnFamilies,
-				long checkpointId) {
-			this.localBackupPath = localBackupPath;
-			this.backupUri = backupUri;
-			this.stateDescriptors = columnFamilies;
-			this.checkpointId = checkpointId;
-		}
-
-		@Override
-		public KvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> materialize() throws Exception {
-			try {
-				long startTime = System.currentTimeMillis();
-				HDFSCopyFromLocal.copyFromLocal(localBackupPath, backupUri);
-				long endTime = System.currentTimeMillis();
-				LOG.info("RocksDB materialization from " + localBackupPath + " to " + backupUri + " (asynchronous part) took " + (endTime - startTime) + " ms.");
-				return new FinalSemiAsyncSnapshot(backupUri, checkpointId, stateDescriptors);
-			} catch (Exception e) {
-				FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
-				fs.delete(new org.apache.hadoop.fs.Path(backupUri), true);
-				throw e;
-			} finally {
-				FileUtils.deleteQuietly(localBackupPath);
-			}
-		}
-	}
-
-	/**
-	 * Dummy {@link KvStateSnapshot} that holds the state of our one RocksDB data base. This
-	 * also stores the column families that we had at the time of the snapshot so that we can
-	 * restore these. This results from {@link SemiAsyncSnapshot}.
-	 */
-	private static class FinalSemiAsyncSnapshot implements KvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> {
-		private static final long serialVersionUID = 1L;
-
-		final URI backupUri;
-		final long checkpointId;
-		private final List<StateDescriptor> stateDescriptors;
-
-		/**
-		 * Creates a new snapshot from the given state parameters.
-		 */
-		private FinalSemiAsyncSnapshot(URI backupUri, long checkpointId, List<StateDescriptor> stateDescriptors) {
-			this.backupUri = backupUri;
-			this.checkpointId = checkpointId;
-			this.stateDescriptors = stateDescriptors;
-		}
-
-		@Override
-		public final KvState<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> restoreState(
-				RocksDBStateBackend stateBackend,
-				TypeSerializer<Object> keySerializer,
-				ClassLoader classLoader) throws Exception {
-			throw new RuntimeException("Should never happen.");
-		}
-
-		@Override
-		public final void discardState() throws Exception {
-			FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
-			fs.delete(new org.apache.hadoop.fs.Path(backupUri), true);
-		}
-
-		@Override
-		public final long getStateSize() throws Exception {
-			FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
-			return fs.getContentSummary(new org.apache.hadoop.fs.Path(backupUri)).getLength();
-		}
-
-		@Override
-		public void close() throws IOException {
-			// cannot do much here
 		}
 	}
 
@@ -939,28 +701,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 	//  Parameters
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Enables fully asynchronous snapshotting of the partitioned state held in RocksDB.
-	 *
-	 * <p>By default, this is disabled. This means that RocksDB state is copied in a synchronous
-	 * step, during which normal processing of elements pauses, followed by an asynchronous step
-	 * of copying the RocksDB backup to the final checkpoint location. Fully asynchronous
-	 * snapshots take longer (linear time requirement with respect to number of unique keys)
-	 * but normal processing of elements is not paused.
-	 */
-	public void enableFullyAsyncSnapshots() {
-		this.fullyAsyncBackup = true;
-	}
-
-	/**
-	 * Disables fully asynchronous snapshotting of the partitioned state held in RocksDB.
-	 *
-	 * <p>By default, this is disabled.
-	 */
-	public void disableFullyAsyncSnapshots() {
-		this.fullyAsyncBackup = false;
-	}
 
 	/**
 	 * Sets the path where the RocksDB local database files should be stored on the local
