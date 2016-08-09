@@ -91,7 +91,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		int numJMs = 10;
 		int numTMs = 3;
 
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 		configuration.setString(ConfigConstants.STATE_BACKEND, "filesystem");
@@ -139,7 +139,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 		Configuration configuration = new Configuration();
 
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTM);

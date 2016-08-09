@@ -66,7 +66,7 @@ public class ZooKeeperTestUtils {
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1);
 
 		// ZooKeeper recovery mode
-		config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.HIGH_AVAILABILITY, "ZOOKEEPER");
 		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zooKeeperQuorum);
 
 		int connTimeout = 5000;

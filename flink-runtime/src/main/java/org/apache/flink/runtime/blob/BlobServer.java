@@ -77,7 +77,7 @@ public class BlobServer extends Thread implements BlobService {
 
 	/**
 	 * Shutdown hook thread to ensure deletion of the storage directory (or <code>null</code> if
-	 * the configured recovery mode does not equal{@link RecoveryMode#STANDALONE})
+	 * the configured recovery mode does not equal{@link RecoveryMode#NONE})
 	 */
 	private final Thread shutdownHook;
 
@@ -98,7 +98,7 @@ public class BlobServer extends Thread implements BlobService {
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
 		// No recovery.
-		if (recoveryMode == RecoveryMode.STANDALONE) {
+		if (recoveryMode == RecoveryMode.NONE) {
 			this.blobStore = new VoidBlobStore();
 		}
 		// Recovery.
@@ -128,7 +128,7 @@ public class BlobServer extends Thread implements BlobService {
 			backlog = ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG;
 		}
 
-		if (recoveryMode == RecoveryMode.STANDALONE) {
+		if (recoveryMode == RecoveryMode.NONE) {
 			// Add shutdown hook to delete storage directory
 			this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 		}

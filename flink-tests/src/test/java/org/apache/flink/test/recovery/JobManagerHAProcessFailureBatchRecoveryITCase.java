@@ -149,7 +149,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 	 */
 	public void testJobManagerFailure(String zkQuorum, final File coordinateDir) throws Exception {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.HIGH_AVAILABILITY, "ZOOKEEPER");
 		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zkQuorum);
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(

@@ -126,7 +126,7 @@ abstract class FlinkMiniCluster(
   // --------------------------------------------------------------------------
 
   def getNumberOfJobManagers: Int = {
-    if(recoveryMode == RecoveryMode.STANDALONE) {
+    if(recoveryMode == RecoveryMode.NONE) {
       1
     } else {
       configuration.getInteger(
@@ -137,7 +137,7 @@ abstract class FlinkMiniCluster(
   }
 
   def getNumberOfResourceManagers: Int = {
-    if(recoveryMode == RecoveryMode.STANDALONE) {
+    if(recoveryMode == RecoveryMode.NONE) {
       1
     } else {
       configuration.getInteger(
@@ -528,7 +528,7 @@ abstract class FlinkMiniCluster(
   protected def createLeaderRetrievalService(): LeaderRetrievalService = {
     (jobManagerActorSystems, jobManagerActors) match {
       case (Some(jmActorSystems), Some(jmActors)) =>
-        if (recoveryMode == RecoveryMode.STANDALONE) {
+        if (recoveryMode == RecoveryMode.NONE) {
           new StandaloneLeaderRetrievalService(
             AkkaUtils.getAkkaURL(jmActorSystems(0), jmActors(0)))
         } else {

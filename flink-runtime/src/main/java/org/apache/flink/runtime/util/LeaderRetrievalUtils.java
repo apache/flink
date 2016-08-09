@@ -64,7 +64,7 @@ public class LeaderRetrievalUtils {
 		RecoveryMode recoveryMode = getRecoveryMode(configuration);
 
 		switch (recoveryMode) {
-			case STANDALONE:
+			case NONE:
 				return StandaloneUtils.createLeaderRetrievalService(configuration);
 			case ZOOKEEPER:
 				return ZooKeeperUtils.createLeaderRetrievalService(configuration);
@@ -89,7 +89,7 @@ public class LeaderRetrievalUtils {
 		RecoveryMode recoveryMode = getRecoveryMode(configuration);
 
 		switch (recoveryMode) {
-			case STANDALONE:
+			case NONE:
 				String akkaUrl = standaloneRef.path().toSerializationFormat();
 				return new StandaloneLeaderRetrievalService(akkaUrl);
 			case ZOOKEEPER:
@@ -282,7 +282,7 @@ public class LeaderRetrievalUtils {
 	}
 
 	/**
-	 * Gets the recovery mode as configured, based on the {@link ConfigConstants#RECOVERY_MODE}
+	 * Gets the recovery mode as configured, based on the {@link ConfigConstants#HIGH_AVAILABILITY}
 	 * config key.
 	 * 
 	 * @param config The configuration to read the recovery mode from.
@@ -292,19 +292,7 @@ public class LeaderRetrievalUtils {
 	 *                                       to a known value.
 	 */
 	public static RecoveryMode getRecoveryMode(Configuration config) {
-		String mode = config.getString(
-			ConfigConstants.RECOVERY_MODE,
-			ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
-		
-		switch (mode) {
-			case "STANDALONE":
-				return RecoveryMode.STANDALONE;
-			case "ZOOKEEPER":
-				return RecoveryMode.ZOOKEEPER;
-			default:
-				throw new IllegalConfigurationException(
-					"The value for '" + ConfigConstants.RECOVERY_MODE + "' is unknown: " + mode);
-		}
+		return RecoveryMode.fromConfig(config);
 	}
 	
 	// ------------------------------------------------------------------------

@@ -317,7 +317,7 @@ class JobManager(
 
         // TODO (critical next step) This needs to be more flexible and robust (e.g. wait for task
         // managers etc.)
-        if (recoveryMode != RecoveryMode.STANDALONE) {
+        if (recoveryMode != RecoveryMode.NONE) {
           log.info(s"Delaying recovery of all jobs by $jobRecoveryTimeout.")
 
           context.system.scheduler.scheduleOnce(
@@ -2569,7 +2569,7 @@ object JobManager {
     // Create recovery related components
     val (leaderElectionService, submittedJobGraphs, checkpointRecoveryFactory) =
       RecoveryMode.fromConfig(configuration) match {
-        case RecoveryMode.STANDALONE =>
+        case RecoveryMode.NONE =>
           val leaderElectionService = leaderElectionServiceOption match {
             case Some(les) => les
             case None => new StandaloneLeaderElectionService()

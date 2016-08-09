@@ -90,7 +90,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	public void testZooKeeperLeaderElectionRetrieval() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService = null;
 		ZooKeeperLeaderRetrievalService leaderRetrievalService = null;
@@ -135,7 +135,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	public void testZooKeeperReelection() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 
 		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 
@@ -218,7 +218,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	public void testZooKeeperReelectionWithReplacement() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 
 		int num = 3;
 		int numTries = 30;
@@ -296,7 +296,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
 		Configuration configuration = new Configuration();
 		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 		configuration.setString(ConfigConstants.ZOOKEEPER_LEADER_PATH, leaderPath);
 
 		ZooKeeperLeaderElectionService leaderElectionService = null;
@@ -380,7 +380,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	public void testExceptionForwarding() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService = null;
 		ZooKeeperLeaderRetrievalService leaderRetrievalService = null;
@@ -449,7 +449,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	public void testEphemeralZooKeeperNodes() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService;
 		ZooKeeperLeaderRetrievalService leaderRetrievalService = null;

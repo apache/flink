@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 
 /**
- * {@link CheckpointCoordinator} components in {@link RecoveryMode#STANDALONE}.
+ * {@link CheckpointCoordinator} components in {@link RecoveryMode#NONE}.
  */
 public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
 

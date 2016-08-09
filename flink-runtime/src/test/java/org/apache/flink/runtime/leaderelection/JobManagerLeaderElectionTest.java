@@ -171,7 +171,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 	private Props createJobManagerProps(Configuration configuration) throws Exception {
 		LeaderElectionService leaderElectionService;
-		if (RecoveryMode.fromConfig(configuration) == RecoveryMode.STANDALONE) {
+		if (RecoveryMode.fromConfig(configuration) == RecoveryMode.NONE) {
 			leaderElectionService = new StandaloneLeaderElectionService();
 		}
 		else {

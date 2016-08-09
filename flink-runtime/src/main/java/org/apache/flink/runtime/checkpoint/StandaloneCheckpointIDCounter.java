@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * {@link CheckpointIDCounter} instances for JobManagers running in {@link RecoveryMode#STANDALONE}.
+ * {@link CheckpointIDCounter} instances for JobManagers running in {@link RecoveryMode#NONE}.
  *
  * <p>Simple wrapper of an {@link AtomicLong}. This is sufficient, because job managers are not
  * recoverable in this recovery mode.

@@ -31,20 +31,32 @@ import org.apache.flink.configuration.Configuration;
  * which will take over the responsibilities of the old leader
  */
 public enum RecoveryMode {
-	STANDALONE,
+	// STANDALONE mode renamed to NONE
+	NONE,
 	ZOOKEEPER;
 
 	/**
 	 * Return the configured {@link RecoveryMode}.
 	 *
 	 * @param config The config to parse
-	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_RECOVERY_MODE} if not
+	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_HIGH_AVAILABILTY} if not
 	 * configured.
 	 */
 	public static RecoveryMode fromConfig(Configuration config) {
-		return RecoveryMode.valueOf(config.getString(
+		String recoveryMode = config.getString(
+			ConfigConstants.HIGH_AVAILABILITY,
+			ConfigConstants.DEFAULT_HIGH_AVAILABILTY).toUpperCase();
+		if (!recoveryMode.equalsIgnoreCase("zookeeper")) {
+			// check for older 'recover.mode' config
+			recoveryMode = config.getString(
 				ConfigConstants.RECOVERY_MODE,
-				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase());
+				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
+			if (recoveryMode.equalsIgnoreCase("standalone")) {
+				// There is no HA configured.
+				return RecoveryMode.valueOf("NONE");
+			}
+		}
+		return RecoveryMode.valueOf(recoveryMode);
 	}
 
 	/**
@@ -54,19 +66,29 @@ public enum RecoveryMode {
 	 * @return true if high availability is supported by the recovery mode, otherwise false
 	 */
 	public static boolean isHighAvailabilityModeActivated(Configuration configuration) {
+		RecoveryMode mode;
 		String recoveryMode = configuration.getString(
-			ConfigConstants.RECOVERY_MODE,
-			ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
-
-		RecoveryMode mode = RecoveryMode.valueOf(recoveryMode);
-
-		switch(mode) {
-			case STANDALONE:
+			ConfigConstants.HIGH_AVAILABILITY,
+			ConfigConstants.DEFAULT_HIGH_AVAILABILTY).toUpperCase();
+		if (!recoveryMode.equalsIgnoreCase("zookeeper")) {
+			// check for older 'recover.mode' config
+			recoveryMode = configuration.getString(
+				ConfigConstants.RECOVERY_MODE,
+				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
+			if (recoveryMode.equalsIgnoreCase("standalone")) {
+				// There is no HA configured.
+				return false;
+			}
+		}
+		mode = RecoveryMode.valueOf(recoveryMode);
+		switch (mode) {
+			case NONE:
 				return false;
 			case ZOOKEEPER:
 				return true;
 			default:
 				return false;
 		}
+
 	}
 }

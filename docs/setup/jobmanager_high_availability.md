@@ -66,7 +66,8 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
 - **Recovery mode** (required): The *recovery mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode.
 
-  <pre>recovery.mode: zookeeper</pre>
+  <pre>high-availability: zookeeper</pre>
+- **Previously this config was named 'recovery.mode' and the default config was 'standalone'.
 
 - **ZooKeeper quorum** (required): A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
 
@@ -100,7 +101,7 @@ After configuring the masters and the ZooKeeper quorum, you can use the provided
 1. **Configure recovery mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
 
    <pre>
-recovery.mode: zookeeper
+high-availability: zookeeper
 recovery.zookeeper.quorum: localhost:2181
 recovery.zookeeper.path.root: /flink
 recovery.zookeeper.path.namespace: /cluster_one # important: customize per cluster
@@ -186,7 +187,7 @@ This means that the application can be restarted 10 times before YARN fails the 
 1. **Configure recovery mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
 
    <pre>
-recovery.mode: zookeeper
+high-availability: zookeeper
 recovery.zookeeper.quorum: localhost:2181
 recovery.zookeeper.path.root: /flink
 recovery.zookeeper.path.namespace: /cluster_one # important: customize per cluster

@@ -28,7 +28,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link CompletedCheckpointStore} for JobManagers running in {@link RecoveryMode#STANDALONE}.
+ * {@link CompletedCheckpointStore} for JobManagers running in {@link RecoveryMode#NONE}.
  */
 public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 

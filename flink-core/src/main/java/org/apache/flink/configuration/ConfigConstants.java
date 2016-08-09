@@ -626,8 +626,14 @@ public final class ConfigConstants {
 
 	// --------------------------- Recovery -----------------------------------
 
-	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper") */
+	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper")
+	 *  Use {@link #HIGH_AVAILABILITY} instead
+	 * */
+	@Deprecated
 	public static final String RECOVERY_MODE = "recovery.mode";
+
+	/** Defines recovery mode used for the cluster execution ("NONE", "ZOOKEEPER") */
+	public static final String HIGH_AVAILABILITY = "high-availability";
 
 	/** Ports used by the job manager if not in standalone recovery mode */
 	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
@@ -1015,9 +1021,11 @@ public final class ConfigConstants {
 
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
 
-  	// --------------------------- Recovery ---------------------------------
-
+	// --------------------------- Recovery ---------------------------------
+	@Deprecated
 	public static String DEFAULT_RECOVERY_MODE = "standalone";
+
+	public static String DEFAULT_HIGH_AVAILABILTY = "none";
 
 	/**
 	 * Default port used by the job manager if not in standalone recovery mode. If <code>0</code>
