@@ -365,6 +365,10 @@ public class Instance {
 	public boolean hasResourcesAvailable() {
 		return !isDead && getNumberOfAvailableSlots() > 0;
 	}
+	
+	public double getLoad() {
+		return ((double) getNumberOfAllocatedSlots()) / getTotalNumberOfSlots();
+	}
 
 	// --------------------------------------------------------------------------------------------
 	// Listeners

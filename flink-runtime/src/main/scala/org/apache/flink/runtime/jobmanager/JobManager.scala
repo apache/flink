@@ -2540,7 +2540,8 @@ object JobManager {
     try {
       blobServer = new BlobServer(configuration)
       instanceManager = new InstanceManager()
-      scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(executorService))
+      scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(executorService),
+         configuration.getBoolean("scheduler.balance-load", false))
       libraryCacheManager = new BlobLibraryCacheManager(blobServer, cleanupInterval)
 
       instanceManager.addInstanceListener(scheduler)
