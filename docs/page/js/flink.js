@@ -42,6 +42,7 @@ function codeTabs() {
       var image = $(this).data("image");
       var notabs = $(this).data("notabs");
       var capitalizedLang = lang.substr(0, 1).toUpperCase() + lang.substr(1);
+      lang = lang.replace(/[^a-zA-Z0-9]/g, "_");
       var id = "tab_" + lang + "_" + counter;
       $(this).attr("id", id);
       if (image != null && langImages[lang]) {
@@ -99,9 +100,7 @@ function viewSolution() {
 // A script to fix internal hash links because we have an overlapping top bar.
 // Based on https://github.com/twitter/bootstrap/issues/193#issuecomment-2281510
 function maybeScrollToHash() {
-  console.log("HERE");
   if (window.location.hash && $(window.location.hash).length) {
-    console.log("HERE2", $(window.location.hash), $(window.location.hash).offset().top);
     var newTop = $(window.location.hash).offset().top - 57;
     $(window).scrollTop(newTop);
   }

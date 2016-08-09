@@ -131,7 +131,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 		// rather than running the main fetch loop directly here, we spawn a dedicated thread
 		// this makes sure that no interrupt() call upon canceling reaches the Kafka consumer code
-		Thread runner = new Thread(this, "Kafka 0.9 Fetcher for " + runtimeContext.getTaskNameWithSubtasks());
+		Thread runner = new Thread(this, getFetcherName() + " for " + runtimeContext.getTaskNameWithSubtasks());
 		runner.setDaemon(true);
 		runner.start();
 
@@ -183,7 +183,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 		// from here on, the consumer will be closed properly
 		try {
-			consumer.assign(convertKafkaPartitions(subscribedPartitions()));
+			assignPartitionsToConsumer(consumer, convertKafkaPartitions(subscribedPartitions()));
+
 
 			if (useMetrics) {
 				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
@@ -250,7 +251,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 						// emit the actual record. this also update offset state atomically
 						// and deals with timestamps and watermark generation
-						emitRecord(value, partition, record.offset());
+						emitRecord(value, partition, record.offset(), record);
 					}
 				}
 			}
@@ -272,6 +273,21 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 				LOG.warn("Error while closing Kafka 0.9 consumer", t);
 			}
 		}
+	}
+
+	// Kafka09Fetcher ignores the timestamp, Kafka010Fetcher is extracting the timestamp and passing it to the emitRecord() method.
+	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partition, long offset, ConsumerRecord consumerRecord) throws Exception {
+		emitRecord(record, partition, offset, Long.MIN_VALUE);
+	}
+	/**
+	 * Protected method to make the partition assignment pluggable, for different Kafka versions.
+	 */
+	protected void assignPartitionsToConsumer(KafkaConsumer<byte[], byte[]> consumer, List<TopicPartition> topicPartitions) {
+		consumer.assign(topicPartitions);
+	}
+
+	protected String getFetcherName() {
+		return "Kafka 0.9 Fetcher";
 	}
 
 	// ------------------------------------------------------------------------
