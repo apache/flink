@@ -68,6 +68,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -91,6 +92,7 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.StringUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
@@ -185,7 +187,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			stream.print();
 			see.execute("No broker test");
 		} catch(ProgramInvocationException pie) {
-			if(kafkaServer.getVersion().equals("0.9")) {
+			if(kafkaServer.getVersion().equals("0.9") || kafkaServer.getVersion().equals("0.10")) {
 				assertTrue(pie.getCause() instanceof JobExecutionException);
 
 				JobExecutionException jee = (JobExecutionException) pie.getCause();
@@ -287,8 +289,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
 		producerProperties.putAll(secureProps);
-		FlinkKafkaProducerBase<Tuple2<Long, String>> prod = kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
-		stream.addSink(prod);
+		kafkaServer.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
 
 		// ----------- add consumer dataflow ----------
 
@@ -516,7 +517,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// launch a producer thread
 		DataGenerators.InfiniteStringsGenerator generator =
-				new DataGenerators.InfiniteStringsGenerator(kafkaServer, topic);
+				new DataGenerators.InfiniteStringsGenerator(kafkaServer, topic, flinkPort);
 		generator.start();
 
 		// launch a consumer asynchronously
@@ -539,7 +540,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 					env.addSource(source).addSink(new DiscardingSink<String>());
 
-					env.execute();
+					env.execute("Runner for CancelingOnFullInputTest");
 				}
 				catch (Throwable t) {
 					jobError.set(t);
@@ -560,7 +561,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 
 		// cancel
-		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout), "Runner for CancelingOnFullInputTest");
 
 		// wait for the program to be done and validate that we failed with the right exception
 		runnerThread.join();
@@ -570,6 +571,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		assertTrue(failueCause.getMessage().contains("Job was cancelled"));
 
 		if (generator.isAlive()) {
+			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout), "String generator");
 			generator.shutdown();
 			generator.join();
 		}
@@ -613,7 +615,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 					env.addSource(source).addSink(new DiscardingSink<String>());
 
-					env.execute();
+					env.execute("CancelingOnEmptyInputTest");
 				}
 				catch (Throwable t) {
 					LOG.error("Job Runner failed with exception", t);
@@ -671,7 +673,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				.addSink(new DiscardingSink<Integer>());
 
 		try {
-			env.execute();
+			env.execute("test fail on deploy");
 			fail("this test should fail with an exception");
 		}
 		catch (ProgramInvocationException e) {
@@ -738,8 +740,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Properties props = new Properties();
 		props.putAll(standardProps);
 		props.putAll(secureProps);
-
-		stream.addSink(kafkaServer.getProducer("dummy", schema, props, null));
+		kafkaServer.produceIntoKafka(stream, "dummy", schema, props, null);
 
 		env.execute("Write to topics");
 
@@ -954,7 +955,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		});
 
-		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(serSchema), producerProps, null));
+		kafkaServer.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(serSchema), producerProps, null);
 
 		tryExecute(env, "big topology test");
 		deleteTestTopic(topic);
@@ -1046,8 +1047,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		KeyedSerializationSchema<Tuple2<Long, PojoValue>> schema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
-		producerProperties.putAll(secureProps);
-		kvStream.addSink(kafkaServer.getProducer(topic, schema, producerProperties, null));
+		kafkaServer.produceIntoKafka(kvStream, topic, schema, producerProperties, null);
 		env.execute("Write KV to Kafka");
 
 		// ----------- Read the data again -------------------
@@ -1132,8 +1132,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
 		producerProperties.putAll(secureProps);
-
-		kvStream.addSink(kafkaServer.getProducer(topic, schema, producerProperties, null));
+		kafkaServer.produceIntoKafka(kvStream, topic, schema, producerProperties, null);
 
 		env.execute("Write deletes to Kafka");
 
@@ -1229,7 +1228,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					props.putAll(secureProps);
 
 					TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
-					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, props));
+					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
 					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 						@Override
 						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
@@ -1254,7 +1253,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 						}
 					});
 
-					fromGen.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(schema), props, null));
+					kafkaServer.produceIntoKafka(fromGen, topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null);
 
 					env1.execute("Metrics test job");
 				} catch(Throwable t) {
@@ -1369,8 +1368,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final TypeInformationSerializationSchema<Tuple2<Integer, Integer>> deser =
 				new TypeInformationSerializationSchema<>(intIntTupleType, env.getConfig());
 
-		cc.putAll(secureProps);
 		// create the consumer
+		cc.putAll(secureProps);
 		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deser, cc);
 
 		DataStream<Tuple2<Integer, Integer>> source = env
@@ -1474,9 +1473,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			producerProperties.setProperty("retries", "0");
 			producerProperties.putAll(secureProps);
 			
-			stream.addSink(kafkaServer.getProducer(
-							topicName, serSchema, producerProperties,
-							new Tuple2Partitioner(parallelism)))
+			kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2Partitioner(parallelism))
 					.setParallelism(parallelism);
 
 			try {
@@ -1773,86 +1770,88 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 //			deleteTestTopic(topic);
 //		}
 //	}
-
-	private void executeAndCatchException(StreamExecutionEnvironment env, String execName) throws Exception {
-		try {
-			tryExecutePropagateExceptions(env, execName);
-		}
-		catch (ProgramInvocationException | JobExecutionException e) {
-			// look for NotLeaderForPartitionException
-			Throwable cause = e.getCause();
-
-			// search for nested SuccessExceptions
-			int depth = 0;
-			while (cause != null && depth++ < 20) {
-				if (cause instanceof kafka.common.NotLeaderForPartitionException) {
-					throw (Exception) cause;
-				}
-				cause = cause.getCause();
-			}
-			throw e;
-		}
-	}
-
-	private void putDataInTopics(StreamExecutionEnvironment env,
-								Properties producerProperties,
-								final int elementsPerPartition,
-								Map<String, Boolean> topics,
-								TypeInformation<Tuple2<Long, Integer>> outputTypeInfo) {
-		if(topics.size() != 2) {
-			throw new RuntimeException("This method accepts two topics as arguments.");
-		}
-
-		TypeInformationSerializationSchema<Tuple2<Long, Integer>> sinkSchema =
-			new TypeInformationSerializationSchema<>(outputTypeInfo, env.getConfig());
-
-		DataStream<Tuple2<Long, Integer>> stream = env
-			.addSource(new RichParallelSourceFunction<Tuple2<Long, Integer>>() {
-				private boolean running = true;
-
-				@Override
-				public void run(SourceContext<Tuple2<Long, Integer>> ctx) throws InterruptedException {
-					int topic = 0;
-					int currentTs = 1;
-
-					while (running && currentTs < elementsPerPartition) {
-						long timestamp = (currentTs % 10 == 0) ? -1L : currentTs;
-						ctx.collect(new Tuple2<Long, Integer>(timestamp, topic));
-						currentTs++;
-					}
-
-					Tuple2<Long, Integer> toWrite2 = new Tuple2<Long, Integer>(-1L, topic);
-					ctx.collect(toWrite2);
-				}
-
-				@Override
-				public void cancel() {
-				running = false;
-			}
-			}).setParallelism(1);
-
-		List<Map.Entry<String, Boolean>> topicsL = new ArrayList<>(topics.entrySet());
-		stream.map(new MapFunction<Tuple2<Long,Integer>, Tuple2<Long,Integer>>() {
-
-			@Override
-			public Tuple2<Long, Integer> map(Tuple2<Long, Integer> value) throws Exception {
-				return value;
-			}
-		}).setParallelism(1).addSink(kafkaServer.getProducer(topicsL.get(0).getKey(),
-			new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null)).setParallelism(1);
-
-		if(!topicsL.get(1).getValue()) {
-			stream.map(new MapFunction<Tuple2<Long,Integer>, Tuple2<Long,Integer>>() {
-
-				@Override
-				public Tuple2<Long, Integer> map(Tuple2<Long, Integer> value) throws Exception {
-					long timestamp = (value.f0 == -1) ? -1L : 1000 + value.f0;
-					return new Tuple2<Long, Integer>(timestamp, 1);
-				}
-			}).setParallelism(1).addSink(kafkaServer.getProducer(topicsL.get(1).getKey(),
-				new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null)).setParallelism(1);
-		}
-	}
+//
+//	private void executeAndCatchException(StreamExecutionEnvironment env, String execName) throws Exception {
+//		try {
+//			tryExecutePropagateExceptions(env, execName);
+//		}
+//		catch (ProgramInvocationException | JobExecutionException e) {
+//			// look for NotLeaderForPartitionException
+//			Throwable cause = e.getCause();
+//
+//			// search for nested SuccessExceptions
+//			int depth = 0;
+//			while (cause != null && depth++ < 20) {
+//				if (cause instanceof kafka.common.NotLeaderForPartitionException) {
+//					throw (Exception) cause;
+//				}
+//				cause = cause.getCause();
+//			}
+//			throw e;
+//		}
+//	}
+//
+//	private void putDataInTopics(StreamExecutionEnvironment env,
+//								Properties producerProperties,
+//								final int elementsPerPartition,
+//								Map<String, Boolean> topics,
+//								TypeInformation<Tuple2<Long, Integer>> outputTypeInfo) {
+//		if(topics.size() != 2) {
+//			throw new RuntimeException("This method accepts two topics as arguments.");
+//		}
+//
+//		TypeInformationSerializationSchema<Tuple2<Long, Integer>> sinkSchema =
+//			new TypeInformationSerializationSchema<>(outputTypeInfo, env.getConfig());
+//
+//		DataStream<Tuple2<Long, Integer>> stream = env
+//			.addSource(new RichParallelSourceFunction<Tuple2<Long, Integer>>() {
+//				private boolean running = true;
+//
+//				@Override
+//				public void run(SourceContext<Tuple2<Long, Integer>> ctx) throws InterruptedException {
+//					int topic = 0;
+//					int currentTs = 1;
+//
+//					while (running && currentTs < elementsPerPartition) {
+//						long timestamp = (currentTs % 10 == 0) ? -1L : currentTs;
+//						ctx.collect(new Tuple2<Long, Integer>(timestamp, topic));
+//						currentTs++;
+//					}
+//
+//					Tuple2<Long, Integer> toWrite2 = new Tuple2<Long, Integer>(-1L, topic);
+//					ctx.collect(toWrite2);
+//				}
+//
+//				@Override
+//				public void cancel() {
+//				running = false;
+//			}
+//			}).setParallelism(1);
+//
+//		List<Map.Entry<String, Boolean>> topicsL = new ArrayList<>(topics.entrySet());
+//
+//		stream = stream.map(new MapFunction<Tuple2<Long,Integer>, Tuple2<Long,Integer>>() {
+//
+//			@Override
+//			public Tuple2<Long, Integer> map(Tuple2<Long, Integer> value) throws Exception {
+//				return value;
+//			}
+//		}).setParallelism(1);
+//		kafkaServer.produceIntoKafka(stream, topicsL.get(0).getKey(),
+//			new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null).setParallelism(1);
+//
+//		if(!topicsL.get(1).getValue()) {
+//			stream.map(new MapFunction<Tuple2<Long,Integer>, Tuple2<Long,Integer>>() {
+//
+//				@Override
+//				public Tuple2<Long, Integer> map(Tuple2<Long, Integer> value) throws Exception {
+//					long timestamp = (value.f0 == -1) ? -1L : 1000 + value.f0;
+//					return new Tuple2<>(timestamp, 1);
+//				}
+//			}).setParallelism(1).addSink(kafkaServer.produceIntoKafka(topicsL.get(1).getKey(),
+//				new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null)).setParallelism(1);
+//		}
+//	}
 
 	private DataStreamSink<Tuple2<Long, Integer>> runPunctuatedComsumer(StreamExecutionEnvironment env,
 																		List<String> topics,

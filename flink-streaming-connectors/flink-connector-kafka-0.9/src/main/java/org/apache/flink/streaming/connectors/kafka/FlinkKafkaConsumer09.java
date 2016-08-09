@@ -81,11 +81,11 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	// ------------------------------------------------------------------------
 
 	/** User-supplied properties for Kafka **/
-	private final Properties properties;
+	protected final Properties properties;
 
 	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
 	 * available. If 0, returns immediately with any records that are available now */
-	private final long pollTimeout;
+	protected final long pollTimeout;
 
 	// ------------------------------------------------------------------------
 

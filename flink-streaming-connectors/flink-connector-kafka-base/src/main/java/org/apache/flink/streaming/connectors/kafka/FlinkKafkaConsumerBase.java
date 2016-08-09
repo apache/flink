@@ -21,6 +21,7 @@ import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -36,6 +37,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,6 +171,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new IllegalStateException("A periodic watermark emitter has already been set.");
 		}
 		try {
+			ClosureCleaner.clean(assigner, true);
 			this.punctuatedWatermarkAssigner = new SerializedValue<>(assigner);
 			return this;
 		} catch (Exception e) {
@@ -203,6 +206,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new IllegalStateException("A punctuated watermark emitter has already been set.");
 		}
 		try {
+			ClosureCleaner.clean(assigner, true);
 			this.periodicWatermarkAssigner = new SerializedValue<>(assigner);
 			return this;
 		} catch (Exception e) {

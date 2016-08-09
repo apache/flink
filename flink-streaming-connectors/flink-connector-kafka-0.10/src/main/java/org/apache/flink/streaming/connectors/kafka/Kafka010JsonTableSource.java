@@ -28,7 +28,7 @@ import java.util.Properties;
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.10.
  */
-public class Kafka010JsonTableSource extends KafkaJsonTableSource {
+public class Kafka010JsonTableSource extends Kafka09JsonTableSource {
 
 	/**
 	 * Creates a Kafka 0.10 JSON {@link StreamTableSource}.

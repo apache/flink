@@ -49,8 +49,8 @@ public final class KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> extend
 
 	// ------------------------------------------------------------------------
 	
-	public long getTimestampForRecord (T record) {
-		return timestampsAndWatermarks.extractTimestamp(record, Long.MIN_VALUE);
+	public long getTimestampForRecord(T record, long kafkaEventTimestamp) {
+		return timestampsAndWatermarks.extractTimestamp(record, kafkaEventTimestamp);
 	}
 	
 	public long getCurrentWatermarkTimestamp() {
