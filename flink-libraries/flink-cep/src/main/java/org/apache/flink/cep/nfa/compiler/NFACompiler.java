@@ -139,16 +139,18 @@ public class NFACompiler {
 			(FilterFunction<T>) succeedingPattern.getFilterFunction()
 		));
 
-		if (succeedingPattern.getQuantifier() == Quantifier.ONE_OR_MORE)  {
+		if (succeedingPattern.getQuantifier() == Quantifier.ONE_OR_MORE
+			|| succeedingPattern.getQuantifier() == Quantifier.ZERO_OR_MORE)  {
 			succeedingState.addStateTransition(new StateTransition<T>(
 				StateTransitionAction.TAKE,
 				succeedingState,
 				(FilterFunction<T>) succeedingPattern.getFilterFunction()));
 		}
-		if (succeedingPattern.getQuantifier() == Quantifier.OPTIONAL) {
+		if (succeedingPattern.getQuantifier() == Quantifier.OPTIONAL
+			|| succeedingPattern.getQuantifier() == Quantifier.ZERO_OR_MORE) {
 			int firstNonOptionalPattern = findFirstNonOptionalPattern(patterns, patternPos + 1);
 			if (firstNonOptionalPattern == patterns.size()) {
-				beginningState = new State<T>(
+				beginningState = new State<>(
 					beginningState.getName(),
 					State.StateType.Final,
 					beginningState.getStateTransitions());
@@ -156,10 +158,10 @@ public class NFACompiler {
 				firstNonOptionalPattern--;
 			}
 
-			for (int optionalPatternPos = 1; optionalPatternPos <= firstNonOptionalPattern; optionalPatternPos++) {
+			for (int optionalPatternPos = patternPos + 2; optionalPatternPos <= firstNonOptionalPattern; optionalPatternPos++) {
 				Pattern<T, ?> optionalPattern = patterns.get(optionalPatternPos);
 				State<T> optionalState = states.get(optionalPattern.getName());
-				beginningState.addStateTransition(new StateTransition<T>(
+				beginningState.addStateTransition(new StateTransition<>(
 					StateTransitionAction.TAKE,
 					optionalState,
 					(FilterFunction<T>) optionalPattern.getFilterFunction()));
@@ -173,7 +175,8 @@ public class NFACompiler {
 		int pos = startPos;
 		for (; pos < patterns.size(); pos++) {
 			Pattern<T, ?> pattern = patterns.get(pos);
-			if (pattern.getQuantifier() != Quantifier.OPTIONAL) {
+			if (pattern.getQuantifier() != Quantifier.OPTIONAL
+				&& pattern.getQuantifier() != Quantifier.ZERO_OR_MORE) {
 				return pos;
 			}
 		}

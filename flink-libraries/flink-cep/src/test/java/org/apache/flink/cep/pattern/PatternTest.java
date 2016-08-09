@@ -77,6 +77,12 @@ public class PatternTest extends TestLogger {
 	}
 
 	@Test
+	public void testZeroOrManyPattern() {
+		Pattern<Object, ?> pattern = Pattern.begin("start").zeroOrMore();
+		assertEquals(Quantifier.ZERO_OR_MORE, pattern.getQuantifier());
+	}
+
+	@Test
 	public void testStrictContiguityWithCondition() {
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").next("next").where(new FilterFunction<Event>() {
 			private static final long serialVersionUID = -7657256242101104925L;

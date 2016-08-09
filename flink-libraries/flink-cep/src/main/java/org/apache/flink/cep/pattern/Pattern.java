@@ -145,6 +145,16 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
+	 * Defines that this pattern may be repeated zero or many times.
+	 *
+	 * @return The same pattern operator that can be repeated zero o many times
+	 */
+	public Pattern<T, F> zeroOrMore() {
+		this.quantifier = Quantifier.ZERO_OR_MORE;
+		return this;
+	}
+
+	/**
 	 * Defines that this pattern is optional
 	 *
 	 * @return The same pattern operator that is optional
