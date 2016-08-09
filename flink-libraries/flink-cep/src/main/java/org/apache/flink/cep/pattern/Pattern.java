@@ -50,13 +50,16 @@ public class Pattern<T, F extends T> {
 	// filter condition for an event to be matched
 	private FilterFunction<F> filterFunction;
 
+	// Quantifier that defines repetition of this pattern
 	public Quantifier quantifier = Quantifier.NONE;
 
 	// window length in which the pattern match has to occur
 	private Time windowTime;
 
+	// Minimum number of times this pattern should be repeated
 	private int minCount = 1;
 
+	// Maximum number of times this pattern should be repeated
 	private int maxCount = 1;
 
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
@@ -166,6 +169,11 @@ public class Pattern<T, F extends T> {
 		return this;
 	}
 
+	/**
+	 * Defines a number of times this pattern should be repeated.
+	 *
+	 * @return The same pattern operator that should be repeated specified number of time
+	 */
 	public Pattern<T, F> count(int count) {
 		this.minCount = count;
 		this.maxCount = count;
