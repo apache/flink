@@ -123,8 +123,8 @@ public class JobManagerHARecoveryTest {
 		ActorRef jobManager = null;
 		ActorRef taskManager = null;
 
-		flinkConfiguration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		flinkConfiguration.setString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, temporaryFolder.newFolder().toString());
+		flinkConfiguration.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
+		flinkConfiguration.setString(ConfigConstants.ZOOKEEPER_HA_PATH, temporaryFolder.newFolder().toString());
 		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
 
 		try {

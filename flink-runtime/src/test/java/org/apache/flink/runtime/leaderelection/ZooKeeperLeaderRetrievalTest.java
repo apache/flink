@@ -23,6 +23,7 @@ import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -43,6 +44,7 @@ import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
@@ -82,8 +84,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 		long sleepingTime = 1000;
 
-		config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+		config.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
+		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 
 		LeaderElectionService leaderElectionService = null;
 		LeaderElectionService faultyLeaderElectionService;
@@ -179,8 +181,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 	@Test
 	public void testTimeoutOfFindConnectingAddress() throws Exception {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+		config.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
+		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 
 		FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
@@ -188,6 +190,46 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 		InetAddress result = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
 
 		assertEquals(InetAddress.getLocalHost(), result);
+	}
+
+	@Test
+	public void testConnectionToZookeeperOverridingOldConfig() throws Exception {
+		Configuration config = new Configuration();
+		// The new config will be taken into effect
+		config.setString(ConfigConstants.RECOVERY_MODE, "standalone");
+		config.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
+		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+
+		FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
+
+		LeaderRetrievalService leaderRetrievalService =
+			LeaderRetrievalUtils.createLeaderRetrievalService(config);
+		InetAddress result = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
+
+		assertEquals(InetAddress.getLocalHost(), result);
+	}
+
+	@Test
+	public void testConnectionToStandAloneLeaderOverridingOldConfig() throws Exception {
+		Configuration config = new Configuration();
+		// The new config will be taken into effect
+		config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		config.setString(ConfigConstants.HIGH_AVAILABILITY, "none");
+		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+
+		HighAvailabilityMode mode = HighAvailabilityMode.fromConfig(config);
+		assertTrue(mode == HighAvailabilityMode.NONE);
+	}
+
+	@Test
+	public void testConnectionToZookeeperUsingOldConfig() throws Exception {
+		Configuration config = new Configuration();
+		// The new config will be taken into effect
+		config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+
+		HighAvailabilityMode mode = HighAvailabilityMode.fromConfig(config);
+		assertTrue(mode == HighAvailabilityMode.ZOOKEEPER);
 	}
 
 	class FindConnectingAddress implements Runnable {

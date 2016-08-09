@@ -71,7 +71,7 @@ public class ZooKeeperUtilTest extends TestLogger {
 	}
 
 	private Configuration setQuorum(Configuration conf, String quorum) {
-		conf.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, quorum);
+		conf.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, quorum);
 		return conf;
 	}
 }

@@ -138,7 +138,7 @@ jobmanager.web.port: 8081
 # setup. This must be a list of the form:
 # "host1:clientPort,host2[:clientPort],..." (default clientPort: 2181)
 #
-# recovery.mode: zookeeper
+# high-availability: zookeeper
 #
 # recovery.zookeeper.quorum: localhost:2181,...
 #

@@ -120,7 +120,7 @@ public class TestBaseUtils extends TestLogger {
 
 		if (startZooKeeper) {
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 3);
-			config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+			config.setString(ConfigConstants.HIGH_AVAILABILITY, "zookeeper");
 		}
 
 		return startCluster(config, singleActorSystem);

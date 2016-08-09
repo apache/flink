@@ -104,7 +104,9 @@ KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
+#deprecated
 KEY_RECOVERY_MODE="recovery.mode"
+KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
 ########################################################################################################################
@@ -257,8 +259,26 @@ if [ -z "${ZK_HEAP}" ]; then
     ZK_HEAP=$(readFromConfig ${KEY_ZK_HEAP_MB} 0 "${YAML_CONF}")
 fi
 
+# for backward compatability
+if [ -z "${OLD_RECOVERY_MODE}" ]; then
+    OLD_RECOVERY_MODE=$(readFromConfig ${KEY_RECOVERY_MODE} "standalone" "${YAML_CONF}")
+fi
+
 if [ -z "${RECOVERY_MODE}" ]; then
-    RECOVERY_MODE=$(readFromConfig ${KEY_RECOVERY_MODE} "standalone" "${YAML_CONF}")
+     # Read the new config
+     RECOVERY_MODE=$(readFromConfig ${KEY_HIGH_AVAILABILITY} "" "${YAML_CONF}")
+     if [ -z "${RECOVERY_MODE}" ]; then
+        #no new config found. So old config should be used
+        if [ -z "${OLD_RECOVERY_MODE}" ]; then
+            # If old config is also not found, use the 'none' as the default config
+            RECOVERY_MODE="none"
+        elif [ ${OLD_RECOVERY_MODE} = "standalone" ]; then
+            # if oldconfig is 'standalone', rename to 'none'
+            RECOVERY_MODE="none"
+        else
+            RECOVERY_MODE=${OLD_RECOVERY_MODE}
+        fi
+     fi
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.

@@ -482,7 +482,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 		// ZooKeeper
 		String currentJobsPath = config.getString(
-				ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH,
+				ConfigConstants.HA_ZOOKEEPER_JOBGRAPHS_PATH,
 				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		Stat stat = ZooKeeper.getClient().checkExists().forPath(currentJobsPath);
@@ -514,7 +514,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 		// ZooKeeper
 		String currentJobsPath = config.getString(
-			ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH,
+			ConfigConstants.HA_ZOOKEEPER_JOBGRAPHS_PATH,
 			ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		Stat stat = ZooKeeper.getClient().checkExists().forPath(currentJobsPath);

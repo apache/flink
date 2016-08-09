@@ -24,22 +24,18 @@ import java.util.UUID
 import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
-
 import com.typesafe.config.Config
-
-import org.apache.flink.api.common.{JobID, JobExecutionResult, JobSubmissionResult}
+import org.apache.flink.api.common.{JobExecutionResult, JobID, JobSubmissionResult}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.client.{JobExecutionException, JobClient}
-import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
+import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
+import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
-import org.apache.flink.runtime.jobmanager.RecoveryMode
-import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalService, LeaderRetrievalListener,
-StandaloneLeaderRetrievalService}
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode
+import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService, StandaloneLeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.util.ZooKeeperUtils
-import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
-
+import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -88,7 +84,7 @@ abstract class FlinkMiniCluster(
 
   implicit val timeout = AkkaUtils.getTimeout(configuration)
 
-  val recoveryMode = RecoveryMode.fromConfig(configuration)
+  val recoveryMode = HighAvailabilityMode.fromConfig(configuration)
 
   val numJobManagers = getNumberOfJobManagers
 
@@ -126,7 +122,7 @@ abstract class FlinkMiniCluster(
   // --------------------------------------------------------------------------
 
   def getNumberOfJobManagers: Int = {
-    if(recoveryMode == RecoveryMode.STANDALONE) {
+    if(recoveryMode == HighAvailabilityMode.NONE) {
       1
     } else {
       configuration.getInteger(
@@ -137,7 +133,7 @@ abstract class FlinkMiniCluster(
   }
 
   def getNumberOfResourceManagers: Int = {
-    if(recoveryMode == RecoveryMode.STANDALONE) {
+    if(recoveryMode == HighAvailabilityMode.NONE) {
       1
     } else {
       configuration.getInteger(
@@ -528,7 +524,7 @@ abstract class FlinkMiniCluster(
   protected def createLeaderRetrievalService(): LeaderRetrievalService = {
     (jobManagerActorSystems, jobManagerActors) match {
       case (Some(jmActorSystems), Some(jmActors)) =>
-        if (recoveryMode == RecoveryMode.STANDALONE) {
+        if (recoveryMode == HighAvailabilityMode.NONE) {
           new StandaloneLeaderRetrievalService(
             AkkaUtils.getAkkaURL(jmActorSystems(0), jmActors(0)))
         } else {

@@ -51,12 +51,15 @@ class FileSystemBlobStore implements BlobStore {
 	private final String basePath;
 
 	FileSystemBlobStore(Configuration config) throws IOException {
-		String recoveryPath = config.getString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, null);
+		String recoveryPath = config.getString(ConfigConstants.ZOOKEEPER_HA_PATH, null);
+		if(recoveryPath == null) {
+			recoveryPath = config.getString(ConfigConstants.ZOOKEEPER_HA_PATH, null);
+		}
 
 		if (recoveryPath == null) {
 			throw new IllegalConfigurationException(String.format("Missing configuration for " +
 					"file system state backend recovery path. Please specify via " +
-					"'%s' key.", ConfigConstants.ZOOKEEPER_RECOVERY_PATH));
+					"'%s' key.", ConfigConstants.ZOOKEEPER_HA_PATH));
 		}
 
 		this.basePath = recoveryPath + "/blob";
