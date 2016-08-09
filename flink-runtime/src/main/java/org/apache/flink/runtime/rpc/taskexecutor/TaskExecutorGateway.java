@@ -24,7 +24,25 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import scala.concurrent.Future;
 
+/**
+ * {@link TaskExecutor} rpc gateway interface
+ */
 public interface TaskExecutorGateway extends RpcGateway {
+	/**
+	 * Execute the given task on the task executor. The task is described by the provided
+	 * {@link TaskDeploymentDescriptor}.
+	 *
+	 * @param taskDeploymentDescriptor Descriptor for the task to be executed
+	 * @return Future acknowledge of the start of the task execution
+	 */
 	Future<Acknowledge> executeTask(TaskDeploymentDescriptor taskDeploymentDescriptor);
-	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptId) throws Exception;
+
+	/**
+	 * Cancel a task identified by it {@link ExecutionAttemptID}. If the task cannot be found, then
+	 * the method throws an {@link Exception}.
+	 *
+	 * @param executionAttemptId Execution attempt ID identifying the task to be canceled.
+	 * @return Future acknowledge of the task canceling
+	 */
+	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptId);
 }

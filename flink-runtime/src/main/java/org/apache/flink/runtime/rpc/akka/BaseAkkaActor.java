@@ -25,8 +25,8 @@ import org.apache.flink.runtime.rpc.akka.messages.RunnableMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RunnableAkkaActor extends UntypedActor {
-	private static final Logger LOG = LoggerFactory.getLogger(RunnableAkkaActor.class);
+public class BaseAkkaActor extends UntypedActor {
+	private static final Logger LOG = LoggerFactory.getLogger(BaseAkkaActor.class);
 
 	@Override
 	public void onReceive(Object message) throws Exception {

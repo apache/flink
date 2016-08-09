@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rpc.akka.resourcemanager;
 import akka.actor.ActorRef;
 import akka.pattern.AskableActorRef;
 import akka.util.Timeout;
-import org.apache.flink.runtime.rpc.akka.RunnableAkkaGateway;
+import org.apache.flink.runtime.rpc.akka.BaseAkkaGateway;
 import org.apache.flink.runtime.rpc.resourcemanager.JobMasterRegistration;
 import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
@@ -33,7 +33,7 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
-public class ResourceManagerAkkaGateway extends RunnableAkkaGateway implements ResourceManagerGateway {
+public class ResourceManagerAkkaGateway extends BaseAkkaGateway implements ResourceManagerGateway {
 	private final AskableActorRef actorRef;
 	private final Timeout timeout;
 

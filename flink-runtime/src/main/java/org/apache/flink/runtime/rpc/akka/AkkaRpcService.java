@@ -34,7 +34,7 @@ import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcServer;
+import org.apache.flink.runtime.rpc.RpcProtocol;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.jobmaster.JobMasterAkkaActor;
 import org.apache.flink.runtime.rpc.akka.jobmaster.JobMasterAkkaGateway;
@@ -85,29 +85,29 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public <S extends RpcServer, C extends RpcGateway> C startServer(S methodHandler) {
+	public <S extends RpcProtocol, C extends RpcGateway> C startServer(S rpcProtocol) {
 		ActorRef ref;
 		C self;
-		if (methodHandler instanceof TaskExecutor) {
+		if (rpcProtocol instanceof TaskExecutor) {
 			ref = actorSystem.actorOf(
-				Props.create(TaskExecutorAkkaActor.class, methodHandler)
+				Props.create(TaskExecutorAkkaActor.class, rpcProtocol)
 			);
 
 			self = (C) new TaskExecutorAkkaGateway(ref, timeout);
-		} else if (methodHandler instanceof ResourceManager) {
+		} else if (rpcProtocol instanceof ResourceManager) {
 			ref = actorSystem.actorOf(
-				Props.create(ResourceManagerAkkaActor.class, methodHandler)
+				Props.create(ResourceManagerAkkaActor.class, rpcProtocol)
 			);
 
 			self = (C) new ResourceManagerAkkaGateway(ref, timeout);
-		} else if (methodHandler instanceof JobMaster) {
+		} else if (rpcProtocol instanceof JobMaster) {
 			ref = actorSystem.actorOf(
-				Props.create(JobMasterAkkaActor.class, methodHandler)
+				Props.create(JobMasterAkkaActor.class, rpcProtocol)
 			);
 
 			self = (C) new JobMasterAkkaGateway(ref, timeout);
 		} else {
-			throw new RuntimeException("Could not start RPC server for class " + methodHandler.getClass());
+			throw new RuntimeException("Could not start RPC server for class " + rpcProtocol.getClass());
 		}
 
 		actors.add(ref);
@@ -135,9 +135,9 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public <C extends RpcGateway> String getAddress(C gateway) {
-		if (gateway instanceof AkkaGateway) {
-			return AkkaUtils.getAkkaURL(actorSystem, ((AkkaGateway) gateway).getActorRef());
+	public <C extends RpcGateway> String getAddress(C selfGateway) {
+		if (selfGateway instanceof AkkaGateway) {
+			return AkkaUtils.getAkkaURL(actorSystem, ((AkkaGateway) selfGateway).getActorRef());
 		} else {
 			throw new RuntimeException("Cannot get address for non " + AkkaGateway.class.getName() + ".");
 		}

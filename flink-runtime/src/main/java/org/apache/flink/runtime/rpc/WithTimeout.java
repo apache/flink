@@ -23,6 +23,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Annotation for {@link RpcGateway} methods to specify an additional timeout parameter for the
+ * returned future to be completed. The annotation takes a parameter name which designates the
+ * timeout parameter. The rest of the provided parameters is passed to the remote rpc server for
+ * the rpc.
+ */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface WithTimeout {

@@ -21,8 +21,9 @@ package org.apache.flink.runtime.rpc.resourcemanager;
 import akka.dispatch.Mapper;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.RpcMethod;
-import org.apache.flink.runtime.rpc.RpcServer;
+import org.apache.flink.runtime.rpc.RpcProtocol;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
@@ -32,7 +33,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-public class ResourceManager extends RpcServer<ResourceManagerGateway> {
+/**
+ * ResourceManager implementation. The resource manager is responsible for resource de-/allocation
+ * and bookkeeping.
+ *
+ * It offers the following methods as part of its rpc interface to interact with the him remotely:
+ * <ul>
+ *     <li>{@link #registerJobMaster(JobMasterRegistration)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #requestSlot(SlotRequest)} requests a slot from the resource manager</li>
+ * </ul>
+ */
+public class ResourceManager extends RpcProtocol<ResourceManagerGateway> {
 	private final ExecutionContext executionContext;
 	private final Map<JobMasterGateway, InstanceID> jobMasterGateways;
 
@@ -42,6 +53,12 @@ public class ResourceManager extends RpcServer<ResourceManagerGateway> {
 		this.jobMasterGateways = new HashMap<>();
 	}
 
+	/**
+	 * Register a {@link JobMaster} at the resource manager.
+	 *
+	 * @param jobMasterRegistration Job master registration information
+	 * @return Future registration response
+	 */
 	@RpcMethod
 	public Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration) {
 		Future<JobMasterGateway> jobMasterFuture = getRpcService().connect(jobMasterRegistration.getAddress(), JobMasterGateway.class);
@@ -63,6 +80,12 @@ public class ResourceManager extends RpcServer<ResourceManagerGateway> {
 		}, getMainThreadExecutionContext());
 	}
 
+	/**
+	 * Requests a slot from the resource manager.
+	 *
+	 * @param slotRequest Slot request
+	 * @return Slot assignment
+	 */
 	@RpcMethod
 	public SlotAssignment requestSlot(SlotRequest slotRequest) {
 		System.out.println("SlotRequest: " + slotRequest);

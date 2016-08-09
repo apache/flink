@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rpc.akka.resourcemanager;
 import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.pattern.Patterns;
-import org.apache.flink.runtime.rpc.akka.RunnableAkkaActor;
+import org.apache.flink.runtime.rpc.akka.BaseAkkaActor;
 import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.resourcemanager.SlotAssignment;
@@ -29,7 +29,7 @@ import org.apache.flink.runtime.rpc.akka.messages.RegisterJobMaster;
 import org.apache.flink.runtime.rpc.akka.messages.RequestSlot;
 import scala.concurrent.Future;
 
-public class ResourceManagerAkkaActor extends RunnableAkkaActor {
+public class ResourceManagerAkkaActor extends BaseAkkaActor {
 	private final ResourceManager resourceManager;
 
 	public ResourceManagerAkkaActor(ResourceManager resourceManager) {

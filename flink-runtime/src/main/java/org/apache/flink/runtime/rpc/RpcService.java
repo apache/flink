@@ -20,14 +20,55 @@ package org.apache.flink.runtime.rpc;
 
 import scala.concurrent.Future;
 
+/**
+ * Interface for rpc services. An rpc service is used to start and connect to a {@link RpcProtocol}.
+ * Connecting to a rpc server will return a {@link RpcGateway} which can be used to call remote
+ * procedures.
+ */
 public interface RpcService {
+
+	/**
+	 * Connect to a remote rpc server under the provided address. Returns a rpc gateway which can
+	 * be used to communicate with the rpc server.
+	 *
+	 * @param address Address of the remote rpc server
+	 * @param clazz Class of the rpc gateway to return
+	 * @param <C> Type of the rpc gateway to return
+	 * @return Future containing the rpc gateway
+	 */
 	<C extends RpcGateway> Future<C> connect(String address, Class<C> clazz);
 
-	<S extends RpcServer, C extends RpcGateway> C startServer(S methodHandler);
+	/**
+	 * Start a rpc server which forwards the remote procedure calls to the provided rpc protocol.
+	 *
+	 * @param rpcProtocol Rpc protocl to dispath the rpcs to
+	 * @param <S> Type of the rpc protocol
+	 * @param <C> Type of the self rpc gateway associated with the rpc server
+	 * @return Self gateway to dispatch remote procedure calls to oneself
+	 */
+	<S extends RpcProtocol, C extends RpcGateway> C startServer(S rpcProtocol);
 
-	<C extends RpcGateway> void stopServer(C gateway);
+	/**
+	 * Stop the underlying rpc server of the provided self gateway.
+	 *
+	 * @param selfGateway Self gateway describing the underlying rpc server
+	 * @param <C> Type of the rpc gateway
+	 */
+	<C extends RpcGateway> void stopServer(C selfGateway);
 
+	/**
+	 * Stop the rpc service shutting down all started rpc servers.
+	 */
 	void stopService();
 
-	<C extends RpcGateway> String getAddress(C gateway);
+	/**
+	 * Get the fully qualified address of the underlying rpc server represented by the self gateway.
+	 * It must be possible to connect from a remote host to the rpc server via the returned fully
+	 * qualified address.
+	 *
+	 * @param selfGateway Self gateway associated with the underlying rpc server
+	 * @param <C> Type of the rpc gateway
+	 * @return Fully qualified address
+	 */
+	<C extends RpcGateway> String getAddress(C selfGateway);
 }

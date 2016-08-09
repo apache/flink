@@ -27,11 +27,9 @@ import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.resourcemanager.JobMasterRegistration;
 import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcServer;
+import org.apache.flink.runtime.rpc.RpcProtocol;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
@@ -46,9 +44,23 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class JobMaster extends RpcServer<JobMasterGateway> {
-	private final Logger LOG = LoggerFactory.getLogger(JobMaster.class);
+/**
+ * JobMaster implementation. The job master is responsible for the execution of a single
+ * {@link org.apache.flink.runtime.jobgraph.JobGraph}.
+ *
+ * It offers the following methods as part of its rpc interface to interact with the JobMaster
+ * remotely:
+ * <ul>
+ *     <li>{@link #registerAtResourceManager(String)} triggers the registration at the resource manager</li>
+ *     <li>{@link #updateTaskExecutionState(TaskExecutionState)} updates the task execution state for
+ * given task</li>
+ * </ul>
+ */
+public class JobMaster extends RpcProtocol<JobMasterGateway> {
+	/** Execution context for future callbacks */
 	private final ExecutionContext executionContext;
+
+	/** Execution context for scheduled runnables */
 	private final ScheduledExecutorService scheduledExecutorService;
 
 	private final FiniteDuration initialRegistrationTimeout = new FiniteDuration(500, TimeUnit.MILLISECONDS);
@@ -56,8 +68,10 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 	private final FiniteDuration registrationDuration = new FiniteDuration(365, TimeUnit.DAYS);
 	private final long failedRegistrationDelay = 10000;
 
+	/** Gateway to connected resource manager, null iff not connected */
 	private ResourceManagerGateway resourceManager = null;
 
+	/** UUID to filter out old registration runs */
 	private UUID currentRegistrationRun;
 
 	public JobMaster(RpcService rpcService, ExecutorService executorService) {
@@ -70,12 +84,27 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 		return resourceManager;
 	}
 
+	//----------------------------------------------------------------------------------------------
+	// RPC methods
+	//----------------------------------------------------------------------------------------------
+
+	/**
+	 * Updates the task execution state for a given task.
+	 *
+	 * @param taskExecutionState New task execution state for a given task
+	 * @return Acknowledge the task execution state update
+	 */
 	@RpcMethod
 	public Acknowledge updateTaskExecutionState(TaskExecutionState taskExecutionState) {
 		System.out.println("TaskExecutionState: " + taskExecutionState);
 		return Acknowledge.get();
 	}
 
+	/**
+	 * Triggers the registration of the job master at the resource manager.
+	 *
+	 * @param address Address of the resource manager
+	 */
 	@RpcMethod
 	public void registerAtResourceManager(final String address) {
 		currentRegistrationRun = UUID.randomUUID();
@@ -92,6 +121,25 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 			registrationDuration.fromNow());
 	}
 
+	//----------------------------------------------------------------------------------------------
+	// Helper methods
+	//----------------------------------------------------------------------------------------------
+
+	/**
+	 * Helper method to handle the resource manager registration process. If a registration attempt
+	 * times out, then a new attempt with the doubled time out is initiated. The whole registration
+	 * process has a deadline. Once this deadline is overdue without successful registration, the
+	 * job master shuts down.
+	 *
+	 * @param jobMasterRegistration Job master registration info which is sent to the resource
+	 *                              manager
+	 * @param attemptNumber Registration attempt number
+	 * @param resourceManagerFuture Future of the resource manager gateway
+	 * @param registrationRun UUID describing the current registration run
+	 * @param timeout Timeout of the last registration attempt
+	 * @param maxTimeout Maximum timeout between registration attempts
+	 * @param deadline Deadline for the registration
+	 */
 	void handleResourceManagerRegistration(
 		final JobMasterRegistration jobMasterRegistration,
 		final int attemptNumber,
@@ -104,11 +152,11 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 		// filter out concurrent registration runs
 		if (registrationRun.equals(currentRegistrationRun)) {
 
-			LOG.info("Start registration attempt #{}.", attemptNumber);
+			log.info("Start registration attempt #{}.", attemptNumber);
 
 			if (deadline.isOverdue()) {
 				// we've exceeded our registration deadline. This means that we have to shutdown the JobMaster
-				LOG.error("Exceeded registration deadline without successfully registering at the ResourceManager.");
+				log.error("Exceeded registration deadline without successfully registering at the ResourceManager.");
 				shutDown();
 			} else {
 				Future<Tuple2<RegistrationResponse, ResourceManagerGateway>> registrationResponseFuture = resourceManagerFuture.flatMap(new Mapper<ResourceManagerGateway, Future<Tuple2<RegistrationResponse, ResourceManagerGateway>>>() {
@@ -136,7 +184,7 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 									maxTimeout,
 									deadline);
 							} else {
-								LOG.error("Received unknown error while registering at the ResourceManager.", failure);
+								log.error("Received unknown error while registering at the ResourceManager.", failure);
 								shutDown();
 							}
 						} else {
@@ -146,12 +194,12 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 							if (response.isSuccess()) {
 								finishResourceManagerRegistration(gateway, response.getInstanceID());
 							} else {
-								LOG.info("The registration was refused. Try again.");
+								log.info("The registration was refused. Try again.");
 
 								scheduledExecutorService.schedule(new Runnable() {
 									@Override
 									public void run() {
-										// we have to execute handleResourceManagerRegistration in the main thread
+										// we have to execute scheduled runnable in the main thread
 										// because we need consistency wrt currentRegistrationRun
 										runAsync(new Runnable() {
 											@Override
@@ -175,15 +223,26 @@ public class JobMaster extends RpcServer<JobMasterGateway> {
 				}, getMainThreadExecutionContext()); // use the main thread execution context to execute the call back in the main thread
 			}
 		} else {
-			LOG.info("Discard out-dated registration run.");
+			log.info("Discard out-dated registration run.");
 		}
 	}
 
+	/**
+	 * Finish the resource manager registration by setting the new resource manager gateway.
+	 *
+	 * @param resourceManager New resource manager gateway
+	 * @param instanceID Instance id assigned by the resource manager
+	 */
 	void finishResourceManagerRegistration(ResourceManagerGateway resourceManager, InstanceID instanceID) {
-		LOG.info("Successfully registered at the ResourceManager under instance id {}.", instanceID);
+		log.info("Successfully registered at the ResourceManager under instance id {}.", instanceID);
 		this.resourceManager = resourceManager;
 	}
 
+	/**
+	 * Return if the job master is connected to a resource manager.
+	 *
+	 * @return true if the job master is connected to the resource manager
+	 */
 	public boolean isConnected() {
 		return resourceManager != null;
 	}

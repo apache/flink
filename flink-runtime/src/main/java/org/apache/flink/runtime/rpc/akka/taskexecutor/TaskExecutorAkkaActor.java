@@ -22,12 +22,12 @@ import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.dispatch.OnComplete;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.akka.RunnableAkkaActor;
+import org.apache.flink.runtime.rpc.akka.BaseAkkaActor;
 import org.apache.flink.runtime.rpc.akka.messages.CancelTask;
 import org.apache.flink.runtime.rpc.akka.messages.ExecuteTask;
 import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutorGateway;
 
-public class TaskExecutorAkkaActor extends RunnableAkkaActor {
+public class TaskExecutorAkkaActor extends BaseAkkaActor {
 	private final TaskExecutorGateway taskExecutor;
 
 	public TaskExecutorAkkaActor(TaskExecutorGateway taskExecutor) {

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rpc;
 
 /**
- * Marker interface for rpc gateways
+ * Rpc gateway interface which has to be implemented by Rpc gateways.
  */
 public interface RpcGateway {
 }

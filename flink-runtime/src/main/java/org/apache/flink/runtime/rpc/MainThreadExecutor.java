@@ -22,9 +22,33 @@ import akka.util.Timeout;
 import scala.concurrent.Future;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeoutException;
 
-public interface RunnableRpcGateway {
+/**
+ * Interface to execute {@link Runnable} and {@link Callable} in the main thread of the underlying
+ * rpc server.
+ *
+ * This interface is intended to be implemented by the self gateway in a {@link RpcProtocol}
+ * implementation which allows to dispatch local procedures to the main thread of the underlying
+ * rpc server.
+ */
+public interface MainThreadExecutor {
+	/**
+	 * Execute the runnable in the main thread of the underlying rpc server.
+	 *
+	 * @param runnable Runnable to be executed
+	 */
 	void runAsync(Runnable runnable);
 
+	/**
+	 * Execute the callable in the main thread of the underlying rpc server and return a future for
+	 * the callable result. If the future is not completed within the given timeout, the returned
+	 * future will throw a {@link TimeoutException}.
+	 *
+	 * @param callable Callable to be executed
+	 * @param timeout Timeout for the future to complete
+	 * @param <V> Return value of the callable
+	 * @return Future of the callable result
+	 */
 	<V> Future<V> callAsync(Callable<V> callable, Timeout timeout);
 }

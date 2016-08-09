@@ -20,14 +20,38 @@ package org.apache.flink.runtime.rpc.resourcemanager;
 
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.WithTimeout;
+import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+/**
+ * {@link ResourceManager} rpc gateway interface.
+ */
 public interface ResourceManagerGateway extends RpcGateway {
 
+	/**
+	 * Register a {@link JobMaster} at the resource manager.
+	 *
+	 * @param jobMasterRegistration Job master registration information
+	 * @param timeout Timeout for the future to complete
+	 * @return Future registration response
+	 */
 	@WithTimeout("timeout")
 	Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration, FiniteDuration timeout);
 
+	/**
+	 * Register a {@link JobMaster} at the resource manager.
+	 *
+	 * @param jobMasterRegistration Job master registration information
+	 * @return Future registration response
+	 */
 	Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration);
+
+	/**
+	 * Requests a slot from the resource manager.
+	 *
+	 * @param slotRequest Slot request
+	 * @return Future slot assignment
+	 */
 	Future<SlotAssignment> requestSlot(SlotRequest slotRequest);
 }

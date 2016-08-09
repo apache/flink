@@ -18,10 +18,15 @@
 
 package org.apache.flink.runtime.rpc.akka.messages;
 
-public class TriggerResourceManagerRegistration {
+import java.io.Serializable;
+
+public class RegisterAtResourceManager implements Serializable {
+
+	private static final long serialVersionUID = -4175905742620903602L;
+
 	private final String address;
 
-	public TriggerResourceManagerRegistration(String address) {
+	public RegisterAtResourceManager(String address) {
 		this.address = address;
 	}
 

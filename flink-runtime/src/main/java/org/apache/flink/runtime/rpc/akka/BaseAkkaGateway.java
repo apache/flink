@@ -16,25 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
-import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
+import akka.actor.ActorRef;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
+import org.apache.flink.runtime.rpc.MainThreadExecutor;
+import org.apache.flink.runtime.rpc.akka.messages.CallableMessage;
+import org.apache.flink.runtime.rpc.akka.messages.RunnableMessage;
+import scala.concurrent.Future;
 
-public class HandleRegistrationResponse {
-	private final RegistrationResponse registrationResponse;
-	private final ResourceManagerGateway resourceManagerGateway;
+import java.util.concurrent.Callable;
 
-	public HandleRegistrationResponse(RegistrationResponse registrationResponse, ResourceManagerGateway resourceManagerGateway) {
-		this.registrationResponse = registrationResponse;
-		this.resourceManagerGateway = resourceManagerGateway;
+public abstract class BaseAkkaGateway implements MainThreadExecutor, AkkaGateway {
+	@Override
+	public void runAsync(Runnable runnable) {
+		getActorRef().tell(new RunnableMessage(runnable), ActorRef.noSender());
 	}
 
-	public RegistrationResponse getRegistrationResponse() {
-		return registrationResponse;
-	}
-
-	public ResourceManagerGateway getResourceManagerGateway() {
-		return resourceManagerGateway;
+	@Override
+	public <V> Future<V> callAsync(Callable<V> callable, Timeout timeout) {
+		return (Future<V>) Patterns.ask(getActorRef(), new CallableMessage(callable), timeout);
 	}
 }

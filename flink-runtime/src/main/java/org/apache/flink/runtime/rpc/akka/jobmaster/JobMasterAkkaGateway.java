@@ -21,19 +21,16 @@ package org.apache.flink.runtime.rpc.akka.jobmaster;
 import akka.actor.ActorRef;
 import akka.pattern.AskableActorRef;
 import akka.util.Timeout;
-import org.apache.flink.runtime.rpc.akka.RunnableAkkaGateway;
+import org.apache.flink.runtime.rpc.akka.BaseAkkaGateway;
+import org.apache.flink.runtime.rpc.akka.messages.RegisterAtResourceManager;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
-import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.akka.messages.HandleRegistrationResponse;
-import org.apache.flink.runtime.rpc.akka.messages.TriggerResourceManagerRegistration;
 import org.apache.flink.runtime.rpc.akka.messages.UpdateTaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import scala.concurrent.Future;
 import scala.reflect.ClassTag$;
 
-public class JobMasterAkkaGateway extends RunnableAkkaGateway implements JobMasterGateway {
+public class JobMasterAkkaGateway extends BaseAkkaGateway implements JobMasterGateway {
 	private final AskableActorRef actorRef;
 	private final Timeout timeout;
 
@@ -49,13 +46,8 @@ public class JobMasterAkkaGateway extends RunnableAkkaGateway implements JobMast
 	}
 
 	@Override
-	public void triggerResourceManagerRegistration(String address) {
-		actorRef.actorRef().tell(new TriggerResourceManagerRegistration(address), ActorRef.noSender());
-	}
-
-	@Override
-	public void handleRegistrationResponse(RegistrationResponse response, ResourceManagerGateway resourceManager) {
-		actorRef.actorRef().tell(new HandleRegistrationResponse(response, resourceManager), ActorRef.noSender());
+	public void registerAtResourceManager(String address) {
+		actorRef.actorRef().tell(new RegisterAtResourceManager(address), actorRef.actorRef());
 	}
 
 	@Override

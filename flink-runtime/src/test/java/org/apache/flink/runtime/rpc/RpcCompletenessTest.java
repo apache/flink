@@ -44,11 +44,11 @@ public class RpcCompletenessTest extends TestLogger {
 	public void testRpcCompleteness() {
 		Reflections reflections = new Reflections("org.apache.flink");
 
-		Set<Class<? extends RpcServer>> classes = reflections.getSubTypesOf(RpcServer.class);
+		Set<Class<? extends RpcProtocol>> classes = reflections.getSubTypesOf(RpcProtocol.class);
 
-		Class<? extends RpcServer> c = null;
+		Class<? extends RpcProtocol> c = null;
 
-		for (Class<? extends RpcServer> rpcServer :classes){
+		for (Class<? extends RpcProtocol> rpcServer :classes){
 			c = rpcServer;
 			Type superClass = c.getGenericSuperclass();
 
@@ -57,7 +57,7 @@ public class RpcCompletenessTest extends TestLogger {
 			if (superClass instanceof ParameterizedType) {
 				ParameterizedType parameterizedType = (ParameterizedType) superClass;
 
-				if (parameterizedType.getRawType() == RpcServer.class) {
+				if (parameterizedType.getRawType() == RpcProtocol.class) {
 					foundRpcServerInterface = true;
 					Type[] typeArguments = parameterizedType.getActualTypeArguments();
 
@@ -72,7 +72,7 @@ public class RpcCompletenessTest extends TestLogger {
 				}
 			}
 
-			assertTrue("The class " + rpcServer + " does not implement the " + RpcServer.class + " interface.", foundRpcServerInterface);
+			assertTrue("The class " + rpcServer + " does not implement the " + RpcProtocol.class + " interface.", foundRpcServerInterface);
 		}
 	}
 
