@@ -55,6 +55,10 @@ public class Pattern<T, F extends T> {
 	// window length in which the pattern match has to occur
 	private Time windowTime;
 
+	private int minCount = 1;
+
+	private int maxCount = 1;
+
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
 		this.previous = previous;
@@ -78,6 +82,14 @@ public class Pattern<T, F extends T> {
 
 	public Quantifier getQuantifier() {
 		return quantifier;
+	}
+
+	public int getMaxCount() {
+		return maxCount;
+	}
+
+	public int getMinCount() {
+		return minCount;
 	}
 
 	/**
@@ -151,6 +163,12 @@ public class Pattern<T, F extends T> {
 	 */
 	public Pattern<T, F> zeroOrMore() {
 		this.quantifier = Quantifier.ZERO_OR_MORE;
+		return this;
+	}
+
+	public Pattern<T, F> count(int count) {
+		this.minCount = count;
+		this.maxCount = count;
 		return this;
 	}
 

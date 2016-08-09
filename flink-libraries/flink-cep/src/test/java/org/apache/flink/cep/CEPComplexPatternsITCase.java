@@ -532,4 +532,65 @@ public class CEPComplexPatternsITCase extends CEPITCaseBase {
 		env.execute();
 	}
 
+	@Test
+	public void testFixedCountCEPPattern() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Event> input = env.fromElements(
+			new Event(2, "start", 2.0),
+			new Event(3, "middle", 3.0),
+			new SubEvent(4, "middle", 4.0, 1.0),
+			new Event(5, "middle", 5.0),
+			new Event(8, "end", 1.0)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
+			new FilterFunction<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("start");
+				}
+			}
+		)
+			.next("middle").count(3).where(
+				new FilterFunction<Event>() {
+
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("middle");
+					}
+				}
+			)
+			.next("end").where(new FilterFunction<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
+			});
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+
+			@Override
+			public String select(Map<String, Event> pattern) {
+				StringBuilder builder = new StringBuilder();
+
+				builder.append(pattern.get("start").getId()).append(",")
+					.append(pattern.get("middle").getId()).append(",")
+					.append(pattern.get("middle#1").getId()).append(",")
+					.append(pattern.get("middle#2").getId()).append(",")
+					.append(pattern.get("end").getId());
+
+				return builder.toString();
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "2,3,4,5,8";
+
+		env.execute();
+	}
+
 }

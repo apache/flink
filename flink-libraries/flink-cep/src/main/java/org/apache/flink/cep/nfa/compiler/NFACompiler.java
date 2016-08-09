@@ -129,11 +129,35 @@ public class NFACompiler {
 		}
 	}
 
-	private static <T> void addTransitions(State<T> beginningState, int patternPos, ArrayList<Pattern<T, ?>> patterns, Map<String, State<T>> states) {
+	private static <T> void addTransitions(State<T> currentState, int patternPos, ArrayList<Pattern<T, ?>> patterns, Map<String, State<T>> states) {
 		Pattern<T, ?> succeedingPattern = patterns.get(patternPos + 1);
 		State<T> succeedingState = states.get(succeedingPattern.getName());
 
-		beginningState.addStateTransition(new StateTransition<T>(
+		if (patternPos != -1 ) {
+			Pattern<T, ?> currentPattern = patterns.get(patternPos);
+			if (currentPattern.getMaxCount() != 1 && currentPattern.getMinCount() != 1) {
+				State<T> cS = null;
+				State<T> nS = currentState;
+				for (int i = 1; i < currentPattern.getMaxCount(); i++) {
+					cS = nS;
+					nS = new State<>(
+						currentState.getName() + "#" + i,
+						State.StateType.Normal);
+					states.put(nS.getName(), nS);
+					cS.addStateTransition(new StateTransition<T>(
+						StateTransitionAction.TAKE,
+						nS,
+						(FilterFunction<T>) currentPattern.getFilterFunction()));
+				}
+				nS.addStateTransition(new StateTransition<T>(
+					StateTransitionAction.TAKE,
+					succeedingState,
+					(FilterFunction<T>) succeedingPattern.getFilterFunction()));
+				return;
+			}
+		}
+
+		currentState.addStateTransition(new StateTransition<T>(
 			StateTransitionAction.TAKE,
 			succeedingState,
 			(FilterFunction<T>) succeedingPattern.getFilterFunction()
@@ -150,11 +174,11 @@ public class NFACompiler {
 			|| succeedingPattern.getQuantifier() == Quantifier.ZERO_OR_MORE) {
 			int firstNonOptionalPattern = findFirstNonOptionalPattern(patterns, patternPos + 1);
 			if (firstNonOptionalPattern == patterns.size()) {
-				beginningState = new State<>(
-					beginningState.getName(),
+				currentState = new State<>(
+					currentState.getName(),
 					State.StateType.Final,
-					beginningState.getStateTransitions());
-				states.put(beginningState.getName(), beginningState);
+					currentState.getStateTransitions());
+				states.put(currentState.getName(), currentState);
 			}
 
 			for (int optionalPatternPos = patternPos + 2;
@@ -162,7 +186,7 @@ public class NFACompiler {
 				 optionalPatternPos++) {
 				Pattern<T, ?> optionalPattern = patterns.get(optionalPatternPos);
 				State<T> optionalState = states.get(optionalPattern.getName());
-				beginningState.addStateTransition(new StateTransition<>(
+				currentState.addStateTransition(new StateTransition<>(
 					StateTransitionAction.TAKE,
 					optionalState,
 					(FilterFunction<T>) optionalPattern.getFilterFunction()));
