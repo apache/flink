@@ -84,8 +84,6 @@ under the License.
 		<shading-artifact.name>error</shading-artifact.name>
 		<!-- Internal property to reduce build times on TravisCi -->
 		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
-		<!-- The shading artifact module name can be used as a module name. it does not get a scala version suffix -->
-		<shading-artifact-module.name>error</shading-artifact-module.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
 		<hadoop-two.version>2.3.0</hadoop-two.version>
 		<!-- Need to use a user property here because the surefire
@@ -430,8 +428,7 @@ under the License.
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-one.version}</hadoop.version>
-				<shading-artifact.name>flink-shaded-hadoop1_2.10</shading-artifact.name>
-				<shading-artifact-module.name>flink-shaded-hadoop1</shading-artifact-module.name>
+				<shading-artifact.name>flink-shaded-hadoop1</shading-artifact.name>
 			</properties>
 		</profile>
 
@@ -447,7 +444,6 @@ under the License.
 			<properties>
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
 				<shading-artifact.name>flink-shaded-hadoop2</shading-artifact.name>
-				<shading-artifact-module.name>flink-shaded-hadoop2</shading-artifact-module.name>
 			</properties>
 			<modules>
 				<module>flink-yarn</module>
