@@ -50,8 +50,17 @@ public class Pattern<T, F extends T> {
 	// filter condition for an event to be matched
 	private FilterFunction<F> filterFunction;
 
+	// Quantifier that defines repetition of this pattern
+	public Quantifier quantifier = Quantifier.NONE;
+
 	// window length in which the pattern match has to occur
 	private Time windowTime;
+
+	// Minimum number of times this pattern should be repeated
+	private int minCount = 1;
+
+	// Maximum number of times this pattern should be repeated
+	private int maxCount = 1;
 
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
@@ -72,6 +81,18 @@ public class Pattern<T, F extends T> {
 
 	public Time getWindowTime() {
 		return windowTime;
+	}
+
+	public Quantifier getQuantifier() {
+		return quantifier;
+	}
+
+	public int getMaxCount() {
+		return maxCount;
+	}
+
+	public int getMinCount() {
+		return minCount;
 	}
 
 	/**
@@ -118,13 +139,54 @@ public class Pattern<T, F extends T> {
 	 * between first and the last event must not be longer than the window time.
 	 *
 	 * @param windowTime Time of the matching window
-	 * @return The same pattenr operator with the new window length
+	 * @return The same pattern operator with the new window length
 	 */
 	public Pattern<T, F> within(Time windowTime) {
 		if (windowTime != null) {
 			this.windowTime = windowTime;
 		}
 
+		return this;
+	}
+
+	/**
+	 * Defines that this pattern may be repeated one or many times.
+	 *
+	 * @return The same pattern operator that can be repeated many times
+	 */
+	public Pattern<T, F> oneOrMany() {
+		this.quantifier = Quantifier.ONE_OR_MORE;
+		return this;
+	}
+
+	/**
+	 * Defines that this pattern may be repeated zero or many times.
+	 *
+	 * @return The same pattern operator that can be repeated zero o many times
+	 */
+	public Pattern<T, F> zeroOrMore() {
+		this.quantifier = Quantifier.ZERO_OR_MORE;
+		return this;
+	}
+
+	/**
+	 * Defines a number of times this pattern should be repeated.
+	 *
+	 * @return The same pattern operator that should be repeated specified number of time
+	 */
+	public Pattern<T, F> count(int count) {
+		this.minCount = count;
+		this.maxCount = count;
+		return this;
+	}
+
+	/**
+	 * Defines that this pattern is optional
+	 *
+	 * @return The same pattern operator that is optional
+	 */
+	public Pattern<T, F> optional() {
+		this.quantifier = Quantifier.OPTIONAL;
 		return this;
 	}
 
@@ -164,5 +226,4 @@ public class Pattern<T, F extends T> {
 	public static <X> Pattern<X, X> begin(final String name) {
 		return new Pattern<X, X>(name, null);
 	}
-
 }

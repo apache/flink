@@ -19,7 +19,7 @@ package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.cep
-import org.apache.flink.cep.pattern.{Pattern => JPattern}
+import org.apache.flink.cep.pattern.{Quantifier, Pattern => JPattern}
 import org.apache.flink.streaming.api.windowing.time.Time
 
 /**
@@ -65,6 +65,8 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     Option(jPattern.getFilterFunction())
   }
 
+  def getQuantifier(): Quantifier = jPattern.getQuantifier
+
   /**
     * Applies a subtype constraint on the current pattern operator. This means that an event has
     * to be of the given subtype in order to be matched.
@@ -87,6 +89,26 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     */
   def within(windowTime: Time): Pattern[T, F] = {
     jPattern.within(windowTime)
+    this
+  }
+
+  /**
+   * Defines that this pattern may be repeated one or many times.
+   *
+   * @return The same pattern operator that can be repeated many times
+   */
+  def optional(): Pattern[T, F] = {
+    jPattern.optional()
+    this
+  }
+
+  /**
+   * Defines that this pattern is optional
+   *
+   * @return The same pattern operator that is optional
+   */
+  def oneOrMany(): Pattern[T, F] = {
+    jPattern.oneOrMany()
     this
   }
 

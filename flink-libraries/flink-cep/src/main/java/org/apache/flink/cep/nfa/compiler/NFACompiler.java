@@ -26,9 +26,11 @@ import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.FollowedByPattern;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -80,25 +82,17 @@ public class NFACompiler {
 			// return a factory for empty NFAs
 			return new NFAFactoryImpl<T>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling);
 		} else {
+			ArrayList<Pattern<T, ?>> patterns = createPatternsList(pattern);
 			// set of all generated states
-			Map<String, State<T>> states = new HashMap<>();
-			long windowTime;
+			Map<String, State<T>> states = createStatesFrom(patterns);
 
-			Pattern<T, ?> succeedingPattern;
-			State<T> succeedingState;
-			Pattern<T, ?> currentPattern = pattern;
+			long windowTime = pattern.getWindowTime() != null ? pattern.getWindowTime().toMilliseconds() : 0L;
 
 			// we're traversing the pattern from the end to the beginning --> the first state is the final state
-			State<T> currentState = new State<>(currentPattern.getName(), State.StateType.Final);
-
-			states.put(currentPattern.getName(), currentState);
-
-			windowTime = currentPattern.getWindowTime() != null ? currentPattern.getWindowTime().toMilliseconds() : 0L;
-
-			while (currentPattern.getPrevious() != null) {
-				succeedingPattern = currentPattern;
-				succeedingState = currentState;
-				currentPattern = currentPattern.getPrevious();
+			for (int i = patterns.size() - 2; i >= 0; i--) {
+				Pattern<T, ?> succeedingPattern = patterns.get(i + 1);
+				Pattern<T, ?> currentPattern = patterns.get(i);
+				State<T> currentState = states.get(currentPattern.getName());
 
 				Time currentWindowTime = currentPattern.getWindowTime();
 
@@ -107,17 +101,7 @@ public class NFACompiler {
 					windowTime = currentWindowTime.toMilliseconds();
 				}
 
-				if (states.containsKey(currentPattern.getName())) {
-					currentState = states.get(currentPattern.getName());
-				} else {
-					currentState = new State<>(currentPattern.getName(), State.StateType.Normal);
-					states.put(currentState.getName(), currentState);
-				}
-
-				currentState.addStateTransition(new StateTransition<T>(
-					StateTransitionAction.TAKE,
-					succeedingState,
-					(FilterFunction<T>) succeedingPattern.getFilterFunction()));
+				addTransitions(currentState, i, patterns, states);
 
 				if (succeedingPattern instanceof FollowedByPattern) {
 					// the followed by pattern entails a reflexive ignore transition
@@ -130,7 +114,7 @@ public class NFACompiler {
 			}
 
 			// add the beginning state
-			final State<T> beginningState;
+			State<T> beginningState;
 
 			if (states.containsKey(BEGINNING_STATE_NAME)) {
 				beginningState = states.get(BEGINNING_STATE_NAME);
@@ -139,14 +123,118 @@ public class NFACompiler {
 				states.put(BEGINNING_STATE_NAME, beginningState);
 			}
 
-			beginningState.addStateTransition(new StateTransition<T>(
-				StateTransitionAction.TAKE,
-				currentState,
-				(FilterFunction<T>) currentPattern.getFilterFunction()
-			));
+			addTransitions(beginningState, -1, patterns, states);
 
 			return new NFAFactoryImpl<T>(inputTypeSerializer, windowTime, new HashSet<>(states.values()), timeoutHandling);
 		}
+	}
+
+	private static <T> void addTransitions(State<T> currentState, int patternPos, ArrayList<Pattern<T, ?>> patterns, Map<String, State<T>> states) {
+		Pattern<T, ?> succeedingPattern = patterns.get(patternPos + 1);
+		State<T> succeedingState = states.get(succeedingPattern.getName());
+
+		if (patternPos != -1 ) {
+			Pattern<T, ?> currentPattern = patterns.get(patternPos);
+			if (currentPattern.getMaxCount() != 1 && currentPattern.getMinCount() != 1) {
+				State<T> cS = null;
+				State<T> nS = currentState;
+				for (int i = 1; i < currentPattern.getMaxCount(); i++) {
+					cS = nS;
+					nS = new State<>(
+						currentState.getName() + "#" + i,
+						State.StateType.Normal);
+					states.put(nS.getName(), nS);
+					cS.addStateTransition(new StateTransition<T>(
+						StateTransitionAction.TAKE,
+						nS,
+						(FilterFunction<T>) currentPattern.getFilterFunction()));
+				}
+				nS.addStateTransition(new StateTransition<T>(
+					StateTransitionAction.TAKE,
+					succeedingState,
+					(FilterFunction<T>) succeedingPattern.getFilterFunction()));
+				return;
+			}
+		}
+
+		currentState.addStateTransition(new StateTransition<T>(
+			StateTransitionAction.TAKE,
+			succeedingState,
+			(FilterFunction<T>) succeedingPattern.getFilterFunction()
+		));
+
+		if (succeedingPattern.getQuantifier() == Quantifier.ONE_OR_MORE
+			|| succeedingPattern.getQuantifier() == Quantifier.ZERO_OR_MORE)  {
+			succeedingState.addStateTransition(new StateTransition<T>(
+				StateTransitionAction.TAKE,
+				succeedingState,
+				(FilterFunction<T>) succeedingPattern.getFilterFunction()));
+		}
+		if (succeedingPattern.getQuantifier() == Quantifier.OPTIONAL
+			|| succeedingPattern.getQuantifier() == Quantifier.ZERO_OR_MORE) {
+			int firstNonOptionalPattern = findFirstNonOptionalPattern(patterns, patternPos + 1);
+			if (firstNonOptionalPattern == patterns.size()) {
+				currentState = new State<>(
+					currentState.getName(),
+					State.StateType.Final,
+					currentState.getStateTransitions());
+				states.put(currentState.getName(), currentState);
+			}
+
+			for (int optionalPatternPos = patternPos + 2;
+				 optionalPatternPos < Math.min(firstNonOptionalPattern + 1, patterns.size());
+				 optionalPatternPos++) {
+				Pattern<T, ?> optionalPattern = patterns.get(optionalPatternPos);
+				State<T> optionalState = states.get(optionalPattern.getName());
+				currentState.addStateTransition(new StateTransition<>(
+					StateTransitionAction.TAKE,
+					optionalState,
+					(FilterFunction<T>) optionalPattern.getFilterFunction()));
+			}
+
+		}
+
+	}
+
+	private static <T> int findFirstNonOptionalPattern(ArrayList<Pattern<T, ?>> patterns, int startPos) {
+		int pos = startPos;
+		for (; pos < patterns.size(); pos++) {
+			Pattern<T, ?> pattern = patterns.get(pos);
+			if (pattern.getQuantifier() != Quantifier.OPTIONAL
+				&& pattern.getQuantifier() != Quantifier.ZERO_OR_MORE) {
+				return pos;
+			}
+		}
+
+		return pos;
+	}
+
+	private static <T> Map<String, State<T>> createStatesFrom(ArrayList<Pattern<T, ?>> patterns) {
+		Map<String, State<T>> states = new HashMap<>();
+
+		for (int i = 0; i < patterns.size(); i++) {
+			Pattern<T, ?> pattern = patterns.get(i);
+			State<T> newState;
+			if (i != patterns.size() - 1) {
+				newState = new State<>(pattern.getName(), State.StateType.Normal);
+			} else {
+				newState = new State<>(pattern.getName(), State.StateType.Final);
+			}
+			states.put(newState.getName(), newState);
+		}
+		return states;
+	}
+
+	private static <T> ArrayList<Pattern<T, ?>> createPatternsList(Pattern<T, ?> pattern) {
+		ArrayList<Pattern<T, ?>> patterns = new ArrayList<>();
+		Pattern<T, ?> currentPattern = pattern;
+		while (currentPattern != null) {
+			patterns.add(currentPattern);
+			currentPattern = currentPattern.getPrevious();
+		}
+
+		Collections.reverse(patterns);
+		return patterns;
 	}
 
 	/**
