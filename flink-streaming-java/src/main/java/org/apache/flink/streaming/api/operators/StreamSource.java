@@ -70,7 +70,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 				ctx = new NonTimestampContext<>(this, lockingObject, collector);
 				break;
 			default:
-				throw new Exception(String.valueOf(timeCharacteristic));
+				throw new Exception("Invalid time characteristic: " + String.valueOf(timeCharacteristic));
 		}
 
 		// copy to a field to give the 'cancel()' method access
@@ -146,16 +146,24 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
 
-		public NonTimestampContext(StreamSource<?, ?> owner, Object lockingObject, Output<StreamRecord<T>> output) {
-			this.owner = owner;
+		public NonTimestampContext(AbstractStreamOperator<T> owner, Object lockingObject, Output<StreamRecord<T>> output) {
 			this.lockingObject = lockingObject;
 			this.output = output;
 			this.reuse = new StreamRecord<T>(null);
+
+			// if it is a source, then we cast and cache it
+			// here so that we do not have to do it in every collect(),
+			// collectWithTimestamp() and emitWatermark()
+
+			this.owner = (owner instanceof StreamSource) ?
+				(StreamSource) owner : null;
 		}
 
 		@Override
 		public void collect(T element) {
-			owner.checkAsyncException();
+			if (owner != null) {
+				owner.checkAsyncException();
+			}
 			synchronized (lockingObject) {
 				output.collect(reuse.replace(element));
 			}
@@ -169,7 +177,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			owner.checkAsyncException();
+			if (owner != null) {
+				owner.checkAsyncException();
+			}
 			// do nothing else
 		}
 
@@ -188,18 +198,19 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	 */
 	public static class AutomaticWatermarkContext<T> implements SourceFunction.SourceContext<T> {
 
-		private final StreamSource<?, ?> owner;
+		private final AbstractStreamOperator<T> owner;
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
-		
+		private final StreamSource<?, ?> source;
+
 		private final ScheduledFuture<?> watermarkTimer;
 		private final long watermarkInterval;
 
 		private volatile long nextWatermarkTime;
 
 		public AutomaticWatermarkContext(
-				final StreamSource<?, ?> owner,
+				final AbstractStreamOperator<T> owner,
 				final Object lockingObjectParam,
 				final Output<StreamRecord<T>> outputParam,
 				final long watermarkInterval) {
@@ -214,6 +225,13 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			this.watermarkInterval = watermarkInterval;
 			this.reuse = new StreamRecord<T>(null);
 
+			// if it is a source, then we cast and cache it
+			// here so that we do not have to do it in every collect(),
+			// collectWithTimestamp() and emitWatermark()
+
+			this.source = (owner instanceof StreamSource) ?
+				(StreamSource) owner : null;
+
 			long now = owner.getCurrentProcessingTime();
 			this.watermarkTimer = owner.registerTimer(now + watermarkInterval,
 				new WatermarkEmittingTask(owner, lockingObjectParam, outputParam));
@@ -221,7 +239,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void collect(T element) {
-			owner.checkAsyncException();
+			if (source != null) {
+				source.checkAsyncException();
+			}
 			
 			synchronized (lockingObject) {
 				final long currentTime = owner.getCurrentProcessingTime();
@@ -250,7 +270,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			owner.checkAsyncException();
+			if (source != null) {
+				source.checkAsyncException();
+			}
 			
 			if (mark.getTimestamp() == Long.MAX_VALUE) {
 				// allow it since this is the special end-watermark that for example the Kafka source emits
@@ -260,7 +282,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 				}
 
 				// we can shutdown the timer now, no watermarks will be needed any more
-				watermarkTimer.cancel(true);
+				if (watermarkTimer != null) {
+					watermarkTimer.cancel(true);
+				}
 			}
 		}
 
@@ -271,16 +295,18 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void close() {
-			watermarkTimer.cancel(true);
+			if (watermarkTimer != null) {
+				watermarkTimer.cancel(true);
+			}
 		}
 
 		private class WatermarkEmittingTask implements Triggerable {
 
-			private final StreamSource<?, ?> owner;
+			private final AbstractStreamOperator<T> owner;
 			private final Object lockingObject;
 			private final Output<StreamRecord<T>> output;
 
-			private WatermarkEmittingTask(StreamSource<?, ?> src, Object lock, Output<StreamRecord<T>> output) {
+			private WatermarkEmittingTask(AbstractStreamOperator<T> src, Object lock, Output<StreamRecord<T>> output) {
 				this.owner = src;
 				this.lockingObject = lock;
 				this.output = output;
@@ -325,16 +351,25 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
 
-		public ManualWatermarkContext(StreamSource<?, ?> owner, Object lockingObject, Output<StreamRecord<T>> output) {
-			this.owner = owner;
+
+		public ManualWatermarkContext(AbstractStreamOperator<T> owner, Object lockingObject, Output<StreamRecord<T>> output) {
 			this.lockingObject = lockingObject;
 			this.output = output;
 			this.reuse = new StreamRecord<T>(null);
+
+			// if it is a source, then we cast and cache it
+			// here so that we do not have to do it in every collect(),
+			// collectWithTimestamp() and emitWatermark()
+
+			this.owner = (owner instanceof StreamSource) ?
+				(StreamSource) owner : null;
 		}
 
 		@Override
 		public void collect(T element) {
-			owner.checkAsyncException();
+			if (owner != null) {
+				owner.checkAsyncException();
+			}
 			
 			synchronized (lockingObject) {
 				output.collect(reuse.replace(element));
@@ -343,7 +378,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void collectWithTimestamp(T element, long timestamp) {
-			owner.checkAsyncException();
+			if (owner != null) {
+				owner.checkAsyncException();
+			}
 			
 			synchronized (lockingObject) {
 				output.collect(reuse.replace(element, timestamp));
@@ -352,7 +389,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			owner.checkAsyncException();
+			if (owner != null) {
+				owner.checkAsyncException();
+			}
 			
 			synchronized (lockingObject) {
 				output.emitWatermark(mark);

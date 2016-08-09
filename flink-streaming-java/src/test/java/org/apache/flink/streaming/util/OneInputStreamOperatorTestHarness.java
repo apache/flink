@@ -30,6 +30,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -51,6 +52,7 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -105,9 +107,23 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
 			TimeServiceProvider testTimeProvider) {
+		this(operator, executionConfig, testTimeProvider, new StreamConfig(new Configuration()));
+
+		// if no timeCharacteristic is specified, we set it to processing time,
+		// as this is the default also in the production code.
+
+		this.config.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+	}
+
+	public OneInputStreamOperatorTestHarness(
+		OneInputStreamOperator<IN, OUT> operator,
+		ExecutionConfig executionConfig,
+		TimeServiceProvider testTimeProvider,
+		StreamConfig streamConfig) {
+
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<Object>();
-		this.config = new StreamConfig(new Configuration());
+		this.config = streamConfig;
 		this.executionConfig = executionConfig;
 		this.checkpointLock = new Object();
 
@@ -135,16 +151,16 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		} catch (Exception e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
-		
-		doAnswer(new Answer<Void>() {
+
+		doAnswer(new Answer<ScheduledFuture>() {
 			@Override
-			public Void answer(InvocationOnMock invocation) throws Throwable {
+			public ScheduledFuture answer(InvocationOnMock invocation) throws Throwable {
 				final long execTime = (Long) invocation.getArguments()[0];
 				final Triggerable target = (Triggerable) invocation.getArguments()[1];
 
-				timeServiceProvider.registerTimer(
-						execTime, new TriggerTask(checkpointLock, target, execTime));
-				return null;
+				ScheduledFuture future = timeServiceProvider.registerTimer(
+					execTime, new TriggerTask(checkpointLock, target, execTime));
+				return future;
 			}
 		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
 
