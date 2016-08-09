@@ -155,10 +155,11 @@ public class NFACompiler {
 					State.StateType.Final,
 					beginningState.getStateTransitions());
 				states.put(beginningState.getName(), beginningState);
-				firstNonOptionalPattern--;
 			}
 
-			for (int optionalPatternPos = patternPos + 2; optionalPatternPos <= firstNonOptionalPattern; optionalPatternPos++) {
+			for (int optionalPatternPos = patternPos + 2;
+				 optionalPatternPos < Math.min(firstNonOptionalPattern + 1, patterns.size());
+				 optionalPatternPos++) {
 				Pattern<T, ?> optionalPattern = patterns.get(optionalPatternPos);
 				State<T> optionalState = states.get(optionalPattern.getName());
 				beginningState.addStateTransition(new StateTransition<>(
