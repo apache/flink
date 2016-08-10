@@ -318,8 +318,7 @@ public class KvStateClientTest {
 			int totalQueries = numQueryTasks * numQueriesPerTask;
 
 			// Counts can take some time to propagate
-			while (deadline.hasTimeLeft() && (stats.getNumSuccessful() != totalQueries ||
-					stats.getNumFailed() != totalQueries)) {
+			while (deadline.hasTimeLeft() && stats.getNumSuccessful() != totalQueries) {
 				Thread.sleep(100);
 			}
 
