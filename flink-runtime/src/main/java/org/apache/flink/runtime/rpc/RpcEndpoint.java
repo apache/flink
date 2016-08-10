@@ -237,7 +237,6 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * }</pre>
 	 */
 	public void validateRunsInMainThread() {
-		// because the initialization is lazy, it can be that certain methods are
 		assert currentMainThread.get() == Thread.currentThread();
 	}
 
