@@ -19,8 +19,8 @@ package org.apache.flink.api.table.plan.logical
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.logical.LogicalProject
-import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.calcite.rel.logical.{LogicalSort, LogicalProject}
+import org.apache.calcite.rex.{RexLiteral, RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -145,6 +145,25 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
       failValidation(s"Sort on stream tables is currently not supported.")
+    }
+    super.validate(tableEnv)
+  }
+}
+
+case class Limit(offset: Int, fetch: Int, child: LogicalNode) extends UnaryNode {
+  override def output: Seq[Attribute] = child.output
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    child.construct(relBuilder)
+    relBuilder.limit(offset, fetch)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new TableException(s"Limit on stream tables is currently not supported.")
+    }
+    if (!child.validate(tableEnv).isInstanceOf[Sort]) {
+      throw new TableException(s"Limit operator must follow behind orderBy clause.")
     }
     super.validate(tableEnv)
   }

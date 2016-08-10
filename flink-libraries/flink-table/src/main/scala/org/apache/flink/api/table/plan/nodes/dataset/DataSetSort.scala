@@ -24,10 +24,12 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.BatchTableEnvironment
+import org.apache.flink.api.table.runtime.{LimitFilterFunction, CountPartitionFunction}
 import org.apache.flink.api.table.typeutils.TypeConverter._
 
 import scala.collection.JavaConverters._
@@ -37,7 +39,9 @@ class DataSetSort(
     traitSet: RelTraitSet,
     inp: RelNode,
     collations: RelCollation,
-    rowType2: RelDataType)
+    rowType2: RelDataType,
+    offset: RexNode,             
+    fetch: RexNode)
   extends SingleRel(cluster, traitSet, inp)
   with DataSetRel{
 
@@ -47,7 +51,9 @@ class DataSetSort(
       traitSet,
       inputs.get(0),
       collations,
-      rowType2
+      rowType2,
+      offset,
+      fetch
     )
   }
 
@@ -71,11 +77,28 @@ class DataSetSort(
       partitionedDs = partitionedDs.sortPartition(fieldCollation._1, fieldCollation._2)
     }
 
+    val limitedDS = if (offset == null && fetch == null) {
+      partitionedDs
+    } else {
+      val limitStart = if (offset != null) RexLiteral.intValue(offset) else 0
+      val limitEnd = if (fetch != null) RexLiteral.intValue(fetch) + limitStart else Int.MaxValue
+
+      val countFunction = new CountPartitionFunction[Any]
+      val partitionCount = partitionedDs.mapPartition(countFunction)
+
+      val limitFunction = new LimitFilterFunction[Any](
+        limitStart,
+        limitEnd,
+        "countPartition")
+      partitionedDs.filter(limitFunction).withBroadcastSet(partitionCount, "countPartition")
+    }
+
+
     val inputType = partitionedDs.getType
     expectedType match {
 
       case None if config.getEfficientTypeUsage =>
-        partitionedDs
+        limitedDS
 
       case _ =>
         val determinedType = determineReturnType(
@@ -96,11 +119,11 @@ class DataSetSort(
             getRowType.getFieldNames.asScala
           )
 
-          partitionedDs.map(mapFunc)
+          limitedDS.map(mapFunc)
         }
         // no conversion necessary, forward
         else {
-          partitionedDs
+          limitedDS
         }
     }
   }
