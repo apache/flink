@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.rpc;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * Interface for rpc services. An rpc service is used to start and connect to a {@link RpcEndpoint}.
@@ -71,4 +74,28 @@ public interface RpcService {
 	 * @return Fully qualified address
 	 */
 	<C extends RpcGateway> String getAddress(C selfGateway);
+
+	/**
+	 * Gets the execution context, provided by this RPC service. This execution
+	 * context can be used for example for the {@code onComplete(...)} or {@code onSuccess(...)}
+	 * methods of Futures.
+	 * 
+	 * <p><b>IMPORTANT:</b> This execution context does not isolate the method invocations against
+	 * any concurrent invocations and is therefore not suitable to run completion methods of futures
+	 * that modify state of an {@link RpcEndpoint}. For such operations, one needs to use the
+	 * {@link RpcEndpoint#getMainThreadExecutionContext() MainThreadExecutionContext} of that
+	 * {@code RpcEndpoint}.
+	 * 
+	 * @return The execution context provided by the RPC service
+	 */
+	ExecutionContext getExecutionContext();
+
+	/**
+	 * Execute the runnable in the execution context of this RPC Service, as returned by
+	 * {@link #getExecutionContext()}, after a scheduled delay.
+	 *
+	 * @param runnable Runnable to be executed
+	 * @param delay    The delay after which the runnable will be executed
+	 */
+	void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit);
 }
