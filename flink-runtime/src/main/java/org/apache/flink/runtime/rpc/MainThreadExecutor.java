@@ -26,22 +26,23 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Interface to execute {@link Runnable} and {@link Callable} in the main thread of the underlying
- * rpc server.
+ * RPC endpoint.
  *
- * This interface is intended to be implemented by the self gateway in a {@link RpcEndpoint}
+ * <p>This interface is intended to be implemented by the self gateway in a {@link RpcEndpoint}
  * implementation which allows to dispatch local procedures to the main thread of the underlying
  * rpc server.
  */
 public interface MainThreadExecutor {
+
 	/**
-	 * Execute the runnable in the main thread of the underlying rpc server.
+	 * Execute the runnable in the main thread of the underlying RPC endpoint.
 	 *
 	 * @param runnable Runnable to be executed
 	 */
 	void runAsync(Runnable runnable);
 
 	/**
-	 * Execute the callable in the main thread of the underlying rpc server and return a future for
+	 * Execute the callable in the main thread of the underlying RPC endpoint and return a future for
 	 * the callable result. If the future is not completed within the given timeout, the returned
 	 * future will throw a {@link TimeoutException}.
 	 *
