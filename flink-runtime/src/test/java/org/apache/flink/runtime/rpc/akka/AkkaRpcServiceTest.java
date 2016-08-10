@@ -54,15 +54,13 @@ public class AkkaRpcServiceTest extends TestLogger {
 		ResourceManager resourceManager = new ResourceManager(akkaRpcService, executorService);
 		JobMaster jobMaster = new JobMaster(akkaRpcService2, executorService);
 
-		resourceManager.start();
-
 		ResourceManagerGateway rm = resourceManager.getSelf();
 
 		assertTrue(rm instanceof AkkaGateway);
 
 		AkkaGateway akkaClient = (AkkaGateway) rm;
 
-		jobMaster.start();
+		
 		jobMaster.registerAtResourceManager(AkkaUtils.getAkkaURL(actorSystem, akkaClient.getActorRef()));
 
 		// wait for successful registration
