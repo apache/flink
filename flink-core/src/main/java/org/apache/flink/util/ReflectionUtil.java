@@ -48,6 +48,14 @@ public final class ReflectionUtil {
 		return getTemplateType(clazz, 0);
 	}
 
+	public static <T> Class<T> getTemplateType1(Type type) {
+		if (type instanceof ParameterizedType) {
+			return (Class<T>) getTemplateTypes((ParameterizedType) type)[0];
+		} else {
+			throw new IllegalArgumentException();
+		}
+	}
+
 	public static <T> Class<T> getTemplateType2(Class<?> clazz) {
 		return getTemplateType(clazz, 1);
 	}
@@ -123,7 +131,7 @@ public final class ReflectionUtil {
 		Class<?>[] types = new Class<?>[paramterizedType.getActualTypeArguments().length];
 		int i = 0;
 		for (Type templateArgument : paramterizedType.getActualTypeArguments()) {
-			assert (templateArgument instanceof Class<?>);
+			assert templateArgument instanceof Class<?>;
 			types[i++] = (Class<?>) templateArgument;
 		}
 		return types;
