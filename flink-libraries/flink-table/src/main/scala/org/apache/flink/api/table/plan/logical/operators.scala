@@ -19,8 +19,8 @@ package org.apache.flink.api.table.plan.logical
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.logical.{LogicalSort, LogicalProject}
-import org.apache.calcite.rex.{RexLiteral, RexInputRef, RexNode}
+import org.apache.calcite.rel.logical.LogicalProject
+import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -40,9 +40,9 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
     val newProjectList =
       afterResolve.projectList.zipWithIndex.map { case (e, i) =>
         e match {
-          case u @ UnresolvedAlias(child) => child match {
+          case u @ UnresolvedAlias(c) => c match {
             case ne: NamedExpression => ne
-            case e if !e.valid => u
+            case expr if !expr.valid => u
             case c @ Cast(ne: NamedExpression, tp) => Alias(c, s"${ne.name}-$tp")
             case other => Alias(other, s"_c$i")
           }
@@ -62,14 +62,14 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
         case n: Alias =>
           // explicit name
           if (names.contains(n.name)) {
-            throw new ValidationException(s"Duplicate field name $n.name.")
+            throw ValidationException(s"Duplicate field name $n.name.")
           } else {
             names.add(n.name)
           }
         case r: ResolvedFieldReference =>
           // simple field forwarding
           if (names.contains(r.name)) {
-            throw new ValidationException(s"Duplicate field name $r.name.")
+            throw ValidationException(s"Duplicate field name $r.name.")
           } else {
             names.add(r.name)
           }
@@ -98,10 +98,10 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
 
 case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] =
-    throw new UnresolvedException("Invalid call to output on AliasNode")
+    throw UnresolvedException("Invalid call to output on AliasNode")
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder =
-    throw new UnresolvedException("Invalid call to toRelNode on AliasNode")
+    throw UnresolvedException("Invalid call to toRelNode on AliasNode")
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
     if (aliasList.length > child.output.length) {
@@ -150,7 +150,7 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
   }
 }
 
-case class Limit(offset: Int, fetch: Int, child: LogicalNode) extends UnaryNode {
+case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -160,10 +160,13 @@ case class Limit(offset: Int, fetch: Int, child: LogicalNode) extends UnaryNode 
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Limit on stream tables is currently not supported.")
+      failValidation(s"Limit on stream tables is currently not supported.")
     }
     if (!child.validate(tableEnv).isInstanceOf[Sort]) {
-      throw new TableException(s"Limit operator must follow behind orderBy clause.")
+      failValidation(s"Limit operator must be preceded by an OrderBy operator.")
+    }
+    if (offset < 0) {
+      failValidation(s"Offset should be greater than or equal to zero.")
     }
     super.validate(tableEnv)
   }
@@ -193,11 +196,9 @@ case class Aggregate(
     child: LogicalNode) extends UnaryNode {
 
   override def output: Seq[Attribute] = {
-    (groupingExpressions ++ aggregateExpressions) map { agg =>
-      agg match {
-        case ne: NamedExpression => ne.toAttribute
-        case e => Alias(e, e.toString).toAttribute
-      }
+    (groupingExpressions ++ aggregateExpressions) map {
+      case ne: NamedExpression => ne.toAttribute
+      case e => Alias(e, e.toString).toAttribute
     }
   }
 
@@ -205,11 +206,9 @@ case class Aggregate(
     child.construct(relBuilder)
     relBuilder.aggregate(
       relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
-      aggregateExpressions.map { e =>
-        e match {
-          case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
-          case _ => throw new RuntimeException("This should never happen.")
-        }
+      aggregateExpressions.map {
+        case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
+        case _ => throw new RuntimeException("This should never happen.")
       }.asJava)
   }
 
@@ -403,7 +402,7 @@ case class Join(
         right)
     }
     val resolvedCondition = node.condition.map(_.postOrderTransform(partialFunction))
-    new Join(node.left, node.right, node.joinType, resolvedCondition)
+    Join(node.left, node.right, node.joinType, resolvedCondition)
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -429,7 +428,7 @@ case class Join(
       failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
     }
 
-    resolvedJoin.condition.foreach(testJoinCondition(_))
+    resolvedJoin.condition.foreach(testJoinCondition)
     resolvedJoin
   }
 

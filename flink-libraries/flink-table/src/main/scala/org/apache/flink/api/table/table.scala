@@ -563,7 +563,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   tab.orderBy("name DESC")
+    *   tab.orderBy("name.desc")
     * }}}
     */
   def orderBy(fields: String): Table = {
@@ -572,45 +572,39 @@ class Table(
   }
 
   /**
-   * LIMIT is called an argument since it is technically part of the ORDER BY clause.
-   * The statement is used to retrieve records from table and limit the number of records 
-   * returned based on a limit value.
-   *
-   * Example:
-   *
-   * {{{
-   *   tab.orderBy('name.desc).limit(3)
-   * }}}
-   * 
-   * @param offset  The number of rows to skip before including them in the result.
-   */
+    * Limits a sorted result from an offset position.
+    * Similar to a SQL LIMIT clause. Limit is technically part of the Order By operator and
+    * thus must be preceded by it.
+    *
+    * Example:
+    *
+    * {{{
+    *   // returns unlimited number of records beginning with the 4th record
+    *   tab.orderBy('name.desc).limit(3)
+    * }}}
+    *
+    * @param offset number of records to skip
+    */
   def limit(offset: Int): Table = {
-    if (offset < 0) {
-      throw new ValidationException("Offset should be greater than or equal to zero.")
-    }
-    new Table(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
+    new Table(tableEnv, Limit(offset = offset, child = logicalPlan).validate(tableEnv))
   }
 
   /**
-   * LIMIT is called an argument since it is technically part of the ORDER BY clause.
-   * The statement is used to retrieve records from table and limit the number of records 
-   * returned based on a limit value.
-   *
-   * Example:
-   *
-   * {{{
-   *   tab.orderBy('name.desc).limit(3, 5)
-   * }}}
-   *
-   * @param offset The number of rows to skip before including them in the result.
-   * @param fetch The number of records returned.
-   */
+    * Limits a sorted result to a specified number of records from an offset position.
+    * Similar to a SQL LIMIT clause. Limit is technically part of the Order By operator and
+    * thus must be preceded by it.
+    *
+    * Example:
+    *
+    * {{{
+    *   // returns 5 records beginning with the 4th record
+    *   tab.orderBy('name.desc).limit(3, 5)
+    * }}}
+    *
+    * @param offset number of records to skip
+    * @param fetch number of records to be returned
+    */
   def limit(offset: Int, fetch: Int): Table = {
-    if (offset < 0 || fetch < 1) {
-      throw new ValidationException(
-        "Offset should be greater than or equal to zero and" +
-          " fetch should be greater than or equal to one.")
-    }
     new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
   }
 

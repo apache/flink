@@ -668,7 +668,7 @@ Table result = left.minusAll(right);
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
-        <p>Similar to a SQL DISTINCT clause. Returns rows with distinct value combinations.</p>
+        <p>Similar to a SQL DISTINCT clause. Returns records with distinct value combinations.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.distinct();
@@ -679,7 +679,7 @@ Table result = in.distinct();
     <tr>
       <td><strong>Order By</strong></td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns rows globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.orderBy("a.asc");
@@ -690,15 +690,15 @@ Table result = in.orderBy("a.asc");
     <tr>
       <td><strong>Limit</strong></td>
       <td>
-        <p>Similar to a SQL LIMIT clause. Returns specified number of rows from offset position. It is technically part of the ORDER BY clause.</p>
+        <p>Similar to a SQL LIMIT clause. Limits a sorted result to a specified number of records from an offset position. Limit is technically part of the Order By operator and thus must be preceded by it.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.orderBy("a.asc").limit(3);
+Table result = in.orderBy("a.asc").limit(3); // returns unlimited number of records beginning with the 4th record 
 {% endhighlight %}
 or
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.orderBy("a.asc").limit(3, 5);
+Table result = in.orderBy("a.asc").limit(3, 5); // returns 5 records beginning with the 4th record 
 {% endhighlight %}
       </td>
     </tr>
@@ -890,7 +890,7 @@ val result = left.minusAll(right);
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
-        <p>Similar to a SQL DISTINCT clause. Returns rows with distinct value combinations.</p>
+        <p>Similar to a SQL DISTINCT clause. Returns records with distinct value combinations.</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.distinct();
@@ -901,10 +901,26 @@ val result = in.distinct();
     <tr>
       <td><strong>Order By</strong></td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns rows globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.orderBy('a.asc);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Limit</strong></td>
+      <td>
+        <p>Similar to a SQL LIMIT clause. Limits a sorted result to a specified number of records from an offset position. Limit is technically part of the Order By operator and thus must be preceded by it.</p>
+{% highlight scala %}
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
+val result = in.orderBy('a.asc).limit(3); // returns unlimited number of records beginning with the 4th record 
+{% endhighlight %}
+or
+{% highlight scala %}
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
+val result = in.orderBy('a.asc).limit(3, 5); // returns 5 records beginning with the 4th record 
 {% endhighlight %}
       </td>
     </tr>
@@ -1087,6 +1103,9 @@ query:
       | query INTERSECT query
     }
     [ ORDER BY orderItem [, orderItem ]* ]
+    [ LIMIT { count | ALL } ]
+    [ OFFSET start { ROW | ROWS } ]
+    [ FETCH { FIRST | NEXT } [ count ] { ROW | ROWS } ONLY]
 
 orderItem:
   expression [ ASC | DESC ]

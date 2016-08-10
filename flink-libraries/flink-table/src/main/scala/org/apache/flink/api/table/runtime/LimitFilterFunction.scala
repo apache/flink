@@ -21,24 +21,44 @@ package org.apache.flink.api.table.runtime
 import org.apache.flink.api.common.functions.RichFilterFunction
 import org.apache.flink.configuration.Configuration
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
 
-class LimitFilterFunction[T](limitStart: Int,
-                             limitEnd: Int,
-                             broadcast: String) extends RichFilterFunction[T] {
-  var elementCount = 0
-  var countList = mutable.Buffer[Int]()
+
+class LimitFilterFunction[T](
+    limitStart: Long,
+    limitEnd: Long,
+    broadcastName: String)
+  extends RichFilterFunction[T] {
+
+  var partitionIndex: Int = _
+  var elementCount: Long = _
+  var countList: Array[Long] = _
 
   override def open(config: Configuration) {
-    countList = getRuntimeContext.getBroadcastVariable[(Int, Int)](broadcast).asScala
-      .sortWith(_._1 < _._1).map(_._2).scanLeft(0) (_ + _)
+    partitionIndex = getRuntimeContext.getIndexOfThisSubtask
+
+    val countPartitionResult = getRuntimeContext
+      .getBroadcastVariable[(Int, Long)](broadcastName)
+      .asScala
+
+    // sort by partition index, extract number per partition, sum with intermediate results
+    countList = countPartitionResult.sortWith(_._1 < _._1).map(_._2).scanLeft(0L) { case (a, b) =>
+        val sum = a + b
+        if (sum < 0L) { // prevent overflow
+          Long.MaxValue
+        }
+        sum
+    }.toArray
+
+    elementCount = 0
   }
 
   override def filter(value: T): Boolean = {
-    val partitionIndex = getRuntimeContext.getIndexOfThisSubtask
-    elementCount += 1
+    if (elementCount != Long.MaxValue) { // prevent overflow
+      elementCount += 1L
+    }
+    // we filter out records that are not within the limit (Long.MaxValue is unlimited)
     limitStart - countList(partitionIndex) < elementCount &&
-      limitEnd - countList(partitionIndex) >= elementCount
+      (limitEnd == Long.MaxValue || limitEnd - countList(partitionIndex) >= elementCount)
   }
 }

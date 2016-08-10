@@ -23,14 +23,16 @@ import java.lang.Iterable
 import org.apache.flink.api.common.functions.RichMapPartitionFunction
 import org.apache.flink.util.Collector
 
-class CountPartitionFunction[IN] extends RichMapPartitionFunction[IN, (Int, Int)] {
-  var elementCount = 0
+class CountPartitionFunction[IN] extends RichMapPartitionFunction[IN, (Int, Long)] {
 
-  override def mapPartition(value: Iterable[IN], out: Collector[(Int, Int)]): Unit = {
+  override def mapPartition(value: Iterable[IN], out: Collector[(Int, Long)]): Unit = {
     val partitionIndex = getRuntimeContext.getIndexOfThisSubtask
+    var elementCount = 0L
     val iterator = value.iterator()
     while (iterator.hasNext) {
-      elementCount += 1
+      if (elementCount != Long.MaxValue) { // prevent overflow
+        elementCount += 1L
+      }
       iterator.next()
     }
     out.collect(partitionIndex, elementCount)
