@@ -27,20 +27,21 @@ ARG HADOOP_VERSION=27
 ARG SCALA_VERSION=2.11
 
 # Flink environment variables
-ENV FLINK_HOME /opt/flink
+ARG FLINK_INSTALL_PATH=/opt
+ENV FLINK_HOME $FLINK_INSTALL_PATH/flink
 ENV PATH $PATH:$FLINK_HOME/bin
 
 # Install build dependencies and flink
 RUN set -x && \
-  mkdir -p /opt && \
+  mkdir -p $FLINK_INSTALL_PATH && \
   apk --update add --virtual build-dependencies curl && \
-  curl -s https://archive.apache.org/dist/flink/flink-$FLINK_VERSION/flink-$FLINK_VERSION-bin-hadoop$HADOOP_VERSION-scala_$SCALA_VERSION.tgz | \
-  tar xvz -C /opt/ && \
-  ln -s /opt/flink-$FLINK_VERSION $FLINK_HOME && \
-  addgroup -S flink && adduser -S -H -G flink -h $FLINK_HOME flink && \
-  chown -R flink:flink /opt/flink-$FLINK_VERSION && \
+  curl -s $(curl -s https://www.apache.org/dyn/closer.cgi\?preferred\=true)flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | \
+  tar xvz -C $FLINK_INSTALL_PATH && \
+  ln -s $FLINK_INSTALL_PATH/flink-$FLINK_VERSION $FLINK_HOME && \
+  addgroup -S flink && adduser -D -S -H -G flink -h $FLINK_HOME flink && \
+  chown -R flink:flink $FLINK_INSTALL_PATH/flink-$FLINK_VERSION && \
   chown -h flink:flink $FLINK_HOME && \
-  sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" /opt/flink/bin/flink-daemon.sh && \
+  sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" $FLINK_HOME/bin/flink-daemon.sh && \
   apk del build-dependencies && \
   rm -rf /var/cache/apk/*
 
