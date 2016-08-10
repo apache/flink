@@ -78,7 +78,6 @@ public class TaskExecutorTest extends TestLogger {
 
 	/**
 	 * Tests that cancelling a non-existing task will return an exception
-	 * @throws Exception
 	 */
 	@Test(expected=Exception.class)
 	public void testWrongTaskCancellation() throws Exception {

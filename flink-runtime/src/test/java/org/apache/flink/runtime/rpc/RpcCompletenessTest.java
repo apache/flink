@@ -19,16 +19,17 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.util.TestLogger;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.reflections.Reflections;
 import scala.concurrent.Future;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,116 +39,167 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class RpcCompletenessTest extends TestLogger {
+	private static final Class<?> futureClass = Future.class;
 
-	@Ignore
 	@Test
 	public void testRpcCompleteness() {
 		Reflections reflections = new Reflections("org.apache.flink");
 
 		Set<Class<? extends RpcProtocol>> classes = reflections.getSubTypesOf(RpcProtocol.class);
 
-		Class<? extends RpcProtocol> c = null;
+		Class<? extends RpcProtocol> c;
 
-		for (Class<? extends RpcProtocol> rpcServer :classes){
-			c = rpcServer;
+		for (Class<? extends RpcProtocol> rpcProtocol :classes){
+			c = rpcProtocol;
 			Type superClass = c.getGenericSuperclass();
 
-			boolean foundRpcServerInterface = false;
+			Class<?> rpcGatewayType = extractTypeParameter(superClass, 0);
 
-			if (superClass instanceof ParameterizedType) {
-				ParameterizedType parameterizedType = (ParameterizedType) superClass;
-
-				if (parameterizedType.getRawType() == RpcProtocol.class) {
-					foundRpcServerInterface = true;
-					Type[] typeArguments = parameterizedType.getActualTypeArguments();
-
-					assertEquals(1, typeArguments.length);
-					assertTrue(typeArguments[0] instanceof Class<?>);
-
-					Type rpcGatewayType = typeArguments[0];
-
-					assertTrue(rpcGatewayType instanceof Class);
-
-					checkCompleteness(rpcServer, (Class<?>) rpcGatewayType);
-				}
+			if (rpcGatewayType != null) {
+				checkCompleteness(rpcProtocol, (Class<? extends RpcGateway>) rpcGatewayType);
+			} else {
+				fail("Could not retrieve the rpc gateway class for the given rpc protocol class " + rpcProtocol.getName());
 			}
-
-			assertTrue("The class " + rpcServer + " does not implement the " + RpcProtocol.class + " interface.", foundRpcServerInterface);
 		}
 	}
 
-	private void checkCompleteness(Class<?> rpcServer, Class<?> rpcGateway) {
+	private void checkCompleteness(Class<? extends RpcProtocol> rpcProtocol, Class<? extends RpcGateway> rpcGateway) {
 		Method[] gatewayMethods = rpcGateway.getDeclaredMethods();
-		Method[] serverMethods = rpcServer.getDeclaredMethods();
+		Method[] serverMethods = rpcProtocol.getDeclaredMethods();
 
-		Map<String, List<Method>> rpcMethods = new HashMap<>();
-		int numberServerRpcMethods = 0;
+		Map<String, Set<Method>> rpcMethods = new HashMap<>();
+		Set<Method> unmatchedRpcMethods = new HashSet<>();
 
 		for (Method serverMethod : serverMethods) {
 			if (serverMethod.isAnnotationPresent(RpcMethod.class)) {
 				if (rpcMethods.containsKey(serverMethod.getName())) {
-					List<Method> methods = rpcMethods.get(serverMethod.getName());
+					Set<Method> methods = rpcMethods.get(serverMethod.getName());
 					methods.add(serverMethod);
 
 					rpcMethods.put(serverMethod.getName(), methods);
 				} else {
-					List<Method> methods = new ArrayList<>();
+					Set<Method> methods = new HashSet<>();
 					methods.add(serverMethod);
 
 					rpcMethods.put(serverMethod.getName(), methods);
 				}
 
-				numberServerRpcMethods++;
+				unmatchedRpcMethods.add(serverMethod);
 			}
 		}
 
-		assertEquals(
-			"Server class " + rpcServer + " does not have the same number of rpc methods than " +
-				"the gateway class " + rpcGateway ,
-			gatewayMethods.length,
-			numberServerRpcMethods);
-
 		for (Method gatewayMethod : gatewayMethods) {
-			assertTrue(rpcMethods.containsKey(gatewayMethod.getName()));
+			assertTrue(
+				"The rpc protocol " + rpcProtocol.getName() + " does not contain a RpcMethod " +
+					"annotated method with the same name and signature " +
+					generateProtocolMethodSignature(gatewayMethod) + ".",
+				rpcMethods.containsKey(gatewayMethod.getName()));
 
-			checkGatewayMethod(gatewayMethod, rpcMethods.get(gatewayMethod.getName()));
+			checkGatewayMethod(gatewayMethod);
+
+			if (!matchGatewayMethodWithProtocol(gatewayMethod, rpcMethods.get(gatewayMethod.getName()), unmatchedRpcMethods)) {
+				fail("Could not find a RpcMethod annotated method in rpc protocol " +
+					rpcProtocol.getName() + " matching the rpc gateway method " +
+					generateProtocolMethodSignature(gatewayMethod) + " defined in the rpc gateway " +
+					rpcGateway.getName() + ".");
+			}
+		}
+
+		if (!unmatchedRpcMethods.isEmpty()) {
+			StringBuilder builder = new StringBuilder();
+
+			for (Method unmatchedRpcMethod : unmatchedRpcMethods) {
+				builder.append(unmatchedRpcMethod).append("\n");
+			}
+
+			fail("The rpc protocol " + rpcProtocol.getName() + " contains rpc methods which " +
+				"are not matched to gateway methods of " + rpcGateway.getName() + ":\n" +
+				builder.toString());
 		}
 	}
 
 	/**
-	 * Checks whether we find a matching overloaded version for the gateway method among the methods
-	 * with the same name in the rpc server.
+	 * Checks whether the gateway method fulfills the gateway method requirements.
+	 * <ul>
+	 *     <li>It checks whether the return type is void or a {@link Future} wrapping the actual result. </li>
+	 *     <li>It checks that the method's parameter list contains at most one parameter annotated with {@link RpcTimeout}.</li>
+	 * </ul>
 	 *
-	 * @param gatewayMethod Gateway method
-	 * @param rpcMethods List of rpc methods on the rpc server with the same name as the gateway
-	 *                   method
+	 * @param gatewayMethod Gateway method to check
 	 */
-	private void checkGatewayMethod(Method gatewayMethod, List<Method> rpcMethods) {
-		for (Method rpcMethod : rpcMethods) {
-			if (checkMethod(gatewayMethod, rpcMethod)) {
-				return;
+	private void checkGatewayMethod(Method gatewayMethod) {
+		if (!gatewayMethod.getReturnType().equals(Void.TYPE)) {
+			assertTrue(
+				"The return type of method " + gatewayMethod.getName() + " in the rpc gateway " +
+					gatewayMethod.getDeclaringClass().getName() + " is non void and not a " +
+					"future. Non-void return types have to be returned as a future.",
+				gatewayMethod.getReturnType().equals(futureClass));
+		}
+
+		Annotation[][] parameterAnnotations = gatewayMethod.getParameterAnnotations();
+		int rpcTimeoutParameters = 0;
+
+		for (Annotation[] parameterAnnotation : parameterAnnotations) {
+			for (Annotation annotation : parameterAnnotation) {
+				if (annotation.equals(RpcTimeout.class)) {
+					rpcTimeoutParameters++;
+				}
 			}
 		}
 
-		fail("Could not find rpc method which is compatible to " + gatewayMethod);
+		assertTrue("The gateway method " + gatewayMethod + " must have at most one RpcTimeout " +
+			"annotated parameter.", rpcTimeoutParameters <= 1);
 	}
 
-	private boolean checkMethod(Method gatewayMethod, Method rpcMethod) {
-		Class<?>[] firstParameterTypes = gatewayMethod.getParameterTypes();
-		Class<?>[] secondParameterTypes = rpcMethod.getParameterTypes();
+	/**
+	 * Checks whether we find a matching overloaded version for the gateway method among the methods
+	 * with the same name in the rpc protocol.
+	 *
+	 * @param gatewayMethod Gateway method
+	 * @param protocolMethods Set of rpc methods on the rpc server with the same name as the gateway
+	 *                   method
+	 * @param unmatchedRpcMethods Set of unmatched rpc methods on the protocol side (so far)
+	 */
+	private boolean matchGatewayMethodWithProtocol(Method gatewayMethod, Set<Method> protocolMethods, Set<Method> unmatchedRpcMethods) {
+		for (Method protocolMethod : protocolMethods) {
+			if (checkMethod(gatewayMethod, protocolMethod)) {
+				unmatchedRpcMethods.remove(protocolMethod);
+				return true;
+			}
+		}
 
-		if (firstParameterTypes.length != secondParameterTypes.length) {
+		return false;
+	}
+
+	private boolean checkMethod(Method gatewayMethod, Method protocolMethod) {
+		Class<?>[] gatewayParameterTypes = gatewayMethod.getParameterTypes();
+		Annotation[][] gatewayParameterAnnotations = gatewayMethod.getParameterAnnotations();
+
+		Class<?>[] protocolParameterTypes = protocolMethod.getParameterTypes();
+
+		List<Class<?>> filteredGatewayParameterTypes = new ArrayList<>();
+
+		assertEquals(gatewayParameterTypes.length, gatewayParameterAnnotations.length);
+
+		// filter out the RpcTimeout parameters
+		for (int i = 0; i < gatewayParameterTypes.length; i++) {
+			if (!isRpcTimeout(gatewayParameterAnnotations[i])) {
+				filteredGatewayParameterTypes.add(gatewayParameterTypes[i]);
+			}
+		}
+
+		if (filteredGatewayParameterTypes.size() != protocolParameterTypes.length) {
 			return false;
 		} else {
 			// check the parameter types
-			for (int i = 0; i < firstParameterTypes.length; i++) {
-				if (!checkType(firstParameterTypes[i], secondParameterTypes[i])) {
+			for (int i = 0; i < filteredGatewayParameterTypes.size(); i++) {
+				if (!checkType(filteredGatewayParameterTypes.get(i), protocolParameterTypes[i])) {
 					return false;
 				}
 			}
 
 			// check the return types
-			if (rpcMethod.getReturnType() == void.class) {
+			if (protocolMethod.getReturnType() == void.class) {
 				if (gatewayMethod.getReturnType() != void.class) {
 					return false;
 				}
@@ -155,40 +207,121 @@ public class RpcCompletenessTest extends TestLogger {
 				// has return value. The gateway method should be wrapped in a future
 				Class<?> futureClass = gatewayMethod.getReturnType();
 
-				if (futureClass != Future.class) {
+				// sanity check that the return type of a gateway method must be void or a future
+				if (!futureClass.equals(RpcCompletenessTest.futureClass)) {
 					return false;
-				}
+				} else {
+					Class<?> valueClass = extractTypeParameter(futureClass, 0);
 
-				Type futureType = gatewayMethod.getGenericReturnType();
+					if (protocolMethod.getReturnType().equals(futureClass)) {
+						Class<?> rpcProtocolValueClass = extractTypeParameter(protocolMethod.getReturnType(), 0);
 
-				if (futureType instanceof ParameterizedType) {
-					ParameterizedType parameterizedType = (ParameterizedType) futureType;
-
-					Type[] typeArguments = parameterizedType.getActualTypeArguments();
-
-					// check that we only have one type argument
-					if (typeArguments.length == 1) {
-						Type typeArgument = typeArguments[0];
-
-						// check that the type argument is a Class
-						if (typeArgument instanceof Class<?>) {
-							if (!checkType((Class<?>) typeArgument, rpcMethod.getReturnType())) {
-								return false;
-							}
+						// check if we have the same future value types
+						if (valueClass != null && rpcProtocolValueClass != null && !checkType(valueClass, rpcProtocolValueClass)) {
+							return false;
 						}
 					} else {
-						return false;
+						if (valueClass != null && !checkType(valueClass, protocolMethod.getReturnType())) {
+							return false;
+						}
 					}
 				}
-
-
 			}
 
-			return gatewayMethod.getName().equals(rpcMethod.getName());
+			return gatewayMethod.getName().equals(protocolMethod.getName());
 		}
 	}
 
 	private boolean checkType(Class<?> firstType, Class<?> secondType) {
-		return firstType == secondType;
+		return firstType.equals(secondType);
+	}
+
+	/**
+	 * Generates from a gateway rpc method signature the corresponding rpc protocol signature.
+	 *
+	 * For example the {@link RpcTimeout} annotation adds an additional parameter to the gateway
+	 * signature which is not relevant on the server side.
+	 *
+	 * @param method Method to generate the signature string for
+	 * @return String of the respective server side rpc method signature
+	 */
+	private String generateProtocolMethodSignature(Method method) {
+		StringBuilder builder = new StringBuilder();
+
+		if (method.getReturnType().equals(Void.TYPE)) {
+			builder.append("void").append(" ");
+		} else if (method.getReturnType().equals(futureClass)) {
+			Class<?> valueClass = extractTypeParameter(method.getGenericReturnType(), 0);
+
+			builder
+				.append(futureClass.getSimpleName())
+				.append("<")
+				.append(valueClass != null ? valueClass.getSimpleName() : "")
+				.append(">");
+
+			if (valueClass != null) {
+				builder.append("/").append(valueClass.getSimpleName());
+			}
+
+			builder.append(" ");
+		} else {
+			return "Invalid rpc method signature.";
+		}
+
+		builder.append(method.getName()).append("(");
+
+		Class<?>[] parameterTypes = method.getParameterTypes();
+		Annotation[][] parameterAnnotations = method.getParameterAnnotations();
+
+		assertEquals(parameterTypes.length, parameterAnnotations.length);
+
+		for (int i = 0; i < parameterTypes.length; i++) {
+			// filter out the RpcTimeout parameters
+			if (!isRpcTimeout(parameterAnnotations[i])) {
+				builder.append(parameterTypes[i].getName());
+
+				if (i < parameterTypes.length -1) {
+					builder.append(", ");
+				}
+			}
+		}
+
+		builder.append(")");
+
+		return builder.toString();
+	}
+
+	private Class<?> extractTypeParameter(Type genericType, int position) {
+		if (genericType instanceof ParameterizedType) {
+			ParameterizedType parameterizedType = (ParameterizedType) genericType;
+
+			Type[] typeArguments = parameterizedType.getActualTypeArguments();
+
+			if (position < 0 || position >= typeArguments.length) {
+				throw new IndexOutOfBoundsException("The generic type " +
+					parameterizedType.getRawType() + " only has " + typeArguments.length +
+					" type arguments.");
+			} else {
+				Type typeArgument = typeArguments[position];
+
+				if (typeArgument instanceof Class<?>) {
+					return (Class<?>) typeArgument;
+				} else {
+					return null;
+				}
+			}
+		} else {
+			return null;
+		}
+	}
+
+	private boolean isRpcTimeout(Annotation[] annotations) {
+		for (Annotation annotation : annotations) {
+			if (annotation.annotationType().equals(RpcTimeout.class)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

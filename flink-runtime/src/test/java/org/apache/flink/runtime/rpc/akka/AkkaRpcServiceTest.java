@@ -38,8 +38,12 @@ import static org.junit.Assert.assertTrue;
 
 public class AkkaRpcServiceTest extends TestLogger {
 
+	/**
+	 * Tests that the {@link JobMaster} can connect to the {@link ResourceManager} using the
+	 * {@link AkkaRpcService}.
+	 */
 	@Test
-	public void testAkkaRpcService() throws Exception {
+	public void testJobMasterResourceManagerRegistration() throws Exception {
 		Timeout akkaTimeout = new Timeout(10, TimeUnit.SECONDS);
 		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 		ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
