@@ -28,7 +28,7 @@ import java.util.concurrent.TimeoutException;
  * Interface to execute {@link Runnable} and {@link Callable} in the main thread of the underlying
  * rpc server.
  *
- * This interface is intended to be implemented by the self gateway in a {@link RpcProtocol}
+ * This interface is intended to be implemented by the self gateway in a {@link RpcEndpoint}
  * implementation which allows to dispatch local procedures to the main thread of the underlying
  * rpc server.
  */

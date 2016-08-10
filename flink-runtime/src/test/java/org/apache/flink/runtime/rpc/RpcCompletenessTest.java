@@ -45,27 +45,27 @@ public class RpcCompletenessTest extends TestLogger {
 	public void testRpcCompleteness() {
 		Reflections reflections = new Reflections("org.apache.flink");
 
-		Set<Class<? extends RpcProtocol>> classes = reflections.getSubTypesOf(RpcProtocol.class);
+		Set<Class<? extends RpcEndpoint>> classes = reflections.getSubTypesOf(RpcEndpoint.class);
 
-		Class<? extends RpcProtocol> c;
+		Class<? extends RpcEndpoint> c;
 
-		for (Class<? extends RpcProtocol> rpcProtocol :classes){
-			c = rpcProtocol;
+		for (Class<? extends RpcEndpoint> rpcEndpoint :classes){
+			c = rpcEndpoint;
 			Type superClass = c.getGenericSuperclass();
 
 			Class<?> rpcGatewayType = extractTypeParameter(superClass, 0);
 
 			if (rpcGatewayType != null) {
-				checkCompleteness(rpcProtocol, (Class<? extends RpcGateway>) rpcGatewayType);
+				checkCompleteness(rpcEndpoint, (Class<? extends RpcGateway>) rpcGatewayType);
 			} else {
-				fail("Could not retrieve the rpc gateway class for the given rpc protocol class " + rpcProtocol.getName());
+				fail("Could not retrieve the rpc gateway class for the given rpc endpoint class " + rpcEndpoint.getName());
 			}
 		}
 	}
 
-	private void checkCompleteness(Class<? extends RpcProtocol> rpcProtocol, Class<? extends RpcGateway> rpcGateway) {
+	private void checkCompleteness(Class<? extends RpcEndpoint> rpcEndpoint, Class<? extends RpcGateway> rpcGateway) {
 		Method[] gatewayMethods = rpcGateway.getDeclaredMethods();
-		Method[] serverMethods = rpcProtocol.getDeclaredMethods();
+		Method[] serverMethods = rpcEndpoint.getDeclaredMethods();
 
 		Map<String, Set<Method>> rpcMethods = new HashMap<>();
 		Set<Method> unmatchedRpcMethods = new HashSet<>();
@@ -90,17 +90,17 @@ public class RpcCompletenessTest extends TestLogger {
 
 		for (Method gatewayMethod : gatewayMethods) {
 			assertTrue(
-				"The rpc protocol " + rpcProtocol.getName() + " does not contain a RpcMethod " +
+				"The rpc endpoint " + rpcEndpoint.getName() + " does not contain a RpcMethod " +
 					"annotated method with the same name and signature " +
-					generateProtocolMethodSignature(gatewayMethod) + ".",
+					generateEndpointMethodSignature(gatewayMethod) + ".",
 				rpcMethods.containsKey(gatewayMethod.getName()));
 
 			checkGatewayMethod(gatewayMethod);
 
-			if (!matchGatewayMethodWithProtocol(gatewayMethod, rpcMethods.get(gatewayMethod.getName()), unmatchedRpcMethods)) {
-				fail("Could not find a RpcMethod annotated method in rpc protocol " +
-					rpcProtocol.getName() + " matching the rpc gateway method " +
-					generateProtocolMethodSignature(gatewayMethod) + " defined in the rpc gateway " +
+			if (!matchGatewayMethodWithEndpoint(gatewayMethod, rpcMethods.get(gatewayMethod.getName()), unmatchedRpcMethods)) {
+				fail("Could not find a RpcMethod annotated method in rpc endpoint " +
+					rpcEndpoint.getName() + " matching the rpc gateway method " +
+					generateEndpointMethodSignature(gatewayMethod) + " defined in the rpc gateway " +
 					rpcGateway.getName() + ".");
 			}
 		}
@@ -112,7 +112,7 @@ public class RpcCompletenessTest extends TestLogger {
 				builder.append(unmatchedRpcMethod).append("\n");
 			}
 
-			fail("The rpc protocol " + rpcProtocol.getName() + " contains rpc methods which " +
+			fail("The rpc endpoint " + rpcEndpoint.getName() + " contains rpc methods which " +
 				"are not matched to gateway methods of " + rpcGateway.getName() + ":\n" +
 				builder.toString());
 		}
@@ -153,17 +153,17 @@ public class RpcCompletenessTest extends TestLogger {
 
 	/**
 	 * Checks whether we find a matching overloaded version for the gateway method among the methods
-	 * with the same name in the rpc protocol.
+	 * with the same name in the rpc endpoint.
 	 *
 	 * @param gatewayMethod Gateway method
-	 * @param protocolMethods Set of rpc methods on the rpc server with the same name as the gateway
+	 * @param endpointMethods Set of rpc methods on the rpc endpoint with the same name as the gateway
 	 *                   method
-	 * @param unmatchedRpcMethods Set of unmatched rpc methods on the protocol side (so far)
+	 * @param unmatchedRpcMethods Set of unmatched rpc methods on the endpoint side (so far)
 	 */
-	private boolean matchGatewayMethodWithProtocol(Method gatewayMethod, Set<Method> protocolMethods, Set<Method> unmatchedRpcMethods) {
-		for (Method protocolMethod : protocolMethods) {
-			if (checkMethod(gatewayMethod, protocolMethod)) {
-				unmatchedRpcMethods.remove(protocolMethod);
+	private boolean matchGatewayMethodWithEndpoint(Method gatewayMethod, Set<Method> endpointMethods, Set<Method> unmatchedRpcMethods) {
+		for (Method endpointMethod : endpointMethods) {
+			if (checkMethod(gatewayMethod, endpointMethod)) {
+				unmatchedRpcMethods.remove(endpointMethod);
 				return true;
 			}
 		}
@@ -171,11 +171,11 @@ public class RpcCompletenessTest extends TestLogger {
 		return false;
 	}
 
-	private boolean checkMethod(Method gatewayMethod, Method protocolMethod) {
+	private boolean checkMethod(Method gatewayMethod, Method endpointMethod) {
 		Class<?>[] gatewayParameterTypes = gatewayMethod.getParameterTypes();
 		Annotation[][] gatewayParameterAnnotations = gatewayMethod.getParameterAnnotations();
 
-		Class<?>[] protocolParameterTypes = protocolMethod.getParameterTypes();
+		Class<?>[] endpointParameterTypes = endpointMethod.getParameterTypes();
 
 		List<Class<?>> filteredGatewayParameterTypes = new ArrayList<>();
 
@@ -188,18 +188,18 @@ public class RpcCompletenessTest extends TestLogger {
 			}
 		}
 
-		if (filteredGatewayParameterTypes.size() != protocolParameterTypes.length) {
+		if (filteredGatewayParameterTypes.size() != endpointParameterTypes.length) {
 			return false;
 		} else {
 			// check the parameter types
 			for (int i = 0; i < filteredGatewayParameterTypes.size(); i++) {
-				if (!checkType(filteredGatewayParameterTypes.get(i), protocolParameterTypes[i])) {
+				if (!checkType(filteredGatewayParameterTypes.get(i), endpointParameterTypes[i])) {
 					return false;
 				}
 			}
 
 			// check the return types
-			if (protocolMethod.getReturnType() == void.class) {
+			if (endpointMethod.getReturnType() == void.class) {
 				if (gatewayMethod.getReturnType() != void.class) {
 					return false;
 				}
@@ -213,22 +213,22 @@ public class RpcCompletenessTest extends TestLogger {
 				} else {
 					Class<?> valueClass = extractTypeParameter(futureClass, 0);
 
-					if (protocolMethod.getReturnType().equals(futureClass)) {
-						Class<?> rpcProtocolValueClass = extractTypeParameter(protocolMethod.getReturnType(), 0);
+					if (endpointMethod.getReturnType().equals(futureClass)) {
+						Class<?> rpcEndpointValueClass = extractTypeParameter(endpointMethod.getReturnType(), 0);
 
 						// check if we have the same future value types
-						if (valueClass != null && rpcProtocolValueClass != null && !checkType(valueClass, rpcProtocolValueClass)) {
+						if (valueClass != null && rpcEndpointValueClass != null && !checkType(valueClass, rpcEndpointValueClass)) {
 							return false;
 						}
 					} else {
-						if (valueClass != null && !checkType(valueClass, protocolMethod.getReturnType())) {
+						if (valueClass != null && !checkType(valueClass, endpointMethod.getReturnType())) {
 							return false;
 						}
 					}
 				}
 			}
 
-			return gatewayMethod.getName().equals(protocolMethod.getName());
+			return gatewayMethod.getName().equals(endpointMethod.getName());
 		}
 	}
 
@@ -237,7 +237,7 @@ public class RpcCompletenessTest extends TestLogger {
 	}
 
 	/**
-	 * Generates from a gateway rpc method signature the corresponding rpc protocol signature.
+	 * Generates from a gateway rpc method signature the corresponding rpc endpoint signature.
 	 *
 	 * For example the {@link RpcTimeout} annotation adds an additional parameter to the gateway
 	 * signature which is not relevant on the server side.
@@ -245,7 +245,7 @@ public class RpcCompletenessTest extends TestLogger {
 	 * @param method Method to generate the signature string for
 	 * @return String of the respective server side rpc method signature
 	 */
-	private String generateProtocolMethodSignature(Method method) {
+	private String generateEndpointMethodSignature(Method method) {
 		StringBuilder builder = new StringBuilder();
 
 		if (method.getReturnType().equals(Void.TYPE)) {

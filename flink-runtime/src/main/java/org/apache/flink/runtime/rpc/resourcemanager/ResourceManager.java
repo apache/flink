@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rpc.resourcemanager;
 import akka.dispatch.Mapper;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.RpcMethod;
-import org.apache.flink.runtime.rpc.RpcProtocol;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
@@ -43,7 +43,7 @@ import java.util.concurrent.ExecutorService;
  *     <li>{@link #requestSlot(SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
-public class ResourceManager extends RpcProtocol<ResourceManagerGateway> {
+public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	private final ExecutionContext executionContext;
 	private final Map<JobMasterGateway, InstanceID> jobMasterGateways;
 

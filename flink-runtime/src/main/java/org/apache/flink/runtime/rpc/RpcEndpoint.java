@@ -27,18 +27,18 @@ import scala.concurrent.Future;
 import java.util.concurrent.Callable;
 
 /**
- * Base class for rpc protocols. Distributed components which offer remote procedure calls have to
- * extend the rpc protocol base class.
+ * Base class for rpc endpoints. Distributed components which offer remote procedure calls have to
+ * extend the rpc endpoint base class.
  *
- * The main idea is that a rpc protocol is backed by a rpc server which has a single thread
+ * The main idea is that a rpc endpoint is backed by a rpc server which has a single thread
  * processing the rpc calls. Thus, by executing all state changing operations within the main
  * thread, we don't have to reason about concurrent accesses. The rpc provides provides
  * {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Timeout)} and the
  * {@link #getMainThreadExecutionContext()} to execute code in the rpc server's main thread.
  *
- * @param <C> Rpc gateway counterpart for the implementing rpc protocol
+ * @param <C> Rpc gateway counterpart for the implementing rpc endpoint
  */
-public abstract class RpcProtocol<C extends RpcGateway> {
+public abstract class RpcEndpoint<C extends RpcGateway> {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -56,12 +56,12 @@ public abstract class RpcProtocol<C extends RpcGateway> {
 	 */
 	private MainThreadExecutionContext mainThreadExecutionContext;
 
-	public RpcProtocol(RpcService rpcService) {
+	public RpcEndpoint(RpcService rpcService) {
 		this.rpcService = rpcService;
 	}
 
 	/**
-	 * Get self-gateway which should be used to run asynchronous rpc calls on this protocol.
+	 * Get self-gateway which should be used to run asynchronous rpc calls on this endpoint.
 	 *
 	 * IMPORTANT: Always issue local method calls via the self-gateway if the current thread
 	 * is not the main thread of the underlying rpc server, e.g. from within a future callback.
@@ -116,9 +116,9 @@ public abstract class RpcProtocol<C extends RpcGateway> {
 
 	/**
 	 * Starts the underlying rpc server via the rpc service and creates the main thread execution
-	 * context. This makes the rpc protocol effectively reachable from the outside.
+	 * context. This makes the rpc endpoint effectively reachable from the outside.
 	 *
-	 * Can be overriden to add rpc protocol specific start up code. Should always call the parent
+	 * Can be overriden to add rpc endpoint specific start up code. Should always call the parent
 	 * start method.
 	 */
 	public void start() {
@@ -130,7 +130,7 @@ public abstract class RpcProtocol<C extends RpcGateway> {
 	/**
 	 * Shuts down the underlying rpc server via the rpc service.
 	 *
-	 * Can be overriden to add rpc protocol specific shut down code. Should always call the parent
+	 * Can be overriden to add rpc endpoint specific shut down code. Should always call the parent
 	 * shut down method.
 	 */
 	public void shutDown() {

@@ -23,7 +23,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcMethod;
-import org.apache.flink.runtime.rpc.RpcProtocol;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import scala.concurrent.ExecutionContext;
 
@@ -41,7 +41,7 @@ import java.util.concurrent.ExecutorService;
  *     <li>{@link #cancelTask(ExecutionAttemptID)} cancels a given task identified by the {@link ExecutionAttemptID}</li>
  * </ul>
  */
-public class TaskExecutor extends RpcProtocol<TaskExecutorGateway> {
+public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	private final ExecutionContext executionContext;
 	private final Set<ExecutionAttemptID> tasks = new HashSet<>();
 

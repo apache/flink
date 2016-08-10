@@ -24,7 +24,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation for rpc method in a {@link RpcProtocol} implementation. Every rpc method must have a
+ * Annotation for rpc method in a {@link RpcEndpoint} implementation. Every rpc method must have a
  * respective counterpart in the {@link RpcGateway} implementation for this rpc server. The
  * RpcCompletenessTest makes sure that the set of rpc methods in a rpc server and the set of
  * gateway methods in the corresponding gateway implementation are identical.

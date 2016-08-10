@@ -27,7 +27,7 @@ import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.resourcemanager.JobMasterRegistration;
 import org.apache.flink.runtime.rpc.resourcemanager.RegistrationResponse;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcProtocol;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import scala.Tuple2;
@@ -56,7 +56,7 @@ import java.util.concurrent.TimeoutException;
  * given task</li>
  * </ul>
  */
-public class JobMaster extends RpcProtocol<JobMasterGateway> {
+public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** Execution context for future callbacks */
 	private final ExecutionContext executionContext;
 

@@ -34,7 +34,7 @@ import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcProtocol;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.jobmaster.JobMasterAkkaActor;
 import org.apache.flink.runtime.rpc.akka.jobmaster.JobMasterAkkaGateway;
@@ -85,29 +85,29 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public <S extends RpcProtocol, C extends RpcGateway> C startServer(S rpcProtocol) {
+	public <S extends RpcEndpoint, C extends RpcGateway> C startServer(S rpcEndpoint) {
 		ActorRef ref;
 		C self;
-		if (rpcProtocol instanceof TaskExecutor) {
+		if (rpcEndpoint instanceof TaskExecutor) {
 			ref = actorSystem.actorOf(
-				Props.create(TaskExecutorAkkaActor.class, rpcProtocol)
+				Props.create(TaskExecutorAkkaActor.class, rpcEndpoint)
 			);
 
 			self = (C) new TaskExecutorAkkaGateway(ref, timeout);
-		} else if (rpcProtocol instanceof ResourceManager) {
+		} else if (rpcEndpoint instanceof ResourceManager) {
 			ref = actorSystem.actorOf(
-				Props.create(ResourceManagerAkkaActor.class, rpcProtocol)
+				Props.create(ResourceManagerAkkaActor.class, rpcEndpoint)
 			);
 
 			self = (C) new ResourceManagerAkkaGateway(ref, timeout);
-		} else if (rpcProtocol instanceof JobMaster) {
+		} else if (rpcEndpoint instanceof JobMaster) {
 			ref = actorSystem.actorOf(
-				Props.create(JobMasterAkkaActor.class, rpcProtocol)
+				Props.create(JobMasterAkkaActor.class, rpcEndpoint)
 			);
 
 			self = (C) new JobMasterAkkaGateway(ref, timeout);
 		} else {
-			throw new RuntimeException("Could not start RPC server for class " + rpcProtocol.getClass());
+			throw new RuntimeException("Could not start RPC server for class " + rpcEndpoint.getClass());
 		}
 
 		actors.add(ref);

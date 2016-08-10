@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rpc;
 import scala.concurrent.Future;
 
 /**
- * Interface for rpc services. An rpc service is used to start and connect to a {@link RpcProtocol}.
+ * Interface for rpc services. An rpc service is used to start and connect to a {@link RpcEndpoint}.
  * Connecting to a rpc server will return a {@link RpcGateway} which can be used to call remote
  * procedures.
  */
@@ -39,14 +39,14 @@ public interface RpcService {
 	<C extends RpcGateway> Future<C> connect(String address, Class<C> clazz);
 
 	/**
-	 * Start a rpc server which forwards the remote procedure calls to the provided rpc protocol.
+	 * Start a rpc server which forwards the remote procedure calls to the provided rpc endpoint.
 	 *
-	 * @param rpcProtocol Rpc protocl to dispath the rpcs to
-	 * @param <S> Type of the rpc protocol
+	 * @param rpcEndpoint Rpc protocl to dispath the rpcs to
+	 * @param <S> Type of the rpc endpoint
 	 * @param <C> Type of the self rpc gateway associated with the rpc server
 	 * @return Self gateway to dispatch remote procedure calls to oneself
 	 */
-	<S extends RpcProtocol, C extends RpcGateway> C startServer(S rpcProtocol);
+	<S extends RpcEndpoint, C extends RpcGateway> C startServer(S rpcEndpoint);
 
 	/**
 	 * Stop the underlying rpc server of the provided self gateway.
