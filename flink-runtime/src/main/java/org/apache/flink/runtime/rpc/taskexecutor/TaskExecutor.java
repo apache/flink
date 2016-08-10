@@ -25,6 +25,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.Preconditions;
 import scala.concurrent.ExecutionContext;
 
 import java.util.HashSet;
@@ -47,7 +48,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	public TaskExecutor(RpcService rpcService, ExecutorService executorService) {
 		super(rpcService);
-		this.executionContext = ExecutionContexts$.MODULE$.fromExecutor(executorService);
+		this.executionContext = ExecutionContexts$.MODULE$.fromExecutor(
+			Preconditions.checkNotNull(executorService));
 	}
 
 	/**

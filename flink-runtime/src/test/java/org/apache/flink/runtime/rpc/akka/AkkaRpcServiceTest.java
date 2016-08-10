@@ -61,10 +61,10 @@ public class AkkaRpcServiceTest extends TestLogger {
 		AkkaGateway akkaClient = (AkkaGateway) rm;
 
 		
-		jobMaster.registerAtResourceManager(AkkaUtils.getAkkaURL(actorSystem, akkaClient.getActorRef()));
+		jobMaster.registerAtResourceManager(AkkaUtils.getAkkaURL(actorSystem, akkaClient.getRpcServer()));
 
 		// wait for successful registration
-		FiniteDuration timeout = new FiniteDuration(20, TimeUnit.SECONDS);
+		FiniteDuration timeout = new FiniteDuration(200, TimeUnit.SECONDS);
 		Deadline deadline = timeout.fromNow();
 
 		while (deadline.hasTimeLeft() && !jobMaster.isConnected()) {

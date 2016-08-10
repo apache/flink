@@ -18,11 +18,20 @@
 
 package org.apache.flink.runtime.rpc.akka.messages;
 
-public class RunnableMessage {
-	private final Runnable runnable;
+import org.apache.flink.util.Preconditions;
 
-	public RunnableMessage(Runnable runnable) {
-		this.runnable = runnable;
+import java.io.Serializable;
+
+/**
+ * Message for asynchronous runnable invocations
+ */
+public final class RunAsync implements Serializable {
+	private static final long serialVersionUID = -3080595100695371036L;
+
+	private final transient Runnable runnable;
+
+	public RunAsync(Runnable runnable) {
+		this.runnable = Preconditions.checkNotNull(runnable);
 	}
 
 	public Runnable getRunnable() {
