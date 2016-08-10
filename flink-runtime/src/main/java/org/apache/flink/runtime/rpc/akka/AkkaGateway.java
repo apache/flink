@@ -23,7 +23,7 @@ import akka.actor.ActorRef;
 /**
  * Interface for Akka based rpc gateways
  */
-public interface AkkaGateway {
+interface AkkaGateway {
 
-	ActorRef getActorRef();
+	ActorRef getRpcServer();
 }

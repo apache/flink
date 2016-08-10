@@ -46,7 +46,7 @@ public interface RpcService {
 	 * @param <C> Type of the self rpc gateway associated with the rpc server
 	 * @return Self gateway to dispatch remote procedure calls to oneself
 	 */
-	<S extends RpcEndpoint, C extends RpcGateway> C startServer(S rpcEndpoint);
+	<C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint);
 
 	/**
 	 * Stop the underlying rpc server of the provided self gateway.
