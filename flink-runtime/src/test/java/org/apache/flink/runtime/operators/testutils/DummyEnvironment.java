@@ -53,13 +53,14 @@ public class DummyEnvironment implements Environment {
 	private final ExecutionAttemptID executionId = new ExecutionAttemptID();
 	private final ExecutionConfig executionConfig = new ExecutionConfig();
 	private final TaskInfo taskInfo;
-	private final KvStateRegistry kvStateRegistry = new KvStateRegistry();
-	private final TaskKvStateRegistry taskKvStateRegistry;
+	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
-		this.taskInfo = new TaskInfo(taskName, subTaskIndex, numSubTasks, 0);
+		this.taskInfo = new TaskInfo(taskName, numSubTasks, subTaskIndex, numSubTasks, 0);
+	}
 
-		this.taskKvStateRegistry = kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+	public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {
+		this.kvStateRegistry = kvStateRegistry;
 	}
 
 	public KvStateRegistry getKvStateRegistry() {
@@ -148,7 +149,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public TaskKvStateRegistry getTaskKvStateRegistry() {
-		return taskKvStateRegistry;
+		return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
 	}
 
 	@Override

@@ -310,7 +310,7 @@ public class ClassLoaderITCase extends TestLogger {
 			// Success :-)
 			LOG.info("Disposed savepoint at " + savepointPath);
 		} else if (disposeResponse instanceof DisposeSavepointFailure) {
-			throw new IllegalStateException("Failed to dispose savepoint");
+			throw new IllegalStateException("Failed to dispose savepoint " + disposeResponse);
 		} else {
 			throw new IllegalStateException("Unexpected response to DisposeSavepoint");
 		}

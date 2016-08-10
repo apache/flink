@@ -85,8 +85,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 		operator.setInputType(inputType, executionConfig);
 
 		timeServiceProvider = new TestTimeServiceProvider();
-		testHarness = new OneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider);
-		testHarness.configureForKeyedStream(keySelector, keyType);
+		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider, keySelector, keyType);
 	}
 
 	/**

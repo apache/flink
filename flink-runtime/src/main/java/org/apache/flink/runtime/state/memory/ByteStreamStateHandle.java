@@ -51,7 +51,7 @@ public class ByteStreamStateHandle extends AbstractCloseableHandle implements St
 	}
 
 	@Override
-	public FSDataInputStream openInputStream() throws Exception {
+	public FSDataInputStream openInputStream() throws IOException {
 		ensureNotClosed();
 
 		FSDataInputStream inputStream = new FSDataInputStream() {

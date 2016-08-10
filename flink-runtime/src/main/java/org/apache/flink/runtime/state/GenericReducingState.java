@@ -20,24 +20,17 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-
-import java.io.IOException;
 
 /**
  * Generic implementation of {@link ReducingState} based on a wrapped {@link ValueState}.
  *
- * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <T> The type of the values stored in this {@code ReducingState}.
- * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  * @param <W> Generic type that extends both the underlying {@code ValueState} and {@code KvState}.
  */
-public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend, W extends ValueState<T> & KvState<K, N, ValueState<T>, ValueStateDescriptor<T>, Backend>>
-	implements ReducingState<T>, KvState<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> {
+public class GenericReducingState<N, T, W extends ValueState<T> & KvState<N>>
+	implements ReducingState<T>, KvState<N> {
 
 	private final W wrappedState;
 	private final ReduceFunction<T> reduceFunction;
@@ -59,11 +52,6 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 	}
 
 	@Override
-	public void setCurrentKey(K key) {
-		wrappedState.setCurrentKey(key);
-	}
-
-	@Override
 	public void setCurrentNamespace(N namespace) {
 		wrappedState.setCurrentNamespace(namespace);
 	}
@@ -71,26 +59,6 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 	@Override
 	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
 		return wrappedState.getSerializedValue(serializedKeyAndNamespace);
-	}
-
-	@Override
-	public KvStateSnapshot<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> snapshot(
-		long checkpointId,
-		long timestamp) throws Exception {
-		KvStateSnapshot<K, N, ValueState<T>, ValueStateDescriptor<T>, Backend> wrappedSnapshot = wrappedState.snapshot(
-			checkpointId,
-			timestamp);
-		return new Snapshot<>(wrappedSnapshot, reduceFunction);
-	}
-
-	@Override
-	public void dispose() {
-		wrappedState.dispose();
-	}
-
-	@Override
-	public ReducingStateDescriptor<T> getStateDescriptor() {
-		throw new UnsupportedOperationException("Not supported by generic state type");
 	}
 
 	@Override
@@ -111,43 +79,5 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 	@Override
 	public void clear() {
 		wrappedState.clear();
-	}
-
-	private static class Snapshot<K, N, T, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> {
-		private static final long serialVersionUID = 1L;
-
-		private final KvStateSnapshot<K, N, ValueState<T>, ValueStateDescriptor<T>, Backend> wrappedSnapshot;
-
-		private final ReduceFunction<T> reduceFunction;
-
-		public Snapshot(KvStateSnapshot<K, N, ValueState<T>, ValueStateDescriptor<T>, Backend> wrappedSnapshot,
-			ReduceFunction<T> reduceFunction) {
-			this.wrappedSnapshot = wrappedSnapshot;
-			this.reduceFunction = reduceFunction;
-		}
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public KvState<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> restoreState(
-			Backend stateBackend,
-			TypeSerializer<K> keySerializer,
-			ClassLoader classLoader) throws Exception {
-			return new GenericReducingState((ValueState<T>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader), reduceFunction);
-		}
-
-		@Override
-		public void discardState() throws Exception {
-			wrappedSnapshot.discardState();
-		}
-
-		@Override
-		public long getStateSize() throws Exception {
-			return wrappedSnapshot.getStateSize();
-		}
-
-		@Override
-		public void close() throws IOException {
-			wrappedSnapshot.close();
-		}
 	}
 }

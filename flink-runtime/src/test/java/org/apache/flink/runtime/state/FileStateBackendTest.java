@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.Path;
@@ -29,7 +30,9 @@ import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,17 +45,13 @@ import static org.junit.Assert.*;
 
 public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
-	private File stateDir;
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Override
 	protected FsStateBackend getStateBackend() throws Exception {
-		stateDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
-		return new FsStateBackend(localFileUri(stateDir));
-	}
-
-	@Override
-	protected void cleanup() throws Exception {
-		deleteDirectorySilently(stateDir);
+		File checkpointPath = tempFolder.newFolder();
+		return new FsStateBackend(localFileUri(checkpointPath));
 	}
 
 	// disable these because the verification does not work for this state backend
@@ -69,66 +68,19 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	public void testReducingStateRestoreWithWrongSerializers() {}
 
 	@Test
-	public void testSetupAndSerialization() {
-		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
-		try {
-			final String backendDir = localFileUri(tempDir);
-			FsStateBackend originalBackend = new FsStateBackend(backendDir);
+	public void testStateOutputStream() throws IOException {
+		File basePath = tempFolder.newFolder().getAbsoluteFile();
 
-			assertFalse(originalBackend.isInitialized());
-			assertEquals(new URI(backendDir), originalBackend.getBasePath().toUri());
-			assertNull(originalBackend.getCheckpointDirectory());
-
-			// serialize / copy the backend
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(originalBackend);
-			assertFalse(backend.isInitialized());
-			assertEquals(new URI(backendDir), backend.getBasePath().toUri());
-			assertNull(backend.getCheckpointDirectory());
-
-			// no file operations should be possible right now
-			try {
-				FsStateBackend.FsCheckpointStateOutputStream out = backend.createCheckpointStateOutputStream(
-						2L,
-						System.currentTimeMillis());
-
-				out.write(1);
-				out.closeAndGetHandle();
-				fail("should fail with an exception");
-			} catch (IllegalStateException e) {
-				// supreme!
-			}
-
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test-op", IntSerializer.INSTANCE);
-			assertNotNull(backend.getCheckpointDirectory());
-
-			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
-			assertTrue(checkpointDir.exists());
-			assertTrue(isDirectoryEmpty(checkpointDir));
-
-			backend.disposeAllStateForCurrentJob();
-			assertNull(backend.getCheckpointDirectory());
-
-			assertTrue(isDirectoryEmpty(tempDir));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			deleteDirectorySilently(tempDir);
-		}
-	}
-
-	@Test
-	public void testStateOutputStream() {
-		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		try {
 			// the state backend has a very low in-mem state threshold (15 bytes)
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(tempDir.toURI(), 15));
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(basePath.toURI(), 15));
+			JobID jobId = new JobID();
 
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test-op", IntSerializer.INSTANCE);
+			// we know how FsCheckpointStreamFactory is implemented so we know where it
+			// will store checkpoints
+			File checkpointPath = new File(basePath.getAbsolutePath(), jobId.toString());
 
-			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
+			CheckpointStreamFactory streamFactory = backend.createStreamFactory(jobId, "test_op");
 
 			byte[] state1 = new byte[1274673];
 			byte[] state2 = new byte[1];
@@ -143,12 +95,14 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 			long checkpointId = 97231523452L;
 
-			FsStateBackend.FsCheckpointStateOutputStream stream1 =
-					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
-			FsStateBackend.FsCheckpointStateOutputStream stream2 =
-					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
-			FsStateBackend.FsCheckpointStateOutputStream stream3 =
-					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
+			CheckpointStreamFactory.CheckpointStateOutputStream stream1 =
+					streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
+
+			CheckpointStreamFactory.CheckpointStateOutputStream stream2 =
+					streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
+
+			CheckpointStreamFactory.CheckpointStateOutputStream stream3 =
+					streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
 
 			stream1.write(state1);
 			stream2.write(state2);
@@ -160,15 +114,15 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 			// use with try-with-resources
 			StreamStateHandle handle4;
-			try (AbstractStateBackend.CheckpointStateOutputStream stream4 =
-					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
+			try (CheckpointStreamFactory.CheckpointStateOutputStream stream4 =
+					streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
 				stream4.write(state4);
 				handle4 = stream4.closeAndGetHandle();
 			}
 
 			// close before accessing handle
-			AbstractStateBackend.CheckpointStateOutputStream stream5 =
-					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
+			CheckpointStreamFactory.CheckpointStateOutputStream stream5 =
+					streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
 			stream5.write(state4);
 			stream5.close();
 			try {
@@ -180,7 +134,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 			validateBytesInStream(handle1.openInputStream(), state1);
 			handle1.discardState();
-			assertFalse(isDirectoryEmpty(checkpointDir));
+			assertFalse(isDirectoryEmpty(basePath));
 			ensureLocalFileDeleted(handle1.getFilePath());
 
 			validateBytesInStream(handle2.openInputStream(), state2);
@@ -191,14 +145,11 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 			validateBytesInStream(handle4.openInputStream(), state4);
 			handle4.discardState();
-			assertTrue(isDirectoryEmpty(checkpointDir));
+			assertTrue(isDirectoryEmpty(checkpointPath));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			deleteDirectorySilently(tempDir);
 		}
 	}
 
@@ -253,8 +204,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 	@Test
 	public void testConcurrentMapIfQueryable() throws Exception {
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-		StateBackendTestBase.testConcurrentMapIfQueryable(backend);
+		super.testConcurrentMapIfQueryable();
 	}
 
 }

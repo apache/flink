@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.state;
 
-import org.apache.flink.runtime.state.KvStateSnapshot;
-
 import org.apache.flink.runtime.state.StateObject;
 import org.junit.Test;
 
@@ -49,18 +47,6 @@ public class StateHandleSerializationTest {
 					reflections.getSubTypesOf(StateObject.class);
 
 			for (Class<?> clazz : stateHandleImplementations) {
-				validataSerialVersionUID(clazz);
-			}
-
-			// check all key/value snapshots
-
-			@SuppressWarnings("unchecked")
-			Set<Class<?>> kvStateSnapshotImplementations = (Set<Class<?>>) (Set<?>)
-					reflections.getSubTypesOf(KvStateSnapshot.class);
-
-			System.out.println(kvStateSnapshotImplementations);
-			
-			for (Class<?> clazz : kvStateSnapshotImplementations) {
 				validataSerialVersionUID(clazz);
 			}
 		}

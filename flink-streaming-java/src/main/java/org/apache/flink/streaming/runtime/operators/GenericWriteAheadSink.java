@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.ReusingMutableToRegularIteratorWrapper;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -56,9 +56,10 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 	protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
 	private final CheckpointCommitter committer;
-	private transient AbstractStateBackend.CheckpointStateOutputStream out;
+	private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
 	protected final TypeSerializer<IN> serializer;
 	private final String id;
+	private transient CheckpointStreamFactory checkpointStreamFactory;
 
 	private ExactlyOnceState state = new ExactlyOnceState();
 
@@ -76,6 +77,8 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		committer.setOperatorSubtaskId(getRuntimeContext().getIndexOfThisSubtask());
 		committer.open();
 		cleanState();
+		checkpointStreamFactory =
+				getContainingTask().createCheckpointStreamFactory(this);
 	}
 
 	public void close() throws Exception {
@@ -184,9 +187,9 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
-		//generate initial operator state
+		// generate initial operator state
 		if (out == null) {
-			out = getStateBackend().createCheckpointStateOutputStream(0, 0);
+			out = checkpointStreamFactory.createCheckpointStateOutputStream(0, 0);
 		}
 		serializer.serialize(value, new DataOutputViewStreamWrapper(out));
 	}

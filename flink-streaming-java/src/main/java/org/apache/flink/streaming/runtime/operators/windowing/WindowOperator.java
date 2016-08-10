@@ -277,7 +277,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
 		super.dispose();
 		timestampedCollector = null;
 		watermarkTimers = null;

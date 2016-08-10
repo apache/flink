@@ -88,7 +88,6 @@ public class RocksDBAsyncKVSnapshotTest {
 	 * test will simply lock forever.
 	 */
 	@Test
-	@Ignore
 	public void testAsyncCheckpoints() throws Exception {
 		LocalFileSystem localFS = new LocalFileSystem();
 		localFS.initialize(new URI("file:///"), new Configuration());
@@ -191,7 +190,6 @@ public class RocksDBAsyncKVSnapshotTest {
 	 * test will simply lock forever.
 	 */
 	@Test
-	@Ignore
 	public void testFullyAsyncCheckpoints() throws Exception {
 		LocalFileSystem localFS = new LocalFileSystem();
 		localFS.initialize(new URI("file:///"), new Configuration());
@@ -218,7 +216,7 @@ public class RocksDBAsyncKVSnapshotTest {
 
 		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
-		backend.enableFullyAsyncSnapshots();
+//		backend.enableFullyAsyncSnapshots();
 
 		streamConfig.setStateBackend(backend);
 

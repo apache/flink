@@ -18,25 +18,23 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.state.StateBackendTestBase;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.UUID;
 
 /**
  * Tests for the partitioned state part of {@link RocksDBStateBackend}.
  */
 public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBackend> {
 
-	private File dbDir;
-	private File chkDir;
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
 	public void checkOperatingSystem() {
@@ -45,19 +43,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 	@Override
 	protected RocksDBStateBackend getStateBackend() throws IOException {
-		dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
-		chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
-
-		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
-		backend.setDbStoragePath(dbDir.getAbsolutePath());
+		String dbPath = tempFolder.newFolder().getAbsolutePath();
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend backend = new RocksDBStateBackend(checkpointPath, new FsStateBackend(checkpointPath));
+		backend.setDbStoragePath(dbPath);
 		return backend;
-	}
-
-	@Override
-	protected void cleanup() {
-		try {
-			FileUtils.deleteDirectory(dbDir);
-			FileUtils.deleteDirectory(chkDir);
-		} catch (IOException ignore) {}
 	}
 }

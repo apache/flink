@@ -20,9 +20,9 @@ package org.apache.flink.streaming.api.operators;
 import java.io.Serializable;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -84,7 +84,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * This method is expected to make a thorough effort to release all resources
 	 * that the operator has acquired.
 	 */
-	void dispose();
+	void dispose() throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  state snapshots
@@ -92,8 +92,7 @@ public interface StreamOperator<OUT> extends Serializable {
 
 	/**
 	 * Called to draw a state snapshot from the operator. This method snapshots the operator state
-	 * (if the operator is stateful) and the key/value state (if it is being used and has been
-	 * initialized).
+	 * (if the operator is stateful).
 	 *
 	 * @param out The stream to which we have to write our state.
 	 * @param checkpointId The ID of the checkpoint.

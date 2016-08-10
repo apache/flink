@@ -152,7 +152,6 @@ public class StreamGraphGenerator {
 
 			if (maxParallelism <= 0) {
 				maxParallelism = transform.getParallelism();
-
 				/**
 				 * TODO: Remove once the parallelism settings works properly in Flink (FLINK-3885)
 				 * Currently, the parallelism will be set to 1 on the JobManager iff it encounters

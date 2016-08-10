@@ -87,14 +87,14 @@ public class SavepointLoaderTest {
 		loaded.discardState();
 		verify(state, times(0)).discardState();
 
-		// 2) Load and validate: parallelism mismatch
-		when(vertex.getParallelism()).thenReturn(222);
+		// 2) Load and validate: max parallelism mismatch
+		when(vertex.getMaxParallelism()).thenReturn(222);
 
 		try {
 			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, store, path);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
-			assertTrue(expected.getMessage().contains("Parallelism mismatch"));
+			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
 		}
 
 		// 3) Load and validate: missing vertex (this should be relaxed)

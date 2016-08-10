@@ -103,7 +103,7 @@ public class StreamMockEnvironment implements Environment {
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
 									long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
-		this.taskInfo = new TaskInfo("", 0, 1, 0);
+		this.taskInfo = new TaskInfo("", 1, 0, 1, 0);
 		this.jobConfiguration = jobConfig;
 		this.taskConfiguration = taskConfig;
 		this.inputs = new LinkedList<InputGate>();

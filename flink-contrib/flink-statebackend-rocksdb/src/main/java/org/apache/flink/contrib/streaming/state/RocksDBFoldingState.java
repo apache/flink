@@ -66,7 +66,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	public RocksDBFoldingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc,
-			RocksDBStateBackend backend) {
+			RocksDBKeyedStateBackend backend) {
 
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 

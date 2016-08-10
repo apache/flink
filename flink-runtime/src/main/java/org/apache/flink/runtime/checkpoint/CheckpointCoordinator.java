@@ -46,6 +46,7 @@ import scala.concurrent.Future;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -821,14 +822,10 @@ public class CheckpointCoordinator {
 						}
 
 						KeyGroupRange subtaskKeyGroupIds = keyGroupPartitions.get(i);
-						List<KeyGroupsStateHandle> subtaskKeyGroupStates = new ArrayList<>();
 
-						for (KeyGroupsStateHandle storedKeyGroup : taskState.getKeyGroupStates()) {
-							KeyGroupsStateHandle intersection = storedKeyGroup.getKeyGroupIntersection(subtaskKeyGroupIds);
-							if(intersection.getNumberOfKeyGroups() > 0) {
-								subtaskKeyGroupStates.add(intersection);
-							}
-						}
+						List<KeyGroupsStateHandle> subtaskKeyGroupStates = getKeyGroupsStateHandles(
+								taskState.getKeyGroupStates(),
+								subtaskKeyGroupIds);
 
 						Execution currentExecutionAttempt = executionJobVertex
 							.getTaskVertices()[i]
@@ -849,6 +846,27 @@ public class CheckpointCoordinator {
 
 			return true;
 		}
+	}
+
+	/**
+	 * Determine the subset of {@link KeyGroupsStateHandle KeyGroupsStateHandles} with correct
+	 * key group index for the given subtask {@link KeyGroupRange}.
+	 *
+	 * <p>This is publicly visible to be used in tests.
+	 */
+	public static List<KeyGroupsStateHandle> getKeyGroupsStateHandles(
+			Collection<KeyGroupsStateHandle> allKeyGroupsHandles,
+			KeyGroupRange subtaskKeyGroupIds) {
+
+		List<KeyGroupsStateHandle> subtaskKeyGroupStates = new ArrayList<>();
+
+		for (KeyGroupsStateHandle storedKeyGroup : allKeyGroupsHandles) {
+			KeyGroupsStateHandle intersection = storedKeyGroup.getKeyGroupIntersection(subtaskKeyGroupIds);
+			if(intersection.getNumberOfKeyGroups() > 0) {
+				subtaskKeyGroupStates.add(intersection);
+			}
+		}
+		return subtaskKeyGroupStates;
 	}
 
 	/**

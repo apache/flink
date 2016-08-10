@@ -682,6 +682,7 @@ public class ExecutionVertex {
 			executionId,
 			serializedConfig,
 			getTaskName(),
+			getMaxParallelism(),
 			subTaskIndex,
 			getTotalNumberOfParallelSubtasks(),
 			attemptNumber,

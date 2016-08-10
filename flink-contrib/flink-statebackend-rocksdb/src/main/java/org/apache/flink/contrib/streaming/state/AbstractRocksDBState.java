@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -46,7 +45,7 @@ import java.io.IOException;
  * @param <SD> The type of {@link StateDescriptor}.
  */
 public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, V>, V>
-		implements KvState<K, N, S, SD, RocksDBStateBackend>, State {
+		implements KvState<N>, State {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
 
@@ -57,7 +56,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	private N currentNamespace;
 
 	/** Backend that holds the actual RocksDB instance where we store state */
-	protected RocksDBStateBackend backend;
+	protected RocksDBKeyedStateBackend backend;
 
 	/** The column family of this particular instance of state */
 	protected ColumnFamilyHandle columnFamily;
@@ -77,7 +76,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	protected AbstractRocksDBState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			SD stateDesc,
-			RocksDBStateBackend backend) {
+			RocksDBKeyedStateBackend backend) {
 
 		this.namespaceSerializer = namespaceSerializer;
 		this.backend = backend;
@@ -106,7 +105,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 
 	protected void writeKeyAndNamespace(DataOutputView out) throws IOException {
-		backend.keySerializer().serialize(backend.currentKey(), out);
+		backend.getKeySerializer().serialize(backend.getCurrentKey(), out);
 		out.writeByte(42);
 		namespaceSerializer.serialize(currentNamespace, out);
 	}
@@ -114,27 +113,6 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	@Override
 	public void setCurrentNamespace(N namespace) {
 		this.currentNamespace = Preconditions.checkNotNull(namespace, "Namespace");
-	}
-
-	@Override
-	public void dispose() {
-		// ignore because we don't hold any state ourselves
-	}
-
-	@Override
-	public SD getStateDescriptor() {
-		return stateDesc;
-	}
-
-	@Override
-	public void setCurrentKey(K key) {
-		// ignore because we don't hold any state ourselves
-	}
-
-	@Override
-	public KvStateSnapshot<K, N, S, SD, RocksDBStateBackend> snapshot(long checkpointId,
-			long timestamp) throws Exception {
-		throw new RuntimeException("Should not be called. Backups happen in RocksDBStateBackend.");
 	}
 
 	@Override

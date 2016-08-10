@@ -65,7 +65,7 @@ public class FileStateHandle extends AbstractCloseableHandle implements StreamSt
 	}
 
 	@Override
-	public FSDataInputStream openInputStream() throws Exception {
+	public FSDataInputStream openInputStream() throws IOException {
 		ensureNotClosed();
 		FSDataInputStream inputStream = getFileSystem().open(filePath);
 		registerCloseable(inputStream);

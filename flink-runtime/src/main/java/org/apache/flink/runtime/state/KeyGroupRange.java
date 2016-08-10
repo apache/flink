@@ -191,6 +191,9 @@ public class KeyGroupRange implements Iterable<Integer>, Serializable {
 			int maxParallelism,
 			int parallelism,
 			int operatorIndex) {
+		Preconditions.checkArgument(parallelism > 0, "Parallelism must not be smaller than zero.");
+		Preconditions.checkArgument(maxParallelism >= parallelism, "Maximum parallelism must not be smaller than parallelism.");
+		Preconditions.checkArgument(maxParallelism <= Short.MAX_VALUE, "Maximum parallelism must be smaller than Short.MAX_VALUE.");
 
 		int start = operatorIndex == 0 ? 0 : ((operatorIndex * maxParallelism - 1) / parallelism) + 1;
 		int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;

@@ -61,12 +61,22 @@ public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 		List<String> actualResults = new ArrayList<>();
 		readAllResultLines(actualResults, resultPath, new String[0], false);
 
+		//remove potential operator id prefix
+		for(int i = 0; i < actualResults.size(); ++i) {
+			String s = actualResults.get(i);
+			if(s.contains(">")) {
+				s = s.substring(s.indexOf(">") + 2);
+				actualResults.set(i, s);
+			}
+		}
+
 		Assert.assertEquals(expectedResults.size(),actualResults.size());
 		Collections.sort(actualResults);
 		Collections.sort(expectedResults);
+		System.out.println(actualResults);
 		for(int i=0; i< actualResults.size(); ++i) {
 			//compare against actual results with removed prefex (as it depends e.g. on the hash function used)
-			Assert.assertEquals(expectedResults.get(i), actualResults.get(i).substring(3));
+			Assert.assertEquals(expectedResults.get(i), actualResults.get(i));
 		}
 	}
 

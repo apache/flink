@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -28,13 +29,21 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.memory.MemListState;
+import org.apache.flink.runtime.state.heap.HeapListState;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -181,11 +190,18 @@ public class StreamingRuntimeContextTest {
 					@Override
 					public ListState<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
 						ListStateDescriptor<String> descr =
-							(ListStateDescriptor<String>) invocationOnMock.getArguments()[0];
-						MemListState<String, VoidNamespace, String> listState = new MemListState<>(
-								StringSerializer.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
-						listState.setCurrentNamespace(VoidNamespace.INSTANCE);
-						return listState;
+								(ListStateDescriptor<String>) invocationOnMock.getArguments()[0];
+						KeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
+								new DummyEnvironment("test_task", 1, 0),
+								new JobID(),
+								"test_op",
+								IntSerializer.INSTANCE,
+								new HashKeyGroupAssigner<Integer>(1),
+								new KeyGroupRange(0, 0),
+								new KvStateRegistry().createTaskRegistry(new JobID(),
+										new JobVertexID()));
+						backend.setCurrentKey(0);
+						return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
 					}
 				});
 
@@ -196,7 +212,7 @@ public class StreamingRuntimeContextTest {
 		Environment env = mock(Environment.class);
 		when(env.getUserClassLoader()).thenReturn(StreamingRuntimeContextTest.class.getClassLoader());
 		when(env.getDistributedCacheEntries()).thenReturn(Collections.<String, Future<Path>>emptyMap());
-		when(env.getTaskInfo()).thenReturn(new TaskInfo("test task", 0, 1, 1));
+		when(env.getTaskInfo()).thenReturn(new TaskInfo("test task", 1, 0, 1, 1));
 		return env;
 	}
 }

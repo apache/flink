@@ -20,9 +20,8 @@ package org.apache.flink.runtime.state;
 
 /**
  * Base of all types that represent checkpointed state. Specializations are for
- * example {@link StateHandle StateHandles} (directly resolve to state) and 
- * {@link KvStateSnapshot key/value state snapshots}.
- * 
+ * example {@link StateHandle StateHandles} (directly resolve to state).
+ *
  * <p>State objects define how to:
  * <ul>
  *     <li><b>Discard State</b>: The {@link #discardState()} method defines how state is permanently

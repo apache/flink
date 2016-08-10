@@ -92,6 +92,8 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	@Override
 	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
+		super.open();
+
 		if (keys == null) {
 			keys = new HashSet<>();
 		}

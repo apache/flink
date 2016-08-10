@@ -34,29 +34,26 @@ import java.util.Random;
 import static org.junit.Assert.*;
 
 public class FsCheckpointStateOutputStreamTest {
-	
+
 	/** The temp dir, obtained in a platform neutral way */
 	private static final Path TEMP_DIR_PATH = new Path(new File(System.getProperty("java.io.tmpdir")).toURI());
-	
-	
+
+
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrongParameters() {
 		// this should fail
-		new FsStateBackend.FsCheckpointStateOutputStream(
+		new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
 			TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 4000, 5000);
 	}
 
 
 	@Test
 	public void testEmptyState() throws Exception {
-		AbstractStateBackend.CheckpointStateOutputStream stream = new FsStateBackend.FsCheckpointStateOutputStream(
-			TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
+		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
+				new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
 
 		StreamStateHandle handle = stream.closeAndGetHandle();
-		assertTrue(handle instanceof ByteStreamStateHandle);
-
-		InputStream inStream = handle.openInputStream();
-		assertEquals(-1, inStream.read());
+		assertTrue(handle == null);
 	}
 
 	@Test
@@ -73,17 +70,17 @@ public class FsCheckpointStateOutputStreamTest {
 	public void testStateAboveMemThreshold() throws Exception {
 		runTest(576446, 259, 17, true);
 	}
-	
+
 	@Test
 	public void testZeroThreshold() throws Exception {
 		runTest(16678, 4096, 0, true);
 	}
-	
+
 	private void runTest(int numBytes, int bufferSize, int threshold, boolean expectFile) throws Exception {
-		AbstractStateBackend.CheckpointStateOutputStream stream =
-			new FsStateBackend.FsCheckpointStateOutputStream(
+		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
+			new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
 				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), bufferSize, threshold);
-		
+
 		Random rnd = new Random();
 		byte[] original = new byte[numBytes];
 		byte[] bytes = new byte[original.length];
