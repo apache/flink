@@ -48,6 +48,8 @@ import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
+import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.After;
 import org.junit.Ignore;
@@ -81,7 +83,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings({"serial", "SynchronizationOnLocalVariableOrMethodParameter"})
-@Ignore
 public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 	@SuppressWarnings("unchecked")
@@ -553,12 +554,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 	@Test
 	public void checkpointRestoreWithPendingWindowTumbling() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
 		try {
 			final int windowSize = 200;
-			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>(windowSize);
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+
+			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
 
 			// tumbling window that triggers every 50 milliseconds
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
@@ -568,7 +567,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							windowSize, windowSize);
 
 			OneInputStreamOperatorTestHarness<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op);
+					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+
+			timerService.setCurrentTime(0);
 
 			testHarness.setup();
 			testHarness.open();
@@ -578,48 +579,34 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final int numElements = 1000;
 			
 			for (int i = 0; i < numElementsFirst; i++) {
-				synchronized (lock) {
-					StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
-					op.setKeyContextElement1(next);
-					op.processElement(next);
-				}
-				Thread.sleep(1);
+				StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
+				testHarness.processElement(next);
 			}
 
-			// draw a snapshot and dispose the window
-			StreamStateHandle state;
-			List<Tuple2<Integer, Integer>> resultAtSnapshot;
-			synchronized (lock) {
-				int beforeSnapShot = out.getElements().size();
-				state = testHarness.snapshot(1L, System.currentTimeMillis());
-				resultAtSnapshot = new ArrayList<>(out.getElements());
-				int afterSnapShot = out.getElements().size();
-				assertEquals("operator performed computation during snapshot", beforeSnapShot, afterSnapShot);
-			}
-			
+			// draw a snapshot
+			List<Tuple2<Integer, Integer>> resultAtSnapshot = extractFromStreamRecords(testHarness.getOutput());
+			int beforeSnapShot = resultAtSnapshot.size();
+			StreamStateHandle state = testHarness.snapshot(1L, System.currentTimeMillis());
+			int afterSnapShot = testHarness.getOutput().size();
+			assertEquals("operator performed computation during snapshot", beforeSnapShot, afterSnapShot);
+
 			assertTrue(resultAtSnapshot.size() <= numElementsFirst);
 
 			// inject some random elements, which should not show up in the state
 			for (int i = numElementsFirst; i < numElements; i++) {
-				synchronized (lock) {
-					StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
-					op.setKeyContextElement1(next);
-					op.processElement(next);
-				}
-				Thread.sleep(1);
+				StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
+				testHarness.processElement(next);
 			}
 
 			op.dispose();
 
 			// re-create the operator and restore the state
-			final CollectingOutput<Tuple2<Integer, Integer>> out2 = new CollectingOutput<>(windowSize);
 			op = new AggregatingProcessingTimeWindowOperator<>(
 					sumFunction, fieldOneSelector,
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSize);
 
-			testHarness =
-					new OneInputStreamOperatorTestHarness<>(op);
+			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -627,24 +614,19 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			// inject the remaining elements
 			for (int i = numElementsFirst; i < numElements; i++) {
-				synchronized (lock) {
-					StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
-					op.setKeyContextElement1(next);
-					op.processElement(next);
-				}
-				Thread.sleep(1);
+				StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
+				testHarness.processElement(next);
 			}
 
-			out2.waitForNElements(numElements - resultAtSnapshot.size(), 60_000);
+			timerService.setCurrentTime(200);
 
 			// get and verify the result
 			List<Tuple2<Integer, Integer>> finalResult = new ArrayList<>(resultAtSnapshot);
-			finalResult.addAll(out2.getElements());
+			List<Tuple2<Integer, Integer>> partialFinalResult = extractFromStreamRecords(testHarness.getOutput());
+			finalResult.addAll(partialFinalResult);
 			assertEquals(numElements, finalResult.size());
 
-			synchronized (lock) {
-				op.close();
-			}
+			testHarness.close();
 			op.dispose();
 
 			Collections.sort(finalResult, tupleComparator);
@@ -657,22 +639,16 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			timerService.shutdown();
-		}
 	}
 
 	@Test
 	public void checkpointRestoreWithPendingWindowSliding() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
 		try {
 			final int factor = 4;
 			final int windowSlide = 50;
 			final int windowSize = factor * windowSlide;
 
-			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>(windowSlide);
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
 
 			// sliding window (200 msecs) every 50 msecs
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
@@ -681,8 +657,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							windowSize, windowSlide);
 
+			timerService.setCurrentTime(0);
+
 			OneInputStreamOperatorTestHarness<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op);
+					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();
 			testHarness.open();
@@ -692,48 +670,34 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final int numElementsFirst = 700;
 
 			for (int i = 0; i < numElementsFirst; i++) {
-				synchronized (lock) {
-					StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
-					op.setKeyContextElement1(next);
-					op.processElement(next);
-				}
-				Thread.sleep(1);
+				StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
+				testHarness.processElement(next);
 			}
 
 			// draw a snapshot
-			StreamStateHandle state;
-			List<Tuple2<Integer, Integer>> resultAtSnapshot;
-			synchronized (lock) {
-				int beforeSnapShot = out.getElements().size();
-				state = testHarness.snapshot(1L, System.currentTimeMillis());
-				resultAtSnapshot = new ArrayList<>(out.getElements());
-				int afterSnapShot = out.getElements().size();
-				assertEquals("operator performed computation during snapshot", beforeSnapShot, afterSnapShot);
-			}
+			List<Tuple2<Integer, Integer>> resultAtSnapshot = extractFromStreamRecords(testHarness.getOutput());
+			int beforeSnapShot = resultAtSnapshot.size();
+			StreamStateHandle state = testHarness.snapshot(1L, System.currentTimeMillis());
+			int afterSnapShot = testHarness.getOutput().size();
+			assertEquals("operator performed computation during snapshot", beforeSnapShot, afterSnapShot);
 
 			assertTrue(resultAtSnapshot.size() <= factor * numElementsFirst);
 
 			// inject the remaining elements - these should not influence the snapshot
 			for (int i = numElementsFirst; i < numElements; i++) {
-				synchronized (lock) {
-					StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
-					op.setKeyContextElement1(next);
-					op.processElement(next);
-				}
-				Thread.sleep(1);
+				StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
+				testHarness.processElement(next);
 			}
 
 			op.dispose();
 
 			// re-create the operator and restore the state
-			final CollectingOutput<Tuple2<Integer, Integer>> out2 = new CollectingOutput<>(windowSlide);
 			op = new AggregatingProcessingTimeWindowOperator<>(
 					sumFunction, fieldOneSelector,
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSlide);
 
-			testHarness =
-					new OneInputStreamOperatorTestHarness<>(op);
+			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -741,32 +705,27 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			// inject again the remaining elements
 			for (int i = numElementsFirst; i < numElements; i++) {
-				synchronized (lock) {
-					StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
-					op.setKeyContextElement1(next);
-					op.processElement(next);
-				}
-				Thread.sleep(1);
+				StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
+				testHarness.processElement(next);
 			}
 
-			// for a deterministic result, we need to wait until all pending triggers
-			// have fired and emitted their results
-			long deadline = System.currentTimeMillis() + 120000;
-			do {
-				Thread.sleep(20);
-			}
-			while (resultAtSnapshot.size() + out2.getElements().size() < factor * numElements
-					&& System.currentTimeMillis() < deadline);
+			timerService.setCurrentTime(50);
+			timerService.setCurrentTime(100);
+			timerService.setCurrentTime(150);
+			timerService.setCurrentTime(200);
+			timerService.setCurrentTime(250);
+			timerService.setCurrentTime(300);
+			timerService.setCurrentTime(350);
+			timerService.setCurrentTime(400);
 
-			synchronized (lock) {
-				op.close();
-			}
+			testHarness.close();
 			op.dispose();
 
 			// get and verify the result
 			List<Tuple2<Integer, Integer>> finalResult = new ArrayList<>(resultAtSnapshot);
-			finalResult.addAll(out2.getElements());
-			assertEquals(factor * numElements, finalResult.size());
+			List<Tuple2<Integer, Integer>> partialFinalResult = extractFromStreamRecords(testHarness.getOutput());
+			finalResult.addAll(partialFinalResult);
+			assertEquals(numElements * factor, finalResult.size());
 
 			Collections.sort(finalResult, tupleComparator);
 			for (int i = 0; i < factor * numElements; i++) {
@@ -778,20 +737,14 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			timerService.shutdown();
-		}
 	}
 
 	@Test
 	public void testKeyValueStateInWindowFunctionTumbling() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
 		try {
 			final long twoSeconds = 2000;
 			
-			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>();
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
 
 			StatefulFunction.globalCounts.clear();
 			
@@ -800,53 +753,52 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							new StatefulFunction(), fieldOneSelector,
 							IntSerializer.INSTANCE, tupleSerializer, twoSeconds, twoSeconds);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
-			op.open();
+			KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
+					op,
+					new ExecutionConfig(),
+					timerService,
+					fieldOneSelector,
+					BasicTypeInfo.INT_TYPE_INFO);
+
+			timerService.setCurrentTime(0);
+			testHarness.open();
 
 			// because the window interval is so large, everything should be in one window
 			// and aggregate into one value per key
 			
-			synchronized (lock) {
-				for (int i = 0; i < 10; i++) {
-					StreamRecord<Tuple2<Integer, Integer>> next1 = new StreamRecord<>(new Tuple2<>(1, i));
-					op.setKeyContextElement1(next1);
-					op.processElement(next1);
-	
-					StreamRecord<Tuple2<Integer, Integer>> next2 = new StreamRecord<>(new Tuple2<>(2, i));
-					op.setKeyContextElement1(next2);
-					op.processElement(next2);
-				}
+			for (int i = 0; i < 10; i++) {
+				StreamRecord<Tuple2<Integer, Integer>> next1 = new StreamRecord<>(new Tuple2<>(1, i));
+				testHarness.processElement(next1);
+
+				StreamRecord<Tuple2<Integer, Integer>> next2 = new StreamRecord<>(new Tuple2<>(2, i));
+				testHarness.processElement(next2);
 			}
 
-			while (StatefulFunction.globalCounts.get(1) < 10 ||
-					StatefulFunction.globalCounts.get(2) < 10)
-			{
-				Thread.sleep(50);
-			}
-			
-			op.close();
+			timerService.setCurrentTime(1000);
+
+			int count1 = StatefulFunction.globalCounts.get(1);
+			int count2 = StatefulFunction.globalCounts.get(2);
+
+			assertTrue(count1 >= 2 && count1 <= 2 * 10);
+			assertEquals(count1, count2);
+
+			testHarness.close();
 			op.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			timerService.shutdown();
-		}
 	}
 
 	@Test
 	public void testKeyValueStateInWindowFunctionSliding() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
 		try {
 			final int factor = 2;
 			final int windowSlide = 50;
 			final int windowSize = factor * windowSlide;
-			
-			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>();
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+
+			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
 
 			StatefulFunction.globalCounts.clear();
 			
@@ -855,8 +807,15 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							new StatefulFunction(), fieldOneSelector,
 							IntSerializer.INSTANCE, tupleSerializer, windowSize, windowSlide);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
-			op.open();
+			timerService.setCurrentTime(0);
+			KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
+					op,
+					new ExecutionConfig(),
+					timerService,
+					fieldOneSelector,
+					BasicTypeInfo.INT_TYPE_INFO);
+
+			testHarness.open();
 
 			// because the window interval is so large, everything should be in one window
 			// and aggregate into one value per key
@@ -870,24 +829,18 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				StreamRecord<Tuple2<Integer, Integer>> next3 = new StreamRecord<>(new Tuple2<>(1, i));
 				StreamRecord<Tuple2<Integer, Integer>> next4 = new StreamRecord<>(new Tuple2<>(2, i));
 
-				// because we do not release the lock between elements, they end up in the same windows
-				synchronized (lock) {
-					op.setKeyContextElement1(next1);
-					op.processElement(next1);
-					op.setKeyContextElement1(next2);
-					op.processElement(next2);
-					op.setKeyContextElement1(next3);
-					op.processElement(next3);
-					op.setKeyContextElement1(next4);
-					op.processElement(next4);
-				}
+				testHarness.processElement(next1);
+				testHarness.processElement(next2);
+				testHarness.processElement(next3);
+				testHarness.processElement(next4);
+			}
 
-				Thread.sleep(1);
-			}
-			
-			synchronized (lock) {
-				op.close();
-			}
+			timerService.setCurrentTime(50);
+			timerService.setCurrentTime(100);
+			timerService.setCurrentTime(150);
+			timerService.setCurrentTime(200);
+
+			testHarness.close();
 
 			int count1 = StatefulFunction.globalCounts.get(1);
 			int count2 = StatefulFunction.globalCounts.get(2);
@@ -900,9 +853,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			timerService.shutdown();
 		}
 	}
 	
@@ -991,21 +941,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		final Environment env = new DummyEnvironment("Test task name", 1, 0);
 		when(task.getEnvironment()).thenReturn(env);
 
-		try {
-			doAnswer(new Answer<AbstractStateBackend>() {
-				@Override
-				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
-					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
-					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
-					MemoryStateBackend backend = MemoryStateBackend.create();
-					backend.initializeForJob(env, operatorIdentifier, keySerializer);
-					return backend;
-				}
-			}).when(task).createStateBackend(any(String.class), any(TypeSerializer.class));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
 		return task;
 	}
 
@@ -1040,9 +975,17 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 	private static StreamConfig createTaskConfig(KeySelector<?, ?> partitioner, TypeSerializer<?> keySerializer, KeyGroupAssigner<?> keyGroupAssigner) {
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		cfg.setStatePartitioner(0, partitioner);
-		cfg.setStateKeySerializer(keySerializer);
-		cfg.setKeyGroupAssigner(keyGroupAssigner);
 		return cfg;
+	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	private <T> List<T> extractFromStreamRecords(Iterable<Object> input) {
+		List<T> result = new ArrayList<>();
+		for (Object in : input) {
+			if (in instanceof StreamRecord) {
+				result.add((T) ((StreamRecord) in).getValue());
+			}
+		}
+		return result;
 	}
 }

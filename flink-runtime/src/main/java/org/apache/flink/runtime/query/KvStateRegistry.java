@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class KvStateRegistry {
 
 	/** All registered KvState instances. */
-	private final ConcurrentHashMap<KvStateID, KvState<?, ?, ?, ?, ?>> registeredKvStates =
+	private final ConcurrentHashMap<KvStateID, KvState<?>> registeredKvStates =
 			new ConcurrentHashMap<>();
 
 	/** Registry listener to be notified on registration/unregistration. */
@@ -83,7 +83,7 @@ public class KvStateRegistry {
 			JobVertexID jobVertexId,
 			int keyGroupIndex,
 			String registrationName,
-			KvState<?, ?, ?, ?, ?> kvState) {
+			KvState<?> kvState) {
 
 		KvStateID kvStateId = new KvStateID();
 
@@ -136,7 +136,7 @@ public class KvStateRegistry {
 	 * @param kvStateId KvStateID to identify the KvState instance
 	 * @return KvState instance identified by the KvStateID or <code>null</code>
 	 */
-	public KvState<?, ?, ?, ?, ?> getKvState(KvStateID kvStateId) {
+	public KvState<?> getKvState(KvStateID kvStateId) {
 		return registeredKvStates.get(kvStateId);
 	}
 

@@ -125,7 +125,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
 		super.dispose();
 
 		// first try to cancel it properly and
