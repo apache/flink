@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 /**
@@ -71,4 +72,15 @@ public interface RpcService {
 	 * @return Fully qualified address
 	 */
 	<C extends RpcGateway> String getAddress(C selfGateway);
+
+	/**
+	 * Gets the execution context used by the RPC service.
+	 * 
+	 * <p><b>IMPORTANT:</b> This is not to be confused with the
+	 * {@link RpcEndpoint#getMainThreadExecutionContext() MainThreadExecutionContext} of an
+	 * {@link RpcEndpoint}.
+	 * 
+	 * @return The execution context used by the RPC service
+	 */
+	ExecutionContext getRpcExecutionContext();
 }

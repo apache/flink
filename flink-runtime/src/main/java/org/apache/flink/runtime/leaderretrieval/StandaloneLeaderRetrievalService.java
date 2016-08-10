@@ -18,44 +18,74 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
-import org.apache.flink.util.Preconditions;
+import java.util.UUID;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Standalone implementation of the {@link LeaderRetrievalService}. The standalone implementation
- * assumes that there is only a single {@link org.apache.flink.runtime.jobmanager.JobManager} whose
- * address is given to the service when creating it. This address is directly given to the
- * {@link LeaderRetrievalListener} when the service is started.
+ * Standalone implementation of the {@link LeaderRetrievalService}. This implementation
+ * assumes that there is only a single contender for leadership
+ * (e.g., a single JobManager or ResourceManager process) and that this process is
+ * reachable under a constant address.
+ * 
+ * <p>As soon as this service is started, it immediately notifies the leader listener
+ * of the leader contender with the pre-configured address.
  */
 public class StandaloneLeaderRetrievalService implements LeaderRetrievalService {
 
-	/** Address of the only JobManager */
-	private final String jobManagerAddress;
+	private final Object startStopLock = new Object();
+	
+	/** The fix address of the leader */
+	private final String leaderAddress;
 
-	/** Listener which wants to be notified about the new leader */
-	private LeaderRetrievalListener leaderListener;
+	/** The fix leader ID (leader lock fencing token) */
+	private final UUID leaderId;
+
+	/** Flag whether this service is started */
+	private boolean started;
 
 	/**
-	 * Creates a StandaloneLeaderRetrievalService with the given JobManager address.
+	 * Creates a StandaloneLeaderRetrievalService with the given leader address.
+	 * The leaderId will be null.
 	 *
-	 * @param jobManagerAddress The JobManager's address which is returned to the
-	 * 							{@link LeaderRetrievalListener}
+	 * @param leaderAddress The leader's pre-configured address
 	 */
-	public StandaloneLeaderRetrievalService(String jobManagerAddress) {
-		this.jobManagerAddress = jobManagerAddress;
+	public StandaloneLeaderRetrievalService(String leaderAddress) {
+		this.leaderAddress = checkNotNull(leaderAddress);
+		this.leaderId = null;
 	}
+
+	/**
+	 * Creates a StandaloneLeaderRetrievalService with the given leader address.
+	 *
+	 * @param leaderAddress The leader's pre-configured address
+	 * @param leaderId      The constant leaderId.
+	 */
+	public StandaloneLeaderRetrievalService(String leaderAddress, UUID leaderId) {
+		this.leaderAddress = checkNotNull(leaderAddress);
+		this.leaderId = checkNotNull(leaderId);
+	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	public void start(LeaderRetrievalListener listener) {
-		Preconditions.checkNotNull(listener, "Listener must not be null.");
-		Preconditions.checkState(leaderListener == null, "StandaloneLeaderRetrievalService can " +
-				"only be started once.");
+		checkNotNull(listener, "Listener must not be null.");
 
-		leaderListener = listener;
+		synchronized (startStopLock) {
+			checkState(!started, "StandaloneLeaderRetrievalService can only be started once.");
+			started = true;
 
-		// directly notify the listener, because we already know the leading JobManager's address
-		leaderListener.notifyLeaderAddress(jobManagerAddress, null);
+			// directly notify the listener, because we already know the leading JobManager's address
+			listener.notifyLeaderAddress(leaderAddress, leaderId);
+		}
 	}
 
 	@Override
-	public void stop() {}
+	public void stop() {
+		synchronized (startStopLock) {
+			started = false;
+		}
+	}
 }

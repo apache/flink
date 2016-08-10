@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -194,5 +195,10 @@ public class AkkaRpcService implements RpcService {
 			String className = AkkaGateway.class.getName();
 			throw new IllegalArgumentException("Cannot get address for non " + className + '.');
 		}
+	}
+
+	@Override
+	public ExecutionContext getRpcExecutionContext() {
+		return actorSystem.dispatcher();
 	}
 }
