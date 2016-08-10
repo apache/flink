@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rpc;
 
 import akka.util.Timeout;
 
+import org.apache.flink.util.ReflectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +61,9 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	/** RPC service to be used to start the RPC server and to obtain rpc gateways */
 	private final RpcService rpcService;
 
+	/** Class of the self gateway */
+	private final Class<C> selfGatewayType;
+
 	/** Self gateway which can be used to schedule asynchronous calls on yourself */
 	private final C self;
 
@@ -70,15 +74,19 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * of the executing rpc server. */
 	private final MainThreadExecutionContext mainThreadExecutionContext;
 
-
 	/**
 	 * Initializes the RPC endpoint.
 	 * 
 	 * @param rpcService The RPC server that dispatches calls to this RPC endpoint. 
 	 */
-	public RpcEndpoint(RpcService rpcService) {
+	protected RpcEndpoint(final RpcService rpcService) {
 		this.rpcService = checkNotNull(rpcService, "rpcService");
+
+		// IMPORTANT: Don't change order of selfGatewayType and self because rpcService.startServer
+		// requires that selfGatewayType has been initialized
+		this.selfGatewayType = ReflectionUtil.getTemplateType1(getClass());
 		this.self = rpcService.startServer(this);
+		
 		this.selfAddress = rpcService.getAddress(self);
 		this.mainThreadExecutionContext = new MainThreadExecutionContext((MainThreadExecutor) self);
 	}
@@ -149,6 +157,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	//  Asynchronous executions
 	// ------------------------------------------------------------------------
 
+
 	/**
 	 * Execute the runnable in the main thread of the underlying RPC endpoint.
 	 *
@@ -170,6 +179,15 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 */
 	public <V> Future<V> callAsync(Callable<V> callable, Timeout timeout) {
 		return ((MainThreadExecutor) self).callAsync(callable, timeout);
+	}
+
+	/**
+	 * Returns the class of the self gateway type.
+	 *
+	 * @return Class of the self gateway type
+	 */
+	public final Class<C> getSelfGatewayType() {
+		return selfGatewayType;
 	}
 
 	// ------------------------------------------------------------------------

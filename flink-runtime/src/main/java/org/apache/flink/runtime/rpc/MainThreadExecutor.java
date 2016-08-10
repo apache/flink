@@ -47,9 +47,9 @@ public interface MainThreadExecutor {
 	 * future will throw a {@link TimeoutException}.
 	 *
 	 * @param callable Callable to be executed
-	 * @param timeout Timeout for the future to complete
+	 * @param callTimeout Timeout for the future to complete
 	 * @param <V> Return value of the callable
 	 * @return Future of the callable result
 	 */
-	<V> Future<V> callAsync(Callable<V> callable, Timeout timeout);
+	<V> Future<V> callAsync(Callable<V> callable, Timeout callTimeout);
 }
