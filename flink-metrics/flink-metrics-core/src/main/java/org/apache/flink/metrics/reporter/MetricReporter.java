@@ -40,7 +40,7 @@ public interface MetricReporter {
 	 * 
 	 * <p>This method is always called first on a newly instantiated reporter.
 	 *
-	 * @param config The configuration with all parameters.
+	 * @param config A properties object that contains all parameters set for this reporter.
 	 */
 	void open(MetricConfig config);
 
