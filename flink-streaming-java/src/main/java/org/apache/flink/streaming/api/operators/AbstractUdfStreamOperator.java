@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -35,6 +33,7 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.InstantiationUtil;
 
 import static java.util.Objects.requireNonNull;
 
@@ -49,7 +48,9 @@ import static java.util.Objects.requireNonNull;
  *            The type of the user function
  */
 @PublicEvolving
-public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends AbstractStreamOperator<OUT> implements OutputTypeConfigurable<OUT> {
+public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
+		extends AbstractStreamOperator<OUT>
+		implements OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -100,16 +101,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
 		super.dispose();
 		if (!functionsClosed) {
 			functionsClosed = true;
-			try {
-				FunctionUtils.closeFunction(userFunction);
-			}
-			catch (Throwable t) {
-				LOG.error("Exception while closing user function while failing or canceling task", t);
-			}
+			FunctionUtils.closeFunction(userFunction);
 		}
 	}
 
@@ -130,9 +126,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 				udfState = chkFunction.snapshotState(checkpointId, timestamp);
 				if (udfState != null) {
 					out.write(1);
-					ObjectOutputStream os = new ObjectOutputStream(out);
-					os.writeObject(udfState);
-					os.flush();
+					InstantiationUtil.serializeObject(out, udfState);
 				} else {
 					out.write(0);
 				}
@@ -153,8 +147,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 			int hasUdfState = in.read();
 
 			if (hasUdfState == 1) {
-				ObjectInputStream ois = new ObjectInputStream(in);
-				Serializable functionState = (Serializable) ois.readObject();
+				Serializable functionState = InstantiationUtil.deserializeObject(in, getUserCodeClassloader());
 				if (functionState != null) {
 					try {
 						chkFunction.restoreState(functionState);

@@ -129,7 +129,7 @@ public class InterruptSensitiveRestoreTest {
 				new ExecutionAttemptID(),
 				new SerializedValue<>(new ExecutionConfig()),
 				"test task name",
-				0, 1, 0,
+				1, 0, 1, 0,
 				new Configuration(),
 				taskConfig,
 				SourceStreamTask.class.getName(),
@@ -170,7 +170,7 @@ public class InterruptSensitiveRestoreTest {
 	private static class InterruptLockingStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
 
 		@Override
-		public FSDataInputStream openInputStream() throws Exception {
+		public FSDataInputStream openInputStream() throws IOException {
 			ensureNotClosed();
 			FSDataInputStream is = new FSDataInputStream() {
 

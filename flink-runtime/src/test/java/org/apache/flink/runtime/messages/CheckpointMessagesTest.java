@@ -120,7 +120,7 @@ public class CheckpointMessagesTest {
 		public void close() throws IOException {}
 
 		@Override
-		public FSDataInputStream openInputStream() throws Exception {
+		public FSDataInputStream openInputStream() throws IOException {
 			return null;
 		}
 	}

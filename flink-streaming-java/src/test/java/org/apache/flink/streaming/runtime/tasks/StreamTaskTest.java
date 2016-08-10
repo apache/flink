@@ -237,7 +237,7 @@ public class StreamTaskTest {
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
 				new JobID(), "Job Name", new JobVertexID(), new ExecutionAttemptID(),
 				new SerializedValue<>(new ExecutionConfig()),
-				"Test Task", 0, 1, 0,
+				"Test Task", 1, 0, 1, 0,
 				new Configuration(),
 				taskConfig.getConfiguration(),
 				invokable.getName(),

@@ -61,7 +61,7 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 	}
 
 	@Override
-	public FSDataInputStream openInputStream() throws Exception {
+	public FSDataInputStream openInputStream() throws IOException {
 		return wrappedStreamStateHandle.openInputStream();
 	}
 

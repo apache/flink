@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -359,13 +360,15 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		streamTask.triggerCheckpoint(checkpointId, checkpointTimestamp);
 
-		testHarness.endInput();
-		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
-
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
 
+		env.getCheckpointLatch().await();
+
 		assertEquals(checkpointId, env.getCheckpointId());
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 
 		final OneInputStreamTask<String, String> restoredTask = new OneInputStreamTask<String, String>();
 		restoredTask.setInitialState(env.getState(), env.getKeyGroupStates());
@@ -459,9 +462,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 	}
 
 	private static class AcknowledgeStreamMockEnvironment extends StreamMockEnvironment {
-		private long checkpointId;
-		private ChainedStateHandle<StreamStateHandle> state;
-		private List<KeyGroupsStateHandle> keyGroupStates;
+		private volatile long checkpointId;
+		private volatile ChainedStateHandle<StreamStateHandle> state;
+		private volatile List<KeyGroupsStateHandle> keyGroupStates;
+
+		private final OneShotLatch checkpointLatch = new OneShotLatch();
 
 		public long getCheckpointId() {
 			return checkpointId;
@@ -494,6 +499,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 			this.checkpointId = checkpointId;
 			this.state = state;
 			this.keyGroupStates = keyGroupStates;
+			checkpointLatch.trigger();
+		}
+
+		public OneShotLatch getCheckpointLatch() {
+			return checkpointLatch;
 		}
 	}
 

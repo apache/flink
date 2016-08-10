@@ -18,22 +18,25 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -44,6 +47,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 
@@ -63,6 +67,8 @@ import static org.mockito.Mockito.when;
  */
 public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
+	protected static final int MAX_PARALLELISM = 10;
+
 	final OneInputStreamOperator<IN, OUT> operator;
 
 	final ConcurrentLinkedQueue<Object> outputList;
@@ -78,7 +84,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	StreamTask<?, ?> mockTask;
 
 	// use this as default for tests
-	private AbstractStateBackend stateBackend = new MemoryStateBackend();
+	AbstractStateBackend stateBackend = new MemoryStateBackend();
 
 	/**
 	 * Whether setup() was called on the operator. This is reset when calling close().
@@ -108,7 +114,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		this.executionConfig = executionConfig;
 		this.checkpointLock = new Object();
 
-		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig);
+		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
 		timeServiceProvider = testTimeProvider;
 
@@ -120,21 +126,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getUserCodeClassLoader()).thenReturn(this.getClass().getClassLoader());
 
-		try {
-			doAnswer(new Answer<AbstractStateBackend>() {
-				@Override
-				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
-					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
-					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
-					OneInputStreamOperatorTestHarness.this.stateBackend.disposeAllStateForCurrentJob();
-					OneInputStreamOperatorTestHarness.this.stateBackend.initializeForJob(env, operatorIdentifier, keySerializer);
-					return OneInputStreamOperatorTestHarness.this.stateBackend;
-				}
-			}).when(mockTask).createStateBackend(any(String.class), any(TypeSerializer.class));
-		} catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
-		
 		doAnswer(new Answer<Void>() {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Throwable {
@@ -153,6 +144,20 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				return timeServiceProvider.getCurrentProcessingTime();
 			}
 		}).when(mockTask).getCurrentProcessingTime();
+
+		try {
+			doAnswer(new Answer<CheckpointStreamFactory>() {
+				@Override
+				public CheckpointStreamFactory answer(InvocationOnMock invocationOnMock) throws Throwable {
+
+					final StreamOperator operator = (StreamOperator) invocationOnMock.getArguments()[0];
+					return stateBackend.createStreamFactory(new JobID(), operator.getClass().getSimpleName());
+				}
+			}).when(mockTask).createCheckpointStreamFactory(any(StreamOperator.class));
+		} catch (Exception e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
+
 	}
 
 	public void setStateBackend(AbstractStateBackend stateBackend) {
@@ -165,13 +170,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	public Environment getEnvironment() {
 		return this.mockTask.getEnvironment();
-	}
-
-	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setKeyGroupAssigner(new HashKeyGroupAssigner<K>(10));
 	}
 
 	/**
@@ -205,13 +203,12 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#snapshotState(org.apache.flink.core.fs.FSDataOutputStream, long, long)} ()}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#snapshotState(FSDataOutputStream, long, long)} ()}
 	 */
 	public StreamStateHandle snapshot(long checkpointId, long timestamp) throws Exception {
-		// simply use an in-memory handle
-		MemoryStateBackend backend = new MemoryStateBackend();
-		AbstractStateBackend.CheckpointStateOutputStream outStream =
-				backend.createCheckpointStateOutputStream(checkpointId, timestamp);
+		CheckpointStreamFactory.CheckpointStateOutputStream outStream = stateBackend.createStreamFactory(
+				new JobID(),
+				"test_op").createCheckpointStateOutputStream(checkpointId, timestamp);
 		operator.snapshotState(outStream, checkpointId, timestamp);
 		return outStream.closeAndGetHandle();
 	}

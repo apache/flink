@@ -99,11 +99,24 @@ public class MockEnvironment implements Environment {
 	private final int bufferSize;
 
 	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
-		this(taskName, memorySize, inputSplitProvider, bufferSize, new Configuration());
+		this(taskName, memorySize, inputSplitProvider, bufferSize, new Configuration(), new ExecutionConfig());
 	}
 
-	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize, Configuration taskConfiguration) {
-		this.taskInfo = new TaskInfo(taskName, 0, 1, 0);
+	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize, Configuration taskConfiguration, ExecutionConfig executionConfig) {
+		this(taskName, memorySize, inputSplitProvider, bufferSize, taskConfiguration, executionConfig, 1, 1, 0);
+	}
+
+	public MockEnvironment(
+			String taskName,
+			long memorySize,
+			MockInputSplitProvider inputSplitProvider,
+			int bufferSize,
+			Configuration taskConfiguration,
+			ExecutionConfig executionConfig,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex) {
+		this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = taskConfiguration;
 		this.inputs = new LinkedList<InputGate>();
@@ -111,7 +124,7 @@ public class MockEnvironment implements Environment {
 
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
-		this.executionConfig = new ExecutionConfig();
+		this.executionConfig = executionConfig;
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
 
@@ -120,6 +133,7 @@ public class MockEnvironment implements Environment {
 		KvStateRegistry registry = new KvStateRegistry();
 		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
 	}
+
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
 		try {
