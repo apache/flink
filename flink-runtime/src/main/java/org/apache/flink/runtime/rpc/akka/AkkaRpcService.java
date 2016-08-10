@@ -38,14 +38,18 @@ import org.apache.flink.runtime.rpc.StartStoppable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -198,5 +202,19 @@ public class AkkaRpcService implements RpcService {
 			String className = AkkaGateway.class.getName();
 			throw new IllegalArgumentException("Cannot get address for non " + className + '.');
 		}
+	}
+
+	@Override
+	public ExecutionContext getExecutionContext() {
+		return actorSystem.dispatcher();
+	}
+
+	@Override
+	public void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
+		checkNotNull(runnable, "runnable");
+		checkNotNull(unit, "unit");
+		checkArgument(delay >= 0, "delay must be zero or larger");
+
+		actorSystem.scheduler().scheduleOnce(new FiniteDuration(delay, unit), runnable, getExecutionContext());
 	}
 }
