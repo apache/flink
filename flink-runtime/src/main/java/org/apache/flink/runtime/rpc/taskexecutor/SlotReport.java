@@ -18,8 +18,21 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
-import org.apache.flink.util.TestLogger;
+import java.io.Serializable;
 
-public class TaskExecutorTest extends TestLogger {
+/**
+ * A report about the current status of all slots of the TaskExecutor, describing
+ * which slots are available and allocated, and what jobs (JobManagers) the allocated slots
+ * have been allocated to.
+ */
+public class SlotReport implements Serializable{
+
+	private static final long serialVersionUID = 1L;
+
+	// ------------------------------------------------------------------------
 	
+	@Override
+	public String toString() {
+		return "SlotReport";
+	}
 }
