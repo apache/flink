@@ -18,19 +18,24 @@
 
 package org.apache.flink.runtime.rpc.akka.messages;
 
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.concurrent.Callable;
 
-public class CancelTask implements Serializable {
-	private static final long serialVersionUID = -2998176874447950595L;
-	private final ExecutionAttemptID executionAttemptID;
+/**
+ * Message for asynchronous callable invocations
+ */
+public final class CallAsync implements Serializable {
+	private static final long serialVersionUID = 2834204738928484060L;
 
-	public CancelTask(ExecutionAttemptID executionAttemptID) {
-		this.executionAttemptID = executionAttemptID;
+	private transient Callable<?> callable;
+
+	public CallAsync(Callable<?> callable) {
+		this.callable = Preconditions.checkNotNull(callable);
 	}
 
-	public ExecutionAttemptID getExecutionAttemptID() {
-		return executionAttemptID;
+	public Callable<?> getCallable() {
+		return callable;
 	}
 }
