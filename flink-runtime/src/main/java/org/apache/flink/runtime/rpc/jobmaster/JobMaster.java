@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.util.Preconditions;
 import scala.Tuple2;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
@@ -76,7 +77,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	public JobMaster(RpcService rpcService, ExecutorService executorService) {
 		super(rpcService);
-		executionContext = ExecutionContext$.MODULE$.fromExecutor(executorService);
+		executionContext = ExecutionContext$.MODULE$.fromExecutor(
+			Preconditions.checkNotNull(executorService));
 		scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
 	}
 
