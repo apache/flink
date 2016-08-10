@@ -16,10 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.taskexecutor;
+package org.apache.flink.runtime.highavailability;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
-public class TaskExecutorTest extends TestLogger {
-	
+/**
+ * This class gives access to all services needed for
+ *
+ * <ul>
+ *     <li>ResourceManager leader election and leader retrieval</li>
+ *     <li>JobManager leader election and leader retrieval</li>
+ *     <li>Persistence for checkpoint metadata</li>
+ *     <li>Registering the latest completed checkpoint(s)</li>
+ * </ul>
+ */
+public interface HighAvailabilityServices {
+
+	/**
+	 * Gets the leader retriever for the cluster's resource manager.
+	 */
+	LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception;
 }

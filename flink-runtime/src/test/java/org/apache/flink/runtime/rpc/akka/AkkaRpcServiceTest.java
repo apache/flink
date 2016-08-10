@@ -20,15 +20,17 @@ package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorSystem;
 import akka.util.Timeout;
+
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
 import org.apache.flink.util.TestLogger;
+
+import org.junit.AfterClass;
 import org.junit.Test;
+
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -40,6 +42,49 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class AkkaRpcServiceTest extends TestLogger {
+
+	// ------------------------------------------------------------------------
+	//  shared test members
+	// ------------------------------------------------------------------------
+
+	private static ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+
+	private static AkkaRpcService akkaRpcService =
+			new AkkaRpcService(actorSystem, new Timeout(10000, TimeUnit.MILLISECONDS));
+
+	@AfterClass
+	public static void shutdown() {
+		akkaRpcService.stopService();
+		actorSystem.shutdown();
+	}
+
+	// ------------------------------------------------------------------------
+	//  tests
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testScheduleRunnable() throws Exception {
+		final OneShotLatch latch = new OneShotLatch();
+		final long delay = 100;
+		final long start = System.nanoTime();
+
+		akkaRpcService.scheduleRunnable(new Runnable() {
+			@Override
+			public void run() {
+				latch.trigger();
+			}
+		}, delay, TimeUnit.MILLISECONDS);
+
+		latch.await();
+		final long stop = System.nanoTime();
+
+		assertTrue("call was not properly delayed", ((stop - start) / 1000000) >= delay);
+	}
+
+	// ------------------------------------------------------------------------
+	//  specific component tests - should be moved to the test classes
+	//  for those components
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Tests that the {@link JobMaster} can connect to the {@link ResourceManager} using the
