@@ -85,7 +85,7 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public <S extends RpcProtocol, C extends RpcGateway> C startServer(S rpcProtocol) {
+	public <C extends RpcGateway, S extends RpcProtocol<C>> C startServer(S rpcProtocol) {
 		ActorRef ref;
 		C self;
 		if (rpcProtocol instanceof TaskExecutor) {
