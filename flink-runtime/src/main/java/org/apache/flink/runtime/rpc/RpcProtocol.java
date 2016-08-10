@@ -19,18 +19,22 @@
 package org.apache.flink.runtime.rpc;
 
 import akka.util.Timeout;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 import java.util.concurrent.Callable;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Base class for rpc protocols. Distributed components which offer remote procedure calls have to
  * extend the rpc protocol base class.
  *
- * The main idea is that a rpc protocol is backed by a rpc server which has a single thread
+ * <p>The main idea is that a rpc protocol is backed by a rpc server which has a single thread
  * processing the rpc calls. Thus, by executing all state changing operations within the main
  * thread, we don't have to reason about concurrent accesses. The rpc provides provides
  * {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Timeout)} and the
@@ -42,35 +46,91 @@ public abstract class RpcProtocol<C extends RpcGateway> {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	/** Rpc service to be used to start the rpc server and to obtain rpc gateways */
+	// ------------------------------------------------------------------------
+
+	/** RPC service to be used to start the rpc server and to obtain rpc gateways */
 	private final RpcService rpcService;
 
 	/** Self gateway which can be used to schedule asynchronous calls on yourself */
-	private C self;
+	private final C self;
 
-	/**
-	 * The main thread execution context to be used to execute future callbacks in the main thread
-	 * of the executing rpc server.
-	 *
-	 * IMPORTANT: The main thread context is only available after the rpc server has been started.
-	 */
-	private MainThreadExecutionContext mainThreadExecutionContext;
+	/** the fully qualified address of the this RPC endpoint */
+	private final String selfAddress;
+
+	/** The main thread execution context to be used to execute future callbacks in the main thread
+	 * of the executing rpc server. */
+	private final MainThreadExecutionContext mainThreadExecutionContext;
+
 
 	public RpcProtocol(RpcService rpcService) {
-		this.rpcService = rpcService;
+		this.rpcService = checkNotNull(rpcService, "rpcService");
+		this.self = rpcService.startServer(this);
+		this.selfAddress = rpcService.getAddress(self);
+		this.mainThreadExecutionContext = new MainThreadExecutionContext((MainThreadExecutor) self);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Shutdown
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Shuts down the underlying rpc server via the rpc service.
+	 *
+	 * Can be overridden to add rpc protocol specific shut down code. Should always call the parent
+	 * shut down method.
+	 */
+	public void shutDown() {
+		rpcService.stopServer(self);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Basic RPC endpoint properties
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Get self-gateway which should be used to run asynchronous rpc calls on this protocol.
 	 *
-	 * IMPORTANT: Always issue local method calls via the self-gateway if the current thread
+	 * <p><b>IMPORTANT</b>: Always issue local method calls via the self-gateway if the current thread
 	 * is not the main thread of the underlying rpc server, e.g. from within a future callback.
 	 *
-	 * @return Self gateway
+	 * @return The self gateway
 	 */
 	public C getSelf() {
 		return self;
 	}
+
+	/**
+	 * Gets the address of the underlying rpc server. The address should be fully qualified so that
+	 * a remote system can connect to this rpc server via this address.
+	 *
+	 * @return Fully qualified address of the underlying rpc server
+	 */
+	public String getAddress() {
+		return selfAddress;
+	}
+
+	/**
+	 * Gets the main thread execution context. The main thread execution context can be used to
+	 * execute tasks in the main thread of the underlying rpc server.
+	 *
+	 * @return Main thread execution context
+	 */
+	public ExecutionContext getMainThreadExecutionContext() {
+		return mainThreadExecutionContext;
+	}
+
+	/**
+	 * Gets the used rpc service.
+	 *
+	 * @return Rpc service
+	 */
+	public RpcService getRpcService() {
+		return rpcService;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Asynchronous executions
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Execute the runnable in the main thread of the underlying rpc server.
@@ -95,63 +155,16 @@ public abstract class RpcProtocol<C extends RpcGateway> {
 		return ((MainThreadExecutor) self).callAsync(callable, timeout);
 	}
 
-	/**
-	 * Gets the main thread execution context. The main thread execution context can be used to
-	 * execute tasks in the main thread of the underlying rpc server.
-	 *
-	 * @return Main thread execution context
-	 */
-	public ExecutionContext getMainThreadExecutionContext() {
-		return mainThreadExecutionContext;
-	}
-
-	/**
-	 * Gets the used rpc service.
-	 *
-	 * @return Rpc service
-	 */
-	public RpcService getRpcService() {
-		return rpcService;
-	}
-
-	/**
-	 * Starts the underlying rpc server via the rpc service and creates the main thread execution
-	 * context. This makes the rpc protocol effectively reachable from the outside.
-	 *
-	 * Can be overriden to add rpc protocol specific start up code. Should always call the parent
-	 * start method.
-	 */
-	public void start() {
-		self = rpcService.startServer(this);
-		mainThreadExecutionContext = new MainThreadExecutionContext((MainThreadExecutor) self);
-	}
-
-
-	/**
-	 * Shuts down the underlying rpc server via the rpc service.
-	 *
-	 * Can be overriden to add rpc protocol specific shut down code. Should always call the parent
-	 * shut down method.
-	 */
-	public void shutDown() {
-		rpcService.stopServer(self);
-	}
-
-	/**
-	 * Gets the address of the underlying rpc server. The address should be fully qualified so that
-	 * a remote system can connect to this rpc server via this address.
-	 *
-	 * @return Fully qualified address of the underlying rpc server
-	 */
-	public String getAddress() {
-		return rpcService.getAddress(self);
-	}
-
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Execution context which executes runnables in the main thread context. A reported failure
 	 * will cause the underlying rpc server to shut down.
 	 */
 	private class MainThreadExecutionContext implements ExecutionContext {
+
 		private final MainThreadExecutor gateway;
 
 		MainThreadExecutionContext(MainThreadExecutor gateway) {
