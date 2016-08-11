@@ -352,7 +352,6 @@ public class RescalingITCase extends TestLogger {
 			for (int key = 0; key < numberKeys; key++) {
 				int keyGroupIndex = keyGroupAssigner.getKeyGroupIndex(key);
 
-//				expectedResult.add(Tuple2.of(keyGroupIndex % parallelism, numberElements * key));
 				expectedResult.add(Tuple2.of(KeyGroupRange.computeOperatorIndexForKeyGroup(maxParallelism, parallelism, keyGroupIndex) , numberElements * key));
 			}
 
