@@ -38,8 +38,8 @@ function getVersion() {
 }
 
 function deploy_to_s3() {
-	CURRENT_FLINK_VERSION=$1
-	HD=$2
+	local CURRENT_FLINK_VERSION=$1
+	local HD=$2
 
 	echo "Installing artifacts deployment script"
 	export ARTIFACTS_DEST="$HOME/bin/artifacts"
@@ -48,7 +48,7 @@ function deploy_to_s3() {
 
 	echo "Deploying flink version $CURRENT_FLINK_VERSION (hadoop=$HD) to s3:"
 	mkdir flink-$CURRENT_FLINK_VERSION
-	cp -r flink-dist/target/flink-*-bin/flink-$CURRENT_FLINK_VERSION*/* flink-$CURRENT_FLINK_VERSION/
+	cp -r flink-dist/target/flink-*-bin/flink-*/* flink-$CURRENT_FLINK_VERSION/
 	tar -czf flink-$CURRENT_FLINK_VERSION-bin-$HD.tgz flink-$CURRENT_FLINK_VERSION
 
 	artifacts upload \

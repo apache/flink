@@ -33,8 +33,8 @@ function usage {
 
 if [[ "$#" -lt 2 ]]; then usage; fi
 
-export old_version="$1"
-export new_version="$2"
+old_version="$1"
+new_version="$2"
 new_pom_name="$3"
 
 # Get hadoop version from the new Flink version
@@ -79,6 +79,8 @@ fi
 echo "Using $nupom as name for the generated pom file."
 
 # export relevant variables for find command subshells
+export old_version
+export new_version
 export hadoop1
 export hadoop2
 export nupom
