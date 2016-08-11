@@ -28,6 +28,7 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -165,6 +166,17 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 */
 	public void runAsync(Runnable runnable) {
 		((MainThreadExecutor) self).runAsync(runnable);
+	}
+
+	/**
+	 * Execute the runnable in the main thread of the underlying RPC endpoint, with
+	 * a delay of the given number of milliseconds.
+	 *
+	 * @param runnable Runnable to be executed
+	 * @param delay    The delay after which the runnable will be executed
+	 */
+	public void scheduleRunAsync(Runnable runnable, long delay, TimeUnit unit) {
+		((MainThreadExecutor) self).scheduleRunAsync(runnable, unit.toMillis(delay));
 	}
 
 	/**

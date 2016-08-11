@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
+import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
 import akka.pattern.Patterns;
@@ -30,9 +31,11 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Akka rpc actor which receives {@link RpcInvocation}, {@link RunAsync} and {@link CallAsync}
@@ -152,12 +155,22 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 				"{} is only supported with local communication.",
 				runAsync.getClass().getName(),
 				runAsync.getClass().getName());
-		} else {
+		}
+		else if (runAsync.getDelay() == 0) {
+			// run immediately
 			try {
 				runAsync.getRunnable().run();
 			} catch (final Throwable e) {
 				LOG.error("Caught exception while executing runnable in main thread.", e);
 			}
+		}
+		else {
+			// schedule for later. send a new message after the delay, which will then be immediately executed 
+			FiniteDuration delay = new FiniteDuration(runAsync.getDelay(), TimeUnit.MILLISECONDS);
+			RunAsync message = new RunAsync(runAsync.getRunnable(), 0);
+
+			getContext().system().scheduler().scheduleOnce(delay, getSelf(), message,
+					getContext().dispatcher(), ActorRef.noSender());
 		}
 	}
 
