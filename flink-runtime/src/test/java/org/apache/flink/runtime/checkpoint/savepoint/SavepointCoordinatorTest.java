@@ -20,7 +20,9 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
@@ -35,10 +37,14 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
-import org.apache.flink.runtime.state.LocalStateHandle;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -50,9 +56,9 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -61,6 +67,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -127,8 +134,11 @@ public class SavepointCoordinatorTest extends TestLogger {
 		// Acknowledge tasks
 		for (ExecutionVertex vertex : vertices) {
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, vertex.getCurrentExecutionAttempt().getAttemptId(),
-					checkpointId, createSerializedStateHandle(vertex), 0));
+				jobId,
+				vertex.getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		// The pending checkpoint is completed
@@ -200,7 +210,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		// Acknowledge and decline tasks
 		coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
 				jobId, vertices[0].getCurrentExecutionAttempt().getAttemptId(),
-				checkpointId, createSerializedStateHandle(vertices[0]), 0));
+				checkpointId, createSerializedStateHandle(vertices[0]), createSerializedStateHandleMap(vertices[0])));
 
 		coordinator.receiveDeclineMessage(new DeclineCheckpoint(
 				jobId, vertices[1].getCurrentExecutionAttempt().getAttemptId(),
@@ -266,7 +276,11 @@ public class SavepointCoordinatorTest extends TestLogger {
 		for (ExecutionVertex vertex : ackVertices) {
 			ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, attemptId, 0, createSerializedStateHandle(vertex), 0));
+				jobId,
+				attemptId,
+				0,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
@@ -278,7 +292,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		// Verify all executions have been reset
 		for (ExecutionVertex vertex : ackVertices) {
 			verify(vertex.getCurrentExecutionAttempt(), times(1)).setInitialState(
-					any(SerializedValue.class), any(Map.class));
+					any(ChainedStateHandle.class), any(List.class));
 		}
 
 		// Verify all promises removed
@@ -325,7 +339,11 @@ public class SavepointCoordinatorTest extends TestLogger {
 		for (ExecutionVertex vertex : ackVertices) {
 			ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, attemptId, 0, createSerializedStateHandle(vertex), 0));
+				jobId,
+				attemptId,
+				0,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
@@ -374,14 +392,18 @@ public class SavepointCoordinatorTest extends TestLogger {
 		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, attemptId, 0, createSerializedStateHandle(vertex), 0));
+				jobId,
+				attemptId,
+				0,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
 		assertNotNull(savepointPath);
 
-		// Failure on getState
-		doThrow(new RuntimeException("TestException")).when(savepointStore).loadSavepoint(anyString());
+		// Failure on get
+		doThrow(new Exception("TestException")).when(savepointStore).loadSavepoint(anyString());
 
 		try {
 			// Rollback
@@ -402,10 +424,11 @@ public class SavepointCoordinatorTest extends TestLogger {
 
 	@Test
 	public void testRollbackSetsCheckpointID() throws Exception {
-		SavepointV0 savepoint = new SavepointV0(12312312L, Collections.<TaskState>emptyList());
+		SavepointV1 savepoint = new SavepointV1(12312312L, Collections.<TaskState>emptyList());
 
 		CheckpointIDCounter checkpointIdCounter = mock(CheckpointIDCounter.class);
 
+		@SuppressWarnings("unchecked")
 		SavepointStore savepointStore = mock(SavepointStore.class);
 		when(savepointStore.loadSavepoint(anyString())).thenReturn(savepoint);
 
@@ -674,7 +697,11 @@ public class SavepointCoordinatorTest extends TestLogger {
 		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, attemptId, 0, createSerializedStateHandle(vertex), 0));
+				jobId,
+				attemptId,
+				0,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		try {
@@ -743,14 +770,20 @@ public class SavepointCoordinatorTest extends TestLogger {
 		// Acknowledge second checkpoint...
 		for (ExecutionVertex vertex : vertices) {
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, vertex.getCurrentExecutionAttempt().getAttemptId(),
-					checkpointIds[1], createSerializedStateHandle(vertex), 0));
+				jobId,
+				vertex.getCurrentExecutionAttempt().getAttemptId(),
+				checkpointIds[1],
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		// ...and one task of first checkpoint
 		coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-				jobId, vertices[0].getCurrentExecutionAttempt().getAttemptId(),
-				checkpointIds[0], createSerializedStateHandle(vertices[0]), 0));
+			jobId,
+			vertices[0].getCurrentExecutionAttempt().getAttemptId(),
+			checkpointIds[0],
+			createSerializedStateHandle(vertices[0]),
+			createSerializedStateHandleMap(vertices[0])));
 
 		// The second pending checkpoint is completed and subsumes the first one
 		assertTrue(pendingCheckpoints[0].isDiscarded());
@@ -833,8 +866,11 @@ public class SavepointCoordinatorTest extends TestLogger {
 			// Acknowledge tasks
 			for (ExecutionVertex vertex : vertices) {
 				coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-						jobId, vertex.getCurrentExecutionAttempt().getAttemptId(),
-						checkpointId, createSerializedStateHandle(vertex), 0));
+					jobId,
+					vertex.getCurrentExecutionAttempt().getAttemptId(),
+					checkpointId,
+					createSerializedStateHandle(vertex),
+					createSerializedStateHandleMap(vertex)));
 			}
 
 			// The pending checkpoint is completed
@@ -861,6 +897,453 @@ public class SavepointCoordinatorTest extends TestLogger {
 		}
 		finally {
 			FileUtils.deleteDirectory(tmpDir);
+		}
+	}
+
+	/**
+	 * Tests that the checkpointed partitioned and non-partitioned state is assigned properly to
+	 * the {@link Execution} upon recovery.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testRestoreLatestCheckpointedState() throws Exception {
+		final JobID jid = new JobID();
+		final long timestamp = System.currentTimeMillis();
+
+		final JobVertexID jobVertexID1 = new JobVertexID();
+		final JobVertexID jobVertexID2 = new JobVertexID();
+		int parallelism1 = 3;
+		int parallelism2 = 2;
+		int maxParallelism1 = 42;
+		int maxParallelism2 = 13;
+
+		final ExecutionJobVertex jobVertex1 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID1,
+			parallelism1,
+			maxParallelism1);
+		final ExecutionJobVertex jobVertex2 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID2,
+			parallelism2,
+			maxParallelism2);
+
+		List<ExecutionVertex> allExecutionVertices = new ArrayList<>(parallelism1 + parallelism2);
+
+		allExecutionVertices.addAll(Arrays.asList(jobVertex1.getTaskVertices()));
+		allExecutionVertices.addAll(Arrays.asList(jobVertex2.getTaskVertices()));
+
+		ExecutionVertex[] arrayExecutionVertices = allExecutionVertices.toArray(new ExecutionVertex[0]);
+
+		MockCheckpointIdCounter checkpointIdCounter = new MockCheckpointIdCounter();
+
+		// set up the coordinator and validate the initial state
+		SavepointCoordinator coord = createSavepointCoordinator(
+			jid,
+			600000,
+			arrayExecutionVertices,
+			arrayExecutionVertices,
+			arrayExecutionVertices,
+			checkpointIdCounter,
+			new HeapSavepointStore());
+
+		// trigger the checkpoint
+		Future<String> savepointPathFuture = coord.triggerSavepoint(timestamp);
+
+		List<KeyGroupRange> keyGroupPartitions1 = coord.createKeyGroupPartitions(maxParallelism1, parallelism1);
+		List<KeyGroupRange> keyGroupPartitions2 = coord.createKeyGroupPartitions(maxParallelism2, parallelism2);
+
+		final long checkpointId = checkpointIdCounter.getLastReturnedCount();
+
+		for (int index = 0; index < jobVertex1.getParallelism(); index++) {
+			ChainedStateHandle<StreamStateHandle> valueSizeTuple = CheckpointCoordinatorTest.generateStateForVertex(jobVertexID1, index);
+			List<KeyGroupsStateHandle> keyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index));
+
+			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				jid,
+				jobVertex1.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				valueSizeTuple,
+				keyGroupState);
+
+			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
+		}
+
+		for (int index = 0; index < jobVertex2.getParallelism(); index++) {
+			ChainedStateHandle<StreamStateHandle> valueSizeTuple = CheckpointCoordinatorTest.generateStateForVertex(jobVertexID2, index);
+			List<KeyGroupsStateHandle> keyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID2, keyGroupPartitions2.get(index));
+
+			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				jid,
+				jobVertex2.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				valueSizeTuple,
+				keyGroupState);
+
+			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
+		}
+
+		// completed checkpoints are not stored in a CompletedCheckpointStore
+		List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
+		assertEquals(0, completedCheckpoints.size());
+
+		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
+
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+
+		tasks.put(jobVertexID1, jobVertex1);
+		tasks.put(jobVertexID2, jobVertex2);
+
+		coord.restoreSavepoint(tasks, savepointPath);
+
+		// verify the restored state
+		CheckpointCoordinatorTest.verifiyStateRestore(jobVertexID1, jobVertex1, keyGroupPartitions1);
+		CheckpointCoordinatorTest.verifiyStateRestore(jobVertexID2, jobVertex2, keyGroupPartitions2);
+	}
+
+	/**
+	 * Tests that the checkpoint restoration fails if the max parallelism of the job vertices has
+	 * changed.
+	 *
+	 * @throws Exception
+	 */
+	@Test(expected=IllegalStateException.class)
+	public void testRestoreLatestCheckpointFailureWhenMaxParallelismChanges() throws Exception {
+		final JobID jid = new JobID();
+		final long timestamp = System.currentTimeMillis();
+
+		final JobVertexID jobVertexID1 = new JobVertexID();
+		final JobVertexID jobVertexID2 = new JobVertexID();
+		int parallelism1 = 3;
+		int parallelism2 = 2;
+		int maxParallelism1 = 42;
+		int maxParallelism2 = 13;
+
+		final ExecutionJobVertex jobVertex1 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID1,
+			parallelism1,
+			maxParallelism1);
+		final ExecutionJobVertex jobVertex2 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID2,
+			parallelism2,
+			maxParallelism2);
+
+		List<ExecutionVertex> allExecutionVertices = new ArrayList<>(parallelism1 + parallelism2);
+
+		allExecutionVertices.addAll(Arrays.asList(jobVertex1.getTaskVertices()));
+		allExecutionVertices.addAll(Arrays.asList(jobVertex2.getTaskVertices()));
+
+		ExecutionVertex[] arrayExecutionVertices = allExecutionVertices.toArray(new ExecutionVertex[0]);
+
+		MockCheckpointIdCounter checkpointIdCounter = new MockCheckpointIdCounter();
+
+		// set up the coordinator and validate the initial state
+		SavepointCoordinator coord = createSavepointCoordinator(
+			jid,
+			600000,
+			arrayExecutionVertices,
+			arrayExecutionVertices,
+			arrayExecutionVertices,
+			checkpointIdCounter,
+			new HeapSavepointStore());
+
+		// trigger the checkpoint
+		Future<String> savepointPathFuture = coord.triggerSavepoint(timestamp);
+
+		List<KeyGroupRange> keyGroupPartitions1 = coord.createKeyGroupPartitions(maxParallelism1, parallelism1);
+		List<KeyGroupRange> keyGroupPartitions2 = coord.createKeyGroupPartitions(maxParallelism2, parallelism2);
+
+		final long checkpointId = checkpointIdCounter.getLastReturnedCount();
+
+		for (int index = 0; index < jobVertex1.getParallelism(); index++) {
+			ChainedStateHandle<StreamStateHandle> valueSizeTuple = CheckpointCoordinatorTest.generateStateForVertex(jobVertexID1, index);
+			List<KeyGroupsStateHandle> keyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index));
+
+			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				jid,
+				jobVertex1.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				valueSizeTuple,
+				keyGroupState);
+
+			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
+		}
+
+		for (int index = 0; index < jobVertex2.getParallelism(); index++) {
+			ChainedStateHandle<StreamStateHandle> valueSizeTuple = CheckpointCoordinatorTest.generateStateForVertex(jobVertexID2, index);
+			List<KeyGroupsStateHandle> keyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID2, keyGroupPartitions2.get(index));
+
+			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				jid,
+				jobVertex2.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				valueSizeTuple,
+				keyGroupState);
+
+			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
+		}
+
+		// we don't store the completed checkpoints in the CompletedCheckpointStore
+		List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
+		assertEquals(0, completedCheckpoints.size());
+
+		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
+
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+
+		int newMaxParallelism1 = 20;
+		int newMaxParallelism2 = 42;
+
+		final ExecutionJobVertex newJobVertex1 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID1,
+			parallelism1,
+			newMaxParallelism1);
+
+		final ExecutionJobVertex newJobVertex2 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID2,
+			parallelism2,
+			newMaxParallelism2);
+
+		tasks.put(jobVertexID1, newJobVertex1);
+		tasks.put(jobVertexID2, newJobVertex2);
+
+		coord.restoreSavepoint(tasks, savepointPath);
+
+		fail("The restoration should have failed because the max parallelism changed.");
+	}
+
+	/**
+	 * Tests that the checkpoint restoration fails if the parallelism of a job vertices with
+	 * non-partitioned state has changed.
+	 *
+	 * @throws Exception
+	 */
+	@Test(expected=IllegalStateException.class)
+	public void testRestoreLatestCheckpointFailureWhenParallelismChanges() throws Exception {
+		final JobID jid = new JobID();
+		final long timestamp = System.currentTimeMillis();
+
+
+		final JobVertexID jobVertexID1 = new JobVertexID();
+		final JobVertexID jobVertexID2 = new JobVertexID();
+		int parallelism1 = 3;
+		int parallelism2 = 2;
+		int maxParallelism1 = 42;
+		int maxParallelism2 = 13;
+
+		final ExecutionJobVertex jobVertex1 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID1,
+			parallelism1,
+			maxParallelism1);
+		final ExecutionJobVertex jobVertex2 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID2,
+			parallelism2,
+			maxParallelism2);
+
+		List<ExecutionVertex> allExecutionVertices = new ArrayList<>(parallelism1 + parallelism2);
+
+		allExecutionVertices.addAll(Arrays.asList(jobVertex1.getTaskVertices()));
+		allExecutionVertices.addAll(Arrays.asList(jobVertex2.getTaskVertices()));
+
+		ExecutionVertex[] arrayExecutionVertices = allExecutionVertices.toArray(new ExecutionVertex[0]);
+
+		MockCheckpointIdCounter checkpointIdCounter = new MockCheckpointIdCounter();
+
+		// set up the coordinator and validate the initial state
+		SavepointCoordinator coord = createSavepointCoordinator(
+			jid,
+			600000,
+			arrayExecutionVertices,
+			arrayExecutionVertices,
+			arrayExecutionVertices,
+			checkpointIdCounter,
+			new HeapSavepointStore());
+
+		// trigger the checkpoint
+		Future<String> savepointPathFuture = coord.triggerSavepoint(timestamp);
+
+		List<KeyGroupRange> keyGroupPartitions1 = coord.createKeyGroupPartitions(maxParallelism1, parallelism1);
+		List<KeyGroupRange> keyGroupPartitions2 = coord.createKeyGroupPartitions(maxParallelism2, parallelism2);
+
+		final long checkpointId = checkpointIdCounter.getLastReturnedCount();
+
+		for (int index = 0; index < jobVertex1.getParallelism(); index++) {
+			ChainedStateHandle<StreamStateHandle> valueSizeTuple = CheckpointCoordinatorTest.generateStateForVertex(jobVertexID1, index);
+			List<KeyGroupsStateHandle>  keyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index));
+
+			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				jid,
+				jobVertex1.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				valueSizeTuple,
+				keyGroupState);
+
+			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
+		}
+
+
+		for (int index = 0; index < jobVertex2.getParallelism(); index++) {
+			ChainedStateHandle<StreamStateHandle> valueSizeTuple = CheckpointCoordinatorTest.generateStateForVertex(jobVertexID2, index);
+			List<KeyGroupsStateHandle> keyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID2, keyGroupPartitions2.get(index));
+
+			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				jid,
+				jobVertex2.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				valueSizeTuple,
+				keyGroupState);
+
+			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
+		}
+
+		// we don't store completed checkpoints in the SavepointCoordinator
+		List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
+		assertEquals(0, completedCheckpoints.size());
+
+		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
+
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+
+		int newParallelism1 = 4;
+		int newParallelism2 = 3;
+
+		final ExecutionJobVertex newJobVertex1 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID1,
+			newParallelism1,
+			maxParallelism1);
+
+		final ExecutionJobVertex newJobVertex2 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID2,
+			newParallelism2,
+			maxParallelism2);
+
+		tasks.put(jobVertexID1, newJobVertex1);
+		tasks.put(jobVertexID2, newJobVertex2);
+
+		coord.restoreSavepoint(tasks, savepointPath);
+
+		fail("The restoration should have failed because the parallelism of an vertex with " +
+			"non-partitioned state changed.");
+	}
+
+	/**
+	 * Tests the checkpoint restoration with changing parallelism of job vertex with partitioned
+	 * state.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testRestoreLatestCheckpointedStateWithChangingParallelism() throws Exception {
+		final JobID jid = new JobID();
+		final long timestamp = System.currentTimeMillis();
+
+		final JobVertexID jobVertexID1 = new JobVertexID();
+		final JobVertexID jobVertexID2 = new JobVertexID();
+		int parallelism1 = 3;
+		int parallelism2 = 2;
+		int maxParallelism1 = 42;
+		int maxParallelism2 = 13;
+
+		final ExecutionJobVertex jobVertex1 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID1,
+			parallelism1,
+			maxParallelism1);
+		final ExecutionJobVertex jobVertex2 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID2,
+			parallelism2,
+			maxParallelism2);
+
+		List<ExecutionVertex> allExecutionVertices = new ArrayList<>(parallelism1 + parallelism2);
+
+		allExecutionVertices.addAll(Arrays.asList(jobVertex1.getTaskVertices()));
+		allExecutionVertices.addAll(Arrays.asList(jobVertex2.getTaskVertices()));
+
+		ExecutionVertex[] arrayExecutionVertices = allExecutionVertices.toArray(new ExecutionVertex[0]);
+
+		MockCheckpointIdCounter checkpointIdCounter = new MockCheckpointIdCounter();
+
+		// set up the coordinator and validate the initial state
+		SavepointCoordinator coord = createSavepointCoordinator(
+			jid,
+			600000,
+			arrayExecutionVertices,
+			arrayExecutionVertices,
+			arrayExecutionVertices,
+			checkpointIdCounter,
+			new HeapSavepointStore());
+
+		// trigger the checkpoint
+		Future<String> savepointPathFuture = coord.triggerSavepoint(timestamp);
+
+		List<KeyGroupRange> keyGroupPartitions1 = coord.createKeyGroupPartitions(maxParallelism1, parallelism1);
+		List<KeyGroupRange> keyGroupPartitions2 = coord.createKeyGroupPartitions(maxParallelism2, parallelism2);
+
+		final long checkpointId = checkpointIdCounter.getLastReturnedCount();
+
+		for (int index = 0; index < jobVertex1.getParallelism(); index++) {
+			ChainedStateHandle<StreamStateHandle> valueSizeTuple = CheckpointCoordinatorTest.generateStateForVertex(jobVertexID1, index);
+			List<KeyGroupsStateHandle> keyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index));
+
+			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				jid,
+				jobVertex1.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				valueSizeTuple,
+				keyGroupState);
+
+			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
+		}
+
+		for (int index = 0; index < jobVertex2.getParallelism(); index++) {
+			List<KeyGroupsStateHandle> keyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID2, keyGroupPartitions2.get(index));
+
+			AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+				jid,
+				jobVertex2.getTaskVertices()[index].getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				null,
+				keyGroupState);
+
+			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
+		}
+
+		// we don't store completed checkpoints in the SavepointCoordinator
+		List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
+		assertEquals(0, completedCheckpoints.size());
+
+		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
+
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+
+		int newParallelism2 = 13;
+
+		List<KeyGroupRange> newKeyGroupPartitions2 = coord.createKeyGroupPartitions(maxParallelism2, newParallelism2);
+
+		final ExecutionJobVertex newJobVertex1 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID1,
+			parallelism1,
+			maxParallelism1);
+
+		final ExecutionJobVertex newJobVertex2 = CheckpointCoordinatorTest.mockExecutionJobVertex(
+			jobVertexID2,
+			newParallelism2,
+			maxParallelism2);
+
+		tasks.put(jobVertexID1, newJobVertex1);
+		tasks.put(jobVertexID2, newJobVertex2);
+		coord.restoreSavepoint(tasks, savepointPath);
+
+		// verify the restored state
+		// verify the restored state
+		CheckpointCoordinatorTest.verifiyStateRestore(jobVertexID1, newJobVertex1, keyGroupPartitions1);
+
+		for (int i = 0; i < newJobVertex2.getParallelism(); i++) {
+			List<KeyGroupsStateHandle> originalKeyGroupState = CheckpointCoordinatorTest.generateKeyGroupState(jobVertexID2, newKeyGroupPartitions2.get(i));
+
+			ChainedStateHandle<StreamStateHandle> operatorState = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getChainedStateHandle();
+			List<KeyGroupsStateHandle> keyGroupState = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getKeyGroupsStateHandles();
+
+			assertNull(operatorState);
+			CheckpointCoordinatorTest.comparePartitionedState(originalKeyGroupState, keyGroupState);
 		}
 	}
 
@@ -904,11 +1387,32 @@ public class SavepointCoordinatorTest extends TestLogger {
 		return jobVertexMap;
 	}
 
-	private static SerializedValue<StateHandle<?>> createSerializedStateHandle(
-			ExecutionVertex vertex) throws IOException {
+	static ChainedStateHandle<StreamStateHandle> createSerializedStateHandle(ExecutionVertex vertex) throws IOException {
+		List<StreamStateHandle> listOfFileHandlesles = new ArrayList<>();
+		ChainedStateHandle<StreamStateHandle> result = new ChainedStateHandle<>(listOfFileHandlesles);
+		ExecutionAttemptID value = vertex.getCurrentExecutionAttempt().getAttemptId();
+		StreamStateHandle fileStateHandle = new ByteStreamStateHandle(InstantiationUtil.serializeObject(value));
+		listOfFileHandlesles.add(fileStateHandle);
+		return result;
+	}
 
-		return new SerializedValue<StateHandle<?>>(new LocalStateHandle<Serializable>(
-				vertex.getCurrentExecutionAttempt().getAttemptId()));
+	static List<KeyGroupsStateHandle> createSerializedStateHandleMap(
+			ExecutionVertex vertex) throws IOException {
+		List<byte[]> serializedGroupValues = new ArrayList<>();
+		KeyGroupRange keyGroupRange = KeyGroupRange.of(0,0);
+		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(keyGroupRange, new long[]{0L});
+		// generate state for one keygroup
+		ExecutionAttemptID value = vertex.getCurrentExecutionAttempt().getAttemptId();
+		byte[] serializedValue = InstantiationUtil.serializeObject(value);
+		serializedGroupValues.add(serializedValue);
+
+		ByteStreamStateHandle allSerializedStatesHandle = new ByteStreamStateHandle(serializedValue);
+		KeyGroupsStateHandle keyGroupsStateHandle = new KeyGroupsStateHandle(
+				keyGroupRangeOffsets,
+				allSerializedStatesHandle);
+		List<KeyGroupsStateHandle> keyGroupsStateHandleList = new ArrayList<>();
+		keyGroupsStateHandleList.add(keyGroupsStateHandle);
+		return keyGroupsStateHandleList;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -1013,9 +1517,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 				SubtaskState subtaskState = taskState.getState(vertex.getParallelSubtaskIndex());
 				ExecutionAttemptID vertexAttemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-				ExecutionAttemptID stateAttemptId = (ExecutionAttemptID) subtaskState.getState()
-						.deserializeValue(Thread.currentThread().getContextClassLoader())
-						.getState(Thread.currentThread().getContextClassLoader());
+				ExecutionAttemptID stateAttemptId = (ExecutionAttemptID) InstantiationUtil.deserializeObject(
+						subtaskState.getChainedStateHandle().get(0).openInputStream());
 
 				assertEquals(vertexAttemptId, stateAttemptId);
 			}
@@ -1033,6 +1536,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		when(jobVertex.getJobId()).thenReturn(jobId);
 		when(jobVertex.getJobVertexId()).thenReturn(jobVertexId);
 		when(jobVertex.getParallelism()).thenReturn(parallelism);
+		when(jobVertex.getMaxParallelism()).thenReturn(parallelism);
 
 		ExecutionVertex[] vertices = new ExecutionVertex[parallelism];
 
@@ -1073,6 +1577,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		when(vertex.getParallelSubtaskIndex()).thenReturn(subtaskIndex);
 		when(vertex.getCurrentExecutionAttempt()).thenReturn(exec);
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(parallelism);
+		when(vertex.getMaxParallelism()).thenReturn(parallelism);
 
 		return vertex;
 	}
