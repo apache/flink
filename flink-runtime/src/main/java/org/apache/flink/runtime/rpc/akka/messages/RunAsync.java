@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.rpc.akka.messages;
 
-import org.apache.flink.util.Preconditions;
-
 import java.io.Serializable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Message for asynchronous runnable invocations
@@ -28,13 +29,28 @@ import java.io.Serializable;
 public final class RunAsync implements Serializable {
 	private static final long serialVersionUID = -3080595100695371036L;
 
+	/** The runnable to be executed. Transient, so it gets lost upon serialization */ 
 	private final transient Runnable runnable;
 
-	public RunAsync(Runnable runnable) {
-		this.runnable = Preconditions.checkNotNull(runnable);
+	/** The delay after which the runnable should be called */
+	private final long delay;
+
+	/**
+	 * 
+	 * @param runnable  The Runnable to run.
+	 * @param delay     The delay in milliseconds. Zero indicates immediate execution.
+	 */
+	public RunAsync(Runnable runnable, long delay) {
+		checkArgument(delay >= 0);
+		this.runnable = checkNotNull(runnable);
+		this.delay = delay;
 	}
 
 	public Runnable getRunnable() {
 		return runnable;
+	}
+
+	public long getDelay() {
+		return delay;
 	}
 }
