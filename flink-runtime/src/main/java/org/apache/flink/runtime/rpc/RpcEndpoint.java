@@ -29,6 +29,7 @@ import scala.concurrent.Future;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -75,6 +76,9 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * of the executing rpc server. */
 	private final MainThreadExecutionContext mainThreadExecutionContext;
 
+	/** A reference to the endpoint's main thread, if the current method is called by the main thread */
+	final AtomicReference<Thread> currentMainThread = new AtomicReference<>(null); 
+
 	/**
 	 * Initializes the RPC endpoint.
 	 * 
@@ -92,6 +96,15 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 		this.mainThreadExecutionContext = new MainThreadExecutionContext((MainThreadExecutor) self);
 	}
 
+	/**
+	 * Returns the class of the self gateway type.
+	 *
+	 * @return Class of the self gateway type
+	 */
+	public final Class<C> getSelfGatewayType() {
+		return selfGatewayType;
+	}
+	
 	// ------------------------------------------------------------------------
 	//  Shutdown
 	// ------------------------------------------------------------------------
@@ -193,13 +206,28 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 		return ((MainThreadExecutor) self).callAsync(callable, timeout);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Main Thread Validation
+	// ------------------------------------------------------------------------
+
 	/**
-	 * Returns the class of the self gateway type.
-	 *
-	 * @return Class of the self gateway type
+	 * Validates that the method call happens in the RPC endpoint's main thread.
+	 * 
+	 * <p><b>IMPORTANT:</b> This check only happens when assertions are enabled,
+	 * such as when running tests.
+	 * 
+	 * <p>This can be used for additional checks, like
+	 * <pre>{@code
+	 * protected void concurrencyCriticalMethod() {
+	 *     validateRunsInMainThread();
+	 *     
+	 *     // some critical stuff
+	 * }
+	 * }</pre>
 	 */
-	public final Class<C> getSelfGatewayType() {
-		return selfGatewayType;
+	public void validateRunsInMainThread() {
+		// because the initialization is lazy, it can be that certain methods are
+		assert currentMainThread.get() == Thread.currentThread();
 	}
 
 	// ------------------------------------------------------------------------
