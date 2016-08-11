@@ -86,6 +86,7 @@ public class MessageSerializationTest extends TestLogger {
 	public void testNonSerializableLocalMessageTransfer() throws InterruptedException, IOException {
 		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
+		testEndpoint.start();
 
 		TestGateway testGateway = testEndpoint.getSelf();
 
@@ -106,6 +107,7 @@ public class MessageSerializationTest extends TestLogger {
 		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
+		testEndpoint.start();
 
 		String address = testEndpoint.getAddress();
 
@@ -126,6 +128,7 @@ public class MessageSerializationTest extends TestLogger {
 		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
+		testEndpoint.start();
 
 		String address = testEndpoint.getAddress();
 
@@ -149,6 +152,7 @@ public class MessageSerializationTest extends TestLogger {
 		LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
+		testEndpoint.start();
 
 		String address = testEndpoint.getAddress();
 
