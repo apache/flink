@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -127,15 +128,13 @@ public class TypeInfoFactoryTest {
 		TypeExtractor.getMapReturnTypes(f, new MyFaultyTypeInfo());
 	}
 
+	// global registration of factories is currently private
+	/*
 	@Test
 	public void testRegisteredFactories() {
 		TypeExtractor.registerFactory(Integer.class, MyOptionTypeInfoFactory.class);
 		TypeInformation ti = TypeExtractor.createTypeInfo(Integer.class);
 		assertTrue(ti instanceof MyOptionTypeInfo);
-
-		TypeExtractor.unregisterFactory(Integer.class);
-		ti = TypeExtractor.createTypeInfo(Integer.class);
-		assertEquals(INT_TYPE_INFO, ti);
 
 		TypeExtractor.registerFactory(Integer.class, MyOptionTypeInfoFactory.class);
 		ti = TypeExtractor.createTypeInfo(Integer.class);
@@ -147,7 +146,7 @@ public class TypeInfoFactoryTest {
 		TypeExtractor.registerFactory(MyTuple.class, MyTupleTypeInfoFactory.class);
 		TypeInformation ti = TypeExtractor.createTypeInfo(MyTuple3.class);
 		assertTrue(ti instanceof MyTupleTypeInfo);
-	}
+	}*/
 
 	// --------------------------------------------------------------------------------------------
 	//  Utilities
@@ -272,15 +271,6 @@ public class TypeInfoFactoryTest {
 		public TypeInformation<MyTuple> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
 			return new MyTupleTypeInfo(genericParameters.get("T0"), genericParameters.get("T1"));
 		}
-
-		@Override
-		public TypeInformation<?> mapSubtypeInfo(String genericParameter, TypeInformation<MyTuple> typeInfo) {
-			switch (genericParameter) {
-				case "T0": return ((MyTupleTypeInfo) typeInfo).field0;
-				case "T1": return ((MyTupleTypeInfo) typeInfo).field1;
-			}
-			return null;
-		}
 	}
 
 	public static class MyTupleTypeInfo<T0, T1> extends TypeInformation<MyTuple<T0, T1>> {
@@ -354,6 +344,14 @@ public class TypeInfoFactoryTest {
 		public boolean canEqual(Object obj) {
 			return false;
 		}
+
+		@Override
+		public Map<String, TypeInformation<?>> getGenericParameters() {
+			Map<String, TypeInformation<?>> map = new HashMap<>(2);
+			map.put("T0", field0);
+			map.put("T1", field1);
+			return map;
+		}
 	}
 
 	public static class MyOptionMapper<T> implements MapFunction<MyOption<Tuple2<T, String>>, MyOption<Tuple2<T, T>>> {
@@ -372,11 +370,6 @@ public class TypeInfoFactoryTest {
 		@Override
 		public TypeInformation<MyOption<T>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParams) {
 			return new MyOptionTypeInfo(genericParams.get("T"));
-		}
-
-		@Override
-		public TypeInformation<?> mapSubtypeInfo(String genericParameter, TypeInformation<MyOption<T>> typeInfo) {
-			return ((MyOptionTypeInfo<T>) typeInfo).getInnerType();
 		}
 	}
 
@@ -445,6 +438,13 @@ public class TypeInfoFactoryTest {
 		@Override
 		public boolean canEqual(Object obj) {
 			return false;
+		}
+
+		@Override
+		public Map<String, TypeInformation<?>> getGenericParameters() {
+			Map<String, TypeInformation<?>> map = new HashMap<>(1);
+			map.put("T", innerType);
+			return map;
 		}
 	}
 

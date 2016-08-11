@@ -47,7 +47,8 @@ class EitherTypeInfo[A, B, T <: Either[A, B]](
   @PublicEvolving
   override def getTypeClass = clazz
   @PublicEvolving
-  override def getGenericParameters = List[TypeInformation[_]](leftTypeInfo, rightTypeInfo).asJava
+  override def getGenericParameters =
+    Map[String, TypeInformation[_]]("A" -> leftTypeInfo, "B" -> rightTypeInfo).asJava
 
   @PublicEvolving
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {

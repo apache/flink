@@ -46,7 +46,8 @@ abstract class TraversableTypeInfo[T <: TraversableOnce[E], E](
   @PublicEvolving
   override def getTypeClass: Class[T] = clazz
   @PublicEvolving
-  override def getGenericParameters = List[TypeInformation[_]](elementTypeInfo).asJava
+  override def getGenericParameters =
+    Map[String, TypeInformation[_]]("A" -> elementTypeInfo).asJava
 
   @PublicEvolving
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T]

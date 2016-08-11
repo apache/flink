@@ -111,8 +111,6 @@ public class TypeExtractor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
-	private static Map<Type, Class<? extends TypeInfoFactory>> registeredTypeInfoFactories = new HashMap<>();
-
 	protected TypeExtractor() {
 		// only create instances for special use cases
 	}
@@ -121,18 +119,18 @@ public class TypeExtractor {
 	//  TypeInfoFactory registry
 	// --------------------------------------------------------------------------------------------
 
+	private static Map<Type, Class<? extends TypeInfoFactory>> registeredTypeInfoFactories = new HashMap<>();
+
 	/**
 	 * Registers a type information factory globally for a certain type. Every following type extraction
 	 * operation will use the provided factory for this type. The factory will have highest precedence
-	 * for this type. You can also override Flink's default types, therefore you should know what you are doing.
-	 * In a hierarchy of types the registered factory has higher precedence than annotations at the
-	 * same level but lower precedence than factories defined down the hierarchy.
+	 * for this type. In a hierarchy of types the registered factory has higher precedence than annotations
+	 * at the same level but lower precedence than factories defined down the hierarchy.
 	 *
 	 * @param t type for which a new factory is registered
 	 * @param factory type information factory that will produce {@link TypeInformation}
 	 */
-	@PublicEvolving
-	public static void registerFactory(Type t, Class<? extends TypeInfoFactory> factory) {
+	private static void registerFactory(Type t, Class<? extends TypeInfoFactory> factory) {
 		Preconditions.checkNotNull(t, "Type parameter must not be null.");
 		Preconditions.checkNotNull(factory, "Factory parameter must not be null.");
 
@@ -143,18 +141,6 @@ public class TypeExtractor {
 			throw new InvalidTypesException("A TypeInfoFactory for type '" + t + "' is already registered.");
 		}
 		registeredTypeInfoFactories.put(t, factory);
-	}
-
-	/**
-	 * Unregisters a type information factory that has been registered for a certain type. Every
-	 * following type extraction operation will use Flink's default behavior for this type again.
-	 *
-	 * @param t type for which a registered factory is unregistered
-	 */
-	@PublicEvolving
-	public static void unregisterFactory(Type t) {
-		Preconditions.checkNotNull(t, "Type parameter must not be null.");
-		registeredTypeInfoFactories.remove(t);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -877,14 +863,15 @@ public class TypeExtractor {
 				final Type[] actualParams = ((ParameterizedType) factoryDefiningType).getActualTypeArguments();
 				// go thru all elements and search for type variables
 				for (int i = 0; i < actualParams.length; i++) {
-					final TypeInformation<?> componentInfo = factory.mapSubtypeInfo(typeParams[i].toString(), (TypeInformation) inTypeInfo);
-					if (componentInfo == null) {
-						throw new InvalidTypesException("TypeInfoFactory '" + factory.getClass().getSimpleName() +
-							"' does not supply a mapping of TypeVariable '" + typeParams[i] + "' to corresponding TypeInformation. " +
+					final Map<String, TypeInformation<?>> componentInfo = inTypeInfo.getGenericParameters();
+					final String typeParamName = typeParams[i].toString();
+					if (!componentInfo.containsKey(typeParamName) || componentInfo.get(typeParamName) == null) {
+						throw new InvalidTypesException("TypeInformation '" + inTypeInfo.getClass().getSimpleName() +
+							"' does not supply a mapping of TypeVariable '" + typeParamName + "' to corresponding TypeInformation. " +
 							"Input type inference can only produce a result with this information. " +
-							"Please implement method 'mapSubtypeInfo' for this.");
+							"Please implement method 'TypeInformation.getGenericParameters()' for this.");
 					}
-					info = createTypeInfoFromInput(returnTypeVar, factoryHierarchy, actualParams[i], componentInfo);
+					info = createTypeInfoFromInput(returnTypeVar, factoryHierarchy, actualParams[i], componentInfo.get(typeParamName));
 					if (info != null) {
 						break;
 					}
