@@ -22,20 +22,24 @@ import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
 import akka.pattern.Patterns;
+import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.akka.messages.CallAsync;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
-import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Akka rpc actor which receives {@link RpcInvocation}, {@link RunAsync} and {@link CallAsync}
@@ -51,24 +55,35 @@ import java.util.concurrent.TimeUnit;
  * @param <T> Type of the {@link RpcEndpoint}
  */
 class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends UntypedActor {
+	
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActor.class);
 
+	/** the endpoint to invoke the methods on */
 	private final T rpcEndpoint;
 
+	/** the helper that tracks whether calls come from the main thread */
+	private final MainThreadValidatorUtil mainThreadValidator;
+
 	AkkaRpcActor(final T rpcEndpoint) {
-		this.rpcEndpoint = Preconditions.checkNotNull(rpcEndpoint, "rpc endpoint");
+		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
+		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
 	}
 
 	@Override
-	public void onReceive(final Object message)  {
-		if (message instanceof RunAsync) {
-			handleRunAsync((RunAsync) message);
-		} else if (message instanceof CallAsync) {
-			handleCallAsync((CallAsync) message);
-		} else if (message instanceof RpcInvocation) {
-			handleRpcInvocation((RpcInvocation) message);
-		} else {
-			LOG.warn("Received message of unknown type {}. Dropping this message!", message.getClass());
+	public void onReceive(final Object message) {
+		mainThreadValidator.enterMainThread();
+		try {
+			if (message instanceof RunAsync) {
+				handleRunAsync((RunAsync) message);
+			} else if (message instanceof CallAsync) {
+				handleCallAsync((CallAsync) message);
+			} else if (message instanceof RpcInvocation) {
+				handleRpcInvocation((RpcInvocation) message);
+			} else {
+				LOG.warn("Received message of unknown type {}. Dropping this message!", message.getClass());
+			}
+		} finally {
+			mainThreadValidator.exitMainThread();
 		}
 	}
 
