@@ -21,8 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The result of triggering a checkpoint. May be a declined checkpoint trigger attempt,
- * or a pending checkpoint.
+ * The result of triggering a checkpoint. May either be a declined checkpoint
+ * trigger attempt, or a pending checkpoint.
  */
 class CheckpointTriggerResult {
 
@@ -68,7 +68,7 @@ class CheckpointTriggerResult {
 		if (success != null) {
 			return success;
 		} else {
-			throw new IllegalStateException();
+			throw new IllegalStateException("Checkpoint triggering failed");
 		}
 	}
 
@@ -76,7 +76,7 @@ class CheckpointTriggerResult {
 		if (failure != null) {
 			return failure;
 		} else {
-			throw new IllegalStateException();
+			throw new IllegalStateException("Checkpoint triggering was successful");
 		}
 	}
 
@@ -84,8 +84,9 @@ class CheckpointTriggerResult {
 
 	@Override
 	public String toString() {
-		return isSuccess() ? 
-				("success: " + success) :
-				("failure: " + failure.message()); 
+		return "CheckpointTriggerResult(" +
+				(isSuccess() ?
+						("success: " + success) :
+						("failure: " + failure.message())) + ")";
 	}
 }

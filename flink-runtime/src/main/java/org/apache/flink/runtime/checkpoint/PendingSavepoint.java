@@ -25,9 +25,7 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointV0;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.slf4j.Logger;
-
 import scala.concurrent.Future;
 import scala.concurrent.Promise;
 
@@ -107,7 +105,14 @@ public class PendingSavepoint extends PendingCheckpoint {
 
 	@Override
 	public void abortSubsumed() throws Exception {
-		throw new Exception("Bug: Savepoints must never be subsumed");
+		try {
+			Exception e = new Exception("Bug: Savepoints must never be subsumed");
+			onCompletionPromise.failure(e);
+			throw e;
+		}
+		finally {
+			dispose(true);
+		}
 	}
 
 	@Override

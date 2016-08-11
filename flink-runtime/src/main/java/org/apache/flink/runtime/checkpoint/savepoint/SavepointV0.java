@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 /**
@@ -37,11 +38,11 @@ public class SavepointV0 implements Savepoint {
 	private final long checkpointId;
 
 	/** The task states */
-	private final Collection<TaskState> taskStates;
+	private final Collection<TaskState> taskStates = new ArrayList();
 
-	SavepointV0(long checkpointId, Collection<TaskState> taskStates) {
+	public SavepointV0(long checkpointId, Collection<TaskState> taskStates) {
 		this.checkpointId = checkpointId;
-		this.taskStates = Preconditions.checkNotNull(taskStates, "Task States");
+		this.taskStates.addAll(taskStates);
 	}
 
 	@Override

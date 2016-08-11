@@ -27,8 +27,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * The SavepointLoader is a utility to load and verify a Savepoint, and to create a checkpoint from it. 
  */
@@ -54,7 +52,7 @@ public class SavepointLoader {
 			String savepointPath) throws Exception {
 
 		// (1) load the savepoint
-		Savepoint savepoint = savepointStore.loadSavepoint(checkNotNull(savepointPath));
+		Savepoint savepoint = savepointStore.loadSavepoint(savepointPath);
 		final Map<JobVertexID, TaskState> taskStates = new HashMap<>(savepoint.getTaskStates().size());
 		
 		// (2) validate it (parallelism, etc)
