@@ -28,17 +28,26 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.rpc.MainThreadExecutor;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+import org.mockito.Matchers;
+import org.mockito.cglib.proxy.InvocationHandler;
+import org.mockito.cglib.proxy.Proxy;
+import scala.concurrent.Future;
 
 import java.net.URL;
 import java.util.Collections;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TaskExecutorTest extends TestLogger {
 
@@ -48,8 +57,13 @@ public class TaskExecutorTest extends TestLogger {
 	@Test
 	public void testTaskExecution() throws Exception {
 		RpcService testingRpcService = mock(RpcService.class);
+		InvocationHandler invocationHandler = mock(InvocationHandler.class);
+		Object selfGateway = Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] {TaskExecutorGateway.class, MainThreadExecutor.class, StartStoppable.class}, invocationHandler);
+		when(testingRpcService.startServer(Matchers.any(RpcEndpoint.class))).thenReturn((RpcGateway)selfGateway);
+
 		DirectExecutorService directExecutorService = new DirectExecutorService();
 		TaskExecutor taskExecutor = new TaskExecutor(testingRpcService, directExecutorService);
+		taskExecutor.start();
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
 			new JobID(),
@@ -82,8 +96,12 @@ public class TaskExecutorTest extends TestLogger {
 	@Test(expected=Exception.class)
 	public void testWrongTaskCancellation() throws Exception {
 		RpcService testingRpcService = mock(RpcService.class);
+		InvocationHandler invocationHandler = mock(InvocationHandler.class);
+		Object selfGateway = Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class<?>[] {TaskExecutorGateway.class, MainThreadExecutor.class, StartStoppable.class}, invocationHandler);
+		when(testingRpcService.startServer(Matchers.any(RpcEndpoint.class))).thenReturn((RpcGateway)selfGateway);
 		DirectExecutorService directExecutorService = null;
 		TaskExecutor taskExecutor = new TaskExecutor(testingRpcService, directExecutorService);
+		taskExecutor.start();
 
 		taskExecutor.cancelTask(new ExecutionAttemptID());
 

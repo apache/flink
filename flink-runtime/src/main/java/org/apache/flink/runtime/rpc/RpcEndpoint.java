@@ -74,7 +74,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 
 	/** The main thread execution context to be used to execute future callbacks in the main thread
 	 * of the executing rpc server. */
-	private final MainThreadExecutionContext mainThreadExecutionContext;
+	private final ExecutionContext mainThreadExecutionContext;
 
 	/** A reference to the endpoint's main thread, if the current method is called by the main thread */
 	final AtomicReference<Thread> currentMainThread = new AtomicReference<>(null); 
@@ -106,8 +106,19 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	}
 	
 	// ------------------------------------------------------------------------
-	//  Shutdown
+	//  Start & Shutdown
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Starts the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is ready
+	 * to process remote procedure calls.
+	 *
+	 * IMPORTANT: Whenever you override this method, call the parent implementation to enable
+	 * rpc processing. It is advised to make the parent call last.
+	 */
+	public void start() {
+		((StartStoppable) self).start();
+	}
 
 	/**
 	 * Shuts down the underlying RPC endpoint via the RPC service.
