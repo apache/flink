@@ -116,7 +116,7 @@ Example:
 RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
 .setHost("localhost").setPort(5000).setUserName(..)
 .setPassword(..).setVirtualHost("/").build();
-stream.addSink(new RMQSink<String>(connectionConfig, "hello", new StringToByteSerializer()));
+stream.addSink(new RMQSink<String>(connectionConfig, "hello", new SimpleStringSchema()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -124,7 +124,7 @@ stream.addSink(new RMQSink<String>(connectionConfig, "hello", new StringToByteSe
 val connectionConfig = new RMQConnectionConfig.Builder()
 .setHost("localhost").setPort(5000).setUserName(..)
 .setPassword(..).setVirtualHost("/").build()
-stream.addSink(new RMQSink[String](connectionConfig, "hello", new StringToByteSerializer))
+stream.addSink(new RMQSink[String](connectionConfig, "hello", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>
