@@ -160,6 +160,17 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	}
 
 	/**
+	 * Execute the runnable in the main thread of the underlying RPC endpoint, with
+	 * a delay of the given number of milliseconds.
+	 *
+	 * @param runnable Runnable to be executed
+	 * @param delay    The delay after which the runnable will be executed
+	 */
+	public void scheduleRunAsync(Runnable runnable, long delay) {
+		((MainThreadExecutor) self).scheduleRunAsync(runnable, delay);
+	}
+
+	/**
 	 * Execute the callable in the main thread of the underlying RPC service, returning a future for
 	 * the result of the callable. If the callable is not completed within the given timeout, then
 	 * the future will be failed with a {@link java.util.concurrent.TimeoutException}.
