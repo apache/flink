@@ -22,6 +22,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.reflections.Reflections;
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -137,13 +138,16 @@ public class RpcCompletenessTest extends TestLogger {
 		}
 
 		Annotation[][] parameterAnnotations = gatewayMethod.getParameterAnnotations();
+		Class<?>[] parameterTypes = gatewayMethod.getParameterTypes();
 		int rpcTimeoutParameters = 0;
 
-		for (Annotation[] parameterAnnotation : parameterAnnotations) {
-			for (Annotation annotation : parameterAnnotation) {
-				if (annotation.equals(RpcTimeout.class)) {
-					rpcTimeoutParameters++;
-				}
+		for (int i = 0; i < parameterAnnotations.length; i++) {
+			if (isRpcTimeout(parameterAnnotations[i])) {
+				assertTrue(
+					"The rpc timeout has to be of type " + FiniteDuration.class.getName() + ".",
+					parameterTypes[i].equals(FiniteDuration.class));
+
+				rpcTimeoutParameters++;
 			}
 		}
 

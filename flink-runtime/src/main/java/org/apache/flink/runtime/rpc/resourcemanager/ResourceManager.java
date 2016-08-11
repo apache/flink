@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
+import org.apache.flink.util.Preconditions;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
 import scala.concurrent.Future;
@@ -49,7 +50,8 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 
 	public ResourceManager(RpcService rpcService, ExecutorService executorService) {
 		super(rpcService);
-		this.executionContext = ExecutionContext$.MODULE$.fromExecutor(executorService);
+		this.executionContext = ExecutionContext$.MODULE$.fromExecutor(
+			Preconditions.checkNotNull(executorService));
 		this.jobMasterGateways = new HashMap<>();
 	}
 
@@ -90,5 +92,10 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	public SlotAssignment requestSlot(SlotRequest slotRequest) {
 		System.out.println("SlotRequest: " + slotRequest);
 		return new SlotAssignment();
+	}
+
+	@Override
+	public Class<ResourceManagerGateway> getSelfGatewayType() {
+		return ResourceManagerGateway.class;
 	}
 }
