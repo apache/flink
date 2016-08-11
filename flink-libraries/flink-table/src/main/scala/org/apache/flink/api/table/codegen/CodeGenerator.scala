@@ -29,13 +29,13 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeIn
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.{FlinkTypeFactory, TableConfig}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.calls.ScalarFunctions
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isNumeric, isString, isTemporal}
+import org.apache.flink.api.table.typeutils.TypeCheckUtils._
+import org.apache.flink.api.table.{FlinkTypeFactory, TableConfig}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -618,6 +618,20 @@ class CodeGenerator(
         generateNonNullLiteral(resultType, value.toString)
       case TIMESTAMP =>
         generateNonNullLiteral(resultType, value.toString + "L")
+      case INTERVAL_YEAR_MONTH =>
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
+        if (decimal.isValidInt) {
+          generateNonNullLiteral(resultType, decimal.intValue().toString)
+        } else {
+          throw new CodeGenException("Decimal can not be converted to interval of months.")
+        }
+      case INTERVAL_DAY_TIME =>
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
+        if (decimal.isValidLong) {
+          generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
+        } else {
+          throw new CodeGenException("Decimal can not be converted to interval of milliseconds.")
+        }
 
       case t@_ =>
         throw new CodeGenException(s"Type not supported: $t")
@@ -645,11 +659,12 @@ class CodeGenerator(
         requireNumeric(right)
         generateArithmeticOperator("+", nullCheck, resultType, left, right)
 
-      case PLUS if isString(resultType) =>
+      case PLUS | DATETIME_PLUS if isTemporal(resultType) =>
         val left = operands.head
         val right = operands(1)
-        requireString(left)
-        generateStringConcatOperator(nullCheck, left, right)
+        requireTemporal(left)
+        requireTemporal(right)
+        generateTemporalPlusMinus(plus = true, nullCheck, left, right)
 
       case MINUS if isNumeric(resultType) =>
         val left = operands.head
@@ -657,6 +672,13 @@ class CodeGenerator(
         requireNumeric(left)
         requireNumeric(right)
         generateArithmeticOperator("-", nullCheck, resultType, left, right)
+
+      case MINUS if isTemporal(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireTemporal(left)
+        requireTemporal(right)
+        generateTemporalPlusMinus(plus = false, nullCheck, left, right)
 
       case MULTIPLY if isNumeric(resultType) =>
         val left = operands.head
@@ -684,10 +706,20 @@ class CodeGenerator(
         requireNumeric(operand)
         generateUnaryArithmeticOperator("-", nullCheck, resultType, operand)
 
+      case UNARY_MINUS if isTimeInterval(resultType) =>
+        val operand = operands.head
+        requireTimeInterval(operand)
+        generateUnaryIntervalPlusMinus(plus = false, nullCheck, operand)
+
       case UNARY_PLUS if isNumeric(resultType) =>
         val operand = operands.head
         requireNumeric(operand)
         generateUnaryArithmeticOperator("+", nullCheck, resultType, operand)
+
+      case UNARY_PLUS if isTimeInterval(resultType) =>
+        val operand = operands.head
+        requireTimeInterval(operand)
+        generateUnaryIntervalPlusMinus(plus = true, nullCheck, operand)
 
       // comparison
       case EQUALS =>
@@ -760,7 +792,7 @@ class CodeGenerator(
         generateIfElse(nullCheck, operands, resultType)
 
       // casting
-      case CAST =>
+      case CAST | REINTERPRET =>
         val operand = operands.head
         generateCast(nullCheck, operand, resultType)
 
@@ -946,8 +978,8 @@ class CodeGenerator(
     val defaultValue = primitiveDefaultValue(literalType)
 
     // explicit unboxing
-    val unboxedLiteralCode = if (isTemporal(literalType)) {
-      temporalToInternalCode(literalType, literalCode)
+    val unboxedLiteralCode = if (isTimePoint(literalType)) {
+      timePointToInternalCode(literalType, literalCode)
     } else {
       literalCode
     }
@@ -1023,7 +1055,7 @@ class CodeGenerator(
       case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP =>
         val resultTerm = newName("result")
         val resultTypeTerm = boxedTypeTermForTypeInfo(expr.resultType)
-        val convMethod = internalToTemporalCode(expr.resultType, expr.resultTerm)
+        val convMethod = internalToTimePointCode(expr.resultType, expr.resultTerm)
 
         val resultCode = if (nullCheck) {
           s"""

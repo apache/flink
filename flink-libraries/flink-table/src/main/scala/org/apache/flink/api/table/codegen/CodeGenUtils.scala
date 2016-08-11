@@ -28,7 +28,7 @@ import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, SqlTimeTypeInfo
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeCheckUtils}
+import org.apache.flink.api.table.typeutils.{IntervalTypeInfo, RowTypeInfo, TypeCheckUtils}
 
 object CodeGenUtils {
 
@@ -65,10 +65,14 @@ object CodeGenUtils {
     case BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => "boolean[]"
     case CHAR_PRIMITIVE_ARRAY_TYPE_INFO => "char[]"
 
-    // internal primitive representation of Date/Time/Timestamp
+    // internal primitive representation of time points
     case SqlTimeTypeInfo.DATE => "int"
     case SqlTimeTypeInfo.TIME => "int"
     case SqlTimeTypeInfo.TIMESTAMP => "long"
+
+    // internal primitive representation of time intervals
+    case IntervalTypeInfo.INTERVAL_MONTHS => "int"
+    case IntervalTypeInfo.INTERVAL_MILLIS => "long"
 
     case _ =>
       tpe.getTypeClass.getCanonicalName
@@ -100,7 +104,10 @@ object CodeGenUtils {
     case BOOLEAN_TYPE_INFO => "false"
     case STRING_TYPE_INFO => "\"\""
     case CHAR_TYPE_INFO => "'\\0'"
-    case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP => "-1"
+    case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME => "-1"
+    case SqlTimeTypeInfo.TIMESTAMP => "-1L"
+    case IntervalTypeInfo.INTERVAL_MONTHS => "-1"
+    case IntervalTypeInfo.INTERVAL_MILLIS => "-1L"
 
     case _ => "null"
   }
@@ -113,7 +120,10 @@ object CodeGenUtils {
   def qualifyMethod(method: Method): String =
     method.getDeclaringClass.getCanonicalName + "." + method.getName
 
-  def internalToTemporalCode(resultType: TypeInformation[_], resultTerm: String) =
+  def qualifyEnum(enum: Enum[_]): String =
+    enum.getClass.getCanonicalName + "." + enum.name()
+
+  def internalToTimePointCode(resultType: TypeInformation[_], resultTerm: String) =
     resultType match {
       case SqlTimeTypeInfo.DATE =>
         s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_DATE.method)}($resultTerm)"
@@ -123,7 +133,7 @@ object CodeGenUtils {
         s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIMESTAMP.method)}($resultTerm)"
     }
 
-  def temporalToInternalCode(resultType: TypeInformation[_], resultTerm: String) =
+  def timePointToInternalCode(resultType: TypeInformation[_], resultTerm: String) =
     resultType match {
       case SqlTimeTypeInfo.DATE =>
         s"${qualifyMethod(BuiltInMethod.DATE_TO_INT.method)}($resultTerm)"
@@ -146,15 +156,25 @@ object CodeGenUtils {
       throw new CodeGenException(s"Comparable type expected, but was '${genExpr.resultType}'.")
     }
 
-  def requireString(genExpr: GeneratedExpression) = genExpr.resultType match {
-    case STRING_TYPE_INFO => // ok
-    case _ => throw new CodeGenException("String expression type expected.")
-  }
+  def requireString(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isString(genExpr.resultType)) {
+      throw new CodeGenException("String expression type expected.")
+    }
 
-  def requireBoolean(genExpr: GeneratedExpression) = genExpr.resultType match {
-    case BOOLEAN_TYPE_INFO => // ok
-    case _ => throw new CodeGenException("Boolean expression type expected.")
-  }
+  def requireBoolean(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isBoolean(genExpr.resultType)) {
+      throw new CodeGenException("Boolean expression type expected.")
+    }
+
+  def requireTemporal(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isTemporal(genExpr.resultType)) {
+      throw new CodeGenException("Temporal expression type expected.")
+    }
+
+  def requireTimeInterval(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isTimeInterval(genExpr.resultType)) {
+      throw new CodeGenException("Interval expression type expected.")
+    }
 
   // ----------------------------------------------------------------------------------------------
 
