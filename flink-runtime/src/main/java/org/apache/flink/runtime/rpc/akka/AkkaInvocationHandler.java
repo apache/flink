@@ -38,6 +38,9 @@ import java.lang.reflect.Method;
 import java.util.BitSet;
 import java.util.concurrent.Callable;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Invocation handler to be used with a {@link AkkaRpcActor}. The invocation handler wraps the
  * rpc in a {@link RpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
@@ -106,9 +109,17 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 	@Override
 	public void runAsync(Runnable runnable) {
+		scheduleRunAsync(runnable, 0);
+	}
+
+	@Override
+	public void scheduleRunAsync(Runnable runnable, long delay) {
+		checkNotNull(runnable, "runnable");
+		checkArgument(delay >= 0, "delay must be zero or greater");
+		
 		// Unfortunately I couldn't find a way to allow only local communication. Therefore, the
 		// runnable field is transient transient
-		rpcServer.tell(new RunAsync(runnable), ActorRef.noSender());
+		rpcServer.tell(new RunAsync(runnable, delay), ActorRef.noSender());
 	}
 
 	@Override

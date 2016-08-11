@@ -52,4 +52,13 @@ public interface MainThreadExecutor {
 	 * @return Future of the callable result
 	 */
 	<V> Future<V> callAsync(Callable<V> callable, Timeout callTimeout);
+
+	/**
+	 * Execute the runnable in the main thread of the underlying RPC endpoint, with
+	 * a delay of the given number of milliseconds.
+	 *
+	 * @param runnable Runnable to be executed
+	 * @param delay    The delay, in milliseconds, after which the runnable will be executed
+	 */
+	void scheduleRunAsync(Runnable runnable, long delay);
 }
