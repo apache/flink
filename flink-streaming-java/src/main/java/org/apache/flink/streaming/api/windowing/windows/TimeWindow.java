@@ -227,4 +227,28 @@ public class TimeWindow extends Window {
 			}
 		}
 	}
+
+	/**
+	 * Method to get the window start for a timestamp.
+	 * @param timestamp epoch millisecond to get the window start.
+	 * @param offset The offset which window start would be shifted by.
+	 * @param windowSize The size of the generated windows.
+	 * @return window start
+	 */
+	public static long getWindowStartWithOffset(long timestamp,long offset,long windowSize){
+		if(Math.abs(offset) >= windowSize) {
+			throw new RuntimeException("Offset for TimeWindow should not be larger than or equal to windowSize" +
+				String.format(" offset: %s window size: %s ",offset,windowSize));
+		}
+		long start = (timestamp - (timestamp %windowSize))+offset;
+		if(offset!=0){
+			if(start + windowSize <= timestamp) {
+				start += windowSize;
+			}
+			if(start>timestamp) {
+				start -= windowSize;
+			}
+		}
+		return start;
+	}
 }

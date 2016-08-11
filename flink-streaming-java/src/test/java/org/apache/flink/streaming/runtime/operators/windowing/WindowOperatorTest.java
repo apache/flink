@@ -553,7 +553,7 @@ public class WindowOperatorTest {
 				new OneInputStreamOperatorTestHarness<>(operator);
 
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-		
+
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
@@ -660,7 +660,7 @@ public class WindowOperatorTest {
 				new OneInputStreamOperatorTestHarness<>(operator);
 
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-		
+
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
@@ -722,7 +722,7 @@ public class WindowOperatorTest {
 				new OneInputStreamOperatorTestHarness<>(operator);
 
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-		
+
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
@@ -815,7 +815,7 @@ public class WindowOperatorTest {
 				new OneInputStreamOperatorTestHarness<>(operator);
 
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-		
+
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
@@ -1167,7 +1167,7 @@ public class WindowOperatorTest {
 
 		operator.setInputType(inputType, new ExecutionConfig());
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 500));
@@ -1362,7 +1362,7 @@ public class WindowOperatorTest {
 
 		operator.setInputType(inputType, new ExecutionConfig());
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
@@ -1441,7 +1441,7 @@ public class WindowOperatorTest {
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
@@ -1535,7 +1535,7 @@ public class WindowOperatorTest {
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
@@ -1625,7 +1625,7 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
-		
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 		testHarness.processWatermark(new Watermark(1999));
 
@@ -1711,7 +1711,7 @@ public class WindowOperatorTest {
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
@@ -1808,7 +1808,7 @@ public class WindowOperatorTest {
 		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
@@ -2549,5 +2549,37 @@ public class WindowOperatorTest {
 		public String toString() {
 			return "EventTimeTrigger()";
 		}
+	}
+
+	@Test
+	public void testGetWindowStartWithOffset() {
+		//[0,7),[7,14),[14,21)...
+		long offset = 0;
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(1,offset,7),0);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(6,offset,7),0);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(7,offset,7),7);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(8,offset,7),7);
+
+		//[-4,3),[3,10),[10,17)...
+		offset = 3;
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(1,offset,7),-4);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(2,offset,7),-4);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(3,offset,7),3);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(9,offset,7),3);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(10,offset,7),10);
+
+		//[-2,5),[5,12),[12,19)...
+		offset = -2;
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(1,offset,7),-2);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(-2,offset,7),-2);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(3,offset,7),-2);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(4,offset,7),-2);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(7,offset,7),5);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(12,offset,7),12);
+
+		// for GMT+8:00
+		offset = - TimeUnit.HOURS.toMillis(8);
+		long size = TimeUnit.DAYS.toMillis(1);
+		Assert.assertEquals(TimeWindow.getWindowStartWithOffset(1470902048450l,offset,size),1470844800000l);
 	}
 }
