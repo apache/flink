@@ -28,6 +28,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -42,7 +43,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.junit.Assert.*;
 
-public class AsyncCallsTest {
+public class AsyncCallsTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 	//  shared test members
@@ -72,6 +73,7 @@ public class AsyncCallsTest {
 		final AtomicBoolean concurrentAccess = new AtomicBoolean(false);
 
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService, lock);
+		testEndpoint.start();
 		TestGateway gateway = testEndpoint.getSelf();
 
 		// a bunch of gateway calls
@@ -127,6 +129,7 @@ public class AsyncCallsTest {
 		final long delay = 200;
 
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService, lock);
+		testEndpoint.start();
 
 		// run something asynchronously
 		testEndpoint.runAsync(new Runnable() {

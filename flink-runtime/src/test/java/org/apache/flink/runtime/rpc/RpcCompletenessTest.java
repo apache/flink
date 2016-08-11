@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.ReflectionUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -140,7 +142,7 @@ public class RpcCompletenessTest extends TestLogger {
 		int rpcTimeoutParameters = 0;
 
 		for (int i = 0; i < parameterAnnotations.length; i++) {
-			if (isRpcTimeout(parameterAnnotations[i])) {
+			if (RpcCompletenessTest.isRpcTimeout(parameterAnnotations[i])) {
 				assertTrue(
 					"The rpc timeout has to be of type " + FiniteDuration.class.getName() + ".",
 					parameterTypes[i].equals(FiniteDuration.class));
@@ -185,7 +187,7 @@ public class RpcCompletenessTest extends TestLogger {
 
 		// filter out the RpcTimeout parameters
 		for (int i = 0; i < gatewayParameterTypes.length; i++) {
-			if (!isRpcTimeout(gatewayParameterAnnotations[i])) {
+			if (!RpcCompletenessTest.isRpcTimeout(gatewayParameterAnnotations[i])) {
 				filteredGatewayParameterTypes.add(gatewayParameterTypes[i]);
 			}
 		}
@@ -235,7 +237,22 @@ public class RpcCompletenessTest extends TestLogger {
 	}
 
 	private boolean checkType(Class<?> firstType, Class<?> secondType) {
-		return firstType.equals(secondType);
+		Class<?> firstResolvedType;
+		Class<?> secondResolvedType;
+
+		if (firstType.isPrimitive()) {
+			firstResolvedType = RpcCompletenessTest.resolvePrimitiveType(firstType);
+		} else {
+			firstResolvedType = firstType;
+		}
+
+		if (secondType.isPrimitive()) {
+			secondResolvedType = RpcCompletenessTest.resolvePrimitiveType(secondType);
+		} else {
+			secondResolvedType = secondType;
+		}
+
+		return firstResolvedType.equals(secondResolvedType);
 	}
 
 	/**
@@ -279,7 +296,7 @@ public class RpcCompletenessTest extends TestLogger {
 
 		for (int i = 0; i < parameterTypes.length; i++) {
 			// filter out the RpcTimeout parameters
-			if (!isRpcTimeout(parameterAnnotations[i])) {
+			if (!RpcCompletenessTest.isRpcTimeout(parameterAnnotations[i])) {
 				builder.append(parameterTypes[i].getName());
 
 				if (i < parameterTypes.length -1) {
@@ -293,7 +310,7 @@ public class RpcCompletenessTest extends TestLogger {
 		return builder.toString();
 	}
 
-	private boolean isRpcTimeout(Annotation[] annotations) {
+	private static boolean isRpcTimeout(Annotation[] annotations) {
 		for (Annotation annotation : annotations) {
 			if (annotation.annotationType().equals(RpcTimeout.class)) {
 				return true;
@@ -301,5 +318,23 @@ public class RpcCompletenessTest extends TestLogger {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Returns the boxed type for a primitive type.
+	 *
+	 * @param primitveType Primitive type to resolve
+	 * @return Boxed type for the given primitive type
+	 */
+	private static Class<?> resolvePrimitiveType(Class<?> primitveType) {
+		assert primitveType.isPrimitive();
+
+		TypeInformation<?> typeInformation = BasicTypeInfo.getInfoFor(primitveType);
+
+		if (typeInformation != null) {
+			return typeInformation.getTypeClass();
+		} else {
+			throw new RuntimeException("Could not retrive basic type information for primitive type " + primitveType + '.');
+		}
 	}
 }
