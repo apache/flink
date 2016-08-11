@@ -34,9 +34,11 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
-
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,12 +47,10 @@ import scala.concurrent.Future;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -65,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointCoordinator {
 
-	static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
 
 	/** The number of recent checkpoints whose IDs are remembered */
 	private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
@@ -402,9 +402,9 @@ public class CheckpointCoordinator {
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
 
-			final PendingCheckpoint checkpoint = props.isSavepoint() ?
-				new PendingSavepoint(job, checkpointID, timestamp, ackTasks, userClassLoader, savepointStore) :
-				new PendingCheckpoint(job, checkpointID, timestamp, ackTasks, userClassLoader);
+		final PendingCheckpoint checkpoint = props.isSavepoint() ?
+			new PendingSavepoint(job, checkpointID, timestamp, ackTasks, savepointStore) :
+			new PendingCheckpoint(job, checkpointID, timestamp, ackTasks);
 
 			// schedule the timer that will clean up the expired checkpoints
 			TimerTask canceller = new TimerTask() {
@@ -632,10 +632,8 @@ public class CheckpointCoordinator {
 
 				if (checkpoint.acknowledgeTask(
 					message.getTaskExecutionId(),
-					message.getState(),
-					message.getStateSize(),
-					null)) { // TODO: Give KV-state to the acknowledgeTask method
-					
+					message.getStateHandle(),
+					message.getKeyGroupsStateHandle())) {
 					if (checkpoint.isFullyAcknowledged()) {
 						completed = checkpoint.finalizeCheckpoint();
 
@@ -783,32 +781,60 @@ public class CheckpointCoordinator {
 				ExecutionJobVertex executionJobVertex = tasks.get(taskGroupStateEntry.getKey());
 
 				if (executionJobVertex != null) {
-					// check that we only restore the state if the parallelism has not been changed
-					if (taskState.getParallelism() != executionJobVertex.getParallelism()) {
-						throw new RuntimeException("Cannot restore the latest checkpoint because " +
-							"the parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
+					// check that the number of key groups have not changed
+					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
+						throw new IllegalStateException("The maximum parallelism (" +
+							taskState.getMaxParallelism() + ") with which the latest " +
+							"checkpoint of the execution job vertex " + executionJobVertex +
+							" has been taken and the current maximum parallelism (" +
+							executionJobVertex.getMaxParallelism() + ") changed. This " +
+							"is currently not supported.");
+					}
+
+
+					boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
+
+					if (hasNonPartitionedState && taskState.getParallelism() != executionJobVertex.getParallelism()) {
+						throw new IllegalStateException("Cannot restore the latest checkpoint because " +
+							"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
+							"state and its parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
 							" has parallelism " + executionJobVertex.getParallelism() + " whereas the corresponding" +
 							"state object has a parallelism of " + taskState.getParallelism());
 					}
 
+					List<KeyGroupRange> keyGroupPartitions = createKeyGroupPartitions(
+						executionJobVertex.getMaxParallelism(),
+						executionJobVertex.getParallelism());
+
 					int counter = 0;
-
-					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(executionJobVertex.getMaxParallelism(), executionJobVertex.getParallelism());
-
 					for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
-						SubtaskState subtaskState = taskState.getState(i);
-						SerializedValue<StateHandle<?>> state = null;
+						ChainedStateHandle<StreamStateHandle> state = null;
 
-						if (subtaskState != null) {
-							// count the number of executions for which we set a state
-							counter++;
-							state = subtaskState.getState();
+						if (hasNonPartitionedState) {
+							SubtaskState subtaskState = taskState.getState(i);
+
+							if (subtaskState != null) {
+								// count the number of executions for which we set a state
+								counter++;
+								state = subtaskState.getChainedStateHandle();
+							}
 						}
 
-						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState.getUnwrappedKvStates(keyGroupPartitions.get(i));
+						KeyGroupRange subtaskKeyGroupIds = keyGroupPartitions.get(i);
+						List<KeyGroupsStateHandle> subtaskKeyGroupStates = new ArrayList<>();
 
-						Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt();
-						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap);
+						for (KeyGroupsStateHandle storedKeyGroup : taskState.getKeyGroupStates()) {
+							KeyGroupsStateHandle intersection = storedKeyGroup.getKeyGroupIntersection(subtaskKeyGroupIds);
+							if(intersection.getNumberOfKeyGroups() > 0) {
+								subtaskKeyGroupStates.add(intersection);
+							}
+						}
+
+						Execution currentExecutionAttempt = executionJobVertex
+							.getTaskVertices()[i]
+							.getCurrentExecutionAttempt();
+
+						currentExecutionAttempt.setInitialState(state, subtaskKeyGroupStates);
 					}
 
 					if (allOrNothingState && counter > 0 && counter < executionJobVertex.getParallelism()) {
@@ -830,23 +856,20 @@ public class CheckpointCoordinator {
 	 * the set of key groups which is assigned to the same task. Each set of the returned list
 	 * constitutes a key group partition.
 	 *
+	 * <b>IMPORTANT</b>: The assignment of key groups to partitions has to be in sync with the
+	 * KeyGroupStreamPartitioner.
+	 *
 	 * @param numberKeyGroups Number of available key groups (indexed from 0 to numberKeyGroups - 1)
 	 * @param parallelism Parallelism to generate the key group partitioning for
 	 * @return List of key group partitions
 	 */
-	protected List<Set<Integer>> createKeyGroupPartitions(int numberKeyGroups, int parallelism) {
-		ArrayList<Set<Integer>> result = new ArrayList<>(parallelism);
-
-		for (int p = 0; p < parallelism; p++) {
-			HashSet<Integer> keyGroupPartition = new HashSet<>();
-
-			for (int k = p; k < numberKeyGroups; k += parallelism) {
-				keyGroupPartition.add(k);
-			}
-
-			result.add(keyGroupPartition);
+	public static List<KeyGroupRange> createKeyGroupPartitions(int numberKeyGroups, int parallelism) {
+		Preconditions.checkArgument(numberKeyGroups >= parallelism);
+		List<KeyGroupRange> result = new ArrayList<>(parallelism);
+		int start = 0;
+		for (int i = 0; i < parallelism; ++i) {
+			result.add(KeyGroupRange.computeKeyGroupRangeForOperatorIndex(numberKeyGroups, parallelism, i));
 		}
-
 		return result;
 	}
 

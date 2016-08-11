@@ -28,13 +28,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter;
 import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -137,11 +137,11 @@ public class BucketingSinkTest {
 
 		// snapshot but don't call notify to simulate a notify that never
 		// arrives, the sink should move pending files in restore() in that case
-		StreamTaskState snapshot1 = testHarness.snapshot(0, 0);
+		StreamStateHandle snapshot1 = testHarness.snapshot(0, 0);
 
 		testHarness = createTestSink(dataDir, clock);
 		testHarness.setup();
-		testHarness.restore(snapshot1, 1);
+		testHarness.restore(snapshot1);
 		testHarness.open();
 
 		testHarness.processElement(new StreamRecord<>("Hello"));

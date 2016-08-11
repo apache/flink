@@ -21,7 +21,6 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
 import java.util.Collection;
 
 /**
@@ -29,20 +28,20 @@ import java.util.Collection;
  *
  * <p>This format was introduced with Flink 1.1.0.
  */
-public class SavepointV0 implements Savepoint {
+public class SavepointV1 implements Savepoint {
 
 	/** The savepoint version. */
-	public static final int VERSION = 0;
+	public static final int VERSION = 1;
 
 	/** The checkpoint ID */
 	private final long checkpointId;
 
 	/** The task states */
-	private final Collection<TaskState> taskStates = new ArrayList();
+	private final Collection<TaskState> taskStates;
 
-	public SavepointV0(long checkpointId, Collection<TaskState> taskStates) {
+	public SavepointV1(long checkpointId, Collection<TaskState> taskStates) {
 		this.checkpointId = checkpointId;
-		this.taskStates.addAll(taskStates);
+		this.taskStates = Preconditions.checkNotNull(taskStates, "Task States");
 	}
 
 	@Override
@@ -61,10 +60,9 @@ public class SavepointV0 implements Savepoint {
 	}
 
 	@Override
-	public void dispose(ClassLoader classLoader) throws Exception {
-		Preconditions.checkNotNull(classLoader, "Class loader");
+	public void dispose() throws Exception {
 		for (TaskState taskState : taskStates) {
-			taskState.discard(classLoader);
+			taskState.discardState();
 		}
 		taskStates.clear();
 	}
@@ -84,7 +82,7 @@ public class SavepointV0 implements Savepoint {
 			return false;
 		}
 
-		SavepointV0 that = (SavepointV0) o;
+		SavepointV1 that = (SavepointV1) o;
 		return checkpointId == that.checkpointId && getTaskStates().equals(that.getTaskStates());
 	}
 

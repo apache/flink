@@ -73,6 +73,8 @@ import static org.junit.Assert.*;
 @RunWith(Parameterized.class)
 public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
+
+	private static final int MAX_MEM_STATE_SIZE = 10 * 1024 * 1024;
 	private static final int PARALLELISM = 4;
 
 	private static ForkableFlinkMiniCluster cluster;
@@ -109,7 +111,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	public void initStateBackend() throws IOException {
 		switch (stateBackendEnum) {
 			case MEM:
-				this.stateBackend = new MemoryStateBackend();
+				this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE);
 				break;
 			case FILE: {
 				String backups = tempFolder.newFolder().getAbsolutePath();
@@ -119,7 +121,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			case ROCKSDB: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
 				String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend(MAX_MEM_STATE_SIZE));
 				rdb.setDbStoragePath(rocksDb);
 				this.stateBackend = rdb;
 				break;
@@ -127,7 +129,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			case ROCKSDB_FULLY_ASYNC: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
 				String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend(MAX_MEM_STATE_SIZE));
 				rdb.setDbStoragePath(rocksDb);
 				rdb.enableFullyAsyncSnapshots();
 				this.stateBackend = rdb;

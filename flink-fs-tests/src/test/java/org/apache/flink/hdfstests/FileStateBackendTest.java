@@ -26,13 +26,11 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.StateBackendTestBase;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.apache.hadoop.conf.Configuration;
@@ -152,7 +150,12 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 			// no file operations should be possible right now
 			try {
-				backend.checkpointStateSerializable("exception train rolling in", 2L, System.currentTimeMillis());
+				FsStateBackend.FsCheckpointStateOutputStream out = backend.createCheckpointStateOutputStream(
+						2L,
+						System.currentTimeMillis());
+
+				out.write(1);
+				out.closeAndGetHandle();
 				fail("should fail with an exception");
 			} catch (IllegalStateException e) {
 				// supreme!
@@ -169,39 +172,6 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 			assertNull(backend.getCheckpointDirectory());
 
 			assertTrue(isDirectoryEmpty(baseUri));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testSerializableState() {
-		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri(), 40));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy", IntSerializer.INSTANCE);
-
-			Path checkpointDir = backend.getCheckpointDirectory();
-
-			String state1 = "dummy state";
-			String state2 = "row row row your boat";
-			Integer state3 = 42;
-
-			StateHandle<String> handle1 = backend.checkpointStateSerializable(state1, 439568923746L, System.currentTimeMillis());
-			StateHandle<String> handle2 = backend.checkpointStateSerializable(state2, 439568923746L, System.currentTimeMillis());
-			StateHandle<Integer> handle3 = backend.checkpointStateSerializable(state3, 439568923746L, System.currentTimeMillis());
-
-			assertEquals(state1, handle1.getState(getClass().getClassLoader()));
-			handle1.discardState();
-
-			assertEquals(state2, handle2.getState(getClass().getClassLoader()));
-			handle2.discardState();
-
-			assertEquals(state3, handle3.getState(getClass().getClassLoader()));
-			handle3.discardState();
-
-			assertTrue(isDirectoryEmpty(checkpointDir));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -241,16 +211,16 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 			stream2.write(state2);
 			stream3.write(state3);
 
-			FileStreamStateHandle handle1 = (FileStreamStateHandle) stream1.closeAndGetHandle();
+			FileStateHandle handle1 = (FileStateHandle) stream1.closeAndGetHandle();
 			ByteStreamStateHandle handle2 = (ByteStreamStateHandle) stream2.closeAndGetHandle();
 			ByteStreamStateHandle handle3 = (ByteStreamStateHandle) stream3.closeAndGetHandle();
 
 			// use with try-with-resources
-			StreamStateHandle handle4;
+			FileStateHandle handle4;
 			try (AbstractStateBackend.CheckpointStateOutputStream stream4 =
 						 backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
 				stream4.write(state4);
-				handle4 = stream4.closeAndGetHandle();
+				handle4 = (FileStateHandle) stream4.closeAndGetHandle();
 			}
 
 			// close before accessing handle
@@ -265,18 +235,18 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 				// uh-huh
 			}
 
-			validateBytesInStream(handle1.getState(getClass().getClassLoader()), state1);
+			validateBytesInStream(handle1.openInputStream(), state1);
 			handle1.discardState();
 			assertFalse(isDirectoryEmpty(checkpointDir));
 			ensureFileDeleted(handle1.getFilePath());
 
-			validateBytesInStream(handle2.getState(getClass().getClassLoader()), state2);
+			validateBytesInStream(handle2.openInputStream(), state2);
 			handle2.discardState();
 
-			validateBytesInStream(handle3.getState(getClass().getClassLoader()), state3);
+			validateBytesInStream(handle3.openInputStream(), state3);
 			handle3.discardState();
 
-			validateBytesInStream(handle4.getState(getClass().getClassLoader()), state4);
+			validateBytesInStream(handle4.openInputStream(), state4);
 			handle4.discardState();
 			assertTrue(isDirectoryEmpty(checkpointDir));
 		}

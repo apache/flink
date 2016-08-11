@@ -17,22 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import java.io.EOFException;
-import java.io.File;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
-
 import org.apache.commons.io.FileUtils;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -40,6 +25,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.StateBackend;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -49,21 +35,21 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.api.common.state.StateBackend;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.HDFSCopyFromLocal;
 import org.apache.flink.streaming.util.HDFSCopyToLocal;
-
 import org.apache.hadoop.fs.FileSystem;
-
 import org.rocksdb.BackupEngine;
 import org.rocksdb.BackupableDBOptions;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -76,9 +62,21 @@ import org.rocksdb.RestoreOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.EOFException;
+import java.io.File;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -312,9 +310,9 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public void dispose() {
-		super.dispose();
-		nonPartitionedStateBackend.dispose();
+	public void discardState() throws Exception {
+		super.discardState();
+		nonPartitionedStateBackend.discardState();
 
 		// we have to lock because we might have an asynchronous checkpoint going on
 		synchronized (dbCleanupLock) {
@@ -569,7 +567,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	private void restoreFromFullyAsyncSnapshot(FinalFullyAsyncSnapshot snapshot) throws Exception {
 
-		DataInputView inputView = snapshot.stateHandle.getState(userCodeClassLoader);
+		DataInputView inputView = new DataInputViewStreamWrapper(snapshot.stateHandle.openInputStream());
 
 		// clear k/v state information before filling it
 		kvStateInformation.clear();
@@ -729,8 +727,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			try {
 				long startTime = System.currentTimeMillis();
 
-				CheckpointStateOutputView outputView = backend.createCheckpointStateOutputView(checkpointId, startTime);
-
+				CheckpointStateOutputStream outputStream = backend.createCheckpointStateOutputStream(checkpointId, startTime);
+				DataOutputView outputView = new DataOutputViewStreamWrapper(outputStream);
 				outputView.writeInt(columnFamilies.size());
 
 				// we don't know how many key/value pairs there are in each column family.
@@ -743,7 +741,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 					outputView.writeByte(count);
 
-					ObjectOutputStream ooOut = new ObjectOutputStream(outputView);
+					ObjectOutputStream ooOut = new ObjectOutputStream(outputStream);
 					ooOut.writeObject(column.getValue().f1);
 					ooOut.flush();
 
@@ -774,7 +772,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 					}
 				}
 
-				StateHandle<DataInputView> stateHandle = outputView.closeAndGetHandle();
+				StreamStateHandle stateHandle = outputStream.closeAndGetHandle();
 
 				long endTime = System.currentTimeMillis();
 				LOG.info("Fully asynchronous RocksDB materialization to " + backupUri + " (asynchronous part) took " + (endTime - startTime) + " ms.");
@@ -798,14 +796,14 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	private static class FinalFullyAsyncSnapshot implements KvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> {
 		private static final long serialVersionUID = 1L;
 
-		final StateHandle<DataInputView> stateHandle;
+		final StreamStateHandle stateHandle;
 		final long checkpointId;
 
 		/**
 		 * Creates a new snapshot from the given state parameters.
 		 */
-		private FinalFullyAsyncSnapshot(StateHandle<DataInputView> stateHandle, long checkpointId) {
-			this.stateHandle = requireNonNull(stateHandle);
+		private FinalFullyAsyncSnapshot(StreamStateHandle stateHandle, long checkpointId) {
+			this.stateHandle = stateHandle;
 			this.checkpointId = checkpointId;
 		}
 
@@ -927,13 +925,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			long checkpointID, long timestamp) throws Exception {
 		
 		return nonPartitionedStateBackend.createCheckpointStateOutputStream(checkpointID, timestamp);
-	}
-
-	@Override
-	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(
-			S state, long checkpointID, long timestamp) throws Exception {
-		
-		return nonPartitionedStateBackend.checkpointStateSerializable(state, checkpointID, timestamp);
 	}
 
 	// ------------------------------------------------------------------------

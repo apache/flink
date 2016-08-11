@@ -60,12 +60,12 @@ public class SavepointLoader {
 			ExecutionJobVertex executionJobVertex = tasks.get(taskState.getJobVertexID());
 
 			if (executionJobVertex != null) {
-				if (executionJobVertex.getParallelism() == taskState.getParallelism()) {
+				if (executionJobVertex.getMaxParallelism() == taskState.getMaxParallelism()) {
 					taskStates.put(taskState.getJobVertexID(), taskState);
 				}
 				else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
-									"Parallelism mismatch between savepoint state and new program. " +
+									"Max parallelism mismatch between savepoint state and new program. " +
 									"Cannot map operator %s with parallelism %d to new program with " +
 									"parallelism %d. This indicates that the program has been changed " +
 									"in a non-compatible way after the savepoint.",
