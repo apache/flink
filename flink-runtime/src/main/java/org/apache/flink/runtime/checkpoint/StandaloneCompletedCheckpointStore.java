@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.state.StateUtil;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link CompletedCheckpointStore} for JobManagers running in {@link HighAvailabilityMode#NONE}.
@@ -34,9 +34,6 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 
 	/** The maximum number of checkpoints to retain (at least 1). */
 	private final int maxNumberOfCheckpointsToRetain;
-
-	/** User class loader for discarding {@link CompletedCheckpoint} instances. */
-	private final ClassLoader userClassLoader;
 
 	/** The completed checkpoints. */
 	private final ArrayDeque<CompletedCheckpoint> checkpoints;
@@ -56,7 +53,6 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
 
 		this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
-		this.userClassLoader = checkNotNull(userClassLoader, "User class loader");
 
 		this.checkpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
 	}
@@ -70,7 +66,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 		checkpoints.addLast(checkpoint);
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
-			checkpoints.removeFirst().discard(userClassLoader);
+			checkpoints.removeFirst().discardState();
 		}
 	}
 
@@ -91,11 +87,11 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 
 	@Override
 	public void shutdown() throws Exception {
-		for (CompletedCheckpoint checkpoint : checkpoints) {
-			checkpoint.discard(userClassLoader);
+		try {
+			StateUtil.bestEffortDiscardAllStateObjects(checkpoints);
+		} finally {
+			checkpoints.clear();
 		}
-
-		checkpoints.clear();
 	}
 
 	@Override

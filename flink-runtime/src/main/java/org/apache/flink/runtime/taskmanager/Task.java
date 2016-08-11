@@ -58,10 +58,11 @@ import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StateUtils;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -223,9 +224,17 @@ public class Task implements Runnable {
 	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized */
 	private volatile ExecutorService asyncCallDispatcher;
 
-	/** The handle to the state that the operator was initialized with. Will be set to null after the
-	 * initialization, to be memory friendly */
-	private volatile SerializedValue<StateHandle<?>> operatorState;
+	/**
+	 * The handle to the chained operator state that the task was initialized with. Will be set
+	 * to null after the initialization, to be memory friendly.
+	 */
+	private volatile ChainedStateHandle<StreamStateHandle> chainedOperatorState;
+
+	/**
+	 * The handle to the key group state that the task was initialized with. Will be set
+	 * to null after the initialization, to be memory friendly.
+	 */
+	private volatile List<KeyGroupsStateHandle> keyGroupStates;
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationInterval;
@@ -257,8 +266,9 @@ public class Task implements Runnable {
 		this.requiredJarFiles = checkNotNull(tdd.getRequiredJarFiles());
 		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
-		this.operatorState = tdd.getOperatorState();
+		this.chainedOperatorState = tdd.getOperatorState();
 		this.serializedExecutionConfig = checkNotNull(tdd.getSerializedExecutionConfig());
+		this.keyGroupStates = tdd.getKeyGroupState();
 
 		this.taskCancellationInterval = jobConfiguration.getLong(
 			ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
@@ -538,21 +548,11 @@ public class Task implements Runnable {
 			// the state into the task. the state is non-empty if this is an execution
 			// of a task that failed but had backuped state from a checkpoint
 
-			// get our private reference onto the stack (be safe against concurrent changes)
-			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
-
-			if (operatorState != null) {
+			if (chainedOperatorState != null || keyGroupStates != null) {
 				if (invokable instanceof StatefulTask) {
-					try {
-						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
-						StatefulTask<?> op = (StatefulTask<?>) invokable;
-						StateUtils.setOperatorState(op, state);
-					}
-					catch (Exception e) {
-						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
-					}
-				}
-				else {
+					StatefulTask op = (StatefulTask) invokable;
+					op.setInitialState(chainedOperatorState, keyGroupStates);
+				} else {
 					throw new IllegalStateException("Found operator state for a non-stateful task invokable");
 				}
 			}
@@ -560,8 +560,8 @@ public class Task implements Runnable {
 			// be memory and GC friendly - since the code stays in invoke() for a potentially long time,
 			// we clear the reference to the state handle
 			//noinspection UnusedAssignment
-			operatorState = null;
-			this.operatorState = null;
+			this.chainedOperatorState = null;
+			this.keyGroupStates = null;
 
 			// ----------------------------------------------------------------
 			//  actual task core work
@@ -936,7 +936,7 @@ public class Task implements Runnable {
 			if (invokable instanceof StatefulTask) {
 
 				// build a local closure
-				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
+				final StatefulTask statefulTask = (StatefulTask) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
@@ -977,7 +977,7 @@ public class Task implements Runnable {
 			if (invokable instanceof StatefulTask) {
 
 				// build a local closure
-				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
+				final StatefulTask statefulTask = (StatefulTask) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
@@ -1192,7 +1192,6 @@ public class Task implements Runnable {
 				// reason, we spawn a separate thread that repeatedly interrupts the user code until
 				// it exits
 				while (executer.isAlive()) {
-
 					// build the stack trace of where the thread is stuck, for the log
 					StringBuilder bld = new StringBuilder();
 					StackTraceElement[] stack = executer.getStackTrace();

@@ -20,9 +20,12 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateUtil;
 
-import java.io.Serializable;
+import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -31,12 +34,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A successful checkpoint describes a checkpoint after all required tasks acknowledged it (with their state)
  * and that is considered completed.
  */
-public class CompletedCheckpoint implements Serializable {
+public class CompletedCheckpoint implements StateObject {
 
 	private static final long serialVersionUID = -8360248179615702014L;
 
 	private final JobID job;
-	
+
 	private final long checkpointID;
 
 	/** The timestamp when the checkpoint was triggered. */
@@ -92,11 +95,24 @@ public class CompletedCheckpoint implements Serializable {
 		return duration;
 	}
 
-	public long getStateSize() {
+	@Override
+	public void discardState() throws Exception {
+		if (deleteStateWhenDisposed) {
+
+			try {
+				StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
+			} finally {
+				taskStates.clear();
+			}
+		}
+	}
+
+	@Override
+	public long getStateSize() throws Exception {
 		long result = 0L;
 
 		for (TaskState taskState : taskStates.values()) {
-			result  += taskState.getStateSize();
+			result += taskState.getStateSize();
 		}
 
 		return result;
@@ -112,20 +128,34 @@ public class CompletedCheckpoint implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 
-	public void discard(ClassLoader userClassLoader) throws Exception {
-		if (deleteStateWhenDisposed) {
-			for (TaskState state: taskStates.values()) {
-				state.discard(userClassLoader);
-			}
-		}
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof CompletedCheckpoint) {
+			CompletedCheckpoint other = (CompletedCheckpoint) obj;
 
-		taskStates.clear();
+			return job.equals(other.job) && checkpointID == other.checkpointID &&
+				timestamp == other.timestamp && duration == other.duration &&
+				taskStates.equals(other.taskStates);
+		} else {
+			return false;
+		}
 	}
 
-	// --------------------------------------------------------------------------------------------
+	@Override
+	public int hashCode() {
+		return (int) (this.checkpointID ^ this.checkpointID >>> 32) +
+			31 * ((int) (this.timestamp ^ this.timestamp >>> 32) +
+				31 * ((int) (this.duration ^ this.duration >>> 32) +
+					31 * Objects.hash(job, taskStates)));
+	}
 
 	@Override
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
+	}
+
+	@Override
+	public void close() throws IOException {
+		StateUtil.bestEffortCloseAllStateObjects(taskStates.values());
 	}
 }
