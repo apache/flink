@@ -35,7 +35,7 @@ Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the onl
 
 ### Download
 
-Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick any Hadoop/Scala combination you like, for instance [Flink for Hadoop 2]({{ site.FLINK_DOWNLOAD_URL_HADOOP2_STABLE }}).
+Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick any Hadoop/Scala combination you like.
 
 ### Start a Local Flink Cluster
 
