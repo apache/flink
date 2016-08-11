@@ -24,8 +24,10 @@ import akka.util.Timeout;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rpc.MainThreadExecutor;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.akka.messages.CallAsync;
 import org.apache.flink.runtime.rpc.akka.messages.LocalRpcInvocation;
+import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.akka.messages.RemoteRpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
@@ -50,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * rpc in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
  * executed.
  */
-class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutor {
+class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutor, StartStoppable {
 	private static final Logger LOG = Logger.getLogger(AkkaInvocationHandler.class);
 
 	private final ActorRef rpcEndpoint;
@@ -76,7 +78,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 		Object result;
 
-		if (declaringClass.equals(AkkaGateway.class) || declaringClass.equals(MainThreadExecutor.class) || declaringClass.equals(Object.class)) {
+		if (declaringClass.equals(AkkaGateway.class) || declaringClass.equals(MainThreadExecutor.class) ||
+			declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class)) {
 			result = method.invoke(this, args);
 		} else {
 			String methodName = method.getName();
@@ -170,6 +173,20 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 				rpcEndpoint.path() + ". This is not supported.");
 		}
 	}
+
+	@Override
+	public void start() {
+		rpcEndpoint.tell(Processing.START, ActorRef.noSender());
+	}
+
+	@Override
+	public void stop() {
+		rpcEndpoint.tell(Processing.STOP, ActorRef.noSender());
+	}
+
+	// ------------------------------------------------------------------------
+	//  Helper methods
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Extracts the {@link RpcTimeout} annotated rpc timeout value from the list of given method
