@@ -20,7 +20,7 @@ package org.apache.flink.cep.scala.pattern
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.cep
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
-import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.api.common.time.Time
 
 /**
   * Base class for a pattern definition.

@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
-import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.api.common.time.Time
 import org.junit.Test
 
 class OnJoinedDataStreamTest extends AcceptPFTestBase {
