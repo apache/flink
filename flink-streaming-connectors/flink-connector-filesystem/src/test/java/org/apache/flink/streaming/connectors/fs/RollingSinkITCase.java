@@ -21,12 +21,10 @@ package org.apache.flink.streaming.connectors.fs;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.file.DataFileConstants;
-import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericData.StringType;
-import org.apache.avro.io.DatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
@@ -42,11 +40,11 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
@@ -457,7 +455,68 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		dataFileStream.close();
 		inStream.close();
 	}
-	
+
+
+	/**
+	 * This tests user defined hdfs configuration
+	 * @throws Exception
+     */
+	@Test
+	public void testUserDefinedConfiguration() throws Exception {
+		final int NUM_ELEMENTS = 20;
+		final int PARALLELISM = 2;
+		final String outPath = hdfsURI + "/string-non-rolling-with-config";
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(PARALLELISM);
+
+		DataStream<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction(NUM_ELEMENTS))
+			.broadcast()
+			.filter(new OddEvenFilter());
+
+		Configuration conf = new Configuration();
+		conf.set("io.file.buffer.size", "40960");
+		RollingSink<String> sink = new RollingSink<String>(outPath)
+			.setFSConfig(conf)
+			.setWriter(new StreamWriterWithConfigCheck<String>("io.file.buffer.size", "40960"))
+			.setBucketer(new NonRollingBucketer())
+			.setPartPrefix("part")
+			.setPendingPrefix("")
+			.setPendingSuffix("");
+
+		source
+			.map(new MapFunction<Tuple2<Integer,String>, String>() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public String map(Tuple2<Integer, String> value) throws Exception {
+					return value.f1;
+				}
+			})
+			.addSink(sink);
+
+		env.execute("RollingSink with configuration Test");
+
+		FSDataInputStream inStream = dfs.open(new Path(outPath + "/part-0-0"));
+
+		BufferedReader br = new BufferedReader(new InputStreamReader(inStream));
+
+		for (int i = 0; i < NUM_ELEMENTS; i += 2) {
+			String line = br.readLine();
+			Assert.assertEquals("message #" + i, line);
+		}
+
+		inStream.close();
+
+		inStream = dfs.open(new Path(outPath + "/part-1-0"));
+
+		br = new BufferedReader(new InputStreamReader(inStream));
+
+		for (int i = 1; i < NUM_ELEMENTS; i += 2) {
+			String line = br.readLine();
+			Assert.assertEquals("message #" + i, line);
+		}
+
+		inStream.close();
+	}
 
 	// we use this to synchronize the clock changes to elements being processed
 	final static MultiShotLatch latch1 = new MultiShotLatch();
@@ -636,6 +695,27 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		@Override
 		public void cancel() {
 			running = false;
+		}
+	}
+
+
+	private static class StreamWriterWithConfigCheck<T> extends StringWriter<T> {
+		private String key;
+		private String expect;
+		public StreamWriterWithConfigCheck(String key, String expect) {
+			this.key = key;
+			this.expect = expect;
+		}
+
+		@Override
+		public void open(FileSystem fs, Path path) throws IOException {
+			super.open(fs, path);
+			Assert.assertEquals(expect, fs.getConf().get(key));
+		}
+
+		@Override
+		public Writer<T> duplicate() {
+			return new StreamWriterWithConfigCheck<>(key, expect);
 		}
 	}
 
