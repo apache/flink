@@ -94,7 +94,9 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		if (parallelism < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
-
+		if (transformation.isAllWindow() && parallelism > 1) {
+			throw new IllegalArgumentException("The parallelism of all-windowed operator must be 1.");
+		}
 		transformation.setParallelism(parallelism);
 
 		return this;
