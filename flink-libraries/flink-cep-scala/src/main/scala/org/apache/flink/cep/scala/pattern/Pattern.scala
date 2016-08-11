@@ -139,7 +139,8 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   /**
     * Defines a number of times this pattern should be repeated a number of times within a range
     *
-    * @return The same pattern operator that should be repeated specified number of times within a range
+    * @return The same pattern operator that should be repeated specified
+    *         number of times within a range
     */
   def count(minCount: Int, maxCount: Int): Pattern[T, F] = {
     jPattern.count(minCount, maxCount)
