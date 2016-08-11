@@ -22,7 +22,7 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import org.apache.flink.api.common.{ExecutionConfig, JobID}
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator
 import org.apache.flink.runtime.client.JobExecutionException
@@ -31,10 +31,8 @@ import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVert
 import org.apache.flink.runtime.jobmanager.Tasks._
 import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointCoordinator
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
-import org.apache.flink.runtime.testutils.JobManagerActorTestUtils
 import org.junit.runner.RunWith
 import org.mockito.Mockito._
 import org.scalatest.junit.JUnitRunner
@@ -829,14 +827,14 @@ class JobManagerITCase(_system: ActorSystem)
             deadline.timeLeft).executionGraph
 
           // Mock the checkpoint coordinator
-          val savepointCoordinator = mock(classOf[SavepointCoordinator])
+          val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
           doThrow(new Exception("Expected Test Exception"))
-            .when(savepointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
+            .when(checkpointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
 
           // Update the savepoint coordinator field
-          val field = executionGraph.getClass.getDeclaredField("savepointCoordinator")
+          val field = executionGraph.getClass.getDeclaredField("checkpointCoordinator")
           field.setAccessible(true)
-          field.set(executionGraph, savepointCoordinator)
+          field.set(executionGraph, checkpointCoordinator)
 
           // Trigger savepoint for job
           jobManager.tell(TriggerSavepoint(jobGraph.getJobID()), testActor)
@@ -877,10 +875,12 @@ class JobManagerITCase(_system: ActorSystem)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
           // Mock the checkpoint coordinator
-          val savepointCoordinator = mock(classOf[SavepointCoordinator])
+          val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
+          doThrow(new Exception("Expected Test Exception"))
+            .when(checkpointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
           val savepointPathPromise = scala.concurrent.promise[String]
           doReturn(savepointPathPromise.future)
-            .when(savepointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
+            .when(checkpointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
 
           // Request the execution graph and set a checkpoint coordinator mock
           jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
@@ -888,9 +888,9 @@ class JobManagerITCase(_system: ActorSystem)
             deadline.timeLeft).executionGraph
 
           // Update the savepoint coordinator field
-          val field = executionGraph.getClass.getDeclaredField("savepointCoordinator")
+          val field = executionGraph.getClass.getDeclaredField("checkpointCoordinator")
           field.setAccessible(true)
-          field.set(executionGraph, savepointCoordinator)
+          field.set(executionGraph, checkpointCoordinator)
 
           // Trigger savepoint for job
           jobManager.tell(TriggerSavepoint(jobGraph.getJobID()), testActor)
@@ -935,10 +935,12 @@ class JobManagerITCase(_system: ActorSystem)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
 
           // Mock the checkpoint coordinator
-          val savepointCoordinator = mock(classOf[SavepointCoordinator])
+          val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
+          doThrow(new Exception("Expected Test Exception"))
+            .when(checkpointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
           val savepointPathPromise = scala.concurrent.promise[String]
           doReturn(savepointPathPromise.future)
-            .when(savepointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
+            .when(checkpointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
 
           // Request the execution graph and set a checkpoint coordinator mock
           jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
@@ -946,9 +948,9 @@ class JobManagerITCase(_system: ActorSystem)
             deadline.timeLeft).executionGraph
 
           // Update the savepoint coordinator field
-          val field = executionGraph.getClass.getDeclaredField("savepointCoordinator")
+          val field = executionGraph.getClass.getDeclaredField("checkpointCoordinator")
           field.setAccessible(true)
-          field.set(executionGraph, savepointCoordinator)
+          field.set(executionGraph, checkpointCoordinator)
 
           // Trigger savepoint for job
           jobManager.tell(TriggerSavepoint(jobGraph.getJobID()), testActor)

@@ -238,7 +238,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			long timestamp,
 			Map<JobVertexID, TaskState> taskGroupStates) {
 
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, taskGroupStates);
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, taskGroupStates, true);
 		}
 
 		@Override

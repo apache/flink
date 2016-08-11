@@ -1093,10 +1093,10 @@ class JobManager(
           Option(jobGraph.getSerializedExecutionConfig()
             .deserializeValue(userCodeLoader)
             .getRestartStrategy())
-              .map(RestartStrategyFactory.createRestartStrategy(_)) match {
-                case Some(strategy) => strategy
-                case None => restartStrategyFactory.createRestartStrategy()
-              }
+            .map(RestartStrategyFactory.createRestartStrategy(_)) match {
+            case Some(strategy) => strategy
+            case None => restartStrategyFactory.createRestartStrategy()
+          }
 
         log.info(s"Using restart strategy $restartStrategy for $jobId.")
 
@@ -1253,7 +1253,6 @@ class JobManager(
             leaderSessionID.orNull,
             checkpointIdCounter,
             completedCheckpoints,
-            recoveryMode,
             savepointStore,
             checkpointStatsTracker)
         }
@@ -1294,7 +1293,6 @@ class JobManager(
       // because it is a blocking operation
       future {
         try {
-
           if (isRecovery) {
             // this is a recovery of a master failure (this master takes over)
             executionGraph.restoreLatestCheckpointedState()
@@ -1305,7 +1303,7 @@ class JobManager(
             val snapshotSettings = jobGraph.getSnapshotSettings
             if (snapshotSettings != null) {
               val savepointPath = snapshotSettings.getSavepointPath()
-              
+
               if (savepointPath != null) {
                 // got a savepoint
                 try {
@@ -1316,14 +1314,14 @@ class JobManager(
                     jobId, executionGraph.getAllVertices, savepointStore, savepointPath)
 
                   executionGraph.getCheckpointCoordinator.getCheckpointStore
-                      .addCheckpoint(savepoint)
-                  
+                    .addCheckpoint(savepoint)
+
                   // Reset the checkpoint ID counter
                   val nextCheckpointId: Long = savepoint.getCheckpointID + 1
                   log.info(s"Reset the checkpoint ID to $nextCheckpointId")
                   executionGraph.getCheckpointCoordinator.getCheckpointIdCounter
-                      .setCount(nextCheckpointId)
-                  
+                    .setCount(nextCheckpointId)
+
                   executionGraph.restoreLatestCheckpointedState()
                 } catch {
                   case e: Exception =>

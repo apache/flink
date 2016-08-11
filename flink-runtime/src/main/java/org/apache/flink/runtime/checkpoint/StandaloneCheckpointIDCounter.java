@@ -50,4 +50,13 @@ public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 	public void setCount(long newCount) {
 		checkpointIdCounter.set(newCount);
 	}
+
+	/**
+	 * Returns the last checkpoint ID (current - 10.
+	 *
+	 * @return Last checkpoint ID.
+	 */
+	public long getLast() {
+		return checkpointIdCounter.get() - 1;
+	}
 }
