@@ -32,15 +32,12 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -294,24 +291,6 @@ public class FsStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(
-			S state, long checkpointID, long timestamp) throws Exception
-	{
-		checkFileSystemInitialized();
-		
-		Path checkpointDir = createCheckpointDirPath(checkpointID);
-		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
-
-		FsCheckpointStateOutputStream stream = 
-			new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
-		
-		try (ObjectOutputStream os = new ObjectOutputStream(stream)) {
-			os.writeObject(state);
-			return stream.closeAndGetHandle().toSerializableHandle();
-		}
-	}
-
-	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
 		checkFileSystemInitialized();
 
@@ -520,6 +499,11 @@ public class FsStateBackend extends AbstractStateBackend {
 			}
 		}
 
+		@Override
+		public void sync() throws IOException {
+			outStream.sync();
+		}
+
 		/**
 		 * If the stream is only closed, we remove the produced file (cleanup through the auto close
 		 * feature, for example). This method throws no exception if the deletion fails, but only
@@ -559,7 +543,7 @@ public class FsStateBackend extends AbstractStateBackend {
 						flush();
 						outStream.close();
 						closed = true;
-						return new FileStreamStateHandle(statePath);
+						return new FileStateHandle(statePath);
 					}
 				}
 				else {

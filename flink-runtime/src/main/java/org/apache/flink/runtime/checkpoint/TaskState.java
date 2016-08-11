@@ -18,46 +18,56 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import com.google.common.collect.Iterables;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
+import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
- * Simple container class which contains the task state and key-value state handles for the sub
+ * Simple container class which contains the task state and key-group state handles for the sub
  * tasks of a {@link org.apache.flink.runtime.jobgraph.JobVertex}.
  *
- * This class basically groups all tasks and key groups belonging to the same job vertex together.
+ * This class basically groups all non-partitioned state and key-group state belonging to the same job vertex together.
  */
-public class TaskState implements Serializable {
+public class TaskState implements StateObject {
 
 	private static final long serialVersionUID = -4845578005863201810L;
 
 	private final JobVertexID jobVertexID;
 
-	/** Map of task states which can be accessed by their sub task index */
+	/** handles to non-partitioned states, subtaskindex -> subtaskstate */
 	private final Map<Integer, SubtaskState> subtaskStates;
 
-	/** Map of key-value states which can be accessed by their key group index */
-	private final Map<Integer, KeyGroupState> kvStates;
+	/** handles to partitioned states, subtaskindex -> keyed state */
+	private final Map<Integer, KeyGroupsStateHandle> keyGroupsStateHandles;
 
-	/** Parallelism of the operator when it was checkpointed */
+	/** parallelism of the operator when it was checkpointed */
 	private final int parallelism;
 
-	public TaskState(JobVertexID jobVertexID, int parallelism) {
+	/** maximum parallelism of the operator when the job was first created */
+	private final int maxParallelism;
+
+	public TaskState(JobVertexID jobVertexID, int parallelism, int maxParallelism) {
+		Preconditions.checkArgument(
+				parallelism <= maxParallelism,
+				"Parallelism " + parallelism + " is not smaller or equal to max parallelism " + maxParallelism + ".");
+
 		this.jobVertexID = jobVertexID;
-
+		//preallocate lists of the required size, so that we can randomly set values to indexes
 		this.subtaskStates = new HashMap<>(parallelism);
-
-		this.kvStates = new HashMap<>();
+		this.keyGroupsStateHandles = new HashMap<>(parallelism);
 
 		this.parallelism = parallelism;
+		this.maxParallelism = maxParallelism;
 	}
 
 	public JobVertexID getJobVertexID() {
@@ -65,6 +75,8 @@ public class TaskState implements Serializable {
 	}
 
 	public void putState(int subtaskIndex, SubtaskState subtaskState) {
+		Preconditions.checkNotNull(subtaskState);
+
 		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
 			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
 				" exceeds the maximum number of sub tasks " + subtaskStates.size());
@@ -72,6 +84,18 @@ public class TaskState implements Serializable {
 			subtaskStates.put(subtaskIndex, subtaskState);
 		}
 	}
+
+	public void putKeyedState(int subtaskIndex, KeyGroupsStateHandle keyGroupsStateHandle) {
+		Preconditions.checkNotNull(keyGroupsStateHandle);
+
+		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
+			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
+					" exceeds the maximum number of sub tasks " + subtaskStates.size());
+		} else {
+			keyGroupsStateHandles.put(subtaskIndex, keyGroupsStateHandle);
+		}
+	}
+
 
 	public SubtaskState getState(int subtaskIndex) {
 		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
@@ -82,22 +106,17 @@ public class TaskState implements Serializable {
 		}
 	}
 
-	public Collection<SubtaskState> getStates() {
-		return subtaskStates.values();
+	public KeyGroupsStateHandle getKeyGroupState(int subtaskIndex) {
+		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
+			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
+					" exceeds the maximum number of sub tasks " + keyGroupsStateHandles.size());
+		} else {
+			return keyGroupsStateHandles.get(subtaskIndex);
+		}
 	}
 
-	public long getStateSize() {
-		long result = 0L;
-
-		for (SubtaskState subtaskState : subtaskStates.values()) {
-			result += subtaskState.getStateSize();
-		}
-
-		for (KeyGroupState keyGroupState : kvStates.values()) {
-			result += keyGroupState.getStateSize();
-		}
-
-		return result;
+	public Collection<SubtaskState> getStates() {
+		return subtaskStates.values();
 	}
 
 	public int getNumberCollectedStates() {
@@ -108,48 +127,44 @@ public class TaskState implements Serializable {
 		return parallelism;
 	}
 
-	public void putKvState(int keyGroupId, KeyGroupState keyGroupState) {
-		kvStates.put(keyGroupId, keyGroupState);
+	public int getMaxParallelism() {
+		return maxParallelism;
 	}
 
-	public KeyGroupState getKvState(int keyGroupId) {
-		return kvStates.get(keyGroupId);
+	public Collection<KeyGroupsStateHandle> getKeyGroupStates() {
+		return keyGroupsStateHandles.values();
 	}
 
-	/**
-	 * Retrieve the set of key-value state key groups specified by the given key group partition set.
-	 * The key groups are returned as a map where the key group index maps to the serialized state
-	 * handle of the key group.
-	 *
-	 * @param keyGroupPartition Set of key group indices
-	 * @return Map of serialized key group state handles indexed by their key group index.
-	 */
-	public Map<Integer, SerializedValue<StateHandle<?>>> getUnwrappedKvStates(Set<Integer> keyGroupPartition) {
-		HashMap<Integer, SerializedValue<StateHandle<?>>> result = new HashMap<>(keyGroupPartition.size());
+	public boolean hasNonPartitionedState() {
+		for(SubtaskState sts : subtaskStates.values()) {
+			if (sts != null && !sts.getChainedStateHandle().isEmpty()) {
+				return true;
+			}
+		}
+		return false;
+	}
 
-		for (Integer keyGroupId : keyGroupPartition) {
-			KeyGroupState keyGroupState = kvStates.get(keyGroupId);
+	@Override
+	public void discardState() throws Exception {
+		StateUtil.bestEffortDiscardAllStateObjects(
+				Iterables.concat(subtaskStates.values(), keyGroupsStateHandles.values()));
+	}
 
-			if (keyGroupState != null) {
-				result.put(keyGroupId, kvStates.get(keyGroupId).getKeyGroupState());
+
+	@Override
+	public long getStateSize() throws Exception {
+		long result = 0L;
+
+		for (int i = 0; i < parallelism; i++) {
+			if (subtaskStates.get(i) != null) {
+				result += subtaskStates.get(i).getStateSize();
+			}
+			if (keyGroupsStateHandles.get(i) != null) {
+				result += keyGroupsStateHandles.get(i).getStateSize();
 			}
 		}
 
 		return result;
-	}
-
-	public int getNumberCollectedKvStates() {
-		return kvStates.size();
-	}
-
-	public void discard(ClassLoader classLoader) throws Exception {
-		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.discard(classLoader);
-		}
-
-		for (KeyGroupState keyGroupState : kvStates.values()) {
-			keyGroupState.discard(classLoader);
-		}
 	}
 
 	@Override
@@ -158,7 +173,7 @@ public class TaskState implements Serializable {
 			TaskState other = (TaskState) obj;
 
 			return jobVertexID.equals(other.jobVertexID) && parallelism == other.parallelism &&
-				subtaskStates.equals(other.subtaskStates) && kvStates.equals(other.kvStates);
+				subtaskStates.equals(other.subtaskStates) && keyGroupsStateHandles.equals(other.keyGroupsStateHandles);
 		} else {
 			return false;
 		}
@@ -166,6 +181,20 @@ public class TaskState implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return parallelism + 31 * Objects.hash(jobVertexID, subtaskStates, kvStates);
+		return parallelism + 31 * Objects.hash(jobVertexID, subtaskStates, keyGroupsStateHandles);
+	}
+
+	@Override
+	public void close() throws IOException {
+		StateUtil.bestEffortCloseAllStateObjects(
+				Iterables.concat(subtaskStates.values(), keyGroupsStateHandles.values()));
+	}
+
+	public Map<Integer, SubtaskState> getSubtaskStates() {
+		return Collections.unmodifiableMap(subtaskStates);
+	}
+
+	public Map<Integer, KeyGroupsStateHandle> getKeyGroupsStateHandles() {
+		return Collections.unmodifiableMap(keyGroupsStateHandles);
 	}
 }

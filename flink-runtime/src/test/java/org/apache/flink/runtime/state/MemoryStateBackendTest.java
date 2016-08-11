@@ -57,27 +57,6 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	public void testReducingStateRestoreWithWrongSerializers() {}
 
 	@Test
-	public void testSerializableState() {
-		try {
-			MemoryStateBackend backend = new MemoryStateBackend();
-
-			HashMap<String, Integer> state = new HashMap<>();
-			state.put("hey there", 2);
-			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
-
-			StateHandle<HashMap<String, Integer>> handle = backend.checkpointStateSerializable(state, 12, 459);
-			assertNotNull(handle);
-
-			HashMap<String, Integer> restored = handle.getState(getClass().getClassLoader());
-			assertEquals(state, restored);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
 	public void testOversizedState() {
 		try {
 			MemoryStateBackend backend = new MemoryStateBackend(10);
@@ -87,7 +66,17 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
 
 			try {
-				backend.checkpointStateSerializable(state, 12, 459);
+				AbstractStateBackend.CheckpointStateOutputStream outStream = backend.createCheckpointStateOutputStream(
+						12,
+						459);
+
+				ObjectOutputStream oos = new ObjectOutputStream(outStream);
+				oos.writeObject(state);
+
+				oos.flush();
+
+				outStream.closeAndGetHandle();
+
 				fail("this should cause an exception");
 			}
 			catch (IOException e) {
@@ -117,7 +106,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 			assertNotNull(handle);
 
-			ObjectInputStream ois = new ObjectInputStream(handle.getState(getClass().getClassLoader()));
+			ObjectInputStream ois = new ObjectInputStream(handle.openInputStream());
 			assertEquals(state, ois.readObject());
 			assertTrue(ois.available() <= 0);
 			ois.close();

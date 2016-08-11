@@ -65,7 +65,7 @@ public class SavepointLoaderTest {
 				true);
 
 		// Store savepoint
-		SavepointV0 savepoint = new SavepointV0(stored.getCheckpointID(), taskStates.values());
+		SavepointV1 savepoint = new SavepointV1(stored.getCheckpointID(), taskStates.values());
 		SavepointStore store = new HeapSavepointStore();
 		String path = store.storeSavepoint(savepoint);
 
@@ -84,8 +84,8 @@ public class SavepointLoaderTest {
 		assertEquals(stored.getCheckpointID(), loaded.getCheckpointID());
 
 		// The loaded checkpoint should not discard state when its discarded
-		loaded.discard(ClassLoader.getSystemClassLoader());
-		verify(state, times(0)).discard(any(ClassLoader.class));
+		loaded.discardState();
+		verify(state, times(0)).discardState();
 
 		// 2) Load and validate: parallelism mismatch
 		when(vertex.getParallelism()).thenReturn(222);

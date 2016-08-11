@@ -303,7 +303,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 		// Dispose savepoint
 		LOG.info("Disposing savepoint at " + savepointPath);
-		Future<Object> disposeFuture = jm.ask(new DisposeSavepoint(savepointPath, Option.apply(blobKeys)), deadline.timeLeft());
+		Future<Object> disposeFuture = jm.ask(new DisposeSavepoint(savepointPath), deadline.timeLeft());
 		Object disposeResponse = Await.result(disposeFuture, deadline.timeLeft());
 
 		if (disposeResponse.getClass() == JobManagerMessages.getDisposeSavepointSuccess().getClass()) {

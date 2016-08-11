@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.runtime.state.LocalStateHandle;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.zookeeper.StateStorageHelper;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -29,6 +28,8 @@ import org.junit.Test;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -61,10 +62,10 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 			int maxNumberOfCheckpointsToRetain, ClassLoader userLoader) throws Exception {
 
 		return new ZooKeeperCompletedCheckpointStore(maxNumberOfCheckpointsToRetain, userLoader,
-			ZooKeeper.createClient(), CheckpointsPath, new StateStorageHelper<CompletedCheckpoint>() {
+			ZooKeeper.createClient(), CheckpointsPath, new RetrievableStateStorageHelper<CompletedCheckpoint>() {
 			@Override
-			public StateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
-				return new LocalStateHandle<>(state);
+			public RetrievableStateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
+				return new HeapRetrievableStateHandle<CompletedCheckpoint>(state);
 			}
 		});
 	}
@@ -159,5 +160,36 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		CompletedCheckpoint recovered = store.getLatestCheckpoint();
 		assertEquals(checkpoint, recovered);
+	}
+
+	static class HeapRetrievableStateHandle<T extends Serializable> implements RetrievableStateHandle<T> {
+
+		private static final long serialVersionUID = -268548467968932L;
+
+		public HeapRetrievableStateHandle(T state) {
+			this.state = state;
+		}
+
+		private T state;
+
+		@Override
+		public T retrieveState() throws Exception {
+			return state;
+		}
+
+		@Override
+		public void discardState() throws Exception {
+			state = null;
+		}
+
+		@Override
+		public long getStateSize() throws Exception {
+			return 0;
+		}
+
+		@Override
+		public void close() throws IOException {
+			
+		}
 	}
 }

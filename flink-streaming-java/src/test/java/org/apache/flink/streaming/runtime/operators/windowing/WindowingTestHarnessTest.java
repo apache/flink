@@ -24,13 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.streaming.util.WindowingTestHarness;
 import org.junit.Test;
 
@@ -175,9 +175,9 @@ public class WindowingTestHarnessTest {
 		testHarness.compareActualToExpectedOutput("Output was not correct.");
 
 		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
+		StreamStateHandle snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
-		testHarness.restore(snapshot, 10L);
+		testHarness.restore(snapshot);
 
 		testHarness.processWatermark(2999);
 

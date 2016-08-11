@@ -72,7 +72,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -727,7 +726,7 @@ public class CliFrontend {
 				logAndSysout("Disposing savepoint '" + savepointPath + "'.");
 			}
 
-			Object msg = new DisposeSavepoint(savepointPath, Option.apply(blobKeys));
+			Object msg = new DisposeSavepoint(savepointPath);
 			Future<Object> response = jobManager.ask(msg, clientTimeout);
 
 			Object result;

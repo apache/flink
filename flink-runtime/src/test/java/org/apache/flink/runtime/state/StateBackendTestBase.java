@@ -84,7 +84,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 	@After
 	public void teardown() throws Exception {
-		this.backend.dispose();
+		this.backend.discardState();
 		cleanup();
 	}
 
@@ -154,7 +154,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		assertEquals("u3", state.value());
 		assertEquals("u3", getSerializedValue(kvState, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
-		backend.dispose();
+		backend.discardState();
 		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
 		backend.injectKeyValueStateSnapshots((HashMap) snapshot1);
@@ -174,7 +174,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		assertEquals("2", restored1.value());
 		assertEquals("2", getSerializedValue(restoredKvState1, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
-		backend.dispose();
+		backend.discardState();
 		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
 		backend.injectKeyValueStateSnapshots((HashMap) snapshot2);
@@ -254,7 +254,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			}
 		}
 
-		backend.dispose();
+		backend.discardState();
 		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
 		backend.injectKeyValueStateSnapshots((HashMap) snapshot1);
@@ -334,7 +334,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("u3", joiner.join(state.get()));
 			assertEquals("u3", joiner.join(getSerializedList(kvState, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the first snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -355,7 +355,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("2", joiner.join(restored1.get()));
 			assertEquals("2", joiner.join(getSerializedList(restoredKvState1, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the second snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -452,7 +452,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("u3", state.get());
 			assertEquals("u3", getSerializedValue(kvState, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the first snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -473,7 +473,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("2", restored1.get());
 			assertEquals("2", getSerializedValue(restoredKvState1, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the second snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -574,7 +574,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("Fold-Initial:,103", state.get());
 			assertEquals("Fold-Initial:,103", getSerializedValue(kvState, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the first snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -595,7 +595,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("Fold-Initial:,2", restored1.get());
 			assertEquals("Fold-Initial:,2", getSerializedValue(restoredKvState1, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the second snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -653,7 +653,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				}
 			}
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the first snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -713,7 +713,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				}
 			}
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the first snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -775,7 +775,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				}
 			}
 
-			backend.dispose();
+			backend.discardState();
 
 			// restore the first snapshot and validate it
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -1030,7 +1030,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		}
 
 		// Verify unregistered
-		backend.dispose();
+		backend.discardState();
 
 		verify(listener, times(1)).notifyKvStateUnregistered(
 				eq(env.getJobID()), eq(env.getJobVertexId()), eq(0), eq("banana"));

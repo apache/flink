@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
@@ -294,13 +295,44 @@ public final class InstantiationUtil {
 			Thread.currentThread().setContextClassLoader(old);
 		}
 	}
-	
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(InputStream in, ClassLoader cl) throws IOException, ClassNotFoundException {
+		final ClassLoader old = Thread.currentThread().getContextClassLoader();
+		try (ObjectInputStream oois = new ClassLoaderObjectInputStream(in, cl)) {
+			Thread.currentThread().setContextClassLoader(cl);
+			return (T) oois.readObject();
+		}
+		finally {
+			Thread.currentThread().setContextClassLoader(old);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(byte[] bytes) throws IOException, ClassNotFoundException {
+		ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
+		return deserializeObject(byteArrayInputStream);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(InputStream in) throws IOException, ClassNotFoundException {
+		ObjectInputStream objectInputStream = new ObjectInputStream(in);
+		return (T) objectInputStream.readObject();
+	}
+
 	public static byte[] serializeObject(Object o) throws IOException {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
 				ObjectOutputStream oos = new ObjectOutputStream(baos)) {
 			oos.writeObject(o);
+			oos.flush();
 			return baos.toByteArray();
 		}
+	}
+
+	public static void serializeObject(OutputStream out, Object o) throws IOException {
+		ObjectOutputStream oos = new ObjectOutputStream(out);
+		oos.writeObject(o);
+		oos.flush();
 	}
 
 	/**

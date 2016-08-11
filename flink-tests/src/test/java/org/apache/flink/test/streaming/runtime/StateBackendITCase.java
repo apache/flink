@@ -34,12 +34,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.junit.Test;
-
-import java.io.Serializable;
 
 import static org.junit.Assert.fail;
 
@@ -129,13 +126,6 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID,
-			long timestamp) throws Exception {
-			return null;
-		}
-
-		@Override
-		public <S extends Serializable> StateHandle<S> checkpointStateSerializable(S state,
-			long checkpointID,
 			long timestamp) throws Exception {
 			return null;
 		}

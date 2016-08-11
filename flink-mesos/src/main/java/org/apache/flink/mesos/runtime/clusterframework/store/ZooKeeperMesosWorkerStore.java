@@ -25,9 +25,9 @@ import org.apache.curator.framework.recipes.shared.VersionedValue;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.StateStorageHelper;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.mesos.Protos;
 import org.apache.zookeeper.KeeperException;
@@ -74,7 +74,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	ZooKeeperMesosWorkerStore(
 		CuratorFramework client,
 		String storePath,
-		StateStorageHelper<MesosWorkerStore.Worker> stateStorage
+		RetrievableStateStorageHelper<Worker> stateStorage
 	) throws Exception {
 		checkNotNull(storePath, "storePath");
 		checkNotNull(stateStorage, "stateStorage");
@@ -100,7 +100,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 		// using late-binding as a workaround for shaded curator dependency of flink-runtime.
 		this.workersInZooKeeper = ZooKeeperStateHandleStore.class
-			.getConstructor(CuratorFramework.class, StateStorageHelper.class)
+			.getConstructor(CuratorFramework.class, RetrievableStateStorageHelper.class)
 			.newInstance(storeFacade, stateStorage);
 	}
 
@@ -203,12 +203,12 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		synchronized (startStopLock) {
 			verifyIsRunning();
 
-			List<Tuple2<StateHandle<MesosWorkerStore.Worker>, String>> handles = workersInZooKeeper.getAll();
+			List<Tuple2<RetrievableStateHandle<Worker>, String>> handles = workersInZooKeeper.getAll();
 
 			if(handles.size() != 0) {
 				List<MesosWorkerStore.Worker> workers = new ArrayList<>(handles.size());
-				for (Tuple2<StateHandle<MesosWorkerStore.Worker>, String> handle : handles) {
-					Worker worker = handle.f0.getState(ClassLoader.getSystemClassLoader());
+				for (Tuple2<RetrievableStateHandle<Worker>, String> handle : handles) {
+					Worker worker = handle.f0.retrieveState();
 
 					workers.add(worker);
 				}
@@ -288,7 +288,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 		checkNotNull(configuration, "Configuration");
 
-		StateStorageHelper<MesosWorkerStore.Worker> stateStorage =
+		RetrievableStateStorageHelper<MesosWorkerStore.Worker> stateStorage =
 			ZooKeeperUtils.createFileSystemStateStorage(configuration, "mesosWorkerStore");
 
 		String zooKeeperMesosWorkerStorePath = configuration.getString(

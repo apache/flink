@@ -44,16 +44,19 @@ import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+
 import org.apache.flink.util.SerializedValue;
 import org.junit.Before;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.Serializable;
 import java.net.URL;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertFalse;
@@ -179,8 +182,8 @@ public class TaskAsyncCallTest {
 				new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
 				mock(TaskMetricGroup.class));
 	}
-	
-	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask<StateHandle<Serializable>> {
+
+	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask {
 
 		private volatile long lastCheckpointId = 0;
 		
@@ -204,7 +207,10 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {}
+		public void setInitialState(ChainedStateHandle<StreamStateHandle> chainedState,
+				List<KeyGroupsStateHandle> keyGroupsState) throws Exception {
+
+		}
 
 		@Override
 		public boolean triggerCheckpoint(long checkpointId, long timestamp) {

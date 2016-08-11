@@ -48,15 +48,10 @@ public interface SavepointStore {
 	/**
 	 * Disposes the savepoint at the specified path.
 	 *
-	 * <p>The class loader is needed, because savepoints can currently point to
-	 * arbitrary snapshot {@link org.apache.flink.runtime.state.StateHandle}
-	 * instances, which need the user code class loader for deserialization.
-	 *
 	 * @param path        Path of savepoint to dispose
-	 * @param classLoader Class loader for disposal
 	 * @throws Exception Failures during diposal are forwarded
 	 */
-	void disposeSavepoint(String path, ClassLoader classLoader) throws Exception;
+	void disposeSavepoint(String path) throws Exception;
 
 	/**
 	 * Shut downs the savepoint store.

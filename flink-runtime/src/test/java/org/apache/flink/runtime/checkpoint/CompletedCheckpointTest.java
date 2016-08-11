@@ -45,14 +45,14 @@ public class CompletedCheckpointTest {
 
 		// Verify discard call is forwarded to state
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(new JobID(), 0, 0, 1, taskStates, true);
-		checkpoint.discard(ClassLoader.getSystemClassLoader());
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		checkpoint.discardState();
+		verify(state, times(1)).discardState();
 
 		Mockito.reset(state);
 
 		// Verify discard call is not forwarded to state
 		checkpoint = new CompletedCheckpoint(new JobID(), 0, 0, 1, taskStates, false);
-		checkpoint.discard(ClassLoader.getSystemClassLoader());
-		verify(state, times(0)).discard(Matchers.any(ClassLoader.class));
+		checkpoint.discardState();
+		verify(state, times(0)).discardState();
 	}
 }

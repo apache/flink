@@ -56,11 +56,11 @@ public class HashKeyGroupAssigner<K> implements KeyGroupAssigner<K> {
 	}
 
 	@Override
-	public void setup(int numberKeyGroups) {
-		Preconditions.checkArgument(numberKeyGroups > 0, "The number of key groups has to be " +
+	public void setup(int numberOfKeygroups) {
+		Preconditions.checkArgument(numberOfKeygroups > 0, "The number of key groups has to be " +
 			"greater than 0. Use setMaxParallelism() to specify the number of key " +
 			"groups.");
 
-		this.numberKeyGroups = numberKeyGroups;
+		this.numberKeyGroups = numberOfKeygroups;
 	}
 }

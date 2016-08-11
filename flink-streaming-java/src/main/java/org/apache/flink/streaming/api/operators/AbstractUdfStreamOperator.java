@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -26,14 +28,13 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import static java.util.Objects.requireNonNull;
 
@@ -117,8 +118,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState state = super.snapshotOperatorState(checkpointId, timestamp);
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+		super.snapshotState(out, checkpointId, timestamp);
 
 		if (userFunction instanceof Checkpointed) {
 			@SuppressWarnings("unchecked")
@@ -127,45 +128,39 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 			Serializable udfState;
 			try {
 				udfState = chkFunction.snapshotState(checkpointId, timestamp);
-			} 
-			catch (Exception e) {
+				if (udfState != null) {
+					out.write(1);
+					ObjectOutputStream os = new ObjectOutputStream(out);
+					os.writeObject(udfState);
+					os.flush();
+				} else {
+					out.write(0);
+				}
+			} catch (Exception e) {
 				throw new Exception("Failed to draw state snapshot from function: " + e.getMessage(), e);
 			}
-			
-			if (udfState != null) {
-				try {
-					AbstractStateBackend stateBackend = getStateBackend();
-					StateHandle<Serializable> handle = 
-							stateBackend.checkpointStateSerializable(udfState, checkpointId, timestamp);
-					state.setFunctionState(handle);
-				}
-				catch (Exception e) {
-					throw new Exception("Failed to add the state snapshot of the function to the checkpoint: "
-							+ e.getMessage(), e);
-				}
-			}
 		}
-		
-		return state;
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state) throws Exception {
-		super.restoreState(state);
-		
-		StateHandle<Serializable> stateHandle =  state.getFunctionState();
-		
-		if (userFunction instanceof Checkpointed && stateHandle != null) {
+	public void restoreState(FSDataInputStream in) throws Exception {
+		super.restoreState(in);
+
+		if (userFunction instanceof Checkpointed) {
 			@SuppressWarnings("unchecked")
 			Checkpointed<Serializable> chkFunction = (Checkpointed<Serializable>) userFunction;
-			
-			Serializable functionState = stateHandle.getState(getUserCodeClassloader());
-			if (functionState != null) {
-				try {
-					chkFunction.restoreState(functionState);
-				}
-				catch (Exception e) {
-					throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
+
+			int hasUdfState = in.read();
+
+			if (hasUdfState == 1) {
+				ObjectInputStream ois = new ObjectInputStream(in);
+				Serializable functionState = (Serializable) ois.readObject();
+				if (functionState != null) {
+					try {
+						chkFunction.restoreState(functionState);
+					} catch (Exception e) {
+						throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
+					}
 				}
 			}
 		}

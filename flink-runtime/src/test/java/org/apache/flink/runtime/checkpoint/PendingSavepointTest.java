@@ -71,7 +71,7 @@ public class PendingSavepointTest {
 		PendingCheckpointTest.setTaskState(pending, state);
 
 		pending.abortDeclined();
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		verify(state, times(1)).discardState();
 
 		// Abort error
 		Mockito.reset(state);
@@ -81,7 +81,7 @@ public class PendingSavepointTest {
 		Future<String> future = pending.getCompletionFuture();
 
 		pending.abortError(new Exception("Expected Test Exception"));
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		verify(state, times(1)).discardState();
 		assertTrue(future.failed().isCompleted());
 
 		// Abort expired
@@ -92,7 +92,7 @@ public class PendingSavepointTest {
 		future = pending.getCompletionFuture();
 
 		pending.abortExpired();
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		verify(state, times(1)).discardState();
 		assertTrue(future.failed().isCompleted());
 
 		// Abort subsumed
@@ -117,13 +117,13 @@ public class PendingSavepointTest {
 
 		Future<String> future = pending.getCompletionFuture();
 
-		pending.acknowledgeTask(ATTEMPT_ID, null, 0, null);
+		pending.acknowledgeTask(ATTEMPT_ID, null, null);
 
 		CompletedCheckpoint checkpoint = pending.finalizeCheckpoint();
 
 		// Does _NOT_ discard state
-		checkpoint.discard(ClassLoader.getSystemClassLoader());
-		verify(state, times(0)).discard(Matchers.any(ClassLoader.class));
+		checkpoint.discardState();
+		verify(state, times(0)).discardState();
 
 		// Future is completed
 		String path = Await.result(future, Duration.Zero());
@@ -133,9 +133,8 @@ public class PendingSavepointTest {
 	// ------------------------------------------------------------------------
 
 	private static PendingSavepoint createPendingSavepoint() {
-		ClassLoader classLoader = ClassLoader.getSystemClassLoader();
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
-		return new PendingSavepoint(new JobID(), 0, 1, ackTasks, classLoader, new HeapSavepointStore());
+		return new PendingSavepoint(new JobID(), 0, 1, ackTasks, new HeapSavepointStore());
 	}
 
 }

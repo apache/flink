@@ -18,49 +18,64 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractCloseableHandle;
-import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 /**
- * Base class for state that is stored in a file.
+ * {@link StreamStateHandle} for state that was written to a file stream. The written data is
+ * identifier by the file path. The state can be read again by calling {@link #openInputStream()}.
  */
-public abstract class AbstractFileStateHandle extends AbstractCloseableHandle implements StateObject {
+public class FileStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = 350284443258002355L;
 
-	/** The path to the file in the filesystem, fully describing the file system */
+	/**
+	 * The path to the file in the filesystem, fully describing the file system
+	 */
 	private final Path filePath;
 
-	/** Cached file system handle */
+	/**
+	 * Cached file system handle
+	 */
 	private transient FileSystem fs;
 
 	/**
 	 * Creates a new file state for the given file path.
-	 * 
+	 *
 	 * @param filePath The path to the file that stores the state.
 	 */
-	protected AbstractFileStateHandle(Path filePath) {
-		this.filePath = checkNotNull(filePath);
+	public FileStateHandle(Path filePath) {
+		this.filePath = requireNonNull(filePath);
 	}
 
 	/**
 	 * Gets the path where this handle's state is stored.
+	 *
 	 * @return The path where this handle's state is stored.
 	 */
 	public Path getFilePath() {
 		return filePath;
 	}
 
+	@Override
+	public FSDataInputStream openInputStream() throws Exception {
+		ensureNotClosed();
+		FSDataInputStream inputStream = getFileSystem().open(filePath);
+		registerCloseable(inputStream);
+		return inputStream;
+	}
+
 	/**
 	 * Discard the state by deleting the file that stores the state. If the parent directory
 	 * of the state is empty after deleting the state file, it is also deleted.
-	 * 
+	 *
 	 * @throws Exception Thrown, if the file deletion (not the directory deletion) fails.
 	 */
 	@Override
@@ -71,19 +86,8 @@ public abstract class AbstractFileStateHandle extends AbstractCloseableHandle im
 		// fail (and be ignored) when some files still exist
 		try {
 			getFileSystem().delete(filePath.getParent(), false);
-		} catch (IOException ignored) {}
-	}
-
-	/**
-	 * Gets the file system that stores the file state.
-	 * @return The file system that stores the file state.
-	 * @throws IOException Thrown if the file system cannot be accessed.
-	 */
-	protected FileSystem getFileSystem() throws IOException {
-		if (fs == null) {
-			fs = FileSystem.get(filePath.toUri());
+		} catch (IOException ignored) {
 		}
-		return fs;
 	}
 
 	/**
@@ -92,7 +96,41 @@ public abstract class AbstractFileStateHandle extends AbstractCloseableHandle im
 	 * @return The file size in bytes.
 	 * @throws IOException Thrown if the file system cannot be accessed.
 	 */
-	protected long getFileSize() throws IOException {
+	@Override
+	public long getStateSize() throws IOException {
 		return getFileSystem().getFileStatus(filePath).getLen();
+	}
+
+	/**
+	 * Gets the file system that stores the file state.
+	 *
+	 * @return The file system that stores the file state.
+	 * @throws IOException Thrown if the file system cannot be accessed.
+	 */
+	private FileSystem getFileSystem() throws IOException {
+		if (fs == null) {
+			fs = FileSystem.get(filePath.toUri());
+		}
+		return fs;
+	}
+
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof FileStateHandle)) {
+			return false;
+		}
+
+		FileStateHandle that = (FileStateHandle) o;
+		return filePath.equals(that.filePath);
+
+	}
+
+	@Override
+	public int hashCode() {
+		return filePath.hashCode();
 	}
 }

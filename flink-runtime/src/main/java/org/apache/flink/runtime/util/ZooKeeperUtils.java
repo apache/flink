@@ -34,7 +34,7 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
-import org.apache.flink.runtime.zookeeper.StateStorageHelper;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.ConfigurationUtil;
 import org.slf4j.Logger;
@@ -228,7 +228,7 @@ public class ZooKeeperUtils {
 
 		checkNotNull(configuration, "Configuration");
 
-		StateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
+		RetrievableStateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
 
 		// ZooKeeper submitted jobs root dir
 		String zooKeeperSubmittedJobsPath = ConfigurationUtil.getStringWithDeprecatedKeys(
@@ -266,7 +266,7 @@ public class ZooKeeperUtils {
 				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH,
 				ConfigConstants.ZOOKEEPER_CHECKPOINTS_PATH);
 
-		StateStorageHelper<CompletedCheckpoint> stateStorage = createFileSystemStateStorage(
+		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage = createFileSystemStateStorage(
 			configuration,
 			"completedCheckpoint");
 

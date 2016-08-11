@@ -28,10 +28,13 @@ import java.util.Map;
  */
 public class SavepointSerializers {
 
+
+	private static final int SAVEPOINT_VERSION_0 = 0;
 	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(1);
 
 	static {
-		SERIALIZERS.put(SavepointV0.VERSION, SavepointV0Serializer.INSTANCE);
+		SERIALIZERS.put(SAVEPOINT_VERSION_0, null);
+		SERIALIZERS.put(SavepointV1.VERSION, SavepointV1Serializer.INSTANCE);
 	}
 
 	/**
@@ -66,7 +69,7 @@ public class SavepointSerializers {
 		if (serializer != null) {
 			return serializer;
 		} else {
-			throw new IllegalArgumentException("Unknown savepoint version " + version + ".");
+			throw new IllegalArgumentException("Cannot restore savepoint version " + version + ".");
 		}
 	}
 

@@ -142,13 +142,13 @@ public class FsSavepointStore implements SavepointStore {
 	}
 
 	@Override
-	public void disposeSavepoint(String path, ClassLoader classLoader) throws Exception {
+	public void disposeSavepoint(String path) throws Exception {
 		Preconditions.checkNotNull(path, "Path");
-		Preconditions.checkNotNull(classLoader, "Class loader");
 
 		try {
 			Savepoint savepoint = loadSavepoint(path);
-			savepoint.dispose(classLoader);
+			LOG.info("Disposing savepoint: " + path);
+			savepoint.dispose();
 
 			Path filePath = new Path(path);
 

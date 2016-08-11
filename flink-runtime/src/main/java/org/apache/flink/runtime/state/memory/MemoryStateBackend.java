@@ -27,13 +27,12 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 
 /**
  * A {@link AbstractStateBackend} that stores all its data and checkpoints in memory and has no
@@ -104,27 +103,6 @@ public class MemoryStateBackend extends AbstractStateBackend {
 		return new MemFoldingState<>(keySerializer, namespaceSerializer, stateDesc);
 	}
 
-	/**
-	 * Serialized the given state into bytes using Java serialization and creates a state handle that
-	 * can re-create that state.
-	 *
-	 * @param state The state to checkpoint.
-	 * @param checkpointID The ID of the checkpoint.
-	 * @param timestamp The timestamp of the checkpoint.
-	 * @param <S> The type of the state.
-	 *
-	 * @return A state handle that contains the given state serialized as bytes.
-	 * @throws Exception Thrown, if the serialization fails.
-	 */
-	@Override
-	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(
-			S state, long checkpointID, long timestamp) throws Exception
-	{
-		SerializedStateHandle<S> handle = new SerializedStateHandle<>(state);
-		checkSize(handle.getSizeOfSerializedState(), maxStateSize);
-		return new SerializedStateHandle<S>(state);
-	}
-
 	@Override
 	public CheckpointStateOutputStream createCheckpointStateOutputStream(
 			long checkpointID, long timestamp) throws Exception
@@ -176,6 +154,14 @@ public class MemoryStateBackend extends AbstractStateBackend {
 		public void write(byte[] b, int off, int len) {
 			os.write(b, off, len);
 		}
+
+		@Override
+		public void flush() throws IOException {
+			os.flush();
+		}
+
+		@Override
+		public void sync() throws IOException { }
 
 		// --------------------------------------------------------------------
 

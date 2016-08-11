@@ -25,6 +25,9 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KvStateSnapshot;
@@ -35,11 +38,14 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -91,7 +97,7 @@ public abstract class AbstractStreamOperator<OUT>
 	private transient KeySelector<?, ?> stateKeySelector2;
 
 	/** The state backend that stores the state and checkpoints for this task */
-	private AbstractStateBackend stateBackend = null;
+	private transient AbstractStateBackend stateBackend;
 	protected MetricGroup metrics;
 
 	// ------------------------------------------------------------------------
@@ -164,7 +170,7 @@ public abstract class AbstractStreamOperator<OUT>
 		if (stateBackend != null) {
 			try {
 				stateBackend.close();
-				stateBackend.dispose();
+				stateBackend.discardState();
 			} catch (Exception e) {
 				throw new RuntimeException("Error while closing/disposing state backend.", e);
 			}
@@ -176,30 +182,45 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		// here, we deal with key/value state snapshots
-		
-		StreamTaskState state = new StreamTaskState();
+	public void snapshotState(FSDataOutputStream out,
+			long checkpointId,
+			long timestamp) throws Exception {
 
-		if (stateBackend != null) {
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> partitionedSnapshots =
-				stateBackend.snapshotPartitionedState(checkpointId, timestamp);
-			if (partitionedSnapshots != null) {
-				state.setKvStates(partitionedSnapshots);
+		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> keyedState =
+				stateBackend.snapshotPartitionedState(checkpointId,timestamp);
+
+		// Materialize asynchronous snapshots, if any
+		if (keyedState != null) {
+			Set<String> keys = keyedState.keySet();
+			for (String key: keys) {
+				if (keyedState.get(key) instanceof AsynchronousKvStateSnapshot) {
+					AsynchronousKvStateSnapshot<?, ?, ?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) keyedState.get(key);
+					keyedState.put(key, asyncHandle.materialize());
+				}
 			}
 		}
 
-		return state;
+		byte[] serializedSnapshot = InstantiationUtil.serializeObject(keyedState);
+
+		DataOutputStream dos = new DataOutputStream(out);
+		dos.writeInt(serializedSnapshot.length);
+		dos.write(serializedSnapshot);
+
+		dos.flush();
+
 	}
-	
+
 	@Override
-	@SuppressWarnings("rawtypes,unchecked")
-	public void restoreState(StreamTaskState state) throws Exception {
-		// restore the key/value state. the actual restore happens lazily, when the function requests
-		// the state again, because the restore method needs information provided by the user function
-		if (stateBackend != null) {
-			stateBackend.injectKeyValueStateSnapshots((HashMap)state.getKvStates());
-		}
+	public void restoreState(FSDataInputStream in) throws Exception {
+		DataInputStream dis = new DataInputStream(in);
+		int size = dis.readInt();
+		byte[] serializedSnapshot = new byte[size];
+		dis.readFully(serializedSnapshot);
+
+		HashMap<String, KvStateSnapshot> keyedState =
+				InstantiationUtil.deserializeObject(serializedSnapshot, getUserCodeClassloader());
+
+		stateBackend.injectKeyValueStateSnapshots(keyedState);
 	}
 	
 	@Override
@@ -249,8 +270,8 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Register a timer callback. At the specified time the provided {@link Triggerable} will
-	 * be invoked. This call is guaranteed to not happen concurrently with method calls on the operator.
+	 * Register a timer callback. At the specified time the {@link Triggerable} will be invoked.
+	 * This call is guaranteed to not happen concurrently with method calls on the operator.
 	 *
 	 * @param time The absolute time in milliseconds.
 	 * @param target The target to be triggered.
@@ -281,10 +302,17 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@SuppressWarnings("unchecked")
 	protected <S extends State, N> S getPartitionedState(N namespace, TypeSerializer<N> namespaceSerializer, StateDescriptor<S, ?> stateDescriptor) throws Exception {
-		return getStateBackend().getPartitionedState(namespace, (TypeSerializer<Object>) namespaceSerializer,
-			stateDescriptor);
+		if (stateBackend != null) {
+			return stateBackend.getPartitionedState(
+				namespace,
+				namespaceSerializer,
+				stateDescriptor);
+		} else {
+			throw new RuntimeException("Cannot create partitioned state. The key grouped state " +
+				"backend has not been set. This indicates that the operator is not " +
+				"partitioned/keyed.");
+		}
 	}
-
 
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -300,17 +328,25 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setKeyContextElement2(StreamRecord record) throws Exception {
 		if (stateKeySelector2 != null) {
 			Object key = ((KeySelector) stateKeySelector2).getKey(record.getValue());
-			getStateBackend().setCurrentKey(key);
+
+			setKeyContext(key);
 		}
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setKeyContext(Object key) {
-		if (stateKeySelector1 != null) {
-			stateBackend.setCurrentKey(key);
+		if (stateBackend != null) {
+			try {
+				stateBackend.setCurrentKey(key);
+			} catch (Exception e) {
+				throw new RuntimeException("Exception occurred while setting the current key context.", e);
+			}
+		} else {
+			throw new RuntimeException("Could not set the current key context, because the " +
+				"AbstractStateBackend has not been initialized.");
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Context and chaining properties
 	// ------------------------------------------------------------------------
