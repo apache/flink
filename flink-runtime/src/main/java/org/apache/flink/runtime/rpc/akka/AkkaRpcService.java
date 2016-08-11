@@ -174,7 +174,7 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public <C extends RpcGateway> String getAddress(C selfGateway) {
+	public String getAddress(RpcGateway selfGateway) {
 		checkState(!stopped, "RpcService is stopped");
 
 		if (selfGateway instanceof AkkaGateway) {
