@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,38 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.io.async;
 
-import java.io.IOException;
-import java.io.Serializable;
+import java.util.concurrent.Callable;
 
-/**
- * A StateHandle that includes the operator states directly.
- */
-public class LocalStateHandle<T extends Serializable> implements StateHandle<T> {
+public interface StoppableCallbackCallable<V> extends Callable<V>, AsyncStoppable, AsyncDoneCallback {
 
-	private static final long serialVersionUID = 2093619217898039610L;
-
-	private final T state;
-
-	public LocalStateHandle(T state) {
-		this.state = state;
-	}
-
-	@Override
-	public T getState(ClassLoader userCodeClassLoader) {
-		// The object has been deserialized correctly before
-		return state;
-	}
-
-	@Override
-	public void discardState() {}
-
-	@Override
-	public long getStateSize() {
-		return 0;
-	}
-
-	@Override
-	public void close() throws IOException {}
 }

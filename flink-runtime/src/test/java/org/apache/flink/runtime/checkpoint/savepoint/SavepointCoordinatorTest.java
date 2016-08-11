@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.junit.Ignore;
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -75,6 +76,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the savepoint coordinator.
  */
+@Ignore
 public class SavepointCoordinatorTest extends TestLogger {
 
 	// ------------------------------------------------------------------------

@@ -41,7 +41,13 @@ public interface KeyGroupAssigner<K> extends Serializable {
 	/**
 	 * Setups the key group assigner with the maximum parallelism (= number of key groups).
 	 *
-	 * @param maxParallelism Maximum parallelism (= number of key groups)
+	 * @param numberOfKeygroups Maximum parallelism (= number of key groups)
 	 */
-	void setup(int maxParallelism);
+	void setup(int numberOfKeygroups);
+
+	/**
+	 *
+	 * @return configured maximum parallelism
+	 */
+	int getNumberKeyGroups();
 }

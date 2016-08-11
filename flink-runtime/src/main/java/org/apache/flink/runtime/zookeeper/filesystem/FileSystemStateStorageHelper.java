@@ -21,22 +21,22 @@ package org.apache.flink.runtime.zookeeper.filesystem;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.filesystem.FileSerializableStateHandle;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.runtime.zookeeper.StateStorageHelper;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
- * {@link StateStorageHelper} implementation which stores the state in the given filesystem path.
+ * {@link RetrievableStateStorageHelper} implementation which stores the state in the given filesystem path.
  *
- * @param <T>
+ * @param <T> The type of the data that can be stored by this storage helper.
  */
-public class FileSystemStateStorageHelper<T extends Serializable> implements StateStorageHelper<T> {
+public class FileSystemStateStorageHelper<T extends Serializable> implements RetrievableStateStorageHelper<T> {
 
 	private final Path rootPath;
 
@@ -56,7 +56,7 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Sta
 	}
 
 	@Override
-	public StateHandle<T> store(T state) throws Exception {
+	public RetrievableStateHandle<T> store(T state) throws Exception {
 		Exception latestException = null;
 
 		for (int attempt = 0; attempt < 10; attempt++) {
@@ -73,8 +73,7 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Sta
 			try(ObjectOutputStream os = new ObjectOutputStream(outStream)) {
 				os.writeObject(state);
 			}
-
-			return new FileSerializableStateHandle<>(filePath);
+			return new RetrievableStreamStateHandle<T>(filePath);
 		}
 
 		throw new Exception("Could not open output stream for state backend", latestException);

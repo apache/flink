@@ -249,7 +249,7 @@ public class JobVertex implements java.io.Serializable {
 	/**
 	 * Sets the maximum parallelism for the task.
 	 *
-	 * @param maxParallelism The maximum parallelism to be set.
+	 * @param maxParallelism The maximum parallelism to be set. must be between 1 and Short.MAX_VALUE.
 	 */
 	public void setMaxParallelism(int maxParallelism) {
 		org.apache.flink.util.Preconditions.checkArgument(

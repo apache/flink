@@ -21,8 +21,9 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.CheckpointMessagesTest;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -107,8 +108,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			// The ZooKeeper implementation discards asynchronously
 			expected[i - 1].awaitDiscard();
 			assertTrue(expected[i - 1].isDiscarded());
-			assertEquals(userClassLoader, expected[i - 1].getDiscardClassLoader());
-
 			assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 		}
 	}
@@ -183,7 +182,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			// The ZooKeeper implementation discards asynchronously
 			checkpoint.awaitDiscard();
 			assertTrue(checkpoint.isDiscarded());
-			assertEquals(userClassLoader, checkpoint.getDiscardClassLoader());
 		}
 	}
 
@@ -199,14 +197,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		JobVertexID jvid = new JobVertexID();
 
 		Map<JobVertexID, TaskState> taskGroupStates = new HashMap<>();
-		TaskState taskState = new TaskState(jvid, numberOfStates);
+		TaskState taskState = new TaskState(jvid, numberOfStates, numberOfStates);
 		taskGroupStates.put(jvid, taskState);
 
 		for (int i = 0; i < numberOfStates; i++) {
-			SerializedValue<StateHandle<?>> stateHandle = new SerializedValue<StateHandle<?>>(
+			ChainedStateHandle<StreamStateHandle> stateHandle = CheckpointCoordinatorTest.generateChainedStateHandle(
 					new CheckpointMessagesTest.MyHandle());
 
-			taskState.putState(i, new SubtaskState(stateHandle, 0, 0));
+			taskState.putState(i, new SubtaskState(stateHandle, 0));
 		}
 
 		return new TestCompletedCheckpoint(new JobID(), id, 0, taskGroupStates);
@@ -230,8 +228,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		// Latch for test variants which discard asynchronously
 		private transient final CountDownLatch discardLatch = new CountDownLatch(1);
 
-		private transient ClassLoader discardClassLoader;
-
 		public TestCompletedCheckpoint(
 			JobID jobId,
 			long checkpointId,
@@ -242,11 +238,10 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 
 		@Override
-		public void discard(ClassLoader userClassLoader) throws Exception {
-			super.discard(userClassLoader);
+		public void discardState() throws Exception {
+			super.discardState();
 
 			if (!isDiscarded) {
-				this.discardClassLoader = userClassLoader;
 				this.isDiscarded = true;
 
 				if (discardLatch != null) {
@@ -263,10 +258,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			if (discardLatch != null) {
 				discardLatch.await();
 			}
-		}
-
-		public ClassLoader getDiscardClassLoader() {
-			return discardClassLoader;
 		}
 
 		@Override

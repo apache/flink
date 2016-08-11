@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
@@ -60,8 +61,10 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
 		}
-		returnArray[0] = keyGroupAssigner.getKeyGroupIndex(key) % numberOfOutputChannels;
-
+		returnArray[0] = KeyGroupRange.computeOperatorIndexForKeyGroup(
+				keyGroupAssigner.getNumberKeyGroups(),
+				numberOfOutputChannels,
+				keyGroupAssigner.getKeyGroupIndex(key));
 		return returnArray;
 	}
 

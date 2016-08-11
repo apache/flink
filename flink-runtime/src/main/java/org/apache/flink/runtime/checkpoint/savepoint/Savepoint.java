@@ -68,13 +68,7 @@ public interface Savepoint {
 
 	/**
 	 * Disposes the savepoint.
-	 *
-	 * <p>The class loader is needed, because savepoints can currently point to
-	 * arbitrary snapshot {@link org.apache.flink.runtime.state.StateHandle}
-	 * instances, which need the user code class loader for deserialization.
-	 *
-	 * @param classLoader Class loader for disposal
 	 */
-	void dispose(ClassLoader classLoader) throws Exception;
+	void dispose() throws Exception;
 
 }
