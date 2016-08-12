@@ -26,5 +26,5 @@ import org.apache.flink.runtime.rpc.RpcGateway;
  */
 interface AkkaGateway extends RpcGateway {
 
-	ActorRef getRpcServer();
+	ActorRef getRpcEndpoint();
 }
