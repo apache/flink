@@ -43,20 +43,26 @@ public enum RecoveryMode {
 	 * configured.
 	 */
 	public static RecoveryMode fromConfig(Configuration config) {
+		// Not passing the default value here so that we could determine
+		// if there is an older config set
 		String recoveryMode = config.getString(
-			ConfigConstants.HIGH_AVAILABILITY,
-			ConfigConstants.DEFAULT_HIGH_AVAILABILTY).toUpperCase();
-		if (!recoveryMode.equalsIgnoreCase("zookeeper")) {
+			ConfigConstants.HIGH_AVAILABILITY, "");
+		if (recoveryMode.isEmpty()) {
+			// New config is not set.
+			// check the older one
 			// check for older 'recover.mode' config
 			recoveryMode = config.getString(
 				ConfigConstants.RECOVERY_MODE,
-				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
-			if (recoveryMode.equalsIgnoreCase("standalone")) {
+				ConfigConstants.DEFAULT_RECOVERY_MODE);
+			if (recoveryMode.equalsIgnoreCase(ConfigConstants.DEFAULT_RECOVERY_MODE)) {
 				// There is no HA configured.
-				return RecoveryMode.valueOf("NONE");
+				return RecoveryMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
 			}
+		} else if (recoveryMode.equalsIgnoreCase(ConfigConstants.DEFAULT_HIGH_AVAILABILTY)) {
+			// The new config is found but with default value. So use this
+			return RecoveryMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
 		}
-		return RecoveryMode.valueOf(recoveryMode);
+		return RecoveryMode.valueOf(recoveryMode.toUpperCase());
 	}
 
 	/**
@@ -66,21 +72,7 @@ public enum RecoveryMode {
 	 * @return true if high availability is supported by the recovery mode, otherwise false
 	 */
 	public static boolean isHighAvailabilityModeActivated(Configuration configuration) {
-		RecoveryMode mode;
-		String recoveryMode = configuration.getString(
-			ConfigConstants.HIGH_AVAILABILITY,
-			ConfigConstants.DEFAULT_HIGH_AVAILABILTY).toUpperCase();
-		if (!recoveryMode.equalsIgnoreCase("zookeeper")) {
-			// check for older 'recover.mode' config
-			recoveryMode = configuration.getString(
-				ConfigConstants.RECOVERY_MODE,
-				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
-			if (recoveryMode.equalsIgnoreCase("standalone")) {
-				// There is no HA configured.
-				return false;
-			}
-		}
-		mode = RecoveryMode.valueOf(recoveryMode);
+		RecoveryMode mode = fromConfig(configuration);
 		switch (mode) {
 			case NONE:
 				return false;

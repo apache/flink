@@ -56,35 +56,44 @@ public class ZooKeeperUtils {
 	 * @return {@link CuratorFramework} instance
 	 */
 	public static CuratorFramework startCuratorFramework(Configuration configuration) {
-		String zkQuorum = configuration.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, "");
-
+		String zkQuorum = configuration.getString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, "");
+		if (zkQuorum.isEmpty()) {
+			zkQuorum = configuration.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, "");
+		}
 		if (zkQuorum == null || zkQuorum.equals("")) {
 			throw new RuntimeException("No valid ZooKeeper quorum has been specified. " +
 					"You can specify the quorum via the configuration key '" +
-					ConfigConstants.ZOOKEEPER_QUORUM_KEY + "'.");
+					ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY + "'.");
 		}
 
-		int sessionTimeout = configuration.getInteger(
-				ConfigConstants.ZOOKEEPER_SESSION_TIMEOUT,
-				ConfigConstants.DEFAULT_ZOOKEEPER_SESSION_TIMEOUT);
+		int sessionTimeout = getConfiguredIntValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_SESSION_TIMEOUT,
+			ConfigConstants.ZOOKEEPER_SESSION_TIMEOUT,
+			ConfigConstants.DEFAULT_ZOOKEEPER_SESSION_TIMEOUT);
 
-		int connectionTimeout = configuration.getInteger(
-				ConfigConstants.ZOOKEEPER_CONNECTION_TIMEOUT,
-				ConfigConstants.DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT);
+		int connectionTimeout = getConfiguredIntValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_CONNECTION_TIMEOUT,
+			ConfigConstants.ZOOKEEPER_CONNECTION_TIMEOUT,
+			ConfigConstants.DEFAULT_ZOOKEEPER_SESSION_TIMEOUT);
 
-		int retryWait = configuration.getInteger(
-				ConfigConstants.ZOOKEEPER_RETRY_WAIT,
-				ConfigConstants.DEFAULT_ZOOKEEPER_RETRY_WAIT);
+		int retryWait = getConfiguredIntValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_RETRY_WAIT,
+			ConfigConstants.ZOOKEEPER_RETRY_WAIT,
+			ConfigConstants.DEFAULT_ZOOKEEPER_RETRY_WAIT);
 
-		int maxRetryAttempts = configuration.getInteger(
-				ConfigConstants.ZOOKEEPER_MAX_RETRY_ATTEMPTS,
-				ConfigConstants.DEFAULT_ZOOKEEPER_MAX_RETRY_ATTEMPTS);
+		int maxRetryAttempts = getConfiguredIntValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS,
+			ConfigConstants.ZOOKEEPER_MAX_RETRY_ATTEMPTS,
+			ConfigConstants.DEFAULT_ZOOKEEPER_MAX_RETRY_ATTEMPTS);
 
-		String root = configuration.getString(ConfigConstants.ZOOKEEPER_DIR_KEY,
-				ConfigConstants.DEFAULT_ZOOKEEPER_DIR_KEY);
+		String root = getConfiguredStringValue(configuration, ConfigConstants.HA_ZOOKEEPER_DIR_KEY,
+			ConfigConstants.ZOOKEEPER_DIR_KEY,
+			ConfigConstants.DEFAULT_ZOOKEEPER_DIR_KEY);
 
-		String namespace = configuration.getString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY,
-				ConfigConstants.DEFAULT_ZOOKEEPER_NAMESPACE_KEY);
+		String namespace = getConfiguredStringValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY,
+			ConfigConstants.ZOOKEEPER_NAMESPACE_KEY,
+			ConfigConstants.DEFAULT_ZOOKEEPER_NAMESPACE_KEY);
 
 		String rootWithNamespace = generateZookeeperPath(root, namespace);
 
@@ -105,6 +114,31 @@ public class ZooKeeperUtils {
 		return cf;
 	}
 
+	private static int getConfiguredIntValue(Configuration configuration, String newConfigName, String oldConfigName, int defaultValue) {
+		int val = configuration.getInteger(newConfigName, -1);
+		if (val == -1) {
+			val = configuration.getInteger(
+				oldConfigName, -1);
+		}
+		// if still the val is not set use the default value
+		if (val == -1) {
+			return defaultValue;
+		}
+		return val;
+	}
+
+	private static String getConfiguredStringValue(Configuration configuration, String newConfigName, String oldConfigName, String defaultValue) {
+		String val = configuration.getString(newConfigName, "");
+		if (val.isEmpty()) {
+			val = configuration.getString(
+				oldConfigName, "");
+		}
+		// still no value found - use the default value
+		if (val.isEmpty()) {
+			return defaultValue;
+		}
+		return val;
+	}
 	/**
 	 * Returns whether {@link RecoveryMode#ZOOKEEPER} is configured.
 	 */
@@ -119,7 +153,10 @@ public class ZooKeeperUtils {
 	public static String getZooKeeperEnsemble(Configuration flinkConf)
 			throws IllegalConfigurationException {
 
-		String zkQuorum = flinkConf.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, "");
+		String zkQuorum = flinkConf.getString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, "");
+		if (zkQuorum.isEmpty()) {
+			zkQuorum = flinkConf.getString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, "");
+		}
 
 		if (zkQuorum == null || zkQuorum.equals("")) {
 			throw new IllegalConfigurationException("No ZooKeeper quorum specified in config.");
@@ -141,8 +178,9 @@ public class ZooKeeperUtils {
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
 			Configuration configuration) throws Exception {
 		CuratorFramework client = startCuratorFramework(configuration);
-		String leaderPath = configuration.getString(ConfigConstants.ZOOKEEPER_LEADER_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
+		String leaderPath = getConfiguredStringValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_LEADER_PATH, ConfigConstants.ZOOKEEPER_LEADER_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
 
 		return new ZooKeeperLeaderRetrievalService(client, leaderPath);
 	}
@@ -175,9 +213,11 @@ public class ZooKeeperUtils {
 			CuratorFramework client,
 			Configuration configuration) throws Exception {
 
-		String latchPath = configuration.getString(ConfigConstants.ZOOKEEPER_LATCH_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_LATCH_PATH);
-		String leaderPath = configuration.getString(ConfigConstants.ZOOKEEPER_LEADER_PATH,
+		String latchPath = getConfiguredStringValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_LATCH_PATH, ConfigConstants.ZOOKEEPER_LATCH_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_LATCH_PATH);
+		String leaderPath = getConfiguredStringValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_LEADER_PATH, ConfigConstants.ZOOKEEPER_LEADER_PATH,
 			ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
 
 		return new ZooKeeperLeaderElectionService(client, latchPath, leaderPath);
@@ -199,9 +239,9 @@ public class ZooKeeperUtils {
 		StateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
 
 		// ZooKeeper submitted jobs root dir
-		String zooKeeperSubmittedJobsPath = configuration.getString(
-				ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
+		String zooKeeperSubmittedJobsPath = getConfiguredStringValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_JOBGRAPHS_PATH, ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		return new ZooKeeperSubmittedJobGraphStore(
 				client, zooKeeperSubmittedJobsPath, stateStorage);
@@ -226,7 +266,8 @@ public class ZooKeeperUtils {
 
 		checkNotNull(configuration, "Configuration");
 
-		String checkpointsPath = configuration.getString(
+		String checkpointsPath = getConfiguredStringValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_CHECKPOINTS_PATH,
 			ConfigConstants.ZOOKEEPER_CHECKPOINTS_PATH,
 			ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
 
@@ -257,9 +298,10 @@ public class ZooKeeperUtils {
 			Configuration configuration,
 			JobID jobId) throws Exception {
 
-		String checkpointIdCounterPath = configuration.getString(
-				ConfigConstants.ZOOKEEPER_CHECKPOINT_COUNTER_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
+		String checkpointIdCounterPath = getConfiguredStringValue(configuration,
+			ConfigConstants.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH,
+			ConfigConstants.ZOOKEEPER_CHECKPOINT_COUNTER_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
 
 		checkpointIdCounterPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
 
@@ -280,11 +322,15 @@ public class ZooKeeperUtils {
 			String prefix) throws IOException {
 
 		String rootPath = configuration.getString(
-			ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "");
+			ConfigConstants.ZOOKEEPER_HA_PATH, "");
+		if (rootPath.isEmpty()) {
+			rootPath = configuration.getString(
+				ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "");
+		}
 
 		if (rootPath.equals("")) {
 			throw new IllegalConfigurationException("Missing recovery path. Specify via " +
-				"configuration key '" + ConfigConstants.ZOOKEEPER_RECOVERY_PATH + "'.");
+				"configuration key '" + ConfigConstants.ZOOKEEPER_HA_PATH + "'.");
 		} else {
 			return new FileSystemStateStorageHelper<T>(rootPath, prefix);
 		}

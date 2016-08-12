@@ -70,7 +70,7 @@ public class BlobRecoveryITCase {
 			Configuration config = new Configuration();
 			config.setString(ConfigConstants.HIGH_AVAILABILITY, "ZOOKEEPER");
 			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, recoveryDir.getPath());
+			config.setString(ConfigConstants.ZOOKEEPER_HA_PATH, recoveryDir.getPath());
 
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);

@@ -2026,7 +2026,7 @@ object JobManager {
 
     if (!listeningPortRange.hasNext) {
       if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
-        val message = "Config parameter '" + ConfigConstants.RECOVERY_JOB_MANAGER_PORT +
+        val message = "Config parameter '" + ConfigConstants.HA_JOB_MANAGER_PORT +
           "' does not specify a valid port range."
         LOG.error(message)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
@@ -2594,7 +2594,10 @@ object JobManager {
 
     val savepointStore = SavepointStoreFactory.createFromConfig(configuration)
 
-    val jobRecoveryTimeoutStr = configuration.getString(ConfigConstants.RECOVERY_JOB_DELAY, "");
+    var jobRecoveryTimeoutStr = configuration.getString(ConfigConstants.HA_JOB_DELAY, "");
+    if (jobRecoveryTimeoutStr.isEmpty) {
+      jobRecoveryTimeoutStr = configuration.getString(ConfigConstants.RECOVERY_JOB_DELAY, "");
+    }
 
     val jobRecoveryTimeout = if (jobRecoveryTimeoutStr == null || jobRecoveryTimeoutStr.isEmpty) {
       timeout
@@ -2604,7 +2607,7 @@ object JobManager {
       } catch {
         case n: NumberFormatException =>
           throw new Exception(
-            s"Invalid config value for ${ConfigConstants.RECOVERY_JOB_DELAY}: " +
+            s"Invalid config value for ${ConfigConstants.HA_JOB_DELAY}: " +
               s"$jobRecoveryTimeoutStr. Value must be a valid duration (such as '10 s' or '1 min')")
       }
     }

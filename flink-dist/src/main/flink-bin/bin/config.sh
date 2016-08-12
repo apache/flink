@@ -265,12 +265,20 @@ if [ -z "${OLD_RECOVERY_MODE}" ]; then
 fi
 
 if [ -z "${RECOVERY_MODE}" ]; then
-    if [ ${OLD_RECOVERY_MODE} = "standalone" ]; then
-        # Read the new config
-        RECOVERY_MODE=$(readFromConfig ${KEY_HIGH_AVAILABILITY} "none" "${YAML_CONF}")
-    else
-        RECOVERY_MODE=${OLD_RECOVERY_MODE}
-    fi
+     # Read the new config
+     RECOVERY_MODE=$(readFromConfig ${KEY_HIGH_AVAILABILITY} "" "${YAML_CONF}")
+     if [ -z "${RECOVERY_MODE}" ]; then
+        #no new config found. So old config should be used
+        if [ -z "${OLD_RECOVERY_MODE}" ]; then
+            # If old config is also not found, use the 'none' as the default config
+            RECOVERY_MODE="none"
+        elif [ ${OLD_RECOVERY_MODE} = "standalone" ]; then
+            # if oldconfig is 'standalone', rename to 'none'
+            RECOVERY_MODE="none"
+        else
+            RECOVERY_MODE=${OLD_RECOVERY_MODE}
+        fi
+     fi
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.

@@ -65,7 +65,7 @@ public class BlobLibraryCacheRecoveryITCase {
 			Configuration config = new Configuration();
 			config.setString(ConfigConstants.HIGH_AVAILABILITY, "ZOOKEEPER");
 			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, temporaryFolder.getRoot().getAbsolutePath());
+			config.setString(ConfigConstants.ZOOKEEPER_HA_PATH, temporaryFolder.getRoot().getAbsolutePath());
 
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
