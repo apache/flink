@@ -99,7 +99,7 @@ public abstract class KafkaTableSinkTestBase extends KafkaTestBase implements Se
 			.map(new RichMapFunction<Row, Integer>() {
 				@Override
 				public Integer map(Row value) {
-					return (Integer) value.getField(0);
+					return (Integer) value.productElement(0);
 				}
 			}).setParallelism(PARALLELISM)
 

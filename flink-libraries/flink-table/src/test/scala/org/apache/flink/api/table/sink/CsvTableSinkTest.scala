@@ -39,7 +39,7 @@ class CsvTableSinkTest {
   def folder = _folder
 
   @Test
-  def saveDataSetToCsvFileWithDefaultDelimiter(): Unit = {
+  def testSaveDataSetToCsvFileWithDefaultDelimiter(): Unit = {
     val file = new File(folder.getRoot, "test.csv")
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds = createDataset(env)
@@ -52,7 +52,7 @@ class CsvTableSinkTest {
   }
 
   @Test
-  def saveDataSetToCsvFileWithCustomDelimiter(): Unit = {
+  def testSaveDataSetToCsvFileWithCustomDelimiter(): Unit = {
     val file = new File(folder.getRoot, "test.csv")
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds = createDataset(env)

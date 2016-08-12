@@ -16,14 +16,12 @@
  */
 package org.apache.flink.streaming.util.serialization;
 
-import java.io.Serializable;
-
 /**
  * A simple wrapper for using the SerializationSchema with the KeyedDeserializationSchema
  * interface
  * @param <T> The type to serialize
  */
-public class KeyedSerializationSchemaWrapper<T> implements KeyedSerializationSchema<T>, Serializable {
+public class KeyedSerializationSchemaWrapper<T> implements KeyedSerializationSchema<T> {
 
 	private static final long serialVersionUID = 1351665280744549933L;
 

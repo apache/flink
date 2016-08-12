@@ -42,7 +42,7 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	}
 
 	/**
-	 * Creates {@link KafkaTableSink} for Kafka 0.9
+	 * Creates {@link KafkaTableSink} for Kafka 0.8
 	 *
 	 * @param topic topic in Kafka
 	 * @param properties properties to connect to Kafka

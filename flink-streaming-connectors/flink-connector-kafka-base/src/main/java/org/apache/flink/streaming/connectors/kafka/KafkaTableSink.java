@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
 
-import static org.apache.flink.streaming.util.TypeUtil.toTypeInfo;
+import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.toTypeInfo;
 
 /**
  * A version-agnostic Kafka {@link StreamTableSink}.
@@ -93,16 +93,25 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 			"Number of provided field names and types does not match.");
 	}
 
+	/**
+	 * Returns the version-specifid Kafka producer.
+	 *
+	 * @param topic               Kafka topic to produce to.
+	 * @param properties          Properties for the Kafka producer.
+	 * @param serializationSchema Serialization schema to use to create Kafka records.
+	 * @param partitioner         Partitioner to select Kafka partition.
+	 * @return The version-specific Kafka producer
+	 */
+	protected abstract FlinkKafkaProducerBase<Row> createKafkaProducer(
+		String topic, Properties properties,
+		SerializationSchema<Row> serializationSchema,
+		KafkaPartitioner<Row> partitioner);
+
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
 		FlinkKafkaProducerBase<Row> kafkaProducer = createKafkaProducer(topic, properties, serializationSchema, partitioner);
 		dataStream.addSink(kafkaProducer);
 	}
-
-	abstract protected FlinkKafkaProducerBase<Row> createKafkaProducer(
-		String topic, Properties properties,
-		SerializationSchema<Row> serializationSchema,
-		KafkaPartitioner<Row> partitioner);
 
 	@Override
 	public TypeInformation<Row> getOutputType() {

@@ -31,10 +31,6 @@ class Row(arity: Int) extends Product {
 
   def setField(i: Int, value: Any): Unit = fields(i) = value
 
-  def getField(i: Int): Any = fields(i)
-
-  def getFieldNumber(): Int = fields.length
-
   def canEqual(that: Any) = false
 
   override def toString = fields.mkString(",")

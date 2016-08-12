@@ -29,7 +29,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
 
-import static org.apache.flink.streaming.util.TypeUtil.toTypeInfo;
+import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.toTypeInfo;
 
 /**
  * A version-agnostic Kafka {@link StreamTableSource}.

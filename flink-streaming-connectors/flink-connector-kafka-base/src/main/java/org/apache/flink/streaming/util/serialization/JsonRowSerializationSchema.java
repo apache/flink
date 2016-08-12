@@ -20,26 +20,43 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.api.table.Row;
+import org.apache.flink.util.Preconditions;
 
 
 /**
  * Serialization schema that serializes an object into a JSON bytes.
- * <p>
+ *
+ * <p>Serializes the input {@link Row} object into a JSON string and
+ * converts it into <code>byte[]</code>.
+ *
+ * <p>Result <bode>byte[]</bode> messages can be deserialized using
+ * {@link JsonRowDeserializationSchema}.
  */
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
+	/** Fields names in the input Row object */
 	private final String[] fieldNames;
+	/** Object mapper that is used to create output JSON objects */
 	private static ObjectMapper mapper = new ObjectMapper();
 
+	/**
+	 * Creates a JSON serialization schema for the given fields and types.
+	 *
+	 * @param fieldNames Names of JSON fields to parse.
+	 */
 	public JsonRowSerializationSchema(String[] fieldNames) {
-		this.fieldNames = fieldNames;
+		this.fieldNames = Preconditions.checkNotNull(fieldNames);
 	}
 
 	@Override
 	public byte[] serialize(Row row) {
+		if (row.productArity() != fieldNames.length) {
+			throw new IllegalStateException(String.format(
+				"Number of elements in the row %s is different from number of field names: %d", row, fieldNames.length));
+		}
 
 		ObjectNode objectNode = mapper.createObjectNode();
-		for (int i = 0; i < row.getFieldNumber(); i++) {
-			JsonNode node = mapper.valueToTree(row.getField(i));
+		for (int i = 0; i < row.productArity(); i++) {
+			JsonNode node = mapper.valueToTree(row.productElement(i));
 			objectNode.set(fieldNames[i], node);
 		}
 

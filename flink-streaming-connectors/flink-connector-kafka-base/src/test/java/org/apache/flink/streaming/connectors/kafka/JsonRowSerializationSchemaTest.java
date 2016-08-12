@@ -43,10 +43,26 @@ public class JsonRowSerializationSchemaTest {
 		Row resultRow = deserializationSchema.deserialize(bytes);
 
 		assertEquals("Deserialized row should have expected number of fields",
-			row.getFieldNumber(), resultRow.getFieldNumber());
-		for (int i = 0; i < row.getFieldNumber(); i++) {
+			row.productArity(), resultRow.productArity());
+		for (int i = 0; i < row.productArity(); i++) {
 			assertEquals(String.format("Field number %d should be as in the original row", i),
-				row.getField(i), resultRow.getField(i));
+				row.productElement(i), resultRow.productElement(i));
 		}
+	}
+
+	@Test(expected = NullPointerException.class)
+	public void testInputValidation() {
+		new JsonRowSerializationSchema(null);
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testSerializeRowWithInvalidNumberOfFields() {
+		String[] fieldNames = new String[] {"f1", "f2", "f3"};
+		Class[] fieldTypes = new Class[] {Integer.class};
+		Row row = new Row(1);
+		row.setField(0, 1);
+
+		JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(fieldNames);
+		serializationSchema.serialize(row);
 	}
 }
