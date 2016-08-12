@@ -87,7 +87,7 @@ public class ResourceProfile implements Serializable {
 	 * @return true if the requirement is matched, otherwise false
 	 */
 	public boolean isMatching(ResourceProfile required) {
-		return cpuCores >= required.getCpuCores() && memoryInMB >= required.getMemoryInMB();
+		return Double.compare(cpuCores, required.getCpuCores()) >= 0 && memoryInMB >= required.getMemoryInMB();
 	}
 
 	// ------------------------------------------------------------------------
