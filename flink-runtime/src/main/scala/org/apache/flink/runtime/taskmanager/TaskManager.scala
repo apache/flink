@@ -2054,19 +2054,13 @@ object TaskManager {
     // initialize the memory segment factory accordingly
     memType match {
       case MemoryType.HEAP =>
-        if (!MemorySegmentFactory.isInitialized()) {
-          MemorySegmentFactory.initializeFactory(HeapMemorySegment.FACTORY)
-        }
-        else if (MemorySegmentFactory.getFactory() != HeapMemorySegment.FACTORY) {
+        if (!MemorySegmentFactory.initializeIfNotInitialized(HeapMemorySegment.FACTORY)) {
           throw new Exception("Memory type is set to heap memory, but memory segment " +
             "factory has been initialized for off-heap memory segments")
         }
 
       case MemoryType.OFF_HEAP =>
-        if (!MemorySegmentFactory.isInitialized()) {
-          MemorySegmentFactory.initializeFactory(HybridMemorySegment.FACTORY)
-        }
-        else if (MemorySegmentFactory.getFactory() != HybridMemorySegment.FACTORY) {
+        if (!MemorySegmentFactory.initializeIfNotInitialized(HybridMemorySegment.FACTORY)) {
           throw new Exception("Memory type is set to off-heap memory, but memory segment " +
             "factory has been initialized for heap memory segments")
         }
