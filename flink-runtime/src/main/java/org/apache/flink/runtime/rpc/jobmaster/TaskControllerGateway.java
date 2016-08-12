@@ -15,38 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.rpc.jobmaster;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import scala.concurrent.Future;
 
-/**
- * {@link JobMaster} rpc gateway interface
- */
-public interface JobMasterGateway extends RpcGateway,ResourceConsumerGateway,TaskControllerGateway {
-
+public interface TaskControllerGateway extends RpcGateway {
 	/**
-	 * stop the job and clear checkpoints
-	 * @param id
-	 * @return
+	 * handle task state update message from task manager
+	 * @param state New task execution state for a given task
+	 * @return Future acknowledge of the task execution state update
 	 */
-	public Future<Acknowledge> cancelJob(JobID id);
-
-	/**
-	 * stop the job, but reserve the checkpoints for future reserve
-	 * @param id
-	 * @return
-	 */
-	public Future<Acknowledge> suspendJob(JobID id);
-
-	/**
-	 * get current running job status
-	 * @param id
-	 * @return job status of current job
-	 */
-	public Future<JobStatus> getJobState(JobID id);
+	public Future<Acknowledge> updateTaskExecutionState(TaskExecutionState state);
 }

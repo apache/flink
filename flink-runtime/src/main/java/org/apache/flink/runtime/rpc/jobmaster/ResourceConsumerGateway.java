@@ -15,38 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.rpc.jobmaster;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import scala.concurrent.Future;
 
-/**
- * {@link JobMaster} rpc gateway interface
- */
-public interface JobMasterGateway extends RpcGateway,ResourceConsumerGateway,TaskControllerGateway {
+public interface ResourceConsumerGateway extends RpcGateway {
+	/**
+	 *  handle slot failure caused by task manager lost
+	 * @param slot
+	 */
+	void notifySlotFailure(Slot slot);
 
 	/**
-	 * stop the job and clear checkpoints
-	 * @param id
-	 * @return
+	 * handle slot available notified from task manager
+	 * @param slot
+	 * @return Future acknowledge of the slot notification
 	 */
-	public Future<Acknowledge> cancelJob(JobID id);
-
-	/**
-	 * stop the job, but reserve the checkpoints for future reserve
-	 * @param id
-	 * @return
-	 */
-	public Future<Acknowledge> suspendJob(JobID id);
-
-	/**
-	 * get current running job status
-	 * @param id
-	 * @return job status of current job
-	 */
-	public Future<JobStatus> getJobState(JobID id);
+	Future<Acknowledge> notifySlotAvailable(Slot slot);
 }
