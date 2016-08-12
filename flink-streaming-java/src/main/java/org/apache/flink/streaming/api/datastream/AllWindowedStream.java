@@ -302,10 +302,7 @@ public class AllWindowedStream<T, W extends Window> {
 					allowedLateness);
 		}
 
-		SingleOutputStreamOperator<R> result = input.transform(opName, resultType, operator);
-		result.getTransformation().setAllWindow(true);
-
-		return result.setParallelism(1);
+		return input.transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	/**
@@ -393,10 +390,8 @@ public class AllWindowedStream<T, W extends Window> {
 					trigger,
 					allowedLateness);
 		}
-		SingleOutputStreamOperator<R> result = input.transform(opName, resultType, operator);
-		result.getTransformation().setAllWindow(true);
 
-		return result.setParallelism(1);
+		return input.transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	/**
@@ -491,10 +486,7 @@ public class AllWindowedStream<T, W extends Window> {
 					allowedLateness);
 		}
 
-		SingleOutputStreamOperator<R> result = input.transform(opName, resultType, operator);
-		result.getTransformation().setAllWindow(true);
-
-		return result.setParallelism(1);
+		return input.transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	// ------------------------------------------------------------------------

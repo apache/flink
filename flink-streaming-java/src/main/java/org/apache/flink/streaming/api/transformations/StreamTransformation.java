@@ -116,9 +116,6 @@ public abstract class StreamTransformation<T> {
 
 	private int parallelism;
 
-	// This is used to avoid set a different parallelism on an all-windowed stream.
-	protected boolean isAllWindow = false;
-
 	/**
 	 * User-specified ID for this transformation. This is used to assign the
 	 * same operator ID across job restarts. There is also the automatically
@@ -308,23 +305,6 @@ public abstract class StreamTransformation<T> {
 	 * @return The list of transitive predecessors.
 	 */
 	public abstract Collection<StreamTransformation<?>> getTransitivePredecessors();
-
-	/**
-	 * Marks this transformation is an all-windowed stream.
-	 * @param allWindow true if this transformation is an all-windowed stream
-	 */
-	public void setAllWindow(boolean allWindow) {
-		isAllWindow = allWindow;
-	}
-
-	/**
-	 * Returns True if this transformation is an all-windowed stream.
-	 *
-	 * @return True if this transformation is an all-windowed stream.
-	 */
-	public boolean isAllWindow() {
-		return isAllWindow;
-	}
 
 	@Override
 	public String toString() {
