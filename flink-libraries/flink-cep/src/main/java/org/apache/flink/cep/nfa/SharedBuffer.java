@@ -283,7 +283,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	}
 
 	/**
-	 * Decreases the reference counter for the given value, key, timstamp entry so that it can be
+	 * Decreases the reference counter for the given value, key, timestamp entry so that it can be
 	 * removed once the reference counter reaches 0.
 	 *
 	 * @param key Key of the value to release

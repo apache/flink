@@ -81,4 +81,16 @@ public class StateTransition<T> implements Serializable {
 
 		return builder.toString();
 	}
+
+	public boolean isConditionTrue(T event) throws Exception {
+		if (condition == null) {
+			return true;
+		}
+
+		if (condition.filter(event)) {
+			return true;
+		}
+
+		return false;
+	}
 }

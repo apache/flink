@@ -504,7 +504,40 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		expected = "Left(1.0)\nRight(2.0,2.0,2.0)";
 
 		env.execute();
+	}
 
+	@Test
+	public void testFromFirstCEP() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
 
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "A", 1.0),
+			new Event(2, "B", 2.0),
+			new Event(3, "C", 2.1)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+		.next("end");
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+
+			@Override
+			public String select(Map<String, Event> pattern) {
+				StringBuilder builder = new StringBuilder();
+
+				builder.append(pattern.get("start").getId()).append(",")
+					.append(pattern.get("end").getId());
+
+				return builder.toString();
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "1,2\n1,3\n2,3";
+
+		env.execute();
 	}
 }

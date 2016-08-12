@@ -26,6 +26,7 @@ import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
+import com.google.common.base.Joiner;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
@@ -309,7 +310,12 @@ public class TestBaseUtils extends TestLogger {
 		String[] expected = expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
 		Arrays.sort(expected);
 
-		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
+		Assert.assertEquals(
+			String.format(
+				"Different number of lines in expected and obtained result. %s; %s",
+				Joiner.on("\\n").join(expected),
+				Joiner.on("\\n").join(result)),
+			expected.length, result.length);
 		Assert.assertArrayEquals(expected, result);
 	}
 

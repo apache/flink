@@ -52,7 +52,7 @@ import java.util.regex.Pattern;
 /**
  * Non-deterministic finite automaton implementation.
  * <p>
- * The NFA processes input events which will chnage the internal state machine. Whenever a final
+ * The NFA processes input events which will change the internal state machine. Whenever a final
  * state is reached, the matching sequence of events is emitted.
  *
  * The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
@@ -243,8 +243,7 @@ public class NFA<T> implements Serializable {
 			// check all state transitions for each state
 			for (StateTransition<T> stateTransition: stateTransitions) {
 				try {
-					if (stateTransition.getCondition() == null || stateTransition.getCondition().filter(event)) {
-						// filter condition is true
+					if (stateTransition.isConditionTrue(event)) {
 						switch (stateTransition.getAction()) {
 							case PROCEED:
 								// simply advance the computation state, but apply the current event to it
@@ -529,8 +528,7 @@ public class NFA<T> implements Serializable {
 
 			try {
 				@SuppressWarnings("unchecked")
-				NFA<T> nfa = null;
-				nfa = (NFA<T>) ois.readObject();
+				NFA<T> nfa = (NFA<T>) ois.readObject();
 				return nfa;
 			} catch (ClassNotFoundException e) {
 				throw new RuntimeException("Could not deserialize NFA.", e);
