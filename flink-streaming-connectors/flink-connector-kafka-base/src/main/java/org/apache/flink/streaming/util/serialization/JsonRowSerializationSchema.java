@@ -63,7 +63,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		try {
 			return mapper.writeValueAsBytes(objectNode);
 		} catch (Exception e) {
-			throw new RuntimeException(e);
+			throw new RuntimeException("Failed to serialize row", e);
 		}
 	}
 }
