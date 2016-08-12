@@ -97,7 +97,7 @@ object IntervalTypeInfo {
       ascendingOrder: java.lang.Boolean)
     : TypeComparator[X] = {
     try {
-      val constructor = comparatorClass.getConstructor(classOf[java.lang.Boolean])
+      val constructor = comparatorClass.getConstructor(java.lang.Boolean.TYPE)
       constructor.newInstance(ascendingOrder)
     } catch {
       case e: Exception =>
