@@ -21,6 +21,7 @@ package org.apache.flink.cep.nfa;
 import com.google.common.collect.LinkedHashMultimap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.cep.MatchingBehaviour;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
@@ -202,7 +203,8 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		final K key,
 		final V value,
 		final long timestamp,
-		final DeweyNumber version) {
+		final DeweyNumber version,
+		final MatchingBehaviour matchingBehaviour) {
 		Collection<LinkedHashMultimap<K, V>> result = new ArrayList<>();
 
 		// stack to remember the current extraction states
@@ -211,6 +213,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		// get the starting shared buffer entry for the previous relation
 		SharedBufferEntry<K, V> entry = get(key, value, timestamp);
 
+		final Set<SharedBufferEntry<K, V>> cleanUp = new HashSet<>();
 		if (entry != null) {
 			extractionStates.add(new ExtractionState<K, V>(entry, version, new Stack<SharedBufferEntry<K, V>>()));
 
@@ -224,6 +227,11 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				// termination criterion
 				if (currentVersion.length() == 1) {
 					LinkedHashMultimap<K, V> completePath = LinkedHashMultimap.create();
+					if ((matchingBehaviour == MatchingBehaviour.AFTER_FIRST
+							|| matchingBehaviour == MatchingBehaviour.AFTER_LAST)
+						&& !currentPath.isEmpty()) {
+						cleanUp.add(currentPath.peek());
+					}
 
 					while(!currentPath.isEmpty()) {
 						SharedBufferEntry<K, V> currentEntry = currentPath.pop();
@@ -247,6 +255,9 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 								// for the first match we don't have to copy the current path
 								extractionStates.push(new ExtractionState<K, V>(edge.getTarget(), edge.getVersion(), currentPath));
 								firstMatch = false;
+								if (matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
+									cleanUp.add(edge.getTarget());
+								}
 							} else {
 								Stack<SharedBufferEntry<K, V>> copy = new Stack<>();
 								copy.addAll(currentPath);
@@ -256,6 +267,9 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 										edge.getTarget(),
 										edge.getVersion(),
 										copy));
+								if (matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
+									cleanUp.add(edge.getTarget());
+								}
 							}
 						}
 					}
@@ -263,7 +277,63 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			}
 		}
 
+		// Remove shared buffer entries to maintain correct matching behaviour
+		doCleanUp(new Predicate<K, V>() {
+
+			@Override
+			public boolean toRemove(SharedBufferEntry<K, V> entry) {
+				return cleanUp.contains(entry);
+			}
+		});
+		// Remove all entries that are dependent on the current event
+		if (matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
+			doCleanUp(new Predicate<K, V>() {
+
+				@Override
+				public boolean toRemove(SharedBufferEntry<K, V> entry) {
+					if (entry == null) {
+						return false;
+					}
+					return entry.getValueTime().value == value
+						&& entry.getValueTime().timestamp == timestamp;
+				}
+			});
+		}
+
 		return result;
+	}
+
+	private void doCleanUp(Predicate<K, V> predicate) {
+		ArrayList<SharedBufferEntry<K, V>> toRemove = new ArrayList<>();
+		for (SharedBufferPage<K, V> page : this.pages.values()) {
+			for (SharedBufferEntry<K, V> entry : page.getEntries()) {
+				if (entry.getReferenceCounter() <= 1) {
+					doRecursiveCleanup(entry, predicate, toRemove);
+				}
+			}
+		}
+
+		for (SharedBufferEntry<K, V> startNode: toRemove) {
+			release(startNode.page.getKey(), startNode.getValueTime().value, startNode.getValueTime().getTimestamp());
+			remove(startNode.page.getKey(), startNode.getValueTime().value, startNode.getValueTime().getTimestamp());
+		}
+	}
+
+	private boolean doRecursiveCleanup(SharedBufferEntry<K, V> startNode, Predicate<K, V> cleanUp, ArrayList<SharedBufferEntry<K, V>> toRemove) {
+		if (startNode != null) {
+			if (cleanUp.toRemove(startNode)) {
+				toRemove.add(startNode);
+				return true;
+			}
+
+			for (SharedBufferEdge<K, V> edge : startNode.getEdges()) {
+				if (doRecursiveCleanup(edge.getTarget(), cleanUp, toRemove)) {
+					toRemove.add(startNode);
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -643,6 +713,10 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		public int hashCode() {
 			return Objects.hash(key, entries);
 		}
+
+		public Collection<SharedBufferEntry<K, V>> getEntries() {
+			return entries.values();
+		}
 	}
 
 	/**
@@ -891,5 +965,9 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		public String toString() {
 			return "ExtractionState(" + entry + ", " + version + ", [" +  StringUtils.join(path, ", ") + "])";
 		}
+	}
+
+	interface Predicate<K, V> {
+		boolean toRemove(SharedBufferEntry<K, V> entry);
 	}
 }

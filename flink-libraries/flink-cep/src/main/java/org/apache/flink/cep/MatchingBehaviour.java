@@ -15,25 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.flink.cep.pattern;
-
-import org.apache.flink.cep.MatchingBehaviour;
+package org.apache.flink.cep;
 
 /**
- * Pattern operator which signifies that the there is a non-strict temporal contiguity between
- * itself and its preceding pattern operator. This means that there might be events in between
- * two matching events. These events are then simply ignored.
- *
- * @param <T> Base type of the events
- * @param <F> Subtype of T to which the operator is currently constrained
+ * Matching behaviour that defines if the same event can be a part of several matching sequences.
  */
-public class FollowedByPattern<T, F extends T> extends Pattern<T, F> {
-	FollowedByPattern(final String name, Pattern<T, ?> previous) {
-		super(name, previous);
-	}
-
-	FollowedByPattern(final String name, Pattern<T, ?> previous, MatchingBehaviour matchingBehaviour) {
-		super(name, previous, matchingBehaviour);
-	}
+public enum MatchingBehaviour {
+	// continue keeping all events for future matches (default behaviour)
+	FROM_FIRST,
+	// continue after the first element (remove first matching event and continue with the second event)
+	AFTER_FIRST,
+	// continue after the last element (effectively discarding all elements of the matching sequence)
+	AFTER_LAST,
 }

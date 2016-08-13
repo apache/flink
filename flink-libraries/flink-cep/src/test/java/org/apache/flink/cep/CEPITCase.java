@@ -518,7 +518,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		);
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-		.next("end");
+		.followedBy("end");
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -537,6 +537,80 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		// expected sequence of matching event ids
 		expected = "1,2\n1,3\n2,3";
+
+		env.execute();
+	}
+
+	@Test
+	public void testAfterFirstCEP() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
+
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "A", 1.0),
+			new Event(2, "B", 2.0),
+			new Event(3, "C", 2.1),
+			new Event(4, "D", 2.1)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+			.followedBy("end")
+			.matchingBehaviour(MatchingBehaviour.AFTER_FIRST);
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+
+			@Override
+			public String select(Map<String, Event> pattern) {
+				StringBuilder builder = new StringBuilder();
+
+				builder.append(pattern.get("start").getId()).append(",")
+					.append(pattern.get("end").getId());
+
+				return builder.toString();
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "1,2\n2,3\n3,4";
+
+		env.execute();
+	}
+
+	@Test
+	public void testAfterLastCEP() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
+
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "A", 1.0),
+			new Event(2, "B", 2.0),
+			new Event(3, "C", 2.1),
+			new Event(4, "D", 2.1)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+			.followedBy("end")
+			.matchingBehaviour(MatchingBehaviour.AFTER_LAST);
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+
+			@Override
+			public String select(Map<String, Event> pattern) {
+				StringBuilder builder = new StringBuilder();
+
+				builder.append(pattern.get("start").getId()).append(",")
+					.append(pattern.get("end").getId());
+
+				return builder.toString();
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "1,2\n3,4";
 
 		env.execute();
 	}

@@ -21,8 +21,7 @@ import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.cep.pattern.{AndFilterFunction, SubtypeFilterFunction, Pattern => JPattern}
 import org.junit.Assert._
 import org.junit.Test
-import org.apache.flink.cep.Event
-import org.apache.flink.cep.SubEvent
+import org.apache.flink.cep.{Event, MatchingBehaviour, SubEvent}
 
 class PatternTest {
 
@@ -183,6 +182,13 @@ class PatternTest {
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "subevent")
     assertEquals(preprevious.getName, "start")
+  }
+
+  @Test
+  def testSetMatchingBehaviour(): Unit = {
+    val pattern = Pattern.begin[Event]("start").matchingBehaviour(MatchingBehaviour.AFTER_LAST)
+
+    assertEquals(MatchingBehaviour.AFTER_LAST, pattern.getMatchingBehaviour)
   }
 
   def checkCongruentRepresentations[T, _ <: T](pattern: Pattern[T, _ <: T],
