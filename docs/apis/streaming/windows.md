@@ -459,7 +459,10 @@ ready for processing. This allows to get the benefit of incremental window compu
 the additional meta information that writing a `WindowFunction` provides.
 
 This is an example that shows how incremental aggregation functions can be combined with
-a `WindowFunction`.
+a `WindowFunction`.  The `FoldFunction`/`WindowFunction` example shows how to extract the
+start event-time of a window of sensor readings that contain an timestamp, 
+and the `ReduceFunction`/`WindowFunctions` example shows how to do eager window
+aggregation (only a single element is kept in the window).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -470,13 +473,42 @@ DataStream<Tuple2<String, Long>> input = ...;
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
-    .apply(<initial value>, new MyFoldFunction(), new MyWindowFunction());
+    .apply(Long.MIN_VALUE, new MyFoldFunction(), new MyWindowFunction());
+
+/* ... */
+
+private static  class myFoldFunction implements FoldFunction<SensorReading, Long> {
+    public Long fold(Long acc, SensorReading s) throws Exception {
+        return Math.max(acc, (Long) s.timestamp());
+    }
+}
+
+private static class MyWindowFunction implements WindowFunction<Long, Long, String, TimeWindow> {
+    public void apply(String s, TimeWindow window, Iterable<Long> timestamps, Collector<Long> out) {
+            out.collect(timestamps.iterator().next());
+        }
+}
 
 // for reducing incremental computation
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .apply(new MyReduceFunction(), new MyWindowFunction());
+
+/* ... */
+
+private static  class myReduceFunction implements ReduceFunction<SensorReading> {
+    public SensorReading reduce(SensorReading s1, SensorReading s2)  {
+        return s1;
+    }
+}
+
+private static class MySingleEntryWindowFunction implements WindowFunction<SensorReading, SensorReading, String, TimeWindow> {
+    public void apply(String s, TimeWindow window, Iterable<SensorReading> readings, Collector<SensorReading> out) {
+        out.collect(readings.iterator().next());
+    }
+}
+
 {% endhighlight %}
 </div>
 
