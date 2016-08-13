@@ -535,8 +535,8 @@ class MyFoldFunction extends FoldFunction[SensorReading, Long] {
 
 class MyWindowFunction extends WindowFunction[Long, Long, String, TimeWindow] {
 
-    def apply(key: String, window: TimeWindow, input: Iterable[Long], out: Collector[Long]): () = {
-        out.collect(input.iterator().next())
+    def apply(key: String, window: TimeWindow, timestamps: Iterable[Long], out: Collector[Long]): () = {
+        out.collect(timestamps.iterator().next())
 }
 
 // for reducing incremental computation
@@ -554,8 +554,8 @@ class MyReduceFunction extends ReduceFunction[SensorReading] {
 
 class MyWindowFunction extends WindowFunction[SensorReading, SensorReading, String, TimeWindow] {
 
-    def apply(key: String, window: TimeWindow, input: Iterable[SensorReading], out: Collector[SensorReading]): () = {
-        out.collect(input.iterator().next())
+    def apply(key: String, window: TimeWindow, readings: Iterable[SensorReading], out: Collector[SensorReading]): () = {
+        out.collect(readings.iterator().next())
     }
 }
 
