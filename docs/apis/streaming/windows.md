@@ -524,7 +524,7 @@ val input: DataStream[SensorReading] = ...
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
-    .apply(Long.MIN_VALUE, new MyFoldFunction(), new MyWindowFunction())
+    .apply(Long.MinValue, new MyFoldFunction(), new MyWindowFunction())
 
 class MyFoldFunction extends FoldFunction[SensorReading, Long] {
 
