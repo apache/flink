@@ -460,7 +460,7 @@ the additional meta information that writing a `WindowFunction` provides.
 
 This is an example that shows how incremental aggregation functions can be combined with
 a `WindowFunction`.  The `FoldFunction`/`WindowFunction` example shows how to extract the
-ending event-time of a window of sensor readings that contain an timestamp, 
+ending event-time of a window of sensor readings that contain a timestamp, 
 and the `ReduceFunction`/`WindowFunctions` example shows how to do eager window
 aggregation (only a single element is kept in the window).
 
