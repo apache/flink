@@ -478,12 +478,14 @@ input
 /* ... */
 
 private static  class myFoldFunction implements FoldFunction<SensorReading, Long> {
+
     public Long fold(Long acc, SensorReading s) {
         return Math.max(acc, s.timestamp());
     }
 }
 
 private static class MyWindowFunction implements WindowFunction<Long, Long, String, TimeWindow> {
+
     public void apply(String key, TimeWindow window, Iterable<Long> timestamps, Collector<Long> out) {
             out.collect(timestamps.iterator().next());
         }
@@ -498,12 +500,14 @@ input
 /* ... */
 
 private static  class myReduceFunction implements ReduceFunction<SensorReading> {
+
     public SensorReading reduce(SensorReading s1, SensorReading s2)  {
         return s1;
     }
 }
 
 private static class MyWindowFunction implements WindowFunction<SensorReading, SensorReading, String, TimeWindow> {
+
     public void apply(String key, TimeWindow window, Iterable<SensorReading> readings, Collector<SensorReading> out) {
         out.collect(readings.iterator().next());
     }
