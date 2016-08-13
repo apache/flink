@@ -529,7 +529,7 @@ input
 class MyFoldFunction extends FoldFunction[SensorReading, Long] {
 
     def fold(acc: Long, s: SensorReading): () = {
-        return Math.max(acc, s.timestamp());
+        return Math.max(acc, s.timestamp())
     }
 }
 
