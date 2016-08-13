@@ -467,7 +467,7 @@ aggregation (only a single element is kept in the window).
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-DataStream<Tuple2<String, Long>> input = ...;
+DataStream<SensorReading> input = ...;
 
 // for folding incremental computation
 input
@@ -479,7 +479,7 @@ input
 
 private static  class myFoldFunction implements FoldFunction<SensorReading, Long> {
     public Long fold(Long acc, SensorReading s) {
-        return Math.max(acc, (Long) s.timestamp());
+        return Math.max(acc, s.timestamp());
     }
 }
 
@@ -503,7 +503,7 @@ private static  class myReduceFunction implements ReduceFunction<SensorReading> 
     }
 }
 
-private static class MySingleEntryWindowFunction implements WindowFunction<SensorReading, SensorReading, String, TimeWindow> {
+private static class MyWindowFunction implements WindowFunction<SensorReading, SensorReading, String, TimeWindow> {
     public void apply(String key, TimeWindow window, Iterable<SensorReading> readings, Collector<SensorReading> out) {
         out.collect(readings.iterator().next());
     }
@@ -514,19 +514,47 @@ private static class MySingleEntryWindowFunction implements WindowFunction<Senso
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val input: DataStream[(String, Long)] = ...
+val input: DataStream[SensorReading] = ...
 
 // for folding incremental computation
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
-    .apply(<initial value>, new MyFoldFunction(), new MyWindowFunction())
+    .apply(Long.MIN_VALUE, new MyFoldFunction(), new MyWindowFunction())
+
+class MyFoldFunction extends FoldFunction[SensorReading, Long] {
+
+    def fold(acc: Long, s: SensorReading): () = {
+        return Math.max(acc, s.timestamp());
+    }
+}
+
+class MyWindowFunction extends WindowFunction[Long, Long, String, TimeWindow] {
+
+    def apply(key: String, window: TimeWindow, input: Iterable[Long], out: Collector[Long]): () = {
+        out.collect(input.iterator().next())
+}
 
 // for reducing incremental computation
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .apply(new MyReduceFunction(), new MyWindowFunction())
+
+class MyReduceFunction extends ReduceFunction[SensorReading] {
+
+    def reduce(s1: SensorReading, s2: SensorReading): () = {
+        return s1
+    }
+}
+
+class MyWindowFunction extends WindowFunction[SensorReading, SensorReading, String, TimeWindow] {
+
+    def apply(key: String, window: TimeWindow, input: Iterable[SensorReading], out: Collector[SensorReading]): () = {
+        out.collect(input.iterator().next())
+    }
+}
+
 {% endhighlight %}
 </div>
 </div>
