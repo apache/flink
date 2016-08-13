@@ -478,7 +478,7 @@ input
 /* ... */
 
 private static  class myFoldFunction implements FoldFunction<SensorReading, Long> {
-    public Long fold(Long acc, SensorReading s) throws Exception {
+    public Long fold(Long acc, SensorReading s) {
         return Math.max(acc, (Long) s.timestamp());
     }
 }
