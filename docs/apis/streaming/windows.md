@@ -484,7 +484,7 @@ private static  class myFoldFunction implements FoldFunction<SensorReading, Long
 }
 
 private static class MyWindowFunction implements WindowFunction<Long, Long, String, TimeWindow> {
-    public void apply(String s, TimeWindow window, Iterable<Long> timestamps, Collector<Long> out) {
+    public void apply(String key, TimeWindow window, Iterable<Long> timestamps, Collector<Long> out) {
             out.collect(timestamps.iterator().next());
         }
 }
@@ -504,7 +504,7 @@ private static  class myReduceFunction implements ReduceFunction<SensorReading> 
 }
 
 private static class MySingleEntryWindowFunction implements WindowFunction<SensorReading, SensorReading, String, TimeWindow> {
-    public void apply(String s, TimeWindow window, Iterable<SensorReading> readings, Collector<SensorReading> out) {
+    public void apply(String key, TimeWindow window, Iterable<SensorReading> readings, Collector<SensorReading> out) {
         out.collect(readings.iterator().next());
     }
 }
