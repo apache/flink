@@ -235,20 +235,7 @@ public class TimeWindow extends Window {
 	 * @param windowSize The size of the generated windows.
 	 * @return window start
 	 */
-	public static long getWindowStartWithOffset(long timestamp,long offset,long windowSize){
-		if(Math.abs(offset) >= windowSize) {
-			throw new RuntimeException("Offset for TimeWindow should not be larger than or equal to windowSize" +
-				String.format(" offset: %s window size: %s ",offset,windowSize));
-		}
-		long start = (timestamp - (timestamp %windowSize))+offset;
-		if(offset!=0){
-			if(start + windowSize <= timestamp) {
-				start += windowSize;
-			}
-			if(start>timestamp) {
-				start -= windowSize;
-			}
-		}
-		return start;
+	public static long getWindowStartWithOffset(long timestamp, long offset, long windowSize) {
+		return timestamp - ((timestamp - offset) % windowSize + windowSize) % windowSize;
 	}
 }
