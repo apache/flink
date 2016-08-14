@@ -26,6 +26,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Set;
 
 import static org.junit.Assert.assertTrue;
 
@@ -87,5 +88,52 @@ public class DelegatingConfigurationTest {
 			}
 			assertTrue("Foo method '" + configurationMethod.getName() + "' has not been wrapped correctly in DelegatingConfiguration wrapper", hasMethod);
 		}
+	}
+	
+	@Test
+	public void testDelegationConfigurationWithNullPrefix() {
+
+		Configuration backingConf = new Configuration();
+		backingConf.setValueInternal("test-key", "value");
+
+		DelegatingConfiguration configuration = new DelegatingConfiguration(
+				backingConf, null);
+		Set<String> keySet = configuration.keySet();
+
+		assertTrue(keySet.equals(backingConf.keySet()));
+
+	}
+
+	@Test
+	public void testDelegationConfigurationWithPrefix() {
+
+		String prefix = "pref-";
+
+		/*
+		 * Key matches the prefix
+		 */
+		Configuration backingConf = new Configuration();
+		backingConf.setValueInternal("pref-key", "value");
+
+		DelegatingConfiguration configuration = new DelegatingConfiguration(
+				backingConf, prefix);
+		Set<String> keySet = configuration.keySet();
+
+		String expectedKey = "key";
+
+		assertTrue(keySet.size() == 1);
+		assertTrue(keySet.iterator().next().equals(expectedKey));
+
+		/*
+		 * Key does not match the prefix
+		 */
+		backingConf = new Configuration();
+		backingConf.setValueInternal("test-key", "value");
+
+		configuration = new DelegatingConfiguration(backingConf, prefix);
+		keySet = configuration.keySet();
+
+		assertTrue(keySet.isEmpty());
+
 	}
 }

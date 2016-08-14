@@ -178,14 +178,19 @@ public final class DelegatingConfiguration extends Configuration {
 
 	@Override
 	public Set<String> keySet() {
+
 		final HashSet<String> set = new HashSet<String>();
-		final int prefixLen = this.prefix == null ? 0 : this.prefix.length();
 
 		for (String key : this.backingConfig.keySet()) {
-			if (key.startsWith(this.prefix)) {
+
+			if (this.prefix == null) {
+				set.add(key);
+			} else if (key.startsWith(prefix)) {
+				int prefixLen = this.prefix.length();
 				set.add(key.substring(prefixLen));
 			}
 		}
+
 		return set;
 	}
 
