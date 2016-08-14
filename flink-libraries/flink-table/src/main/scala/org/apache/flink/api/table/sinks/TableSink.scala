@@ -43,4 +43,8 @@ trait TableSink[T] {
 
   /** Returns the types of the table fields. */
   def getFieldTypes: Array[TypeInformation[_]]
+
+
+  def configure(fieldNames: Array[String],
+                fieldTypes: Array[TypeInformation[_]]): TableSink[T]
 }

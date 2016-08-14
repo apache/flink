@@ -33,7 +33,7 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	 *
 	 * @param topic topic in Kafka
 	 * @param properties properties to connect to Kafka
-	 * @param partitioner Kafra partitioner
+	 * @param partitioner Kafka partitioner
 	 * @param fieldNames row field names
 	 * @param fieldTypes row field types
 	 */
@@ -46,7 +46,7 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	 *
 	 * @param topic topic in Kafka
 	 * @param properties properties to connect to Kafka
-	 * @param partitioner Kafra partitioner
+	 * @param partitioner Kafka partitioner
 	 * @param fieldNames row field names
 	 * @param fieldTypes row field types
 	 */

@@ -42,8 +42,8 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 	private final Properties properties;
 	private final SerializationSchema<Row> serializationSchema;
 	private final KafkaPartitioner<Row> partitioner;
-	private final String[] fieldNames;
-	private final TypeInformation[] fieldTypes;
+	private String[] fieldNames;
+	private TypeInformation[] fieldTypes;
 
 	/**
 	 * Creates KafkaTableSink
@@ -87,10 +87,7 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 		this.properties = Preconditions.checkNotNull(properties, "properties");
 		this.serializationSchema = Preconditions.checkNotNull(serializationSchema, "serializationSchema");
 		this.partitioner = Preconditions.checkNotNull(partitioner, "partitioner");
-		this.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
-		this.fieldTypes = Preconditions.checkNotNull(fieldTypes);
-		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
-			"Number of provided field names and types does not match.");
+		configure(fieldNames, fieldTypes);
 	}
 
 	/**
@@ -125,5 +122,15 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
 		return fieldTypes;
+	}
+
+	@Override
+	public KafkaTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+		this.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
+		this.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
+		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
+			"Number of provided field names and types does not match.");
+
+		return this;
 	}
 }

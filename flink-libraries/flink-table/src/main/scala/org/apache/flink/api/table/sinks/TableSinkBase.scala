@@ -55,9 +55,8 @@ trait TableSinkBase[T] extends TableSink[T] {
     * @return A copy of this [[TableSink]] configured with the field names and types of the
     *         [[org.apache.flink.api.table.Table]] to emit.
     */
-  private[flink] final def configure(
-                                      fieldNames: Array[String],
-                                      fieldTypes: Array[TypeInformation[_]]): TableSink[T] = {
+  final def configure(fieldNames: Array[String],
+                      fieldTypes: Array[TypeInformation[_]]): TableSink[T] = {
 
     val configuredSink = this.copy
     configuredSink.fieldNames = Some(fieldNames)
