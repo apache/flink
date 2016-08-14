@@ -19,11 +19,13 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kafka.internals.TypeUtil;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.test.util.SuccessException;
@@ -39,7 +41,7 @@ public abstract class KafkaTableSinkTestBase extends KafkaTestBase implements Se
 	protected final static String TOPIC = "customPartitioningTestTopic";
 	protected final static int PARALLELISM = 1;
 	protected final static String[] FIELD_NAMES = new String[] {"field1", "field2"};
-	protected final static Class[] FIELD_TYPES = new Class[] {Integer.class, String.class};
+	protected final static TypeInformation[] FIELD_TYPES = TypeUtil.toTypeInfo(new Class[] {Integer.class, String.class});
 
 	public void testKafkaTableSink() throws Exception {
 		LOG.info("Starting KafkaTableSinkTestBase.testKafkaTableSink()");

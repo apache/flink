@@ -592,7 +592,7 @@ class Table(
       .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
 
     // configure the table sink
-    val configuredSink = sink.asInstanceOf[TableSink[T]].configure(fieldNames, fieldTypes)
+    val configuredSink = sink.configure(fieldNames, fieldTypes)
 
     // emit the table to the configured table sink
     tableEnv.writeToSink(this, configuredSink)

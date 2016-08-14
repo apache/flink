@@ -17,10 +17,10 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.JsonRowSerializationSchema;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 import java.util.Properties;
 
@@ -35,24 +35,13 @@ public abstract class KafkaJsonTableSink extends KafkaTableSink {
 	 * @param topic topic in Kafka
 	 * @param properties properties to connect to Kafka
 	 * @param partitioner Kafka partitioner
-	 * @param fieldNames row field names
-	 * @param fieldTypes row field types
 	 */
-	public KafkaJsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner, String[] fieldNames, Class<?>[] fieldTypes) {
-		super(topic, properties, new JsonRowSerializationSchema(fieldNames), partitioner, fieldNames, fieldTypes);
+	public KafkaJsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner) {
+		super(topic, properties, partitioner);
 	}
 
-	/**
-	 * Creates KafkaJsonTableSink
-	 *
-	 * @param topic topic in Kafka
-	 * @param properties properties to connect to Kafka
-	 * @param partitioner Kafka partitioner
-	 * @param fieldNames row field names
-	 * @param fieldTypes row field types
-	 */
-	public KafkaJsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		super(topic, properties, new JsonRowSerializationSchema(fieldNames), partitioner, fieldNames, fieldTypes);
+	@Override
+	protected SerializationSchema<Row> createSerializationSchema(String[] fieldNames) {
+		return new JsonRowSerializationSchema(fieldNames);
 	}
-
 }

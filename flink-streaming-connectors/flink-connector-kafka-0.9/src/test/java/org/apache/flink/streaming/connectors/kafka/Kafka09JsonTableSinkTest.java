@@ -30,12 +30,12 @@ public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override
 	protected KafkaTableSink createTableSink() {
-		return new Kafka09JsonTableSink(
+		Kafka09JsonTableSink sink = new Kafka09JsonTableSink(
 			TOPIC,
 			createSinkProperties(),
-			createPartitioner(),
-			FIELD_NAMES,
-			FIELD_TYPES);
+			createPartitioner());
+		sink.configure(FIELD_NAMES, FIELD_TYPES);
+		return sink;
 	}
 
 	protected DeserializationSchema<Row> createRowDeserializationSchema() {

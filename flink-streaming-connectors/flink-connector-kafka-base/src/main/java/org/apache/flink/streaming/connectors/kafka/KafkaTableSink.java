@@ -28,8 +28,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
 
-import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.toTypeInfo;
-
 /**
  * A version-agnostic Kafka {@link StreamTableSink}.
  *
@@ -40,54 +38,25 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 
 	private final String topic;
 	private final Properties properties;
-	private final SerializationSchema<Row> serializationSchema;
+	private SerializationSchema<Row> serializationSchema;
 	private final KafkaPartitioner<Row> partitioner;
 	private String[] fieldNames;
 	private TypeInformation[] fieldTypes;
-
 	/**
 	 * Creates KafkaTableSink
 	 *
 	 * @param topic                 Kafka topic to consume.
 	 * @param properties            Properties for the Kafka consumer.
-	 * @param serializationSchema   Serialization schema for emitted items
 	 * @param partitioner           Partitioner to select Kafka partition for each item
-	 * @param fieldNames            Row field names.
-	 * @param fieldTypes            Row field types.
 	 */
 	public KafkaTableSink(
 			String topic,
 			Properties properties,
-			SerializationSchema<Row> serializationSchema,
-			KafkaPartitioner<Row> partitioner,
-			String[] fieldNames,
-			Class<?>[] fieldTypes) {
-		this(topic, properties, serializationSchema, partitioner, fieldNames, toTypeInfo(fieldTypes));
-	}
-
-	/**
-	 * Creates KafkaTableSink
-	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param serializationSchema   Serialization schema for emitted items
-	 * @param partitioner           Partitioner to select Kafka partition for each item
-	 * @param fieldNames            Row field names.
-	 * @param fieldTypes            Row field types.
-	 */
-	public KafkaTableSink(
-			String topic,
-			Properties properties,
-			SerializationSchema<Row> serializationSchema,
-			KafkaPartitioner<Row> partitioner,
-			String[] fieldNames,
-			TypeInformation<?>[] fieldTypes) {
+			KafkaPartitioner<Row> partitioner) {
 
 		this.topic = Preconditions.checkNotNull(topic, "topic");
 		this.properties = Preconditions.checkNotNull(properties, "properties");
-		this.serializationSchema = Preconditions.checkNotNull(serializationSchema, "serializationSchema");
 		this.partitioner = Preconditions.checkNotNull(partitioner, "partitioner");
-		configure(fieldNames, fieldTypes);
 	}
 
 	/**
@@ -103,6 +72,8 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 		String topic, Properties properties,
 		SerializationSchema<Row> serializationSchema,
 		KafkaPartitioner<Row> partitioner);
+
+	protected abstract SerializationSchema<Row> createSerializationSchema(String[] fieldNames);
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
@@ -130,7 +101,10 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 		this.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
 		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
 			"Number of provided field names and types does not match.");
+		this.serializationSchema = createSerializationSchema(fieldNames);
 
 		return this;
 	}
+
+
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
@@ -34,24 +33,9 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	 * @param topic topic in Kafka
 	 * @param properties properties to connect to Kafka
 	 * @param partitioner Kafka partitioner
-	 * @param fieldNames row field names
-	 * @param fieldTypes row field types
 	 */
-	public Kafka08JsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner, String[] fieldNames, Class<?>[] fieldTypes) {
-		super(topic, properties, partitioner, fieldNames, fieldTypes);
-	}
-
-	/**
-	 * Creates {@link KafkaTableSink} for Kafka 0.8
-	 *
-	 * @param topic topic in Kafka
-	 * @param properties properties to connect to Kafka
-	 * @param partitioner Kafka partitioner
-	 * @param fieldNames row field names
-	 * @param fieldTypes row field types
-	 */
-	public Kafka08JsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		super(topic, properties, partitioner, fieldNames, fieldTypes);
+	public Kafka08JsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner) {
+		super(topic, properties, partitioner);
 	}
 
 	@Override
