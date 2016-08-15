@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -45,4 +47,13 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @return Future acknowledge of the task canceling
 	 */
 	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptId);
+
+	/**
+	 * Receive a slot request from ResourceManager
+	 * @param allocationID allocationId identifying which request will be allocated a slot
+	 * @param jobID jobId identifying which job send the slot request
+     * @return
+     */
+	Future<RequestSlotResponse> requestSlotForJob(AllocationID allocationID, JobID jobID);
+
 }

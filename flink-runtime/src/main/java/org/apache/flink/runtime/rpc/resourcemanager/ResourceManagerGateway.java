@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
@@ -55,4 +56,11 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @return Future slot assignment
 	 */
 	Future<SlotAssignment> requestSlot(SlotRequest slotRequest);
+
+	/**
+	 * Send slotRequest to TaskManager {@link org.apache.flink.runtime.rpc.taskexecutor.TaskExecutor}
+	 * @param slotRequest slot request information
+	 * @param slotID which slot is choosen
+     */
+	void sendRequestSlotToTaskManager(final SlotRequest slotRequest, final SlotID slotID);
 }

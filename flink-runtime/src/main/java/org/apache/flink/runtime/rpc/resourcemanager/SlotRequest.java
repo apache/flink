@@ -18,8 +18,47 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+
 import java.io.Serializable;
 
 public class SlotRequest implements Serializable{
 	private static final long serialVersionUID = -6586877187990445986L;
+	private final JobID jobID;
+	private final AllocationID allocationID;
+	private final ResourceProfile profile;
+
+	public SlotRequest(JobID jobID, AllocationID allocationID) {
+		this(jobID, allocationID, null);
+	}
+
+	public SlotRequest(JobID jobID, AllocationID allocationID, ResourceProfile profile) {
+		this.jobID = jobID;
+		this.allocationID = allocationID;
+		this.profile = profile;
+	}
+
+	public ResourceProfile getProfile() {
+		return profile;
+	}
+
+	public AllocationID getAllocationID() {
+		return allocationID;
+	}
+
+	public JobID getJobID() {
+		return jobID;
+	}
+
+	@Override
+	public String toString() {
+		return "SlotRequest{" +
+		       "jobID=" + jobID +
+		       ", allocationID=" + allocationID +
+		       ", profile=" + profile +
+		       '}';
+	}
 }
+
