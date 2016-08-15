@@ -22,6 +22,7 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
 
 import java.util.Map;
@@ -79,6 +80,16 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 	@Override
 	public final <H extends Histogram> H histogram(int name, H histogram) {
 		return parentMetricGroup.histogram(name, histogram);
+	}
+
+	@Override
+	public <M extends Meter> M meter(String name, M meter) {
+		return parentMetricGroup.meter(name, meter);
+	}
+
+	@Override
+	public <M extends Meter> M meter(int name, M meter) {
+		return parentMetricGroup.meter(name, meter);
 	}
 
 	@Override
