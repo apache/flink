@@ -22,6 +22,7 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
@@ -229,6 +230,17 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	public <H extends Histogram> H histogram(String name, H histogram) {
 		addMetric(name, histogram);
 		return histogram;
+	}
+
+	@Override
+	public <M extends Meter> M meter(int name, M meter) {
+		return meter(String.valueOf(name), meter);
+	}
+
+	@Override
+	public <M extends Meter> M meter(String name, M meter) {
+		addMetric(name, meter);
+		return meter;
 	}
 
 	/**

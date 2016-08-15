@@ -22,6 +22,7 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 	protected final Map<Gauge<?>, String> gauges = new HashMap<>();
 	protected final Map<Counter, String> counters = new HashMap<>();
 	protected final Map<Histogram, String> histograms = new HashMap<>();
+	protected final Map<Meter, String> meters = new HashMap<>();
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
@@ -51,6 +53,8 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 				gauges.put((Gauge<?>) metric, name);
 			} else if (metric instanceof Histogram) {
 				histograms.put((Histogram) metric, name);
+			} else if (metric instanceof Meter) {
+				meters.put((Meter) metric, name);
 			} else {
 				log.warn("Cannot add unknown metric type {}. This indicates that the reporter " +
 					"does not support this metric type.", metric.getClass().getName());
@@ -67,6 +71,8 @@ public abstract class AbstractReporter implements MetricReporter, CharacterFilte
 				gauges.remove(metric);
 			} else if (metric instanceof Histogram) {
 				histograms.remove(metric);
+			} else if (metric instanceof Meter) {
+				meters.remove(metric);
 			} else {
 				log.warn("Cannot remove unknown metric type {}. This indicates that the reporter " +
 					"does not support this metric type.", metric.getClass().getName());

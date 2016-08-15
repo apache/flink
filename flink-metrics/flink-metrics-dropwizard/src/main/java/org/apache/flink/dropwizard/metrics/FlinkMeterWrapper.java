@@ -18,36 +18,60 @@
 
 package org.apache.flink.dropwizard.metrics;
 
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.HistogramStatistics;
+import com.codahale.metrics.Clock;
+import org.apache.flink.metrics.Meter;
 
 /**
- * Wrapper to use a Dropwizard {@link com.codahale.metrics.Histogram} as a Flink {@link Histogram}.
+ * Wrapper to use a Flink {@link Meter} as a Dropwizard {@link com.codahale.metrics.Meter}.
+ * This is necessary to report Flink's meters via the Dropwizard
+ * {@link com.codahale.metrics.Reporter}.
  */
-public class DropwizardHistogramWrapper implements Histogram {
+public class FlinkMeterWrapper extends com.codahale.metrics.Meter {
 
-	private final com.codahale.metrics.Histogram dropwizardHistogram;
+	private final Meter meter;
 
-	public DropwizardHistogramWrapper(com.codahale.metrics.Histogram dropwizardHistogram) {
-		this.dropwizardHistogram = dropwizardHistogram;
+	public FlinkMeterWrapper(Meter meter) {
+		super();
+		this.meter = meter;
 	}
 
-	public com.codahale.metrics.Histogram getDropwizardHistogram() {
-		return dropwizardHistogram;
+	public FlinkMeterWrapper(Meter meter, Clock clock) {
+		super(clock);
+		this.meter = meter;
 	}
 
 	@Override
-	public void update(long value) {
-		dropwizardHistogram.update(value);
+	public void mark() {
+		meter.markEvent();
+	}
+
+	@Override
+	public void mark(long n) {
+		meter.markEvent(n);
 	}
 
 	@Override
 	public long getCount() {
-		return dropwizardHistogram.getCount();
+		return meter.getCount();
 	}
 
 	@Override
-	public HistogramStatistics getStatistics() {
-		return new DropwizardHistogramStatistics(dropwizardHistogram.getSnapshot());
+	public double getOneMinuteRate() {
+		return meter.getRate();
+	}
+
+	@Override
+	public double getFiveMinuteRate() {
+		return 0;
+	}
+
+	@Override
+	public double getFifteenMinuteRate() {
+		return 0;
+	}
+
+	@Override
+	public double getMeanRate() {
+		return 0;
 	}
 }

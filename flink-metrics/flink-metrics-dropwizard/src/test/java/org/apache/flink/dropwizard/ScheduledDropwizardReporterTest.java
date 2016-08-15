@@ -22,7 +22,9 @@ import com.codahale.metrics.ScheduledReporter;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -85,8 +87,11 @@ public class ScheduledDropwizardReporterTest {
 		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new AbstractID(), new AbstractID(), taskName, 0, 0);
 
 		SimpleCounter myCounter = new SimpleCounter();
+		com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter();
+		DropwizardMeterWrapper meterWrapper = new DropwizardMeterWrapper(dropwizardMeter);
 
 		taskMetricGroup.counter(counterName, myCounter);
+		taskMetricGroup.meter("meter", meterWrapper);
 
 		List<MetricReporter> reporters = metricRegistry.getReporters();
 
@@ -98,8 +103,10 @@ public class ScheduledDropwizardReporterTest {
 		TestingScheduledDropwizardReporter reporter = (TestingScheduledDropwizardReporter) metricReporter;
 
 		Map<Counter, String> counters = reporter.getCounters();
-
 		assertTrue(counters.containsKey(myCounter));
+
+		Map<Meter, String> meters = reporter.getMeters();
+		assertTrue(meters.containsKey(meterWrapper));
 
 		String expectedCounterName = reporter.filterCharacters(hostname)
 			+ delimiter
