@@ -31,7 +31,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 /**
-  * A catalog for looking up user defined functions, used during validation phase.
+  * A catalog for looking up user-defined functions, used during validation phase.
   */
 class FunctionCatalog {
 
@@ -57,7 +57,7 @@ class FunctionCatalog {
     */
   def lookupFunction(name: String, children: Seq[Expression]): Expression = {
     val funcClass = functionBuilders
-      .getOrElse(name.toLowerCase, throw new ValidationException(s"Undefined function: $name"))
+      .getOrElse(name.toLowerCase, throw ValidationException(s"Undefined function: $name"))
     withChildren(funcClass, children)
   }
 
@@ -71,7 +71,7 @@ class FunctionCatalog {
       case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
         Try(UserDefinedFunctionUtils.instantiate(sf.asInstanceOf[Class[ScalarFunction]])) match {
           case Success(scalarFunction) => ScalarFunctionCall(scalarFunction, children)
-          case Failure(e) => throw new ValidationException(e.getMessage)
+          case Failure(e) => throw ValidationException(e.getMessage)
         }
 
       // general expression call
@@ -90,15 +90,15 @@ class FunctionCatalog {
               case Success(ctor) =>
                 Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
                   case Success(expr) => expr
-                  case Failure(e) => throw new ValidationException(e.getMessage)
+                  case Failure(exception) => throw ValidationException(exception.getMessage)
                 }
-              case Failure(e) =>
-                throw new ValidationException(s"Invalid number of arguments for function $func")
+              case Failure(exception) =>
+                throw ValidationException(s"Invalid number of arguments for function $func")
             }
         }
 
       case _ =>
-        throw new ValidationException("Unsupported function.")
+        throw ValidationException("Unsupported function.")
     }
   }
 

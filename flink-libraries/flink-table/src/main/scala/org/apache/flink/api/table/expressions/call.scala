@@ -20,7 +20,7 @@ package org.apache.flink.api.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.table.functions.ScalarFunction
-import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, signatureToString, signaturesToString}
 import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure, ValidationSuccess}
 import org.apache.flink.api.table.{FlinkTypeFactory, UnresolvedException}
 
@@ -69,17 +69,16 @@ case class ScalarFunctionCall(
 
   override def toString = s"$scalarFunction(${parameters.mkString(", ")})"
 
-  override private[flink] def resultType =
-    UserDefinedFunctionUtils.getResultType(scalarFunction, foundSignature.get)
+  override private[flink] def resultType = getResultType(scalarFunction, foundSignature.get)
 
   override private[flink] def validateInput(): ExprValidationResult = {
     val signature = children.map(_.resultType)
     // look for a signature that matches the input types
-    foundSignature = UserDefinedFunctionUtils.getSignature(scalarFunction, signature)
+    foundSignature = getSignature(scalarFunction, signature)
     if (foundSignature.isEmpty) {
       ValidationFailure(s"Given parameters do not match any signature. \n" +
-        s"Actual: ${UserDefinedFunctionUtils.signatureToString(signature)} \n" +
-        s"Expected: ${UserDefinedFunctionUtils.signaturesToString(scalarFunction)}")
+        s"Actual: ${signatureToString(signature)} \n" +
+        s"Expected: ${signaturesToString(scalarFunction)}")
     } else {
       ValidationSuccess
     }

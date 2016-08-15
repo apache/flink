@@ -44,7 +44,7 @@ import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
   * can be manually defined by overriding [[getResultType()]].
   *
   * Internally, the Table/SQL API code generation works with primitive values as much as possible.
-  * If user-defined scalar function should not introduce much overhead during runtime, it is
+  * If a user-defined scalar function should not introduce much overhead during runtime, it is
   * recommended to declare parameters and result types as primitive types instead of their boxed
   * classes. DATE/TIME is equal to int, TIMESTAMP is equal to long.
   */

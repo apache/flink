@@ -110,7 +110,7 @@ object UserDefinedFunctionUtils {
       candidate == classOf[Time] && expected == classOf[Int] ||
       candidate == classOf[Timestamp] && expected == classOf[Long]
 
-    /**
+  /**
     * Returns signatures matching the given signature of [[TypeInformation]].
     * Elements of the signature can be null (act as a wildcard).
     */
