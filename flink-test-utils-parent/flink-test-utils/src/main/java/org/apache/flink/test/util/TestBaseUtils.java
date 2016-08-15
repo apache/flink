@@ -26,10 +26,10 @@ import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
-import com.google.common.base.Joiner;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -313,8 +313,8 @@ public class TestBaseUtils extends TestLogger {
 		Assert.assertEquals(
 			String.format(
 				"Different number of lines in expected and obtained result. %s; %s",
-				Joiner.on("\\n").join(expected),
-				Joiner.on("\\n").join(result)),
+				StringUtils.join("\\n", expected),
+				StringUtils.join("\\n", result)),
 			expected.length, result.length);
 		Assert.assertArrayEquals(expected, result);
 	}
