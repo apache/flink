@@ -109,17 +109,17 @@ public class DelegatingConfigurationTest {
 	public void testDelegationConfigurationWithPrefix() {
 
 		String prefix = "pref-";
+		String expectedKey = "key";
 
 		/*
 		 * Key matches the prefix
 		 */
 		Configuration backingConf = new Configuration();
-		backingConf.setValueInternal("pref-key", "value");
+		backingConf.setValueInternal(prefix + expectedKey, "value");
 
 		DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, prefix);
 		Set<String> keySet = configuration.keySet();
-
-		String expectedKey = "key";
+		
 
 		assertEquals(keySet.size(), 1);
 		assertEquals(keySet.iterator().next(), expectedKey);
