@@ -30,13 +30,14 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.types.IntValue;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.BitSet;
 
-public class SlotCountExceedingParallelismTest {
+public class SlotCountExceedingParallelismTest extends TestLogger {
 
 	// Test configuration
 	private final static int NUMBER_OF_TMS = 2;
