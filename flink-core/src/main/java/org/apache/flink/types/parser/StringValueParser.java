@@ -91,14 +91,14 @@ public class StringValueParser extends FieldParser<StringValue> {
 			if (i >= delimLimit) {
 				// no delimiter found. Take the full string
 				if (limit == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING); // mark empty strings
+					setErrorState(ParseErrorState.EMPTY_COLUMN); // mark empty column
 				}
 				reusable.setValueAscii(bytes, startPos, limit - startPos);
 				return limit;
 			} else {
 				// delimiter found.
 				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING); // mark empty strings
+					setErrorState(ParseErrorState.EMPTY_COLUMN); // mark empty column
 				}
 				reusable.setValueAscii(bytes, startPos, i - startPos);
 				return i + delimiter.length;

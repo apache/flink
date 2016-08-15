@@ -57,7 +57,7 @@ public class IntParser extends FieldParser<Integer> {
 		for (int i = startPos; i < limit; i++) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING);
+					setErrorState(ParseErrorState.EMPTY_COLUMN);
 					return -1;
 				}
 				this.result = (int) (neg ? -val : val);

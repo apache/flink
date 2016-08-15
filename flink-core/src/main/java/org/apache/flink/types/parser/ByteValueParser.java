@@ -55,7 +55,7 @@ public class ByteValueParser extends FieldParser<ByteValue> {
 
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING);
+					setErrorState(ParseErrorState.EMPTY_COLUMN);
 					return -1;
 				}
 				reusable.setValue((byte) (neg ? -val : val));

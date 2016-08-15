@@ -40,7 +40,7 @@ public class FloatParser extends FieldParser<Float> {
 		while (i < limit) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING);
+					setErrorState(ParseErrorState.EMPTY_COLUMN);
 					return -1;
 				}
 				break;

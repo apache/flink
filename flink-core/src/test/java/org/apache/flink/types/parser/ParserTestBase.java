@@ -414,7 +414,7 @@ public abstract class ParserTestBase<T> extends TestLogger {
 				byte[] bytes = emptyString.getBytes();
 				int numRead = parser.parseField(bytes, 0, bytes.length, new byte[]{'|'}, parser.createValue());
 
-				assertEquals(FieldParser.ParseErrorState.EMPTY_STRING, parser.getErrorState());
+				assertEquals(FieldParser.ParseErrorState.EMPTY_COLUMN, parser.getErrorState());
 
 				if(this.allowsEmptyField()) {
 					assertTrue("Parser declared the empty string as invalid.", numRead != -1);

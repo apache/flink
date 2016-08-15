@@ -400,7 +400,7 @@ class RowCsvInputFormatTest {
       BasicTypeInfo.SHORT_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO))
 
-    val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo, emptyStringAsNull = true)
+    val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo, emptyColumnAsNull = true)
     format.setFieldDelimiter(",")
     format.configure(new Configuration)
     format.open(split)

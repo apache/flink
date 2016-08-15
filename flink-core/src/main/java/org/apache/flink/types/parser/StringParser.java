@@ -85,14 +85,14 @@ public class StringParser extends FieldParser<String> {
 			if (i >= delimLimit) {
 				// no delimiter found. Take the full string
 				if (limit == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING); // mark empty string
+					setErrorState(ParseErrorState.EMPTY_COLUMN); // mark empty column
 				}
 				this.result = new String(bytes, startPos, limit - startPos);
 				return limit;
 			} else {
 				// delimiter found.
 				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING); // mark empty string
+					setErrorState(ParseErrorState.EMPTY_COLUMN); // mark empty column
 				}
 				this.result = new String(bytes, startPos, i - startPos);
 				return i + delimiter.length;
