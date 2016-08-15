@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -245,6 +246,48 @@ public class JMXReporterTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that histograms are properly reported via the JMXReporter.
+	 */
+	@Test
+	public void testMeterReporting() throws Exception {
+		MetricRegistry registry = null;
+		String meterName = "meter";
+
+		try {
+			Configuration config = new Configuration();
+			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "jmx_test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
+
+			registry = new MetricRegistry(config);
+
+			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+
+			TestingMeter meter = new TestingMeter();
+
+			metricGroup.meter(meterName, meter);
+
+			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+
+			ObjectName objectName = new ObjectName(JMXReporter.generateJmxName(meterName, metricGroup.getScopeComponents()));
+
+			MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
+
+			MBeanAttributeInfo[] attributeInfos = info.getAttributes();
+
+			assertEquals(3, attributeInfos.length);
+
+			assertEquals(meter.getOneMinuteRate(),     mBeanServer.getAttribute(objectName, "OneMinuteRate"));
+			assertEquals(meter.getFiveMinuteRate(),    mBeanServer.getAttribute(objectName, "FiveMinuteRate"));
+			assertEquals(meter.getFifteenMinuteRate(), mBeanServer.getAttribute(objectName, "FifteenMinuteRate"));
+
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
+		}
+	}
+
 	static class TestingHistogram implements Histogram {
 
 		@Override
@@ -295,6 +338,34 @@ public class JMXReporterTest extends TestLogger {
 					return 7;
 				}
 			};
+		}
+	}
+
+	static class TestingMeter implements Meter {
+
+		@Override
+		public void markEvent() {
+
+		}
+
+		@Override
+		public void markEvent(long n) {
+
+		}
+
+		@Override
+		public double getOneMinuteRate() {
+			return 1;
+		}
+
+		@Override
+		public double getFiveMinuteRate() {
+			return 5;
+		}
+
+		@Override
+		public double getFifteenMinuteRate() {
+			return 15;
 		}
 	}
 }
