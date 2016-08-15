@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rpc;
 
 import akka.util.Timeout;
 
+import org.apache.flink.util.ReflectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,8 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -60,6 +63,9 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	/** RPC service to be used to start the RPC server and to obtain rpc gateways */
 	private final RpcService rpcService;
 
+	/** Class of the self gateway */
+	private final Class<C> selfGatewayType;
+
 	/** Self gateway which can be used to schedule asynchronous calls on yourself */
 	private final C self;
 
@@ -70,19 +76,35 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * of the executing rpc server. */
 	private final MainThreadExecutionContext mainThreadExecutionContext;
 
+	/** A reference to the endpoint's main thread, if the current method is called by the main thread */
+	final AtomicReference<Thread> currentMainThread = new AtomicReference<>(null); 
 
 	/**
 	 * Initializes the RPC endpoint.
 	 * 
 	 * @param rpcService The RPC server that dispatches calls to this RPC endpoint. 
 	 */
-	public RpcEndpoint(RpcService rpcService) {
+	protected RpcEndpoint(final RpcService rpcService) {
 		this.rpcService = checkNotNull(rpcService, "rpcService");
+
+		// IMPORTANT: Don't change order of selfGatewayType and self because rpcService.startServer
+		// requires that selfGatewayType has been initialized
+		this.selfGatewayType = ReflectionUtil.getTemplateType1(getClass());
 		this.self = rpcService.startServer(this);
+		
 		this.selfAddress = rpcService.getAddress(self);
 		this.mainThreadExecutionContext = new MainThreadExecutionContext((MainThreadExecutor) self);
 	}
 
+	/**
+	 * Returns the class of the self gateway type.
+	 *
+	 * @return Class of the self gateway type
+	 */
+	public final Class<C> getSelfGatewayType() {
+		return selfGatewayType;
+	}
+	
 	// ------------------------------------------------------------------------
 	//  Shutdown
 	// ------------------------------------------------------------------------
@@ -149,6 +171,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	//  Asynchronous executions
 	// ------------------------------------------------------------------------
 
+
 	/**
 	 * Execute the runnable in the main thread of the underlying RPC endpoint.
 	 *
@@ -156,6 +179,17 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 */
 	public void runAsync(Runnable runnable) {
 		((MainThreadExecutor) self).runAsync(runnable);
+	}
+
+	/**
+	 * Execute the runnable in the main thread of the underlying RPC endpoint, with
+	 * a delay of the given number of milliseconds.
+	 *
+	 * @param runnable Runnable to be executed
+	 * @param delay    The delay after which the runnable will be executed
+	 */
+	public void scheduleRunAsync(Runnable runnable, long delay, TimeUnit unit) {
+		((MainThreadExecutor) self).scheduleRunAsync(runnable, unit.toMillis(delay));
 	}
 
 	/**
@@ -170,6 +204,30 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 */
 	public <V> Future<V> callAsync(Callable<V> callable, Timeout timeout) {
 		return ((MainThreadExecutor) self).callAsync(callable, timeout);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Main Thread Validation
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Validates that the method call happens in the RPC endpoint's main thread.
+	 * 
+	 * <p><b>IMPORTANT:</b> This check only happens when assertions are enabled,
+	 * such as when running tests.
+	 * 
+	 * <p>This can be used for additional checks, like
+	 * <pre>{@code
+	 * protected void concurrencyCriticalMethod() {
+	 *     validateRunsInMainThread();
+	 *     
+	 *     // some critical stuff
+	 * }
+	 * }</pre>
+	 */
+	public void validateRunsInMainThread() {
+		// because the initialization is lazy, it can be that certain methods are
+		assert currentMainThread.get() == Thread.currentThread();
 	}
 
 	// ------------------------------------------------------------------------

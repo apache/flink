@@ -48,7 +48,7 @@ public class TaskExecutorTest extends TestLogger {
 	@Test
 	public void testTaskExecution() throws Exception {
 		RpcService testingRpcService = mock(RpcService.class);
-		DirectExecutorService directExecutorService = null;
+		DirectExecutorService directExecutorService = new DirectExecutorService();
 		TaskExecutor taskExecutor = new TaskExecutor(testingRpcService, directExecutorService);
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(

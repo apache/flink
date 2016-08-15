@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.util.ReflectionUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.reflections.Reflections;
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,9 +51,8 @@ public class RpcCompletenessTest extends TestLogger {
 
 		for (Class<? extends RpcEndpoint> rpcEndpoint :classes){
 			c = rpcEndpoint;
-			Type superClass = c.getGenericSuperclass();
 
-			Class<?> rpcGatewayType = extractTypeParameter(superClass, 0);
+			Class<?> rpcGatewayType = ReflectionUtil.getTemplateType1(c);
 
 			if (rpcGatewayType != null) {
 				checkCompleteness(rpcEndpoint, (Class<? extends RpcGateway>) rpcGatewayType);
@@ -137,13 +136,16 @@ public class RpcCompletenessTest extends TestLogger {
 		}
 
 		Annotation[][] parameterAnnotations = gatewayMethod.getParameterAnnotations();
+		Class<?>[] parameterTypes = gatewayMethod.getParameterTypes();
 		int rpcTimeoutParameters = 0;
 
-		for (Annotation[] parameterAnnotation : parameterAnnotations) {
-			for (Annotation annotation : parameterAnnotation) {
-				if (annotation.equals(RpcTimeout.class)) {
-					rpcTimeoutParameters++;
-				}
+		for (int i = 0; i < parameterAnnotations.length; i++) {
+			if (isRpcTimeout(parameterAnnotations[i])) {
+				assertTrue(
+					"The rpc timeout has to be of type " + FiniteDuration.class.getName() + ".",
+					parameterTypes[i].equals(FiniteDuration.class));
+
+				rpcTimeoutParameters++;
 			}
 		}
 
@@ -211,10 +213,10 @@ public class RpcCompletenessTest extends TestLogger {
 				if (!futureClass.equals(RpcCompletenessTest.futureClass)) {
 					return false;
 				} else {
-					Class<?> valueClass = extractTypeParameter(futureClass, 0);
+					Class<?> valueClass = ReflectionUtil.getTemplateType1(gatewayMethod.getGenericReturnType());
 
 					if (endpointMethod.getReturnType().equals(futureClass)) {
-						Class<?> rpcEndpointValueClass = extractTypeParameter(endpointMethod.getReturnType(), 0);
+						Class<?> rpcEndpointValueClass = ReflectionUtil.getTemplateType1(endpointMethod.getGenericReturnType());
 
 						// check if we have the same future value types
 						if (valueClass != null && rpcEndpointValueClass != null && !checkType(valueClass, rpcEndpointValueClass)) {
@@ -251,7 +253,7 @@ public class RpcCompletenessTest extends TestLogger {
 		if (method.getReturnType().equals(Void.TYPE)) {
 			builder.append("void").append(" ");
 		} else if (method.getReturnType().equals(futureClass)) {
-			Class<?> valueClass = extractTypeParameter(method.getGenericReturnType(), 0);
+			Class<?> valueClass = ReflectionUtil.getTemplateType1(method.getGenericReturnType());
 
 			builder
 				.append(futureClass.getSimpleName())
@@ -289,30 +291,6 @@ public class RpcCompletenessTest extends TestLogger {
 		builder.append(")");
 
 		return builder.toString();
-	}
-
-	private Class<?> extractTypeParameter(Type genericType, int position) {
-		if (genericType instanceof ParameterizedType) {
-			ParameterizedType parameterizedType = (ParameterizedType) genericType;
-
-			Type[] typeArguments = parameterizedType.getActualTypeArguments();
-
-			if (position < 0 || position >= typeArguments.length) {
-				throw new IndexOutOfBoundsException("The generic type " +
-					parameterizedType.getRawType() + " only has " + typeArguments.length +
-					" type arguments.");
-			} else {
-				Type typeArgument = typeArguments[position];
-
-				if (typeArgument instanceof Class<?>) {
-					return (Class<?>) typeArgument;
-				} else {
-					return null;
-				}
-			}
-		} else {
-			return null;
-		}
 	}
 
 	private boolean isRpcTimeout(Annotation[] annotations) {

@@ -28,118 +28,161 @@ import akka.actor.Props;
 import akka.dispatch.Mapper;
 import akka.pattern.AskableActorSelection;
 import akka.util.Timeout;
+
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
-import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rpc.MainThreadExecutor;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.jobmaster.JobMasterAkkaActor;
-import org.apache.flink.runtime.rpc.akka.jobmaster.JobMasterAkkaGateway;
-import org.apache.flink.runtime.rpc.akka.resourcemanager.ResourceManagerAkkaActor;
-import org.apache.flink.runtime.rpc.akka.resourcemanager.ResourceManagerAkkaGateway;
-import org.apache.flink.runtime.rpc.akka.taskexecutor.TaskExecutorAkkaActor;
-import org.apache.flink.runtime.rpc.akka.taskexecutor.TaskExecutorAkkaGateway;
-import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import scala.concurrent.Future;
 
+import javax.annotation.concurrent.ThreadSafe;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
+/**
+ * Akka based {@link RpcService} implementation. The RPC service starts an Akka actor to receive
+ * RPC invocations from a {@link RpcGateway}.
+ */
+@ThreadSafe
 public class AkkaRpcService implements RpcService {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcService.class);
+
+	private final Object lock = new Object();
+
 	private final ActorSystem actorSystem;
 	private final Timeout timeout;
-	private final Set<ActorRef> actors = new HashSet<>();
+	private final Set<ActorRef> actors = new HashSet<>(4);
 
-	public AkkaRpcService(ActorSystem actorSystem, Timeout timeout) {
-		this.actorSystem = actorSystem;
-		this.timeout = timeout;
+	private volatile boolean stopped;
+
+	public AkkaRpcService(final ActorSystem actorSystem, final Timeout timeout) {
+		this.actorSystem = checkNotNull(actorSystem, "actor system");
+		this.timeout = checkNotNull(timeout, "timeout");
 	}
 
+	// this method does not mutate state and is thus thread-safe
 	@Override
-	public <C extends RpcGateway> Future<C> connect(String address, final Class<C> clazz) {
-		ActorSelection actorSel = actorSystem.actorSelection(address);
+	public <C extends RpcGateway> Future<C> connect(final String address, final Class<C> clazz) {
+		checkState(!stopped, "RpcService is stopped");
 
-		AskableActorSelection asker = new AskableActorSelection(actorSel);
+		LOG.debug("Try to connect to remote RPC endpoint with address {}. Returning a {} gateway.",
+				address, clazz.getName());
 
-		Future<Object> identify = asker.ask(new Identify(42), timeout);
+		final ActorSelection actorSel = actorSystem.actorSelection(address);
+		final AskableActorSelection asker = new AskableActorSelection(actorSel);
 
+		final Future<Object> identify = asker.ask(new Identify(42), timeout);
 		return identify.map(new Mapper<Object, C>(){
+			@Override
 			public C apply(Object obj) {
 				ActorRef actorRef = ((ActorIdentity) obj).getRef();
 
-				if (clazz == TaskExecutorGateway.class) {
-					return (C) new TaskExecutorAkkaGateway(actorRef, timeout);
-				} else if (clazz == ResourceManagerGateway.class) {
-					return (C) new ResourceManagerAkkaGateway(actorRef, timeout);
-				} else if (clazz == JobMasterGateway.class) {
-					return (C) new JobMasterAkkaGateway(actorRef, timeout);
-				} else {
-					throw new RuntimeException("Could not find remote endpoint " + clazz);
-				}
+				InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout);
+
+				@SuppressWarnings("unchecked")
+				C proxy = (C) Proxy.newProxyInstance(
+					ClassLoader.getSystemClassLoader(),
+					new Class<?>[] {clazz},
+					akkaInvocationHandler);
+
+				return proxy;
 			}
 		}, actorSystem.dispatcher());
 	}
 
 	@Override
-	public <S extends RpcEndpoint, C extends RpcGateway> C startServer(S rpcEndpoint) {
-		ActorRef ref;
-		C self;
-		if (rpcEndpoint instanceof TaskExecutor) {
-			ref = actorSystem.actorOf(
-				Props.create(TaskExecutorAkkaActor.class, rpcEndpoint)
-			);
+	public <C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint) {
+		checkNotNull(rpcEndpoint, "rpc endpoint");
 
-			self = (C) new TaskExecutorAkkaGateway(ref, timeout);
-		} else if (rpcEndpoint instanceof ResourceManager) {
-			ref = actorSystem.actorOf(
-				Props.create(ResourceManagerAkkaActor.class, rpcEndpoint)
-			);
+		Props akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint);
+		ActorRef actorRef;
 
-			self = (C) new ResourceManagerAkkaGateway(ref, timeout);
-		} else if (rpcEndpoint instanceof JobMaster) {
-			ref = actorSystem.actorOf(
-				Props.create(JobMasterAkkaActor.class, rpcEndpoint)
-			);
-
-			self = (C) new JobMasterAkkaGateway(ref, timeout);
-		} else {
-			throw new RuntimeException("Could not start RPC server for class " + rpcEndpoint.getClass());
+		synchronized (lock) {
+			checkState(!stopped, "RpcService is stopped");
+			actorRef = actorSystem.actorOf(akkaRpcActorProps);
+			actors.add(actorRef);
 		}
 
-		actors.add(ref);
+		LOG.info("Starting RPC endpoint for {} at {} .", rpcEndpoint.getClass().getName(), actorRef.path());
+
+		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout);
+
+		// Rather than using the System ClassLoader directly, we derive the ClassLoader
+		// from this class . That works better in cases where Flink runs embedded and all Flink
+		// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
+		ClassLoader classLoader = getClass().getClassLoader();
+
+		@SuppressWarnings("unchecked")
+		C self = (C) Proxy.newProxyInstance(
+			classLoader,
+			new Class<?>[]{rpcEndpoint.getSelfGatewayType(), MainThreadExecutor.class, AkkaGateway.class},
+			akkaInvocationHandler);
 
 		return self;
 	}
 
 	@Override
-	public <C extends RpcGateway> void stopServer(C selfGateway) {
+	public void stopServer(RpcGateway selfGateway) {
 		if (selfGateway instanceof AkkaGateway) {
 			AkkaGateway akkaClient = (AkkaGateway) selfGateway;
 
-			if (actors.contains(akkaClient.getActorRef())) {
-				akkaClient.getActorRef().tell(PoisonPill.getInstance(), ActorRef.noSender());
+			boolean fromThisService;
+			synchronized (lock) {
+				if (stopped) {
+					return;
+				} else {
+					fromThisService = actors.remove(akkaClient.getRpcServer());
+				}
+			}
+
+			if (fromThisService) {
+				ActorRef selfActorRef = akkaClient.getRpcServer();
+				LOG.info("Stopping RPC endpoint {}.", selfActorRef.path());
+				selfActorRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
 			} else {
-				// don't stop this actor since it was not started by this RPC service
+				LOG.debug("RPC endpoint {} already stopped or from different RPC service");
 			}
 		}
 	}
 
 	@Override
 	public void stopService() {
-		actorSystem.shutdown();
+		LOG.info("Stopping Akka RPC service.");
+
+		synchronized (lock) {
+			if (stopped) {
+				return;
+			}
+
+			stopped = true;
+			actorSystem.shutdown();
+			actors.clear();
+		}
+
 		actorSystem.awaitTermination();
 	}
 
 	@Override
-	public <C extends RpcGateway> String getAddress(C selfGateway) {
+	public String getAddress(RpcGateway selfGateway) {
+		checkState(!stopped, "RpcService is stopped");
+
 		if (selfGateway instanceof AkkaGateway) {
-			return AkkaUtils.getAkkaURL(actorSystem, ((AkkaGateway) selfGateway).getActorRef());
+			ActorRef actorRef = ((AkkaGateway) selfGateway).getRpcServer();
+			return AkkaUtils.getAkkaURL(actorSystem, actorRef);
 		} else {
-			throw new RuntimeException("Cannot get address for non " + AkkaGateway.class.getName() + ".");
+			String className = AkkaGateway.class.getName();
+			throw new IllegalArgumentException("Cannot get address for non " + className + '.');
 		}
 	}
 }
