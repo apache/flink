@@ -19,12 +19,17 @@
 package org.apache.flink.runtime.rpc.resourcemanager;
 
 import akka.dispatch.Mapper;
+import akka.dispatch.OnFailure;
+import akka.dispatch.OnSuccess;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.rpc.taskexecutor.SlotReport;
+import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
@@ -32,6 +37,7 @@ import scala.concurrent.Future;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -47,6 +53,7 @@ import java.util.concurrent.ExecutorService;
 public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	private final ExecutionContext executionContext;
 	private final Map<JobMasterGateway, InstanceID> jobMasterGateways;
+
 
 	public ResourceManager(RpcService rpcService, ExecutorService executorService) {
 		super(rpcService);
@@ -92,5 +99,25 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	public SlotAssignment requestSlot(SlotRequest slotRequest) {
 		System.out.println("SlotRequest: " + slotRequest);
 		return new SlotAssignment();
+	}
+
+
+	/**
+	 *
+	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
+	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
+	 * @param resourceID               The resource ID of the TaskExecutor that registers
+	 * @param slotReport               The report describing available and allocated slots
+	 *
+	 * @return The response by the ResourceManager.
+	 */
+	@RpcMethod
+	public TaskExecutorRegistrationResponse registerTaskExecutor(
+		UUID resourceManagerLeaderId,
+		String taskExecutorAddress,
+		ResourceID resourceID,
+		SlotReport slotReport) {
+
+		return new TaskExecutorRegistrationResponse.Decline("");
 	}
 }
