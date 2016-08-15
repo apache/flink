@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -195,6 +196,69 @@ public class StatsDReporterTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that meters are properly reported via the StatsD reporter
+	 */
+	@Test
+	public void testStatsDMetersReporting() throws Exception {
+		MetricRegistry registry = null;
+		DatagramSocketReceiver receiver = null;
+		Thread receiverThread = null;
+		long timeout = 5000;
+		long joinTimeout = 30000;
+
+		String meterName = "meter";
+
+		try {
+			receiver = new DatagramSocketReceiver();
+
+			receiverThread = new Thread(receiver);
+
+			receiverThread.start();
+
+			int port = receiver.getPort();
+
+			Configuration config = new Configuration();
+			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+
+			registry = new MetricRegistry(config);
+			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+			TestingMeter meter = new TestingMeter();
+			metricGroup.meter(meterName, meter);
+			String prefix = metricGroup.getMetricIdentifier(meterName);
+
+			Set<String> expectedLines = new HashSet<>();
+
+			expectedLines.add(prefix + ".1minrate:1.0|g");
+			expectedLines.add(prefix + ".5minrate:1.0|g");
+			expectedLines.add(prefix + ".15minrate:1.0|g");
+
+			receiver.waitUntilNumLines(expectedLines.size(), timeout);
+
+			Set<String> lines = receiver.getLines();
+
+
+			assertEquals(expectedLines, lines);
+
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
+
+			if (receiver != null) {
+				receiver.stop();
+			}
+
+			if (receiverThread != null) {
+				receiverThread.join(joinTimeout);
+			}
+		}
+	}
+
+	/**
 	 * Testing StatsDReporter which disables the socket creation
 	 */
 	public static class TestingStatsDReporter extends StatsDReporter {
@@ -258,6 +322,30 @@ public class StatsDReporterTest extends TestLogger {
 					return 6;
 				}
 			};
+		}
+	}
+
+	public static class TestingMeter implements Meter {
+
+		@Override
+		public void markEvent() { }
+
+		@Override
+		public void markEvent(long n) { }
+
+		@Override
+		public double getOneMinuteRate() {
+			return 1;
+		}
+
+		@Override
+		public double getFiveMinuteRate() {
+			return 2;
+		}
+
+		@Override
+		public double getFifteenMinuteRate() {
+			return 3;
 		}
 	}
 
