@@ -25,7 +25,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.table.functions.wrapper.ScalarSqlFunction
+import org.apache.flink.api.table.functions.utils.ScalarSqlFunction
 
 import scala.collection.mutable
 

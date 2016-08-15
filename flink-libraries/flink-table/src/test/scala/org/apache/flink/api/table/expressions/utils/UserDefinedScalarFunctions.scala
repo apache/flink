@@ -20,7 +20,8 @@ package org.apache.flink.api.table.expressions.utils
 
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.Types
 import org.apache.flink.api.table.functions.ScalarFunction
 
 case class SimplePojo(name: String, age: Int)
@@ -99,6 +100,22 @@ object Func10 extends ScalarFunction {
   }
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
-    SqlTimeTypeInfo.TIMESTAMP
+    Types.TIMESTAMP
+  }
+}
+
+object Func11 extends ScalarFunction {
+  def eval(a: Int, b: Long): String = {
+    s"$a and $b"
+  }
+}
+
+object Func12 extends ScalarFunction {
+  def eval(a: Long): Long = {
+    a
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
+    Types.INTERVAL_MILLIS
   }
 }

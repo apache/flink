@@ -23,7 +23,8 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperatorTable}
 import org.apache.flink.api.table.ValidationException
 import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.functions.{UserDefinedFunction, ScalarFunction}
+import org.apache.flink.api.table.functions.ScalarFunction
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -68,7 +69,7 @@ class FunctionCatalog {
 
       // user-defined scalar function call
       case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
-        Try(UserDefinedFunction.instantiate(sf.asInstanceOf[Class[ScalarFunction]])) match {
+        Try(UserDefinedFunctionUtils.instantiate(sf.asInstanceOf[Class[ScalarFunction]])) match {
           case Success(scalarFunction) => ScalarFunctionCall(scalarFunction, children)
           case Failure(e) => throw new ValidationException(e.getMessage)
         }

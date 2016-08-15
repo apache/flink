@@ -21,12 +21,12 @@ package org.apache.flink.api.table.expressions
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
 import org.apache.flink.api.table.expressions.utils._
 import org.apache.flink.api.table.functions.UserDefinedFunction
 import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{Row, Types}
 import org.junit.Test
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
@@ -149,7 +149,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   }
 
   @Test
-  def testDateTimeTimestampOnPrimitives(): Unit = {
+  def testTimePointsOnPrimitives(): Unit = {
     testAllApis(
       Func9('f4, 'f5, 'f6),
       "Func9(f4, f5, f6)",
@@ -163,10 +163,25 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "1990-10-14 12:10:10.0")
   }
 
+  @Test
+  def testTimeIntervalsOnPrimitives(): Unit = {
+    testAllApis(
+      Func11('f7, 'f8),
+      "Func11(f7, f8)",
+      "Func11(f7, f8)",
+      "12 and 1000")
+
+    testAllApis(
+      Func12('f8),
+      "Func12(f8)",
+      "Func12(f8)",
+      "+0 00:00:01.000")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
-    val testData = new Row(7)
+    val testData = new Row(9)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -174,18 +189,22 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     testData.setField(4, Date.valueOf("1990-10-14"))
     testData.setField(5, Time.valueOf("12:10:10"))
     testData.setField(6, Timestamp.valueOf("1990-10-14 12:10:10"))
+    testData.setField(7, 12)
+    testData.setField(8, 1000L)
     testData
   }
 
   override def typeInfo: TypeInformation[Any] = {
     new RowTypeInfo(Seq(
-      INT_TYPE_INFO,
-      STRING_TYPE_INFO,
-      BOOLEAN_TYPE_INFO,
+      Types.INT,
+      Types.STRING,
+      Types.BOOLEAN,
       TypeInformation.of(classOf[SimplePojo]),
-      SqlTimeTypeInfo.DATE,
-      SqlTimeTypeInfo.TIME,
-      SqlTimeTypeInfo.TIMESTAMP
+      Types.DATE,
+      Types.TIME,
+      Types.TIMESTAMP,
+      Types.INTERVAL_MONTHS,
+      Types.INTERVAL_MILLIS
     )).asInstanceOf[TypeInformation[Any]]
   }
 
@@ -200,7 +219,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func7" -> Func7,
     "Func8" -> Func8,
     "Func9" -> Func9,
-    "Func10" -> Func10
+    "Func10" -> Func10,
+    "Func11" -> Func11,
+    "Func12" -> Func12
   )
 }
 

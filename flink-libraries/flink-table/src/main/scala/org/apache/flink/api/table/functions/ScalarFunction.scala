@@ -19,16 +19,14 @@
 package org.apache.flink.api.table.functions
 
 import java.lang.reflect.{Method, Modifier}
-import java.sql.{Date, Time, Timestamp}
 
-import com.google.common.primitives.Primitives
 import org.apache.calcite.sql.SqlFunction
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.table.functions.wrapper.ScalarSqlFunction
-import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
 import org.apache.flink.api.table.expressions.{Expression, ScalarFunctionCall}
+import org.apache.flink.api.table.functions.utils.ScalarSqlFunction
+import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
 
 /**
   * Base class for a user-defined scalar function. A user-defined scalar functions maps zero, one,
@@ -58,7 +56,7 @@ abstract class ScalarFunction extends UserDefinedFunction {
     * @param params actual parameters of function
     * @return [[Expression]] in form of a [[ScalarFunctionCall]]
     */
-  def apply(params: Expression*): Expression = {
+  final def apply(params: Expression*): Expression = {
     ScalarFunctionCall(this, params)
   }
 
@@ -88,112 +86,20 @@ abstract class ScalarFunction extends UserDefinedFunction {
   }
 
   /**
-    * Extracts type classes of [[TypeInformation]] in a null-aware way.
+    * Returns all found evaluation methods of the possibly overloaded function.
     */
-  private def typeInfoToClass(typeInfos: Seq[TypeInformation[_]]): Array[Class[_]] =
-    typeInfos.map { typeInfo =>
-      if (typeInfo == null) {
-        null
-      } else {
-        typeInfo.getTypeClass
-      }
-    }.toArray
+  private[flink] final def getEvalMethods: Array[Method] = evalMethods
 
   /**
-    * Compares parameter candidate classes with expected classes. If true, the parameters match.
-    * Candidate can be null (acts as a wildcard).
+    * Returns all found signature of the possibly overloaded function.
     */
-  private def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
-    candidate == null ||
-      candidate == expected ||
-      expected.isPrimitive && Primitives.wrap(expected) == candidate ||
-      candidate == classOf[Date] && expected == classOf[Int] ||
-      candidate == classOf[Time] && expected == classOf[Int] ||
-      candidate == classOf[Timestamp] && expected == classOf[Long]
+  private[flink] final def getSignatures: Array[Array[Class[_]]] = signatures
 
-  /**
-    * Returns all signature of the possibly overloaded function.
-    */
-  private[flink] def getSignatures: Array[Array[Class[_]]] = signatures
-
-  /**
-    * Returns signature matching given signature of [[TypeInformation]].
-    * Elements of the signature can be null (act as a wildcard).
-    */
-  private[flink] def getSignature(signature: Seq[TypeInformation[_]]): Option[Array[Class[_]]] = {
-    // We compare the raw Java classes not the TypeInformation.
-    // TypeInformation does not matter during runtime (e.g. within a MapFunction).
-    val actualSignature = typeInfoToClass(signature)
-
-    getSignatures
-      // go over all signatures and find one matching actual signature
-      .find {
-        // match parameters of signature to actual parameters
-        _.zipWithIndex.forall { case (clazz, i) =>
-            i < actualSignature.length && parameterTypeEquals(actualSignature(i), clazz)
-        }
-      }
-  }
-
-  /**
-    * Internal method of [[getResultType()]] that does some pre-checking and uses
-    * [[TypeExtractor]] as default return type inference.
-    */
-  private[flink] def getResultTypeInternal(signature: Array[Class[_]]): TypeInformation[_] = {
-    // find method for signature
-    val evalMethod = evalMethods
-      .find(m => signature.sameElements(m.getParameterTypes))
-      .getOrElse(throw new ValidationException("Given signature is invalid."))
-
-    val userDefinedTypeInfo = getResultType(signature)
-    if (userDefinedTypeInfo != null) {
-        userDefinedTypeInfo
-    } else {
-      try {
-        TypeExtractor.getForClass(evalMethod.getReturnType)
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new ValidationException(s"Return type of scalar function '$this' cannot be " +
-            s"automatically determined. Please provide type information manually.")
-      }
-    }
-  }
-
-  /**
-    * Returns the return type of the evaluation method matching the given signature.
-    */
-  private[flink] def getResultTypeClass(signature: Array[Class[_]]): Class[_] = {
-    // find method for signature
-    val evalMethod = evalMethods
-      .find(m => signature.sameElements(m.getParameterTypes))
-      .getOrElse(throw new IllegalArgumentException("Given signature is invalid."))
-    evalMethod.getReturnType
-  }
-
-  override private[flink] def createSqlFunction(
+  override private[flink] final def createSqlFunction(
       name: String,
       typeFactory: FlinkTypeFactory)
     : SqlFunction = {
     new ScalarSqlFunction(name, this, typeFactory)
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  private[flink] def signaturesToString: String = {
-    getSignatures.map(signatureToString).mkString(", ")
-  }
-
-  private[flink] def signatureToString(signature: Array[Class[_]]): String =
-    "(" + signature.map { clazz =>
-      if (clazz == null) {
-        "null"
-      } else {
-        clazz.getCanonicalName
-      }
-    }.mkString(", ") + ")"
-
-  private[flink] def signatureToString(signature: Seq[TypeInformation[_]]): String = {
-    signatureToString(typeInfoToClass(signature))
   }
 
   // ----------------------------------------------------------------------------------------------

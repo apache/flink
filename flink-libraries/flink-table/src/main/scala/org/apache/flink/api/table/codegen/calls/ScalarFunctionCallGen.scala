@@ -20,8 +20,9 @@ package org.apache.flink.api.table.codegen.calls
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.codegen.CodeGenUtils._
-import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression, CodeGenerator}
+import org.apache.flink.api.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.api.table.functions.ScalarFunction
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils._
 
 /**
   * Generates a call to user-defined [[ScalarFunction]].
@@ -41,10 +42,9 @@ class ScalarFunctionCallGen(
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     // determine function signature and result class
-    val matchingSignature = scalarFunction
-      .getSignature(signature)
+    val matchingSignature = getSignature(scalarFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
-    val resultClass = scalarFunction.getResultTypeClass(matchingSignature)
+    val resultClass = getResultTypeClass(scalarFunction, matchingSignature)
 
     // convert parameters for function (output boxing)
     val parameters = matchingSignature

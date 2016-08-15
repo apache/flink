@@ -970,55 +970,24 @@ class CodeGenerator(
     }
   }
 
-<<<<<<< 83c4b9707dd24425391bd5759f12878ad2f19175
-  private def generateNullableLiteral(
-      literalType: TypeInformation[Any],
-      literalCode: String)
-    : GeneratedExpression = {
-    val tmpTerm = newName("tmp")
+  private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
-    val tmpTypeTerm = boxedTypeTermForTypeInfo(literalType)
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
-    val defaultValue = primitiveDefaultValue(literalType)
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
 
-    // explicit unboxing
-    val unboxedLiteralCode = if (isTimePoint(literalType)) {
-      timePointToInternalCode(literalType, literalCode)
+    if (nullCheck) {
+      val wrappedCode = s"""
+        |$resultTypeTerm $resultTerm = $defaultValue;
+        |boolean $nullTerm = true;
+        |""".stripMargin
+      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
     } else {
-      literalCode
+      throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
-
-    val wrappedCode = if (nullCheck && !isReference(literalType)) {
-      s"""
-        |$tmpTypeTerm $tmpTerm = $unboxedLiteralCode;
-        |boolean $nullTerm = $tmpTerm == null;
-        |$resultTypeTerm $resultTerm;
-        |if ($nullTerm) {
-        |  $resultTerm = $defaultValue;
-        |}
-        |else {
-        |  $resultTerm = $tmpTerm;
-        |}
-        |""".stripMargin
-    } else if (nullCheck) {
-      s"""
-        |$resultTypeTerm $resultTerm = $unboxedLiteralCode;
-        |boolean $nullTerm = $literalCode == null;
-        |""".stripMargin
-    } else {
-      s"""
-        |$resultTypeTerm $resultTerm = $unboxedLiteralCode;
-        |""".stripMargin
-    }
-
-    GeneratedExpression(resultTerm, nullTerm, wrappedCode, literalType)
   }
 
-  private def generateNonNullLiteral(
-=======
-  def generateNonNullLiteral(
->>>>>>> [FLINK-3097] [table] Add support for custom functions in Table API
+  private[flink] def generateNonNullLiteral(
       literalType: TypeInformation[_],
       literalCode: String)
     : GeneratedExpression = {
@@ -1040,23 +1009,6 @@ class CodeGenerator(
     GeneratedExpression(resultTerm, nullTerm, resultCode, literalType)
   }
 
-  private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
-    val defaultValue = primitiveDefaultValue(resultType)
-
-    if (nullCheck) {
-      val wrappedCode = s"""
-        |$resultTypeTerm $resultTerm = $defaultValue;
-        |boolean $nullTerm = true;
-        |""".stripMargin
-      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
-    } else {
-      throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
-    }
-  }
-
   /**
     * Converts the external boxed format to an internal mostly primitive field representation.
     * Wrapper types can autoboxed to their corresponding primitive type (Integer -> int). External
@@ -1067,7 +1019,7 @@ class CodeGenerator(
     * @param fieldTerm expression term of field to be unboxed
     * @return internal unboxed field representation
     */
-  def generateInputFieldUnboxing(
+  private[flink] def generateInputFieldUnboxing(
       fieldType: TypeInformation[_],
       fieldTerm: String)
     : GeneratedExpression = {
@@ -1079,8 +1031,8 @@ class CodeGenerator(
     val defaultValue = primitiveDefaultValue(fieldType)
 
     // explicit unboxing
-    val unboxedFieldCode = if (isTemporal(fieldType)) {
-      temporalToInternalCode(fieldType, fieldTerm)
+    val unboxedFieldCode = if (isTimePoint(fieldType)) {
+      timePointToInternalCode(fieldType, fieldTerm)
     } else {
       fieldTerm
     }
@@ -1120,7 +1072,7 @@ class CodeGenerator(
     * @param expr expression to be boxed
     * @return external boxed field representation
     */
-  def generateOutputFieldBoxing(expr: GeneratedExpression): GeneratedExpression = {
+  private[flink] def generateOutputFieldBoxing(expr: GeneratedExpression): GeneratedExpression = {
     expr.resultType match {
       // convert internal date/time/timestamp to java.sql.* objects
       case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP =>

@@ -40,6 +40,10 @@ case class ValidationException(
 
 }
 
+object ValidationException {
+  def apply(msg: String): ValidationException = new ValidationException(msg)
+}
+
 /**
   * Exception for unwanted method calling on unresolved expression.
   */

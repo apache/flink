@@ -19,9 +19,8 @@
 package org.apache.flink.api.table.functions
 
 import org.apache.calcite.sql.SqlFunction
-import org.apache.flink.api.table.{FlinkTypeFactory, ValidationException}
-import org.apache.flink.api.table.functions.UserDefinedFunction.checkForInstantiation
-import org.apache.flink.util.InstantiationUtil
+import org.apache.flink.api.table.FlinkTypeFactory
+import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils.checkForInstantiation
 
 import scala.collection.mutable
 
@@ -38,12 +37,15 @@ abstract class UserDefinedFunction {
   private val cachedSqlFunctions = mutable.HashMap[String, SqlFunction]()
 
   // check if function can be instantiated
-  checkForInstantiation()
+  checkForInstantiation(this.getClass)
 
   /**
     * Returns the corresponding [[SqlFunction]]. Creates an instance if not already created.
     */
-  private[flink] def getSqlFunction(name: String, typeFactory: FlinkTypeFactory): SqlFunction = {
+  private[flink] final def getSqlFunction(
+      name: String,
+      typeFactory: FlinkTypeFactory)
+    : SqlFunction = {
     cachedSqlFunctions.getOrElseUpdate(name, createSqlFunction(name, typeFactory))
   }
 
@@ -56,32 +58,4 @@ abstract class UserDefinedFunction {
     : SqlFunction
 
   override def toString = getClass.getCanonicalName
-}
-
-object UserDefinedFunction {
-
-  def instantiate[T <: UserDefinedFunction](clazz: Class[T]): T = {
-    val constructor = clazz.getDeclaredConstructor()
-    constructor.setAccessible(true)
-    constructor.newInstance()
-  }
-
-  def checkForInstantiation(): Unit = {
-    if (!InstantiationUtil.isPublic(getClass)) {
-      throw new ValidationException("Function class is not public.")
-    }
-    else if (!InstantiationUtil.isProperClass(getClass)) {
-      throw new ValidationException("Function class is no proper class, it is either abstract," +
-        " an interface, or a primitive type.")
-    }
-    else if (InstantiationUtil.isNonStaticInnerClass(getClass)) {
-      throw new ValidationException("The class is an inner class, but not statically accessible.")
-    }
-
-    // check for default constructor (can be private)
-    getClass
-      .getDeclaredConstructors
-      .find(_.getParameterTypes.isEmpty)
-      .getOrElse(throw new ValidationException("Function class needs a default constructor."))
-  }
 }
