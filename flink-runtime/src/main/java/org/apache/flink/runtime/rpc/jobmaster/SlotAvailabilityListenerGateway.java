@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rpc.jobmaster;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import scala.concurrent.Future;
 
 /**
  * {@link SlotAvailabilityListenerGateway} is responsible to react to changes of slot state

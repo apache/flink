@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.rpc.jobmaster;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import scala.concurrent.Future;
 
 /**
  * {@link JobMaster} rpc gateway interface

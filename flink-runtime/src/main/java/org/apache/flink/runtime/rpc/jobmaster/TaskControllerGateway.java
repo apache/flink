@@ -21,7 +21,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import scala.concurrent.Future;
 
 /**
  * {@link TaskControllerGateway} is responsible to act to changes of task execution and result partition

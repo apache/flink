@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rpc.jobmaster;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
