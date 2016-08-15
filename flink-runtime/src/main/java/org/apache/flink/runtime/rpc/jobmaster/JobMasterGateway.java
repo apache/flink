@@ -27,26 +27,23 @@ import scala.concurrent.Future;
 /**
  * {@link JobMaster} rpc gateway interface
  */
-public interface JobMasterGateway extends RpcGateway,ResourceConsumerGateway,TaskControllerGateway {
+public interface JobMasterGateway extends RpcGateway,SlotAvailabilityListenerGateway,TaskControllerGateway {
 
 	/**
 	 * stop the job and clear checkpoints
-	 * @param id
-	 * @return
+	 * @return Acknowlege that job master has confirm the command
 	 */
-	public Future<Acknowledge> cancelJob(JobID id);
+	public Acknowledge cancelJob();
 
 	/**
 	 * stop the job, but reserve the checkpoints for future reserve
-	 * @param id
-	 * @return
+	 * @return Acknowlege that job master has confirm the command
 	 */
-	public Future<Acknowledge> suspendJob(JobID id);
+	public Acknowledge suspendJob();
 
 	/**
 	 * get current running job status
-	 * @param id
 	 * @return job status of current job
 	 */
-	public Future<JobStatus> getJobState(JobID id);
+	public JobStatus getJobState();
 }

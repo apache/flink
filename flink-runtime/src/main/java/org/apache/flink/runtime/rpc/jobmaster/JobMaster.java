@@ -21,7 +21,11 @@ package org.apache.flink.runtime.rpc.jobmaster;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.resourcemanager.JobMasterRegistration;
@@ -57,7 +61,7 @@ import java.util.concurrent.TimeoutException;
  * given task</li>
  * </ul>
  */
-public class JobMaster extends RpcEndpoint<JobMasterGateway> {
+public class JobMaster extends RpcEndpoint<JobMasterGateway> implements JobMasterGateway {
 	/** Execution context for future callbacks */
 	private final ExecutionContext executionContext;
 
@@ -86,6 +90,26 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		return resourceManager;
 	}
 
+	/**
+	 * Triggers the registration of the job master at the resource manager.
+	 *
+	 * @param address Address of the resource manager
+	 */
+	public void registerAtResourceManager(final String address) {
+		currentRegistrationRun = UUID.randomUUID();
+
+		Future<ResourceManagerGateway> resourceManagerFuture = getRpcService().connect(address, ResourceManagerGateway.class);
+
+		handleResourceManagerRegistration(
+			new JobMasterRegistration(getAddress()),
+			1,
+			resourceManagerFuture,
+			currentRegistrationRun,
+			initialRegistrationTimeout,
+			maxRegistrationTimeout,
+			registrationDuration.fromNow());
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// RPC methods
 	//----------------------------------------------------------------------------------------------
@@ -103,24 +127,67 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	/**
-	 * Triggers the registration of the job master at the resource manager.
-	 *
-	 * @param address Address of the resource manager
+	 * notify consumable of a given partition, which may trigger the job master to schedule the consumers,
+	 * or send update result partition info to the running consumers.
+	 * @param resultPartitionID the ID of the consumable result partition
 	 */
 	@RpcMethod
-	public void registerAtResourceManager(final String address) {
-		currentRegistrationRun = UUID.randomUUID();
+	@Override
+	public void notifyPartitionConsumable(ResultPartitionID resultPartitionID) {
 
-		Future<ResourceManagerGateway> resourceManagerFuture = getRpcService().connect(address, ResourceManagerGateway.class);
+	}
 
-		handleResourceManagerRegistration(
-			new JobMasterRegistration(getAddress()),
-			1,
-			resourceManagerFuture,
-			currentRegistrationRun,
-			initialRegistrationTimeout,
-			maxRegistrationTimeout,
-			registrationDuration.fromNow());
+	/**
+	 * notify failure of the given slot, which may trigger failure of the result partition and execution on that slot
+	 * @param slot
+	 */
+	@Override
+	@RpcMethod
+	public void notifySlotFailure(Slot slot, Throwable cause) {
+
+	}
+
+	/**
+	 * notify available of the given slot id, which will trigger deploying of the task assigned to the slot
+	 * @param slot
+	 * @return
+	 */
+	@Override
+	@RpcMethod
+	public Acknowledge notifySlotAvailable(Slot slot) {
+		return null;
+	}
+
+	/**
+	 * cancel the job, {@link JobMaster} will cancel all of executions and clear all of the states and
+	 * intermediate results.
+	 * @return
+	 */
+	@Override
+	@RpcMethod
+	public Acknowledge cancelJob() {
+		return null;
+	}
+
+	/**
+	 * suspend the job, {@link JobMaster} will cancel all of the executions but reserve the states and
+	 * intermediate result (Optional) for future recover
+	 * @return
+	 */
+	@Override
+	@RpcMethod
+	public Acknowledge suspendJob() {
+		return null;
+	}
+
+	/**
+	 * get the status of the job
+	 * @return
+	 */
+	@Override
+	@RpcMethod
+	public JobStatus getJobState() {
+		return null;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -248,4 +315,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	public boolean isConnected() {
 		return resourceManager != null;
 	}
+
+
 }

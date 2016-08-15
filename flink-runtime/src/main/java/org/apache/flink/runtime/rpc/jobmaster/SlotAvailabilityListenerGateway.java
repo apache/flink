@@ -22,17 +22,20 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import scala.concurrent.Future;
 
-public interface ResourceConsumerGateway extends RpcGateway {
+/**
+ * {@link SlotAvailabilityListenerGateway} is responsible to react to changes of slot state
+ */
+public interface SlotAvailabilityListenerGateway extends RpcGateway {
 	/**
 	 *  handle slot failure caused by task manager lost
 	 * @param slot
 	 */
-	void notifySlotFailure(Slot slot);
+	void notifySlotFailure(Slot slot, Throwable cause);
 
 	/**
 	 * handle slot available notified from task manager
 	 * @param slot
-	 * @return Future acknowledge of the slot notification
+	 * @return acknowledge that job master has confirmed the notification
 	 */
-	Future<Acknowledge> notifySlotAvailable(Slot slot);
+	Acknowledge notifySlotAvailable(Slot slot);
 }
