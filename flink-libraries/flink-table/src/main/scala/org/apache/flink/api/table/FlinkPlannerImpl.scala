@@ -29,7 +29,7 @@ import org.apache.calcite.rel.RelRoot
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.sql.parser.{SqlParseException, SqlParser}
+import org.apache.calcite.sql.parser.{SqlParseException => CSqlParseException, SqlParser}
 import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
@@ -55,9 +55,9 @@ class FlinkPlannerImpl(
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
   val defaultSchema: SchemaPlus = config.getDefaultSchema
 
-  var validator: FlinkCalciteSqlValidator = null
-  var validatedSqlNode: SqlNode = null
-  var root: RelRoot = null
+  var validator: FlinkCalciteSqlValidator = _
+  var validatedSqlNode: SqlNode = _
+  var root: RelRoot = _
 
   private def ready() {
     if (this.traitDefs != null) {
@@ -68,15 +68,18 @@ class FlinkPlannerImpl(
     }
   }
 
-  @throws(classOf[SqlParseException])
   def parse(sql: String): SqlNode = {
-    ready()
-    val parser: SqlParser = SqlParser.create(sql, parserConfig)
-    val sqlNode: SqlNode = parser.parseStmt
-    sqlNode
+    try {
+      ready()
+      val parser: SqlParser = SqlParser.create(sql, parserConfig)
+      val sqlNode: SqlNode = parser.parseStmt
+      sqlNode
+    } catch {
+      case e: CSqlParseException =>
+        throw SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
+    }
   }
 
-  @throws(classOf[ValidationException])
   def validate(sqlNode: SqlNode): SqlNode = {
     validator = new FlinkCalciteSqlValidator(operatorTable, createCatalogReader, typeFactory)
     validator.setIdentifierExpansion(true)
@@ -85,24 +88,27 @@ class FlinkPlannerImpl(
     }
     catch {
       case e: RuntimeException =>
-        throw new ValidationException(s"SQL validation failed.", e)
+        throw new ValidationException(s"SQL validation failed. ${e.getMessage}", e)
     }
     validatedSqlNode
   }
 
-  @throws(classOf[RelConversionException])
   def rel(sql: SqlNode): RelRoot = {
-    assert(validatedSqlNode != null)
-    val rexBuilder: RexBuilder = createRexBuilder
-    val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
-    val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-      new ViewExpanderImpl, validator, createCatalogReader, cluster, convertletTable)
-    sqlToRelConverter.setTrimUnusedFields(false)
-    sqlToRelConverter.enableTableAccessConversion(false)
-    root = sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
-    root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
-    root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
-    root
+    try {
+      assert(validatedSqlNode != null)
+      val rexBuilder: RexBuilder = createRexBuilder
+      val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
+      val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
+        new ViewExpanderImpl, validator, createCatalogReader, cluster, convertletTable)
+      sqlToRelConverter.setTrimUnusedFields(false)
+      sqlToRelConverter.enableTableAccessConversion(false)
+      root = sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
+      root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
+      root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
+      root
+    } catch {
+      case e: RelConversionException => throw TableException(e.getMessage)
+    }
   }
 
   /** Implements [[org.apache.calcite.plan.RelOptTable.ViewExpander]]
@@ -120,8 +126,8 @@ class FlinkPlannerImpl(
         sqlNode = parser.parseQuery
       }
       catch {
-        case e: SqlParseException =>
-          throw new RuntimeException("parse failed", e)
+        case e: CSqlParseException =>
+          throw SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
       }
       val catalogReader: CalciteCatalogReader = createCatalogReader.withSchemaPath(schemaPath)
       val validator: SqlValidator =
