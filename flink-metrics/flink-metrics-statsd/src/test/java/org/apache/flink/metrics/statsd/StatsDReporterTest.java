@@ -233,8 +233,10 @@ public class StatsDReporterTest extends TestLogger {
 			Set<String> expectedLines = new HashSet<>();
 
 			expectedLines.add(prefix + ".1minrate:1.0|g");
-			expectedLines.add(prefix + ".5minrate:1.0|g");
-			expectedLines.add(prefix + ".15minrate:1.0|g");
+			expectedLines.add(prefix + ".5minrate:5.0|g");
+			expectedLines.add(prefix + ".15minrate:15.0|g");
+			expectedLines.add(prefix + ".meanrate:10.0|g");
+			expectedLines.add(prefix + ".count:100|g");
 
 			receiver.waitUntilNumLines(expectedLines.size(), timeout);
 
@@ -340,12 +342,22 @@ public class StatsDReporterTest extends TestLogger {
 
 		@Override
 		public double getFiveMinuteRate() {
-			return 2;
+			return 5;
 		}
 
 		@Override
 		public double getFifteenMinuteRate() {
-			return 3;
+			return 15;
+		}
+
+		@Override
+		public double getMeanRate() {
+			return 10;
+		}
+
+		@Override
+		public long getCount() {
+			return 100;
 		}
 	}
 

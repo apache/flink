@@ -275,11 +275,13 @@ public class JMXReporterTest extends TestLogger {
 
 			MBeanAttributeInfo[] attributeInfos = info.getAttributes();
 
-			assertEquals(3, attributeInfos.length);
+			assertEquals(5, attributeInfos.length);
 
 			assertEquals(meter.getOneMinuteRate(),     mBeanServer.getAttribute(objectName, "OneMinuteRate"));
 			assertEquals(meter.getFiveMinuteRate(),    mBeanServer.getAttribute(objectName, "FiveMinuteRate"));
 			assertEquals(meter.getFifteenMinuteRate(), mBeanServer.getAttribute(objectName, "FifteenMinuteRate"));
+			assertEquals(meter.getMeanRate(),          mBeanServer.getAttribute(objectName, "MeanRate"));
+			assertEquals(meter.getCount(),             mBeanServer.getAttribute(objectName, "Count"));
 
 		} finally {
 			if (registry != null) {
@@ -366,6 +368,16 @@ public class JMXReporterTest extends TestLogger {
 		@Override
 		public double getFifteenMinuteRate() {
 			return 15;
+		}
+
+		@Override
+		public double getMeanRate() {
+			return 10;
+		}
+
+		@Override
+		public long getCount() {
+			return 100L;
 		}
 	}
 }

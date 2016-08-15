@@ -55,4 +55,18 @@ public interface Meter extends Metric {
 	 * @return fifteen-minute exponentially-weighted moving average rate
 	 */
 	double getFifteenMinuteRate();
+
+	/**
+	 * Return mean rate at which events has occurred.
+	 *
+	 * @return mean rate at which events has occurred
+	 */
+	double getMeanRate();
+
+	/**
+	 * Get number of events marked on the meter.
+	 *
+	 * @return number of events marked on the meter
+	 */
+	long getCount();
 }

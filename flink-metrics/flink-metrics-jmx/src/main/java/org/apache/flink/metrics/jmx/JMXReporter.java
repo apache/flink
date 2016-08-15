@@ -424,6 +424,8 @@ public class JMXReporter implements MetricReporter {
 		double getOneMinuteRate();
 		double getFiveMinuteRate();
 		double getFifteenMinuteRate();
+		long getCount();
+		double getMeanRate();
 	}
 
 	private class JmxMeter extends AbstractBean implements JmxMeterMBean {
@@ -447,6 +449,16 @@ public class JMXReporter implements MetricReporter {
 		@Override
 		public double getFifteenMinuteRate() {
 			return meter.getFifteenMinuteRate();
+		}
+
+		@Override
+		public long getCount() {
+			return meter.getCount();
+		}
+
+		@Override
+		public double getMeanRate() {
+			return meter.getMeanRate();
 		}
 	}
 
