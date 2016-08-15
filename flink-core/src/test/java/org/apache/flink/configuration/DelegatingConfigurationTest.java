@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.Set;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 
 
 public class DelegatingConfigurationTest {
@@ -100,7 +101,7 @@ public class DelegatingConfigurationTest {
 				backingConf, null);
 		Set<String> keySet = configuration.keySet();
 
-		assertTrue(keySet.equals(backingConf.keySet()));
+		assertEquals(keySet, backingConf.keySet());
 
 	}
 
@@ -115,14 +116,13 @@ public class DelegatingConfigurationTest {
 		Configuration backingConf = new Configuration();
 		backingConf.setValueInternal("pref-key", "value");
 
-		DelegatingConfiguration configuration = new DelegatingConfiguration(
-				backingConf, prefix);
+		DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, prefix);
 		Set<String> keySet = configuration.keySet();
 
 		String expectedKey = "key";
 
-		assertTrue(keySet.size() == 1);
-		assertTrue(keySet.iterator().next().equals(expectedKey));
+		assertEquals(keySet.size(), 1);
+		assertEquals(keySet.iterator().next(), expectedKey);
 
 		/*
 		 * Key does not match the prefix
@@ -134,6 +134,5 @@ public class DelegatingConfigurationTest {
 		keySet = configuration.keySet();
 
 		assertTrue(keySet.isEmpty());
-
 	}
 }
