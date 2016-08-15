@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -484,6 +485,7 @@ public class FsStateBackend extends AbstractStateBackend {
 				flush();
 				// write the bytes directly
 				outStream.write(b, off, len);
+				outStream.close();
 			}
 		}
 
@@ -500,6 +502,7 @@ public class FsStateBackend extends AbstractStateBackend {
 						try {
 							statePath = new Path(basePath, UUID.randomUUID().toString());
 							outStream = fs.create(statePath, false);
+							outStream.close();
 							break;
 						}
 						catch (Exception e) {
