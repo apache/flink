@@ -11,16 +11,19 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
-import org.apache.flink.runtime.clusterframework.types.AllocationJobID;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.rpc.taskexecutor.SlotReport;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -32,7 +35,7 @@ import java.util.Map;
  */
 public abstract class SlotManager {
 	protected List<SlotRequest> pendingSlotRequest = new LinkedList<>();
-	protected Map<SlotID, AllocationJobID> allocatedSlots = new HashMap<>();
+	protected Map<SlotID, Tuple2<AllocationID, JobID>> allocatedSlots = new HashMap<>();
 	protected Map<SlotID, ResourceProfile> availableSlots = new HashMap<>();
 	private ResourceManager resourceManager;
 
@@ -44,6 +47,7 @@ public abstract class SlotManager {
 	 * request new slot from slotManager
 	 *
 	 * @param slotRequest
+	 *
 	 * @return whether to find the free matched slot for the request or not
 	 */
 	public boolean requestSlot(SlotRequest slotRequest) {
@@ -62,6 +66,7 @@ public abstract class SlotManager {
 	 *
 	 * @param slotID
 	 * @param profile
+	 *
 	 * @return whether to apply input slot for pendingSlotRequest at once or not
 	 */
 	public boolean offerSlot(SlotID slotID, ResourceProfile profile) {
@@ -79,18 +84,38 @@ public abstract class SlotManager {
 		}
 	}
 
-	public void declineSlotRequestFromTaskManager(SlotRequest slotRequest) {
-		pendingSlotRequest.add(slotRequest);
-		// TODO whether need to add occupied slot back to available slots
+	public void handleSlotRequestFailedAtTaskManager(final SlotRequest slotRequest, final SlotID slotID) {
+		// TODO
 	}
 
-
+	/**
+	 * try to fetch a matched slot from available slots for input slotRequest;
+	 * if find one, occupy it and return its SlotID; if not, return null
+	 *
+	 * @param slotRequest slot allocation request
+	 *
+	 * @return if find the matched slot for slotRequest, return its SlotID, else return null
+	 */
 	protected abstract SlotID fetchAndOccupySlotIfMatched(SlotRequest slotRequest);
 
+	/**
+	 * handle the case where there is no available slot for input slotRequest
+	 *
+	 * @param slotRequest slot allocationRequet
+	 */
 	protected abstract void handleNoAvailableSlotForSlotRequest(SlotRequest slotRequest);
 
+	/**
+	 * try to offer a slot for a matched SlotRequest in pending requests list
+	 *
+	 * @param slotID  the identify of the offered slot
+	 * @param profile the resourceProfile of the offered slot
+	 *
+	 * @return if find one matched slotRequest, return it; else return null
+	 */
 	protected abstract SlotRequest offerSlotForPendingRequestIfMatched(
 		SlotID slotID,
-		ResourceProfile profile);
+		ResourceProfile profile
+	);
 
 }

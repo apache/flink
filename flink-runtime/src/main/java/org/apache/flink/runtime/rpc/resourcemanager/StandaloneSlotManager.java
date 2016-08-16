@@ -11,19 +11,21 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 package org.apache.flink.runtime.rpc.resourcemanager;
 
 import com.google.common.collect.Iterables;
-import org.apache.flink.runtime.clusterframework.types.AllocationJobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 
 /**
- * Standalone slotManager implementation. The StandaloneSlotManager is reponsible for slot management in standalone mode.
+ * Standalone slotManager implementation. The StandaloneSlotManager is reponsible for slot management in standalone
+ * mode.
  */
 public class StandaloneSlotManager extends SlotManager {
 
@@ -40,6 +42,7 @@ public class StandaloneSlotManager extends SlotManager {
 	 * in standalone mode, ignore the profile in the request, allocate the first available slot
 	 *
 	 * @param slotRequest
+	 *
 	 * @return
 	 */
 	@Override
@@ -49,9 +52,8 @@ public class StandaloneSlotManager extends SlotManager {
 			availableSlots.remove(slotID);
 			allocatedSlots.put(
 				slotID,
-				new AllocationJobID(
-					slotRequest.getAllocationID(),
-					slotRequest.getJobID()));
+				Tuple2.of(slotRequest.getAllocationID(), slotRequest.getJobID())
+			);
 		}
 		return slotID;
 	}
@@ -61,20 +63,22 @@ public class StandaloneSlotManager extends SlotManager {
 	 *
 	 * @param slotID
 	 * @param profile
+	 *
 	 * @return
 	 */
 	@Override
 	protected SlotRequest offerSlotForPendingRequestIfMatched(
 		SlotID slotID,
-		ResourceProfile profile) {
+		ResourceProfile profile
+	)
+	{
 		SlotRequest slotRequest = Iterables.getFirst(pendingSlotRequest, null);
 		if (slotRequest != null) {
 			pendingSlotRequest.remove(slotRequest);
 			allocatedSlots.put(
 				slotID,
-				new AllocationJobID(
-					slotRequest.getAllocationID(),
-					slotRequest.getJobID()));
+				Tuple2.of(slotRequest.getAllocationID(), slotRequest.getJobID())
+			);
 		}
 		return slotRequest;
 	}

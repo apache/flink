@@ -11,14 +11,17 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * A report about the current status of all slots of the TaskExecutor, describing
@@ -27,12 +30,30 @@ import java.io.Serializable;
  */
 public class SlotReport implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -3150175198722481689L;
+	// the status of all slots of the TaskManager
+	private final List<SlotAllocationDescription> slotAllocations;
+	// resourceID identify the taskExecutor
+	private final ResourceID resourceID;
 
-	// ------------------------------------------------------------------------
-	
+	public SlotReport(List<SlotAllocationDescription> slotAllocations, ResourceID resourceID) {
+		this.slotAllocations = slotAllocations;
+		this.resourceID = resourceID;
+	}
+
+	public List<SlotAllocationDescription> getSlotAllocations() {
+		return slotAllocations;
+	}
+
+	public ResourceID getResourceID() {
+		return resourceID;
+	}
+
 	@Override
 	public String toString() {
-		return "SlotReport";
+		return "SlotReport{" +
+			   "slotAllocations=" + slotAllocations +
+			   ", resourceID=" + resourceID +
+			   '}';
 	}
 }

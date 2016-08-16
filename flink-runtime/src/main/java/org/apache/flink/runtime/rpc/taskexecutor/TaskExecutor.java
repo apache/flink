@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.rpc.taskexecutor;
 
 import akka.dispatch.ExecutionContexts$;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -30,6 +32,7 @@ import scala.concurrent.ExecutionContext;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -80,5 +83,17 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		} else {
 			throw new Exception("Could not find task.");
 		}
+	}
+
+	@RpcMethod
+	public SlotReport triggerHeartbeatToResourceManager(UUID resourceManagerLeaderId) {
+		// TODO
+		return null;
+	}
+
+	@RpcMethod
+	public SlotAllocationResponse requestSlotForJob(AllocationID allocationID, JobID jobID) {
+		// TODO
+		return null;
 	}
 }

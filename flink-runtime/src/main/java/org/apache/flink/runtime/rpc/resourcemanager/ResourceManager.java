@@ -29,7 +29,7 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.rpc.taskexecutor.RequestSlotResponse;
+import org.apache.flink.runtime.rpc.taskexecutor.SlotAllocationResponse;
 import org.apache.flink.runtime.rpc.taskexecutor.SlotReport;
 import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
@@ -45,11 +45,11 @@ import java.util.concurrent.ExecutorService;
 /**
  * ResourceManager implementation. The resource manager is responsible for resource de-/allocation
  * and bookkeeping.
- * <p>
+ *
  * It offers the following methods as part of its rpc interface to interact with the him remotely:
  * <ul>
- * <li>{@link #registerJobMaster(JobMasterRegistration)} registers a {@link JobMaster} at the resource manager</li>
- * <li>{@link #requestSlot(SlotRequest)} requests a slot from the resource manager</li>
+ *     <li>{@link #registerJobMaster(JobMasterRegistration)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #requestSlot(SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
 public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
@@ -147,23 +147,25 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 		if (te == null) {
 			throw new RuntimeException("unknown taskManager, " + resourceID);
 		} else {
-			Future<RequestSlotResponse> response = te.requestSlotForJob(
+			Future<SlotAllocationResponse> response = te.requestSlotForJob(
 				slotRequest.getAllocationID(),
 				slotRequest.getJobID());
-			response.onSuccess(new OnSuccess<RequestSlotResponse>() {
+			response.onSuccess(new OnSuccess<SlotAllocationResponse>() {
 				@Override
-				public void onSuccess(RequestSlotResponse result) throws Throwable {
-					if (result instanceof RequestSlotResponse.Decline) {
-						slotManager.declineSlotRequestFromTaskManager(slotRequest);
+				public void onSuccess(SlotAllocationResponse result) throws Throwable {
+					if (result instanceof SlotAllocationResponse.Decline) {
+						slotManager.handleSlotRequestFailedAtTaskManager(slotRequest, slotID);
 					}
 				}
 			}, getMainThreadExecutionContext());
 			response.onFailure(new OnFailure() {
 				@Override
 				public void onFailure(Throwable failure) {
-					slotManager.declineSlotRequestFromTaskManager(slotRequest);
+					slotManager.handleSlotRequestFailedAtTaskManager(slotRequest, slotID);
 				}
 			}, getMainThreadExecutionContext());
 		}
 	}
+
+
 }

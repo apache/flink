@@ -24,10 +24,16 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
 import java.io.Serializable;
 
-public class SlotRequest implements Serializable{
+/**
+ * Slot allocation request from jobManager to resourceManager
+ */
+public class SlotRequest implements Serializable {
 	private static final long serialVersionUID = -6586877187990445986L;
+	// jobId to identify which job send the request
 	private final JobID jobID;
+	// allocationId to identify slot allocation, created by JobManager when requesting a sot
 	private final AllocationID allocationID;
+	// the resource profile of the desired slot
 	private final ResourceProfile profile;
 
 	public SlotRequest(JobID jobID, AllocationID allocationID) {
@@ -55,10 +61,10 @@ public class SlotRequest implements Serializable{
 	@Override
 	public String toString() {
 		return "SlotRequest{" +
-		       "jobID=" + jobID +
-		       ", allocationID=" + allocationID +
-		       ", profile=" + profile +
-		       '}';
+			   "jobID=" + jobID +
+			   ", allocationID=" + allocationID +
+			   ", profile=" + profile +
+			   '}';
 	}
 }
 

@@ -20,17 +20,18 @@ package org.apache.flink.runtime.rpc.taskexecutor;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 
+import java.io.Serializable;
 import java.util.UUID;
 
 /**
  * base class  for response from TaskManager to a requestSlot from resourceManager
  */
-public abstract class RequestSlotResponse {
+public abstract class SlotAllocationResponse implements Serializable {
 	private final AllocationID allocationID;
 
 	private final UUID resourceManagerLeaderId;
 
-	public RequestSlotResponse(AllocationID allocationID, UUID resourceManagerLeaderId) {
+	public SlotAllocationResponse(AllocationID allocationID, UUID resourceManagerLeaderId) {
 		this.allocationID = allocationID;
 		this.resourceManagerLeaderId = resourceManagerLeaderId;
 	}
@@ -52,7 +53,9 @@ public abstract class RequestSlotResponse {
 	/**
 	 * ack a slot request.
 	 */
-	public static final class Success extends RequestSlotResponse {
+	public static final class Success extends SlotAllocationResponse {
+
+		private static final long serialVersionUID = -2247651452578384169L;
 
 		public Success(AllocationID allocationID, UUID resourceManagerLeaderId) {
 			super(allocationID, resourceManagerLeaderId);
@@ -69,8 +72,9 @@ public abstract class RequestSlotResponse {
 	/**
 	 * decline a slot request
 	 */
-	public static final class Decline extends RequestSlotResponse {
+	public static final class Decline extends SlotAllocationResponse {
 
+		private static final long serialVersionUID = -3440865311582394011L;
 		private final String reason;
 
 		public Decline(AllocationID allocationID, UUID resourceManagerLeaderId, String reason) {

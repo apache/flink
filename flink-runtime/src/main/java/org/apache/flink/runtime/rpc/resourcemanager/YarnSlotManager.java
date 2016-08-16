@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
-import org.apache.flink.runtime.clusterframework.types.AllocationJobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 
@@ -43,6 +43,7 @@ public class YarnSlotManager extends SlotManager {
 	 * in yarn mode, find the best matched profile in the availableslots
 	 *
 	 * @param slotRequest
+	 *
 	 * @return
 	 */
 	@Override
@@ -61,9 +62,8 @@ public class YarnSlotManager extends SlotManager {
 			availableSlots.remove(maxMatchedSlot);
 			allocatedSlots.put(
 				maxMatchedSlot,
-				new AllocationJobID(
-					slotRequest.getAllocationID(),
-					slotRequest.getJobID()));
+				Tuple2.of(slotRequest.getAllocationID(), slotRequest.getJobID())
+			);
 		}
 		return maxMatchedSlot;
 	}
@@ -71,7 +71,9 @@ public class YarnSlotManager extends SlotManager {
 	@Override
 	protected SlotRequest offerSlotForPendingRequestIfMatched(
 		SlotID slotID,
-		ResourceProfile profile) {
+		ResourceProfile profile
+	)
+	{
 		double maxMatchedDegree = 0;
 		SlotRequest maxMatchedRequest = null;
 		for (SlotRequest request : pendingSlotRequest) {
@@ -85,9 +87,8 @@ public class YarnSlotManager extends SlotManager {
 			pendingSlotRequest.remove(maxMatchedRequest);
 			allocatedSlots.put(
 				slotID,
-				new AllocationJobID(
-					maxMatchedRequest.getAllocationID(),
-					maxMatchedRequest.getJobID()));
+				Tuple2.of(maxMatchedRequest.getAllocationID(), maxMatchedRequest.getJobID())
+			);
 		}
 		return maxMatchedRequest;
 	}
