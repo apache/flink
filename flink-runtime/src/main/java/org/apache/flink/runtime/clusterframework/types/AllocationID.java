@@ -29,10 +29,4 @@ public class AllocationID extends AbstractID {
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Creates an new random allocation ID.
-	 */
-	public AllocationID() {
-		super();
-	}
 }

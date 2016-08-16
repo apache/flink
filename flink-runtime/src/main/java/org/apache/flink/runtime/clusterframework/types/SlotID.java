@@ -22,6 +22,9 @@ import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Unique identifier for a slot which located in TaskManager.
+ */
 public class SlotID implements ResourceIDRetrievable, Serializable {
 
 	private static final long serialVersionUID = -6399206032549807771L;
@@ -33,8 +36,7 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 	private final int slotId;
 
 	public SlotID(ResourceID resourceId, int slotId) {
-		checkNotNull(resourceId, "ResourceID must not be null");
-		this.resourceId = resourceId;
+		this.resourceId = checkNotNull(resourceId, "ResourceID must not be null");
 		this.slotId = slotId;
 	}
 

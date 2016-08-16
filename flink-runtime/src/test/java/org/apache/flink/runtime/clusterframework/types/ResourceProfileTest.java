@@ -32,18 +32,18 @@ public class ResourceProfileTest {
 		ResourceProfile rp3 = new ResourceProfile(2.0, 100);
 		ResourceProfile rp4 = new ResourceProfile(2.0, 200);
 
-		assertFalse(rp1.matchRequirement(rp2));
-		assertTrue(rp2.matchRequirement(rp1));
+		assertFalse(rp1.isMatching(rp2));
+		assertTrue(rp2.isMatching(rp1));
 
-		assertFalse(rp1.matchRequirement(rp3));
-		assertTrue(rp3.matchRequirement(rp1));
+		assertFalse(rp1.isMatching(rp3));
+		assertTrue(rp3.isMatching(rp1));
 
-		assertFalse(rp2.matchRequirement(rp3));
-		assertFalse(rp3.matchRequirement(rp2));
+		assertFalse(rp2.isMatching(rp3));
+		assertFalse(rp3.isMatching(rp2));
 
-		assertTrue(rp4.matchRequirement(rp1));
-		assertTrue(rp4.matchRequirement(rp2));
-		assertTrue(rp4.matchRequirement(rp3));
-		assertTrue(rp4.matchRequirement(rp4));
+		assertTrue(rp4.isMatching(rp1));
+		assertTrue(rp4.isMatching(rp2));
+		assertTrue(rp4.isMatching(rp3));
+		assertTrue(rp4.isMatching(rp4));
 	}
 }
