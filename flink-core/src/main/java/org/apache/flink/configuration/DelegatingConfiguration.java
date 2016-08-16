@@ -57,8 +57,7 @@ public final class DelegatingConfiguration extends Configuration {
 	 */
 	public DelegatingConfiguration(Configuration backingConfig, String prefix)
 	{
-		Preconditions.checkNotNull(backingConfig);
-		this.backingConfig = backingConfig;
+		this.backingConfig = Preconditions.checkNotNull(backingConfig);
 		this.prefix = prefix;
 	}
 
@@ -185,10 +184,10 @@ public final class DelegatingConfiguration extends Configuration {
 		}
 
 		final HashSet<String> set = new HashSet<String>();
+		int prefixLen = this.prefix.length();
 
 		for (String key : this.backingConfig.keySet()) {
 			if (key.startsWith(prefix)) {
-				int prefixLen = this.prefix.length();
 				set.add(key.substring(prefixLen));
 			}
 		}
