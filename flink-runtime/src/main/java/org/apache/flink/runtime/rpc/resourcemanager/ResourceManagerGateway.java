@@ -18,14 +18,19 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
+
+import org.apache.flink.runtime.rpc.taskexecutor.SlotReport;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.UUID;
+
 /**
- * {@link ResourceManager} rpc gateway interface.
+ * The {@link ResourceManager}'s RPC gateway interface.
  */
 public interface ResourceManagerGateway extends RpcGateway {
 
@@ -55,4 +60,21 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @return Future slot assignment
 	 */
 	Future<SlotAssignment> requestSlot(SlotRequest slotRequest);
+
+	/**
+	 * 
+	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader 
+	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
+	 * @param resourceID               The resource ID of the TaskExecutor that registers
+	 * @param slotReport               The report describing available and allocated slots
+	 * @param timeout                  The timeout for the response.
+	 * 
+	 * @return The future to the response by the ResourceManager.
+	 */
+	Future<TaskExecutorRegistrationResponse> registerTaskExecutor(
+			UUID resourceManagerLeaderId,
+			String taskExecutorAddress,
+			ResourceID resourceID,
+			SlotReport slotReport,
+			@RpcTimeout FiniteDuration timeout);
 }
