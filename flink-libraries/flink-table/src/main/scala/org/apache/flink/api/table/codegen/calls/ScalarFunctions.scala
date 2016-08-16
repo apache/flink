@@ -20,11 +20,14 @@ package org.apache.flink.api.table.codegen.calls
 
 import java.lang.reflect.Method
 
+import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.fun.SqlTrimFunction
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.table.functions.utils.ScalarSqlFunction
 
 import scala.collection.mutable
@@ -55,8 +58,8 @@ object ScalarFunctions {
 
   addSqlFunction(
     TRIM,
-    Seq(INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO),
-    new TrimCallGenerator())
+    Seq(new GenericTypeInfo(classOf[SqlTrimFunction.Flag]), STRING_TYPE_INFO, STRING_TYPE_INFO),
+    new TrimCallGen())
 
   addSqlFunctionMethod(
     CHAR_LENGTH,
@@ -111,7 +114,7 @@ object ScalarFunctions {
     BuiltInMethod.SIMILAR.method)
 
   // ----------------------------------------------------------------------------------------------
-  // arithmetic functions
+  // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
 
   addSqlFunctionMethod(
@@ -169,6 +172,16 @@ object ScalarFunctions {
     new FloorCeilCallGen(BuiltInMethod.CEIL.method))
 
   // ----------------------------------------------------------------------------------------------
+  // Temporal functions
+  // ----------------------------------------------------------------------------------------------
+
+  addSqlFunctionMethod(
+    EXTRACT_DATE,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), LONG_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+
+  // ----------------------------------------------------------------------------------------------
 
   /**
     * Returns a [[CallGenerator]] that generates all required code for calling the given
@@ -214,7 +227,7 @@ object ScalarFunctions {
       returnType: TypeInformation[_],
       method: Method)
     : Unit = {
-    sqlFunctions((sqlOperator, operandTypes)) = new MethodCallGenerator(returnType, method)
+    sqlFunctions((sqlOperator, operandTypes)) = new MethodCallGen(returnType, method)
   }
 
   private def addSqlFunctionNotMethod(
@@ -223,7 +236,7 @@ object ScalarFunctions {
       method: Method)
     : Unit = {
     sqlFunctions((sqlOperator, operandTypes)) =
-      new NotCallGenerator(new MethodCallGenerator(BOOLEAN_TYPE_INFO, method))
+      new NotCallGenerator(new MethodCallGen(BOOLEAN_TYPE_INFO, method))
   }
 
   private def addSqlFunction(

@@ -20,4 +20,18 @@ package org.apache.flink.api.table.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
+/**
+  * Describes a generated expression.
+  *
+  * @param resultTerm term to access the result of the expression
+  * @param nullTerm boolean term that indicates if expression is null
+  * @param code code necessary to produce resultTerm and nullTerm
+  * @param resultType type of the resultTerm
+  */
+case class GeneratedExpression(
+    resultTerm: String,
+    nullTerm: String,
+    code: String,
+    resultType: TypeInformation[_])
+
 case class GeneratedFunction[T](name: String, returnType: TypeInformation[Any], code: String)

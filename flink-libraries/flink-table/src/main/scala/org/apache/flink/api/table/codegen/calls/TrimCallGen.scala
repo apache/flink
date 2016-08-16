@@ -21,31 +21,30 @@ package org.apache.flink.api.table.codegen.calls
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO
+import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
-  * Generates a TRIM function call. The first operand determines the type of trimming
-  * (see [[org.apache.calcite.sql.fun.SqlTrimFunction.Flag]]). Second operand determines
-  * the String to be removed. Third operand is the String to be trimmed.
+  * Generates a TRIM function call.
+  *
+  * First operand: trim mode (see [[org.apache.calcite.sql.fun.SqlTrimFunction.Flag]])
+  * Second operand: String to be removed
+  * Third operand: String to be trimmed
   */
-class TrimCallGenerator() extends CallGenerator {
+class TrimCallGen extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    val method = BuiltInMethod.TRIM.method
     generateCallIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
-      (operandResultTerms) =>
+      (terms) =>
+        val leading = compareEnum(terms.head, BOTH) || compareEnum(terms.head, LEADING)
+        val trailing = compareEnum(terms.head, BOTH) || compareEnum(terms.head, TRAILING)
         s"""
-          |${method.getDeclaringClass.getCanonicalName}.${method.getName}(
-          |  ${operandResultTerms.head} == ${BOTH.ordinal()} ||
-          |    ${operandResultTerms.head} == ${LEADING.ordinal()},
-          |  ${operandResultTerms.head} == ${BOTH.ordinal()} ||
-          |    ${operandResultTerms.head} == ${TRAILING.ordinal()},
-          |  ${operandResultTerms(1)},
-          |  ${operandResultTerms(2)})
+          |${qualifyMethod(BuiltInMethod.TRIM.method)}(
+          |  $leading, $trailing, ${terms(1)}, ${terms(2)})
           |""".stripMargin
     }
   }

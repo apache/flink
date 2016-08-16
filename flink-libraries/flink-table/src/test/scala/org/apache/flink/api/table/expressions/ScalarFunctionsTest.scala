@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.table.expressions
 
+import java.sql.{Date, Time, Timestamp}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, Types}
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{Row, Types}
 import org.junit.Test
 
 class ScalarFunctionsTest extends ExpressionTestBase {
@@ -466,10 +468,121 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "-1231")
   }
 
+  @Test
+  def testExtract(): Unit = {
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.YEAR),
+      "f16.extract(YEAR)",
+      "EXTRACT(YEAR FROM f16)",
+      "1996")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.MONTH),
+      "extract(f16, MONTH)",
+      "EXTRACT(MONTH FROM f16)",
+      "11")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.DAY),
+      "f16.extract(DAY)",
+      "EXTRACT(DAY FROM f16)",
+      "10")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.YEAR),
+      "f18.extract(YEAR)",
+      "EXTRACT(YEAR FROM f18)",
+      "1996")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.MONTH),
+      "f18.extract(MONTH)",
+      "EXTRACT(MONTH FROM f18)",
+      "11")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.DAY),
+      "f18.extract(DAY)",
+      "EXTRACT(DAY FROM f18)",
+      "10")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.HOUR),
+      "f18.extract(HOUR)",
+      "EXTRACT(HOUR FROM f18)",
+      "6")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.HOUR),
+      "f17.extract(HOUR)",
+      "EXTRACT(HOUR FROM f17)",
+      "6")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.MINUTE),
+      "f18.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f18)",
+      "55")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.MINUTE),
+      "f17.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f17)",
+      "55")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.SECOND),
+      "f18.extract(SECOND)",
+      "EXTRACT(SECOND FROM f18)",
+      "44")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.SECOND),
+      "f17.extract(SECOND)",
+      "EXTRACT(SECOND FROM f17)",
+      "44")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.DAY),
+      "f19.extract(DAY)",
+      "EXTRACT(DAY FROM f19)",
+      "16979")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.HOUR),
+      "f19.extract(HOUR)",
+      "EXTRACT(HOUR FROM f19)",
+      "7")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.MINUTE),
+      "f19.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f19)",
+      "23")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.SECOND),
+      "f19.extract(SECOND)",
+      "EXTRACT(SECOND FROM f19)",
+      "33")
+
+    testAllApis(
+      'f20.extract(TimeIntervalUnit.MONTH),
+      "f20.extract(MONTH)",
+      "EXTRACT(MONTH FROM f20)",
+      "1")
+
+    testAllApis(
+      'f20.extract(TimeIntervalUnit.YEAR),
+      "f20.extract(YEAR)",
+      "EXTRACT(YEAR FROM f20)",
+      "2")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(16)
+    val testData = new Row(21)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -486,6 +599,11 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(13, -4.6)
     testData.setField(14, -3)
     testData.setField(15, BigDecimal("-1231.1231231321321321111").bigDecimal)
+    testData.setField(16, Date.valueOf("1996-11-10"))
+    testData.setField(17, Time.valueOf("06:55:44"))
+    testData.setField(18, Timestamp.valueOf("1996-11-10 06:55:44.333"))
+    testData.setField(19, 1467012213000L) // +16979 07:23:33.000
+    testData.setField(20, 25) // +2-01
     testData
   }
 
@@ -506,6 +624,11 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.FLOAT,
       Types.DOUBLE,
       Types.INT,
-      Types.DECIMAL)).asInstanceOf[TypeInformation[Any]]
+      Types.DECIMAL,
+      Types.DATE,
+      Types.TIME,
+      Types.TIMESTAMP,
+      Types.INTERVAL_MILLIS,
+      Types.INTERVAL_MONTHS)).asInstanceOf[TypeInformation[Any]]
   }
 }

@@ -544,7 +544,14 @@ object ScalarOperators {
          (INT_TYPE_INFO, IntervalTypeInfo.INTERVAL_MONTHS) |
          (LONG_TYPE_INFO, IntervalTypeInfo.INTERVAL_MILLIS) |
          (IntervalTypeInfo.INTERVAL_MONTHS, INT_TYPE_INFO) |
-         (IntervalTypeInfo.INTERVAL_MONTHS, LONG_TYPE_INFO) =>
+         (IntervalTypeInfo.INTERVAL_MILLIS, LONG_TYPE_INFO) =>
+      internalExprCasting(operand, targetType)
+
+    // internal reinterpretation of temporal types
+    // Date, Time, Interval Months -> Long
+    case  (SqlTimeTypeInfo.DATE, LONG_TYPE_INFO)
+        | (SqlTimeTypeInfo.TIME, LONG_TYPE_INFO)
+        | (IntervalTypeInfo.INTERVAL_MONTHS, LONG_TYPE_INFO) =>
       internalExprCasting(operand, targetType)
 
     case (from, to) =>
