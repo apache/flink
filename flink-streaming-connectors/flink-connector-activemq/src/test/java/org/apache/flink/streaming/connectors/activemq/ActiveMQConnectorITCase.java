@@ -50,6 +50,7 @@ public class ActiveMQConnectorITCase {
 
 	public static final int MESSAGES_NUM = 10000;
 	public static final String QUEUE_NAME = "queue";
+	public static final String TOPIC_NAME = "topic";
 	private static ForkableFlinkMiniCluster flink;
 	private static int flinkPort;
 
@@ -78,10 +79,46 @@ public class ActiveMQConnectorITCase {
 	}
 
 	@Test
-	public void testAMQTopology() throws Exception {
+	public void testAMQTopologyWithQueue() throws Exception {
 		StreamExecutionEnvironment env = createExecutionEnvironment();
-		createProducerTopology(env);
-		createConsumerTopology(env);
+		AMQSinkConfig<String> sinkConfig = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
+			.setConnectionFactory(createConnectionFactory())
+			.setDestinationName(QUEUE_NAME)
+			.setSerializationSchema(new SimpleStringSchema())
+			.build();
+		createProducerTopology(env, sinkConfig);
+
+		ActiveMQConnectionFactory sourceConnectionFactory = createConnectionFactory();
+		AMQSourceConfig<String> sourceConfig = new AMQSourceConfig.AMQSourceConfigBuilder<String>()
+			.setConnectionFactory(sourceConnectionFactory)
+			.setDestinationName(QUEUE_NAME)
+			.setDeserializationSchema(new SimpleStringSchema())
+			.build();
+		createConsumerTopology(env, sourceConfig);
+
+		tryExecute(env, "AMQTest");
+	}
+
+	@Test
+	public void testAMQTopologyWithTopic() throws Exception {
+		StreamExecutionEnvironment env = createExecutionEnvironment();
+		AMQSinkConfig<String> sinkConfig = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
+			.setConnectionFactory(createConnectionFactory())
+			.setDestinationName(TOPIC_NAME)
+			.setSerializationSchema(new SimpleStringSchema())
+			.setDestinationType(DestinationType.TOPIC)
+			.build();
+		createProducerTopology(env, sinkConfig);
+
+		ActiveMQConnectionFactory sourceConnectionFactory = createConnectionFactory();
+		AMQSourceConfig<String> sourceConfig = new AMQSourceConfig.AMQSourceConfigBuilder<String>()
+			.setConnectionFactory(sourceConnectionFactory)
+			.setDestinationName(TOPIC_NAME)
+			.setDeserializationSchema(new SimpleStringSchema())
+			.setDestinationType(DestinationType.TOPIC)
+			.build();
+		createConsumerTopology(env, sourceConfig);
+
 		tryExecute(env, "AMQTest");
 	}
 
@@ -92,7 +129,11 @@ public class ActiveMQConnectorITCase {
 		return env;
 	}
 
-	private void createProducerTopology(StreamExecutionEnvironment env) {
+	private ActiveMQConnectionFactory createConnectionFactory() {
+		return new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
+	}
+
+	private void createProducerTopology(StreamExecutionEnvironment env, AMQSinkConfig<String> config) {
 		DataStreamSource<String> stream = env.addSource(new SourceFunction<String>() {
 			@Override
 			public void run(SourceContext<String> ctx) throws Exception {
@@ -106,28 +147,12 @@ public class ActiveMQConnectorITCase {
 		});
 
 
-		ActiveMQConnectionFactory connectionFactory = createConnectionFactory();
-		AMQSink<String> sink = new AMQSink<>(
-			connectionFactory,
-			QUEUE_NAME,
-			new SimpleStringSchema()
-		);
-
-
+		AMQSink<String> sink = new AMQSink<>(config);
 		stream.addSink(sink);
 	}
 
-	private ActiveMQConnectionFactory createConnectionFactory() {
-		return new ActiveMQConnectionFactory("vm://localhost?broker.persistent=false");
-	}
-
-	private void createConsumerTopology(StreamExecutionEnvironment env) {
-		ActiveMQConnectionFactory sourceConnectionFactory = createConnectionFactory();
-		AMQSource<String> source = new AMQSource<>(
-			sourceConnectionFactory,
-			QUEUE_NAME,
-			new SimpleStringSchema()
-		);
+	private void createConsumerTopology(StreamExecutionEnvironment env, AMQSourceConfig<String> config) {
+		AMQSource<String> source = new AMQSource<>(config);
 
 		env.addSource(source)
 			.addSink(new SinkFunction<String>() {
@@ -147,22 +172,25 @@ public class ActiveMQConnectorITCase {
 	@Test
 	public void testAMQTopologyWithCheckpointing() throws Exception {
 		ActiveMQConnectionFactory connectionFactory = createConnectionFactory();
-		AMQSink<String> sink = new AMQSink<>(
-			connectionFactory,
-			"queue2",
-			new SimpleStringSchema()
-		);
+		AMQSinkConfig<String> sinkConfig = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
+			.setConnectionFactory(connectionFactory)
+			.setDestinationName("queue2")
+			.setSerializationSchema(new SimpleStringSchema())
+			.build();
+		AMQSink<String> sink = new AMQSink<>(sinkConfig);
 		sink.open(new Configuration());
 
 		for (int i = 0; i < MESSAGES_NUM; i++) {
 			sink.invoke("amq-" + i);
 		}
 
-		final AMQSource<String> source = new AMQSource<>(
-			connectionFactory,
-			"queue2",
-			new SimpleStringSchema()
-		);
+		AMQSourceConfig<String> sourceConfig = new AMQSourceConfig.AMQSourceConfigBuilder<String>()
+			.setConnectionFactory(connectionFactory)
+			.setDestinationName("queue2")
+			.setDeserializationSchema(new SimpleStringSchema())
+			.build();
+
+		final AMQSource<String> source = new AMQSource<>(sourceConfig);
 		RuntimeContext runtimeContext = createMockRuntimeContext();
 		source.setRuntimeContext(runtimeContext);
 		source.open(new Configuration());

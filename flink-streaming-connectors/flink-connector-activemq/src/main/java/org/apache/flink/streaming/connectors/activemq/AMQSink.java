@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.activemq;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.activemq.internal.AMQUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,25 +48,37 @@ public class AMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AMQSink.class);
 
+
+	// Factory that is used to create AMQ connection
 	private final ActiveMQConnectionFactory connectionFactory;
-	private final String queueName;
+	// Name of a queue or topic
+	private final String destinationName;
+	// Serialization scheme that is used to convert input message to bytes
 	private final SerializationSchema<IN> serializationSchema;
+	// Defines if persistent delivery in AMQ is used
+	private final boolean persistentDelivery;
+	// Type of AMQ destination (topic or a queue)
+	private final DestinationType destinationType;
+	// Throw exceptions or just log them
 	private boolean logFailuresOnly = false;
+	// Used to send messages
 	private transient MessageProducer producer;
+	// AMQ session
 	private transient Session session;
+	// AMQ connection
 	private transient Connection connection;
 
 	/**
 	 * Create AMQSink.
 	 *
-	 * @param connectionFactory factory for creating ActiveMQ connection
-	 * @param queueName name of a queue to write to
-	 * @param serializationSchema schema to serialize input message into a byte array
+	 * @param config AMQSink configuration
 	 */
-	public AMQSink(ActiveMQConnectionFactory connectionFactory, String queueName, SerializationSchema<IN> serializationSchema) {
-		this.connectionFactory = connectionFactory;
-		this.queueName = queueName;
-		this.serializationSchema = serializationSchema;
+	public AMQSink(AMQSinkConfig<IN> config) {
+		this.connectionFactory = config.getConnectionFactory();
+		this.destinationName = config.getDestinationName();
+		this.serializationSchema = config.getSerializationSchema();
+		this.persistentDelivery = config.isPersistentDelivery();
+		this.destinationType = config.getDestinationType();
 	}
 
 	/**
@@ -89,16 +102,23 @@ public class AMQSink<IN> extends RichSinkFunction<IN> {
 		connection.start();
 
 		// Create a Session
-		session = connection.createSession(false,
-			Session.AUTO_ACKNOWLEDGE);
+		session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
 		// Create the destination (Topic or Queue)
-		Destination destination = session.createQueue(queueName);
+		Destination destination = AMQUtil.getDestination(session, destinationType, destinationName);
 
 		// Create a MessageProducer from the Session to the Topic or
 		// Queue
 		producer = session.createProducer(destination);
-		producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+		producer.setDeliveryMode(getDeliveryMode());
+	}
+
+	private int getDeliveryMode() {
+		if (persistentDelivery) {
+			return DeliveryMode.PERSISTENT;
+		}
+
+		return DeliveryMode.NON_PERSISTENT;
 	}
 
 	/**
@@ -142,7 +162,7 @@ public class AMQSink<IN> extends RichSinkFunction<IN> {
 			if (logFailuresOnly) {
 				LOG.error("Failed to close ActiveMQ connection", e);
 			} else {
-				t = t == null		? new RuntimeException("Failed to close ActiveMQ session", e)
+				t = t == null	? new RuntimeException("Failed to close ActiveMQ session", e)
 								: t;
 			}
 		}

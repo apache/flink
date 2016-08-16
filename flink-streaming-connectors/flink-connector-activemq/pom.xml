@@ -37,7 +37,7 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<activemq.version>5.11.1</activemq.version>
+		<activemq.version>5.14.0</activemq.version>
 	</properties>
 
 	<dependencies>
@@ -89,7 +89,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.activemq.tooling</groupId>
 			<artifactId>activemq-junit</artifactId>
-			<version>5.13.1</version>
+			<version>${activemq.version}</version>
 			<scope>test</scope>
 		</dependency>
 

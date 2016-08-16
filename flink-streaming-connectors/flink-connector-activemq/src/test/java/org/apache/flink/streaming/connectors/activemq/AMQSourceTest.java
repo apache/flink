@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.activemq.internal.RunningChecker;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,7 +54,7 @@ import static org.mockito.Mockito.when;
 public class AMQSourceTest {
 
 	private static final long CHECKPOINT_ID = 1;
-	private final String QUEUE_NAME = "queue";
+	private final String DESTINATION_NAME = "queue";
 	private final String MSG_ID = "msgId";
 
 	private ActiveMQConnectionFactory connectionFactory;
@@ -64,7 +65,7 @@ public class AMQSourceTest {
 	private BytesMessage message;
 
 	private AMQSource<String> amqSource;
-	private SimpleStringSchema serializationSchema;
+	private SimpleStringSchema deserializationSchema;
 	SourceFunction.SourceContext<String> context;
 
 	@Before
@@ -85,8 +86,14 @@ public class AMQSourceTest {
 		when(context.getCheckpointLock()).thenReturn(new Object());
 		when(message.getJMSMessageID()).thenReturn(MSG_ID);
 
-		serializationSchema = new SimpleStringSchema();
-		amqSource = new AMQSource<>(connectionFactory, QUEUE_NAME, serializationSchema, new SingleLoopRunChecker());
+		deserializationSchema = new SimpleStringSchema();
+		AMQSourceConfig<String> config = new AMQSourceConfig.AMQSourceConfigBuilder<String>()
+			.setConnectionFactory(connectionFactory)
+			.setDestinationName(DESTINATION_NAME)
+			.setDeserializationSchema(deserializationSchema)
+			.setRunningChecker(new SingleLoopRunChecker())
+			.build();
+		amqSource = new AMQSource<>(config);
 		amqSource.setRuntimeContext(createRuntimeContext());
 		amqSource.open(new Configuration());
 	}
@@ -98,8 +105,23 @@ public class AMQSourceTest {
 	}
 
 	@Test
+	public void readFromTopic() throws Exception {
+		AMQSourceConfig<String> config = new AMQSourceConfig.AMQSourceConfigBuilder<String>()
+			.setConnectionFactory(connectionFactory)
+			.setDestinationName(DESTINATION_NAME)
+			.setDeserializationSchema(deserializationSchema)
+			.setDestinationType(DestinationType.TOPIC)
+			.setRunningChecker(new SingleLoopRunChecker())
+			.build();
+		amqSource = new AMQSource<>(config);
+		amqSource.setRuntimeContext(createRuntimeContext());
+		amqSource.open(new Configuration());
+		verify(session).createTopic(DESTINATION_NAME);
+	}
+
+	@Test
 	public void parseReceivedMessage() throws Exception {
-		final byte[] bytes = serializationSchema.serialize("msg");
+		final byte[] bytes = deserializationSchema.serialize("msg");
 		when(message.getBodyLength()).thenReturn((long) bytes.length);
 		when(message.readBytes(any(byte[].class))).thenAnswer(new Answer<Object>() {
 			@Override
@@ -216,7 +238,7 @@ public class AMQSourceTest {
 		amqSource.close();
 	}
 
-	class SingleLoopRunChecker implements AMQSource.RunningChecker {
+	class SingleLoopRunChecker extends RunningChecker {
 
 		int count = 0;
 

@@ -25,6 +25,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.activemq.internal.AMQUtil;
+import org.apache.flink.streaming.connectors.activemq.internal.RunningChecker;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +39,6 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.Session;
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 
@@ -51,6 +52,9 @@ import java.util.List;
  * message is not a message with an array of bytes, this message is ignored
  * and warning message is logged.
  *
+ * If checkpointing is enabled AMQSink will not acknowledge received AMQ messages as they arrive,
+ * but will store them internally and will acknowledge a bulk of messages during checkpointing.
+ *
  * @param <OUT> type of output messages
  */
 public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
@@ -58,42 +62,41 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 
 	private static final Logger LOG = LoggerFactory.getLogger(AMQSource.class);
 
+	// Factory that is used to create AMQ connection
 	private final ActiveMQConnectionFactory connectionFactory;
-	private final String queueName;
+	// Name of a queue or topic
+	private final String destinationName;
+	// Deserialization scheme that is used to convert bytes to output message
 	private final DeserializationSchema<OUT> deserializationSchema;
+	// Type of AMQ destination (topic or a queue)
+	private final DestinationType destinationType;
+	// Throw exceptions or just log them
 	private boolean logFailuresOnly = false;
+	// Stores if source is running (used for testing)
 	private RunningChecker runningChecker;
+	// AMQ connection
 	private transient Connection connection;
+	// AMQ session
 	private transient Session session;
+	// Used to receive incoming messages
 	private transient MessageConsumer consumer;
+	// If source should immediately acknowledge incoming message
 	private boolean autoAck;
-	private HashMap<String, Message> unaknowledgedMessages = new HashMap<>();
+	// Map of message ids to currently unacknowledged AMQ messages
+	private HashMap<String, Message> unacknowledgedMessages = new HashMap<>();
 
 	/**
 	 * Create AMQSource.
 	 *
-	 * @param connectionFactory factory that will be used to create a connection with ActiveMQ
-	 * @param queueName name of an ActiveMQ queue to read from
-	 * @param deserializationSchema schema to deserialize incoming messages
+	 * @param config AMQSource configuration
 	 */
-	public AMQSource(ActiveMQConnectionFactory connectionFactory, String queueName, DeserializationSchema<OUT> deserializationSchema) {
-		this(connectionFactory, queueName, deserializationSchema, new RunningCheckerImpl());
-	}
-
-	/**
-	 * Create AMQSource.
-	 *
-	 * @param connectionFactory factory that will be used to create a connection with ActiveMQ
-	 * @param queueName name of an ActiveMQ queue to read from
-	 * @param deserializationSchema schema to deserialize incoming messages
-	 * @param runningChecker running checker that is used to decide if the source is still running
-	 */
-	AMQSource(ActiveMQConnectionFactory connectionFactory, String queueName, DeserializationSchema<OUT> deserializationSchema, RunningChecker runningChecker) {
+	AMQSource(AMQSourceConfig<OUT> config) {
 		super(String.class);
-		this.connectionFactory = connectionFactory;
-		this.queueName = queueName;
-		this.deserializationSchema = deserializationSchema;
-		this.runningChecker = runningChecker;
+		this.connectionFactory = config.getConnectionFactory();
+		this.destinationName = config.getDestinationName();
+		this.deserializationSchema = config.getDeserializationSchema();
+		this.runningChecker = config.getRunningChecker();
+		this.destinationType = config.getDestinationType();
 	}
 
 	/**
@@ -136,7 +139,7 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 		session = connection.createSession(false, acknowledgeType);
 
 		// Create the destination (Topic or Queue)
-		Destination destination = session.createQueue(queueName);
+		Destination destination = AMQUtil.getDestination(session, destinationType, destinationName);
 
 		// Create a MessageConsumer from the Session to the Topic or
 		// Queue
@@ -188,10 +191,10 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	protected void acknowledgeIDs(long checkpointId, List<String> UIds) {
 		try {
 			for (String messageId : UIds) {
-				Message unacknowledgedMessage = unaknowledgedMessages.get(messageId);
+				Message unacknowledgedMessage = unacknowledgedMessages.get(messageId);
 				if (unacknowledgedMessage != null) {
 					unacknowledgedMessage.acknowledge();
-					unaknowledgedMessages.remove(messageId);
+					unacknowledgedMessages.remove(messageId);
 				} else {
 					LOG.warn("Tried to acknowledge unknown ActiveMQ message id: {}", messageId);
 				}
@@ -209,19 +212,19 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	public void run(SourceContext<OUT> ctx) throws Exception {
 		while (runningChecker.isRunning()) {
 			Message message = consumer.receive(1000);
+			if (! (message instanceof BytesMessage)) {
+				LOG.warn("Active MQ source received non bytes message: {}");
+				return;
+			}
+			BytesMessage bytesMessage = (BytesMessage) message;
+			byte[] bytes = new byte[(int) bytesMessage.getBodyLength()];
+			bytesMessage.readBytes(bytes);
+			OUT value = deserializationSchema.deserialize(bytes);
 			synchronized (ctx.getCheckpointLock()) {
-				if (message instanceof BytesMessage) {
-					BytesMessage bytesMessage = (BytesMessage) message;
-					byte[] bytes = new byte[(int) bytesMessage.getBodyLength()];
-					bytesMessage.readBytes(bytes);
-					OUT value = deserializationSchema.deserialize(bytes);
-					ctx.collect(value);
-					if (!autoAck) {
-						addId(bytesMessage.getJMSMessageID());
-						unaknowledgedMessages.put(bytesMessage.getJMSMessageID(), bytesMessage);
-					}
-				} else {
-					LOG.warn("Active MQ source received non bytes message: {}");
+				ctx.collect(value);
+				if (!autoAck) {
+					addId(bytesMessage.getJMSMessageID());
+					unacknowledgedMessages.put(bytesMessage.getJMSMessageID(), bytesMessage);
 				}
 			}
 		}
@@ -235,24 +238,5 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	@Override
 	public TypeInformation<OUT> getProducedType() {
 		return deserializationSchema.getProducedType();
-	}
-
-	interface RunningChecker {
-		boolean isRunning();
-		void setIsRunning(boolean isRunning);
-	}
-
-	private static class RunningCheckerImpl implements RunningChecker, Serializable {
-
-		private volatile boolean isRunning = false;
-
-		@Override
-		public boolean isRunning() {
-			return isRunning;
-		}
-
-		public void setIsRunning(boolean isRunning) {
-			this.isRunning = isRunning;
-		}
 	}
 }

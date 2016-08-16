@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
+import javax.jms.DeliveryMode;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.MessageProducer;
@@ -43,7 +44,7 @@ import static org.mockito.Mockito.when;
 
 public class AMQSinkTest {
 
-	private final String QUEUE_NAME = "queue";
+	private final String DESTINATION_NAME = "queue";
 
 	private ActiveMQConnectionFactory connectionFactory;
 	private MessageProducer producer;
@@ -66,12 +67,17 @@ public class AMQSinkTest {
 
 		when(connectionFactory.createConnection()).thenReturn(connection);
 		when(connection.createSession(anyBoolean(), anyInt())).thenReturn(session);
-//		when(session.createQueue(QUEUE_NAME)).thenReturn((Queue) destination);
+//		when(session.createQueue(DESTINATION_NAME)).thenReturn((Queue) destination);
 		when(session.createProducer(null)).thenReturn(producer);
 		when(session.createBytesMessage()).thenReturn(message);
-
 		serializationSchema = new SimpleStringSchema();
-		amqSink = new AMQSink<>(connectionFactory, QUEUE_NAME, serializationSchema);
+
+		AMQSinkConfig<String> config = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
+			.setConnectionFactory(connectionFactory)
+			.setDestinationName(DESTINATION_NAME)
+			.setSerializationSchema(serializationSchema)
+			.build();
+		amqSink = new AMQSink<>(config);
 		amqSink.open(new Configuration());
 	}
 
@@ -82,6 +88,32 @@ public class AMQSinkTest {
 
 		verify(producer).send(message);
 		verify(message).writeBytes(expectedMessage);
+	}
+
+	@Test
+	public void setPersistentDeliveryMode() throws Exception {
+		AMQSinkConfig<String> config = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
+			.setConnectionFactory(connectionFactory)
+			.setDestinationName(DESTINATION_NAME)
+			.setSerializationSchema(serializationSchema)
+			.setPersistentDelivery(true)
+			.build();
+		amqSink = new AMQSink<>(config);
+		amqSink.open(new Configuration());
+		verify(producer).setDeliveryMode(DeliveryMode.PERSISTENT);
+	}
+
+	@Test
+	public void writeToTopic() throws Exception {
+		AMQSinkConfig<String> config = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
+			.setConnectionFactory(connectionFactory)
+			.setDestinationName(DESTINATION_NAME)
+			.setSerializationSchema(serializationSchema)
+			.setDestinationType(DestinationType.TOPIC)
+			.build();
+		amqSink = new AMQSink<>(config);
+		amqSink.open(new Configuration());
+		verify(session).createTopic(DESTINATION_NAME);
 	}
 
 	@Test
