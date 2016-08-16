@@ -35,10 +35,10 @@ object RexNodeTranslator {
       case agg: Aggregation =>
         val name = tableEnv.createUniqueAttributeName()
         val aggCall = Alias(agg, name)
-        val fieldExp = new UnresolvedFieldReference(name)
+        val fieldExp = UnresolvedFieldReference(name)
         (fieldExp, List(aggCall))
       case n @ Alias(agg: Aggregation, name) =>
-        val fieldExp = new UnresolvedFieldReference(name)
+        val fieldExp = UnresolvedFieldReference(name)
         (fieldExp, List(n))
       case l: LeafExpression =>
         (l, Nil)

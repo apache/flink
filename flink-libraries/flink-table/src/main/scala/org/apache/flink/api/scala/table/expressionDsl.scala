@@ -22,6 +22,7 @@ import java.sql.{Date, Time, Timestamp}
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
+import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions._
 
 import scala.language.implicitConversions
@@ -168,11 +169,11 @@ trait ImplicitExpressionOperations {
       removeTrailing: Boolean = true,
       character: Expression = TrimConstants.TRIM_DEFAULT_CHAR) = {
     if (removeLeading && removeTrailing) {
-      Trim(TrimConstants.TRIM_BOTH, character, expr)
+      Trim(TrimMode.BOTH, character, expr)
     } else if (removeLeading) {
-      Trim(TrimConstants.TRIM_LEADING, character, expr)
+      Trim(TrimMode.LEADING, character, expr)
     } else if (removeTrailing) {
-      Trim(TrimConstants.TRIM_TRAILING, character, expr)
+      Trim(TrimMode.TRAILING, character, expr)
     } else {
       expr
     }
@@ -229,6 +230,13 @@ trait ImplicitExpressionOperations {
     * Parses a timestamp String in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
     */
   def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
+
+  /**
+    * Extracts parts of a time point or time interval. Returns the part as a long value.
+    *
+    * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
+    */
+  def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
 
   // interval types
 
@@ -291,7 +299,7 @@ trait ImplicitExpressionConversions {
     def expr = e
   }
 
-  implicit class SymbolExpression(s: Symbol) extends ImplicitExpressionOperations {
+  implicit class UnresolvedFieldExpression(s: Symbol) extends ImplicitExpressionOperations {
     def expr = UnresolvedFieldReference(s.name)
   }
 

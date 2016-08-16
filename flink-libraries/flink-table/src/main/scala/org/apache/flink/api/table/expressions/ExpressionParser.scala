@@ -21,6 +21,9 @@ import org.apache.calcite.avatica.util.DateTimeUtils.{MILLIS_PER_DAY, MILLIS_PER
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.ExpressionParserException
 import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
+import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.api.table.expressions.TimePointUnit.TimePointUnit
+import org.apache.flink.api.table.expressions.TrimMode.TrimMode
 import org.apache.flink.api.table.typeutils.IntervalTypeInfo
 
 import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
@@ -60,6 +63,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val TO_DATE: Keyword = Keyword("toDate")
   lazy val TO_TIME: Keyword = Keyword("toTime")
   lazy val TO_TIMESTAMP: Keyword = Keyword("toTimestamp")
+  lazy val TRIM: Keyword = Keyword("trim")
+  lazy val EXTRACT: Keyword = Keyword("extract")
   lazy val YEAR: Keyword = Keyword("year")
   lazy val MONTH: Keyword = Keyword("month")
   lazy val DAY: Keyword = Keyword("day")
@@ -72,6 +77,20 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
       not(SUM) ~ not(IS_NULL) ~ not(IS_NOT_NULL) ~ not(CAST) ~ not(NULL) ~
       not(IF) ~> super.ident
+
+  // symbols
+
+  lazy val timeIntervalUnit: PackratParser[Expression] = TimeIntervalUnit.values map {
+    case unit: TimeIntervalUnit => literal(unit.toString) ^^^ unit.toExpr
+  } reduceLeft(_ | _)
+
+  lazy val timePointUnit: PackratParser[Expression] = TimePointUnit.values map {
+    case unit: TimePointUnit => literal(unit.toString) ^^^ unit.toExpr
+  } reduceLeft(_ | _)
+
+  lazy val trimMode: PackratParser[Expression] = TrimMode.values map {
+    case mode: TrimMode => literal(mode.toString) ^^^ mode.toExpr
+  } reduceLeft(_ | _)
 
   // data types
 
@@ -177,25 +196,21 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case e ~ _ ~ _ ~ _ ~ target ~ _ => Alias(e, target.name)
   }
 
-  lazy val suffixTrim = composite ~ ".trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~
-      expression ~ ")" ^^ {
-    case operand ~ _ ~ trimType ~ _ ~ trimCharacter ~ _ =>
-      val flag = trimType match {
-        case "BOTH" => TrimConstants.TRIM_BOTH
-        case "LEADING" => TrimConstants.TRIM_LEADING
-        case "TRAILING" => TrimConstants.TRIM_TRAILING
-      }
-      Trim(flag, trimCharacter, operand)
+  lazy val suffixTrim = composite ~ "." ~ TRIM ~ "(" ~ trimMode ~ "," ~ expression ~ ")" ^^ {
+    case operand ~ _ ~ _ ~ _ ~ mode ~ _ ~ trimCharacter ~ _ => Trim(mode, trimCharacter, operand)
   }
 
-  lazy val suffixTrimWithoutArgs = composite <~ ".trim" ~ opt("()") ^^ {
-    e =>
-      Trim(TrimConstants.TRIM_BOTH, TrimConstants.TRIM_DEFAULT_CHAR, e)
+  lazy val suffixTrimWithoutArgs = composite <~ "." ~ TRIM ~ opt("()") ^^ {
+    e => Trim(TrimMode.BOTH, TrimConstants.TRIM_DEFAULT_CHAR, e)
   }
 
   lazy val suffixIf: PackratParser[Expression] =
     composite ~ "." ~ IF ~ "(" ~ expression ~ "," ~ expression ~ ")" ^^ {
     case condition ~ _ ~ _ ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => If(condition, ifTrue, ifFalse)
+  }
+
+  lazy val suffixExtract = composite ~ "." ~ EXTRACT ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
+    case operand ~ _  ~ _ ~ _ ~ unit ~ _ => Extract(unit, operand)
   }
 
   lazy val suffixFunctionCall =
@@ -240,7 +255,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     suffixTimeInterval | suffixIsNull | suffixIsNotNull | suffixSum | suffixMin | suffixMax |
       suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs |
       suffixIf | suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime |
-      suffixFunctionCall // function call must always be at the end
+      suffixExtract | suffixFunctionCall // function call must always be at the end
 
   // prefix operators
 
@@ -275,7 +290,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case _ ~ _ ~ e ~ _ ~ target ~ _ => Alias(e, target.name)
   }
 
-  lazy val prefixIf: PackratParser[Expression] = composite ~
+  lazy val prefixIf: PackratParser[Expression] =
       IF ~ "(" ~ expression ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
     case _ ~ _ ~ condition ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => If(condition, ifTrue, ifFalse)
   }
@@ -284,25 +299,21 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case name ~ _ ~ args ~ _ => Call(name.toUpperCase, args)
   }
 
-  lazy val prefixTrim = "trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~ expression ~
-      "," ~ expression ~ ")" ^^ {
-    case _ ~ trimType ~ _ ~ trimCharacter ~ _ ~ operand ~ _ =>
-      val flag = trimType match {
-        case "BOTH" => TrimConstants.TRIM_BOTH
-        case "LEADING" => TrimConstants.TRIM_LEADING
-        case "TRAILING" => TrimConstants.TRIM_TRAILING
-      }
-      Trim(flag, trimCharacter, operand)
+  lazy val prefixTrim = TRIM ~ "(" ~ trimMode ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
+    case _ ~ _ ~ mode ~ _ ~ trimCharacter ~ _ ~ operand ~ _ => Trim(mode, trimCharacter, operand)
   }
 
-  lazy val prefixTrimWithoutArgs = "trim(" ~ expression ~ ")" ^^ {
-    case _ ~ operand ~ _ =>
-      Trim(TrimConstants.TRIM_BOTH, TrimConstants.TRIM_DEFAULT_CHAR, operand)
+  lazy val prefixTrimWithoutArgs = TRIM ~ "(" ~ expression ~ ")" ^^ {
+    case _ ~ _ ~ operand ~ _ => Trim(TrimMode.BOTH, TrimConstants.TRIM_DEFAULT_CHAR, operand)
+  }
+
+  lazy val prefixExtract = EXTRACT ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
+    case _ ~ _ ~ operand ~ _ ~ unit ~ _ => Extract(unit, operand)
   }
 
   lazy val prefixed: PackratParser[Expression] =
     prefixIsNull | prefixIsNotNull | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
-      prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf |
+      prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
       prefixFunctionCall // function call must always be at the end
 
   // suffix/prefix composite

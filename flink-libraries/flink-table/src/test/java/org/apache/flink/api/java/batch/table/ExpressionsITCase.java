@@ -149,11 +149,12 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 		Table result = table.select(
 				"(b && true).?('true', 'false')," +
 					"false.?('true', 'false')," +
-					"true.?(true.?(true.?(10, 4), 4), 4)");
+					"true.?(true.?(true.?(10, 4), 4), 4)," +
+					"?((b && true), 'true', 'false')");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "true,false,10";
+		String expected = "true,false,10,true";
 		compareResultAsText(results, expected);
 	}
 

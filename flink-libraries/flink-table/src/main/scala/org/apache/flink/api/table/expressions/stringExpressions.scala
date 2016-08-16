@@ -18,13 +18,12 @@
 package org.apache.flink.api.table.expressions
 
 import scala.collection.JavaConversions._
-
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.expressions.TrimMode.TrimMode
 import org.apache.flink.api.table.validate._
 
 /**
@@ -169,22 +168,32 @@ case class SubString(
 }
 
 /**
-  * Trim `trimString` from `str` according to `trimFlag`:
-  * 0 for TRIM_BOTH, 1 for TRIM_LEADING and 2 for TRIM_TRAILING.
+  * Trim `trimString` from `str` according to `trimMode`.
   */
 case class Trim(
-    trimFlag: Expression,
+    trimMode: Expression,
     trimString: Expression,
-    str: Expression) extends Expression with InputTypeSpec {
+    str: Expression) extends Expression {
 
-  override private[flink] def children: Seq[Expression] = trimFlag :: trimString :: str :: Nil
+  override private[flink] def children: Seq[Expression] = trimMode :: trimString :: str :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
-    Seq(INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO)
+  override private[flink] def validateInput(): ExprValidationResult = {
+    trimMode match {
+      case SymbolExpression(_: TrimMode) =>
+        if (trimString.resultType != STRING_TYPE_INFO) {
+          ValidationFailure(s"String expected for trimString, get ${trimString.resultType}")
+        } else if (str.resultType != STRING_TYPE_INFO) {
+          ValidationFailure(s"String expected for str, get ${str.resultType}")
+        } else {
+          ValidationSuccess
+        }
+      case _ => ValidationFailure("TrimMode symbol expected.")
+    }
+  }
 
-  override def toString: String = s"trim($trimFlag, $trimString, $str)"
+  override def toString: String = s"trim($trimMode, $trimString, $str)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.TRIM, children.map(_.toRexNode))
@@ -195,9 +204,6 @@ case class Trim(
   * Enumeration of trim flags.
   */
 object TrimConstants {
-  val TRIM_BOTH = Literal(0)
-  val TRIM_LEADING = Literal(1)
-  val TRIM_TRAILING = Literal(2)
   val TRIM_DEFAULT_CHAR = Literal(" ")
 }
 

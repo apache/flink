@@ -142,7 +142,10 @@ object FunctionCatalog {
     "log10" -> classOf[Log10],
     "ln" -> classOf[Ln],
     "power" -> classOf[Power],
-    "mod" -> classOf[Mod]
+    "mod" -> classOf[Mod],
+
+    // temporal functions
+    "extract" -> classOf[Extract]
   )
 
   /**

@@ -21,13 +21,13 @@ package org.apache.flink.api.table.codegen
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.sql.{SqlLiteral, SqlOperator}
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.Indenter.toISC
@@ -543,8 +543,10 @@ class CodeGenerator(
     }
     // non-null values
     literal.getType.getSqlTypeName match {
+
       case BOOLEAN =>
         generateNonNullLiteral(resultType, literal.getValue3.toString)
+
       case TINYINT =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidByte) {
@@ -553,6 +555,7 @@ class CodeGenerator(
         else {
           throw new CodeGenException("Decimal can not be converted to byte.")
         }
+
       case SMALLINT =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidShort) {
@@ -561,6 +564,7 @@ class CodeGenerator(
         else {
           throw new CodeGenException("Decimal can not be converted to short.")
         }
+
       case INTEGER =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidInt) {
@@ -569,6 +573,7 @@ class CodeGenerator(
         else {
           throw new CodeGenException("Decimal can not be converted to integer.")
         }
+
       case BIGINT =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidLong) {
@@ -577,6 +582,7 @@ class CodeGenerator(
         else {
           throw new CodeGenException("Decimal can not be converted to long.")
         }
+
       case FLOAT =>
         val floatValue = value.asInstanceOf[JBigDecimal].floatValue()
         floatValue match {
@@ -587,6 +593,7 @@ class CodeGenerator(
             generateNonNullLiteral(resultType, "java.lang.Float.POSITIVE_INFINITY")
           case _ => generateNonNullLiteral(resultType, floatValue.toString + "f")
         }
+
       case DOUBLE =>
         val doubleValue = value.asInstanceOf[JBigDecimal].doubleValue()
         doubleValue match {
@@ -600,25 +607,22 @@ class CodeGenerator(
       case DECIMAL =>
         val decimalField = addReusableDecimal(value.asInstanceOf[JBigDecimal])
         generateNonNullLiteral(resultType, decimalField)
+
       case VARCHAR | CHAR =>
         generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
+
       case SYMBOL =>
-
-        val symbolOrdinal =
-        if (classOf[Enum[_]].isAssignableFrom(value.getClass) ) {
-          value.asInstanceOf[Enum[_]].ordinal()
-        } else {
-          value.asInstanceOf[SqlLiteral.SqlSymbol].ordinal()
-        }
-
-        generateNonNullLiteral(resultType, symbolOrdinal.toString)
+        generateSymbol(value.asInstanceOf[Enum[_]])
 
       case DATE =>
         generateNonNullLiteral(resultType, value.toString)
+
       case TIME =>
         generateNonNullLiteral(resultType, value.toString)
+
       case TIMESTAMP =>
         generateNonNullLiteral(resultType, value.toString + "L")
+
       case INTERVAL_YEAR_MONTH =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidInt) {
@@ -626,6 +630,7 @@ class CodeGenerator(
         } else {
           throw new CodeGenException("Decimal can not be converted to interval of months.")
         }
+
       case INTERVAL_DAY_TIME =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidLong) {
@@ -688,7 +693,7 @@ class CodeGenerator(
         requireNumeric(right)
         generateArithmeticOperator("*", nullCheck, resultType, left, right)
 
-      case DIVIDE if isNumeric(resultType) =>
+      case DIVIDE | DIVIDE_INTEGER if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
@@ -1007,6 +1012,14 @@ class CodeGenerator(
     }
 
     GeneratedExpression(resultTerm, nullTerm, resultCode, literalType)
+  }
+
+  private[flink] def generateSymbol(enum: Enum[_]): GeneratedExpression = {
+    GeneratedExpression(
+      qualifyEnum(enum),
+      "false",
+      "",
+      new GenericTypeInfo(enum.getDeclaringClass))
   }
 
   /**
