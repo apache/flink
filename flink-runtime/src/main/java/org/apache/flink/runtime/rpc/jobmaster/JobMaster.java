@@ -55,9 +55,12 @@ import java.util.concurrent.TimeoutException;
  * It offers the following methods as part of its rpc interface to interact with the JobMaster
  * remotely:
  * <ul>
- *     <li>{@link #registerAtResourceManager(String)} triggers the registration at the resource manager</li>
+ *     <li>{@link #cancelJob()} cancels the job which will clear the states of the job</li>
+ *     <li>{@link #suspendJob()} suspends the job which will reserve the states of the job</li>
+ *     <li>{@link #getJobState()} gets the job status</li>
  *     <li>{@link #updateTaskExecutionState(TaskExecutionState)} updates the task execution state for
  * given task</li>
+ *     <li>{@link #notifySlotFailure(Slot, Throwable)} handles slot fail messages to do the failover</li>
  * </ul>
  */
 public class JobMaster extends RpcEndpoint<JobMasterGateway> {
