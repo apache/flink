@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc.jobmaster;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import scala.concurrent.Future;
 
 /**
  * {@link JobMaster} rpc gateway interface
@@ -29,19 +30,19 @@ public interface JobMasterGateway extends RpcGateway,SlotAvailabilityListenerGat
 
 	/**
 	 * stop the job and clear checkpoints
-	 * @return Acknowlege that job master has confirm the command
+	 * @return Acknowlege that job master has confirmed the command
 	 */
-	public Acknowledge cancelJob();
+	Future<Acknowledge> cancelJob();
 
 	/**
 	 * stop the job, but reserve the checkpoints for future reserve
-	 * @return Acknowlege that job master has confirm the command
+	 * @return Acknowlege that job master has confirmed the command
 	 */
-	public Acknowledge suspendJob();
+	Future<Acknowledge> suspendJob();
 
 	/**
 	 * get current running job status
 	 * @return job status of current job
 	 */
-	public JobStatus getJobState();
+	Future<JobStatus> getJobState();
 }

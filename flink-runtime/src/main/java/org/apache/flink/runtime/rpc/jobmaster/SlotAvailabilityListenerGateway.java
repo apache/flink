@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.rpc.jobmaster;
 
 import org.apache.flink.runtime.instance.Slot;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 
 /**
@@ -27,14 +26,8 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 public interface SlotAvailabilityListenerGateway extends RpcGateway {
 	/**
 	 *  handle slot failure caused by task manager lost
-	 * @param slot
+	 * @param slot the slot failed
 	 */
 	void notifySlotFailure(Slot slot, Throwable cause);
 
-	/**
-	 * handle slot available notified from task manager
-	 * @param slot
-	 * @return acknowledge that job master has confirmed the notification
-	 */
-	Acknowledge notifySlotAvailable(Slot slot);
 }

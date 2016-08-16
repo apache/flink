@@ -21,6 +21,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import scala.concurrent.Future;
 
 /**
  * {@link TaskControllerGateway} is responsible to act to changes of task execution and result partition
@@ -29,13 +30,14 @@ public interface TaskControllerGateway extends RpcGateway {
 	/**
 	 * handle task state update message from task manager
 	 * @param state New task execution state for a given task
-	 * @return Future acknowledge of the task execution state update
+	 * @return acknowledge of the task execution state update
 	 */
-	public Acknowledge updateTaskExecutionState(TaskExecutionState state);
+	Future<Acknowledge> updateTaskExecutionState(TaskExecutionState state);
 
 	/**
-	 * notify the given result partition is ready to offer data.
-	 * @param resultPartitionID
+	 * trigger to schedule consumer task of the given result partition, if the task is running,
+	 * trigger update RPC to the task.
+	 * @param resultPartitionID the ID of result partition to trigger
 	 */
-	public void notifyPartitionConsumable(ResultPartitionID resultPartitionID);
+	void scheduleOrUpdateConsumer(ResultPartitionID resultPartitionID);
 }

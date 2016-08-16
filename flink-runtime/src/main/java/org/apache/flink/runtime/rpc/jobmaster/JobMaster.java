@@ -60,7 +60,7 @@ import java.util.concurrent.TimeoutException;
  * given task</li>
  * </ul>
  */
-public class JobMaster extends RpcEndpoint<JobMasterGateway> implements JobMasterGateway {
+public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** Execution context for future callbacks */
 	private final ExecutionContext executionContext;
 
@@ -122,7 +122,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements JobMaste
 	@RpcMethod
 	public Acknowledge updateTaskExecutionState(TaskExecutionState taskExecutionState) {
 		System.out.println("TaskExecutionState: " + taskExecutionState);
-		return Acknowledge.get();
+		return null;
 	}
 
 	/**
@@ -131,8 +131,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements JobMaste
 	 * @param resultPartitionID the ID of the consumable result partition
 	 */
 	@RpcMethod
-	@Override
-	public void notifyPartitionConsumable(ResultPartitionID resultPartitionID) {
+	public void scheduleOrUpdateConsumer(ResultPartitionID resultPartitionID) {
 
 	}
 
@@ -140,21 +139,9 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements JobMaste
 	 * notify failure of the given slot, which may trigger failure of the result partition and execution on that slot
 	 * @param slot
 	 */
-	@Override
 	@RpcMethod
 	public void notifySlotFailure(Slot slot, Throwable cause) {
 
-	}
-
-	/**
-	 * notify available of the given slot id, which will trigger deploying of the task assigned to the slot
-	 * @param slot
-	 * @return
-	 */
-	@Override
-	@RpcMethod
-	public Acknowledge notifySlotAvailable(Slot slot) {
-		return null;
 	}
 
 	/**
@@ -162,7 +149,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements JobMaste
 	 * intermediate results.
 	 * @return
 	 */
-	@Override
 	@RpcMethod
 	public Acknowledge cancelJob() {
 		return null;
@@ -173,7 +159,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements JobMaste
 	 * intermediate result (Optional) for future recover
 	 * @return
 	 */
-	@Override
 	@RpcMethod
 	public Acknowledge suspendJob() {
 		return null;
@@ -183,7 +168,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements JobMaste
 	 * get the status of the job
 	 * @return
 	 */
-	@Override
 	@RpcMethod
 	public JobStatus getJobState() {
 		return null;
