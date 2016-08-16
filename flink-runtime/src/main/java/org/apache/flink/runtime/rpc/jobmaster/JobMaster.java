@@ -22,6 +22,9 @@ import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.resourcemanager.JobMasterRegistration;
@@ -52,9 +55,12 @@ import java.util.concurrent.TimeoutException;
  * It offers the following methods as part of its rpc interface to interact with the JobMaster
  * remotely:
  * <ul>
- *     <li>{@link #registerAtResourceManager(String)} triggers the registration at the resource manager</li>
+ *     <li>{@link #cancelJob()} cancels the job which will clear the states of the job</li>
+ *     <li>{@link #suspendJob()} suspends the job which will reserve the states of the job</li>
+ *     <li>{@link #getJobState()} gets the job status</li>
  *     <li>{@link #updateTaskExecutionState(TaskExecutionState)} updates the task execution state for
  * given task</li>
+ *     <li>{@link #notifySlotFailure(Slot, Throwable)} handles slot fail messages to do the failover</li>
  * </ul>
  */
 public class JobMaster extends RpcEndpoint<JobMasterGateway> {
@@ -86,28 +92,11 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		return resourceManager;
 	}
 
-	//----------------------------------------------------------------------------------------------
-	// RPC methods
-	//----------------------------------------------------------------------------------------------
-
-	/**
-	 * Updates the task execution state for a given task.
-	 *
-	 * @param taskExecutionState New task execution state for a given task
-	 * @return Acknowledge the task execution state update
-	 */
-	@RpcMethod
-	public Acknowledge updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-		System.out.println("TaskExecutionState: " + taskExecutionState);
-		return Acknowledge.get();
-	}
-
 	/**
 	 * Triggers the registration of the job master at the resource manager.
 	 *
 	 * @param address Address of the resource manager
 	 */
-	@RpcMethod
 	public void registerAtResourceManager(final String address) {
 		currentRegistrationRun = UUID.randomUUID();
 
@@ -121,6 +110,70 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			initialRegistrationTimeout,
 			maxRegistrationTimeout,
 			registrationDuration.fromNow());
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// RPC methods
+	//----------------------------------------------------------------------------------------------
+
+	/**
+	 * Updates the task execution state for a given task.
+	 *
+	 * @param taskExecutionState New task execution state for a given task
+	 * @return Acknowledge the task execution state update
+	 */
+	@RpcMethod
+	public Acknowledge updateTaskExecutionState(TaskExecutionState taskExecutionState) {
+		System.out.println("TaskExecutionState: " + taskExecutionState);
+		return null;
+	}
+
+	/**
+	 * notify consumable of a given partition, which may trigger the job master to schedule the consumers,
+	 * or send update result partition info to the running consumers.
+	 * @param resultPartitionID the ID of the consumable result partition
+	 */
+	@RpcMethod
+	public void scheduleOrUpdateConsumer(ResultPartitionID resultPartitionID) {
+
+	}
+
+	/**
+	 * notify failure of the given slot, which may trigger failure of the result partition and execution on that slot
+	 * @param slot
+	 */
+	@RpcMethod
+	public void notifySlotFailure(Slot slot, Throwable cause) {
+
+	}
+
+	/**
+	 * cancel the job, {@link JobMaster} will cancel all of executions and clear all of the states and
+	 * intermediate results.
+	 * @return
+	 */
+	@RpcMethod
+	public Acknowledge cancelJob() {
+		return null;
+	}
+
+	/**
+	 * suspend the job, {@link JobMaster} will cancel all of the executions but reserve the states and
+	 * intermediate result (Optional) for future recover
+	 * @return
+	 */
+	@RpcMethod
+	public Acknowledge suspendJob() {
+		return null;
+	}
+
+	/**
+	 * get the status of the job
+	 * @return
+	 */
+	@RpcMethod
+	public JobStatus getJobState() {
+		return null;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -248,4 +301,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	public boolean isConnected() {
 		return resourceManager != null;
 	}
+
+
 }

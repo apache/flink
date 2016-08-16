@@ -15,34 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.rpc.jobmaster;
 
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import scala.concurrent.Future;
 
 /**
- * {@link JobMaster} rpc gateway interface
+ * {@link TaskControllerGateway} is responsible to act to changes of task execution and result partition
  */
-public interface JobMasterGateway extends RpcGateway,SlotAvailabilityListenerGateway,TaskControllerGateway {
+public interface TaskControllerGateway extends RpcGateway {
+	/**
+	 * handle task state update message from task manager
+	 * @param state New task execution state for a given task
+	 * @return acknowledge of the task execution state update
+	 */
+	Future<Acknowledge> updateTaskExecutionState(TaskExecutionState state);
 
 	/**
-	 * stop the job and clear checkpoints
-	 * @return Acknowlege that job master has confirmed the command
+	 * trigger to schedule consumer task of the given result partition, if the task is running,
+	 * trigger update RPC to the task.
+	 * @param resultPartitionID the ID of result partition to trigger
 	 */
-	Future<Acknowledge> cancelJob();
-
-	/**
-	 * stop the job, but reserve the checkpoints for future reserve
-	 * @return Acknowlege that job master has confirmed the command
-	 */
-	Future<Acknowledge> suspendJob();
-
-	/**
-	 * get current running job status
-	 * @return job status of current job
-	 */
-	Future<JobStatus> getJobState();
+	void scheduleOrUpdateConsumer(ResultPartitionID resultPartitionID);
 }

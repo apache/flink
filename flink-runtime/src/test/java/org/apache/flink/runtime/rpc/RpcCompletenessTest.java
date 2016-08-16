@@ -62,9 +62,10 @@ public class RpcCompletenessTest extends TestLogger {
 		}
 	}
 
+
 	private void checkCompleteness(Class<? extends RpcEndpoint> rpcEndpoint, Class<? extends RpcGateway> rpcGateway) {
-		Method[] gatewayMethods = rpcGateway.getDeclaredMethods();
-		Method[] serverMethods = rpcEndpoint.getDeclaredMethods();
+		Method[] gatewayMethods = getInterfaceMethods(rpcGateway).toArray(new Method[0]);
+		Method[] serverMethods = rpcEndpoint.getMethods();
 
 		Map<String, Set<Method>> rpcMethods = new HashMap<>();
 		Set<Method> unmatchedRpcMethods = new HashSet<>();
@@ -293,6 +294,7 @@ public class RpcCompletenessTest extends TestLogger {
 		return builder.toString();
 	}
 
+
 	private boolean isRpcTimeout(Annotation[] annotations) {
 		for (Annotation annotation : annotations) {
 			if (annotation.annotationType().equals(RpcTimeout.class)) {
@@ -302,4 +304,24 @@ public class RpcCompletenessTest extends TestLogger {
 
 		return false;
 	}
+
+	/**
+	 * Extract all methods defined by a interface
+	 * @param interfaceClass the given interface class
+	 * @return all methods defined by the given interface
+	 */
+	private List<Method> getInterfaceMethods(Class interfaceClass) {
+		if(!interfaceClass.isInterface()) {
+			fail(interfaceClass.getName() + "is not a interface");
+		}
+		ArrayList<Method> allMethods = new ArrayList<>();
+		for(Method method : interfaceClass.getDeclaredMethods()) {
+			allMethods.add(method);
+		}
+		for(Class superClass : interfaceClass.getInterfaces()) {
+			allMethods.addAll(getInterfaceMethods(superClass));
+		}
+		return allMethods;
+	}
+
 }
