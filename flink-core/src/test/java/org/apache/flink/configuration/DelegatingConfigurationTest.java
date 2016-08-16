@@ -93,7 +93,6 @@ public class DelegatingConfigurationTest {
 	
 	@Test
 	public void testDelegationConfigurationWithNullPrefix() {
-
 		Configuration backingConf = new Configuration();
 		backingConf.setValueInternal("test-key", "value");
 
@@ -107,7 +106,6 @@ public class DelegatingConfigurationTest {
 
 	@Test
 	public void testDelegationConfigurationWithPrefix() {
-
 		String prefix = "pref-";
 		String expectedKey = "key";
 

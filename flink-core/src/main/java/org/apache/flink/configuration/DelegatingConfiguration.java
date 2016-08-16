@@ -19,6 +19,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -56,6 +57,7 @@ public final class DelegatingConfiguration extends Configuration {
 	 */
 	public DelegatingConfiguration(Configuration backingConfig, String prefix)
 	{
+		Preconditions.checkNotNull(backingConfig);
 		this.backingConfig = backingConfig;
 		this.prefix = prefix;
 	}
@@ -178,14 +180,14 @@ public final class DelegatingConfiguration extends Configuration {
 
 	@Override
 	public Set<String> keySet() {
+		if (this.prefix == null) {
+			return this.backingConfig.keySet();
+		}
 
 		final HashSet<String> set = new HashSet<String>();
 
 		for (String key : this.backingConfig.keySet()) {
-
-			if (this.prefix == null) {
-				set.add(key);
-			} else if (key.startsWith(prefix)) {
+			if (key.startsWith(prefix)) {
 				int prefixLen = this.prefix.length();
 				set.add(key.substring(prefixLen));
 			}
