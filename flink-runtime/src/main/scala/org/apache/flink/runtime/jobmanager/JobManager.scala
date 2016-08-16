@@ -726,29 +726,18 @@ class JobManager(
           sender() ! TriggerSavepointFailure(jobId, new IllegalArgumentException("Unknown job."))
       }
 
-    case DisposeSavepoint(savepointPath, blobKeys) =>
+    case DisposeSavepoint(savepointPath) =>
       val senderRef = sender()
       future {
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
 
-          if (blobKeys.isDefined) {
-            // We don't need a real ID here for the library cache manager
-            val jid = new JobID()
+          val savepoint = savepointStore.loadSavepoint(savepointPath)
 
-            try {
-              libraryCacheManager.registerJob(jid, blobKeys.get, java.util.Collections.emptyList())
-              val classLoader = libraryCacheManager.getClassLoader(jid)
+          log.debug(s"$savepoint")
 
-              // Discard with user code loader
-              savepointStore.disposeSavepoint(savepointPath, classLoader)
-            } finally {
-              libraryCacheManager.unregisterJob(jid)
-            }
-          } else {
-            // Discard with system class loader
-            savepointStore.disposeSavepoint(savepointPath, getClass.getClassLoader)
-          }
+          // Dispose the savepoint
+          savepointStore.disposeSavepoint(savepointPath)
 
           senderRef ! DisposeSavepointSuccess
         } catch {
@@ -1245,7 +1234,6 @@ class JobManager(
             snapshotSettings.getCheckpointTimeout,
             snapshotSettings.getMinPauseBetweenCheckpoints,
             snapshotSettings.getMaxConcurrentCheckpoints,
-            parallelism,
             triggerVertices,
             ackVertices,
             confirmVertices,

@@ -28,10 +28,10 @@ import java.util.Collection;
  *
  * <p>This format was introduced with Flink 1.1.0.
  */
-public class SavepointV0 implements Savepoint {
+public class SavepointV1 implements Savepoint {
 
 	/** The savepoint version. */
-	public static final int VERSION = 0;
+	public static final int VERSION = 1;
 
 	/** The checkpoint ID */
 	private final long checkpointId;
@@ -39,7 +39,7 @@ public class SavepointV0 implements Savepoint {
 	/** The task states */
 	private final Collection<TaskState> taskStates;
 
-	SavepointV0(long checkpointId, Collection<TaskState> taskStates) {
+	SavepointV1(long checkpointId, Collection<TaskState> taskStates) {
 		this.checkpointId = checkpointId;
 		this.taskStates = Preconditions.checkNotNull(taskStates, "Task States");
 	}
@@ -60,10 +60,9 @@ public class SavepointV0 implements Savepoint {
 	}
 
 	@Override
-	public void dispose(ClassLoader classLoader) throws Exception {
-		Preconditions.checkNotNull(classLoader, "Class loader");
+	public void dispose() throws Exception {
 		for (TaskState taskState : taskStates) {
-			taskState.discard(classLoader);
+			taskState.discardState();
 		}
 		taskStates.clear();
 	}
@@ -83,7 +82,7 @@ public class SavepointV0 implements Savepoint {
 			return false;
 		}
 
-		SavepointV0 that = (SavepointV0) o;
+		SavepointV1 that = (SavepointV1) o;
 		return checkpointId == that.checkpointId && getTaskStates().equals(that.getTaskStates());
 	}
 

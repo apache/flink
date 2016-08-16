@@ -36,8 +36,9 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Future;
@@ -46,7 +47,6 @@ import scala.concurrent.Promise;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -89,7 +89,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			JobID jobId,
 			long baseInterval,
 			long checkpointTimeout,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -103,7 +102,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				checkpointTimeout,
 				0L,
 				Integer.MAX_VALUE,
-				numberKeyGroups,
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
@@ -218,26 +216,25 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 						throw new IllegalStateException(msg);
 					}
 
-					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(
-							numberKeyGroups,
+					List<KeyGroupRange> keyGroupPartitions = createKeyGroupPartitions(
+							executionJobVertex.getMaxParallelism(),
 							executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getTaskVertices().length; i++) {
 						SubtaskState subtaskState = taskState.getState(i);
-						SerializedValue<StateHandle<?>> state = null;
+						ChainedStateHandle<StreamStateHandle> state = null;
 
 						if (subtaskState != null) {
-							state = subtaskState.getState();
+							state = subtaskState.getChainedStateHandle();
 						}
 
-						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState
-								.getUnwrappedKvStates(keyGroupPartitions.get(i));
+//						Map<Integer, ChainedStateHandle<StreamStateHandle>> kvStateForTaskMap = keyGroupPartitions.get(i);
 
 						Execution currentExecutionAttempt = executionJobVertex
 								.getTaskVertices()[i]
 								.getCurrentExecutionAttempt();
 
-						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap);
+						currentExecutionAttempt.setInitialState(state, null);
 					}
 				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
@@ -259,6 +256,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				savepointRestorePath = savepointPath;
 			}
 		}
+
 	}
 
 	// ------------------------------------------------------------------------
@@ -301,7 +299,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 		}
 
 		try {
-			Savepoint savepoint = new SavepointV0(
+			Savepoint savepoint = new SavepointV1(
 					checkpoint.getCheckpointID(),
 					checkpoint.getTaskStates().values());
 			String path = savepointStore.storeSavepoint(savepoint);

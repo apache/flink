@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -44,9 +44,8 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -156,7 +155,7 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 		ClassLoader classLoader = CassandraConnectorTest.class.getClassLoader();
 		File file = new File(classLoader.getResource("cassandra.yaml").getFile());
 		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
-		
+
 		assertTrue(tmp.createNewFile());
 		BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
 
@@ -194,7 +193,7 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 
 	@Before
 	public void checkIfIgnore() {
-		
+
 	}
 
 	@After
@@ -245,8 +244,7 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 
 	@Override
 	protected void verifyResultsIdealCircumstances(
-		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
-		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
+		OneInputStreamOperatorTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
@@ -263,8 +261,7 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 
 	@Override
 	protected void verifyResultsDataPersistenceUponMissedNotify(
-		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
-		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
+		OneInputStreamOperatorTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
@@ -281,8 +278,7 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 
 	@Override
 	protected void verifyResultsDataDiscardingUponRestore(
-		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
-		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
+		OneInputStreamOperatorTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);

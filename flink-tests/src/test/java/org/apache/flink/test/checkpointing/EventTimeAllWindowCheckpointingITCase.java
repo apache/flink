@@ -162,7 +162,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env

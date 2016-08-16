@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.junit.Test;
 
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.util.Random;
@@ -50,14 +51,14 @@ public class FsCheckpointStateOutputStreamTest {
 	public void testEmptyState() throws Exception {
 		AbstractStateBackend.CheckpointStateOutputStream stream = new FsStateBackend.FsCheckpointStateOutputStream(
 			TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
-		
+
 		StreamStateHandle handle = stream.closeAndGetHandle();
 		assertTrue(handle instanceof ByteStreamStateHandle);
-		
-		InputStream inStream = handle.getState(ClassLoader.getSystemClassLoader());
+
+		InputStream inStream = handle.openInputStream();
 		assertEquals(-1, inStream.read());
 	}
-	
+
 	@Test
 	public void testStateBlowMemThreshold() throws Exception {
 		runTest(222, 999, 512, false);
@@ -106,7 +107,7 @@ public class FsCheckpointStateOutputStreamTest {
 
 		StreamStateHandle handle = stream.closeAndGetHandle();
 		if (expectFile) {
-			assertTrue(handle instanceof FileStreamStateHandle);
+			assertTrue(handle instanceof FileStateHandle);
 		} else {
 			assertTrue(handle instanceof ByteStreamStateHandle);
 		}
@@ -114,15 +115,14 @@ public class FsCheckpointStateOutputStreamTest {
 		// make sure the writing process did not alter the original byte array
 		assertArrayEquals(original, bytes);
 
-		InputStream inStream = handle.getState(ClassLoader.getSystemClassLoader());
+		InputStream inStream = handle.openInputStream();
 		byte[] validation = new byte[bytes.length];
-		int bytesRead = inStream.read(validation);
 
-		assertEquals(numBytes, bytesRead);
-		assertEquals(-1, inStream.read());
+		DataInputStream dataInputStream = new DataInputStream(inStream);
+		dataInputStream.readFully(validation);
 
 		assertArrayEquals(bytes, validation);
-		
+
 		handle.discardState();
 	}
 }

@@ -512,7 +512,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
   private def isPartitioned(edges: java.util.List[StreamEdge]): Boolean = {
     import scala.collection.JavaConverters._
-    edges.asScala.forall( _.getPartitioner.isInstanceOf[HashPartitioner[_]])
+    edges.asScala.forall( _.getPartitioner.isInstanceOf[KeyGroupStreamPartitioner[_, _]])
   }
 
   private def isCustomPartitioned(edges: java.util.List[StreamEdge]): Boolean = {

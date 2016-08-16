@@ -18,39 +18,53 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.util.MathUtils;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Partitioner selects the target channel based on the hash value of a key from a
- * {@link KeySelector}.
+ * Partitioner selects the target channel based on the key group index. The key group
+ * index is derived from the key of the elements using the {@link KeyGroupAssigner}.
  *
  * @param <T> Type of the elements in the Stream being partitioned
  */
 @Internal
-public class HashPartitioner<T> extends StreamPartitioner<T> {
+public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implements ConfigurableStreamPartitioner {
 	private static final long serialVersionUID = 1L;
 
-	private int[] returnArray = new int[1];
-	KeySelector<T, ?> keySelector;
+	private final int[] returnArray = new int[1];
 
-	public HashPartitioner(KeySelector<T, ?> keySelector) {
-		this.keySelector = keySelector;
+	private final KeySelector<T, K> keySelector;
+
+	private final KeyGroupAssigner<K> keyGroupAssigner;
+
+	public KeyGroupStreamPartitioner(KeySelector<T, K> keySelector, KeyGroupAssigner<K> keyGroupAssigner) {
+		this.keySelector = Preconditions.checkNotNull(keySelector);
+		this.keyGroupAssigner = Preconditions.checkNotNull(keyGroupAssigner);
+	}
+
+	public KeyGroupAssigner<K> getKeyGroupAssigner() {
+		return keyGroupAssigner;
 	}
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
-		Object key;
+	public int[] selectChannels(
+		SerializationDelegate<StreamRecord<T>> record,
+		int numberOfOutputChannels) {
+
+		K key;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
 		}
-		returnArray[0] = MathUtils.murmurHash(key.hashCode()) % numberOfOutputChannels;
-
+		returnArray[0] = KeyGroupRange.computeOperatorIndexForKeyGroup(
+				keyGroupAssigner.getNumberKeyGroups(),
+				numberOfOutputChannels,
+				keyGroupAssigner.getKeyGroupIndex(key));
 		return returnArray;
 	}
 
@@ -62,5 +76,10 @@ public class HashPartitioner<T> extends StreamPartitioner<T> {
 	@Override
 	public String toString() {
 		return "HASH";
+	}
+
+	@Override
+	public void configure(int maxParallelism) {
+		keyGroupAssigner.setup(maxParallelism);
 	}
 }
