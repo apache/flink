@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.filesystem.FileSerializableStateHandle;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.runtime.zookeeper.StateStorageHelper;
 
@@ -64,6 +65,7 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Sta
 			FSDataOutputStream outStream;
 			try {
 				outStream = fs.create(filePath, false);
+				outStream.close();
 			}
 			catch (Exception e) {
 				latestException = e;
@@ -72,6 +74,7 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Sta
 
 			try(ObjectOutputStream os = new ObjectOutputStream(outStream)) {
 				os.writeObject(state);
+				os.close();
 			}
 
 			return new FileSerializableStateHandle<>(filePath);

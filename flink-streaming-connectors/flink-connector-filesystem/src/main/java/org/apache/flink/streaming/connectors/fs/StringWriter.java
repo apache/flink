@@ -77,6 +77,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 		FSDataOutputStream outputStream = getStream();
 		outputStream.write(element.toString().getBytes(charset));
 		outputStream.write('\n');
+		outputStream.close();
 	}
 
 	@Override
