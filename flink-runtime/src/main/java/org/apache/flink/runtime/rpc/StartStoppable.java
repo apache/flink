@@ -16,10 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.taskexecutor;
+package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.util.TestLogger;
+/**
+ * Interface to start and stop the processing of rpc calls in the rpc server.
+ */
+public interface StartStoppable {
 
-public class TaskExecutorTest extends TestLogger {
-	
+	/**
+	 * Starts the processing of remote procedure calls.
+	 */
+	void start();
+
+	/**
+	 * Stops the processing of remote procedure calls.
+	 */
+	void stop();
 }

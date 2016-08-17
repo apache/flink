@@ -20,12 +20,15 @@ package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorRef;
 import akka.actor.Status;
-import akka.actor.UntypedActor;
+import akka.actor.UntypedActorWithStash;
+import akka.japi.Procedure;
 import akka.pattern.Patterns;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.akka.messages.CallAsync;
+import org.apache.flink.runtime.rpc.akka.messages.LocalRpcInvocation;
+import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 
@@ -35,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -42,19 +46,24 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Akka rpc actor which receives {@link RpcInvocation}, {@link RunAsync} and {@link CallAsync}
- * messages.
+ * Akka rpc actor which receives {@link LocalRpcInvocation}, {@link RunAsync} and {@link CallAsync}
+ * {@link Processing} messages.
  * <p>
- * The {@link RpcInvocation} designates a rpc and is dispatched to the given {@link RpcEndpoint}
+ * The {@link LocalRpcInvocation} designates a rpc and is dispatched to the given {@link RpcEndpoint}
  * instance.
  * <p>
  * The {@link RunAsync} and {@link CallAsync} messages contain executable code which is executed
  * in the context of the actor thread.
+ * <p>
+ * The {@link Processing} message controls the processing behaviour of the akka rpc actor. A
+ * {@link Processing#START} message unstashes all stashed messages and starts processing incoming
+ * messages. A {@link Processing#STOP} message stops processing messages and stashes incoming
+ * messages.
  *
  * @param <C> Type of the {@link RpcGateway} associated with the {@link RpcEndpoint}
  * @param <T> Type of the {@link RpcEndpoint}
  */
-class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends UntypedActor {
+class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends UntypedActorWithStash {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActor.class);
 
@@ -71,6 +80,27 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 
 	@Override
 	public void onReceive(final Object message) {
+		if (message.equals(Processing.START)) {
+			unstashAll();
+			getContext().become(new Procedure<Object>() {
+				@Override
+				public void apply(Object message) throws Exception {
+					if (message.equals(Processing.STOP)) {
+						getContext().unbecome();
+					} else {
+						handleMessage(message);
+					}
+				}
+			});
+		} else {
+			LOG.info("The rpc endpoint {} has not been started yet. Stashing message {} until processing is started.",
+				rpcEndpoint.getClass().getName(),
+				message.getClass().getName());
+			stash();
+		}
+	}
+
+	private void handleMessage(Object message) {
 		mainThreadValidator.enterMainThread();
 		try {
 			if (message instanceof RunAsync) {
@@ -80,7 +110,10 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 			} else if (message instanceof RpcInvocation) {
 				handleRpcInvocation((RpcInvocation) message);
 			} else {
-				LOG.warn("Received message of unknown type {}. Dropping this message!", message.getClass());
+				LOG.warn(
+					"Received message of unknown type {} with value {}. Dropping this message!",
+					message.getClass().getName(),
+					message);
 			}
 		} finally {
 			mainThreadValidator.exitMainThread();
@@ -95,15 +128,12 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	 * @param rpcInvocation Rpc invocation message
 	 */
 	private void handleRpcInvocation(RpcInvocation rpcInvocation) {
-		Method rpcMethod = null;
-
 		try {
-			rpcMethod = lookupRpcMethod(rpcInvocation.getMethodName(), rpcInvocation.getParameterTypes());
-		} catch (final NoSuchMethodException e) {
-			LOG.error("Could not find rpc method for rpc invocation: {}.", rpcInvocation, e);
-		}
+			String methodName = rpcInvocation.getMethodName();
+			Class<?>[] parameterTypes = rpcInvocation.getParameterTypes();
 
-		if (rpcMethod != null) {
+			Method rpcMethod = lookupRpcMethod(methodName, parameterTypes);
+
 			if (rpcMethod.getReturnType().equals(Void.TYPE)) {
 				// No return value to send back
 				try {
@@ -127,6 +157,12 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 					getSender().tell(new Status.Failure(e), getSelf());
 				}
 			}
+		} catch(ClassNotFoundException e) {
+			LOG.error("Could not load method arguments.", e);
+		} catch (IOException e) {
+			LOG.error("Could not deserialize rpc invocation message.", e);
+		} catch (final NoSuchMethodException e) {
+			LOG.error("Could not find rpc method for rpc invocation: {}.", rpcInvocation, e);
 		}
 	}
 
@@ -195,7 +231,8 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	 * @param methodName Name of the method
 	 * @param parameterTypes Parameter types of the method
 	 * @return Method of the rpc endpoint
-	 * @throws NoSuchMethodException
+	 * @throws NoSuchMethodException Thrown if the method with the given name and parameter types
+	 * 									cannot be found at the rpc endpoint
 	 */
 	private Method lookupRpcMethod(final String methodName, final Class<?>[] parameterTypes) throws NoSuchMethodException {
 		return rpcEndpoint.getClass().getMethod(methodName, parameterTypes);

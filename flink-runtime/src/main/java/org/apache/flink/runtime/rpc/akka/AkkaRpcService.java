@@ -34,18 +34,22 @@ import org.apache.flink.runtime.rpc.MainThreadExecutor;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-
+import org.apache.flink.runtime.rpc.StartStoppable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -58,17 +62,27 @@ public class AkkaRpcService implements RpcService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcService.class);
 
+	static final String MAXIMUM_FRAME_SIZE_PATH = "akka.remote.netty.tcp.maximum-frame-size";
+
 	private final Object lock = new Object();
 
 	private final ActorSystem actorSystem;
 	private final Timeout timeout;
 	private final Set<ActorRef> actors = new HashSet<>(4);
+	private final long maximumFramesize;
 
 	private volatile boolean stopped;
 
 	public AkkaRpcService(final ActorSystem actorSystem, final Timeout timeout) {
 		this.actorSystem = checkNotNull(actorSystem, "actor system");
 		this.timeout = checkNotNull(timeout, "timeout");
+
+		if (actorSystem.settings().config().hasPath(MAXIMUM_FRAME_SIZE_PATH)) {
+			maximumFramesize = actorSystem.settings().config().getBytes(MAXIMUM_FRAME_SIZE_PATH);
+		} else {
+			// only local communication
+			maximumFramesize = Long.MAX_VALUE;
+		}
 	}
 
 	// this method does not mutate state and is thus thread-safe
@@ -88,11 +102,16 @@ public class AkkaRpcService implements RpcService {
 			public C apply(Object obj) {
 				ActorRef actorRef = ((ActorIdentity) obj).getRef();
 
-				InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout);
+				InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout, maximumFramesize);
 
+				// Rather than using the System ClassLoader directly, we derive the ClassLoader
+				// from this class . That works better in cases where Flink runs embedded and all Flink
+				// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
+				ClassLoader classLoader = AkkaRpcService.this.getClass().getClassLoader();
+				
 				@SuppressWarnings("unchecked")
 				C proxy = (C) Proxy.newProxyInstance(
-					ClassLoader.getSystemClassLoader(),
+					classLoader,
 					new Class<?>[] {clazz},
 					akkaInvocationHandler);
 
@@ -116,7 +135,7 @@ public class AkkaRpcService implements RpcService {
 
 		LOG.info("Starting RPC endpoint for {} at {} .", rpcEndpoint.getClass().getName(), actorRef.path());
 
-		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout);
+		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout, maximumFramesize);
 
 		// Rather than using the System ClassLoader directly, we derive the ClassLoader
 		// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -126,7 +145,11 @@ public class AkkaRpcService implements RpcService {
 		@SuppressWarnings("unchecked")
 		C self = (C) Proxy.newProxyInstance(
 			classLoader,
-			new Class<?>[]{rpcEndpoint.getSelfGatewayType(), MainThreadExecutor.class, AkkaGateway.class},
+			new Class<?>[]{
+				rpcEndpoint.getSelfGatewayType(),
+				MainThreadExecutor.class,
+				StartStoppable.class,
+				AkkaGateway.class},
 			akkaInvocationHandler);
 
 		return self;
@@ -142,12 +165,12 @@ public class AkkaRpcService implements RpcService {
 				if (stopped) {
 					return;
 				} else {
-					fromThisService = actors.remove(akkaClient.getRpcServer());
+					fromThisService = actors.remove(akkaClient.getRpcEndpoint());
 				}
 			}
 
 			if (fromThisService) {
-				ActorRef selfActorRef = akkaClient.getRpcServer();
+				ActorRef selfActorRef = akkaClient.getRpcEndpoint();
 				LOG.info("Stopping RPC endpoint {}.", selfActorRef.path());
 				selfActorRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
 			} else {
@@ -178,11 +201,25 @@ public class AkkaRpcService implements RpcService {
 		checkState(!stopped, "RpcService is stopped");
 
 		if (selfGateway instanceof AkkaGateway) {
-			ActorRef actorRef = ((AkkaGateway) selfGateway).getRpcServer();
+			ActorRef actorRef = ((AkkaGateway) selfGateway).getRpcEndpoint();
 			return AkkaUtils.getAkkaURL(actorSystem, actorRef);
 		} else {
 			String className = AkkaGateway.class.getName();
 			throw new IllegalArgumentException("Cannot get address for non " + className + '.');
 		}
+	}
+
+	@Override
+	public ExecutionContext getExecutionContext() {
+		return actorSystem.dispatcher();
+	}
+
+	@Override
+	public void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
+		checkNotNull(runnable, "runnable");
+		checkNotNull(unit, "unit");
+		checkArgument(delay >= 0, "delay must be zero or larger");
+
+		actorSystem.scheduler().scheduleOnce(new FiniteDuration(delay, unit), runnable, getExecutionContext());
 	}
 }

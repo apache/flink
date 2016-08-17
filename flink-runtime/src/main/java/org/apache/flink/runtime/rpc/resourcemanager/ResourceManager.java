@@ -23,6 +23,8 @@ import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -32,7 +34,9 @@ import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.rpc.taskexecutor.SlotAllocationResponse;
 import org.apache.flink.runtime.rpc.taskexecutor.SlotReport;
 import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.Preconditions;
+
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
 import scala.concurrent.Future;
@@ -77,8 +81,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	@RpcMethod
 	public Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration) {
 		Future<JobMasterGateway> jobMasterFuture = getRpcService().connect(
-			jobMasterRegistration.getAddress(),
-			JobMasterGateway.class);
+			jobMasterRegistration.getAddress(), JobMasterGateway.class);
 
 		return jobMasterFuture.map(new Mapper<JobMasterGateway, RegistrationResponse>() {
 			@Override
@@ -111,28 +114,30 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 
 
 	/**
-	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
-	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
-	 * @param resourceID              The resource ID of the TaskExecutor that registers
-	 * @param slotReport              The report describing available and allocated slots
+	 *
+	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
+	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
+	 * @param resourceID               The resource ID of the TaskExecutor that registers
+	 *
 	 * @return The response by the ResourceManager.
 	 */
 	@RpcMethod
-	public Future<TaskExecutorRegistrationResponse> registerTaskExecutor(
+	public org.apache.flink.runtime.rpc.registration.RegistrationResponse registerTaskExecutor(
 		UUID resourceManagerLeaderId,
 		String taskExecutorAddress,
-		final ResourceID resourceID,
-		SlotReport slotReport) {
+		final ResourceID resourceID) {
 		Future<TaskExecutorGateway> taskExecutorFuture =
 			getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
 
-		return taskExecutorFuture.map(new Mapper<TaskExecutorGateway, TaskExecutorRegistrationResponse>() {
+		taskExecutorFuture.onSuccess(new OnSuccess<TaskExecutorGateway>() {
 			@Override
-			public TaskExecutorRegistrationResponse apply(final TaskExecutorGateway taskExecutorGateway) {
+			public void onSuccess(TaskExecutorGateway taskExecutorGateway) throws Throwable {
 				taskExecutorGateways.put(resourceID, taskExecutorGateway);
-				return new TaskExecutorRegistrationResponse.Decline("");
 			}
 		}, getMainThreadExecutionContext());
+
+		return new TaskExecutorRegistrationSuccess(new InstanceID(), 5000);
+
 	}
 
 	/**
@@ -140,7 +145,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	 * @param slotRequest slot request information
 	 * @param slotID which slot is choosen
 	 */
-	@RpcMethod
+
 	public void sendRequestSlotToTaskManager(final SlotRequest slotRequest, final SlotID slotID) {
 		ResourceID resourceID = slotID.getResourceID();
 		TaskExecutorGateway te = taskExecutorGateways.get(resourceID);
@@ -166,6 +171,5 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 			}, getMainThreadExecutionContext());
 		}
 	}
-
 
 }

@@ -36,6 +36,7 @@ public final class RunAsync implements Serializable {
 	private final long delay;
 
 	/**
+	 * Creates a new {@code RunAsync} message.
 	 * 
 	 * @param runnable  The Runnable to run.
 	 * @param delay     The delay in milliseconds. Zero indicates immediate execution.

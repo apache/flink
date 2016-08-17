@@ -16,10 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.taskexecutor;
+package org.apache.flink.runtime.clusterframework.types;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.AbstractID;
 
-public class TaskExecutorTest extends TestLogger {
-	
+/**
+ * Unique identifier for the attempt to allocate a slot, normally created by JobManager when requesting a slot,
+ * constant across re-tries. This can also be used to identify responses by the ResourceManager and to identify
+ * deployment calls towards the TaskManager that was allocated from.
+ */
+public class AllocationID extends AbstractID {
+
+	private static final long serialVersionUID = 1L;
+
 }

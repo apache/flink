@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.taskexecutor;
+package org.apache.flink.runtime.rpc.akka.messages;
 
-import org.apache.flink.util.TestLogger;
-
-public class TaskExecutorTest extends TestLogger {
-	
+/**
+ * Controls the processing behaviour of the {@link org.apache.flink.runtime.rpc.akka.AkkaRpcActor}
+ */
+public enum Processing {
+	START, // Unstashes all stashed messages and starts processing incoming messages
+	STOP // Stop processing messages and stashes all incoming messages
 }

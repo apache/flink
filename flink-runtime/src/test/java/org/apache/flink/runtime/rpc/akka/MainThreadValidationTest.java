@@ -27,13 +27,14 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
 
-public class MainThreadValidationTest {
+public class MainThreadValidationTest extends TestLogger {
 
 	@Test
 	public void failIfNotInMainThread() {
@@ -51,6 +52,7 @@ public class MainThreadValidationTest {
 
 		try {
 			TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService);
+			testEndpoint.start();
 
 			// this works, because it is executed as an RPC call
 			testEndpoint.getSelf().someConcurrencyCriticalFunction();

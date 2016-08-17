@@ -20,6 +20,11 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import java.io.Serializable;
 
+/**
+ * Describe the resource profile of the slot, either when requiring or offering it. The profile can be
+ * checked whether it can match another profile's requirement, and furthermore we may calculate a matching
+ * score to decide which profile we should choose when we have lots of candidate slots.
+ */
 public class ResourceProfile implements Serializable {
 
 	private static final long serialVersionUID = -784900073893060124L;
@@ -36,28 +41,42 @@ public class ResourceProfile implements Serializable {
 	}
 
 	/**
+	 * Get the cpu cores needed
+	 * @return The cpu cores, 1.0 means a full cpu thread
+	 */
+	public double getCpuCores() {
+		return cpuCores;
+	}
+
+	/**
+	 * Get the memory needed in MB
+	 * @return The memory in MB
+	 */
+	public long getMemoryInMB() {
+		return memoryInMB;
+	}
+
+	/**
 	 * Check whether required resource profile can be matched
 	 *
 	 * @param required the required resource profile
 	 * @return true if the requirement is matched, otherwise false
 	 */
-	public boolean matchRequirement(ResourceProfile required) {
-		return Double.compare(cpuCores, required.cpuCores) >= 0 &&
-		       memoryInMB >= required.memoryInMB;
+	public boolean isMatching(ResourceProfile required) {
+		return Double.compare(cpuCores, required.getCpuCores()) >= 0 && memoryInMB >= required.getMemoryInMB();
 	}
-
 	/**
-	 * return the matched degree of currrent profile with the request profile
+	 * return the matched degree of current profile with the request profile
 	 *
-	 * @param request
+	 * @param required the required resource profile
 	 * @return if current profile not match request profile, return 0
 	 * else return the degree , the bigger the better
 	 */
-	public double matchDegree(ResourceProfile request) {
-		if (!matchRequirement(request)) {
+	public double matchDegree(ResourceProfile required) {
+		if (!isMatching(required)) {
 			return 0;
 		} else {
-			return request.cpuCores / cpuCores + request.memoryInMB / memoryInMB;
+			return required.getCpuCores() / cpuCores + required.getMemoryInMB() / memoryInMB;
 		}
 	}
 }
