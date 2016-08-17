@@ -96,7 +96,7 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
 
   // Stores the weights of the linear model after the fitting phase
   var weightsOption: Option[DataSet[WeightVector]] = None
-
+  
   def setIterations(iterations: Int): MultipleLinearRegression = {
     parameters.add(Iterations, iterations)
     this
@@ -116,6 +116,16 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
       learningRateMethod: LearningRateMethodTrait)
     : MultipleLinearRegression = {
     parameters.add(LearningRateMethodValue, learningRateMethod)
+    this
+  }
+
+  def setWarmStart(warmStart: Boolean): MultipleLinearRegression = {
+    parameters.add(WarmStart, warmStart)
+    this
+  }
+
+  def setOptimizer(optimizer: IterativeSolver): MultipleLinearRegression = {
+    parameters.add(Optimizer, optimizer)
     this
   }
 
@@ -162,6 +172,13 @@ object MultipleLinearRegression {
     val defaultValue = None
   }
 
+  case object WarmStart extends Parameter[Boolean] {
+    val defaultValue = Some(false)
+  }
+
+  case object Optimizer extends Parameter[IterativeSolver] {
+    val defaultValue = None
+  }
   // ======================================== Factory methods ======================================
 
   def apply(): MultipleLinearRegression = {
@@ -187,13 +204,17 @@ object MultipleLinearRegression {
       val stepsize = map(Stepsize)
       val convergenceThreshold = map.get(ConvergenceThreshold)
       val learningRateMethod = map.get(LearningRateMethodValue)
-
+      val warmStart = map.get(WarmStart).get
       val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-      val optimizer = SimpleGradientDescent()
-        .setIterations(numberOfIterations)
-        .setStepsize(stepsize)
-        .setLossFunction(lossFunction)
+      val optimizer = map.get(Optimizer) match {
+        case None => SimpleGradientDescent()
+          .setIterations(numberOfIterations)
+          .setStepsize(stepsize)
+          .setLossFunction(lossFunction)
+          .setWarmStart(warmStart)
+        case Some(opt) => opt
+      }
 
       convergenceThreshold match {
         case Some(threshold) => optimizer.setConvergenceThreshold(threshold)
@@ -205,7 +226,7 @@ object MultipleLinearRegression {
         case None =>
       }
 
-      instance.weightsOption = Some(optimizer.optimize(input, None))
+      instance.weightsOption = Some(optimizer.optimize(input, instance.weightsOption))
     }
   }
 
