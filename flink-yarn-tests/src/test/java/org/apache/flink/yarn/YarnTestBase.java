@@ -18,9 +18,13 @@
 
 package org.apache.flink.yarn;
 
+import akka.actor.Identify;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
@@ -43,10 +47,14 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
+import org.mockito.verification.VerificationMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
+import scala.concurrent.Await;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -61,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 
@@ -562,28 +571,49 @@ public abstract class YarnTestBase extends TestLogger {
 
 		@Override
 		public void run() {
-			switch(type) {
-				case YARN_SESSION:
-					yCli = new FlinkYarnSessionCli("", "", false);
-					returnValue = yCli.run(args);
-					break;
-				case CLI_FRONTEND:
-					try {
-						CliFrontend cli = new CliFrontend();
-						returnValue = cli.parseParameters(args);
-					} catch (Exception e) {
-						throw new RuntimeException(e);
-					}
-					break;
-				default:
-					throw new RuntimeException("Unknown type " + type);
-			}
+			try {
+				switch (type) {
+					case YARN_SESSION:
+						yCli = new FlinkYarnSessionCli("", "", false);
+						returnValue = yCli.run(args);
+						break;
+					case CLI_FRONTEND:
+						TestingCLI cli;
+						try {
+							cli = new TestingCLI();
+							returnValue = cli.parseParameters(args);
+						} catch (Exception e) {
+							throw new RuntimeException("Failed to execute the following args with CliFrontend: "
+								+ Arrays.toString(args), e);
+						}
 
-			if(returnValue != 0) {
-				Assert.fail("The YARN session returned with non-null value="+returnValue);
+						final ClusterClient client = cli.getClusterClient();
+						try {
+							// check if the JobManager is still alive after running the job
+							final FiniteDuration finiteDuration = new FiniteDuration(10, TimeUnit.SECONDS);
+							ActorGateway jobManagerGateway = client.getJobManagerGateway();
+							Await.ready(jobManagerGateway.ask(new Identify(true), finiteDuration), finiteDuration);
+						} catch (Exception e) {
+							throw new RuntimeException("It seems like the JobManager died although it should still be alive");
+						}
+						// verify we would have shut down anyways and then shutdown
+						Mockito.verify(cli.getSpiedClusterClient()).shutdown();
+						client.shutdown();
+
+						break;
+					default:
+						throw new RuntimeException("Unknown type " + type);
+				}
+
+				if (returnValue != 0) {
+					Assert.fail("The YARN session returned with non-null value=" + returnValue);
+				}
+			} catch (Throwable t) {
+				Assert.fail(t.getMessage());
 			}
 		}
 
+		/** Stops the Yarn session */
 		public void sendStop() {
 			if(yCli != null) {
 				yCli.stop();
@@ -623,4 +653,30 @@ public abstract class YarnTestBase extends TestLogger {
 		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
 	}
 
+	private static class TestingCLI extends CliFrontend {
+
+		private ClusterClient originalClusterClient;
+		private ClusterClient spiedClusterClient;
+
+		public TestingCLI() throws Exception {}
+
+		@Override
+		protected ClusterClient createClient(CommandLineOptions options, String programName) throws Exception {
+			// mock the returned ClusterClient to disable shutdown and verify shutdown behavior later on
+			originalClusterClient = super.createClient(options, programName);
+			spiedClusterClient = Mockito.spy(originalClusterClient);
+			Mockito.doNothing().when(spiedClusterClient).shutdown();
+			return spiedClusterClient;
+		}
+
+		public ClusterClient getClusterClient() {
+			return originalClusterClient;
+		}
+
+		public ClusterClient getSpiedClusterClient() {
+			return spiedClusterClient;
+		}
+
+
+	}
 }
