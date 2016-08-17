@@ -838,6 +838,7 @@ under the License.
 						<exclude>docs/**/bootstrap*</exclude>
 						<exclude>docs/Gemfile.lock</exclude>
 						<exclude>docs/img/*.svg</exclude>
+						<exclude>**/docs/page/font-awesome/**</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>

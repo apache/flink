@@ -1,8 +1,8 @@
 ---
 title: "JobManager High Availability (HA)"
-top-nav-group: deployment
-top-nav-title: High Availability
-top-nav-pos: 6
+nav-title: High Availability (HA)
+nav-parent_id: setup
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,7 +38,7 @@ The general idea of JobManager high availability for standalone clusters is that
 
 As an example, consider the following setup with three JobManager instances:
 
-<img src="fig/jobmanager_ha_overview.png" class="center" />
+<img src="{{ site.baseurl }}/fig/jobmanager_ha_overview.png" class="center" />
 
 ### Configuration
 
@@ -80,9 +80,9 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
 - **ZooKeeper namespace** (recommended): The *namespace ZooKeeper node*, under which all required coordination data for a cluster is placed.
 
-  <pre>recovery.zookeeper.path.namespace: /default_ns # important: customize per cluster</pre> 
+  <pre>recovery.zookeeper.path.namespace: /default_ns # important: customize per cluster</pre>
 
-  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate namespaces for each cluster. By default, the Yarn cluster and the Yarn session automatically generate namespaces based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a namespace with the -z CLI option, in turn, overrides manual configuration. 
+  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate namespaces for each cluster. By default, the Yarn cluster and the Yarn session automatically generate namespaces based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a namespace with the -z CLI option, in turn, overrides manual configuration.
 
 - **State backend and storage directory** (required): JobManager meta data is persisted in the *state backend* and only a pointer to this state is stored in ZooKeeper. Currently, only the file system state backend is supported in HA mode.
 
