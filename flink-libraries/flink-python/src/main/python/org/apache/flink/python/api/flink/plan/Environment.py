@@ -219,15 +219,21 @@ class Environment(object):
         dual_input = set([_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT, _Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST, _Identifier.COGROUP, _Identifier.UNION])
         x = len(self._sets) - 1
         while x > -1:
+            # CHAIN(parent -> child) -> grand_child
+            # for all intents and purposes the child set ceases to exist; it is merged into the parent
             child = self._sets[x]
             child_type = child.identifier
             if child_type in chainable:
                 parent = child.parent
+                # we can only chain to an actual python udf (=> operator is not None)
+                # we may only chain if the parent has only 1 child
                 if parent.operator is not None and len(parent.children) == 1 and len(parent.sinks) == 0:
                     parent.chained_info = child
                     parent.name += " -> " + child.name
                     parent.types = child.types
+                    # grand_children now belong to the parent
                     for grand_child in child.children:
+                        # dual_input operations have 2 parents; hence we have to change the correct one
                         if grand_child.identifier in dual_input:
                             if grand_child.parent.id == child.id:
                                 grand_child.parent = parent
@@ -235,15 +241,18 @@ class Environment(object):
                                 grand_child.other = parent
                         else:
                             grand_child.parent = parent
-                            parent.children.append(grand_child)
-                    parent.children.remove(child)
+                        parent.children.append(grand_child)
+                    # child sinks now belong to the parent
                     for sink in child.sinks:
                         sink.parent = parent
                         parent.sinks.append(sink)
+                    # child broadcast variables now belong to the parent
                     for bcvar in child.bcvars:
                         bcvar.parent = parent
                         parent.bcvars.append(bcvar)
-                    self._remove_set((child))
+                    # remove child set as it has been merged into the parent
+                    parent.children.remove(child)
+                    self._remove_set(child)
             x -= 1
 
     def _remove_set(self, set):
