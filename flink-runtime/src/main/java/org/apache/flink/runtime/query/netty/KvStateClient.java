@@ -46,6 +46,7 @@ import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -195,7 +196,7 @@ public class KvStateClient {
 			if (bootstrap != null) {
 				EventLoopGroup group = bootstrap.group();
 				if (group != null) {
-					group.shutdownGracefully();
+					group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
 				}
 			}
 		}

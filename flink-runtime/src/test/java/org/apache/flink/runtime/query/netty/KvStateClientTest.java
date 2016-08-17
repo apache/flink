@@ -44,7 +44,6 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemValueState;
 import org.apache.flink.util.NetUtils;
 import org.junit.AfterClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -516,7 +515,6 @@ public class KvStateClientTest {
 	 * that all ongoing requests are failed.
 	 */
 	@Test
-	@Ignore
 	public void testClientServerIntegration() throws Exception {
 		// Config
 		final int numServers = 2;

@@ -29,7 +29,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import io.netty.util.concurrent.Future;
 import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateServerAddress;
@@ -180,12 +179,7 @@ public class KvStateServer {
 		if (bootstrap != null) {
 			EventLoopGroup group = bootstrap.group();
 			if (group != null) {
-				Future<?> shutDownFuture = group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
-				try {
-					shutDownFuture.await();
-				} catch (InterruptedException e) {
-					LOG.error("Interrupted during shut down", e);
-				}
+				group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
 			}
 		}
 
