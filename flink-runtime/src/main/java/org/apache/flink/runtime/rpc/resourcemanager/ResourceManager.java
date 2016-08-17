@@ -145,7 +145,6 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	 * @param slotRequest slot request information
 	 * @param slotID which slot is choosen
 	 */
-
 	public void sendRequestSlotToTaskManager(final SlotRequest slotRequest, final SlotID slotID) {
 		ResourceID resourceID = slotID.getResourceID();
 		TaskExecutorGateway te = taskExecutorGateways.get(resourceID);
@@ -172,4 +171,14 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 		}
 	}
 
+	public void syncWithTaskManagerSlotReport(SlotReport slotReport) {
+		slotManager.syncWithTaskManagerSlotReport(slotReport);
+	}
+
+
+	public void taskManagerFailed(ResourceID resourceID) {
+		// TODO remove task executor from active taskExecutors, notify slotManager and notify jobMaster,
+		taskExecutorGateways.remove(resourceID);
+		slotManager.cleanSlotsOnFailedTaskManager(resourceID);
+	}
 }

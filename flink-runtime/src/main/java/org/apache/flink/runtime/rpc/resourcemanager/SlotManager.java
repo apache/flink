@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc.resourcemanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.rpc.taskexecutor.SlotReport;
@@ -44,6 +45,22 @@ public abstract class SlotManager {
 	}
 
 	/**
+	 * sync the inner allocated slots and avilable slots with the task manager slot allocation report
+	 * @param slotReport slot allocation report from taskManager
+   */
+	public void syncWithTaskManagerSlotReport(SlotReport slotReport) {
+		// TODO
+	}
+
+	/**
+	 * remove the slots on the failed taskManager
+	 * @param resourceID
+   */
+	public void cleanSlotsOnFailedTaskManager(ResourceID resourceID) {
+		// TODO
+	}
+
+	/**
 	 * request new slot from slotManager
 	 *
 	 * @param slotRequest
@@ -53,7 +70,7 @@ public abstract class SlotManager {
 	public boolean requestSlot(SlotRequest slotRequest) {
 		SlotID slotID = fetchAndOccupySlotIfMatched(slotRequest);
 		if (slotID != null) {
-			resourceManager.getSelf().sendRequestSlotToTaskManager(slotRequest, slotID);
+			resourceManager.sendRequestSlotToTaskManager(slotRequest, slotID);
 			return true;
 		} else {
 			handleNoAvailableSlotForSlotRequest(slotRequest);
@@ -75,7 +92,7 @@ public abstract class SlotManager {
 		}
 		SlotRequest request = offerSlotForPendingRequestIfMatched(slotID, profile);
 		if (request != null) {
-			resourceManager.getSelf().sendRequestSlotToTaskManager(request, slotID);
+			resourceManager.sendRequestSlotToTaskManager(request, slotID);
 			return true;
 		} else {
 			// cannot find match pending request for the offered slot
