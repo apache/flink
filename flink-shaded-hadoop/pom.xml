@@ -38,6 +38,15 @@ under the License.
 		<module>${shading-artifact.name}</module>
 	</modules>
 
+	<dependencies>
+		<!-- Flink already includes JSR 305. Setting this to provided excludes it from the dependencies-->
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>jsr305</artifactId>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
 	<profiles>
 		<profile>
 			<id>include-yarn-tests</id>
