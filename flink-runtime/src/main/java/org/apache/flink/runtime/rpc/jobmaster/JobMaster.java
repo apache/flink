@@ -21,7 +21,14 @@ package org.apache.flink.runtime.rpc.jobmaster;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.resourcemanager.JobMasterRegistration;
@@ -30,6 +37,7 @@ import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.Preconditions;
 import scala.Tuple2;
 import scala.concurrent.ExecutionContext;
@@ -39,11 +47,7 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single
@@ -57,7 +61,7 @@ import java.util.concurrent.TimeoutException;
  * given task</li>
  * </ul>
  */
-public class JobMaster extends RpcEndpoint<JobMasterGateway> {
+public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderContender {
 	/** Execution context for future callbacks */
 	private final ExecutionContext executionContext;
 
@@ -75,15 +79,126 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** UUID to filter out old registration runs */
 	private UUID currentRegistrationRun;
 
-	public JobMaster(RpcService rpcService, ExecutorService executorService) {
+	/** Configuration of the job */
+	private Configuration configuration;
+	private RecoveryMode recoveryMode;
+
+	/** Leader Management */
+	private LeaderElectionService leaderElectionService = null;
+	private UUID leaderSessionID;
+
+	public JobMaster(Configuration configuration, RpcService rpcService, ExecutorService executorService) {
 		super(rpcService);
-		executionContext = ExecutionContext$.MODULE$.fromExecutor(
+
+		this.configuration = configuration;
+		this.executionContext = ExecutionContext$.MODULE$.fromExecutor(
 			Preconditions.checkNotNull(executorService));
-		scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
+		this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
+
+		// Create necessary components
+		createRecoveryComponents();
+
+		// Start the leadership election service
+		try {
+			this.leaderElectionService.start(this);
+		} catch (Exception e) {
+			throw new RuntimeException("Fail to start the leader election service.", e);
+		}
 	}
 
 	public ResourceManagerGateway getResourceManager() {
 		return resourceManager;
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// Initialization methods
+	//----------------------------------------------------------------------------------------------
+
+	/*
+	 * Create recovery related components, including:
+	 * (1) LeaderSelectionService: leadership management among JobMasters
+	 * ...
+	 */
+	public void createRecoveryComponents() {
+		recoveryMode = RecoveryMode.fromConfig(configuration);
+
+		switch (recoveryMode) {
+			case STANDALONE:
+				leaderElectionService = new StandaloneLeaderElectionService();
+				break;
+			case ZOOKEEPER:
+				try {
+					CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+					leaderElectionService = ZooKeeperUtils.createLeaderElectionService(client, configuration);
+				} catch (Exception e) {
+					throw new RuntimeException("Fail to create zookeeper leader election service.", e);
+				}
+				break;
+			default:
+				throw new RuntimeException("Unknown recovery mode.");
+		}
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// Leadership methods
+	//----------------------------------------------------------------------------------------------
+
+	/**
+	 * Stop the execution when the leadership is revoked.
+	 */
+	public void revokeLeadership() {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.info("JobManager {} was revoked leadership.", getAddress());
+
+				// TODO:: cancel the job's execution and notify all listeners
+				cancelAndClearEverything(new Exception("JobManager is no longer the leader."));
+
+				leaderSessionID = null;
+			}
+		});
+	}
+
+	/**
+	 * Start the execution when the leadership is granted.
+	 *
+	 * @param newLeaderSessionID The identifier of the new leadership session
+	 */
+	public void grantLeadership(final UUID newLeaderSessionID) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.info("JobManager {} grants leadership with session id {}.", getAddress(), newLeaderSessionID);
+
+				// The operation may be blocking, but since JM is idle before it grants the leadership, it's okay that
+				// JM waits here for the operation's completeness.
+				leaderSessionID = newLeaderSessionID;
+				leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
+
+				// TODO:: register at the RM to start the scheduling
+			}
+		});
+	}
+
+	/**
+	 * Handles error occurring in the leader election service
+	 *
+	 * @param exception Exception thrown in the leader election service
+	 */
+	public void handleError(final Exception exception) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.error("Received an error from the LeaderElectionService.", exception);
+
+				// TODO:: cancel the job's execution and shutdown the JM
+				cancelAndClearEverything(exception);
+
+				leaderSessionID = null;
+			}
+		});
+
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -247,5 +362,15 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 */
 	public boolean isConnected() {
 		return resourceManager != null;
+	}
+
+
+	/**
+	 * Cancel the current job and notify all listeners the job's cancellation.
+	 *
+	 * @param cause Cause for the cancelling.
+	 */
+	private void cancelAndClearEverything(Throwable cause) {
+		// currently, nothing to do here
 	}
 }

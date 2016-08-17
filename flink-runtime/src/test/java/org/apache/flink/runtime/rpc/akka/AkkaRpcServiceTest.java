@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorSystem;
 import akka.util.Timeout;
-
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
@@ -98,9 +98,10 @@ public class AkkaRpcServiceTest extends TestLogger {
 		AkkaRpcService akkaRpcService = new AkkaRpcService(actorSystem, akkaTimeout);
 		AkkaRpcService akkaRpcService2 = new AkkaRpcService(actorSystem2, akkaTimeout);
 		ExecutorService executorService = new ForkJoinPool();
+		Configuration configuration = new Configuration();
 
 		ResourceManager resourceManager = new ResourceManager(akkaRpcService, executorService);
-		JobMaster jobMaster = new JobMaster(akkaRpcService2, executorService);
+		JobMaster jobMaster = new JobMaster(configuration, akkaRpcService2, executorService);
 
 		resourceManager.start();
 		jobMaster.start();
