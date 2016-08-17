@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.resourcemanager.JobMasterRegistration;
@@ -47,17 +46,21 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single
  * {@link org.apache.flink.runtime.jobgraph.JobGraph}.
- *
+ * <p>
  * It offers the following methods as part of its rpc interface to interact with the JobMaster
  * remotely:
  * <ul>
- *     <li>{@link #registerAtResourceManager(String)} triggers the registration at the resource manager</li>
- *     <li>{@link #updateTaskExecutionState(TaskExecutionState)} updates the task execution state for
+ * <li>{@link #registerAtResourceManager(String)} triggers the registration at the resource manager</li>
+ * <li>{@link #updateTaskExecutionState(TaskExecutionState)} updates the task execution state for
  * given task</li>
  * </ul>
  */
@@ -97,22 +100,11 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 
 		// Create necessary components
 		createRecoveryComponents();
-
-		// Start the leadership election service
-		try {
-			this.leaderElectionService.start(this);
-		} catch (Exception e) {
-			throw new RuntimeException("Fail to start the leader election service.", e);
-		}
 	}
 
 	public ResourceManagerGateway getResourceManager() {
 		return resourceManager;
 	}
-
-	//----------------------------------------------------------------------------------------------
-	// Initialization methods
-	//----------------------------------------------------------------------------------------------
 
 	/*
 	 * Create recovery related components, including:
@@ -138,6 +130,21 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 				throw new RuntimeException("Unknown recovery mode.");
 		}
 	}
+
+	//----------------------------------------------------------------------------------------------
+	// Initialization methods
+	//----------------------------------------------------------------------------------------------
+	public void start() {
+		super.start();
+
+		// Start the leadership election service
+		try {
+			this.leaderElectionService.start(this);
+		} catch (Exception e) {
+			throw new RuntimeException("Fail to start the leader election service.", e);
+		}
+	}
+
 
 	//----------------------------------------------------------------------------------------------
 	// Leadership methods
@@ -166,6 +173,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	 * @param newLeaderSessionID The identifier of the new leadership session
 	 */
 	public void grantLeadership(final UUID newLeaderSessionID) {
+		System.out.println("enter: JobManager grants the leadership." + newLeaderSessionID);
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
@@ -250,12 +258,12 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	 *
 	 * @param jobMasterRegistration Job master registration info which is sent to the resource
 	 *                              manager
-	 * @param attemptNumber Registration attempt number
+	 * @param attemptNumber         Registration attempt number
 	 * @param resourceManagerFuture Future of the resource manager gateway
-	 * @param registrationRun UUID describing the current registration run
-	 * @param timeout Timeout of the last registration attempt
-	 * @param maxTimeout Maximum timeout between registration attempts
-	 * @param deadline Deadline for the registration
+	 * @param registrationRun       UUID describing the current registration run
+	 * @param timeout               Timeout of the last registration attempt
+	 * @param maxTimeout            Maximum timeout between registration attempts
+	 * @param deadline              Deadline for the registration
 	 */
 	void handleResourceManagerRegistration(
 		final JobMasterRegistration jobMasterRegistration,
@@ -264,7 +272,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 		final UUID registrationRun,
 		final FiniteDuration timeout,
 		final FiniteDuration maxTimeout,
-		final Deadline deadline) {
+		final Deadline deadline)
+	{
 
 		// filter out concurrent registration runs
 		if (registrationRun.equals(currentRegistrationRun)) {
@@ -278,14 +287,18 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 			} else {
 				Future<Tuple2<RegistrationResponse, ResourceManagerGateway>> registrationResponseFuture = resourceManagerFuture.flatMap(new Mapper<ResourceManagerGateway, Future<Tuple2<RegistrationResponse, ResourceManagerGateway>>>() {
 					@Override
-					public Future<Tuple2<RegistrationResponse, ResourceManagerGateway>> apply(ResourceManagerGateway resourceManagerGateway) {
+					public Future<Tuple2<RegistrationResponse, ResourceManagerGateway>> apply(
+						ResourceManagerGateway resourceManagerGateway)
+					{
 						return resourceManagerGateway.registerJobMaster(jobMasterRegistration, timeout).zip(Futures.successful(resourceManagerGateway));
 					}
 				}, executionContext);
 
 				registrationResponseFuture.onComplete(new OnComplete<Tuple2<RegistrationResponse, ResourceManagerGateway>>() {
 					@Override
-					public void onComplete(Throwable failure, Tuple2<RegistrationResponse, ResourceManagerGateway> tuple) throws Throwable {
+					public void onComplete(Throwable failure,
+						Tuple2<RegistrationResponse, ResourceManagerGateway> tuple) throws Throwable
+					{
 						if (failure != null) {
 							if (failure instanceof TimeoutException) {
 								// we haven't received an answer in the given timeout interval,
@@ -348,7 +361,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	 * Finish the resource manager registration by setting the new resource manager gateway.
 	 *
 	 * @param resourceManager New resource manager gateway
-	 * @param instanceID Instance id assigned by the resource manager
+	 * @param instanceID      Instance id assigned by the resource manager
 	 */
 	void finishResourceManagerRegistration(ResourceManagerGateway resourceManager, InstanceID instanceID) {
 		log.info("Successfully registered at the ResourceManager under instance id {}.", instanceID);
