@@ -18,8 +18,24 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+
 import java.io.Serializable;
 
-public class SlotAssignment implements Serializable{
+/**
+ * receipt from ResourceManager to ack previous slotRequest
+ */
+public class AcknowledgeSlotRequest implements Serializable{
 	private static final long serialVersionUID = -6990813455942742322L;
+
+	/** Unique identifier for the attempt to allocate a slot, normally created by JobManager when requesting a slot */
+	private final AllocationID allocationID;
+
+	public AcknowledgeSlotRequest(AllocationID allocationID) {
+		this.allocationID = allocationID;
+	}
+
+	public AllocationID getAllocationID() {
+		return allocationID;
+	}
 }

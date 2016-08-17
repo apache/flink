@@ -31,29 +31,25 @@ import java.util.List;
 public class SlotReport implements Serializable {
 
 	private static final long serialVersionUID = -3150175198722481689L;
-	// the status of all slots of the TaskManager
-	private final List<SlotAllocationDescription> slotAllocations;
+
+	/** the status of all slots of the TaskManager */
+	private final List<SlotStatus> slotsStatus;
+
 	// resourceID identify the taskExecutor
 	private final ResourceID resourceID;
 
-	public SlotReport(List<SlotAllocationDescription> slotAllocations, ResourceID resourceID) {
-		this.slotAllocations = slotAllocations;
+	public SlotReport(List<SlotStatus> slotsStatus, ResourceID resourceID) {
+		this.slotsStatus = slotsStatus;
 		this.resourceID = resourceID;
 	}
 
-	public List<SlotAllocationDescription> getSlotAllocations() {
-		return slotAllocations;
+
+	public List<SlotStatus> getSlotsStatus() {
+		return slotsStatus;
 	}
 
 	public ResourceID getResourceID() {
 		return resourceID;
 	}
 
-	@Override
-	public String toString() {
-		return "SlotReport{" +
-			   "slotAllocations=" + slotAllocations +
-			   ", resourceID=" + resourceID +
-			   '}';
-	}
 }

@@ -76,8 +76,8 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 	@Override
 	public String toString() {
 		return "SlotID{" +
-			   "resourceId=" + resourceId +
-			   ", slotId=" + slotId +
-			   '}';
+			"resourceId=" + resourceId +
+			", slotId=" + slotId +
+			'}';
 	}
 }

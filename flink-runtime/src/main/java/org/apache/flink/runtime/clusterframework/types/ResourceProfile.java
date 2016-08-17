@@ -65,18 +65,4 @@ public class ResourceProfile implements Serializable {
 	public boolean isMatching(ResourceProfile required) {
 		return Double.compare(cpuCores, required.getCpuCores()) >= 0 && memoryInMB >= required.getMemoryInMB();
 	}
-	/**
-	 * return the matched degree of current profile with the request profile
-	 *
-	 * @param required the required resource profile
-	 * @return if current profile not match request profile, return 0
-	 * else return the degree , the bigger the better
-	 */
-	public double matchDegree(ResourceProfile required) {
-		if (!isMatching(required)) {
-			return 0;
-		} else {
-			return required.getCpuCores() / cpuCores + required.getMemoryInMB() / memoryInMB;
-		}
-	}
 }

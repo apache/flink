@@ -64,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> Type of the {@link RpcEndpoint}
  */
 class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends UntypedActorWithStash {
-
+	
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActor.class);
 
 	/** the endpoint to invoke the methods on */
@@ -94,8 +94,8 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 			});
 		} else {
 			LOG.info("The rpc endpoint {} has not been started yet. Stashing message {} until processing is started.",
-					 rpcEndpoint.getClass().getName(),
-					 message.getClass().getName());
+				rpcEndpoint.getClass().getName(),
+				message.getClass().getName());
 			stash();
 		}
 	}
@@ -175,9 +175,9 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	private void handleCallAsync(CallAsync callAsync) {
 		if (callAsync.getCallable() == null) {
 			final String result = "Received a " + callAsync.getClass().getName() + " message with an empty " +
-								  "callable field. This indicates that this message has been serialized " +
-								  "prior to sending the message. The " + callAsync.getClass().getName() +
-								  " is only supported with local communication.";
+				"callable field. This indicates that this message has been serialized " +
+				"prior to sending the message. The " + callAsync.getClass().getName() +
+				" is only supported with local communication.";
 
 			LOG.warn(result);
 
@@ -202,10 +202,10 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	private void handleRunAsync(RunAsync runAsync) {
 		if (runAsync.getRunnable() == null) {
 			LOG.warn("Received a {} message with an empty runnable field. This indicates " +
-					 "that this message has been serialized prior to sending the message. The " +
-					 "{} is only supported with local communication.",
-					 runAsync.getClass().getName(),
-					 runAsync.getClass().getName());
+				"that this message has been serialized prior to sending the message. The " +
+				"{} is only supported with local communication.",
+				runAsync.getClass().getName(),
+				runAsync.getClass().getName());
 		}
 		else if (runAsync.getDelay() == 0) {
 			// run immediately
@@ -216,12 +216,12 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 			}
 		}
 		else {
-			// schedule for later. send a new message after the delay, which will then be immediately executed
+			// schedule for later. send a new message after the delay, which will then be immediately executed 
 			FiniteDuration delay = new FiniteDuration(runAsync.getDelay(), TimeUnit.MILLISECONDS);
 			RunAsync message = new RunAsync(runAsync.getRunnable(), 0);
 
 			getContext().system().scheduler().scheduleOnce(delay, getSelf(), message,
-														   getContext().dispatcher(), ActorRef.noSender());
+					getContext().dispatcher(), ActorRef.noSender());
 		}
 	}
 

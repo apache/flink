@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -118,13 +119,18 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	}
 
 	@RpcMethod
+	void notifyOfResourceManagerRevokeLeadership(UUID resourceManagerLeaderId) {
+		// TODO
+	}
+
+	@RpcMethod
 	public SlotReport triggerHeartbeatToResourceManager(UUID resourceManagerLeaderId) {
 		// TODO
 		return null;
 	}
 
 	@RpcMethod
-	public SlotAllocationResponse requestSlotForJob(AllocationID allocationID, JobID jobID) {
+	public SlotAllocationResponse requestSlotForJob(AllocationID allocationID, JobID jobID, SlotID slotID, UUID resourceManagerLeaderId) {
 		// TODO
 		return null;
 	}
@@ -162,7 +168,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	}
 
 
-
 	// ------------------------------------------------------------------------
 	//  Utility classes
 	// ------------------------------------------------------------------------
@@ -182,5 +187,4 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			onFatalErrorAsync(exception);
 		}
 	}
-
 }

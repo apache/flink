@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -29,11 +31,14 @@ import java.io.Serializable;
  */
 public class SlotRequest implements Serializable {
 	private static final long serialVersionUID = -6586877187990445986L;
-	// jobId to identify which job send the request
+
+	/** jobId to identify which job send the request */
 	private final JobID jobID;
-	// allocationId to identify slot allocation, created by JobManager when requesting a sot
+
+	/** allocationId to identify slot allocation, created by JobManager when requesting a sot */
 	private final AllocationID allocationID;
-	// the resource profile of the desired slot
+
+	/** the resource profile of the desired slot */
 	private final ResourceProfile profile;
 
 	public SlotRequest(JobID jobID, AllocationID allocationID) {
@@ -41,9 +46,9 @@ public class SlotRequest implements Serializable {
 	}
 
 	public SlotRequest(JobID jobID, AllocationID allocationID, ResourceProfile profile) {
-		this.jobID = jobID;
-		this.allocationID = allocationID;
-		this.profile = profile;
+		this.jobID = checkNotNull(jobID, "jobID cannot be null");
+		this.allocationID = checkNotNull(allocationID, "allocationID cannot be null");
+		this.profile = checkNotNull(profile, "profile cannot be null");
 	}
 
 	public ResourceProfile getProfile() {
@@ -59,12 +64,32 @@ public class SlotRequest implements Serializable {
 	}
 
 	@Override
-	public String toString() {
-		return "SlotRequest{" +
-			   "jobID=" + jobID +
-			   ", allocationID=" + allocationID +
-			   ", profile=" + profile +
-			   '}';
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		SlotRequest that = (SlotRequest) o;
+
+		if (!jobID.equals(that.jobID)) {
+			return false;
+		}
+		if (!allocationID.equals(that.allocationID)) {
+			return false;
+		}
+		return profile.equals(that.profile);
+
+	}
+
+	@Override
+	public int hashCode() {
+		int result = jobID.hashCode();
+		result = 31 * result + allocationID.hashCode();
+		result = 31 * result + profile.hashCode();
+		return result;
 	}
 }
 

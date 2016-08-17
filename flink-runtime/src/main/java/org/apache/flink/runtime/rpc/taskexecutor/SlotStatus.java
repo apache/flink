@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -26,38 +27,31 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import java.io.Serializable;
 
 /**
- * SlotAllocationDescription implementation. It is responsible for describe slot allocation.
+ * SlotStatus implementation. It is responsible for describe slot allocation.
  */
-public class SlotAllocationDescription implements Serializable {
+public class SlotStatus implements Serializable {
 
 	private static final long serialVersionUID = 5099191707339664493L;
-	// slotID to identify a slot
+
+	/** slotID to identify a slot */
 	private final SlotID slotID;
-	// the resource profile of the slot
-	private final ResourceProfile profiler;
-	// if the slot is allocated, allocationId identify its allocation; else, allocationId is null
+
+	/** the resource profile of the slot */
+	private final ResourceProfile profile;
+
+	/** if the slot is allocated, allocationId identify its allocation; else, allocationId is null */
 	private final AllocationID allocationID;
-	// if the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null
+
+	/** if the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null */
 	private final JobID jobID;
 
-	public SlotAllocationDescription(
-		SlotID slotID, ResourceProfile profiler
-	)
-	{
-		this.slotID = slotID;
-		this.profiler = profiler;
-		this.allocationID = null;
-		this.jobID = null;
+	public SlotStatus(SlotID slotID, ResourceProfile profile) {
+		this(slotID, profile, null, null);
 	}
 
-	public SlotAllocationDescription(
-		SlotID slotID, ResourceProfile profiler,
-		AllocationID allocationID,
-		JobID jobID
-	)
-	{
-		this.slotID = slotID;
-		this.profiler = profiler;
+	public SlotStatus(SlotID slotID, ResourceProfile profile, AllocationID allocationID, JobID jobID) {
+		this.slotID = checkNotNull(slotID, "slotID cannot be null");
+		this.profile = checkNotNull(profile, "profile cannot be null");
 		this.allocationID = allocationID;
 		this.jobID = jobID;
 	}
@@ -66,8 +60,8 @@ public class SlotAllocationDescription implements Serializable {
 		return slotID;
 	}
 
-	public ResourceProfile getProfiler() {
-		return profiler;
+	public ResourceProfile getProfile() {
+		return profile;
 	}
 
 	public AllocationID getAllocationID() {
@@ -87,12 +81,12 @@ public class SlotAllocationDescription implements Serializable {
 			return false;
 		}
 
-		SlotAllocationDescription that = (SlotAllocationDescription) o;
+		SlotStatus that = (SlotStatus) o;
 
 		if (!slotID.equals(that.slotID)) {
 			return false;
 		}
-		if (!profiler.equals(that.profiler)) {
+		if (!profile.equals(that.profile)) {
 			return false;
 		}
 		if (allocationID != null ? !allocationID.equals(that.allocationID) : that.allocationID != null) {
@@ -105,19 +99,10 @@ public class SlotAllocationDescription implements Serializable {
 	@Override
 	public int hashCode() {
 		int result = slotID.hashCode();
-		result = 31 * result + profiler.hashCode();
+		result = 31 * result + profile.hashCode();
 		result = 31 * result + (allocationID != null ? allocationID.hashCode() : 0);
 		result = 31 * result + (jobID != null ? jobID.hashCode() : 0);
 		return result;
 	}
 
-	@Override
-	public String toString() {
-		return "SlotAllocationDescription{" +
-			   "slotID=" + slotID +
-			   ", profiler=" + profiler +
-			   ", allocationID=" + allocationID +
-			   ", jobID=" + jobID +
-			   '}';
-	}
 }

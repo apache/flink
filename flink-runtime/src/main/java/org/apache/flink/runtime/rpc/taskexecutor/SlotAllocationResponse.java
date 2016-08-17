@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 
 import java.io.Serializable;
@@ -27,13 +29,14 @@ import java.util.UUID;
  * base class  for response from TaskManager to a requestSlot from resourceManager
  */
 public abstract class SlotAllocationResponse implements Serializable {
+
 	private final AllocationID allocationID;
 
 	private final UUID resourceManagerLeaderId;
 
 	public SlotAllocationResponse(AllocationID allocationID, UUID resourceManagerLeaderId) {
-		this.allocationID = allocationID;
-		this.resourceManagerLeaderId = resourceManagerLeaderId;
+		this.allocationID = checkNotNull(allocationID, "allocationID cannot be null");
+		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId, "resourceManagerLeaderID cannot be null");
 	}
 
 	public AllocationID getAllocationID() {
@@ -47,7 +50,7 @@ public abstract class SlotAllocationResponse implements Serializable {
 	@Override
 	public String toString() {
 		return "allocationID=" + allocationID +
-		       ", resourceManagerLeaderId=" + resourceManagerLeaderId;
+			", resourceManagerLeaderId=" + resourceManagerLeaderId;
 	}
 
 	/**
@@ -75,6 +78,7 @@ public abstract class SlotAllocationResponse implements Serializable {
 	public static final class Decline extends SlotAllocationResponse {
 
 		private static final long serialVersionUID = -3440865311582394011L;
+
 		private final String reason;
 
 		public Decline(AllocationID allocationID, UUID resourceManagerLeaderId, String reason) {
@@ -89,7 +93,7 @@ public abstract class SlotAllocationResponse implements Serializable {
 		@Override
 		public String toString() {
 			return "Decline:" +
-			       "reason='" + reason + '\'' + super.toString();
+				"reason='" + reason + '\'' + super.toString();
 		}
 	}
 }
