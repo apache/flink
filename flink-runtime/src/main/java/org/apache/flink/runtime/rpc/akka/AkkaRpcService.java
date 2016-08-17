@@ -101,6 +101,7 @@ public class AkkaRpcService implements RpcService {
 			@Override
 			public C apply(Object obj) {
 				ActorRef actorRef = ((ActorIdentity) obj).getRef();
+				actors.add(actorRef);
 
 				InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout, maximumFramesize);
 
@@ -206,7 +207,11 @@ public class AkkaRpcService implements RpcService {
 
 		if (gateway instanceof AkkaGateway) {
 			ActorRef actorRef = ((AkkaGateway) gateway).getActorRef();
-			return AkkaUtils.getAkkaURL(actorSystem, actorRef);
+			if(actors.contains(actorRef)) {
+				return AkkaUtils.getAkkaURL(actorSystem, actorRef);
+			} else {
+				throw new IllegalArgumentException("Cannot get address for created by other actor system.");
+			}
 		} else {
 			String className = AkkaGateway.class.getName();
 			throw new IllegalArgumentException("Cannot get address for non " + className + '.');

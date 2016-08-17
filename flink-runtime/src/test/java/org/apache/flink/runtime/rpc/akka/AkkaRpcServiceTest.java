@@ -134,6 +134,39 @@ public class AkkaRpcServiceTest extends TestLogger {
 	}
 
 	@Test
+	public void testMultiActorSystem() throws Exception {
+		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+		ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
+		ActorSystem actorSystem3 = AkkaUtils.createDefaultActorSystem();
+		AkkaRpcService akkaRpcService = new AkkaRpcService(actorSystem, new Timeout(10, TimeUnit.SECONDS));
+		AkkaRpcService akkaRpcService2 = new AkkaRpcService(actorSystem2, new Timeout(10, TimeUnit.SECONDS));
+		AkkaRpcService akkaRpcService3 = new AkkaRpcService(actorSystem3, new Timeout(10, TimeUnit.SECONDS));
+		TestRpcEndpoint endpoint = new TestRpcEndpoint(akkaRpcService);
+		TestRpcEndpoint endpoint2 = new TestRpcEndpoint(akkaRpcService2);
+		endpoint.start();
+		endpoint2.start();
+
+		FiniteDuration akkaTimeout = new FiniteDuration(10, TimeUnit.SECONDS);
+		TestRpcGateway client1 =
+			Await.result(akkaRpcService3.connect(endpoint.getAddress(), TestRpcGateway.class), akkaTimeout);
+		TestRpcGateway client2 =
+			Await.result(akkaRpcService3.connect(endpoint2.getAddress(), TestRpcGateway.class), akkaTimeout);
+		assertEquals(endpoint.getAddress(), akkaRpcService3.getAddress(client1));
+		assertEquals(endpoint2.getAddress(), akkaRpcService3.getAddress(client2));
+		assertEquals(new Integer(11), Await.result(client1.inc(10), akkaTimeout));
+		assertEquals(new Integer(21), Await.result(client2.inc(20), akkaTimeout));
+
+		boolean caught = false;
+		try {
+			akkaRpcService.getAddress(client2);
+		} catch (IllegalArgumentException e) {
+			caught = true;
+		}
+		assertTrue(caught);
+
+	}
+
+	@Test
 	public void testStopServer() throws Exception {
 		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 		AkkaRpcService akkaRpcService = new AkkaRpcService(actorSystem, new Timeout(10, TimeUnit.SECONDS));
