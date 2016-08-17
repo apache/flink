@@ -139,7 +139,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	}
 
 	@Override
-	public ActorRef getRpcEndpoint() {
+	public ActorRef getActorRef() {
 		return rpcEndpoint;
 	}
 

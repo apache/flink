@@ -112,7 +112,7 @@ public class AkkaRpcService implements RpcService {
 				@SuppressWarnings("unchecked")
 				C proxy = (C) Proxy.newProxyInstance(
 					classLoader,
-					new Class<?>[] {clazz},
+					new Class<?>[] {clazz, AkkaGateway.ClientGateway.class},
 					akkaInvocationHandler);
 
 				return proxy;
@@ -149,7 +149,7 @@ public class AkkaRpcService implements RpcService {
 				rpcEndpoint.getSelfGatewayType(),
 				MainThreadExecutor.class,
 				StartStoppable.class,
-				AkkaGateway.class},
+				AkkaGateway.ServerGateway.class},
 			akkaInvocationHandler);
 
 		return self;
@@ -157,7 +157,7 @@ public class AkkaRpcService implements RpcService {
 
 	@Override
 	public void stopServer(RpcGateway selfGateway) {
-		if (selfGateway instanceof AkkaGateway) {
+		if (selfGateway instanceof AkkaGateway.ServerGateway) {
 			AkkaGateway akkaClient = (AkkaGateway) selfGateway;
 
 			boolean fromThisService;
@@ -165,17 +165,21 @@ public class AkkaRpcService implements RpcService {
 				if (stopped) {
 					return;
 				} else {
-					fromThisService = actors.remove(akkaClient.getRpcEndpoint());
+					fromThisService = actors.remove(akkaClient.getActorRef());
 				}
 			}
 
 			if (fromThisService) {
-				ActorRef selfActorRef = akkaClient.getRpcEndpoint();
+				ActorRef selfActorRef = akkaClient.getActorRef();
 				LOG.info("Stopping RPC endpoint {}.", selfActorRef.path());
 				selfActorRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
 			} else {
-				LOG.debug("RPC endpoint {} already stopped or from different RPC service");
+				LOG.debug("RPC endpoint {} already stopped or from different RPC service",
+					getAddress(selfGateway));
 			}
+		} else {
+			LOG.warn("RPC endpoint {} is not a self gateway of the endpoint",
+				getAddress(selfGateway));
 		}
 	}
 
@@ -197,11 +201,11 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public String getAddress(RpcGateway selfGateway) {
+	public String getAddress(RpcGateway gateway) {
 		checkState(!stopped, "RpcService is stopped");
 
-		if (selfGateway instanceof AkkaGateway) {
-			ActorRef actorRef = ((AkkaGateway) selfGateway).getRpcEndpoint();
+		if (gateway instanceof AkkaGateway) {
+			ActorRef actorRef = ((AkkaGateway) gateway).getActorRef();
 			return AkkaUtils.getAkkaURL(actorSystem, actorRef);
 		} else {
 			String className = AkkaGateway.class.getName();

@@ -21,8 +21,15 @@ package org.apache.flink.runtime.rpc.akka;
 import akka.actor.ActorSystem;
 import akka.util.Timeout;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcMethod;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
@@ -31,13 +38,19 @@ import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Test;
 
+import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -81,50 +94,73 @@ public class AkkaRpcServiceTest extends TestLogger {
 		assertTrue("call was not properly delayed", ((stop - start) / 1000000) >= delay);
 	}
 
-	// ------------------------------------------------------------------------
-	//  specific component tests - should be moved to the test classes
-	//  for those components
-	// ------------------------------------------------------------------------
+	private interface TestRpcGateway extends RpcGateway {
+		Future<Integer> inc(Integer input);
+	}
 
-	/**
-	 * Tests that the {@link JobMaster} can connect to the {@link ResourceManager} using the
-	 * {@link AkkaRpcService}.
-	 */
-	@Test
-	public void testJobMasterResourceManagerRegistration() throws Exception {
-		Timeout akkaTimeout = new Timeout(10, TimeUnit.SECONDS);
-		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
-		ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
-		AkkaRpcService akkaRpcService = new AkkaRpcService(actorSystem, akkaTimeout);
-		AkkaRpcService akkaRpcService2 = new AkkaRpcService(actorSystem2, akkaTimeout);
-		ExecutorService executorService = new ForkJoinPool();
+	private static class TestRpcEndpoint extends RpcEndpoint<TestRpcGateway> {
 
-		ResourceManager resourceManager = new ResourceManager(akkaRpcService, executorService);
-		JobMaster jobMaster = new JobMaster(akkaRpcService2, executorService);
-
-		resourceManager.start();
-		jobMaster.start();
-
-		ResourceManagerGateway rm = resourceManager.getSelf();
-
-		assertTrue(rm instanceof AkkaGateway);
-
-		AkkaGateway akkaClient = (AkkaGateway) rm;
-
-		
-		jobMaster.registerAtResourceManager(AkkaUtils.getAkkaURL(actorSystem, akkaClient.getRpcEndpoint()));
-
-		// wait for successful registration
-		FiniteDuration timeout = new FiniteDuration(200, TimeUnit.SECONDS);
-		Deadline deadline = timeout.fromNow();
-
-		while (deadline.hasTimeLeft() && !jobMaster.isConnected()) {
-			Thread.sleep(100);
+		/**
+		 * Initializes the RPC endpoint.
+		 *
+		 * @param rpcService The RPC server that dispatches calls to this RPC endpoint.
+		 */
+		protected TestRpcEndpoint(RpcService rpcService) {
+			super(rpcService);
 		}
 
-		assertFalse(deadline.isOverdue());
+		@RpcMethod
+		public Integer inc(Integer input) {
+			return input + 1;
+		}
+	}
 
-		jobMaster.shutDown();
-		resourceManager.shutDown();
+	@Test
+	public void testAkkaRpcGateway() throws Exception {
+		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+		AkkaRpcService akkaRpcService = new AkkaRpcService(actorSystem, new Timeout(10, TimeUnit.SECONDS));
+		TestRpcEndpoint endpoint = new TestRpcEndpoint(akkaRpcService);
+		String address = endpoint.getAddress();
+		endpoint.start();
+
+		FiniteDuration akkaTimeout = new FiniteDuration(10, TimeUnit.SECONDS);
+		TestRpcGateway client1 =
+			Await.result(akkaRpcService.connect(address, TestRpcGateway.class), akkaTimeout);
+		TestRpcGateway client2 =
+			Await.result(akkaRpcService.connect(address, TestRpcGateway.class), akkaTimeout);
+		assertEquals(akkaRpcService.getAddress(client1), akkaRpcService.getAddress(client2));
+		assertEquals(new Integer(11), Await.result(client1.inc(10), akkaTimeout));
+		assertEquals(new Integer(21), Await.result(client2.inc(20), akkaTimeout));
+	}
+
+	@Test
+	public void testStopServer() throws Exception {
+		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+		AkkaRpcService akkaRpcService = new AkkaRpcService(actorSystem, new Timeout(10, TimeUnit.SECONDS));
+		TestRpcEndpoint endpoint = new TestRpcEndpoint(akkaRpcService);
+		String address = endpoint.getAddress();
+		endpoint.start();
+
+		// ensure server is working
+		FiniteDuration akkaTimeout = new FiniteDuration(10, TimeUnit.SECONDS);
+		TestRpcGateway client1 =
+			Await.result(akkaRpcService.connect(address, TestRpcGateway.class), akkaTimeout);
+		assertEquals(new Integer(11), Await.result(client1.inc(10), akkaTimeout));
+
+		// try to stop a client, server still work
+		akkaRpcService.stopServer(client1);
+		assertEquals(new Integer(11), Await.result(client1.inc(10), akkaTimeout));
+
+		// stop the server, server stopped
+		akkaRpcService.stopServer(endpoint.getSelf());
+
+		boolean caught = false;
+		try {
+			Await.result(client1.inc(10), akkaTimeout);
+		} catch (Exception e) {
+			caught = true;
+		}
+		assertTrue(caught);
+
 	}
 }

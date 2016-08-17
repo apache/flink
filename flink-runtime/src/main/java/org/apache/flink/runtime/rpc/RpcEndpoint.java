@@ -218,6 +218,36 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Error handling
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Notifies the Endpoint that a fatal error has occurred and it cannot proceed.
+	 * This method should be used when asynchronous threads want to notify the
+	 * Endpoint of a fatal error.
+	 *
+	 * @param t The exception describing the fatal error
+	 */
+	public void onFatalErrorAsync(final Throwable t) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				onFatalError(t);
+			}
+		});
+	}
+
+	/**
+	 * Notifies the Endpoint that a fatal error has occurred and it cannot proceed.
+	 * This method must only be called from within the TaskExecutor's main thread.
+	 *
+	 * @param t The exception describing the fatal error
+	 */
+	public void onFatalError(Throwable t) {
+		log.error("FATAL ERROR", t);
+	};
+
+	// ------------------------------------------------------------------------
 	//  Main Thread Validation
 	// ------------------------------------------------------------------------
 
@@ -277,4 +307,5 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 			return this;
 		}
 	}
+
 }
