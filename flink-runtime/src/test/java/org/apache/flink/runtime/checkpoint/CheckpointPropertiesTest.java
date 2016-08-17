@@ -16,10 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint;
 
-public class HeapSavepointStoreTest {
+import org.junit.Test;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+public class CheckpointPropertiesTest {
 
+	@Test
+	public void testCheckpointProperties() {
+		assertFalse(CheckpointProperties.forStandardCheckpoint().isSavepoint());
+	}
+
+	@Test
+	public void testSavepointProperties() {
+		assertTrue(CheckpointProperties.forStandardSavepoint().isSavepoint());
+	}
 }

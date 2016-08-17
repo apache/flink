@@ -30,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link CompletedCheckpointStore} for JobManagers running in {@link RecoveryMode#STANDALONE}.
  */
-class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
+public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 
 	/** The maximum number of checkpoints to retain (at least 1). */
 	private final int maxNumberOfCheckpointsToRetain;
