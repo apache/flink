@@ -72,7 +72,7 @@ public class OperatorGroupTest {
 
 		Map<String, String> variables = opGroup.getAllVariables();
 
-		testVariable(variables, ScopeFormat.SCOPE_ACTOR_HOST, "theHostName");
+		testVariable(variables, ScopeFormat.SCOPE_HOST, "theHostName");
 		testVariable(variables, ScopeFormat.SCOPE_TASKMANAGER_ID, "test-tm-id");
 		testVariable(variables, ScopeFormat.SCOPE_JOB_ID, jid.toString());
 		testVariable(variables, ScopeFormat.SCOPE_JOB_NAME, "myJobName");
