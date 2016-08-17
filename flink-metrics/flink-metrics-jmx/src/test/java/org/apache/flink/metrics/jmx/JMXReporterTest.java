@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
-import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -247,7 +247,7 @@ public class JMXReporterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that histograms are properly reported via the JMXReporter.
+	 * Tests that meters are properly reported via the JMXReporter.
 	 */
 	@Test
 	public void testMeterReporting() throws Exception {
@@ -263,7 +263,7 @@ public class JMXReporterTest extends TestLogger {
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
-			TestingMeter meter = new TestingMeter();
+			TestMeter meter = new TestMeter();
 
 			metricGroup.meter(meterName, meter);
 
@@ -340,44 +340,6 @@ public class JMXReporterTest extends TestLogger {
 					return 7;
 				}
 			};
-		}
-	}
-
-	static class TestingMeter implements Meter {
-
-		@Override
-		public void markEvent() {
-
-		}
-
-		@Override
-		public void markEvent(long n) {
-
-		}
-
-		@Override
-		public double getOneMinuteRate() {
-			return 1;
-		}
-
-		@Override
-		public double getFiveMinuteRate() {
-			return 5;
-		}
-
-		@Override
-		public double getFifteenMinuteRate() {
-			return 15;
-		}
-
-		@Override
-		public double getMeanRate() {
-			return 10;
-		}
-
-		@Override
-		public long getCount() {
-			return 100L;
 		}
 	}
 }

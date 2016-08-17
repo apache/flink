@@ -34,7 +34,7 @@ This method returns a `MetricGroup` object on which you can create and register 
 
 ### Metric types
 
-Flink supports `Counters`, `Gauges` and `Histograms`.
+Flink supports `Counters`, `Gauges`, `Histograms` and `Meters`.
 
 #### Counter
 
@@ -151,6 +151,55 @@ public class MyMapper extends RichMapFunction<Long, Integer> {
     this.histogram = getRuntimeContext()
       .getMetricGroup()
       .histogram("myHistogram", new DropWizardHistogramWrapper(histogram));
+  }
+}
+{% endhighlight %}
+
+#### Meter
+
+A `Meter` measures an average throughput. An occurrence of an event can be registered with the `markEvent()` method. Occurrence of multiple events at the same time can be registered with `markEvent(long n)` method.
+You can register a meter by calling `meter(String name, Meter histogram)` on a `MetricGroup`.
+
+{% highlight java %}
+public class MyMapper extends RichMapFunction<Long, Integer> {
+  private Meter meter;
+
+  @Override
+  public void open(Configuration config) {
+    this.meter = getRuntimeContext()
+      .getMetricGroup()
+      .meter("myMeter", new MyMeter());
+  }
+
+  @public Integer map(Long value) throws Exception {
+    this.meter.markEvent();
+  }
+}
+{% endhighlight %}
+
+Flink offers a {% gh_link flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardMeterWrapper.java "Wrapper" %} that allows usage of Codahale/DropWizard meters.
+To use this wrapper add the following dependency in your `pom.xml`:
+{% highlight xml %}
+<dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-metrics-dropwizard</artifactId>
+      <version>{{site.version}}</version>
+</dependency>
+{% endhighlight %}
+
+You can then register a Codahale/DropWizard meter like this:
+
+{% highlight java %}
+public class MyMapper extends RichMapFunction<Long, Integer> {
+  private Meter meter;
+
+  @Override
+  public void open(Configuration config) {
+    com.codahale.metrics.Meter meter = new com.codahale.metrics.Meter();
+
+    this.meter = getRuntimeContext()
+      .getMetricGroup()
+      .histogram("myMeter", new DropWizardMeterWrapper(meter));
   }
 }
 {% endhighlight %}
