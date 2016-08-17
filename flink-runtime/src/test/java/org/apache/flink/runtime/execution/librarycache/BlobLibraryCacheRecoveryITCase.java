@@ -26,7 +26,7 @@ import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -48,7 +48,7 @@ public class BlobLibraryCacheRecoveryITCase {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 	/**
-	 * Tests that with {@link RecoveryMode#ZOOKEEPER} distributed JARs are recoverable from any
+	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
 	 * participating BlobLibraryCacheManager.
 	 */
 	@Test

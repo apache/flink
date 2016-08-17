@@ -29,7 +29,7 @@ import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
+import org.apache.flink.runtime.jobmanager.{JobManager, HighAvailabilityMode}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager
@@ -263,7 +263,8 @@ class ForkableFlinkMiniCluster(
   override def start(): Unit = {
     val zookeeperURL = configuration.getString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, "")
 
-    zookeeperCluster = if(recoveryMode == RecoveryMode.ZOOKEEPER && zookeeperURL.equals("")) {
+    zookeeperCluster = if (recoveryMode == HighAvailabilityMode.ZOOKEEPER &&
+      zookeeperURL.equals("")) {
       LOG.info("Starting ZooKeeper cluster.")
 
       val testingCluster = new TestingCluster(1)

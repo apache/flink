@@ -20,7 +20,7 @@ package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -31,12 +31,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ZooKeeperTestUtils {
 
 	/**
-	 * Creates a configuration to operate in {@link RecoveryMode#ZOOKEEPER}.
+	 * Creates a configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
 	 *
 	 * @param zooKeeperQuorum   ZooKeeper quorum to connect to
 	 * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
 	 *                          recovery)
-	 * @return A new configuration to operate in {@link RecoveryMode#ZOOKEEPER}.
+	 * @return A new configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
 	 */
 	public static Configuration createZooKeeperRecoveryModeConfig(
 			String zooKeeperQuorum, String fsStateHandlePath) {
@@ -45,13 +45,13 @@ public class ZooKeeperTestUtils {
 	}
 
 	/**
-	 * Sets all necessary configuration keys to operate in {@link RecoveryMode#ZOOKEEPER}.
+	 * Sets all necessary configuration keys to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
 	 *
 	 * @param config            Configuration to use
 	 * @param zooKeeperQuorum   ZooKeeper quorum to connect to
 	 * @param fsStateHandlePath Base path for file system state backend (for checkpoints and
 	 *                          recovery)
-	 * @return The modified configuration to operate in {@link RecoveryMode#ZOOKEEPER}.
+	 * @return The modified configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
 	 */
 	public static Configuration setZooKeeperRecoveryMode(
 			Configuration config,

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
@@ -140,10 +140,10 @@ public class ZooKeeperUtils {
 		return val;
 	}
 	/**
-	 * Returns whether {@link RecoveryMode#ZOOKEEPER} is configured.
+	 * Returns whether {@link HighAvailabilityMode#ZOOKEEPER} is configured.
 	 */
 	public static boolean isZooKeeperRecoveryMode(Configuration flinkConf) {
-		return RecoveryMode.fromConfig(flinkConf).equals(RecoveryMode.ZOOKEEPER);
+		return HighAvailabilityMode.fromConfig(flinkConf).equals(HighAvailabilityMode.ZOOKEEPER);
 	}
 
 	/**

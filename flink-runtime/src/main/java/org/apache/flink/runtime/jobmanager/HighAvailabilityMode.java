@@ -30,19 +30,19 @@ import org.apache.flink.configuration.Configuration;
  * is responsible for the job execution. Upon failure of the leader a new leader is elected
  * which will take over the responsibilities of the old leader
  */
-public enum RecoveryMode {
+public enum HighAvailabilityMode {
 	// STANDALONE mode renamed to NONE
 	NONE,
 	ZOOKEEPER;
 
 	/**
-	 * Return the configured {@link RecoveryMode}.
+	 * Return the configured {@link HighAvailabilityMode}.
 	 *
 	 * @param config The config to parse
 	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_HIGH_AVAILABILTY} if not
 	 * configured.
 	 */
-	public static RecoveryMode fromConfig(Configuration config) {
+	public static HighAvailabilityMode fromConfig(Configuration config) {
 		// Not passing the default value here so that we could determine
 		// if there is an older config set
 		String recoveryMode = config.getString(
@@ -56,13 +56,13 @@ public enum RecoveryMode {
 				ConfigConstants.DEFAULT_RECOVERY_MODE);
 			if (recoveryMode.equalsIgnoreCase(ConfigConstants.DEFAULT_RECOVERY_MODE)) {
 				// There is no HA configured.
-				return RecoveryMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
+				return HighAvailabilityMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
 			}
 		} else if (recoveryMode.equalsIgnoreCase(ConfigConstants.DEFAULT_HIGH_AVAILABILTY)) {
 			// The new config is found but with default value. So use this
-			return RecoveryMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
+			return HighAvailabilityMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
 		}
-		return RecoveryMode.valueOf(recoveryMode.toUpperCase());
+		return HighAvailabilityMode.valueOf(recoveryMode.toUpperCase());
 	}
 
 	/**
@@ -72,7 +72,7 @@ public enum RecoveryMode {
 	 * @return true if high availability is supported by the recovery mode, otherwise false
 	 */
 	public static boolean isHighAvailabilityModeActivated(Configuration configuration) {
-		RecoveryMode mode = fromConfig(configuration);
+		HighAvailabilityMode mode = fromConfig(configuration);
 		switch (mode) {
 			case NONE:
 				return false;

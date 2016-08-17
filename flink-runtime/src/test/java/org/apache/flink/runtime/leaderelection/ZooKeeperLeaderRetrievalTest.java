@@ -23,7 +23,7 @@ import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -217,8 +217,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 		config.setString(ConfigConstants.HIGH_AVAILABILITY, "none");
 		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 
-		RecoveryMode mode = RecoveryMode.fromConfig(config);
-		assertTrue(mode == RecoveryMode.NONE);
+		HighAvailabilityMode mode = HighAvailabilityMode.fromConfig(config);
+		assertTrue(mode == HighAvailabilityMode.NONE);
 	}
 
 	@Test
@@ -228,8 +228,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 		config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
 
-		RecoveryMode mode = RecoveryMode.fromConfig(config);
-		assertTrue(mode == RecoveryMode.ZOOKEEPER);
+		HighAvailabilityMode mode = HighAvailabilityMode.fromConfig(config);
+		assertTrue(mode == HighAvailabilityMode.ZOOKEEPER);
 	}
 
 	class FindConnectingAddress implements Runnable {

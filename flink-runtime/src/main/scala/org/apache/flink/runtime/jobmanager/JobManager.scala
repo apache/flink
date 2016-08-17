@@ -155,7 +155,7 @@ class JobManager(
   /** Either running or not yet archived jobs (session hasn't been ended). */
   protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
-  protected val recoveryMode = RecoveryMode.fromConfig(flinkConfiguration)
+  protected val recoveryMode = HighAvailabilityMode.fromConfig(flinkConfiguration)
 
   var leaderSessionID: Option[UUID] = None
 
@@ -317,7 +317,7 @@ class JobManager(
 
         // TODO (critical next step) This needs to be more flexible and robust (e.g. wait for task
         // managers etc.)
-        if (recoveryMode != RecoveryMode.NONE) {
+        if (recoveryMode != HighAvailabilityMode.NONE) {
           log.info(s"Delaying recovery of all jobs by $jobRecoveryTimeout.")
 
           context.system.scheduler.scheduleOnce(
@@ -2568,8 +2568,8 @@ object JobManager {
 
     // Create recovery related components
     val (leaderElectionService, submittedJobGraphs, checkpointRecoveryFactory) =
-      RecoveryMode.fromConfig(configuration) match {
-        case RecoveryMode.NONE =>
+      HighAvailabilityMode.fromConfig(configuration) match {
+        case HighAvailabilityMode.NONE =>
           val leaderElectionService = leaderElectionServiceOption match {
             case Some(les) => les
             case None => new StandaloneLeaderElectionService()
@@ -2579,7 +2579,7 @@ object JobManager {
             new StandaloneSubmittedJobGraphStore(),
             new StandaloneCheckpointRecoveryFactory())
 
-        case RecoveryMode.ZOOKEEPER =>
+        case HighAvailabilityMode.ZOOKEEPER =>
           val client = ZooKeeperUtils.startCuratorFramework(configuration)
 
           val leaderElectionService = leaderElectionServiceOption match {
