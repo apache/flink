@@ -196,10 +196,10 @@ Each of these keys expect a format string that may contain constants (e.g. "task
 - `metrics.scope.tm.job`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;
   - Applied to all metrics that were scoped to a task manager and job.
-- `metrics.scope.tm.task`
+- `metrics.scope.task`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;task_name&gt;.&lt;subtask_index&gt;
    - Applied to all metrics that were scoped to a task.
-- `metrics.scope.tm.operator`
+- `metrics.scope.operator`
   - Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;operator_name&gt;.&lt;subtask_index&gt;
   - Applied to all metrics that were scoped to an operator.
 
@@ -209,7 +209,7 @@ The default scope for operator metrics will result in an identifier akin to `loc
 
 If you also want to include the task name but omit the task manager information you can specify the following format:
 
-`metrics.scope.tm.operator: <host>.<job_name>.<task_name>.<operator_name>.<subtask_index>`
+`metrics.scope.operator: <host>.<job_name>.<task_name>.<operator_name>.<subtask_index>`
 
 This could create the identifier `localhost.MyJob.MySource_->_MyOperator.MyOperator.0.MyMetric`.
 
