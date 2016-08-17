@@ -221,12 +221,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	@Override
 	public CheckpointStreamFactory createStreamFactory(JobID jobId,
 			String operatorIdentifier) throws IOException {
-			return null;
-		}
-
-		if (fullyAsyncBackup) {
-			return performFullyAsyncSnapshot(checkpointId, timestamp);
-		} else {
 		return checkpointStreamBackend.createStreamFactory(jobId, operatorIdentifier);
 	}
 
@@ -261,10 +255,24 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
 			KeyGroupAssigner<K> keyGroupAssigner,
-            KeyGroupRange keyGroupRange,
+			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoredState,
 			TaskKvStateRegistry kvStateRegistry) throws Exception {
-		throw new RuntimeException("Not implemented.");
+
+		lazyInitializeForJob(env, operatorIdentifier);
+
+		File instanceBasePath = new File(getDbPath(), UUID.randomUUID().toString());
+		return new RocksDBKeyedStateBackend<>(
+				jobID,
+				operatorIdentifier,
+				instanceBasePath,
+				getDbOptions(),
+				getColumnOptions(),
+				kvStateRegistry,
+				keySerializer,
+				keyGroupAssigner,
+				keyGroupRange,
+				restoredState);
 	}
 
 	// ------------------------------------------------------------------------

@@ -66,6 +66,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
@@ -176,7 +177,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	private long lastCheckpointSize = 0;
 
+	/** Thread pool for async snapshot workers */
 	private ExecutorService asyncOperationsThreadPool;
+
+	/** Timeout to await the termination of the thread pool in milliseconds */
+	private long threadPoolTerminationTimeout = 0L;
 
 	// ------------------------------------------------------------------------
 	//  Life cycle methods for specific implementations
@@ -440,6 +445,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	private void shutdownAsyncThreads() throws Exception {
 		if (!asyncOperationsThreadPool.isShutdown()) {
 			asyncOperationsThreadPool.shutdownNow();
+		}
+
+		if(threadPoolTerminationTimeout > 0L) {
+			asyncOperationsThreadPool.awaitTermination(threadPoolTerminationTimeout, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -859,6 +868,15 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				}
 			}
 		};
+	}
+
+	/**
+	 * Sets a timeout for the async thread pool. Default should always be 0 to avoid blocking restarts of task.
+	 *
+	 * @param threadPoolTerminationTimeout timeout for the async thread pool in milliseconds
+	 */
+	public void setThreadPoolTerminationTimeout(long threadPoolTerminationTimeout) {
+		this.threadPoolTerminationTimeout = threadPoolTerminationTimeout;
 	}
 
 	// ------------------------------------------------------------------------
