@@ -71,7 +71,7 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 	/**
 	 * A {@code CheckpointStateOutputStream} that writes into a byte array.
 	 */
-	public static final class MemoryCheckpointOutputStream extends CheckpointStateOutputStream {
+	public static class MemoryCheckpointOutputStream extends CheckpointStateOutputStream {
 
 		private final ByteArrayOutputStreamWithPos os = new ByteArrayOutputStreamWithPos();
 
@@ -86,13 +86,13 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 
 		@Override
-		public void write(int b) {
+		public void write(int b) throws IOException {
 			os.write(b);
 			isEmpty = false;
 		}
 
 		@Override
-		public void write(byte[] b, int off, int len) {
+		public void write(byte[] b, int off, int len) throws IOException {
 			os.write(b, off, len);
 			isEmpty = false;
 		}
