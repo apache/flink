@@ -22,8 +22,11 @@ import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -82,53 +85,44 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	/** UUID to filter out old registration runs */
 	private UUID currentRegistrationRun;
 
+	/** Logical representation of the job */
+	private JobGraph jobGraph;
+	private JobID jobID;
+
 	/** Configuration of the job */
 	private Configuration configuration;
 	private RecoveryMode recoveryMode;
+
+	/** Service to contend for and retrieve the leadership of JM and RM */
+	private HighAvailabilityServices highAvailabilityServices;
 
 	/** Leader Management */
 	private LeaderElectionService leaderElectionService = null;
 	private UUID leaderSessionID;
 
-	public JobMaster(Configuration configuration, RpcService rpcService, ExecutorService executorService) {
+	public JobMaster(
+		JobGraph jobGraph,
+		Configuration configuration,
+		RpcService rpcService,
+		ExecutorService executorService,
+		HighAvailabilityServices highAvailabilityService
+	) {
 		super(rpcService);
 
+		this.jobGraph = Preconditions.checkNotNull(jobGraph);
+		this.jobID = Preconditions.checkNotNull(jobGraph.getJobID());
+
 		this.configuration = configuration;
+		this.recoveryMode = RecoveryMode.fromConfig(configuration);
+
 		this.executionContext = ExecutionContext$.MODULE$.fromExecutor(
 			Preconditions.checkNotNull(executorService));
 		this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
-
-		// Create necessary components
-		createRecoveryComponents();
+		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityService);
 	}
 
 	public ResourceManagerGateway getResourceManager() {
 		return resourceManager;
-	}
-
-	/*
-	 * Create recovery related components, including:
-	 * (1) LeaderSelectionService: leadership management among JobMasters
-	 * ...
-	 */
-	public void createRecoveryComponents() {
-		recoveryMode = RecoveryMode.fromConfig(configuration);
-
-		switch (recoveryMode) {
-			case STANDALONE:
-				leaderElectionService = new StandaloneLeaderElectionService();
-				break;
-			case ZOOKEEPER:
-				try {
-					CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-					leaderElectionService = ZooKeeperUtils.createLeaderElectionService(client, configuration);
-				} catch (Exception e) {
-					throw new RuntimeException("Fail to create zookeeper leader election service.", e);
-				}
-				break;
-			default:
-				throw new RuntimeException("Unknown recovery mode.");
-		}
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -137,18 +131,26 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	public void start() {
 		super.start();
 
-		// Start the leadership election service
-		try {
-			this.leaderElectionService.start(this);
-		} catch (Exception e) {
-			throw new RuntimeException("Fail to start the leader election service.", e);
-		}
+		// register at the election once the JM starts
+		registerAtElectionService();
 	}
 
 
 	//----------------------------------------------------------------------------------------------
 	// Leadership methods
 	//----------------------------------------------------------------------------------------------
+
+	/**
+	 * Retrieves the election service and contend for the leadership.
+	 */
+	private void registerAtElectionService() {
+		try {
+			leaderElectionService = highAvailabilityServices.getJobMasterLeaderElectionService(jobID);
+			leaderElectionService.start(this);
+		} catch (Exception e) {
+			throw new RuntimeException("Fail to register at the election of JobMaster", e);
+		}
+	}
 
 	/**
 	 * Stop the execution when the leadership is revoked.
@@ -173,7 +175,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	 * @param newLeaderSessionID The identifier of the new leadership session
 	 */
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		System.out.println("enter: JobManager grants the leadership." + newLeaderSessionID);
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
@@ -184,7 +185,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 				leaderSessionID = newLeaderSessionID;
 				leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
 
-				// TODO:: register at the RM to start the scheduling
+				// TODO:: execute the job when the leadership is granted.
 			}
 		});
 	}

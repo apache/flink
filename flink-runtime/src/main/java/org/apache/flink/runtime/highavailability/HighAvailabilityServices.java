@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 /**
@@ -36,4 +38,9 @@ public interface HighAvailabilityServices {
 	 * Gets the leader retriever for the cluster's resource manager.
 	 */
 	LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception;
+
+	/**
+	 * Gets the leader election service for the given job.
+	 */
+	LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception;
 }
