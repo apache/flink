@@ -198,11 +198,10 @@ public class YarnClusterClient extends ClusterClient {
 
 	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		if (perJobCluster) {
-			stopAfterJob(jobGraph.getJobID());
-		}
-
 		if (isDetached()) {
+			if (perJobCluster) {
+				stopAfterJob(jobGraph.getJobID());
+			}
 			return super.runDetached(jobGraph, classLoader);
 		} else {
 			return super.run(jobGraph, classLoader);
@@ -248,7 +247,7 @@ public class YarnClusterClient extends ClusterClient {
 			throw new RuntimeException("Unable to get ClusterClient status from Application Client", e);
 		}
 		if(clusterStatus instanceof None$) {
-			return null;
+			throw new RuntimeException("Unable to get ClusterClient status from Application Client");
 		} else if(clusterStatus instanceof Some) {
 			return (GetClusterStatusResponse) (((Some) clusterStatus).get());
 		} else {
@@ -572,7 +571,6 @@ public class YarnClusterClient extends ClusterClient {
 							Thread.sleep(250);
 						} catch (InterruptedException e) {
 							LOG.error("Interrupted while waiting for TaskManagers");
-							System.err.println("Thread is interrupted");
 							throw new RuntimeException("Interrupted while waiting for TaskManagers", e);
 						}
 					}
