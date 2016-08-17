@@ -118,7 +118,30 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ------------------------------------------------------------------------
 	//  Error handling
 	// ------------------------------------------------------------------------
-	public void onFatalError(Throwable t) {
+
+	/**
+	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
+	 * This method should be used when asynchronous threads want to notify the
+	 * TaskExecutor of a fatal error.
+	 *
+	 * @param t The exception describing the fatal error
+	 */
+	void onFatalErrorAsync(final Throwable t) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				onFatalError(t);
+			}
+		});
+	}
+
+	/**
+	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
+	 * This method must only be called from within the TaskExecutor's main thread.
+	 *
+	 * @param t The exception describing the fatal error
+	 */
+	void onFatalError(Throwable t) {
 		// to be determined, probably delegate to a fatal error handler that 
 		// would either log (mini cluster) ot kill the process (yarn, mesos, ...)
 		log.error("FATAL ERROR", t);

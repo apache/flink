@@ -65,8 +65,8 @@ public class RpcCompletenessTest extends TestLogger {
 	}
 
 	private void checkCompleteness(Class<? extends RpcEndpoint> rpcEndpoint, Class<? extends RpcGateway> rpcGateway) {
-		Method[] gatewayMethods = getInterfaceMethods(rpcGateway).toArray(new Method[0]);
-		Method[] serverMethods = rpcEndpoint.getMethods();
+		Method[] gatewayMethods = rpcGateway.getDeclaredMethods();
+		Method[] serverMethods = rpcEndpoint.getDeclaredMethods();
 
 		Map<String, Set<Method>> rpcMethods = new HashMap<>();
 		Set<Method> unmatchedRpcMethods = new HashSet<>();
