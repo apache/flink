@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.activemq.internal.AMQExceptionListener;
 import org.apache.flink.streaming.connectors.activemq.internal.AMQUtil;
 import org.apache.flink.streaming.connectors.activemq.internal.RunningChecker;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -34,7 +35,6 @@ import org.slf4j.LoggerFactory;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.Destination;
-import javax.jms.ExceptionListener;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
@@ -118,12 +118,7 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 		connection = connectionFactory.createConnection();
 		connection.start();
 
-		connection.setExceptionListener(new ExceptionListener() {
-			@Override
-			public void onException(JMSException e) {
-				LOG.error("Received ActiveMQ exception", e);
-			}
-		});
+		connection.setExceptionListener(new AMQExceptionListener(LOG, logFailuresOnly));
 
 		RuntimeContext runtimeContext = getRuntimeContext();
 		int acknowledgeType;
@@ -239,4 +234,5 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	public TypeInformation<OUT> getProducedType() {
 		return deserializationSchema.getProducedType();
 	}
+
 }
