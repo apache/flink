@@ -1408,7 +1408,7 @@ public class CheckpointCoordinatorTest {
 		assertTrue(coord.triggerCheckpoint(timestamp + 3));
 		assertEquals(2, coord.getNumberOfPendingCheckpoints());
 
-		Future<String> savepointFuture2 = coord.triggerSavepoint(timestamp);
+		Future<String> savepointFuture2 = coord.triggerSavepoint(timestamp + 4);
 		long savepointId2 = counter.getLast();
 		assertEquals(3, coord.getNumberOfPendingCheckpoints());
 

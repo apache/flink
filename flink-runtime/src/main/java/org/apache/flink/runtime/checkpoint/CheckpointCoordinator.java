@@ -333,17 +333,19 @@ public class CheckpointCoordinator {
 					}
 					return new CheckpointTriggerResult(CheckpointDeclineReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
 				}
-			}
 
-			// make sure the minimum interval between checkpoints has passed
-			if (lastTriggeredCheckpoint + minPauseBetweenCheckpoints > timestamp) {
-				if (currentPeriodicTrigger != null) {
-					currentPeriodicTrigger.cancel();
-					currentPeriodicTrigger = null;
+				// make sure the minimum interval between checkpoints has passed
+				if (lastTriggeredCheckpoint + minPauseBetweenCheckpoints > timestamp) {
+					if (currentPeriodicTrigger != null) {
+						currentPeriodicTrigger.cancel();
+						currentPeriodicTrigger = null;
+					}
+					ScheduledTrigger trigger = new ScheduledTrigger();
+					// Reassign the new trigger to the currentPeriodicTrigger
+					currentPeriodicTrigger = trigger;
+					timer.scheduleAtFixedRate(trigger, minPauseBetweenCheckpoints, baseInterval);
+					return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 				}
-				ScheduledTrigger trigger = new ScheduledTrigger();
-				timer.scheduleAtFixedRate(trigger, minPauseBetweenCheckpoints, baseInterval);
-				return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 			}
 		}
 
