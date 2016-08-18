@@ -69,9 +69,6 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	/** Self gateway which can be used to schedule asynchronous calls on yourself */
 	private final C self;
 
-	/** the fully qualified address of the this RPC endpoint */
-	private final String selfAddress;
-
 	/** The main thread execution context to be used to execute future callbacks in the main thread
 	 * of the executing rpc server. */
 	private final ExecutionContext mainThreadExecutionContext;
@@ -92,7 +89,6 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 		this.selfGatewayType = ReflectionUtil.getTemplateType1(getClass());
 		this.self = rpcService.startServer(this);
 		
-		this.selfAddress = rpcService.getAddress(self);
 		this.mainThreadExecutionContext = new MainThreadExecutionContext((MainThreadExecutor) self);
 	}
 
@@ -156,7 +152,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @return Fully qualified address of the underlying RPC endpoint
 	 */
 	public String getAddress() {
-		return selfAddress;
+		return self.getAddress();
 	}
 
 	/**
