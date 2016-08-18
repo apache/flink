@@ -23,33 +23,35 @@ import org.apache.flink.metrics.Meter;
 public class TestMeter implements Meter {
 
 	@Override
-	public void markEvent() { }
+	public void markEvent() {
+	}
 
 	@Override
-	public void markEvent(long n) { }
+	public void markEvent(long n) {
+	}
 
 	@Override
 	public double getOneMinuteRate() {
-								   return 1;
-											}
+		return 1;
+	}
 
 	@Override
 	public double getFiveMinuteRate() {
-									return 5;
-											 }
+		return 5;
+	}
 
 	@Override
 	public double getFifteenMinuteRate() {
-									   return 15;
-												 }
+		return 15;
+	}
 
 	@Override
 	public double getMeanRate() {
-							  return 10;
-										}
+		return 10;
+	}
 
 	@Override
 	public long getCount() {
-						 return 100L;
-									 }
+		return 100L;
+	}
 }
