@@ -23,6 +23,7 @@ import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rpc.MainThreadExecutor;
+import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.akka.messages.CallAsync;
@@ -55,6 +56,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutor, StartStoppable {
 	private static final Logger LOG = Logger.getLogger(AkkaInvocationHandler.class);
 
+	private final String address;
+
 	private final ActorRef rpcEndpoint;
 
 	// whether the actor ref is local and thus no message serialization is needed
@@ -65,7 +68,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 	private final long maximumFramesize;
 
-	AkkaInvocationHandler(ActorRef rpcEndpoint, Timeout timeout, long maximumFramesize) {
+	AkkaInvocationHandler(String address, ActorRef rpcEndpoint, Timeout timeout, long maximumFramesize) {
+		this.address = Preconditions.checkNotNull(address);
 		this.rpcEndpoint = Preconditions.checkNotNull(rpcEndpoint);
 		this.isLocal = this.rpcEndpoint.path().address().hasLocalScope();
 		this.timeout = Preconditions.checkNotNull(timeout);
@@ -79,7 +83,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 		Object result;
 
 		if (declaringClass.equals(AkkaGateway.class) || declaringClass.equals(MainThreadExecutor.class) ||
-			declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class)) {
+			declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class) ||
+			declaringClass.equals(RpcGateway.class)) {
 			result = method.invoke(this, args);
 		} else {
 			String methodName = method.getName();
@@ -289,5 +294,10 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 		}
 
 		return false;
+	}
+
+	@Override
+	public String getAddress() {
+		return address;
 	}
 }
