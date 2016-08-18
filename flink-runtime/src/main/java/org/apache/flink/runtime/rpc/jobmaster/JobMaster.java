@@ -64,7 +64,7 @@ import java.util.concurrent.TimeoutException;
  * given task</li>
  * </ul>
  */
-public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderContender {
+public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** Execution context for future callbacks */
 	private final ExecutionContext executionContext;
 
@@ -134,7 +134,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 
 
 	//----------------------------------------------------------------------------------------------
-	// Leadership methods
+	// JobMaster Leadership methods
 	//----------------------------------------------------------------------------------------------
 
 	/**
@@ -143,27 +143,10 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	private void registerAtElectionService() {
 		try {
 			leaderElectionService = highAvailabilityServices.getJobMasterLeaderElectionService(jobID);
-			leaderElectionService.start(this);
+			leaderElectionService.start(new JobMasterLeaderContender());
 		} catch (Exception e) {
 			throw new RuntimeException("Fail to register at the election of JobMaster", e);
 		}
-	}
-
-	/**
-	 * Stop the execution when the leadership is revoked.
-	 */
-	public void revokeLeadership() {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.info("JobManager {} was revoked leadership.", getAddress());
-
-				// TODO:: cancel the job's execution and notify all listeners
-				cancelAndClearEverything(new Exception("JobManager is no longer the leader."));
-
-				leaderSessionID = null;
-			}
-		});
 	}
 
 	/**
@@ -171,7 +154,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	 *
 	 * @param newLeaderSessionID The identifier of the new leadership session
 	 */
-	public void grantLeadership(final UUID newLeaderSessionID) {
+	public void grantJobMasterLeadership(final UUID newLeaderSessionID) {
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
@@ -188,11 +171,28 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	}
 
 	/**
+	 * Stop the execution when the leadership is revoked.
+	 */
+	public void revokeJobMasterLeadership() {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.info("JobManager {} was revoked leadership.", getAddress());
+
+				// TODO:: cancel the job's execution and notify all listeners
+				cancelAndClearEverything(new Exception("JobManager is no longer the leader."));
+
+				leaderSessionID = null;
+			}
+		});
+	}
+
+	/**
 	 * Handles error occurring in the leader election service
 	 *
 	 * @param exception Exception thrown in the leader election service
 	 */
-	public void handleError(final Exception exception) {
+	public void onJobMasterElectionError(final Exception exception) {
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
@@ -383,5 +383,31 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> implements LeaderCo
 	 */
 	private void cancelAndClearEverything(Throwable cause) {
 		// currently, nothing to do here
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utility classes
+	// ------------------------------------------------------------------------
+	private class JobMasterLeaderContender implements LeaderContender {
+
+		@Override
+		public void grantLeadership(UUID leaderSessionID) {
+			JobMaster.this.grantJobMasterLeadership(leaderSessionID);
+		}
+
+		@Override
+		public void revokeLeadership() {
+			JobMaster.this.revokeJobMasterLeadership();
+		}
+
+		@Override
+		public String getAddress() {
+			return JobMaster.this.getAddress();
+		}
+
+		@Override
+		public void handleError(Exception exception) {
+			onJobMasterElectionError(exception);
+		}
 	}
 }
