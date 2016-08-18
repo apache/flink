@@ -931,6 +931,7 @@ public class ExecutionGraph {
 		intermediateResults.clear();
 		currentExecutions.clear();
 		requiredJarFiles.clear();
+		requiredClasspaths.clear();
 		jobStatusListeners.clear();
 		executionListeners.clear();
 
