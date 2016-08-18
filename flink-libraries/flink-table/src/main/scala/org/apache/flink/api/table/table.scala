@@ -21,7 +21,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.expressions.{Asc, ExpressionParser, UnresolvedAlias, Expression, Ordering}
-import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
+import org.apache.flink.api.table.plan.RexNodeTranslator._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 
@@ -78,14 +78,14 @@ class Table(
   def select(fields: Expression*): Table = {
     val projectionOnAggregates = fields.map(extractAggregations(_, tableEnv))
     val aggregations = projectionOnAggregates.flatMap(_._2)
+    val projectList = expandProjectList(projectionOnAggregates.map(_._1), logicalPlan)
     if (aggregations.nonEmpty) {
       new Table(tableEnv,
-        Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        Project(projectList,
           Aggregate(Nil, aggregations, logicalPlan).validate(tableEnv)).validate(tableEnv))
     } else {
       new Table(tableEnv,
-        Project(
-          projectionOnAggregates.map(e => UnresolvedAlias(e._1)), logicalPlan).validate(tableEnv))
+        Project(projectList, logicalPlan).validate(tableEnv))
     }
   }
 
