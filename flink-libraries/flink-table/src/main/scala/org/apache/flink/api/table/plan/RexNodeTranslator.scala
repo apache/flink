@@ -20,6 +20,9 @@ package org.apache.flink.api.table.plan
 
 import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.plan.logical.LogicalNode
+
+import scala.collection.mutable.ListBuffer
 
 object RexNodeTranslator {
 
@@ -67,5 +70,19 @@ object RexNodeTranslator {
         }
         (e.makeCopy(newArgs.map(_._1).toArray), newArgs.flatMap(_._2).toList)
     }
+  }
+
+  /**
+    * Parses all input expressions to [[UnresolvedAlias]].
+    * And expands star to parent's full project list.
+    */
+  def expandProjectList(exprs: Seq[Expression], parent: LogicalNode): Seq[NamedExpression] = {
+    val projectList = new ListBuffer[NamedExpression]
+    exprs.foreach {
+      case n: UnresolvedFieldReference if n.name == "*" =>
+        projectList ++= parent.output.map(UnresolvedAlias(_))
+      case e: Expression => projectList += UnresolvedAlias(e)
+    }
+    projectList
   }
 }

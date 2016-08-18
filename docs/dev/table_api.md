@@ -501,6 +501,10 @@ This section gives a brief overview of the available operators. You can find mor
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.select("a, c as d");
 {% endhighlight %}
+        <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
+{% highlight java %}
+Table result = in.select("*");
+{% endhighlight %}
       </td>
     </tr>
 
@@ -722,6 +726,11 @@ Table result = in.orderBy("a.asc").limit(3, 5); // returns 5 records beginning w
 {% highlight scala %}
 val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.select('a, 'c as 'd);
+{% endhighlight %}
+        <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
+{% highlight scala %}
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
+val result = in.select('*);
 {% endhighlight %}
       </td>
     </tr>
