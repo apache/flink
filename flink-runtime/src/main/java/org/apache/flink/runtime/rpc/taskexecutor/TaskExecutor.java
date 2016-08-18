@@ -123,7 +123,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
 	 * This method should be used when asynchronous threads want to notify the
 	 * TaskExecutor of a fatal error.
-	 * 
+	 *
 	 * @param t The exception describing the fatal error
 	 */
 	void onFatalErrorAsync(final Throwable t) {
@@ -138,7 +138,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	/**
 	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
 	 * This method must only be called from within the TaskExecutor's main thread.
-	 * 
+	 *
 	 * @param t The exception describing the fatal error
 	 */
 	void onFatalError(Throwable t) {

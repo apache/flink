@@ -44,7 +44,7 @@ public interface RpcService {
 	/**
 	 * Start a rpc server which forwards the remote procedure calls to the provided rpc endpoint.
 	 *
-	 * @param rpcEndpoint Rpc protocl to dispath the rpcs to
+	 * @param rpcEndpoint Rpc protocol to dispatch the rpcs to
 	 * @param <S> Type of the rpc endpoint
 	 * @param <C> Type of the self rpc gateway associated with the rpc server
 	 * @return Self gateway to dispatch remote procedure calls to oneself
@@ -65,15 +65,15 @@ public interface RpcService {
 	void stopService();
 
 	/**
-	 * Get the fully qualified address of the underlying rpc server represented by the self gateway.
+	 * Get the fully qualified address of the underlying rpc server represented by the gateway.
 	 * It must be possible to connect from a remote host to the rpc server via the returned fully
 	 * qualified address.
 	 *
-	 * @param selfGateway Self gateway associated with the underlying rpc server
+	 * @param gateway RpcGateway associated with the underlying rpc server
 	 * @param <C> Type of the rpc gateway
 	 * @return Fully qualified address
 	 */
-	<C extends RpcGateway> String getAddress(C selfGateway);
+	<C extends RpcGateway> String getAddress(C gateway);
 
 	/**
 	 * Gets the execution context, provided by this RPC service. This execution
