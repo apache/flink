@@ -75,9 +75,15 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 
 	@Override
 	public String toString() {
-		return "SlotID{" +
-			"resourceId=" + resourceId +
-			", slotId=" + slotId +
-			'}';
+		return resourceId + "_" + slotId;
+	}
+
+	/**
+	 * Generate a random slot id.
+	 *
+	 * @return A random slot id.
+	 */
+	public static SlotID generate() {
+		return new SlotID(ResourceID.generate(), 0);
 	}
 }
