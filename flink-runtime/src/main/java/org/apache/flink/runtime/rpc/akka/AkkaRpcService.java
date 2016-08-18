@@ -102,7 +102,9 @@ public class AkkaRpcService implements RpcService {
 			public C apply(Object obj) {
 				ActorRef actorRef = ((ActorIdentity) obj).getRef();
 
-				InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout, maximumFramesize);
+				final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+
+				InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(address, actorRef, timeout, maximumFramesize);
 
 				// Rather than using the System ClassLoader directly, we derive the ClassLoader
 				// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -135,7 +137,9 @@ public class AkkaRpcService implements RpcService {
 
 		LOG.info("Starting RPC endpoint for {} at {} .", rpcEndpoint.getClass().getName(), actorRef.path());
 
-		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout, maximumFramesize);
+		final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+
+		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(address, actorRef, timeout, maximumFramesize);
 
 		// Rather than using the System ClassLoader directly, we derive the ClassLoader
 		// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -194,19 +198,6 @@ public class AkkaRpcService implements RpcService {
 		}
 
 		actorSystem.awaitTermination();
-	}
-
-	@Override
-	public String getAddress(RpcGateway selfGateway) {
-		checkState(!stopped, "RpcService is stopped");
-
-		if (selfGateway instanceof AkkaGateway) {
-			ActorRef actorRef = ((AkkaGateway) selfGateway).getRpcEndpoint();
-			return AkkaUtils.getAkkaURL(actorSystem, actorRef);
-		} else {
-			String className = AkkaGateway.class.getName();
-			throw new IllegalArgumentException("Cannot get address for non " + className + '.');
-		}
 	}
 
 	@Override
