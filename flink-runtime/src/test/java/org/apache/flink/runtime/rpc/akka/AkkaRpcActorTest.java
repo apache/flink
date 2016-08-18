@@ -34,6 +34,7 @@ import scala.concurrent.Future;
 
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 public class AkkaRpcActorTest extends TestLogger {
@@ -54,6 +55,21 @@ public class AkkaRpcActorTest extends TestLogger {
 		akkaRpcService.stopService();
 		actorSystem.shutdown();
 		actorSystem.awaitTermination();
+	}
+
+	/**
+	 * Tests that the rpc endpoint and the associated rpc gateway have the same addresses.
+	 * @throws Exception
+	 */
+	@Test
+	public void testAddressResolution() throws Exception {
+		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
+
+		Future<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), DummyRpcGateway.class);
+
+		DummyRpcGateway rpcGateway = Await.result(futureRpcGateway, timeout.duration());
+
+		assertEquals(rpcEndpoint.getAddress(), rpcGateway.getAddress());
 	}
 
 	/**
