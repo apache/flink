@@ -337,23 +337,4 @@ public class RpcCompletenessTest extends TestLogger {
 			throw new RuntimeException("Could not retrive basic type information for primitive type " + primitveType + '.');
 		}
 	}
-
-	/**
-	 * Extract all methods defined by a interface
-	 * @param interfaceClass the given interface class
-	 * @return all methods defined by the given interface
-	 */
-	private List<Method> getInterfaceMethods(Class interfaceClass) {
-		if(!interfaceClass.isInterface()) {
-			fail(interfaceClass.getName() + "is not a interface");
-		}
-		ArrayList<Method> allMethods = new ArrayList<>();
-		for(Method method : interfaceClass.getDeclaredMethods()) {
-			allMethods.add(method);
-		}
-		for(Class superClass : interfaceClass.getInterfaces()) {
-			allMethods.addAll(getInterfaceMethods(superClass));
-		}
-		return allMethods;
-	}
 }

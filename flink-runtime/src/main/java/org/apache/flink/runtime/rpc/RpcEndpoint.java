@@ -277,5 +277,4 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 			return this;
 		}
 	}
-
 }
