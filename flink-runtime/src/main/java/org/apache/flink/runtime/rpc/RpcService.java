@@ -65,17 +65,6 @@ public interface RpcService {
 	void stopService();
 
 	/**
-	 * Get the fully qualified address of the underlying rpc server represented by the self gateway.
-	 * It must be possible to connect from a remote host to the rpc server via the returned fully
-	 * qualified address.
-	 *
-	 * @param selfGateway Self gateway associated with the underlying rpc server
-	 * @param <C> Type of the rpc gateway
-	 * @return Fully qualified address
-	 */
-	<C extends RpcGateway> String getAddress(C selfGateway);
-
-	/**
 	 * Gets the execution context, provided by this RPC service. This execution
 	 * context can be used for example for the {@code onComplete(...)} or {@code onSuccess(...)}
 	 * methods of Futures.
