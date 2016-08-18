@@ -67,6 +67,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val MINUTE: Keyword = Keyword("minute")
   lazy val SECOND: Keyword = Keyword("second")
   lazy val MILLI: Keyword = Keyword("milli")
+  lazy val STAR: Keyword = Keyword("*")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
@@ -137,7 +138,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       stringLiteralFlink | singleQuoteStringLiteral |
       boolLiteral | nullLiteral
 
-  lazy val fieldReference: PackratParser[NamedExpression] = ident ^^ {
+  lazy val fieldReference: PackratParser[NamedExpression] = (STAR | ident) ^^ {
     sym => UnresolvedFieldReference(sym)
   }
 

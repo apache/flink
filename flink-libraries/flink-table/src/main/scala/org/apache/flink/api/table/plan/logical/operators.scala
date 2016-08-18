@@ -62,14 +62,14 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
         case n: Alias =>
           // explicit name
           if (names.contains(n.name)) {
-            throw ValidationException(s"Duplicate field name $n.name.")
+            throw ValidationException(s"Duplicate field name ${n.name}.")
           } else {
             names.add(n.name)
           }
         case r: ResolvedFieldReference =>
           // simple field forwarding
           if (names.contains(r.name)) {
-            throw ValidationException(s"Duplicate field name $r.name.")
+            throw ValidationException(s"Duplicate field name ${r.name}.")
           } else {
             names.add(r.name)
           }
@@ -109,6 +109,8 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
       failValidation("Aliasing more fields than we actually have")
     } else if (!aliasList.forall(_.isInstanceOf[UnresolvedFieldReference])) {
       failValidation("Alias only accept name expressions as arguments")
+    } else if (!aliasList.forall(_.asInstanceOf[UnresolvedFieldReference].name != "*")) {
+      failValidation("Alias can not accept '*' as name")
     } else {
       val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
       val input = child.output
