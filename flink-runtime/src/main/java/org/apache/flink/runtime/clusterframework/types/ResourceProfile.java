@@ -40,6 +40,11 @@ public class ResourceProfile implements Serializable {
 		this.memoryInMB = memoryInMB;
 	}
 
+	public ResourceProfile(ResourceProfile other) {
+		this.cpuCores = other.cpuCores;
+		this.memoryInMB = other.memoryInMB;
+	}
+
 	/**
 	 * Get the cpu cores needed
 	 * @return The cpu cores, 1.0 means a full cpu thread
