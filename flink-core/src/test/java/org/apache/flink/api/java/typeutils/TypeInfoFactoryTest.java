@@ -24,31 +24,31 @@ import java.util.Map;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.junit.Test;
+
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import org.junit.Test;
 
 /**
  * Tests for extracting {@link org.apache.flink.api.common.typeinfo.TypeInformation} from types
  * using a {@link org.apache.flink.api.common.typeinfo.TypeInfoFactory}
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
 public class TypeInfoFactoryTest {
 
 	@Test
 	public void testSimpleType() {
-		TypeInformation ti = TypeExtractor.createTypeInfo(IntLike.class);
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(IntLike.class);
 		assertEquals(INT_TYPE_INFO, ti);
 
 		ti = TypeExtractor.getForClass(IntLike.class);
@@ -60,8 +60,8 @@ public class TypeInfoFactoryTest {
 
 	@Test
 	public void testMyEitherGenericType() {
-		MapFunction f = new MyEitherMapper();
-		TypeInformation ti = TypeExtractor.getMapReturnTypes(f, (TypeInformation) BOOLEAN_TYPE_INFO);
+		MapFunction<Boolean, MyEither<Boolean, String>> f = new MyEitherMapper<>();
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, BOOLEAN_TYPE_INFO);
 		assertTrue(ti instanceof EitherTypeInfo);
 		EitherTypeInfo eti = (EitherTypeInfo) ti;
 		assertEquals(BOOLEAN_TYPE_INFO, eti.getLeftType());
@@ -70,9 +70,10 @@ public class TypeInfoFactoryTest {
 
 	@Test
 	public void testMyOptionGenericType() {
-		TypeInformation inTypeInfo = new MyOptionTypeInfo(new TupleTypeInfo(BOOLEAN_TYPE_INFO, STRING_TYPE_INFO));
-		MapFunction f = new MyOptionMapper();
-		TypeInformation ti = TypeExtractor.getMapReturnTypes(f, inTypeInfo);
+		TypeInformation<MyOption<Tuple2<Boolean, String>>> inTypeInfo = new MyOptionTypeInfo<>(
+			new TupleTypeInfo<Tuple2<Boolean, String>>(BOOLEAN_TYPE_INFO, STRING_TYPE_INFO));
+		MapFunction<MyOption<Tuple2<Boolean, String>>, MyOption<Tuple2<Boolean, Boolean>>> f = new MyOptionMapper<>();
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, inTypeInfo);
 		assertTrue(ti instanceof MyOptionTypeInfo);
 		MyOptionTypeInfo oti = (MyOptionTypeInfo) ti;
 		assertTrue(oti.getInnerType() instanceof TupleTypeInfo);
@@ -82,12 +83,13 @@ public class TypeInfoFactoryTest {
 	}
 
 	@Test
-	public void testMyTuple2() {
-		TypeInformation inTypeInfo = new TupleTypeInfo(new MyTupleTypeInfo(DOUBLE_TYPE_INFO, STRING_TYPE_INFO));
-		MapFunction f = new MyTupleMapperL2();
-		TypeInformation ti = TypeExtractor.getMapReturnTypes(f, inTypeInfo);
+	public void testMyTuple() {
+		TypeInformation<Tuple1<MyTuple<Double, String>>> inTypeInfo = new TupleTypeInfo<>(
+			new MyTupleTypeInfo(DOUBLE_TYPE_INFO, STRING_TYPE_INFO));
+		MapFunction<Tuple1<MyTuple<Double, String>>, Tuple1<MyTuple<Boolean, Double>>> f = new MyTupleMapperL2<>();
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, inTypeInfo);
 		assertTrue(ti instanceof TupleTypeInfo);
-		TupleTypeInfo tti = (TupleTypeInfo) ti;
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
 		assertTrue(tti.getTypeAt(0) instanceof MyTupleTypeInfo);
 		MyTupleTypeInfo mtti = (MyTupleTypeInfo) tti.getTypeAt(0);
 		assertEquals(BOOLEAN_TYPE_INFO, mtti.getField0());
@@ -96,23 +98,24 @@ public class TypeInfoFactoryTest {
 
 	@Test
 	public void testMyTupleHierarchy() {
-		TypeInformation ti = TypeExtractor.createTypeInfo(MyTuple2.class);
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(MyTuple2.class);
 		assertTrue(ti instanceof MyTupleTypeInfo);
-		MyTupleTypeInfo mtti = (MyTupleTypeInfo) ti;
+		MyTupleTypeInfo<?, ?> mtti = (MyTupleTypeInfo) ti;
 		assertEquals(STRING_TYPE_INFO, mtti.getField0());
 		assertEquals(BOOLEAN_TYPE_INFO, mtti.getField1());
 	}
 
 	@Test
 	public void testMyTupleHierarchyWithInference() {
-		TypeInformation inTypeInfo = new TupleTypeInfo(new MyTupleTypeInfo(new TupleTypeInfo(FLOAT_TYPE_INFO), BOOLEAN_TYPE_INFO));
-		MapFunction f = new MyTuple3Mapper();
+		TypeInformation<Tuple1<MyTuple3<Tuple1<Float>>>> inTypeInfo = new TupleTypeInfo<>(new MyTupleTypeInfo<>(
+			new TupleTypeInfo<Tuple1<Float>>(FLOAT_TYPE_INFO), BOOLEAN_TYPE_INFO));
+		MapFunction<Tuple1<MyTuple3<Tuple1<Float>>>, Tuple1<MyTuple3<Tuple2<Float, String>>>> f = new MyTuple3Mapper<>();
 		TypeInformation ti = TypeExtractor.getMapReturnTypes(f, inTypeInfo);
 		assertTrue(ti instanceof TupleTypeInfo);
-		TupleTypeInfo tti = (TupleTypeInfo) ti;
+		TupleTypeInfo<?> tti = (TupleTypeInfo) ti;
 		assertTrue(tti.getTypeAt(0) instanceof MyTupleTypeInfo);
 		MyTupleTypeInfo mtti = (MyTupleTypeInfo) tti.getTypeAt(0);
-		assertEquals(new TupleTypeInfo(FLOAT_TYPE_INFO, STRING_TYPE_INFO), mtti.getField0());
+		assertEquals(new TupleTypeInfo<>(FLOAT_TYPE_INFO, STRING_TYPE_INFO), mtti.getField0());
 		assertEquals(BOOLEAN_TYPE_INFO, mtti.getField1());
 	}
 
@@ -127,26 +130,6 @@ public class TypeInfoFactoryTest {
 		MapFunction f = new MyFaultyMapper2();
 		TypeExtractor.getMapReturnTypes(f, new MyFaultyTypeInfo());
 	}
-
-	// global registration of factories is currently private
-	/*
-	@Test
-	public void testRegisteredFactories() {
-		TypeExtractor.registerFactory(Integer.class, MyOptionTypeInfoFactory.class);
-		TypeInformation ti = TypeExtractor.createTypeInfo(Integer.class);
-		assertTrue(ti instanceof MyOptionTypeInfo);
-
-		TypeExtractor.registerFactory(Integer.class, MyOptionTypeInfoFactory.class);
-		ti = TypeExtractor.createTypeInfo(Integer.class);
-		assertTrue(ti instanceof MyOptionTypeInfo);
-	}
-
-	@Test
-	public void testRegisteredFactoriesHierarchy() {
-		TypeExtractor.registerFactory(MyTuple.class, MyTupleTypeInfoFactory.class);
-		TypeInformation ti = TypeExtractor.createTypeInfo(MyTuple3.class);
-		assertTrue(ti instanceof MyTupleTypeInfo);
-	}*/
 
 	// --------------------------------------------------------------------------------------------
 	//  Utilities
@@ -268,6 +251,7 @@ public class TypeInfoFactoryTest {
 
 	public static class MyTupleTypeInfoFactory extends TypeInfoFactory<MyTuple> {
 		@Override
+		@SuppressWarnings("unchecked")
 		public TypeInformation<MyTuple> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
 			return new MyTupleTypeInfo(genericParameters.get("T0"), genericParameters.get("T1"));
 		}
@@ -368,6 +352,7 @@ public class TypeInfoFactoryTest {
 
 	public static class MyOptionTypeInfoFactory<T> extends TypeInfoFactory<MyOption<T>> {
 		@Override
+		@SuppressWarnings("unchecked")
 		public TypeInformation<MyOption<T>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParams) {
 			return new MyOptionTypeInfo(genericParams.get("T"));
 		}
@@ -462,8 +447,9 @@ public class TypeInfoFactoryTest {
 
 	public static class MyEitherTypeInfoFactory<A, B> extends TypeInfoFactory<MyEither<A, B>> {
 		@Override
-		public TypeInformation createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParams) {
-			return new EitherTypeInfo<>(genericParams.get("A"), genericParams.get("B"));
+		@SuppressWarnings("unchecked")
+		public TypeInformation<MyEither<A,B>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParams) {
+			return new EitherTypeInfo(genericParams.get("A"), genericParams.get("B"));
 		}
 	}
 
@@ -474,8 +460,9 @@ public class TypeInfoFactoryTest {
 
 	public static class IntLikeTypeInfoFactory extends TypeInfoFactory<IntLike> {
 		@Override
-		public TypeInformation createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParams) {
-			return INT_TYPE_INFO;
+		@SuppressWarnings("unchecked")
+		public TypeInformation<IntLike> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParams) {
+			return (TypeInformation) INT_TYPE_INFO;
 		}
 	}
 

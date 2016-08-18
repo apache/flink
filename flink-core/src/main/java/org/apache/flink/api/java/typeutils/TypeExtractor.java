@@ -1375,7 +1375,8 @@ public class TypeExtractor {
 	/**
 	 * Returns the type information factory for a type using the factory registry or annotations.
 	 */
-	private static <OUT> TypeInfoFactory<OUT> getTypeInfoFactory(Type t) {
+	@Internal
+	public static <OUT> TypeInfoFactory<OUT> getTypeInfoFactory(Type t) {
 		final Class<?> factoryClass;
 		if (registeredTypeInfoFactories.containsKey(t)) {
 			factoryClass = registeredTypeInfoFactories.get(t);
