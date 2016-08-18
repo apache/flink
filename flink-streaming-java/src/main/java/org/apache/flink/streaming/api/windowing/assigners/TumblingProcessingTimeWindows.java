@@ -57,7 +57,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		final long now = context.getCurrentProcessingTime();
-		long start = TimeWindow.getWindowStartWithOffset(now,offset,size);
+		long start = TimeWindow.getWindowStartWithOffset(now, offset, size);
 		return Collections.singletonList(new TimeWindow(start, start + size));
 	}
 
@@ -83,7 +83,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @return The time policy.
 	 */
 	public static TumblingProcessingTimeWindows of(Time size) {
-		return new TumblingProcessingTimeWindows(size.toMilliseconds(),0);
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), 0);
 	}
 
 	/**
@@ -105,7 +105,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @param offset The offset which window start would be shifted by.
 	 * @return The time policy.
 	 */
-	public static TumblingProcessingTimeWindows of(Time size,Time offset) {
+	public static TumblingProcessingTimeWindows of(Time size, Time offset) {
 		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds() % size.toMilliseconds());
 	}
 	@Override

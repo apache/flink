@@ -51,7 +51,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 
 	private final long offset;
 
-	protected TumblingEventTimeWindows(long size,long offset){
+	protected TumblingEventTimeWindows(long size, long offset){
 		this.size = size;
 		this.offset = offset;
 	}
@@ -59,7 +59,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		if (timestamp > Long.MIN_VALUE) {
 			// Long.MIN_VALUE is currently assigned when no timestamp is present
-			long start = TimeWindow.getWindowStartWithOffset(timestamp,offset,size);
+			long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);
 			return Collections.singletonList(new TimeWindow(start, start + size));
 		} else {
 			throw new RuntimeException("Record has Long.MIN_VALUE timestamp (= no timestamp marker). " +
@@ -90,7 +90,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	 * @return The time policy.
 	 */
 	public static TumblingEventTimeWindows of(Time size) {
-		return new TumblingEventTimeWindows(size.toMilliseconds(),0);
+		return new TumblingEventTimeWindows(size.toMilliseconds(), 0);
 	}
 
 	/**
@@ -113,7 +113,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	 * @return The time policy.
 	 */
 	public static TumblingEventTimeWindows of(Time size, Time offset) {
-		return new TumblingEventTimeWindows(size.toMilliseconds(),offset.toMilliseconds() % size.toMilliseconds());
+		return new TumblingEventTimeWindows(size.toMilliseconds(), offset.toMilliseconds() % size.toMilliseconds());
 	}
 
 	@Override

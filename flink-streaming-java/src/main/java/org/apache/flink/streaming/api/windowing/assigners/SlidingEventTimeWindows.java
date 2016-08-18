@@ -54,7 +54,7 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 
 	private final long offset;
 
-	protected SlidingEventTimeWindows(long size, long slide,long offset) {
+	protected SlidingEventTimeWindows(long size, long slide, long offset) {
 		this.size = size;
 		this.slide = slide;
 		this.offset = offset;
@@ -64,7 +64,7 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		if (timestamp > Long.MIN_VALUE) {
 			List<TimeWindow> windows = new ArrayList<>((int) (size / slide));
-			long lastStart = TimeWindow.getWindowStartWithOffset(timestamp,offset,slide);
+			long lastStart = TimeWindow.getWindowStartWithOffset(timestamp, offset, slide);
 			for (long start = lastStart;
 				start > timestamp - size;
 				start -= slide) {
@@ -105,7 +105,7 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 	 * @return The time policy.
 	 */
 	public static SlidingEventTimeWindows of(Time size, Time slide) {
-		return new SlidingEventTimeWindows(size.toMilliseconds(), slide.toMilliseconds(),0);
+		return new SlidingEventTimeWindows(size.toMilliseconds(), slide.toMilliseconds(), 0);
 	}
 
 	/**
@@ -128,7 +128,7 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 	 * @param offset The offset which window start would be shifted by.
 	 * @return The time policy.
 	 */
-	public static SlidingEventTimeWindows of(Time size, Time slide,Time offset) {
+	public static SlidingEventTimeWindows of(Time size, Time slide, Time offset) {
 		return new SlidingEventTimeWindows(size.toMilliseconds(), slide.toMilliseconds(),
 			offset.toMilliseconds() % slide.toMilliseconds());
 	}
