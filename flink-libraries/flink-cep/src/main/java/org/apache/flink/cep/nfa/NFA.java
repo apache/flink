@@ -80,6 +80,8 @@ public class NFA<T> implements Serializable {
 
 	private final boolean handleTimeout;
 
+	private final MatchingBehaviour matchingBehaviour;
+
 	// Current starting index for the next dewey version number
 	private int startEventCounter;
 
@@ -89,11 +91,13 @@ public class NFA<T> implements Serializable {
 	public NFA(
 		final TypeSerializer<T> eventSerializer,
 		final long windowTime,
+		final MatchingBehaviour matchingBehaviour,
 		final boolean handleTimeout) {
 
 		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
+		this.matchingBehaviour = matchingBehaviour;
 		sharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
 		computationStates = new LinkedList<>();
 
@@ -177,7 +181,7 @@ public class NFA<T> implements Serializable {
 					sharedBuffer.release(newComputationState.getState(), newComputationState.getEvent(), newComputationState.getTimestamp());
 					sharedBuffer.remove(newComputationState.getState(), newComputationState.getEvent(), newComputationState.getTimestamp());
 					// If matching behaviour is AFTER_LAST an event should be matched only once
-					if (newComputationState.getState().getMatchingBehaviour() == MatchingBehaviour.AFTER_LAST) {
+					if (matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
 						skipOtherStates = true;
 					}
 				} else {
@@ -363,7 +367,7 @@ public class NFA<T> implements Serializable {
 			computationState.getEvent(),
 			computationState.getTimestamp(),
 			computationState.getVersion(),
-			computationState.getState().getMatchingBehaviour());
+			matchingBehaviour);
 
 		ArrayList<Map<String, T>> result = new ArrayList<>();
 

@@ -36,6 +36,11 @@ public class CEP {
 	 * @return Resulting pattern stream
 	 */
 	public static <T> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern) {
-		return new PatternStream<>(input, pattern);
+		return pattern(input, pattern, MatchingBehaviour.FROM_FIRST);
+	}
+
+	public static <T> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern,
+												MatchingBehaviour matchingBehaviour) {
+		return new PatternStream<>(input, pattern, matchingBehaviour);
 	}
 }

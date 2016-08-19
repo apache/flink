@@ -554,10 +554,9 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		);
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-			.followedBy("end")
-			.matchingBehaviour(MatchingBehaviour.AFTER_FIRST);
+			.followedBy("end");
 
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+		DataStream<String> result = CEP.pattern(input, pattern, MatchingBehaviour.AFTER_FIRST).select(new PatternSelectFunction<Event, String>() {
 
 			@Override
 			public String select(Map<String, Event> pattern) {
@@ -591,10 +590,9 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		);
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-			.followedBy("end")
-			.matchingBehaviour(MatchingBehaviour.AFTER_LAST);
+			.followedBy("end");
 
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+		DataStream<String> result = CEP.pattern(input, pattern, MatchingBehaviour.AFTER_LAST).select(new PatternSelectFunction<Event, String>() {
 
 			@Override
 			public String select(Map<String, Event> pattern) {

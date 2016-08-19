@@ -32,8 +32,4 @@ public class FollowedByPattern<T, F extends T> extends Pattern<T, F> {
 	FollowedByPattern(final String name, Pattern<T, ?> previous) {
 		super(name, previous);
 	}
-
-	FollowedByPattern(final String name, Pattern<T, ?> previous, MatchingBehaviour matchingBehaviour) {
-		super(name, previous, matchingBehaviour);
-	}
 }

@@ -184,13 +184,6 @@ class PatternTest {
     assertEquals(preprevious.getName, "start")
   }
 
-  @Test
-  def testSetMatchingBehaviour(): Unit = {
-    val pattern = Pattern.begin[Event]("start").matchingBehaviour(MatchingBehaviour.AFTER_LAST)
-
-    assertEquals(MatchingBehaviour.AFTER_LAST, pattern.getMatchingBehaviour)
-  }
-
   def checkCongruentRepresentations[T, _ <: T](pattern: Pattern[T, _ <: T],
                                                jPattern: JPattern[T, _ <: T]): Boolean = {
     ((pattern == null && jPattern == null)

@@ -67,13 +67,6 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
-    * @return Matching behaviour of current pattern
-    */
-  def getMatchingBehaviour(): MatchingBehaviour = {
-    jPattern.getMatchingBehaviour
-  }
-
-  /**
     * Applies a subtype constraint on the current pattern operator. This means that an event has
     * to be of the given subtype in order to be matched.
     *
@@ -147,18 +140,6 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
       override def filter(value: F): Boolean = cleanFilter(value)
     }
     where(filter)
-  }
-
-  /**
-    * Set a matching behaviour that defines if the same event can be used in
-    * multiple matching sequences.
-    *
-    * @param matchingBehaviour New matching behaviour
-    * @return The same pattern operator with the specified matching behaviour
-    */
-  def matchingBehaviour(matchingBehaviour: MatchingBehaviour): Pattern[T, F] = {
-    jPattern.matchingBehaviour(matchingBehaviour)
-    this
   }
 
   /**

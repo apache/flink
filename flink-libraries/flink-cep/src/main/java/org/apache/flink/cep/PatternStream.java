@@ -50,9 +50,12 @@ public class PatternStream<T> {
 
 	private final Pattern<T, ?> pattern;
 
-	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
+	private final MatchingBehaviour matchingBehaviour;
+
+	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern, MatchingBehaviour matchingBehaviour) {
 		this.inputStream = inputStream;
 		this.pattern = pattern;
+		this.matchingBehaviour = matchingBehaviour;
 	}
 
 	public Pattern<T, ?> getPattern() {
@@ -61,6 +64,10 @@ public class PatternStream<T> {
 
 	public DataStream<T> getInputStream() {
 		return inputStream;
+	}
+
+	public MatchingBehaviour getMatchingBehaviour() {
+		return matchingBehaviour;
 	}
 
 	/**
@@ -103,7 +110,7 @@ public class PatternStream<T> {
 	 *         function.
 	 */
 	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
-		DataStream<Map<String, T>> patternStream = CEPOperatorUtils.createPatternStream(inputStream, pattern);
+		DataStream<Map<String, T>> patternStream = CEPOperatorUtils.createPatternStream(inputStream, pattern, matchingBehaviour);
 
 		return patternStream.map(
 			new PatternSelectMapper<>(
@@ -133,7 +140,7 @@ public class PatternStream<T> {
 		final PatternTimeoutFunction<T, L> patternTimeoutFunction,
 		final PatternSelectFunction<T, R> patternSelectFunction) {
 
-		DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream = CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
+		DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream = CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, matchingBehaviour);
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternTimeoutFunction,
@@ -202,7 +209,7 @@ public class PatternStream<T> {
 	 *         function.
 	 */
 	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
-		DataStream<Map<String, T>> patternStream = CEPOperatorUtils.createPatternStream(inputStream, pattern);
+		DataStream<Map<String, T>> patternStream = CEPOperatorUtils.createPatternStream(inputStream, pattern, matchingBehaviour);
 
 		return patternStream.flatMap(
 			new PatternFlatSelectMapper<>(
@@ -233,7 +240,7 @@ public class PatternStream<T> {
 		final PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction,
 		final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 
-		DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream = CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
+		DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream = CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, matchingBehaviour);
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatTimeoutFunction,

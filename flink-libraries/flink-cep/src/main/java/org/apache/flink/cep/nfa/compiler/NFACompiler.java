@@ -57,7 +57,26 @@ public class NFACompiler {
 		Pattern<T, ?> pattern,
 		TypeSerializer<T> inputTypeSerializer,
 		boolean timeoutHandling) {
-		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer, timeoutHandling);
+		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer, MatchingBehaviour.FROM_FIRST, timeoutHandling);
+
+		return factory.createNFA();
+	}
+
+	/**
+	 * Compiles the given pattern into a {@link NFA}.
+	 *
+	 * @param pattern Definition of sequence pattern
+	 * @param inputTypeSerializer Serializer for the input type
+	 * @param timeoutHandling True if the NFA shall return timed out event patterns
+	 * @param <T> Type of the input events
+	 * @return Non-deterministic finite automaton representing the given pattern
+	 */
+	public static <T> NFA<T> compile(
+		Pattern<T, ?> pattern,
+		TypeSerializer<T> inputTypeSerializer,
+		MatchingBehaviour matchingBehaviour,
+		boolean timeoutHandling) {
+		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer, matchingBehaviour, timeoutHandling);
 
 		return factory.createNFA();
 	}
@@ -66,20 +85,20 @@ public class NFACompiler {
 	 * Compiles the given pattern into a {@link NFAFactory}. The NFA factory can be used to create
 	 * multiple NFAs.
 	 *
+	 * @param <T> Type of the input events
 	 * @param pattern Definition of sequence pattern
 	 * @param inputTypeSerializer Serializer for the input type
-	 * @param timeoutHandling True if the NFA shall return timed out event patterns
-	 * @param <T> Type of the input events
-	 * @return Factory for NFAs corresponding to the given pattern
+	 * @param matchingBehaviour
+	 *@param timeoutHandling True if the NFA shall return timed out event patterns  @return Factory for NFAs corresponding to the given pattern
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> NFAFactory<T> compileFactory(
 		Pattern<T, ?> pattern,
 		TypeSerializer<T> inputTypeSerializer,
-		boolean timeoutHandling) {
+		MatchingBehaviour matchingBehaviour, boolean timeoutHandling) {
 		if (pattern == null) {
 			// return a factory for empty NFAs
-			return new NFAFactoryImpl<T>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling);
+			return new NFAFactoryImpl<T>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), matchingBehaviour, timeoutHandling);
 		} else {
 			// set of all generated states
 			Map<String, State<T>> states = new HashMap<>();
@@ -90,7 +109,7 @@ public class NFACompiler {
 			Pattern<T, ?> currentPattern = pattern;
 
 			// we're traversing the pattern from the end to the beginning --> the first state is the final state
-			State<T> currentState = new State<>(currentPattern.getName(), State.StateType.Final, currentPattern.getMatchingBehaviour());
+			State<T> currentState = new State<>(currentPattern.getName(), State.StateType.Final);
 
 			states.put(currentPattern.getName(), currentState);
 
@@ -111,7 +130,7 @@ public class NFACompiler {
 				if (states.containsKey(currentPattern.getName())) {
 					currentState = states.get(currentPattern.getName());
 				} else {
-					currentState = new State<>(currentPattern.getName(), State.StateType.Normal, currentPattern.getMatchingBehaviour());
+					currentState = new State<>(currentPattern.getName(), State.StateType.Normal);
 					states.put(currentState.getName(), currentState);
 				}
 
@@ -136,7 +155,7 @@ public class NFACompiler {
 			if (states.containsKey(BEGINNING_STATE_NAME)) {
 				beginningState = states.get(BEGINNING_STATE_NAME);
 			} else {
-				beginningState = new State<>(BEGINNING_STATE_NAME, State.StateType.Start, MatchingBehaviour.FROM_FIRST);
+				beginningState = new State<>(BEGINNING_STATE_NAME, State.StateType.Start);
 				states.put(BEGINNING_STATE_NAME, beginningState);
 			}
 
@@ -146,7 +165,12 @@ public class NFACompiler {
 				(FilterFunction<T>) currentPattern.getFilterFunction()
 			));
 
-			return new NFAFactoryImpl<T>(inputTypeSerializer, windowTime, new HashSet<>(states.values()), timeoutHandling);
+			return new NFAFactoryImpl<T>(
+				inputTypeSerializer,
+				windowTime,
+				new HashSet<>(states.values()),
+				matchingBehaviour,
+				timeoutHandling);
 		}
 	}
 
@@ -175,22 +199,25 @@ public class NFACompiler {
 		private final long windowTime;
 		private final Collection<State<T>> states;
 		private final boolean timeoutHandling;
+		private final MatchingBehaviour matchingBehaviour;
 
 		private NFAFactoryImpl(
 			TypeSerializer<T> inputTypeSerializer,
 			long windowTime,
 			Collection<State<T>> states,
+			MatchingBehaviour matchingBehaviour,
 			boolean timeoutHandling) {
 
 			this.inputTypeSerializer = inputTypeSerializer;
 			this.windowTime = windowTime;
 			this.states = states;
+			this.matchingBehaviour = matchingBehaviour;
 			this.timeoutHandling = timeoutHandling;
 		}
 
 		@Override
 		public NFA<T> createNFA() {
-			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling);
+			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, matchingBehaviour, timeoutHandling);
 
 			result.addStates(states);
 

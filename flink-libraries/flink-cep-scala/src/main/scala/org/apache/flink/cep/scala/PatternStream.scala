@@ -20,7 +20,7 @@ package org.apache.flink.cep.scala
 import java.util.{Map => JMap}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
+import org.apache.flink.cep.{PatternStream => JPatternStream, _}
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.util.Collector
@@ -31,8 +31,8 @@ import java.lang.{Long => JLong}
 import org.apache.flink.cep.operator.CEPOperatorUtils
 import org.apache.flink.cep.scala.pattern.Pattern
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
+import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
 
 /**
   * Stream abstraction for CEP pattern detection. A pattern stream is a stream which emits detected
@@ -93,7 +93,8 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
     val patternStream = CEPOperatorUtils.createTimeoutPatternStream(
       jPatternStream.getInputStream(),
-      jPatternStream.getPattern())
+      jPatternStream.getPattern(),
+      MatchingBehaviour.FROM_FIRST)
 
     val cleanedSelect = cleanClosure(patternSelectFunction)
     val cleanedTimeout = cleanClosure(patternTimeoutFunction)
@@ -158,7 +159,8 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
   : DataStream[Either[L, R]] = {
     val patternStream = CEPOperatorUtils.createTimeoutPatternStream(
       jPatternStream.getInputStream(),
-      jPatternStream.getPattern()
+      jPatternStream.getPattern(),
+      MatchingBehaviour.FROM_FIRST
     )
 
     val cleanedSelect = cleanClosure(patternFlatSelectFunction)
