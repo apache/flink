@@ -36,6 +36,7 @@ import org.mockito.stubbing.Answer;
 import scala.concurrent.Future;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -1646,7 +1647,94 @@ public class CheckpointCoordinatorTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * Tests that the savepoints can be triggered concurrently.
+	 */
+	@Test
+	public void testConcurrentSavepoints() throws Exception {
+		JobID jobId = new JobID();
+
+		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+
+		StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
+
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+				jobId,
+				100000,
+				200000,
+				0L,
+				1, // max one checkpoint at a time => should not affect savepoints
+				42,
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				cl,
+				checkpointIDCounter,
+				new StandaloneCompletedCheckpointStore(2, cl),
+				new HeapSavepointStore(),
+				new DisabledCheckpointStatsTracker());
+
+		List<Future<String>> savepointFutures = new ArrayList<>();
+
+		int numSavepoints = 5;
+
+		// Trigger savepoints
+		for (int i = 0; i < numSavepoints; i++) {
+			savepointFutures.add(coord.triggerSavepoint(i));
+		}
+
+		// After triggering multiple savepoints, all should in progress
+		for (Future<String> savepointFuture : savepointFutures) {
+			assertFalse(savepointFuture.isCompleted());
+		}
+
+		// ACK all savepoints
+		long checkpointId = checkpointIDCounter.getLast();
+		for (int i = 0; i < numSavepoints; i++, checkpointId--) {
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, attemptID1, checkpointId));
+		}
+
+		// After ACKs, all should be completed
+		for (Future<String> savepointFuture : savepointFutures) {
+			assertTrue(savepointFuture.isCompleted());
+		}
+	}
+
+	/**
+	 * Tests that no minimum delay between savepoints is enforced.
+	 */
+	@Test
+	public void testMinDelayBetweenSavepoints() throws Exception {
+		JobID jobId = new JobID();
+
+		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+				jobId,
+				100000,
+				200000,
+				100000000L, // very long min delay => should not affect savepoints
+				1,
+				42,
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				cl,
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(2, cl),
+				new HeapSavepointStore(),
+				new DisabledCheckpointStatsTracker());
+
+		Future<String> savepoint0 = coord.triggerSavepoint(0);
+		assertFalse("Did not trigger savepoint", savepoint0.isCompleted());
+
+		Future<String> savepoint1 = coord.triggerSavepoint(1);
+		assertFalse("Did not trigger savepoint", savepoint1.isCompleted());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
