@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa.compiler;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.cep.MatchingBehaviour;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
@@ -89,7 +90,7 @@ public class NFACompiler {
 			Pattern<T, ?> currentPattern = pattern;
 
 			// we're traversing the pattern from the end to the beginning --> the first state is the final state
-			State<T> currentState = new State<>(currentPattern.getName(), State.StateType.Final);
+			State<T> currentState = new State<>(currentPattern.getName(), State.StateType.Final, currentPattern.getMatchingBehaviour());
 
 			states.put(currentPattern.getName(), currentState);
 
@@ -110,7 +111,7 @@ public class NFACompiler {
 				if (states.containsKey(currentPattern.getName())) {
 					currentState = states.get(currentPattern.getName());
 				} else {
-					currentState = new State<>(currentPattern.getName(), State.StateType.Normal);
+					currentState = new State<>(currentPattern.getName(), State.StateType.Normal, currentPattern.getMatchingBehaviour());
 					states.put(currentState.getName(), currentState);
 				}
 
@@ -135,7 +136,7 @@ public class NFACompiler {
 			if (states.containsKey(BEGINNING_STATE_NAME)) {
 				beginningState = states.get(BEGINNING_STATE_NAME);
 			} else {
-				beginningState = new State<>(BEGINNING_STATE_NAME, State.StateType.Start);
+				beginningState = new State<>(BEGINNING_STATE_NAME, State.StateType.Start, MatchingBehaviour.FROM_FIRST);
 				states.put(BEGINNING_STATE_NAME, beginningState);
 			}
 

@@ -20,6 +20,7 @@ package org.apache.flink.cep.pattern;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.cep.MatchingBehaviour;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
@@ -53,7 +54,14 @@ public class Pattern<T, F extends T> {
 	// window length in which the pattern match has to occur
 	private Time windowTime;
 
+	// Matching behaviour that defines if a single event can be used in multiple sequences
+	private MatchingBehaviour matchingBehaviour;
+
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
+		this(name, previous, MatchingBehaviour.FROM_FIRST);
+	}
+
+	protected Pattern(final String name, final Pattern<T, ? extends T> previous, MatchingBehaviour matchingBehaviour) {
 		this.name = name;
 		this.previous = previous;
 	}
@@ -68,6 +76,10 @@ public class Pattern<T, F extends T> {
 
 	public FilterFunction<F> getFilterFunction() {
 		return filterFunction;
+	}
+
+	public MatchingBehaviour getMatchingBehaviour() {
+		return matchingBehaviour;
 	}
 
 	public Time getWindowTime() {
@@ -118,11 +130,28 @@ public class Pattern<T, F extends T> {
 	 * between first and the last event must not be longer than the window time.
 	 *
 	 * @param windowTime Time of the matching window
-	 * @return The same pattenr operator with the new window length
+	 * @return The same pattern operator with the new window length
 	 */
 	public Pattern<T, F> within(Time windowTime) {
 		if (windowTime != null) {
 			this.windowTime = windowTime;
+		}
+
+		return this;
+	}
+
+	/**
+	 * Set a matching behaviour that defines if the same event can be used in multiple matching sequences.
+	 *
+	 * @param matchingBehaviour New matching behaviour
+	 * @return The same pattern operator with the specified matching behaviour
+	 */
+	public Pattern<T, F> matchingBehaviour(MatchingBehaviour matchingBehaviour) {
+
+		Pattern<T, F> pattern = this;
+		while (pattern != null) {
+			pattern.matchingBehaviour = matchingBehaviour;
+			pattern = (Pattern<T, F>) pattern.getPrevious();
 		}
 
 		return this;
@@ -138,7 +167,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern operator which is appended to this pattern operator
 	 */
 	public Pattern<T, T> next(final String name) {
-		return new Pattern<T, T>(name, this);
+		return new Pattern<T, T>(name, this, matchingBehaviour);
 	}
 
 	/**
@@ -150,7 +179,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern operator which is appended to this pattern operator
 	 */
 	public FollowedByPattern<T, T> followedBy(final String name) {
-		return new FollowedByPattern<T, T>(name, this);
+		return new FollowedByPattern<T, T>(name, this, matchingBehaviour);
 	}
 
 	/**
@@ -164,5 +193,4 @@ public class Pattern<T, F extends T> {
 	public static <X> Pattern<X, X> begin(final String name) {
 		return new Pattern<X, X>(name, null);
 	}
-
 }

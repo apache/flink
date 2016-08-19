@@ -19,6 +19,7 @@ package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.cep
+import org.apache.flink.cep.MatchingBehaviour
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.apache.flink.streaming.api.windowing.time.Time
 
@@ -63,6 +64,13 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     */
   def getFilterFunction(): Option[FilterFunction[F]] = {
     Option(jPattern.getFilterFunction())
+  }
+
+  /**
+    * @return Matching behaviour of current pattern
+    */
+  def getMatchingBehaviour(): MatchingBehaviour = {
+    jPattern.getMatchingBehaviour
   }
 
   /**
@@ -139,6 +147,18 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
       override def filter(value: F): Boolean = cleanFilter(value)
     }
     where(filter)
+  }
+
+  /**
+    * Set a matching behaviour that defines if the same event can be used in
+    * multiple matching sequences.
+    *
+    * @param matchingBehaviour New matching behaviour
+    * @return The same pattern operator with the specified matching behaviour
+    */
+  def matchingBehaviour(matchingBehaviour: MatchingBehaviour): Pattern[T, F] = {
+    jPattern.matchingBehaviour(matchingBehaviour)
+    this
   }
 
   /**

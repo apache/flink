@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
+import org.apache.flink.cep.MatchingBehaviour;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -52,7 +53,7 @@ import java.util.regex.Pattern;
 /**
  * Non-deterministic finite automaton implementation.
  * <p>
- * The NFA processes input events which will chnage the internal state machine. Whenever a final
+ * The NFA processes input events which will change the internal state machine. Whenever a final
  * state is reached, the matching sequence of events is emitted.
  *
  * The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
@@ -133,9 +134,13 @@ public class NFA<T> implements Serializable {
 		final int numberComputationStates = computationStates.size();
 		final Collection<Map<String, T>> result = new ArrayList<>();
 		final Collection<Tuple2<Map<String, T>, Long>> timeoutResult = new ArrayList<>();
+		boolean skipOtherStates = false;
 
 		// iterate over all current computations
 		for (int i = 0; i < numberComputationStates; i++) {
+			if (skipOtherStates) {
+				continue;
+			}
 			ComputationState<T> computationState = computationStates.poll();
 
 			final Collection<ComputationState<T>> newComputationStates;
@@ -171,6 +176,10 @@ public class NFA<T> implements Serializable {
 					// remove found patterns because they are no longer needed
 					sharedBuffer.release(newComputationState.getState(), newComputationState.getEvent(), newComputationState.getTimestamp());
 					sharedBuffer.remove(newComputationState.getState(), newComputationState.getEvent(), newComputationState.getTimestamp());
+					// If matching behaviour is AFTER_LAST an event should be matched only once
+					if (newComputationState.getState().getMatchingBehaviour() == MatchingBehaviour.AFTER_LAST) {
+						skipOtherStates = true;
+					}
 				} else {
 					// add new computation state; it will be processed once the next event arrives
 					computationStates.add(newComputationState);
@@ -243,8 +252,7 @@ public class NFA<T> implements Serializable {
 			// check all state transitions for each state
 			for (StateTransition<T> stateTransition: stateTransitions) {
 				try {
-					if (stateTransition.getCondition() == null || stateTransition.getCondition().filter(event)) {
-						// filter condition is true
+					if (stateTransition.isConditionTrue(event)) {
 						switch (stateTransition.getAction()) {
 							case PROCEED:
 								// simply advance the computation state, but apply the current event to it
@@ -285,13 +293,16 @@ public class NFA<T> implements Serializable {
 									}
 								}
 
+								boolean validPreviousState = false;
 								if (previousState.isStart()) {
 									sharedBuffer.put(
 										newState,
 										event,
 										timestamp,
 										oldVersion);
-								} else {
+									validPreviousState = true;
+								} else if (sharedBuffer.contains(previousState, previousEvent, previousTimestamp)) {
+									// previous state was removed due to selected matching behaviour
 									sharedBuffer.put(
 										newState,
 										event,
@@ -300,17 +311,21 @@ public class NFA<T> implements Serializable {
 										previousEvent,
 										previousTimestamp,
 										oldVersion);
+									validPreviousState = true;
 								}
 
-								// a new computation state is referring to the shared entry
-								sharedBuffer.lock(newState, event, timestamp);
+								if (validPreviousState) {
+									// a new computation state is referring to the shared entry
+									sharedBuffer.lock(newState, event, timestamp);
 
-								resultingComputationStates.add(new ComputationState<T>(
-									newState,
-									event,
-									timestamp,
-									newComputationStateVersion,
-									startTimestamp));
+									resultingComputationStates.add(new ComputationState<T>(
+										newState,
+										event,
+										timestamp,
+										newComputationStateVersion,
+										startTimestamp));
+
+								}
 								break;
 						}
 					}
@@ -347,7 +362,8 @@ public class NFA<T> implements Serializable {
 			computationState.getState(),
 			computationState.getEvent(),
 			computationState.getTimestamp(),
-			computationState.getVersion());
+			computationState.getVersion(),
+			computationState.getState().getMatchingBehaviour());
 
 		ArrayList<Map<String, T>> result = new ArrayList<>();
 
@@ -529,8 +545,7 @@ public class NFA<T> implements Serializable {
 
 			try {
 				@SuppressWarnings("unchecked")
-				NFA<T> nfa = null;
-				nfa = (NFA<T>) ois.readObject();
+				NFA<T> nfa = (NFA<T>) ois.readObject();
 				return nfa;
 			} catch (ClassNotFoundException e) {
 				throw new RuntimeException("Could not deserialize NFA.", e);

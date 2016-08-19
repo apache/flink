@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.nfa;
 
+import org.apache.flink.cep.MatchingBehaviour;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,10 +40,16 @@ public class State<T> implements Serializable {
 	private final String name;
 	private final StateType stateType;
 	private final Collection<StateTransition<T>> stateTransitions;
+	private final MatchingBehaviour matchingBehaviour;
 
 	public State(final String name, final StateType stateType) {
+		this(name, stateType, MatchingBehaviour.FROM_FIRST);
+	}
+
+	public State(final String name, final StateType stateType, MatchingBehaviour matchingBehaviour) {
 		this.name = name;
 		this.stateType = stateType;
+		this.matchingBehaviour = matchingBehaviour;
 
 		stateTransitions = new ArrayList<StateTransition<T>>();
 	}
@@ -54,6 +62,10 @@ public class State<T> implements Serializable {
 
 	public String getName() {
 		return name;
+	}
+
+	public MatchingBehaviour getMatchingBehaviour() {
+		return matchingBehaviour;
 	}
 
 	public Collection<StateTransition<T>> getStateTransitions() {
