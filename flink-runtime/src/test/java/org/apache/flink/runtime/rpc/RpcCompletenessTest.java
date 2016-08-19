@@ -41,9 +41,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class RpcCompletenessTest extends TestLogger {
+
 	private static final Class<?> futureClass = Future.class;
 
 	@Test
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public void testRpcCompleteness() {
 		Reflections reflections = new Reflections("org.apache.flink");
 
@@ -64,6 +66,7 @@ public class RpcCompletenessTest extends TestLogger {
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
 	private void checkCompleteness(Class<? extends RpcEndpoint> rpcEndpoint, Class<? extends RpcGateway> rpcGateway) {
 		Method[] gatewayMethods = rpcGateway.getDeclaredMethods();
 		Method[] serverMethods = rpcEndpoint.getDeclaredMethods();
