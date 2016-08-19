@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -31,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator.
  */
+@Internal
 public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 	private final String operatorName;
 
