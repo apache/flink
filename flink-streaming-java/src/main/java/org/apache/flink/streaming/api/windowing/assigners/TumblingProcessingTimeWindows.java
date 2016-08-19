@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.TimeZone;
 
 /**
  * A {@link WindowAssigner} that windows elements into windows based on the current
@@ -46,15 +47,18 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
 	private long size;
 
-	private TumblingProcessingTimeWindows(long size) {
+	private long offsetMillis;
+
+	private TumblingProcessingTimeWindows(long size, long offsetMillis) {
 		this.size = size;
+		this.offsetMillis = offsetMillis;
 	}
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		final long now = context.getCurrentProcessingTime();
 		long start = now - (now % size);
-		return Collections.singletonList(new TimeWindow(start, start + size));
+		return Collections.singletonList(new TimeWindow(start, start + size, offsetMillis));
 	}
 
 	public long getSize() {
@@ -68,7 +72,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
 	@Override
 	public String toString() {
-		return "TumblingProcessingTimeWindows(" + size + ")";
+		return "TumblingProcessingTimeWindows(size=" + size + ", offsetMillis=" + offsetMillis + ")";
 	}
 
 	/**
@@ -79,7 +83,31 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @return The time policy.
 	 */
 	public static TumblingProcessingTimeWindows of(Time size) {
-		return new TumblingProcessingTimeWindows(size.toMilliseconds());
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), 0);
+	}
+
+	/**
+	 * Creates a new {@code TumblingProcessingTimeWindows} {@link WindowAssigner} that assigns
+	 * elements to time windows based on the element timestamp.
+	 *
+	 * @param size The size of the generated windows.
+	 * @param timezone The target timezone which you want the windows to be aligned with.
+	 * @return The time policy.
+	 */
+	public static TumblingProcessingTimeWindows of(Time size, TimeZone timezone) {
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), timezone.getRawOffset());
+	}
+
+	/**
+	 * Creates a new {@code TumblingProcessingTimeWindows} {@link WindowAssigner} that assigns
+	 * elements to time windows based on the element timestamp.
+	 *
+	 * @param size The size of the generated windows.
+	 * @param offsetMillis The offset in milliseconds which you want the windows to be aligned with.
+	 * @return The time policy.
+	 */
+	public static TumblingProcessingTimeWindows of(Time size, long offsetMillis) {
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offsetMillis);
 	}
 
 	@Override

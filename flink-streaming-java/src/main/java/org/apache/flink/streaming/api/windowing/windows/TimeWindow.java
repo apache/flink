@@ -42,10 +42,18 @@ public class TimeWindow extends Window {
 
 	private final long start;
 	private final long end;
+	private final long offset;
+
+	public TimeWindow(long start, long end, long offset) {
+		this.start = start + offset;
+		this.end = end + offset;
+		this.offset = offset;
+	}
 
 	public TimeWindow(long start, long end) {
 		this.start = start;
 		this.end = end;
+		this.offset = 0;
 	}
 
 	public long getStart() {
@@ -54,6 +62,11 @@ public class TimeWindow extends Window {
 
 	public long getEnd() {
 		return end;
+	}
+
+	@Override
+	public long getOffset() {
+		return offset;
 	}
 
 	@Override
@@ -85,9 +98,9 @@ public class TimeWindow extends Window {
 	@Override
 	public String toString() {
 		return "TimeWindow{" +
-				"start=" + start +
-				", end=" + end +
-				'}';
+			"start=" + start +
+			", end=" + end +
+			'}';
 	}
 
 	/**
@@ -101,7 +114,7 @@ public class TimeWindow extends Window {
 	 * Returns the minimal window covers both this window and the given window.
 	 */
 	public TimeWindow cover(TimeWindow other) {
-		return new TimeWindow(Math.min(start, other.start), Math.max(end, other.end));
+		return new TimeWindow(Math.min(start, other.start) - offset, Math.max(end, other.end) - offset, offset);
 	}
 
 	public static class Serializer extends TypeSerializer<TimeWindow> {

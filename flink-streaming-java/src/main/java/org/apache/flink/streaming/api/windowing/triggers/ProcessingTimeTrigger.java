@@ -33,7 +33,7 @@ public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) {
-		ctx.registerProcessingTimeTimer(window.maxTimestamp());
+		ctx.registerProcessingTimeTimer(window.maxTimestamp() - window.getOffset());
 		return TriggerResult.CONTINUE;
 	}
 
@@ -49,7 +49,7 @@ public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 
 	@Override
 	public void clear(TimeWindow window, TriggerContext ctx) throws Exception {
-		ctx.deleteProcessingTimeTimer(window.maxTimestamp());
+		ctx.deleteProcessingTimeTimer(window.maxTimestamp() - window.getOffset());
 	}
 
 	@Override
@@ -58,9 +58,8 @@ public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 	}
 
 	@Override
-	public TriggerResult onMerge(TimeWindow window,
-			OnMergeContext ctx) {
-		ctx.registerProcessingTimeTimer(window.maxTimestamp());
+	public TriggerResult onMerge(TimeWindow window, OnMergeContext ctx) {
+		ctx.registerProcessingTimeTimer(window.maxTimestamp() - window.getOffset());
 		return TriggerResult.CONTINUE;
 	}
 
