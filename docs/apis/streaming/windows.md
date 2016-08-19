@@ -252,6 +252,42 @@ input
 Note, how we can specify a time interval by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
 `Time.minutes(x)`, and so on.
 
+The time-based window assigners also take an optional `offset` parameter that can be used to
+change the alignment of windows. For example, without offsets hourly windows are aligned
+with epoch, that is you will get windows such as `1:00 - 1:59`, `2:00 - 2:59` and so on. If you
+want to change that you can give an offset. With an offset of 15 minutes you would, for example,
+get `1:15 - 2:14`, `2:15 - 3:14` etc. Another important use case for offsets is when you
+want to have daily windows and live in a timezone other than UTC-0. For example, in China
+you would have to specify an offset of `Time.hours(-8)`.
+
+This example shows how an offset can be specified for tumbling event time windows (the other
+windows work accordingly):
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<T> input = ...;
+
+// tumbling event-time windows
+input
+    .keyBy(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[T] = ...
+
+// tumbling event-time windows
+input
+    .keyBy(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>)
+{% endhighlight %}
+</div>
+</div>
+
 ## Window Functions
 
 The *window function* is used to process the elements of each window (and key) once the system
