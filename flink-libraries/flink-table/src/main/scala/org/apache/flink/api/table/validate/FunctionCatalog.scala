@@ -146,6 +146,9 @@ object FunctionCatalog {
 
     // temporal functions
     "extract" -> classOf[Extract]
+    // TODO implement function overloading here
+    // "floor" -> classOf[TemporalFloor]
+    // "ceil" -> classOf[TemporalCeil]
   )
 
   /**

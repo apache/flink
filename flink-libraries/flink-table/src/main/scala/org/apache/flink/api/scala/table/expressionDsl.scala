@@ -137,6 +137,8 @@ trait ImplicitExpressionOperations {
     */
   def ceil() = Ceil(expr)
 
+  // String operations
+
   /**
     * Creates a substring of the given string at given index for a given length.
     *
@@ -216,6 +218,8 @@ trait ImplicitExpressionOperations {
     */
   def similar(pattern: Expression) = Similar(expr, pattern)
 
+  // Temporal operations
+
   /**
     * Parses a date String in the form "yy-mm-dd" to a SQL Date.
     */
@@ -238,7 +242,21 @@ trait ImplicitExpressionOperations {
     */
   def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
 
-  // interval types
+  /**
+    * Rounds down a time point to the given unit.
+    *
+    * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
+    */
+  def floor(timeIntervalUnit: TimeIntervalUnit) = TemporalFloor(timeIntervalUnit, expr)
+
+  /**
+    * Rounds up a time point to the given unit.
+    *
+    * e.g. "12:44:31".toDate.ceil(MINUTE) leads to 12:45:00
+    */
+  def ceil(timeIntervalUnit: TimeIntervalUnit) = TemporalCeil(timeIntervalUnit, expr)
+
+  // Interval types
 
   /**
     * Creates an interval of the given number of years.

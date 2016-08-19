@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.FlinkRelBuilder
 import org.apache.flink.api.table.expressions.ExpressionUtils.{divide, getFactor, mod}
+import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.typeutils.{IntervalTypeInfo, TypeCheckUtils}
 import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure, ValidationSuccess}
 
@@ -63,8 +64,8 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
         ValidationSuccess
 
       case _ =>
-        ValidationFailure(s"Extract operator does not support unit '$timeIntervalUnit' for input " +
-          s"of type '${temporal.resultType}'.")
+        ValidationFailure(s"Extract operator does not support unit '$timeIntervalUnit' for input" +
+          s" of type '${temporal.resultType}'.")
     }
   }
 
@@ -131,7 +132,72 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
     result = divide(rexBuilder, result, unit.multiplier)
     result
   }
-
 }
 
+abstract class TemporalCeilFloor(
+    timeIntervalUnit: Expression,
+    temporal: Expression)
+  extends Expression {
+
+  override private[flink] def children: Seq[Expression] = timeIntervalUnit :: temporal :: Nil
+
+  override private[flink] def resultType: TypeInformation[_] = temporal.resultType
+
+  override private[flink] def validateInput(): ExprValidationResult = {
+    if (!TypeCheckUtils.isTimePoint(temporal.resultType)) {
+      return ValidationFailure(s"Temporal ceil/floor operator requires Time Point input, " +
+        s"but $temporal is of type ${temporal.resultType}")
+    }
+    val unit = timeIntervalUnit match {
+      case SymbolExpression(u: TimeIntervalUnit) => Some(u)
+      case _ => None
+    }
+    if (unit.isEmpty) {
+      return ValidationFailure(s"Temporal ceil/floor operator requires Time Interval Unit " +
+        s"input, but $timeIntervalUnit is of type ${timeIntervalUnit.resultType}")
+    }
+
+    (unit.get, temporal.resultType) match {
+      case (TimeIntervalUnit.YEAR | TimeIntervalUnit.MONTH,
+          SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIMESTAMP) =>
+        ValidationSuccess
+      case (TimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP) =>
+        ValidationSuccess
+      case (TimeIntervalUnit.HOUR | TimeIntervalUnit.MINUTE | TimeIntervalUnit.SECOND,
+          SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP) =>
+        ValidationSuccess
+      case _ =>
+        ValidationFailure(s"Temporal ceil/floor operator does not support " +
+          s"unit '$timeIntervalUnit' for input of type '${temporal.resultType}'.")
+    }
+  }
+}
+
+case class TemporalFloor(
+    timeIntervalUnit: Expression,
+    temporal: Expression)
+  extends TemporalCeilFloor(
+    timeIntervalUnit,
+    temporal) {
+
+  override def toString: String = s"($temporal).floor($timeIntervalUnit)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.FLOOR, temporal.toRexNode, timeIntervalUnit.toRexNode)
+  }
+}
+
+case class TemporalCeil(
+    timeIntervalUnit: Expression,
+    temporal: Expression)
+  extends TemporalCeilFloor(
+    timeIntervalUnit,
+    temporal) {
+
+  override def toString: String = s"($temporal).ceil($timeIntervalUnit)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.CEIL, temporal.toRexNode, timeIntervalUnit.toRexNode)
+  }
+}
 
