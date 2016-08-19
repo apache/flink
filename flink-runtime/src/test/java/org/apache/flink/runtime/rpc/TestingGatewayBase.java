@@ -34,8 +34,15 @@ public abstract class TestingGatewayBase implements RpcGateway {
 
 	private final ScheduledExecutorService executor;
 
-	protected TestingGatewayBase() {
+	private final String address;
+
+	protected TestingGatewayBase(final String address) {
 		this.executor = Executors.newSingleThreadScheduledExecutor();
+		this.address = address;
+	}
+
+	protected TestingGatewayBase() {
+		this("localhost");
 	}
 
 	// ------------------------------------------------------------------------
@@ -50,6 +57,15 @@ public abstract class TestingGatewayBase implements RpcGateway {
 	protected void finalize() throws Throwable {
 		super.finalize();
 		executor.shutdownNow();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Base class methods
+	// ------------------------------------------------------------------------
+
+	@Override
+	public String getAddress() {
+		return address;
 	}
 
 	// ------------------------------------------------------------------------
