@@ -43,7 +43,7 @@ public class ResourceManagerToTaskExecutorHeartbeatScheduler {
 	private static final long INITIAL_HEARTBEAT_INTERVAL_MILLIS = 5000;
 
 	/** default heartbeat timeout in millisecond */
-	private static final long INITIAL_HEARTBEAT_TIMEOUT_MILLIS = 100;
+	private static final long INITIAL_HEARTBEAT_TIMEOUT_MILLIS = 200;
 
 	/** max heartbeat interval time in millisecond (which is used in retry heartbeat case) */
 	private static final long MAX_HEARTBEAT_TIMEOUT_MILLIS = 30000;
@@ -52,7 +52,7 @@ public class ResourceManagerToTaskExecutorHeartbeatScheduler {
 	private static final long ERROR_HEARTBEAT_DELAY_MILLIS = 2000;
 
 	/** max heartbeat retry times when lost heartbeat */
-	private static final int MAX_ATTEMPT_TIMES = 10;
+	private static final int MAX_ATTEMPT_TIMES = 8;
 
 	private final long heartbeatInterval;
 
@@ -199,6 +199,7 @@ public class ResourceManagerToTaskExecutorHeartbeatScheduler {
 					if (attempt == maxAttempt) {
 						log.error("ResourceManager {} fail to keep heartbeat with taskManager {} after {} attempts",
 							resourceManager.getAddress(), taskExecutorAddress, attempt);
+						closed = true;
 						// mark TaskManager as failed after heartbeat interaction attempts failed for many times
 						resourceManager.getSelf().notifyResourceFailure(resourceID);
 					} else {

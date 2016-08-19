@@ -91,6 +91,10 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 		}
 	}
 
+	public UUID getLeaderSessionID() {
+		return leaderSessionID;
+	}
+
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
 	 *
@@ -140,7 +144,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	 * @return The response by the ResourceManager.
 	 */
 	@RpcMethod
-	public Future<? extends org.apache.flink.runtime.rpc.registration.RegistrationResponse> registerTaskExecutor(
+	public Future<org.apache.flink.runtime.rpc.registration.RegistrationResponse> registerTaskExecutor(
 		final UUID resourceManagerLeaderId,
 		final String taskExecutorAddress,
 		final ResourceID resourceID
@@ -152,14 +156,21 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 		return taskExecutorFuture.map(new Mapper<TaskExecutorGateway, org.apache.flink.runtime.rpc.registration.RegistrationResponse>() {
 			@Override
 			public org.apache.flink.runtime.rpc.registration.RegistrationResponse apply(final TaskExecutorGateway taskExecutorGateway) {
-				// save the register taskExecutor gateway
-				taskExecutorGateways.put(resourceID, taskExecutorGateway);
-				// schedule the heartbeat with the registered taskExecutor
-				ResourceManagerToTaskExecutorHeartbeatScheduler heartbeatScheduler = new ResourceManagerToTaskExecutorHeartbeatScheduler(
-					ResourceManager.this, leaderSessionID, taskExecutorGateway, taskExecutorAddress, resourceID, log);
-				heartbeatScheduler.start();
-				heartbeatSchedulers.put(resourceID, heartbeatScheduler);
-				return new TaskExecutorRegistrationSuccess(new InstanceID(), heartbeatScheduler.getHeartbeatInterval());
+				// decline registration if resourceManager cannot connect to the taskExecutor using the given address
+				if(taskExecutorGateway == null) {
+					log.warn("resourceManager {} decline registration from the taskExecutor {}, cannot connect to it using given address {} ",
+						getAddress(), resourceID, taskExecutorAddress);
+					return new org.apache.flink.runtime.rpc.registration.RegistrationResponse.Decline("cannot connect to taskExecutor using given address");
+				} else {
+					// save the register taskExecutor gateway
+					taskExecutorGateways.put(resourceID, taskExecutorGateway);
+					// schedule the heartbeat with the registered taskExecutor
+					ResourceManagerToTaskExecutorHeartbeatScheduler heartbeatScheduler = new ResourceManagerToTaskExecutorHeartbeatScheduler(
+						ResourceManager.this, leaderSessionID, taskExecutorGateway, taskExecutorAddress, resourceID, log);
+					heartbeatScheduler.start();
+					heartbeatSchedulers.put(resourceID, heartbeatScheduler);
+					return new TaskExecutorRegistrationSuccess(new InstanceID(), heartbeatScheduler.getHeartbeatInterval());
+				}
 			}
 		}, getMainThreadExecutionContext());
 
@@ -184,7 +195,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 			closeHeartbeatToResourceIfExist(resourceID);
 			// TODO notify slotManager and notify jobMaster,
 			// TODO slotManager.notifyTaskManagerFailure(resourceID);
-			taskManager.shutDown();
+			taskManager.shutDown(leaderSessionID);
 		}
 	}
 
@@ -206,7 +217,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	 * @param slotRequest slot request information
 	 * @param slotID      which slot is choosen
 	 */
-	 void requestSlotToTaskManager(final SlotRequest slotRequest, final SlotID slotID) {
+	void requestSlotToTaskManager(final SlotRequest slotRequest, final SlotID slotID) {
 		ResourceID resourceID = slotID.getResourceID();
 		TaskExecutorGateway taskManager = taskExecutorGateways.get(resourceID);
 		if (taskManager == null) {

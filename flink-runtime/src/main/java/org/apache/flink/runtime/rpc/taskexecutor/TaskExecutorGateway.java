@@ -58,8 +58,9 @@ public interface TaskExecutorGateway extends RpcGateway {
 
 	/**
 	 * receive the stop command from resourceManager
+	 * @param resourceManagerLeaderId id to identify a resourceManager which is granted leadership
 	 */
-	void shutDown();
+	void shutDown(UUID resourceManagerLeaderId);
 
 	// ------------------------------------------------------------------------
 	//  ResourceManager handlers
@@ -69,7 +70,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 
 	/**
 	 * handle a notification from ResourceManager which says that the resourceManager was revoked leadership
-	 * @param resourceManagerLeaderId
+	 * @param resourceManagerLeaderId id to identify a resourceManager which is granted leadership
 	 */
 	void notifyOfResourceManagerRevokeLeadership(UUID resourceManagerLeaderId);
 }
