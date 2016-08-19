@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -57,6 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 
  * @param <A> The type of the parent MetricGroup
  */
+@Internal
 public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> implements MetricGroup {
 
 	/** shared logger */
