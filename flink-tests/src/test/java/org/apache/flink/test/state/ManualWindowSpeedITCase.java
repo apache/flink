@@ -21,6 +21,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -56,6 +57,9 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
 
+		String checkpoints = tempFolder.newFolder().toURI().toString();
+		env.setStateBackend(new FsStateBackend(checkpoints));
+
 		env.addSource(new InfiniteTupleSource(10_000))
 				.keyBy(0)
 				.timeWindow(Time.seconds(3))
@@ -87,6 +91,9 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
+
+		String checkpoints = tempFolder.newFolder().toURI().toString();
+		env.setStateBackend(new FsStateBackend(checkpoints));
 
 		env.addSource(new InfiniteTupleSource(10_000))
 				.keyBy(0)
@@ -121,9 +128,8 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
 
-		String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-
-		env.setStateBackend(new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend()));
+		String checkpoints = tempFolder.newFolder().toURI().toString();
+		env.setStateBackend(new RocksDBStateBackend(checkpoints, new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
 				.keyBy(0)
@@ -158,7 +164,6 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 		env.setParallelism(1);
 
 		String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-
 		env.setStateBackend(new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
@@ -195,7 +200,6 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 		env.setParallelism(1);
 
 		String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-
 		env.setStateBackend(new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
