@@ -178,6 +178,33 @@ As it can be seen here, the subtype condition can also be combined with an addit
 In fact you can always provide multiple conditions by calling `where` and `subtype` multiple times.
 These conditions will then be combined using the logical AND operator.
 
+In order to construct or conditions, one has to call the `or` method with a respective filter function.
+Any existing filter function is then ORed with the given one.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+pattern.where(new FilterFunction<Event>() {
+    @Override
+    public boolean filter(Event value) {
+        return ... // some condition
+    }
+}).or(new FilterFunction<Event>() {
+    @Override
+    public boolean filter(Event value) {
+        return ... // or condition
+    }
+});
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+pattern.where(event => ... /* some condition */).or(event => ... /* or condition */)
+{% endhighlight %}
+</div>
+</div>
+
 Next, we can append further states to detect complex patterns.
 We can control the contiguity of two succeeding events to be accepted by the pattern.
 
@@ -285,6 +312,25 @@ patternState.where(new FilterFunction<Event>() {
 {% endhighlight %}
             </td>
         </tr>
+        <tr>
+            <td><strong>Or</strong></td>
+            <td>
+                <p>Adds a new filter condition which is ORed with an existing filter condition. Only if an event passes the filter condition, it can match the state:</p>
+{% highlight java %}
+patternState.where(new FilterFunction<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return ... // some condition
+    }
+}).or(new FilterFunction<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return ... // alternative condition
+    }
+});
+{% endhighlight %}
+                    </td>
+                </tr>
        <tr>
            <td><strong>Subtype</strong></td>
            <td>
@@ -352,6 +398,16 @@ patternState.where(event => ... /* some condition */)
 {% endhighlight %}
             </td>
         </tr>
+        <tr>
+            <td><strong>Or</strong></td>
+            <td>
+                <p>Adds a new filter condition which is ORed with an existing filter condition. Only if an event passes the filter condition, it can match the state:</p>
+{% highlight scala %}
+patternState.where(event => ... /* some condition */)
+    .or(event => ... /* alternative condition */)
+{% endhighlight %}
+                    </td>
+                </tr>
        <tr>
            <td><strong>Subtype</strong></td>
            <td>

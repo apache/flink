@@ -93,18 +93,18 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Specifies a filter condition if fulfilled by an event will match.
+	 * Specifies a filter condition which is ORed with an existing filter function.
 	 *
-	 * @param newFilterFunction Filter condition
+	 * @param orFilterFunction OR filter condition
 	 * @return The same pattern operator where the new filter condition is set
 	 */
-	public Pattern<T, F> or(FilterFunction<F> newFilterFunction) {
-		ClosureCleaner.clean(newFilterFunction, true);
+	public Pattern<T, F> or(FilterFunction<F> orFilterFunction) {
+		ClosureCleaner.clean(orFilterFunction, true);
 
 		if (this.filterFunction == null) {
-			this.filterFunction = newFilterFunction;
+			this.filterFunction = orFilterFunction;
 		} else {
-			this.filterFunction = new OrFilterFunction<>(this.filterFunction, newFilterFunction);
+			this.filterFunction = new OrFilterFunction<>(this.filterFunction, orFilterFunction);
 		}
 
 		return this;
