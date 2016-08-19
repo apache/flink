@@ -40,6 +40,9 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+/**
+ * The connection between a TaskExecutor and the ResourceManager.
+ */
 public class TaskExecutorToResourceManagerConnection {
 
 	/** the logger for all log messages of this class */
@@ -87,6 +90,7 @@ public class TaskExecutorToResourceManagerConnection {
 				log, taskExecutor.getRpcService(),
 				resourceManagerAddress, resourceManagerLeaderId,
 				taskExecutor.getAddress(), taskExecutor.getResourceID());
+		registration.startRegistration();
 
 		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = registration.getFuture();
 		

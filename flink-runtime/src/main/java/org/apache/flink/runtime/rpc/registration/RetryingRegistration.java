@@ -58,12 +58,16 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	//  default configuration values
 	// ------------------------------------------------------------------------
 
+	/** default value for the initial registration timeout (milliseconds) */
 	private static final long INITIAL_REGISTRATION_TIMEOUT_MILLIS = 100;
 
+	/** default value for the maximum registration timeout, after exponential back-off (milliseconds) */
 	private static final long MAX_REGISTRATION_TIMEOUT_MILLIS = 30000;
 
+	/** The pause (milliseconds) made after an registration attempt caused an exception (other than timeout) */
 	private static final long ERROR_REGISTRATION_DELAY_MILLIS = 10000;
 
+	/** The pause (milliseconds) made after the registration attempt was refused */
 	private static final long REFUSED_REGISTRATION_DELAY_MILLIS = 30000;
 
 	// ------------------------------------------------------------------------
