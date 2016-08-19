@@ -386,7 +386,10 @@ public abstract class ClusterClient {
 	 * @throws ProgramInvocationException
 	 */
 	public JobExecutionResult run(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		LeaderRetrievalService leaderRetrievalService;
+
+		waitForClusterToBeReady();
+
+		final LeaderRetrievalService leaderRetrievalService;
 		try {
 			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
 		} catch (Exception e) {
@@ -411,8 +414,10 @@ public abstract class ClusterClient {
 	 * @throws ProgramInvocationException
 	 */
 	public JobSubmissionResult runDetached(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		ActorGateway jobManagerGateway;
 
+		waitForClusterToBeReady();
+
+		final ActorGateway jobManagerGateway;
 		try {
 			jobManagerGateway = getJobManagerGateway();
 		} catch (Exception e) {
@@ -653,6 +658,14 @@ public abstract class ClusterClient {
 	// ------------------------------------------------------------------------
 	//  Abstract methods to be implemented by the cluster specific Client
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Blocks until the client has determined that the cluster is ready for Job submission.
+	 *
+	 * This is delayed until right before job submission to report any other errors first
+	 * (e.g. invalid job definitions/errors in the user jar)
+	 */
+	public abstract void waitForClusterToBeReady();
 
 	/**
 	 * Returns an URL (as a string) to the JobManager web interface
