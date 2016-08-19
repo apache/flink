@@ -26,6 +26,7 @@ import org.apache.flink.api.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.api.table.expressions.TrimMode.TrimMode
 import org.apache.flink.api.table.typeutils.IntervalTypeInfo
 
+import scala.language.implicitConversions
 import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
@@ -65,6 +66,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val TO_TIMESTAMP: Keyword = Keyword("toTimestamp")
   lazy val TRIM: Keyword = Keyword("trim")
   lazy val EXTRACT: Keyword = Keyword("extract")
+  lazy val FLOOR: Keyword = Keyword("floor")
+  lazy val CEIL: Keyword = Keyword("ceil")
   lazy val YEAR: Keyword = Keyword("year")
   lazy val MONTH: Keyword = Keyword("month")
   lazy val DAY: Keyword = Keyword("day")
@@ -213,6 +216,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case operand ~ _  ~ _ ~ _ ~ unit ~ _ => Extract(unit, operand)
   }
 
+  lazy val suffixFloor = composite ~ "." ~ FLOOR ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
+    case operand ~ _  ~ _ ~ _ ~ unit ~ _ => TemporalFloor(unit, operand)
+  }
+
+  lazy val suffixCeil = composite ~ "." ~ CEIL ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
+    case operand ~ _  ~ _ ~ _ ~ unit ~ _ => TemporalCeil(unit, operand)
+  }
+
   lazy val suffixFunctionCall =
     composite ~ "." ~ functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
     case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args)
@@ -255,7 +266,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     suffixTimeInterval | suffixIsNull | suffixIsNotNull | suffixSum | suffixMin | suffixMax |
       suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs |
       suffixIf | suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime |
-      suffixExtract | suffixFunctionCall // function call must always be at the end
+      suffixExtract | suffixFloor | suffixCeil |
+      suffixFunctionCall // function call must always be at the end
 
   // prefix operators
 
@@ -311,10 +323,18 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case _ ~ _ ~ operand ~ _ ~ unit ~ _ => Extract(unit, operand)
   }
 
+  lazy val prefixFloor = FLOOR ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
+    case _ ~ _ ~ operand ~ _ ~ unit ~ _ => TemporalFloor(unit, operand)
+  }
+
+  lazy val prefixCeil = CEIL ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
+    case _ ~ _ ~ operand ~ _ ~ unit ~ _ => TemporalCeil(unit, operand)
+  }
+
   lazy val prefixed: PackratParser[Expression] =
     prefixIsNull | prefixIsNotNull | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
       prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
-      prefixFunctionCall // function call must always be at the end
+      prefixFloor | prefixCeil | prefixFunctionCall // function call must always be at the end
 
   // suffix/prefix composite
 

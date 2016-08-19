@@ -1445,6 +1445,28 @@ TEMPORAL.extract(TIMEINTERVALUNIT)
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+TIMEPOINT.floor(TIMEINTERVALUNIT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds down a time point to the given unit. E.g. <code>"12:44:31".toDate.floor(MINUTE)</code> leads to 12:44:00.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+TIMEPOINT.ceil(TIMEINTERVALUNIT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds up a time point to the given unit. E.g. <code>"12:44:31".toTime.floor(MINUTE)</code> leads to 12:45:00.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
@@ -1683,6 +1705,28 @@ TEMPORAL.extract(TimeIntervalUnit)
       </td>
       <td>
         <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>"2006-06-05".toDate.extract(TimeIntervalUnit.DAY)</code> leads to 5.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+TIMEPOINT.floor(TimeIntervalUnit)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds down a time point to the given unit. E.g. <code>"12:44:31".toTime.floor(TimeIntervalUnit.MINUTE)</code> leads to 12:44:00.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+TIMEPOINT.ceil(TimeIntervalUnit)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds up a time point to the given unit. E.g. <code>"12:44:31".toTime.floor(TimeIntervalUnit.MINUTE)</code> leads to 12:45:00.</p>
       </td>
     </tr>
 
@@ -1926,6 +1970,28 @@ EXTRACT(TIMEINTERVALUNIT FROM TEMPORAL)
       </td>
       <td>
         <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>EXTRACT(DAY FROM DATE '2006-06-05')</code> leads to 5.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+FLOOR(TIMEPOINT TO TIMEINTERVALUNIT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds down a time point to the given unit. E.g. <code>FLOOR(TIME '12:44:31' TO MINUTE)</code> leads to 12:44:00.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight sql %}
+CEIL(TIMEPOINT TO TIMEINTERVALUNIT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds up a time point to the given unit. E.g. <code>CEIL(TIME '12:44:31' TO MINUTE)</code> leads to 12:45:00.</p>
       </td>
     </tr>
 
