@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -34,6 +35,7 @@ import java.util.Map;
  * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do
  * not contain tasks any more
  */
+@Internal
 public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetricGroup> {
 
 	private final Map<JobID, TaskManagerJobMetricGroup> jobs = new HashMap<>();

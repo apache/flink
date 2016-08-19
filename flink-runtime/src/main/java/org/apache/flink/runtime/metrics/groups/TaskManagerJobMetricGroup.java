@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -34,6 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Contains extra logic for adding Tasks ({@link TaskMetricGroup}).
  */
+@Internal
 public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricGroup> {
 
 	/** Map from execution attempt ID (task identifier) to task metrics */
