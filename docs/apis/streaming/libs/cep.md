@@ -303,6 +303,51 @@ patternState.within(Time.seconds(10));
 {% endhighlight %}
           </td>
       </tr>
+       <tr>
+          <td><strong>Optional</strong></td>
+          <td>
+              <p>Defines a pattern as optional.</p>
+{% highlight java %}
+patternState.optional();
+{% endhighlight %}
+          </td>
+      </tr>
+       <tr>
+          <td><strong>OneOrMany</strong></td>
+          <td>
+              <p>Defines that this pattern can be repeated one or many times.</p>
+{% highlight java %}
+patternState.oneOrMany();
+{% endhighlight %}
+          </td>
+      </tr>
+       <tr>
+          <td><strong>ZeroOrMany</strong></td>
+          <td>
+              <p>Defines that this pattern can be repeated many times, but it is optional.</p>
+{% highlight java %}
+patternState.zeroOrMany();
+{% endhighlight %}
+          </td>
+      </tr>
+       <tr>
+          <td><strong>Count</strong></td>
+          <td>
+              <p>Defines that this pattern should be repeated a specified number of times.</p>
+{% highlight java %}
+patternState.count(5);
+{% endhighlight %}
+          </td>
+      </tr>
+       <tr>
+          <td><strong>Range</strong></td>
+          <td>
+              <p>Defines that this pattern can be repeated any number of times within a specified range.</p>
+{% highlight java %}
+patternState.count(minCount, maxCount);
+{% endhighlight %}
+          </td>
+      </tr>
   </tbody>
 </table>
 </div>

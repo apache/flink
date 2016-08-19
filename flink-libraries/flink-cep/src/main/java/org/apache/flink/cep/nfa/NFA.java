@@ -367,6 +367,7 @@ public class NFA<T> implements Serializable {
 						// copy the element so that the user can change it
 						serializer.isImmutableType() ? event : serializer.copy(event)
 					);
+					counter++;
 				}
 			}
 

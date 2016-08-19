@@ -65,6 +65,95 @@ public class PatternTest extends TestLogger {
 	}
 
 	@Test
+	public void testOptionalPattern() {
+		Pattern<Object, ?> pattern = Pattern.begin("start").optional();
+		assertEquals(Quantifier.OPTIONAL, pattern.getQuantifier());
+	}
+
+	@Test
+	public void testOneOrManyPattern() {
+		Pattern<Object, ?> pattern = Pattern.begin("start").oneOrMany();
+		assertEquals(Quantifier.ONE_OR_MANY, pattern.getQuantifier());
+	}
+
+	@Test
+	public void testZeroOrManyPattern() {
+		Pattern<Object, ?> pattern = Pattern.begin("start").zeroOrMany();
+		assertEquals(Quantifier.ZERO_OR_MANY, pattern.getQuantifier());
+	}
+
+	@Test
+	public void testInitCount() {
+		Pattern<Object, ?> pattern = Pattern.begin("start");
+		assertEquals(1, pattern.getMinCount());
+		assertEquals(1, pattern.getMaxCount());
+	}
+
+	@Test
+	public void testFixedCount() {
+		Pattern<Object, ?> pattern = Pattern.begin("start").count(5);
+		assertEquals(5, pattern.getMinCount());
+		assertEquals(5, pattern.getMaxCount());
+	}
+
+	@Test
+	public void testVariableCount() {
+		Pattern<Object, ?> pattern = Pattern.begin("start").count(5, 10);
+		assertEquals(5, pattern.getMinCount());
+		assertEquals(10, pattern.getMaxCount());
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testOptionalShouldBeTheOnlyQuantifier() {
+		Pattern.begin("start").optional().zeroOrMany();
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testZeroOrMoreShouldBeTheOnlyQuantifier() {
+		Pattern.begin("start").zeroOrMany().optional();
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testOneOrMoreShouldBeTheOnlyQuantifier() {
+		Pattern.begin("start").oneOrMany().optional();
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testCountShouldBeTheOnlyQuantifier() {
+		Pattern.begin("start").count(5).optional();
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testVariableCountShouldBeTheOnlyQuantifier() {
+		Pattern.begin("start").count(5, 10).optional();
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testCountCanBeUsedOnlyOnceInPattern() {
+		Pattern.begin("start").count(5, 10).count(5);
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testCountZeroIsInvalid() {
+		Pattern.begin("start").count(0);
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testMinCountShouldBePositive() {
+		Pattern.begin("start").count(-1, 3);
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testMaxCountShouldBePositive() {
+		Pattern.begin("start").count(0, 0);
+	}
+
+	@Test(expected = InvalidPatternException.class)
+	public void testMaxCountShould() {
+		Pattern.begin("start").count(5, 4);
+	}
+
+	@Test
 	public void testStrictContiguityWithCondition() {
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").next("next").where(new FilterFunction<Event>() {
 			private static final long serialVersionUID = -7657256242101104925L;
