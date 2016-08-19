@@ -66,6 +66,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.WindowingTestHarness;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
@@ -2549,5 +2550,178 @@ public class WindowOperatorTest {
 		public String toString() {
 			return "EventTimeTrigger()";
 		}
+	}
+
+	@Test
+	public void testEventTimeTumblingWindowsWithOffset() throws Exception {
+		final int WINDOW_SIZE = 2000;
+		final int OFFSET = 100;
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		TumblingEventTimeWindows windowAssigner = TumblingEventTimeWindows.of(Time.milliseconds(WINDOW_SIZE),Time.milliseconds(OFFSET));
+
+		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
+			new ExecutionConfig(),
+			windowAssigner,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			inputType,
+			new TupleKeySelector(),
+			EventTimeTrigger.create(),
+			0);
+
+		// normal element
+		testHarness.processElement(new Tuple2<>("key2", 1), 1000);
+		testHarness.processWatermark(1985);
+
+		testHarness.addExpectedWatermark(1985);
+
+		// this will not be dropped because window.maxTimestamp() + allowedLateness > currentWatermark
+		testHarness.processElement(new Tuple2<>("key2", 2), 1980);
+
+		// dropped as late
+		testHarness.processElement(new Tuple2<>("key2", 3), 1998);
+
+		testHarness.processElement(new Tuple2<>("key2", 4), 2001);
+		testHarness.processWatermark(2999);
+
+		testHarness.addExpectedElement(new Tuple2<>("key2", 1), 1999 + OFFSET);
+		testHarness.addExpectedElement(new Tuple2<>("key2", 2), 1999 + OFFSET);
+		testHarness.addExpectedElement(new Tuple2<>("key2", 3), 1999 + OFFSET);
+		testHarness.addExpectedElement(new Tuple2<>("key2", 4), 1999 + OFFSET);
+
+		testHarness.addExpectedWatermark(2999);
+
+		testHarness.processWatermark(3999);
+		testHarness.addExpectedWatermark(3999);
+
+		testHarness.compareActualToExpectedOutput("Output is not correct");
+
+		testHarness.close();
+	}
+
+	@Test
+	public void testEventTimeSlidingWindowsWithOffset() throws Exception {
+		final int WINDOW_SIZE = 2000;
+		final int SLIDE = 500;
+		final int OFFSET = 10;
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		SlidingEventTimeWindows windowAssigner = SlidingEventTimeWindows.of(Time.milliseconds(WINDOW_SIZE),Time.milliseconds(SLIDE),Time.milliseconds(OFFSET));
+
+		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
+			new ExecutionConfig(),
+			windowAssigner,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			inputType,
+			new TupleKeySelector(),
+			EventTimeTrigger.create(),
+			0);
+
+		testHarness.processElement(new Tuple2<>("key2", 1), 333);
+		testHarness.processWatermark(6666);
+
+		testHarness.addExpectedElement(new Tuple2<>("key2",1),499 + OFFSET);
+		testHarness.addExpectedElement(new Tuple2<>("key2",1),999 + OFFSET);
+		testHarness.addExpectedElement(new Tuple2<>("key2",1),1499 + OFFSET);
+		testHarness.addExpectedElement(new Tuple2<>("key2",1),1999 + OFFSET);
+		testHarness.addExpectedWatermark(6666);
+		testHarness.compareActualToExpectedOutput("Output is not correct");
+
+		testHarness.close();
+	}
+
+	@Test
+	public void testProcessingTimeTumblingWindowsWithOffset() throws Exception {
+		final int WINDOW_SIZE = 3000;
+		final int OFFSET = 1000;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		TumblingProcessingTimeWindows windowAssigner = TumblingProcessingTimeWindows.of(Time.milliseconds(WINDOW_SIZE),
+			Time.milliseconds(OFFSET));
+
+		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
+			new ExecutionConfig(),
+			windowAssigner,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			inputType,
+			new TupleKeySelector(),
+			ProcessingTimeTrigger.create(),
+			0);
+
+		testHarness.setProcessingTime(3);
+
+		// timestamp is ignored in processing time
+		testHarness.processElement(new Tuple2<>("key2", 1), Long.MAX_VALUE);
+		testHarness.processElement(new Tuple2<>("key2", 1), 7000);
+		testHarness.processElement(new Tuple2<>("key2", 1), 7000);
+
+		testHarness.processElement(new Tuple2<>("key1", 1), 7000);
+		testHarness.processElement(new Tuple2<>("key1", 1), 7000);
+
+		testHarness.setProcessingTime(5000);
+
+		testHarness.addExpectedElement(new Tuple2<>("key2", 1), 999);
+		testHarness.addExpectedElement(new Tuple2<>("key2", 1), 999);
+		testHarness.addExpectedElement(new Tuple2<>("key2", 1), 999);
+		testHarness.addExpectedElement(new Tuple2<>("key1", 1), 999);
+		testHarness.addExpectedElement(new Tuple2<>("key1", 1), 999);
+
+		testHarness.compareActualToExpectedOutput("Output was not correct.");
+
+		testHarness.processElement(new Tuple2<>("key1", 1), 7000);
+		testHarness.processElement(new Tuple2<>("key1", 1), 7000);
+		testHarness.processElement(new Tuple2<>("key1", 1), 7000);
+
+		testHarness.setProcessingTime(7000);
+
+		testHarness.addExpectedElement(new Tuple2<>("key1", 1), 6999);
+		testHarness.addExpectedElement(new Tuple2<>("key1", 1), 6999);
+		testHarness.addExpectedElement(new Tuple2<>("key1", 1), 6999);
+
+		testHarness.compareActualToExpectedOutput("Output was not correct.");
+
+		testHarness.close();
+	}
+
+	@Test
+	public void testProcessingTimeSlidingWindowsWithOffset() throws Exception {
+		final int WINDOW_SIZE = 3000;
+		final int SLIDING = 1000;
+		final int OFFSET = 10;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		SlidingProcessingTimeWindows windowAssigner = SlidingProcessingTimeWindows.of(Time.milliseconds(WINDOW_SIZE),
+			Time.milliseconds(SLIDING),Time.milliseconds(OFFSET));
+
+		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
+			new ExecutionConfig(),
+			windowAssigner,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			inputType,
+			new TupleKeySelector(),
+			ProcessingTimeTrigger.create(),
+			0);
+
+		testHarness.setProcessingTime(3);
+
+		// timestamp is ignored in processing time
+		testHarness.processElement(new Tuple2<>("key2", 1), Long.MAX_VALUE);
+
+		testHarness.setProcessingTime(1111);
+
+		testHarness.addExpectedElement(new Tuple2<>("key2", 1), OFFSET - 1);
+		testHarness.addExpectedElement(new Tuple2<>("key2", 1), OFFSET + 999);
+
+		testHarness.processElement(new Tuple2<>("key2", 2),Long.MIN_VALUE);
+		testHarness.setProcessingTime(2222);
+
+		testHarness.addExpectedElement(new Tuple2<>("key2", 1), OFFSET + 1999);
+		testHarness.addExpectedElement(new Tuple2<>("key2", 2), OFFSET + 1999);
+
+		testHarness.compareActualToExpectedOutput("Output was not correct.");
+
+		testHarness.close();
 	}
 }
