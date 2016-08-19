@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
@@ -72,6 +73,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	@Override
 	public void start() {
+		super.start();
+
 		// start by connecting to the ResourceManager
 		try {
 			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
@@ -145,6 +148,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		// to be determined, probably delegate to a fatal error handler that 
 		// would either log (mini cluster) ot kill the process (yarn, mesos, ...)
 		log.error("FATAL ERROR", t);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Access to fields for testing
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	TaskExecutorToResourceManagerConnection getResourceManagerConnection() {
+		return resourceManagerConnection;
 	}
 
 	// ------------------------------------------------------------------------
