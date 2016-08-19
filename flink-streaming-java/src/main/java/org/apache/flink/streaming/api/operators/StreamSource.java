@@ -34,7 +34,7 @@ import java.util.concurrent.ScheduledFuture;
  */
 @Internal
 public class StreamSource<OUT, SRC extends SourceFunction<OUT>> 
-		extends AbstractUdfStreamOperator<OUT, SRC> implements StreamOperator<OUT> {
+		extends AbstractUdfStreamOperator<OUT, SRC> implements StreamOperator<OUT>, AsyncExceptionChecker {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -127,7 +127,8 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	 * has caused an exception. If one of these threads caused an exception, this method will
 	 * throw that exception.
 	 */
-	void checkAsyncException() {
+	@Override
+	public void checkAsyncException() {
 		getContainingTask().checkTimerException();
 	}
 
@@ -141,29 +142,21 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	 */
 	public static class NonTimestampContext<T> implements SourceFunction.SourceContext<T> {
 
-		private final StreamSource<?, ?> owner;
+		private final AsyncExceptionChecker owner;
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
 
-		public NonTimestampContext(AbstractStreamOperator<T> owner, Object lockingObject, Output<StreamRecord<T>> output) {
+		public NonTimestampContext(AsyncExceptionChecker owner, Object lockingObject, Output<StreamRecord<T>> output) {
+			this.owner = owner;
 			this.lockingObject = lockingObject;
 			this.output = output;
 			this.reuse = new StreamRecord<T>(null);
-
-			// if it is a source, then we cast and cache it
-			// here so that we do not have to do it in every collect(),
-			// collectWithTimestamp() and emitWatermark()
-
-			this.owner = (owner instanceof StreamSource) ?
-				(StreamSource) owner : null;
 		}
 
 		@Override
 		public void collect(T element) {
-			if (owner != null) {
-				owner.checkAsyncException();
-			}
+			owner.checkAsyncException();
 			synchronized (lockingObject) {
 				output.collect(reuse.replace(element));
 			}
@@ -177,9 +170,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			if (owner != null) {
-				owner.checkAsyncException();
-			}
+			owner.checkAsyncException();
 			// do nothing else
 		}
 
@@ -202,7 +193,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
-		private final StreamSource<?, ?> source;
+		private final AsyncExceptionChecker source;
 
 		private final ScheduledFuture<?> watermarkTimer;
 		private final long watermarkInterval;
@@ -229,8 +220,11 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			// here so that we do not have to do it in every collect(),
 			// collectWithTimestamp() and emitWatermark()
 
-			this.source = (owner instanceof StreamSource) ?
-				(StreamSource) owner : null;
+			if (!(owner instanceof AsyncExceptionChecker)) {
+				throw new IllegalStateException("The ManualWatermarkContext can only be used " +
+					"with sources that implement the AsyncExceptionThrower interface.");
+			}
+			this.source = (AsyncExceptionChecker) owner;
 
 			long now = owner.getCurrentProcessingTime();
 			this.watermarkTimer = owner.registerTimer(now + watermarkInterval,
@@ -325,7 +319,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 					synchronized (lockingObject) {
 						if (currentTime > nextWatermarkTime) {
 							output.emitWatermark(new Watermark(watermarkTime));
-							nextWatermarkTime += watermarkInterval;
+							nextWatermarkTime = watermarkTime + watermarkInterval;
 						}
 					}
 				}
@@ -346,31 +340,22 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	 */
 	public static class ManualWatermarkContext<T> implements SourceFunction.SourceContext<T> {
 
-		private final StreamSource<?, ?> owner;
+		private final AsyncExceptionChecker owner;
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
 
 
-		public ManualWatermarkContext(AbstractStreamOperator<T> owner, Object lockingObject, Output<StreamRecord<T>> output) {
+		public ManualWatermarkContext(AsyncExceptionChecker owner, Object lockingObject, Output<StreamRecord<T>> output) {
+			this.owner = owner;
 			this.lockingObject = lockingObject;
 			this.output = output;
 			this.reuse = new StreamRecord<T>(null);
-
-			// if it is a source, then we cast and cache it
-			// here so that we do not have to do it in every collect(),
-			// collectWithTimestamp() and emitWatermark()
-
-			this.owner = (owner instanceof StreamSource) ?
-				(StreamSource) owner : null;
 		}
 
 		@Override
 		public void collect(T element) {
-			if (owner != null) {
-				owner.checkAsyncException();
-			}
-			
+			owner.checkAsyncException();
 			synchronized (lockingObject) {
 				output.collect(reuse.replace(element));
 			}
@@ -378,10 +363,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void collectWithTimestamp(T element, long timestamp) {
-			if (owner != null) {
-				owner.checkAsyncException();
-			}
-			
+			owner.checkAsyncException();
 			synchronized (lockingObject) {
 				output.collect(reuse.replace(element, timestamp));
 			}
@@ -389,10 +371,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			if (owner != null) {
-				owner.checkAsyncException();
-			}
-			
+			owner.checkAsyncException();
 			synchronized (lockingObject) {
 				output.emitWatermark(mark);
 			}

@@ -54,7 +54,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 
 public class ContinuousFileMonitoringTest {
@@ -133,18 +132,29 @@ public class ContinuousFileMonitoringTest {
 		OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
 			new OneInputStreamOperatorTestHarness<>(reader, executionConfig, timeServiceProvider, streamConfig);
 
-		reader.setOutputType(typeInfo, new ExecutionConfig());
+		reader.setOutputType(typeInfo, executionConfig);
 		tester.open();
 
-		timeServiceProvider.setCurrentTime(0);
+		// test that watermarks are correctly emitted
 
-		long elementTimestamp = 201;
-		timeServiceProvider.setCurrentTime(elementTimestamp);
+		timeServiceProvider.setCurrentTime(201);
+		timeServiceProvider.setCurrentTime(301);
+		timeServiceProvider.setCurrentTime(401);
+		timeServiceProvider.setCurrentTime(501);
 
-		// test that a watermark is actually emitted
-		Assert.assertTrue(tester.getOutput().size() == 1 &&
-			tester.getOutput().peek() instanceof Watermark &&
-			((Watermark) tester.getOutput().peek()).getTimestamp() == 200);
+		int i = 0;
+		for(Object line: tester.getOutput()) {
+			if (!(line instanceof Watermark)) {
+				Assert.fail("Only watermarks are expected here ");
+			}
+			Watermark w = (Watermark) line;
+			Assert.assertTrue(w.getTimestamp() == 200 + (i * 100));
+			i++;
+		}
+
+		// clear the output to get the elements only and the final watermark
+		tester.getOutput().clear();
+		Assert.assertTrue(tester.getOutput().size() == 0);
 
 		// create the necessary splits for the test
 		FileInputSplit[] splits = format.createInputSplits(
@@ -155,26 +165,21 @@ public class ContinuousFileMonitoringTest {
 			tester.processElement(new StreamRecord<>(split));
 		}
 
-		/*
-		* Given that the reader is multithreaded, the test finishes before the reader thread finishes
-		* reading. This results in files being deleted by the test before being read, thus throwing an exception.
-		* In addition, even if file deletion happens at the end, the results are not ready for testing.
-		* To face this, we wait until all the output is collected or until the waiting time exceeds 1000 ms, or 1s.
-		*/
+		// then close the reader gracefully so that
+		// we wait until all input is read
+		synchronized (tester.getCheckpointLock()) {
+			tester.close();
+		}
 
-		long start = System.currentTimeMillis();
-		Queue<Object> output;
-		do {
-			output = tester.getOutput();
-			Thread.sleep(50);
-		} while ((output == null || output.size() != NO_OF_FILES * LINES_PER_FILE) && (System.currentTimeMillis() - start) < 1000);
+		// the lines received must be the elements in the files +1 for the Long.MAX_VALUE watermark
+		Assert.assertTrue(tester.getOutput().size() == NO_OF_FILES * LINES_PER_FILE + 1);
 
+		// put the elements read in a map by file they belong to
 		Map<Integer, List<String>> actualFileContents = new HashMap<>();
 		for(Object line: tester.getOutput()) {
 			if (line instanceof StreamRecord) {
 				StreamRecord<String> element = (StreamRecord<String>) line;
-
-				Assert.assertTrue(element.getTimestamp() == elementTimestamp);
+				Assert.assertTrue(element.getTimestamp() == 501);
 
 				int fileIdx = Character.getNumericValue(element.getValue().charAt(0));
 				List<String> content = actualFileContents.get(fileIdx);
@@ -183,41 +188,14 @@ public class ContinuousFileMonitoringTest {
 					actualFileContents.put(fileIdx, content);
 				}
 				content.add(element.getValue() + "\n");
+			} else if (line instanceof Watermark) {
+				Assert.assertTrue(((Watermark) line).getTimestamp() == Long.MAX_VALUE);
+			} else {
+				Assert.fail("Unknown element in the list.");
 			}
 		}
 
-		// we clear the output because the test has finished already
-		// and we want to check that an additional watermark will be
-		// emitted in the setCurrentTime() call that follows.
-
-		tester.getOutput().clear();
-
-		timeServiceProvider.setCurrentTime(301);
-		timeServiceProvider.setCurrentTime(401);
-		timeServiceProvider.setCurrentTime(501);
-
-		int i = 0;
-		for (Object o : tester.getOutput()) {
-			if (!(o instanceof Watermark)) {
-				Assert.fail("Only watermarks are expected here ");
-			}
-			Watermark w = (Watermark) o;
-			Assert.assertTrue(w.getTimestamp() == 300 + (i * 100));
-			i++;
-		}
-
-		tester.getOutput().clear();
-
-		// then close the reader gracefully
-		synchronized (tester.getCheckpointLock()) {
-			tester.close();
-		}
-
-		// test if the watermark indicating the end of the stream is emitted
-		Assert.assertTrue(tester.getOutput().size() == 1 &&
-			tester.getOutput().peek() instanceof Watermark &&
-			((Watermark) tester.getOutput().peek()).getTimestamp() == Long.MAX_VALUE);
-
+		// check if the elements are the expected ones.
 		Assert.assertEquals(expectedFileContents.size(), actualFileContents.size());
 		for (Integer fileIdx: expectedFileContents.keySet()) {
 			Assert.assertTrue("file" + fileIdx + " not found", actualFileContents.keySet().contains(fileIdx));
@@ -271,24 +249,15 @@ public class ContinuousFileMonitoringTest {
 			tester.processElement(new StreamRecord<>(split));
 		}
 
-		// then close the reader gracefully
+		// then close the reader gracefully and waits until all splits are read
 		synchronized (tester.getCheckpointLock()) {
 			tester.close();
 		}
 
-		/*
-		* Given that the reader is multithreaded, the test finishes before the reader thread finishes
-		* reading. This results in files being deleted by the test before being read, thus throwing an exception.
-		* In addition, even if file deletion happens at the end, the results are not ready for testing.
-		* To face this, we wait until all the output is collected or until the waiting time exceeds 1000 ms, or 1s.
-		*/
+		// the lines received must be the elements in the files, no final watermark because
+		// by default we are in processing time, which emits no watermarks.
 
-		long start = System.currentTimeMillis();
-		Queue<Object> output;
-		do {
-			output = tester.getOutput();
-			Thread.sleep(50);
-		} while ((output == null || output.size() != NO_OF_FILES * LINES_PER_FILE) && (System.currentTimeMillis() - start) < 1000);
+		Assert.assertTrue(tester.getOutput().size() == NO_OF_FILES * LINES_PER_FILE);
 
 		Map<Integer, List<String>> actualFileContents = new HashMap<>();
 		for(Object line: tester.getOutput()) {

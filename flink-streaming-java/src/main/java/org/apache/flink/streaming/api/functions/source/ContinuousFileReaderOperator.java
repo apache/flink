@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.api.functions.source;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AsyncExceptionChecker;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -64,12 +66,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<FileInputSplit, OUT>, OutputTypeConfigurable<OUT> {
+	implements OneInputStreamOperator<FileInputSplit, OUT>, OutputTypeConfigurable<OUT>, AsyncExceptionChecker {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileReaderOperator.class);
 
+	@VisibleForTesting
 	private static final FileInputSplit EOS = new FileInputSplit(-1, null, -1, -1, null);
 
 	private FileInputFormat<OUT> format;
@@ -200,11 +203,16 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		// event or ingestion time, emit the max watermark indicating
 		// the end of the stream, like a normal source would do.
 
-		readerContext.emitWatermark(Watermark.MAX_WATERMARK);
 		if (readerContext != null) {
+			readerContext.emitWatermark(Watermark.MAX_WATERMARK);
 			readerContext.close();
 		}
 		output.close();
+	}
+
+	@Override
+	public void checkAsyncException() {
+		// do nothing
 	}
 
 	private class SplitReader<S extends Serializable, OT> extends Thread {
