@@ -2,7 +2,7 @@
 title: "Data Types"
 nav-id: types
 nav-parent_id: dev
-nav-pos: 7
+nav-pos: 9
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

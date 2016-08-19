@@ -1,7 +1,7 @@
 ---
 title: "Scala Shell"
 nav-parent_id: dev
-nav-pos: 103
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,10 +22,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-
 Flink comes with an integrated interactive Scala Shell.
 It can be used in a local setup as well as in a cluster setup.
-
 
 To use the shell with an integrated Flink cluster just execute:
 
@@ -35,7 +33,6 @@ bin/start-scala-shell.sh local
 
 in the root directory of your binary Flink directory. To run the Shell on a
 cluster, please see the Setup section below.
-
 
 ## Usage
 

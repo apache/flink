@@ -1,8 +1,10 @@
 ---
 title: "Streaming Connectors"
-nav-title: Overview
-nav-parent_id: connectors
-nav-pos: 0
+nav-id: connectors
+nav-title: Connectors
+nav-parent_id: dev
+nav-pos: 7
+nav-show_overview: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
