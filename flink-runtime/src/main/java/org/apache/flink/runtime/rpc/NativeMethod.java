@@ -15,19 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.rpc;
 
-/**
- * Rpc gateway interface which has to be implemented by Rpc gateways.
- */
-public interface RpcGateway {
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-	/**
-	 * Returns the fully qualified address under which the associated rpc endpoint is reachable.
-	 *
-	 * @return Fully qualified address under which the associated rpc endpoint is reachable
-	 */
-	@NativeMethod
-	String getAddress();
+/**
+ * Annotation for native method in a {@link RpcGateway}, represents that the method only needs to be implemented
+ * on the RpcGateway implementation, not on the {@link RpcGateway}. The annotation will be used RpcCompletenessTest
+ * to make a exception when checking method identity between RpcGatway and RpcEndpoint.
+ */
+@Inherited
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface NativeMethod {
 }

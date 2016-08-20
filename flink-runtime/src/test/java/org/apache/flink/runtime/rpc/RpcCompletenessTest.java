@@ -65,8 +65,8 @@ public class RpcCompletenessTest extends TestLogger {
 	}
 
 	private void checkCompleteness(Class<? extends RpcEndpoint> rpcEndpoint, Class<? extends RpcGateway> rpcGateway) {
-		Method[] gatewayMethods = rpcGateway.getDeclaredMethods();
-		Method[] serverMethods = rpcEndpoint.getDeclaredMethods();
+		Method[] gatewayMethods = getRpcMethodsFromGateway(rpcGateway).toArray(new Method[0]);
+		Method[] serverMethods = rpcEndpoint.getMethods();
 
 		Map<String, Set<Method>> rpcMethods = new HashMap<>();
 		Set<Method> unmatchedRpcMethods = new HashSet<>();
@@ -336,5 +336,26 @@ public class RpcCompletenessTest extends TestLogger {
 		} else {
 			throw new RuntimeException("Could not retrive basic type information for primitive type " + primitveType + '.');
 		}
+	}
+
+	/**
+	 * Extract all methods defined by a interface
+	 * @param interfaceClass the given rpc gateway interface
+	 * @return all methods defined by the given interface
+	 */
+	private List<Method> getRpcMethodsFromGateway(Class<? extends RpcGateway> interfaceClass) {
+		if(!interfaceClass.isInterface()) {
+			fail(interfaceClass.getName() + "is not a interface");
+		}
+		ArrayList<Method> allMethods = new ArrayList<>();
+		for(Method method : interfaceClass.getDeclaredMethods()) {
+			if (!method.isAnnotationPresent(NativeMethod.class)) {
+				allMethods.add(method);
+			}
+		}
+		for(Class superClass : interfaceClass.getInterfaces()) {
+			allMethods.addAll(getRpcMethodsFromGateway(superClass));
+		}
+		return allMethods;
 	}
 }
