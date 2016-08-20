@@ -44,13 +44,13 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 	protected static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
 
 	private final TypeSerializer<IN> inputSerializer;
-	private final boolean isProcessingTime;
+	private final ProcessingType processingType;
 
 	public AbstractCEPBasePatternOperator(
 			final TypeSerializer<IN> inputSerializer,
-			final boolean isProcessingTime) {
+			final ProcessingType processingType) {
 		this.inputSerializer = inputSerializer;
-		this.isProcessingTime = isProcessingTime;
+		this.processingType = processingType;
 	}
 
 	public TypeSerializer<IN> getInputSerializer() {
@@ -67,15 +67,15 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		if (isProcessingTime) {
+		if (processingType == ProcessingType.PROCESSING_TIME) {
 			// there can be no out of order elements in processing time
 			NFA<IN> nfa = getNFA();
 			processEvent(nfa, element.getValue(), System.currentTimeMillis());
 			updateNFA(nfa);
 		} else {
+			// event time processing
 			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
 
-			// event time processing
 			// we have to buffer the elements until we receive the proper watermark
 			if (getExecutionConfig().isObjectReuseEnabled()) {
 				// copy the StreamRecord so that it cannot be changed

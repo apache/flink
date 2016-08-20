@@ -48,7 +48,10 @@ public class CEPOperatorUtils {
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
 		// check whether we use processing time
-		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+		final ProcessingType processingType
+			= inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime
+			? ProcessingType.PROCESSING_TIME
+			: ProcessingType.EVENT_TIME;
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, false);
@@ -67,7 +70,7 @@ public class CEPOperatorUtils {
 				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
 				new KeyedCEPPatternOperator<>(
 					inputSerializer,
-					isProcessingTime,
+					processingType,
 					keySelector,
 					keySerializer,
 					nfaFactory));
@@ -77,7 +80,7 @@ public class CEPOperatorUtils {
 				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
 				new CEPPatternOperator<>(
 					inputSerializer,
-					isProcessingTime,
+					processingType,
 					nfaFactory
 				)).forceNonParallel();
 		}
@@ -99,7 +102,10 @@ public class CEPOperatorUtils {
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
 		// check whether we use processing time
-		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+		final ProcessingType processingType
+			= inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime
+			? ProcessingType.PROCESSING_TIME
+			: ProcessingType.EVENT_TIME;
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, true);
@@ -122,7 +128,7 @@ public class CEPOperatorUtils {
 				eitherTypeInformation,
 				new TimeoutKeyedCEPPatternOperator<T, K>(
 					inputSerializer,
-					isProcessingTime,
+					processingType,
 					keySelector,
 					keySerializer,
 					nfaFactory));
@@ -132,7 +138,7 @@ public class CEPOperatorUtils {
 				eitherTypeInformation,
 				new TimeoutCEPPatternOperator<>(
 					inputSerializer,
-					isProcessingTime,
+					processingType,
 					nfaFactory
 				)).forceNonParallel();
 		}

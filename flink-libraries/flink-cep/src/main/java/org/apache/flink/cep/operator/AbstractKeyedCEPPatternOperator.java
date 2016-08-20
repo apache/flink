@@ -76,12 +76,12 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	private transient ValueState<PriorityQueue<StreamRecord<IN>>> priorityQueueOperatorState;
 
 	public AbstractKeyedCEPPatternOperator(
-			TypeSerializer<IN> inputSerializer,
-			boolean isProcessingTime,
-			KeySelector<IN, KEY> keySelector,
-			TypeSerializer<KEY> keySerializer,
-			NFACompiler.NFAFactory<IN> nfaFactory) {
-		super(inputSerializer, isProcessingTime);
+		TypeSerializer<IN> inputSerializer,
+		ProcessingType processingType,
+		KeySelector<IN, KEY> keySelector,
+		TypeSerializer<KEY> keySerializer,
+		NFACompiler.NFAFactory<IN> nfaFactory) {
+		super(inputSerializer, processingType);
 
 		this.keySelector = keySelector;
 		this.keySerializer = keySerializer;

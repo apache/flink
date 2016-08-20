@@ -56,9 +56,9 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 
 	public AbstractCEPPatternOperator(
 			TypeSerializer<IN> inputSerializer,
-			boolean isProcessingTime,
+			ProcessingType processingType,
 			NFACompiler.NFAFactory<IN> nfaFactory) {
-		super(inputSerializer, isProcessingTime);
+		super(inputSerializer, processingType);
 
 		this.streamRecordSerializer = new StreamElementSerializer<>(inputSerializer);
 		this.nfa = nfaFactory.createNFA();

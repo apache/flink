@@ -37,8 +37,8 @@ import java.util.Map;
 public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN, Map<String, IN>> {
 	private static final long serialVersionUID = 376300194236250645L;
 
-	public CEPPatternOperator(TypeSerializer<IN> inputSerializer, boolean isProcessingTime, NFACompiler.NFAFactory<IN> nfaFactory) {
-		super(inputSerializer, isProcessingTime, nfaFactory);
+	public CEPPatternOperator(TypeSerializer<IN> inputSerializer, ProcessingType processingType, NFACompiler.NFAFactory<IN> nfaFactory) {
+		super(inputSerializer, processingType, nfaFactory);
 	}
 
 	@Override

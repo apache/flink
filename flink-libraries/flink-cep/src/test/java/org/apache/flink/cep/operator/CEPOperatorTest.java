@@ -61,7 +61,7 @@ public class CEPOperatorTest extends TestLogger {
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
 			new CEPPatternOperator<>(
 				Event.createTypeSerializer(),
-				false,
+				ProcessingType.EVENT_TIME,
 				new NFAFactory())
 		);
 
@@ -93,7 +93,7 @@ public class CEPOperatorTest extends TestLogger {
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 					Event.createTypeSerializer(),
-					false,
+					ProcessingType.EVENT_TIME,
 					keySelector,
 					IntSerializer.INSTANCE,
 					new NFAFactory()),
@@ -128,7 +128,7 @@ public class CEPOperatorTest extends TestLogger {
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						new NFAFactory()));
 
 		harness.open();
@@ -147,7 +147,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness = new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						new NFAFactory()));
 
 		harness.setup();
@@ -169,7 +169,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness = new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						new NFAFactory()));
 
 		harness.setup();
@@ -217,7 +217,7 @@ public class CEPOperatorTest extends TestLogger {
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						keySelector,
 						IntSerializer.INSTANCE,
 						new NFAFactory()),
@@ -240,7 +240,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						keySelector,
 						IntSerializer.INSTANCE,
 						new NFAFactory()),
@@ -266,7 +266,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						keySelector,
 						IntSerializer.INSTANCE,
 						new NFAFactory()),
@@ -322,7 +322,7 @@ public class CEPOperatorTest extends TestLogger {
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						keySelector,
 						IntSerializer.INSTANCE,
 						new NFAFactory()),
@@ -347,7 +347,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						keySelector,
 						IntSerializer.INSTANCE,
 						new NFAFactory()),
@@ -377,7 +377,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
-						false,
+						ProcessingType.EVENT_TIME,
 						keySelector,
 						IntSerializer.INSTANCE,
 						new NFAFactory()),
@@ -440,7 +440,7 @@ public class CEPOperatorTest extends TestLogger {
 		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
 			new TimeoutKeyedCEPPatternOperator<>(
 				Event.createTypeSerializer(),
-				false,
+				ProcessingType.EVENT_TIME,
 				keySelector,
 				IntSerializer.INSTANCE,
 				new NFAFactory(true)),
@@ -508,7 +508,7 @@ public class CEPOperatorTest extends TestLogger {
 		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> harness = new OneInputStreamOperatorTestHarness<>(
 			new TimeoutCEPPatternOperator<>(
 				Event.createTypeSerializer(),
-				false,
+				ProcessingType.EVENT_TIME,
 				new NFAFactory(true))
 		);
 
