@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 /**
@@ -28,6 +30,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderRetrievalService resourceManagerLeaderRetriever;
 
+	private volatile LeaderElectionService jobMasterLeaderElectionService;
+
 
 	// ------------------------------------------------------------------------
 	//  Setters for mock / testing implementations
@@ -35,6 +39,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	public void setResourceManagerLeaderRetriever(LeaderRetrievalService resourceManagerLeaderRetriever) {
 		this.resourceManagerLeaderRetriever = resourceManagerLeaderRetriever;
+	}
+
+	public void setJobMasterLeaderElectionService(LeaderElectionService leaderElectionService) {
+		this.jobMasterLeaderElectionService = leaderElectionService;
 	}
 	
 	// ------------------------------------------------------------------------
@@ -48,6 +56,17 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 			return service;
 		} else {
 			throw new IllegalStateException("ResourceManagerLeaderRetriever has not been set");
+		}
+	}
+
+	@Override
+	public LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception {
+		LeaderElectionService service = jobMasterLeaderElectionService;
+
+		if (service != null) {
+			return service;
+		} else {
+			throw new IllegalStateException("JobMasterLeaderElectionService has not been set");
 		}
 	}
 }
