@@ -313,8 +313,8 @@ public class TestBaseUtils extends TestLogger {
 		Assert.assertEquals(
 			String.format(
 				"Different number of lines in expected and obtained result. %s; %s",
-				StringUtils.join("\\n", expected),
-				StringUtils.join("\\n", result)),
+				StringUtils.join(expected, "\\n"),
+				StringUtils.join(result, "\\n" )),
 			expected.length, result.length);
 		Assert.assertArrayEquals(expected, result);
 	}

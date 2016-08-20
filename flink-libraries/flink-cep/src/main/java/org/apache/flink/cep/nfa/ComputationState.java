@@ -81,4 +81,15 @@ public class ComputationState<T> {
 	public DeweyNumber getVersion() {
 		return version;
 	}
+
+	@Override
+	public String toString() {
+		return "ComputationState{" +
+			"state=" + state +
+			", event=" + event +
+			", timestamp=" + timestamp +
+			", version=" + version +
+			", startTimestamp=" + startTimestamp +
+			'}';
+	}
 }

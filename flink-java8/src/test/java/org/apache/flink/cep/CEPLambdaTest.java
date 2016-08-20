@@ -56,7 +56,7 @@ public class CEPLambdaTest extends TestLogger {
 
 		Pattern<EventA, ?> dummyPattern = Pattern.begin("start");
 
-		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern);
+		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern, MatchingBehaviour.FROM_FIRST);
 
 		DataStream<EventB> result = patternStream.select(
 			map -> new EventB()
@@ -83,7 +83,7 @@ public class CEPLambdaTest extends TestLogger {
 
 		Pattern<EventA, ?> dummyPattern = Pattern.begin("start");
 
-		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern);
+		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern, MatchingBehaviour.FROM_FIRST);
 
 		DataStream<EventB> result = patternStream.flatSelect(
 			(map, collector) -> collector.collect(new EventB())

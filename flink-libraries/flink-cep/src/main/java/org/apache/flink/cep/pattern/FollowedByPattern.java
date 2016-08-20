@@ -18,8 +18,6 @@
 
 package org.apache.flink.cep.pattern;
 
-import org.apache.flink.cep.MatchingBehaviour;
-
 /**
  * Pattern operator which signifies that the there is a non-strict temporal contiguity between
  * itself and its preceding pattern operator. This means that there might be events in between

@@ -51,6 +51,8 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
   def getInputStream: DataStream[T] = asScalaStream(jPatternStream.getInputStream())
 
+  def getMatchingBehaviour: MatchingBehaviour = jPatternStream.getMatchingBehaviour
+
   /**
     * Applies a select function to the detected pattern sequence. For each pattern sequence the
     * provided [[PatternSelectFunction]] is called. The pattern select function can produce

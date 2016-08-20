@@ -18,8 +18,6 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.cep.MatchingBehaviour;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;

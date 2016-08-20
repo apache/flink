@@ -138,14 +138,19 @@ public class NFA<T> implements Serializable {
 		final int numberComputationStates = computationStates.size();
 		final Collection<Map<String, T>> result = new ArrayList<>();
 		final Collection<Tuple2<Map<String, T>, Long>> timeoutResult = new ArrayList<>();
-		boolean skipOtherStates = false;
+		boolean skipCurrentEvent = false;
 
 		// iterate over all current computations
 		for (int i = 0; i < numberComputationStates; i++) {
-			if (skipOtherStates) {
+			if (skipCurrentEvent) {
 				continue;
 			}
+
 			ComputationState<T> computationState = computationStates.poll();
+			if (!sharedBuffer.contains(computationState.getState(), computationState.getEvent(), computationState.getTimestamp())
+					&& !computationState.getState().isStart()) {
+				continue;
+			}
 
 			final Collection<ComputationState<T>> newComputationStates;
 
@@ -182,7 +187,7 @@ public class NFA<T> implements Serializable {
 					sharedBuffer.remove(newComputationState.getState(), newComputationState.getEvent(), newComputationState.getTimestamp());
 					// If matching behaviour is AFTER_LAST an event should be matched only once
 					if (matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
-						skipOtherStates = true;
+						skipCurrentEvent = true;
 					}
 				} else {
 					// add new computation state; it will be processed once the next event arrives
@@ -297,16 +302,13 @@ public class NFA<T> implements Serializable {
 									}
 								}
 
-								boolean validPreviousState = false;
 								if (previousState.isStart()) {
 									sharedBuffer.put(
 										newState,
 										event,
 										timestamp,
 										oldVersion);
-									validPreviousState = true;
-								} else if (sharedBuffer.contains(previousState, previousEvent, previousTimestamp)) {
-									// previous state was removed due to selected matching behaviour
+								} else {
 									sharedBuffer.put(
 										newState,
 										event,
@@ -315,22 +317,17 @@ public class NFA<T> implements Serializable {
 										previousEvent,
 										previousTimestamp,
 										oldVersion);
-									validPreviousState = true;
 								}
 
-								if (validPreviousState) {
-									// a new computation state is referring to the shared entry
-									sharedBuffer.lock(newState, event, timestamp);
+								// a new computation state is referring to the shared entry
+								sharedBuffer.lock(newState, event, timestamp);
 
-									resultingComputationStates.add(new ComputationState<T>(
-										newState,
-										event,
-										timestamp,
-										newComputationStateVersion,
-										startTimestamp));
-
-								}
-								break;
+								resultingComputationStates.add(new ComputationState<T>(
+									newState,
+									event,
+									timestamp,
+									newComputationStateVersion,
+									startTimestamp));
 						}
 					}
 				} catch (Exception e) {
@@ -362,38 +359,59 @@ public class NFA<T> implements Serializable {
 	 * @return Collection of event sequences which end in the given computation state
 	 */
 	private Collection<Map<String, T>> extractPatternMatches(final ComputationState<T> computationState) {
-		Collection<LinkedHashMultimap<State<T>, T>> paths = sharedBuffer.extractPatterns(
+		Collection<LinkedHashMultimap<State<T>, ValueTimeWrapper<T>>> paths = sharedBuffer.extractPatterns(
 			computationState.getState(),
 			computationState.getEvent(),
 			computationState.getTimestamp(),
-			computationState.getVersion(),
-			matchingBehaviour);
+			computationState.getVersion());
 
 		ArrayList<Map<String, T>> result = new ArrayList<>();
 
 		TypeSerializer<T> serializer = nonDuplicatingTypeSerializer.getTypeSerializer();
 
 		// generate the correct names from the collection of LinkedHashMultimaps
-		for (LinkedHashMultimap<State<T>, T> path: paths) {
+		for (LinkedHashMultimap<State<T>, ValueTimeWrapper<T>> path: paths) {
 			Map<String, T> resultPath = new HashMap<>();
 			for (State<T> key: path.keySet()) {
 				int counter = 0;
-				Set<T> events = path.get(key);
+				Set<ValueTimeWrapper<T>> events = path.get(key);
 
 				// we iterate over the elements in insertion order
-				for (T event: events) {
+				for (ValueTimeWrapper<T> event: events) {
 					resultPath.put(
 						events.size() > 1 ? generateStateName(key.getName(), counter): key.getName(),
 						// copy the element so that the user can change it
-						serializer.isImmutableType() ? event : serializer.copy(event)
+						serializer.isImmutableType() ? event.getValue() : serializer.copy(event.getValue())
 					);
 				}
+			}
+			if (matchingBehaviour == MatchingBehaviour.AFTER_FIRST || matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
+				pruneUsedStates(path);
 			}
 
 			result.add(resultPath);
 		}
 
 		return result;
+	}
+
+	private void pruneUsedStates(final LinkedHashMultimap<State<T>, ValueTimeWrapper<T>> path) {
+		for (Map.Entry<State<T>, ValueTimeWrapper<T>> kv : path.entries()) {
+			SharedBuffer.SharedBufferEntry<State<T>, T> entry = sharedBuffer.get(kv.getKey(), kv.getValue().getValue(), kv.getValue().getTimestamp());
+
+			pruneDependentStates(entry);
+		}
+	}
+
+	private void pruneDependentStates(SharedBuffer.SharedBufferEntry<State<T>, T> entry) {
+		if (entry != null) {
+
+			for (SharedBuffer.SharedBufferEdge<State<T>, T> edgeToNext : entry.getEdgesToNext()) {
+				pruneDependentStates(edgeToNext.getTarget());
+			}
+			sharedBuffer.release(entry.getKey(), entry.getValueTime().getValue(), entry.getValueTime().getTimestamp());
+			sharedBuffer.remove(entry.getKey(), entry.getValueTime().getValue(), entry.getValueTime().getTimestamp());
+		}
 	}
 
 	private void writeObject(ObjectOutputStream oos) throws IOException {

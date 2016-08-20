@@ -324,7 +324,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEvent = new Event(42, "start", 1.0);
 		SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
-		Event endEvent=  new Event(42, "end", 1.0);
+		Event endEvent = new Event(42, "end", 1.0);
 
 		harness.processElement(new StreamRecord<Event>(startEvent, 1));
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
