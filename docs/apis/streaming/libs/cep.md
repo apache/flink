@@ -536,6 +536,42 @@ DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.flatSelect
 </div>
 </div>
 
+## Matching behaviour
+
+A pattern definition can specify if a particular event can participate in multiple matching sequences. Let's consider the following pattern:
+
+{% highlight java %}
+
+Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+    .followedBy("end");
+{% endhighlight %}
+
+If three events`A`, `B`, and `C` have been received the pattern will generate three matching sequences: `A,B`, `B,C`, and `A,C`. This is a result of the default matching policy: `MatchingBehaviour.FROM_FIRST`. A different matching behaviour can be defined by providing an additional argument to the `begin` function:
+
+{% highlight java %}
+Pattern<Event, ?> pattern = Pattern.<Event>begin("start", MatchingBehaviour.FROM_FIRST)
+    .followedBy("end");
+{% endhighlight %}
+
+If any event should not be used in more than one matching sequences one should use `MatchingBehaviour.AFTER_LAST`:
+
+{% highlight java %}
+Pattern<Event, ?> pattern = Pattern.<Event>begin("start", MatchingBehaviour.AFTER_LAST)
+    .followedBy("end");
+{% endhighlight %}
+
+This pattern will only match `A,B` matching sequence for three events `A`, `B`, and `C`. Sequences `B,C` and `A,C` are not generated because they share events with `A, B` and `AFTER_LAST` matching behaviour does not allow events reuse.
+
+`MatchingBehaviour.AFTER_FIRST` is similar to `MatchingBehaviour.AFTER_LAST` and does not allow reuse only of the first event in the matching sequence. Therefore the following pattern:
+
+{% highlight java %}
+Pattern<Event, ?> pattern = Pattern.<Event>begin("start", MatchingBehaviour.AFTER_FIRST)
+    .followedBy("end");
+{% endhighlight %}
+
+will generate matching sequences `A,B` and `B,C`, but won't generate `A,C` since it need to reuse event `A` that is already matched as a first event in a different matching sequence.
+
+
 ## Examples
 
 The following example detects the pattern `start, middle(name = "error") -> end(name = "critical")` on a keyed data stream of `Events`.
