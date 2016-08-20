@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc;
 
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -29,6 +30,7 @@ import java.lang.annotation.Target;
  * RpcCompletenessTest makes sure that the set of rpc methods in a rpc server and the set of
  * gateway methods in the corresponding gateway implementation are identical.
  */
+@Inherited
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RpcMethod {
