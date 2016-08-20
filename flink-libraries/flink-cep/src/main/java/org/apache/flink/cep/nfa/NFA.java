@@ -147,6 +147,7 @@ public class NFA<T> implements Serializable {
 			}
 
 			ComputationState<T> computationState = computationStates.poll();
+
 			if (!sharedBuffer.contains(computationState.getState(), computationState.getEvent(), computationState.getTimestamp())
 					&& !computationState.getState().isStart()) {
 				continue;
@@ -186,6 +187,8 @@ public class NFA<T> implements Serializable {
 					sharedBuffer.release(newComputationState.getState(), newComputationState.getEvent(), newComputationState.getTimestamp());
 					sharedBuffer.remove(newComputationState.getState(), newComputationState.getEvent(), newComputationState.getTimestamp());
 					// If matching behaviour is AFTER_LAST an event should be matched only once
+					// but next computation state can be a Start event, therefore we need to skip
+					// all computational states in the queue
 					if (matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
 						skipCurrentEvent = true;
 					}
@@ -385,14 +388,36 @@ public class NFA<T> implements Serializable {
 					);
 				}
 			}
-			if (matchingBehaviour == MatchingBehaviour.AFTER_FIRST || matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
+
+			// We should not reuse the first event, so we need to prune
+			// all recorded states that depend on the first event
+			if (matchingBehaviour == MatchingBehaviour.AFTER_FIRST) {
 				pruneUsedStates(path);
+			}
+			// We should not use any of the events that contributed
+			// to current matching path and we should remove
+			// all states that uses events from current path
+			if (matchingBehaviour == MatchingBehaviour.AFTER_LAST) {
+				removeNonReusableEvents(path);
 			}
 
 			result.add(resultPath);
 		}
 
 		return result;
+	}
+
+	private void removeNonReusableEvents(LinkedHashMultimap<State<T>, ValueTimeWrapper<T>> path) {
+		Set<T> nonReusableEvents = new HashSet<>();
+		for (ValueTimeWrapper<T> wrapper : path.values()) {
+			nonReusableEvents.add(wrapper.getValue());
+		}
+
+		for (SharedBuffer.SharedBufferEntry<State<T>, T> entry : sharedBuffer.entries()) {
+			if (nonReusableEvents.contains(entry.getValueTime().getValue())) {
+				pruneDependentStates(entry);
+			}
+		}
 	}
 
 	private void pruneUsedStates(final LinkedHashMultimap<State<T>, ValueTimeWrapper<T>> path) {

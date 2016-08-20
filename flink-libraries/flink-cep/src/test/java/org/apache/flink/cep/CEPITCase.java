@@ -578,6 +578,45 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testAfterFirstCEPWithMoreEvents() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
+
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "A", 1.0),
+			new Event(2, "B", 2.0),
+			new Event(3, "C", 2.1),
+			new Event(4, "D", 2.1),
+			new Event(5, "E", 2.1)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+			.followedBy("middle")
+			.followedBy("end");
+
+		DataStream<String> result = CEP.pattern(input, pattern, MatchingBehaviour.AFTER_FIRST).select(new PatternSelectFunction<Event, String>() {
+
+			@Override
+			public String select(Map<String, Event> pattern) {
+				StringBuilder builder = new StringBuilder();
+
+				builder.append(pattern.get("start").getId()).append(",")
+					.append(pattern.get("middle").getId()).append(",")
+					.append(pattern.get("end").getId());
+
+				return builder.toString();
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "1,2,3\n2,3,4\n3,4,5";
+
+		env.execute();
+	}
+
+	@Test
 	public void testAfterLastCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(2);
@@ -609,6 +648,49 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		// expected sequence of matching event ids
 		expected = "1,2\n3,4";
+
+		env.execute();
+	}
+
+	@Test
+	public void testAfterLastWithMoreEventsCEP() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
+
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "A", 1.0),
+			new Event(2, "B", 2.0),
+			new Event(3, "C", 2.1),
+			new Event(4, "D", 2.1),
+			new Event(5, "E", 2.1),
+			new Event(6, "F", 2.1),
+			new Event(7, "G", 2.1),
+			new Event(8, "H", 2.1),
+			new Event(9, "I", 2.1)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+			.followedBy("middle")
+			.followedBy("end");
+
+		DataStream<String> result = CEP.pattern(input, pattern, MatchingBehaviour.AFTER_LAST).select(new PatternSelectFunction<Event, String>() {
+
+			@Override
+			public String select(Map<String, Event> pattern) {
+				StringBuilder builder = new StringBuilder();
+
+				builder.append(pattern.get("start").getId()).append(",")
+					.append(pattern.get("middle").getId()).append(",")
+					.append(pattern.get("end").getId());
+
+				return builder.toString();
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "1,2,3\n4,5,6\n7,8,9";
 
 		env.execute();
 	}
