@@ -23,6 +23,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.io.IOException;
@@ -45,6 +46,8 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 
 	private final TypeSerializer<IN> inputSerializer;
 	private final ProcessingType processingType;
+	// Timestamp of the last watermark
+	protected long lastWatermarkTimestamp = Long.MIN_VALUE;
 
 	public AbstractCEPBasePatternOperator(
 			final TypeSerializer<IN> inputSerializer,
@@ -69,22 +72,39 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		if (processingType == ProcessingType.PROCESSING_TIME) {
 			// there can be no out of order elements in processing time
-			NFA<IN> nfa = getNFA();
-			processEvent(nfa, element.getValue(), System.currentTimeMillis());
-			updateNFA(nfa);
-		} else {
-			// event time processing
-			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+			eagerlyProcess(element, System.currentTimeMillis());
+		} else { // event time processing
 
-			// we have to buffer the elements until we receive the proper watermark
-			if (getExecutionConfig().isObjectReuseEnabled()) {
-				// copy the StreamRecord so that it cannot be changed
-				priorityQueue.offer(new StreamRecord<IN>(inputSerializer.copy(element.getValue()), element.getTimestamp()));
+			// eagerly process late arrival
+			if (isLateArrival(element)) {
+				eagerlyProcess(element, element.getTimestamp());
 			} else {
-				priorityQueue.offer(element);
+				delayedProcess(element);
 			}
-			updatePriorityQueue(priorityQueue);
 		}
+	}
+
+	private void eagerlyProcess(StreamRecord<IN> element, long timestamp) throws IOException {
+		NFA<IN> nfa = getNFA();
+		processEvent(nfa, element.getValue(), timestamp);
+		updateNFA(nfa);
+	}
+
+	private boolean isLateArrival(StreamRecord<IN> element) {
+		return element.getTimestamp() < lastWatermarkTimestamp;
+	}
+
+	private void delayedProcess(StreamRecord<IN> element) throws Exception {
+		PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+
+		// we have to buffer the elements until we receive the proper watermark
+		if (getExecutionConfig().isObjectReuseEnabled()) {
+			// copy the StreamRecord so that it cannot be changed
+			priorityQueue.offer(new StreamRecord<IN>(inputSerializer.copy(element.getValue()), element.getTimestamp()));
+		} else {
+			priorityQueue.offer(element);
+		}
+		updatePriorityQueue(priorityQueue);
 	}
 
 	/**
@@ -105,4 +125,11 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 	 * @param timestamp to advance the time to
 	 */
 	protected abstract void advanceTime(NFA<IN> nfa, long timestamp);
+
+	public void processWatermark(Watermark mark) throws Exception {
+		doProcessWatermark(mark);
+		lastWatermarkTimestamp = mark.getTimestamp();
+	}
+
+	protected abstract void doProcessWatermark(Watermark mark) throws Exception;
 }

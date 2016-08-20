@@ -116,15 +116,6 @@ public class CEPOperatorTest extends TestLogger {
 
 	@Test
 	public void testCEPOperatorCheckpointing() throws Exception {
-		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
-			private static final long serialVersionUID = -4873366487571254798L;
-
-			@Override
-			public Integer getKey(Event value) throws Exception {
-				return value.getId();
-			}
-		};
-
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
 						Event.createTypeSerializer(),
@@ -299,6 +290,80 @@ public class CEPOperatorTest extends TestLogger {
 		assertEquals(startEvent, patternMap.get("start"));
 		assertEquals(middleEvent, patternMap.get("middle"));
 		assertEquals(endEvent, patternMap.get("end"));
+
+		harness.close();
+	}
+
+	@Test
+	public void testCEPOperatorWatermarksWithLateArrivals() throws Exception {
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
+			new CEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				ProcessingType.EVENT_TIME,
+				new NFAFactory()));
+
+		harness.open();
+
+		Event startEvent = new Event(42, "start", 1.0);
+		SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
+		Event endEvent=  new Event(42, "end", 1.0);
+
+		harness.processElement(new StreamRecord<Event>(startEvent, 1));
+		harness.processElement(new StreamRecord<Event>(middleEvent, 2));
+
+		harness.processWatermark(new Watermark(100L));
+
+		ConcurrentLinkedQueue<Object> output = harness.getOutput();
+		assert(output.poll() instanceof Watermark);
+
+		// Late arrival
+		harness.processElement(new StreamRecord<Event>(endEvent, 2));
+		output = harness.getOutput();
+		assert(output.poll() instanceof StreamRecord);
+
+		harness.close();
+	}
+
+	@Test
+	public void testKeyedCEPOperatorWatermarksWithLateArrival() throws Exception {
+
+		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
+			private static final long serialVersionUID = -4873366487571254798L;
+
+			@Override
+			public Integer getKey(Event value) throws Exception {
+				return value.getId();
+			}
+		};
+
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
+			new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				ProcessingType.EVENT_TIME,
+				keySelector,
+				IntSerializer.INSTANCE,
+				new NFAFactory()),
+			keySelector,
+			BasicTypeInfo.INT_TYPE_INFO);
+
+		harness.open();
+
+		Event startEvent = new Event(42, "start", 1.0);
+		SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
+		Event endEvent =  new Event(42, "end", 1.0);
+
+		harness.processElement(new StreamRecord<Event>(startEvent, 1));
+		harness.processElement(new StreamRecord<Event>(middleEvent, 1));
+		harness.processWatermark(new Watermark(100L));
+
+		// Late arrival
+		harness.processElement(new StreamRecord<Event>(endEvent, 1));
+		ConcurrentLinkedQueue<Object> result = harness.getOutput();
+
+		// watermark and the result
+		assertEquals(2, result.size());
+		assert(result.poll() instanceof Watermark);
+		assert(result.poll() instanceof StreamRecord);
 
 		harness.close();
 	}
