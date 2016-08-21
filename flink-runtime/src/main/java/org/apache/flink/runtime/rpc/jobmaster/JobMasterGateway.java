@@ -23,6 +23,8 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import scala.concurrent.Future;
 
+import java.util.UUID;
+
 /**
  * {@link JobMaster} rpc gateway interface
  */
@@ -42,4 +44,10 @@ public interface JobMasterGateway extends RpcGateway {
 	 * @param address Address of the resource manager
 	 */
 	void registerAtResourceManager(final String address);
+
+	/**
+	 * handle a notification from ResourceManager which says that the resourceManager was revoked leadership
+	 * @param resourceManagerLeaderId
+	 */
+	void notifyOfResourceManagerRevokeLeadership(UUID resourceManagerLeaderId);
 }

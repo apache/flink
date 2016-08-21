@@ -53,25 +53,34 @@ public interface ResourceManagerGateway extends RpcGateway {
 	Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration);
 
 	/**
-	 * Requests a slot from the resource manager.
+	 * JobMaster Requests a slot from the resource manager.
 	 *
 	 * @param slotRequest Slot request
 	 * @return Future slot assignment
 	 */
-	Future<SlotAssignment> requestSlot(SlotRequest slotRequest);
+	Future<AcknowledgeSlotRequest> requestSlot(SlotRequest slotRequest);
 
 	/**
-	 * 
-	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader 
-	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
-	 * @param resourceID               The resource ID of the TaskExecutor that registers
-	 * @param timeout                  The timeout for the response.
-	 * 
+	 *
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
+	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
+	 * @param resourceID              The resource ID of the TaskExecutor that registers
+	 * @param timeout                 The timeout for the response.
+	 *
 	 * @return The future to the response by the ResourceManager.
 	 */
 	Future<org.apache.flink.runtime.rpc.registration.RegistrationResponse> registerTaskExecutor(
-			UUID resourceManagerLeaderId,
-			String taskExecutorAddress,
-			ResourceID resourceID,
-			@RpcTimeout FiniteDuration timeout);
+		UUID resourceManagerLeaderId,
+		String taskExecutorAddress,
+		ResourceID resourceID,
+		@RpcTimeout FiniteDuration timeout);
+
+	/**
+	 * notify resource failure to resourceManager, because of two reasons:
+	 * 1. cannot keep heartbeat with taskManager for several times, mark the resource as failed
+	 * 2. in some corner cases, TM will be marked as invalid by cluster manager master(e.g. yarn master), but TM itself does not realize.
+	 *
+	 * @param resourceID identify the taskManager which to stop
+	 */
+	void notifyResourceFailure(ResourceID resourceID);
 }

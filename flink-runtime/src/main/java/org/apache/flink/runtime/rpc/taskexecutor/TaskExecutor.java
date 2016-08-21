@@ -18,13 +18,18 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -75,6 +80,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		// start by connecting to the ResourceManager
 		try {
 			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
+			super.start();
 		} catch (Exception e) {
 			onFatalErrorAsync(e);
 		}
@@ -115,6 +121,29 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
+	@RpcMethod
+	void notifyOfResourceManagerRevokeLeadership(UUID resourceManagerLeaderId) {
+		// TODO
+	}
+
+	@RpcMethod
+	public SlotReport triggerHeartbeatToResourceManager(UUID resourceManagerLeaderId) {
+		// TODO
+		List<SlotStatus> slotsStatus = new ArrayList<>();
+		return new SlotReport(slotsStatus, resourceID);
+	}
+
+	@RpcMethod
+	public SlotAllocationResponse requestSlotForJob(AllocationID allocationID, JobID jobID, SlotID slotID, UUID resourceManagerLeaderId) {
+		// TODO
+		return null;
+	}
+
+	@RpcMethod
+	public void shutDown(UUID resourceManagerLeaderId) {
+		// TODO
+	}
+
 	// ------------------------------------------------------------------------
 	//  Error handling
 	// ------------------------------------------------------------------------
@@ -146,6 +175,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		// would either log (mini cluster) ot kill the process (yarn, mesos, ...)
 		log.error("FATAL ERROR", t);
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  Utility classes

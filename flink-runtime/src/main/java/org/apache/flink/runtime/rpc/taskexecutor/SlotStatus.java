@@ -16,39 +16,48 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.resourcemanager;
+package org.apache.flink.runtime.rpc.taskexecutor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 
 import java.io.Serializable;
 
 /**
- * Slot allocation request from jobManager to resourceManager
+ * SlotStatus implementation. It is responsible for describe slot allocation.
  */
-public class SlotRequest implements Serializable {
-	private static final long serialVersionUID = -6586877187990445986L;
+public class SlotStatus implements Serializable {
 
-	/** jobId to identify which job send the request */
-	private final JobID jobID;
+	private static final long serialVersionUID = 5099191707339664493L;
 
-	/** allocationId to identify slot allocation, created by JobManager when requesting a sot */
-	private final AllocationID allocationID;
+	/** slotID to identify a slot */
+	private final SlotID slotID;
 
-	/** the resource profile of the desired slot */
+	/** the resource profile of the slot */
 	private final ResourceProfile profile;
 
-	public SlotRequest(JobID jobID, AllocationID allocationID) {
-		this(jobID, allocationID, null);
+	/** if the slot is allocated, allocationId identify its allocation; else, allocationId is null */
+	private final AllocationID allocationID;
+
+	/** if the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null */
+	private final JobID jobID;
+
+	public SlotStatus(SlotID slotID, ResourceProfile profile) {
+		this(slotID, profile, null, null);
 	}
 
-	public SlotRequest(JobID jobID, AllocationID allocationID, ResourceProfile profile) {
-		this.jobID = checkNotNull(jobID, "jobID cannot be null");
-		this.allocationID = checkNotNull(allocationID, "allocationID cannot be null");
+	public SlotStatus(SlotID slotID, ResourceProfile profile, AllocationID allocationID, JobID jobID) {
+		this.slotID = checkNotNull(slotID, "slotID cannot be null");
 		this.profile = checkNotNull(profile, "profile cannot be null");
+		this.allocationID = allocationID;
+		this.jobID = jobID;
+	}
+
+	public SlotID getSlotID() {
+		return slotID;
 	}
 
 	public ResourceProfile getProfile() {
@@ -72,24 +81,28 @@ public class SlotRequest implements Serializable {
 			return false;
 		}
 
-		SlotRequest that = (SlotRequest) o;
+		SlotStatus that = (SlotStatus) o;
 
-		if (!jobID.equals(that.jobID)) {
+		if (!slotID.equals(that.slotID)) {
 			return false;
 		}
-		if (!allocationID.equals(that.allocationID)) {
+		if (!profile.equals(that.profile)) {
 			return false;
 		}
-		return profile.equals(that.profile);
+		if (allocationID != null ? !allocationID.equals(that.allocationID) : that.allocationID != null) {
+			return false;
+		}
+		return jobID != null ? jobID.equals(that.jobID) : that.jobID == null;
 
 	}
 
 	@Override
 	public int hashCode() {
-		int result = jobID.hashCode();
-		result = 31 * result + allocationID.hashCode();
+		int result = slotID.hashCode();
 		result = 31 * result + profile.hashCode();
+		result = 31 * result + (allocationID != null ? allocationID.hashCode() : 0);
+		result = 31 * result + (jobID != null ? jobID.hashCode() : 0);
 		return result;
 	}
-}
 
+}

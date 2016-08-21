@@ -18,21 +18,38 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * A report about the current status of all slots of the TaskExecutor, describing
  * which slots are available and allocated, and what jobs (JobManagers) the allocated slots
  * have been allocated to.
  */
-public class SlotReport implements Serializable{
+public class SlotReport implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -3150175198722481689L;
 
-	// ------------------------------------------------------------------------
-	
-	@Override
-	public String toString() {
-		return "SlotReport";
+	/** the status of all slots of the TaskManager */
+	private final List<SlotStatus> slotsStatus;
+
+	// resourceID identify the taskExecutor
+	private final ResourceID resourceID;
+
+	public SlotReport(List<SlotStatus> slotsStatus, ResourceID resourceID) {
+		this.slotsStatus = slotsStatus;
+		this.resourceID = resourceID;
 	}
+
+
+	public List<SlotStatus> getSlotsStatus() {
+		return slotsStatus;
+	}
+
+	public ResourceID getResourceID() {
+		return resourceID;
+	}
+
 }
