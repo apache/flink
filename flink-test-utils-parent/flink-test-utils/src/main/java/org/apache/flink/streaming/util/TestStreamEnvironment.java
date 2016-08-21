@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.program.JobClientEager;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -32,20 +34,25 @@ import org.apache.flink.util.Preconditions;
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	
 	/** The mini cluster in which this environment executes its jobs */
-	private LocalFlinkMiniCluster executor;
+	private LocalFlinkMiniCluster miniCluster;
 	
 
-	public TestStreamEnvironment(LocalFlinkMiniCluster executor, int parallelism) {
-		this.executor = Preconditions.checkNotNull(executor);
+	public TestStreamEnvironment(LocalFlinkMiniCluster miniCluster, int parallelism) {
+		this.miniCluster = Preconditions.checkNotNull(miniCluster);
 		setParallelism(parallelism);
 	}
 	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+		return executeWithControl().waitForResult();
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) throws Exception {
 		final StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 		final JobGraph jobGraph = streamGraph.getJobGraph();
-		return executor.submitJobAndWait(jobGraph, false);
+		return new JobClientEager(miniCluster.submitJob(jobGraph, false));
 	}
 
 	// ------------------------------------------------------------------------

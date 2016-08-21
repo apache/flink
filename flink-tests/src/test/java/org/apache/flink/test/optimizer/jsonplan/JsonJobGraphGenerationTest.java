@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -347,6 +348,12 @@ public class JsonJobGraphGenerationTest {
 			validator.validateJson(jsonPlan);
 			
 			throw new AbortError();
+		}
+
+		@Override
+		public JobClient executeWithControl(String jobName) throws Exception {
+			throw new UnsupportedOperationException(
+				"The TestingExecutionEnvironment does not support execution with control.");
 		}
 
 		@Override

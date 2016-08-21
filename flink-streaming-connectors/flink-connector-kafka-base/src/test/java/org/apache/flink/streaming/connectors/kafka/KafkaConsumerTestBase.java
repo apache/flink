@@ -177,11 +177,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			DataStream<String> stream = see.addSource(source);
 			stream.print();
 			see.execute("No broker test");
-		} catch(ProgramInvocationException pie) {
+		} catch(JobExecutionException jee) {
 			if(kafkaServer.getVersion().equals("0.9") || kafkaServer.getVersion().equals("0.10")) {
-				assertTrue(pie.getCause() instanceof JobExecutionException);
-
-				JobExecutionException jee = (JobExecutionException) pie.getCause();
 
 				assertTrue(jee.getCause() instanceof TimeoutException);
 
@@ -189,9 +186,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 				assertEquals("Timeout expired while fetching topic metadata", te.getMessage());
 			} else {
-				assertTrue(pie.getCause() instanceof JobExecutionException);
-
-				JobExecutionException jee = (JobExecutionException) pie.getCause();
 
 				assertTrue(jee.getCause() instanceof RuntimeException);
 
@@ -909,7 +903,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			env.execute("test fail on deploy");
 			fail("this test should fail with an exception");
 		}
-		catch (ProgramInvocationException e) {
+		catch (JobExecutionException e) {
 
 			// validate that we failed due to a NoResourceAvailableException
 			Throwable cause = e.getCause();
@@ -1461,7 +1455,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					props.putAll(secureProps);
 
 					TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
-					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
+					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, props));
 					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 						@Override
 						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
@@ -1491,7 +1485,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env1.execute("Metrics test job");
 				} catch(Throwable t) {
 					LOG.warn("Got exception during execution", t);
-					if(!(t.getCause() instanceof JobCancellationException)) { // we'll cancel the job
+					if(!(t instanceof JobCancellationException)) { // we'll cancel the job
 						error.f0 = t;
 					}
 				}

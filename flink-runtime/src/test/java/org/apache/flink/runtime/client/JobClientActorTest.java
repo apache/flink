@@ -302,7 +302,7 @@ public class JobClientActorTest extends TestLogger {
 		);
 
 		JobListeningContext jobListeningContext =
-			JobClient.submitJob(
+			JobClientActorUtils.submitJob(
 				system,
 				clientConfig,
 				testingLeaderRetrievalService,
@@ -315,11 +315,11 @@ public class JobClientActorTest extends TestLogger {
 		Await.result(waitFuture, timeout);
 
 		// kill the job client actor which has been registered at the JobManager
-		jobListeningContext.getJobClientActor().tell(PoisonPill.getInstance(), ActorRef.noSender());
+		jobListeningContext.getJobClientGateway().tell(PoisonPill.getInstance());
 
 		try {
 			// should not block but return an error
-			JobClient.awaitJobResult(jobListeningContext);
+			JobClientActorUtils.awaitJobResult(jobListeningContext);
 			Assert.fail();
 		} catch (JobExecutionException e) {
 			// this is what we want

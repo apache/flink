@@ -24,6 +24,7 @@ import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
 
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -388,6 +389,11 @@ public class AccumulatorLiveITCase {
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
+			throw new RuntimeException("This should not be called.");
+		}
+
+		@Override
+		public JobClient executeWithControl(String jobName) throws Exception {
 			throw new RuntimeException("This should not be called.");
 		}
 	}

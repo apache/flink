@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -49,6 +50,12 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 		// do not go on with anything now!
 		throw new ProgramAbortException();
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) {
+		throw new UnsupportedOperationException(
+			"The OptimizerPlanEnvironment does not support execution with control.");
 	}
 
 	@Override

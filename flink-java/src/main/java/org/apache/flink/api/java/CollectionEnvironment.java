@@ -19,6 +19,7 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.CollectionExecutor;
@@ -34,6 +35,11 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 		CollectionExecutor exec = new CollectionExecutor(getConfig());
 		this.lastJobExecutionResult = exec.execute(p);
 		return this.lastJobExecutionResult;
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) {
+		throw new UnsupportedOperationException("CollectionEnvironment doesn't support execution with control.");
 	}
 
 	@Override

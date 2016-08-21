@@ -19,10 +19,10 @@
 package org.apache.flink.client;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliArgsException;
@@ -822,12 +822,12 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected int executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
+	protected int executeProgram(PackagedProgram program, ClusterClient client, int parallelism) throws Exception {
 		logAndSysout("Starting execution of program");
 
-		JobSubmissionResult result;
+		JobClient jobClient;
 		try {
-			result = client.run(program, parallelism);
+			jobClient = client.run(program, parallelism);
 		} catch (ProgramParametrizationException e) {
 			return handleParametrizationException(e);
 		} catch (ProgramMissingJobException e) {
@@ -838,9 +838,9 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
-		if (result.isJobExecutionResult()) {
+		if (jobClient.hasFinished()) {
 			logAndSysout("Program execution finished");
-			JobExecutionResult execResult = result.getJobExecutionResult();
+			JobExecutionResult execResult = jobClient.waitForResult();
 			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
 			System.out.println("Job Runtime: " + execResult.getNetRuntime() + " ms");
 			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
@@ -849,7 +849,7 @@ public class CliFrontend {
 				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
 			}
 		} else {
-			logAndSysout("Job has been submitted with JobID " + result.getJobID());
+			logAndSysout("Job has been submitted with JobID " + jobClient.getJobID());
 		}
 
 		return 0;

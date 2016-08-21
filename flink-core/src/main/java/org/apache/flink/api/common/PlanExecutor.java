@@ -114,11 +114,11 @@ public abstract class PlanExecutor {
 	 * be available, because the executor immediately shut down after the execution.</p>
 	 * 
 	 * @param plan The plan of the program to execute.
-	 * @return The execution result, containing for example the net runtime of the program, and the accumulators.
+	 * @return The job client which can be used to retrieve the result of the execution.
 	 * 
 	 * @throws Exception Thrown, if job submission caused an exception.
 	 */
-	public abstract JobExecutionResult executePlan(Plan plan) throws Exception;
+	public abstract JobClient executePlan(Plan plan) throws Exception;
 	
 	/**
 	 * Gets the programs execution plan in a JSON format.

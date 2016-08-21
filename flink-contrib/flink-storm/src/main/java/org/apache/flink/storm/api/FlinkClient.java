@@ -255,7 +255,7 @@ public class FlinkClient {
 		}
 
 		try {
-			client.stop(jobId);
+			client.retrieveJob(jobId).stop();
 		} catch (final Exception e) {
 			throw new RuntimeException("Cannot stop job.", e);
 		}

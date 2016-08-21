@@ -1753,7 +1753,7 @@ class JobManager(
   }
 
   /** Fails all currently running jobs and empties the list of currently running jobs. If the
-    * [[JobClientActor]] waits for a result, then a [[JobExecutionException]] is sent.
+    * [[JobClientActorBase]] waits for a result, then a [[JobExecutionException]] is sent.
     *
     * @param cause Cause for the cancelling.
     */

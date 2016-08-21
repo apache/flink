@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
@@ -32,6 +32,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.BDDMockito;
 import org.mockito.Matchers;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
@@ -137,8 +138,8 @@ public class FlinkILoopTest extends TestLogger {
 		}
 
 		@Override
-		public JobExecutionResult executePlan(Plan plan) throws Exception {
-			return null;
+		public JobClient executePlan(Plan plan) throws Exception {
+			return Mockito.mock(JobClient.class);
 		}
 
 		@Override

@@ -23,7 +23,7 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
@@ -179,7 +179,7 @@ public class RemoteExecutor extends PlanExecutor {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult executePlan(Plan plan) throws Exception {
+	public JobClient executePlan(Plan plan) throws Exception {
 		if (plan == null) {
 			throw new IllegalArgumentException("The plan may not be null.");
 		}
@@ -188,7 +188,7 @@ public class RemoteExecutor extends PlanExecutor {
 		return executePlanWithJars(p);
 	}
 
-	public JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {
+	public JobClient executePlanWithJars(JobWithJars program) throws Exception {
 		if (program == null) {
 			throw new IllegalArgumentException("The job may not be null.");
 		}
@@ -207,14 +207,23 @@ public class RemoteExecutor extends PlanExecutor {
 				shutDownAtEnd = false;
 			}
 
-			try {
-				return client.run(program, defaultParallelism).getJobExecutionResult();
-			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
-				}
-			}
+			final JobClient jobClient = client.run(program, defaultParallelism);
+
+			jobClient.addFinalizer(
+				new Runnable() {
+					@Override
+					public void run() {
+						if (shutDownAtEnd) {
+							try {
+								stop();
+							} catch (Exception e) {
+								throw new RuntimeException("Failed to clean up.", e);
+							}
+						}
+					}
+			});
+
+			return jobClient;
 		}
 	}
 

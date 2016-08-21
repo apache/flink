@@ -21,14 +21,16 @@ package org.apache.flink.client;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
+import org.apache.flink.client.program.JobClientEager;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.client.JobListeningContext;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.optimizer.DataStatistics;
@@ -143,13 +145,13 @@ public class LocalExecutor extends PlanExecutor {
 	 * no more references to the executor exist.</p>
 	 * 
 	 * @param plan The plan of the program to execute.
-	 * @return The net runtime of the program, in milliseconds.
+	 * @return The job client which can be used to control the job execution and fetch results.
 	 * 
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
 	@Override
-	public JobExecutionResult executePlan(Plan plan) throws Exception {
+	public JobClient executePlan(Plan plan) throws Exception {
 		if (plan == null) {
 			throw new IllegalArgumentException("The plan may not be null.");
 		}
@@ -172,29 +174,40 @@ public class LocalExecutor extends PlanExecutor {
 
 				// start the cluster for us
 				start();
-			}
-			else {
+			} else {
 				// we use the existing session
 				shutDownAtEnd = false;
 			}
 
-			try {
-				Configuration configuration = this.flink.configuration();
+			Configuration configuration = this.flink.configuration();
 
-				Optimizer pc = new Optimizer(new DataStatistics(), configuration);
-				OptimizedPlan op = pc.compile(plan);
+			Optimizer pc = new Optimizer(new DataStatistics(), configuration);
+			OptimizedPlan op = pc.compile(plan);
 
-				JobGraphGenerator jgg = new JobGraphGenerator(configuration);
-				JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
+			JobGraphGenerator jgg = new JobGraphGenerator(configuration);
+			JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
 
-				boolean sysoutPrint = isPrintingStatusDuringExecution();
-				return flink.submitJobAndWait(jobGraph, sysoutPrint);
-			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
+			boolean sysoutPrint = isPrintingStatusDuringExecution();
+
+
+			JobListeningContext jobListeningContext = flink.submitJob(jobGraph, sysoutPrint);
+			JobClientEager jobClient = new JobClientEager(jobListeningContext);
+
+			Runnable cleanup = new Runnable() {
+				@Override
+				public void run() {
+					if (shutDownAtEnd) {
+						try {
+							stop();
+						} catch (Exception e) {
+							throw new RuntimeException("Failed to run cleanup", e);
+						}
+					}
 				}
-			}
+			};
+			jobClient.addFinalizer(cleanup);
+
+			return jobClient;
 		}
 	}
 
@@ -247,7 +260,7 @@ public class LocalExecutor extends PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
-	public static JobExecutionResult execute(Program pa, String... args) throws Exception {
+	public static JobClient execute(Program pa, String... args) throws Exception {
 		return execute(pa.getPlan(args));
 	}
 
@@ -260,7 +273,7 @@ public class LocalExecutor extends PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
-	public static JobExecutionResult execute(Plan plan) throws Exception {
+	public static JobClient execute(Plan plan) throws Exception {
 		return new LocalExecutor().executePlan(plan);
 	}
 

@@ -18,23 +18,18 @@
 
 package org.apache.flink.runtime.client;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Identify;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.blob.BlobCache;
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobClientMessages;
@@ -53,9 +48,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,9 +56,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The JobClient bridges between the JobManager's asynchronous actor messages and
  * the synchronous method calls to trigger.
  */
-public class JobClient {
+public class JobClientActorUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(JobClient.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobClientActorUtils.class);
 
 	public static ActorSystem startJobClientActorSystem(Configuration config)
 			throws IOException {
@@ -101,11 +93,37 @@ public class JobClient {
 			FiniteDuration timeout,
 			boolean sysoutLogUpdates,
 			ClassLoader classLoader) {
+		return submitJob(actorSystem,
+			config,
+			leaderRetrievalService,
+			jobGraph,
+			timeout,
+			sysoutLogUpdates,
+			null,
+			classLoader);
+	}
+		/**
+		 * Submits a job to a Flink cluster (non-blocking) and returns a JobListeningContext which can be
+		 * passed to {@code awaitJobResult} to get the result of the submission.
+		 * @return JobListeningContext which may be used to retrieve the JobExecutionResult via
+		 * 			{@code awaitJobResult(JobListeningContext context)}.
+		 */
+	public static JobListeningContext submitJob(
+			ActorSystem actorSystem,
+			Configuration config,
+			LeaderRetrievalService leaderRetrievalService,
+			JobGraph jobGraph,
+			FiniteDuration timeout,
+			boolean sysoutLogUpdates,
+			Runnable finalizer,
+			ClassLoader classLoader) {
 
 		checkNotNull(actorSystem, "The actorSystem must not be null.");
 		checkNotNull(leaderRetrievalService, "The jobManagerGateway must not be null.");
 		checkNotNull(jobGraph, "The jobGraph must not be null.");
+		checkNotNull(config, "The configuration must not be null.");
 		checkNotNull(timeout, "The timeout must not be null.");
+		checkNotNull(classLoader, "The classLoader must not be null.");
 
 		// for this job, we create a proxy JobClientActor that deals with all communication with
 		// the JobManager. It forwards the job submission, checks the success/failure responses, logs
@@ -117,18 +135,21 @@ public class JobClient {
 			sysoutLogUpdates,
 			config);
 
-		ActorRef jobClientActor = actorSystem.actorOf(jobClientActorProps);
+		ActorGateway jobClientGateway =
+			new AkkaActorGateway(actorSystem.actorOf(jobClientActorProps), null);
 
-		Future<Object> submissionFuture = Patterns.ask(
-				jobClientActor,
+		Future<Object> submissionFuture =
+			jobClientGateway.ask(
 				new JobClientMessages.SubmitJobAndWait(jobGraph),
-				new Timeout(AkkaUtils.INF_TIMEOUT()));
+				AkkaUtils.INF_TIMEOUT());
 
 		return new JobListeningContext(
 				jobGraph.getJobID(),
+				config,
 				submissionFuture,
-				jobClientActor,
+				jobClientGateway,
 				timeout,
+				finalizer,
 				classLoader);
 	}
 
@@ -139,7 +160,6 @@ public class JobClient {
 	 */
 	public static JobListeningContext attachToRunningJob(
 			JobID jobID,
-			ActorGateway jobManagerGateWay,
 			Configuration configuration,
 			ActorSystem actorSystem,
 			LeaderRetrievalService leaderRetrievalService,
@@ -147,7 +167,6 @@ public class JobClient {
 			boolean sysoutLogUpdates) {
 
 		checkNotNull(jobID, "The jobID must not be null.");
-		checkNotNull(jobManagerGateWay, "The jobManagerGateWay must not be null.");
 		checkNotNull(configuration, "The configuration must not be null.");
 		checkNotNull(actorSystem, "The actorSystem must not be null.");
 		checkNotNull(leaderRetrievalService, "The jobManagerGateway must not be null.");
@@ -161,81 +180,21 @@ public class JobClient {
 			timeout,
 			sysoutLogUpdates);
 
-		ActorRef jobClientActor = actorSystem.actorOf(jobClientActorProps);
+		ActorGateway jobClientGateway =
+			new AkkaActorGateway(actorSystem.actorOf(jobClientActorProps), null);
 
-		Future<Object> attachmentFuture = Patterns.ask(
-				jobClientActor,
+		Future<Object> attachmentFuture =
+			jobClientGateway.ask(
 				new JobClientMessages.AttachToJobAndWait(jobID),
-				new Timeout(AkkaUtils.INF_TIMEOUT()));
+				AkkaUtils.INF_TIMEOUT());
 
 		return new JobListeningContext(
 				jobID,
 				attachmentFuture,
-				jobClientActor,
+				jobClientGateway,
 				timeout,
 				actorSystem,
 				configuration);
-	}
-
-	/**
-	 * Reconstructs the class loader by first requesting information about it at the JobManager
-	 * and then downloading missing jar files.
-	 * @param jobID id of job
-	 * @param jobManager gateway to the JobManager
-	 * @param config the flink configuration
-	 * @return A classloader that should behave like the original classloader
-	 * @throws JobRetrievalException if anything goes wrong
-	 */
-	public static ClassLoader retrieveClassLoader(
-		JobID jobID,
-		ActorGateway jobManager,
-		Configuration config)
-		throws JobRetrievalException {
-
-		final Object jmAnswer;
-		try {
-			jmAnswer = Await.result(
-				jobManager.ask(
-					new JobManagerMessages.RequestClassloadingProps(jobID),
-					AkkaUtils.getDefaultTimeoutAsFiniteDuration()),
-				AkkaUtils.getDefaultTimeoutAsFiniteDuration());
-		} catch (Exception e) {
-			throw new JobRetrievalException(jobID, "Couldn't retrieve class loading properties from JobManager.", e);
-		}
-
-		if (jmAnswer instanceof JobManagerMessages.ClassloadingProps) {
-			JobManagerMessages.ClassloadingProps props = ((JobManagerMessages.ClassloadingProps) jmAnswer);
-
-			Option<String> jmHost = jobManager.actor().path().address().host();
-			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
-			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, props.blobManagerPort());
-			final BlobCache blobClient = new BlobCache(serverAddress, config);
-
-			final List<BlobKey> requiredJarFiles = props.requiredJarFiles();
-			final List<URL> requiredClasspaths = props.requiredClasspaths();
-
-			final URL[] allURLs = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
-
-			int pos = 0;
-			for (BlobKey blobKey : props.requiredJarFiles()) {
-				try {
-					allURLs[pos++] = blobClient.getURL(blobKey);
-				} catch (Exception e) {
-					blobClient.shutdown();
-					throw new JobRetrievalException(jobID, "Failed to download BlobKey " + blobKey);
-				}
-			}
-
-			for (URL url : requiredClasspaths) {
-				allURLs[pos++] = url;
-			}
-
-			return new FlinkUserCodeClassLoader(allURLs, JobClient.class.getClassLoader());
-		} else if (jmAnswer instanceof JobManagerMessages.JobNotFound) {
-			throw new JobRetrievalException(jobID, "Couldn't retrieve class loader. Job " + jobID + " not found");
-		} else {
-			throw new JobRetrievalException(jobID, "Unknown response from JobManager: " + jmAnswer);
-		}
 	}
 
 	/**
@@ -247,7 +206,7 @@ public class JobClient {
 	public static JobExecutionResult awaitJobResult(JobListeningContext listeningContext) throws JobExecutionException {
 
 		final JobID jobID = listeningContext.getJobID();
-		final ActorRef jobClientActor = listeningContext.getJobClientActor();
+		final ActorGateway jobClientGateway = listeningContext.getJobClientGateway();
 		final Future<Object> jobSubmissionFuture = listeningContext.getJobResultFuture();
 		final FiniteDuration askTimeout = listeningContext.getTimeout();
 		// retrieves class loader if necessary
@@ -265,11 +224,10 @@ public class JobClient {
 			} catch (TimeoutException e) {
 				try {
 					Await.result(
-						Patterns.ask(
-							jobClientActor,
+						jobClientGateway.ask(
 							// Ping the Actor to see if it is alive
 							new Identify(true),
-							Timeout.durationToTimeout(askTimeout)),
+							askTimeout),
 						askTimeout);
 					// we got a reply, continue waiting for the job result
 				} catch (Exception eInner) {
@@ -282,6 +240,8 @@ public class JobClient {
 							eInner);
 					}
 				}
+			} finally {
+				listeningContext.runFinalizer();
 			}
 		}
 
@@ -296,7 +256,8 @@ public class JobClient {
 		}
 		finally {
 			// failsafe shutdown of the client actor
-			jobClientActor.tell(PoisonPill.getInstance(), ActorRef.noSender());
+			jobClientGateway.tell(PoisonPill.getInstance());
+			listeningContext.runFinalizer();
 		}
 
 		// second block handles the actual response
@@ -369,6 +330,45 @@ public class JobClient {
 			FiniteDuration timeout,
 			boolean sysoutLogUpdates,
 			ClassLoader classLoader) throws JobExecutionException {
+		return submitJobAndWait(
+			actorSystem,
+			config,
+			leaderRetrievalService,
+			jobGraph,
+			timeout,
+			sysoutLogUpdates,
+			null,
+			classLoader);
+	}
+
+	/**
+	 * Sends a [[JobGraph]] to the JobClient actor specified by jobClient which submits it then to
+	 * the JobManager. The method blocks until the job has finished or the JobManager is no longer
+	 * alive. In the former case, the [[SerializedJobExecutionResult]] is returned and in the latter
+	 * case a [[JobExecutionException]] is thrown.
+	 *
+	 * @param actorSystem The actor system that performs the communication.
+	 * @param config The cluster wide configuration.
+	 * @param leaderRetrievalService Leader retrieval service which used to find the current leading
+	 *                               JobManager
+	 * @param jobGraph    JobGraph describing the Flink job
+	 * @param timeout     Timeout for futures
+	 * @param sysoutLogUpdates prints log updates to system out if true
+	 * @param finalizer Cleanup code to run when finalizing the execution.
+	 * @param classLoader The class loader for deserializing the results
+	 * @return The job execution result
+	 * @throws org.apache.flink.runtime.client.JobExecutionException Thrown if the job
+	 *                                                               execution fails.
+	 */
+	public static JobExecutionResult submitJobAndWait(
+			ActorSystem actorSystem,
+			Configuration config,
+			LeaderRetrievalService leaderRetrievalService,
+			JobGraph jobGraph,
+			FiniteDuration timeout,
+			boolean sysoutLogUpdates,
+			Runnable finalizer,
+			ClassLoader classLoader) throws JobExecutionException {
 
 		JobListeningContext jobListeningContext = submitJob(
 				actorSystem,
@@ -377,6 +377,7 @@ public class JobClient {
 				jobGraph,
 				timeout,
 				sysoutLogUpdates,
+				finalizer,
 				classLoader);
 
 		return awaitJobResult(jobListeningContext);

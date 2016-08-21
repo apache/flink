@@ -26,5 +26,5 @@
     <root level="WARN">
         <appender-ref ref="STDOUT"/>
     </root>
-    <logger name="org.apache.flink.runtime.client.JobClient" level="OFF"/>
+    <logger name="org.apache.flink.runtime.client.JobClientActorUtils" level="OFF"/>
 </configuration>

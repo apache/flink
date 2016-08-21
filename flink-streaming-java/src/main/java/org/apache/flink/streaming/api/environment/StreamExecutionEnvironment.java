@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -1510,6 +1511,33 @@ public abstract class StreamExecutionEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	public abstract JobExecutionResult execute(String jobName) throws Exception;
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 * <p>
+	 * The program execution will be logged and displayed with the provided name
+	 *
+	 * @return The job client for controlling the execution and retrieving results.
+	 * @throws Exception which occurs during job execution.
+	 */
+	public JobClient executeWithControl() throws Exception {
+		return executeWithControl(DEFAULT_JOB_NAME);
+	}
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 * <p>
+	 * The program execution will be logged and displayed with the provided name
+	 *
+	 * @param jobName
+	 * 		Desired name of the job
+	 * @return The job client for controlling the execution and retrieving results.
+	 * @throws Exception which occurs during job execution.
+	 */	public abstract JobClient executeWithControl(String jobName) throws Exception;
 
 	/**
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.

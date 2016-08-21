@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -166,7 +167,14 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
+	public JobExecutionResult execute(String jobName) throws Exception {
+		JobClient jobClient = executeWithControl(jobName);
+		return jobClient.waitForResult();
+
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) throws Exception {
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 		transformations.clear();
@@ -182,7 +190,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * 			  List of jar file URLs to ship to the cluster
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+	protected JobClient executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -196,7 +204,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 
-		ClusterClient client;
+		final ClusterClient client;
 		try {
 			client = new StandaloneClusterClient(configuration);
 			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
@@ -206,7 +214,16 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		try {
-			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader).getJobExecutionResult();
+			JobClient jobClient = client
+				.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader);
+			jobClient.addFinalizer(
+				new Runnable() {
+					@Override
+					public void run() {
+						client.shutdown();
+					}
+			});
+			return jobClient;
 		}
 		catch (ProgramInvocationException e) {
 			throw e;
@@ -214,9 +231,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		catch (Exception e) {
 			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
 			throw new ProgramInvocationException("The program execution failed" + term, e);
-		}
-		finally {
-			client.shutdown();
 		}
 	}
 

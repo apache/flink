@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.DetachedEnvironment;
@@ -66,7 +67,21 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			return ctx
 				.getClient()
 				.run(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointPath())
-				.getJobExecutionResult();
+				.waitForResult();
 		}
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) throws Exception {
+		Preconditions.checkNotNull("Streaming Job name should not be null.");
+
+		StreamGraph streamGraph = this.getStreamGraph();
+		streamGraph.setJobName(jobName);
+
+		transformations.clear();
+
+		return ctx
+			.getClient()
+			.run(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointPath());
 	}
 }

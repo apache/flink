@@ -20,6 +20,7 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -161,6 +162,15 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+
+		JobClient jobClient = executeWithControl(jobName);
+		this.lastJobExecutionResult = jobClient.waitForResult();
+
+		return this.lastJobExecutionResult;
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) throws Exception {
 		PlanExecutor executor = getExecutor();
 
 		Plan p = createProgramPlan(jobName);
@@ -169,10 +179,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		//p.setJobId(jobID);
 		//p.setSessionTimeout(sessionTimeout);
 
-		JobExecutionResult result = executor.executePlan(p);
-
-		this.lastJobExecutionResult = result;
-		return result;
+		return executor.executePlan(p);
 	}
 
 	@Override

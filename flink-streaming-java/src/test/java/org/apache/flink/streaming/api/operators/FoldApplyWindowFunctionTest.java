@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.util.ListCollector;
@@ -139,6 +140,11 @@ public class FoldApplyWindowFunctionTest {
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
+			return null;
+		}
+
+		@Override
+		public JobClient executeWithControl(String jobName) throws Exception {
 			return null;
 		}
 	}

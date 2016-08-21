@@ -19,6 +19,7 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -55,11 +56,16 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+		this.lastJobExecutionResult = executeWithControl(jobName).waitForResult();
+		return this.lastJobExecutionResult;
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
-				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointPath).getJobExecutionResult();
-		return this.lastJobExecutionResult;
+			this.userCodeClassLoader);
+		return client.run(toRun, getParallelism(), savepointPath);
 	}
 
 	@Override

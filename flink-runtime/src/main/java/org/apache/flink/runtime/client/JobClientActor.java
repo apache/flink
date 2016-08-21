@@ -36,6 +36,9 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.Serializable;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.UUID;
 
 
@@ -66,6 +69,8 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 	/** The client which the actor is responsible for */
 	protected ActorRef client;
 
+	private Deque<ClientMessageWithSender> queuedClientMessages;
+
 	public JobClientActor(
 			LeaderRetrievalService leaderRetrievalService,
 			FiniteDuration timeout,
@@ -73,6 +78,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.sysoutUpdates = sysoutUpdates;
+		this.queuedClientMessages = new ArrayDeque<>();
 	}
 
 	@Override
@@ -155,6 +161,11 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 			logAndPrintMessage("Connected to JobManager at " + msg.jobManager());
 
 			connectedToJobManager();
+
+			while (!queuedClientMessages.isEmpty()) {
+				ClientMessageWithSender clientMessage = queuedClientMessages.removeFirst();
+				jobManager.tell(decorateMessage(clientMessage.getMsg()), clientMessage.getSender());
+			}
 		}
 
 		// =========== Job Life Cycle Messages ===============
@@ -214,6 +225,16 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 				}
 				// Connection timeout reached, let's terminate
 				terminate();
+			}
+		}
+		else if (message instanceof ClientMessage) {
+			if (isJobManagerConnected()) {
+				// forward
+				jobManager.tell(decorateMessage(((ClientMessage) message).getMsg()), sender());
+			} else {
+				// add to queue
+				queuedClientMessages.add(
+					new ClientMessageWithSender(((ClientMessage) message).getMsg(), sender()));
 			}
 		}
 
@@ -331,6 +352,33 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 
 	protected boolean isClientConnected() {
 		return client != ActorRef.noSender();
+	}
+
+	public static class ClientMessage implements Serializable {
+
+		private Object msg;
+
+		public ClientMessage(Object msg) {
+			this.msg = msg;
+		}
+
+		public Object getMsg() {
+			return msg;
+		}
+	}
+
+	private static class ClientMessageWithSender extends ClientMessage {
+
+		private ActorRef sender;
+
+		public ClientMessageWithSender(Object msg, ActorRef sender) {
+			super(msg);
+			this.sender = sender;
+		}
+
+		public ActorRef getSender() {
+			return sender;
+		}
 	}
 
 }

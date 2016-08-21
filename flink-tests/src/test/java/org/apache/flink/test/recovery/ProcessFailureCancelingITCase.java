@@ -28,10 +28,10 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
@@ -185,7 +185,7 @@ public class ProcessFailureCancelingITCase {
 			Throwable error = errorRef[0];
 			assertNotNull("The program did not fail properly", error);
 			
-			assertTrue(error instanceof ProgramInvocationException);
+			assertTrue(error instanceof JobExecutionException);
 			// all seems well :-)
 		}
 		catch (Exception e) {

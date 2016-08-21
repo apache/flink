@@ -18,11 +18,13 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.client.program.JobClientEager;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -71,13 +73,21 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+
+		this.lastJobExecutionResult = executeWithControl(jobName).waitForResult();
+
+		return this.lastJobExecutionResult;
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) throws Exception {
+
 		OptimizedPlan op = compileProgram(jobName);
 
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		JobGraph jobGraph = jgg.compileJobGraph(op);
 
-		this.lastJobExecutionResult = executor.submitJobAndWait(jobGraph, false);
-		return this.lastJobExecutionResult;
+		return new JobClientEager(executor.submitJob(jobGraph, false));
 	}
 
 

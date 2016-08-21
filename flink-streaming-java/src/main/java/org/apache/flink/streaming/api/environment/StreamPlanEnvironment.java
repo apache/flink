@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
@@ -66,5 +67,10 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		}
 
 		throw new OptimizerPlanEnvironment.ProgramAbortException();
+	}
+
+	@Override
+	public JobClient executeWithControl(String jobName) throws Exception {
+		throw new UnsupportedOperationException("StreamPlanEnvironment does not support execution with control.");
 	}
 }

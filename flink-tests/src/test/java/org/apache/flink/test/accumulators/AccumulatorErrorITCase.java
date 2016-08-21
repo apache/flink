@@ -91,11 +91,9 @@ public class AccumulatorErrorITCase {
 		try {
 			env.execute();
 			fail("Should have failed.");
-		} catch (ProgramInvocationException e) {
-			Assert.assertTrue("Exception should be passed:",
-					e.getCause() instanceof JobExecutionException);
+		} catch (JobExecutionException e) {
 			Assert.assertTrue("Root cause should be:",
-					e.getCause().getCause() instanceof CustomException);
+					e.getCause() instanceof CustomException);
 		}
 	}
 
@@ -117,13 +115,11 @@ public class AccumulatorErrorITCase {
 		try {
 			env.execute();
 			fail("Should have failed.");
-		} catch (ProgramInvocationException e) {
-			Assert.assertTrue("Exception should be passed:",
-					e.getCause() instanceof JobExecutionException);
+		} catch (JobExecutionException e) {
 			Assert.assertTrue("Root cause should be:",
-					e.getCause().getCause() instanceof Exception);
+					e.getCause() instanceof Exception);
 			Assert.assertTrue("Root cause should be:",
-					e.getCause().getCause().getCause() instanceof UnsupportedOperationException);
+					e.getCause().getCause() instanceof UnsupportedOperationException);
 		}
 	}
 

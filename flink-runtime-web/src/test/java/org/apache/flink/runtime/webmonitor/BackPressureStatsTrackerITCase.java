@@ -25,7 +25,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.JobClientActorUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -137,7 +137,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 							ActorGateway testActor = new AkkaActorGateway(getTestActor(), null);
 
 							// Submit the job and wait until it is running
-							JobClient.submitJobDetached(
+							JobClientActorUtils.submitJobDetached(
 									jm,
 									config,
 									jobGraph,

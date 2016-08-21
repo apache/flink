@@ -25,10 +25,10 @@ import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
-import org.apache.flink.api.common.{JobExecutionResult, JobID, JobSubmissionResult}
+import org.apache.flink.api.common.{JobClient, JobExecutionResult, JobID, JobSubmissionResult}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
+import org.apache.flink.runtime.client.{JobClientActorUtils, JobExecutionException, JobListeningContext}
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode
@@ -290,7 +290,7 @@ abstract class FlinkMiniCluster(
           "The FlinkMiniCluster has not been started yet.")
       }
     } else {
-      JobClient.startJobClientActorSystem(originalConfiguration)
+      JobClientActorUtils.startJobClientActorSystem(originalConfiguration)
     }
   }
 
@@ -485,6 +485,52 @@ abstract class FlinkMiniCluster(
   }
 
   @throws(classOf[JobExecutionException])
+  def submitJob(
+                jobGraph: JobGraph,
+                printUpdates: Boolean)
+  : JobListeningContext = {
+    submitJob(jobGraph, printUpdates, timeout)
+  }
+
+  def submitJob(
+                jobGraph: JobGraph,
+                printUpdates: Boolean,
+                timeout: FiniteDuration)
+  : JobListeningContext = {
+    submitJob(jobGraph, printUpdates, timeout, createLeaderRetrievalService())
+  }
+
+  @throws(classOf[JobExecutionException])
+  def submitJob(
+                jobGraph: JobGraph,
+                printUpdates: Boolean,
+                timeout: FiniteDuration,
+                leaderRetrievalService: LeaderRetrievalService)
+  : JobListeningContext = {
+
+    val clientActorSystem = startJobClientActorSystem(jobGraph.getJobID)
+
+    val cleanupRoutine = new Runnable {
+      override def run(): Unit = {
+        if(!useSingleActorSystem) {
+          // we have to shutdown the just created actor system
+          shutdownJobClientActorSystem(clientActorSystem)
+        }
+      }
+    }
+
+    JobClientActorUtils.submitJob(
+      clientActorSystem,
+      configuration,
+      leaderRetrievalService,
+      jobGraph,
+      timeout,
+      printUpdates,
+      cleanupRoutine,
+      this.getClass.getClassLoader())
+  }
+
+  @throws(classOf[JobExecutionException])
   def submitJobAndWait(
       jobGraph: JobGraph,
       printUpdates: Boolean)
@@ -510,21 +556,23 @@ abstract class FlinkMiniCluster(
 
     val clientActorSystem = startJobClientActorSystem(jobGraph.getJobID)
 
-     try {
-     JobClient.submitJobAndWait(
-       clientActorSystem,
-       configuration,
-       leaderRetrievalService,
-       jobGraph,
-       timeout,
-       printUpdates,
-       this.getClass.getClassLoader())
-    } finally {
-       if(!useSingleActorSystem) {
-         // we have to shutdown the just created actor system
-         shutdownJobClientActorSystem(clientActorSystem)
-       }
-     }
+    val cleanupRoutine = new Runnable {
+      override def run(): Unit = {
+        if(!useSingleActorSystem) {
+          // we have to shutdown the just created actor system
+          shutdownJobClientActorSystem(clientActorSystem)
+        }
+      }
+    }
+    JobClientActorUtils.submitJobAndWait(
+      clientActorSystem,
+      configuration,
+      leaderRetrievalService,
+      jobGraph,
+      timeout,
+      printUpdates,
+      cleanupRoutine,
+      this.getClass.getClassLoader())
   }
 
   @throws(classOf[JobExecutionException])
@@ -541,7 +589,7 @@ abstract class FlinkMiniCluster(
         )
     }
 
-    JobClient.submitJobDetached(jobManagerGateway,
+    JobClientActorUtils.submitJobDetached(jobManagerGateway,
       configuration,
       jobGraph,
       timeout,

@@ -29,6 +29,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import org.apache.flink.util.Collector;
@@ -105,10 +106,9 @@ public class MiscellaneousIssuesITCase {
 				env.execute();
 				fail("this should fail due to null values.");
 			}
-			catch (ProgramInvocationException e) {
+			catch (JobExecutionException e) {
 				assertNotNull(e.getCause());
-				assertNotNull(e.getCause().getCause());
-				assertTrue(e.getCause().getCause() instanceof NullPointerException);
+				assertTrue(e.getCause() instanceof NullPointerException);
 			}
 		}
 		catch (Exception e) {

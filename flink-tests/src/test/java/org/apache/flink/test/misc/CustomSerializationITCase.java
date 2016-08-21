@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.types.Value;
 
@@ -94,8 +95,8 @@ public class CustomSerializationITCase {
 			
 			env.execute();
 		}
-		catch (ProgramInvocationException e) {
-			Throwable rootCause = e.getCause().getCause();
+		catch (JobExecutionException e) {
+			Throwable rootCause = e.getCause();
 			assertTrue(rootCause instanceof IOException);
 			assertTrue(rootCause.getMessage().contains("broken serialization"));
 		}
@@ -127,8 +128,8 @@ public class CustomSerializationITCase {
 
 			env.execute();
 		}
-		catch (ProgramInvocationException e) {
-			Throwable rootCause = e.getCause().getCause();
+		catch (JobExecutionException e) {
+			Throwable rootCause = e.getCause();
 			assertTrue(rootCause instanceof IOException);
 			assertTrue(rootCause.getMessage().contains("broken serialization"));
 		}
@@ -160,8 +161,8 @@ public class CustomSerializationITCase {
 
 			env.execute();
 		}
-		catch (ProgramInvocationException e) {
-			Throwable rootCause = e.getCause().getCause();
+		catch (JobExecutionException e) {
+			Throwable rootCause = e.getCause();
 			assertTrue(rootCause instanceof IOException);
 			assertTrue(rootCause.getMessage().contains("broken serialization"));
 		}
@@ -193,8 +194,8 @@ public class CustomSerializationITCase {
 
 			env.execute();
 		}
-		catch (ProgramInvocationException e) {
-			Throwable rootCause = e.getCause().getCause();
+		catch (JobExecutionException e) {
+			Throwable rootCause = e.getCause();
 			assertTrue(rootCause instanceof IOException);
 			assertTrue(rootCause.getMessage().contains("broken serialization"));
 		}

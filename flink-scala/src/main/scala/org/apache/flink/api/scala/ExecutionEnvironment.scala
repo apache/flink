@@ -18,12 +18,12 @@
 package org.apache.flink.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
+import org.apache.flink.api.common.{ExecutionConfig, JobClient, JobExecutionResult, JobID}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -35,9 +35,9 @@ import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
 import org.apache.hadoop.fs.{Path => HadoopPath}
-import org.apache.hadoop.mapred.{FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat, JobConf}
+import org.apache.hadoop.mapred.{JobConf, FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
-import org.apache.hadoop.mapreduce.{InputFormat => MapreduceInputFormat, Job}
+import org.apache.hadoop.mapreduce.{Job, InputFormat => MapreduceInputFormat}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -649,6 +649,34 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def execute(jobName: String): JobExecutionResult = {
     javaEnv.execute(jobName)
+  }
+
+  /**
+   * Triggers the program execution. The environment will execute all parts of the program that have
+   * resulted in a "sink" operation. Sink operations are for example printing results
+   * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+   * generic data sinks created with [[DataSet.output]].
+   *
+   * The program execution will be logged and displayed with a generated default name.
+   *
+   * @return The job client of the execution to interact with the running job.
+   */
+  def executeWithControl(): JobClient = {
+    javaEnv.executeWithControl()
+  }
+
+  /**
+   * Triggers the program execution. The environment will execute all parts of the program that have
+   * resulted in a "sink" operation. Sink operations are for example printing results
+   * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+   * generic data sinks created with [[DataSet.output]].
+   *
+   * The program execution will be logged and displayed with the given name.
+   *
+   * @return The job client of the execution to interact with the running job.
+   */
+  def executeWithControl(jobName: String): JobClient = {
+    javaEnv.executeWithControl(jobName)
   }
 
   /**

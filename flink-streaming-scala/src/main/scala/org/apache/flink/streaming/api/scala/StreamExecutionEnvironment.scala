@@ -634,6 +634,25 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def execute(jobName: String) = javaEnv.execute(jobName)
 
   /**
+    * Triggers the program execution. The environment will execute all parts of
+    * the program that have resulted in a "sink" operation. Sink operations are
+    * for example printing results or forwarding them to a message queue.
+    *
+    * The program execution will be logged and displayed with a generated
+    * default name.
+    */
+  def executeWithControl() = javaEnv.executeWithControl()
+
+  /**
+    * Triggers the program execution. The environment will execute all parts of
+    * the program that have resulted in a "sink" operation. Sink operations are
+    * for example printing results or forwarding them to a message queue.
+    *
+    * The program execution will be logged and displayed with the provided name.
+    */
+  def executeWithControl(jobName: String) = javaEnv.executeWithControl(jobName)
+
+  /**
    * Creates the plan with which the system will execute the program, and
    * returns it as a String using a JSON representation of the execution data
    * flow graph. Note that this needs to be called, before the plan is

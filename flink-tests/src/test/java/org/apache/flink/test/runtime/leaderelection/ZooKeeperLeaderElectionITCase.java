@@ -26,7 +26,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.JobClientActorUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -275,7 +275,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 						LeaderRetrievalUtils.createLeaderRetrievalService(
 								cluster.configuration());
 
-				JobExecutionResult result = JobClient.submitJobAndWait(
+				JobExecutionResult result = JobClientActorUtils.submitJobAndWait(
 						clientActorSystem,
 						cluster.configuration(),
 						lrService,

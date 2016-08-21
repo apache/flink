@@ -22,10 +22,11 @@ import java.util.UUID
 
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.client.JobClientActorUtils
 import org.apache.flink.runtime.jobgraph.JobGraph
 
 /**
- * This object contains the [[org.apache.flink.runtime.client.JobClient]] specific messages
+ * This object contains the [[JobClientActorUtils]] specific messages
  */
 object JobClientMessages {
 

@@ -29,7 +29,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.configuration.{ConfigConstants, Configuration, HighAvailabilityOptions}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.client.JobClient
+import org.apache.flink.runtime.client.JobClientActorUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
@@ -479,7 +479,7 @@ object TestingUtils {
     val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
     val leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManagerURL)
 
-    JobClient.submitJobAndWait(
+    JobClientActorUtils.submitJobAndWait(
       actorSystem,
       config,
       leaderRetrievalService,

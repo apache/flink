@@ -17,7 +17,7 @@
  */
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
@@ -93,7 +93,7 @@ public class StandaloneClusterClient extends ClusterClient {
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
+	protected JobClient submitJob(JobGraph jobGraph, ClassLoader classLoader)
 			throws ProgramInvocationException {
 		if (isDetached()) {
 			return super.runDetached(jobGraph, classLoader);

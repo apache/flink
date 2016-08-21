@@ -18,9 +18,11 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.program.JobClientEager;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -73,8 +75,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a user
-	 * specified name.
+	 * Executes the JobGraph of the on a mini cluster with a user specified name.
 	 * 
 	 * @param jobName
 	 *            name of the job
@@ -87,28 +88,56 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		streamGraph.setJobName(jobName);
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
+		transformations.clear();
+
+		LocalFlinkMiniCluster exec = createLocalCluster(jobGraph);
+		try {
+			return exec.submitJobAndWait(jobGraph, getConfig().isSysoutLoggingEnabled());
+		}
+		finally {
+			exec.stop();
+		}
+	}
+
+	/**
+	 * Executes the JobGraph of the on a mini cluster with a user specified name.
+	 *
+	 * @param jobName
+	 *            name of the job
+	 * @return The JobClient for the job execution.
+	 */
+	@Override
+	public JobClient executeWithControl(String jobName) throws Exception {
+		// transform the streaming program into a JobGraph
+		StreamGraph streamGraph = getStreamGraph();
+		streamGraph.setJobName(jobName);
+
+		JobGraph jobGraph = streamGraph.getJobGraph();
+		transformations.clear();
+
+		LocalFlinkMiniCluster exec = createLocalCluster(jobGraph);
+
+		return new JobClientEager(exec.submitJob(jobGraph, getConfig().isSysoutLoggingEnabled()));
+	}
+
+	private LocalFlinkMiniCluster createLocalCluster(JobGraph jobGraph) {
 
 		Configuration configuration = new Configuration();
 		configuration.addAll(jobGraph.getJobConfiguration());
 
 		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
-		
+
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.conf);
-		
+
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running job on local embedded Flink mini cluster");
 		}
 
-		LocalFlinkMiniCluster exec = new LocalFlinkMiniCluster(configuration, true);
-		try {
-			exec.start();
-			return exec.submitJobAndWait(jobGraph, getConfig().isSysoutLoggingEnabled());
-		}
-		finally {
-			transformations.clear();
-			exec.stop();
-		}
+		final LocalFlinkMiniCluster localFlinkMiniCluster = new LocalFlinkMiniCluster(configuration, true);
+		localFlinkMiniCluster.start();
+
+		return localFlinkMiniCluster;
 	}
 }

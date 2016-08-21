@@ -33,6 +33,7 @@ import org.apache.flink.examples.java.clustering.util.KMeansData;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.junit.Test;
 
@@ -68,8 +69,8 @@ public class SuccessAfterNetworkBuffersFailureITCase {
 				runKMeans(cluster.getLeaderRPCPort());
 				fail("This program execution should have failed.");
 			}
-			catch (ProgramInvocationException e) {
-				assertTrue(e.getCause().getCause().getMessage().contains("Insufficient number of network buffers"));
+			catch (JobExecutionException e) {
+				assertTrue(e.getCause().getMessage().contains("Insufficient number of network buffers"));
 			}
 	
 			try {

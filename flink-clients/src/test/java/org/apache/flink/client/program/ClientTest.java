@@ -201,9 +201,8 @@ public class ClientTest {
 
 			ClusterClient out = new StandaloneClusterClient(config);
 			out.setDetached(true);
-			JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
 
-			assertNotNull(result);
+			assertNotNull(out.run(program.getPlanWithJars(), 1));
 
 			program.deleteExtractedLibraries();
 		}

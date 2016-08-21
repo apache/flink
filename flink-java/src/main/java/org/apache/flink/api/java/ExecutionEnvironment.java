@@ -24,6 +24,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -909,6 +910,24 @@ public abstract class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public abstract JobExecutionResult execute(String jobName) throws Exception;
+
+	/**
+	 * Triggers the program execution, just like {@code execute()} but does not block.
+	 * Instead, it returns a JobClient which can be used to interact with the running job.
+	 * @return A JobClient for job interaction.
+	 * @throws Exception Thrown if the program submission fails.
+	 */
+	public JobClient executeWithControl() throws Exception {
+		return executeWithControl(getDefaultName());
+	}
+
+	/**
+	 * Triggers the program execution, just like {@code execute(String jobName)} but does not block.
+	 * Instead, it returns a JobClient which can be used to interact with the running job.
+	 * @return A JobClient for job interaction.
+	 * @throws Exception Thrown if the program submission fails.
+	 */
+	public abstract JobClient executeWithControl(String jobName) throws Exception;
 
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as 

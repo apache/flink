@@ -83,7 +83,7 @@ public class JobRetrievalITCase extends TestLogger {
 			@Override
 			public void run() {
 				try {
-					assertNotNull(client.retrieveJob(jobID));
+					assertNotNull(client.retrieveJob(jobID).waitForResult());
 				} catch (Throwable e) {
 					fail(e.getMessage());
 				}
@@ -120,7 +120,7 @@ public class JobRetrievalITCase extends TestLogger {
 		ClusterClient client = new StandaloneClusterClient(cluster.configuration());
 
 		try {
-			client.retrieveJob(jobID);
+			client.retrieveJob(jobID).waitForResult();
 			fail();
 		} catch (JobRetrievalException e) {
 			// this is what we want

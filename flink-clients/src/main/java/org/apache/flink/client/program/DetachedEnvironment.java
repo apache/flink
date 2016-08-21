@@ -18,10 +18,10 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.JobClient;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.slf4j.Logger;
@@ -71,7 +71,7 @@ public class DetachedEnvironment extends ContextEnvironment {
 	/**
 	 * Finishes this Context Environment's execution by explicitly running the plan constructed.
 	 */
-	JobSubmissionResult finalizeExecute() throws ProgramInvocationException {
+	JobClient finalizeExecute() throws ProgramInvocationException {
 		return client.run(detachedPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath);
 	}
 
