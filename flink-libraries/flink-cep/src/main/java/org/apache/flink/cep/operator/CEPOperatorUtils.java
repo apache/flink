@@ -46,12 +46,7 @@ public class CEPOperatorUtils {
 	 */
 	public static <K, T> DataStream<Map<String, T>> createPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
-
-		// check whether we use processing time
-		final ProcessingType processingType
-			= inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime
-			? ProcessingType.PROCESSING_TIME
-			: ProcessingType.EVENT_TIME;
+		final ProcessingType processingType = getProcessingType(inputStream);
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, false);
@@ -98,14 +93,8 @@ public class CEPOperatorUtils {
 	 * a {@link Either} instance.
 	 */
 	public static <K, T> DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> createTimeoutPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
-
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
-
-		// check whether we use processing time
-		final ProcessingType processingType
-			= inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime
-			? ProcessingType.PROCESSING_TIME
-			: ProcessingType.EVENT_TIME;
+		final ProcessingType processingType = getProcessingType(inputStream);
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, true);
@@ -144,5 +133,11 @@ public class CEPOperatorUtils {
 		}
 
 		return patternStream;
+	}
+
+	private static <T> ProcessingType getProcessingType(DataStream<T> inputStream) {
+		return inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime
+		? ProcessingType.PROCESSING_TIME
+		: ProcessingType.EVENT_TIME;
 	}
 }
