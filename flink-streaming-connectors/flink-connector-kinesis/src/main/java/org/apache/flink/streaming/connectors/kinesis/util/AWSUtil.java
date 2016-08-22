@@ -50,8 +50,14 @@ public class AWSUtil {
 		awsClientConfig.setUserAgent("Apache Flink " + EnvironmentInformation.getVersion() +
 			" (" + EnvironmentInformation.getRevisionInformation().commitId + ") Kinesis Connector");
 
-		AmazonKinesisClient client =
-			new AmazonKinesisClient(AWSUtil.getCredentialsProvider(configProps).getCredentials(), awsClientConfig);
+		AmazonKinesisClient client;
+		if (AWSUtil.getCredentialsProvider(configProps) != null) {
+			client = new AmazonKinesisClient(
+				AWSUtil.getCredentialsProvider(configProps).getCredentials(), awsClientConfig);
+		} else {
+			client = new AmazonKinesisClient(awsClientConfig);
+		}
+
 		client.setRegion(Region.getRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION))));
 		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
 			client.setEndpoint(configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT));
@@ -87,6 +93,8 @@ public class AWSUtil {
 					? new ProfileCredentialsProvider(profileName)
 					: new ProfileCredentialsProvider(profileConfigPath, profileName);
 				break;
+			case AUTO:
+				credentialsProvider = null;
 			default:
 			case BASIC:
 				credentialsProvider = new AWSCredentialsProvider() {
