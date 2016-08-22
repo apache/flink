@@ -160,7 +160,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(ZooKeeper
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(ZooKeeper
 				.getConnectString(), FileStateBackendBasePath.getAbsoluteFile().toURI().toString());
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Parallelism);
 
@@ -311,7 +311,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		final String zooKeeperQuorum = ZooKeeper.getConnectString();
 		final String fileStateBackendPath = FileStateBackendBasePath.getAbsoluteFile().toString();
 
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				zooKeeperQuorum,
 				fileStateBackendPath);
 

@@ -104,8 +104,6 @@ KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
-#deprecated
-KEY_RECOVERY_MODE="recovery.mode"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
@@ -259,25 +257,22 @@ if [ -z "${ZK_HEAP}" ]; then
     ZK_HEAP=$(readFromConfig ${KEY_ZK_HEAP_MB} 0 "${YAML_CONF}")
 fi
 
-# for backward compatability
-if [ -z "${OLD_RECOVERY_MODE}" ]; then
-    OLD_RECOVERY_MODE=$(readFromConfig ${KEY_RECOVERY_MODE} "standalone" "${YAML_CONF}")
-fi
-
-if [ -z "${RECOVERY_MODE}" ]; then
-     # Read the new config
-     RECOVERY_MODE=$(readFromConfig ${KEY_HIGH_AVAILABILITY} "" "${YAML_CONF}")
-     if [ -z "${RECOVERY_MODE}" ]; then
-        #no new config found. So old config should be used
-        if [ -z "${OLD_RECOVERY_MODE}" ]; then
-            # If old config is also not found, use the 'none' as the default config
-            RECOVERY_MODE="none"
-        elif [ ${OLD_RECOVERY_MODE} = "standalone" ]; then
-            # if oldconfig is 'standalone', rename to 'none'
-            RECOVERY_MODE="none"
+# High availability
+if [ -z "${HIGH_AVAILABILITY}" ]; then
+     HIGH_AVAILABILITY=$(readFromConfig ${KEY_HIGH_AVAILABILITY} "" "${YAML_CONF}")
+     if [ -z "${HIGH_AVAILABILITY}" ]; then
+        # Try deprecated value
+        DEPRECATED_HA=$(readFromConfig "recovery.mode" "" "${YAML_CONF}")
+        if [ -z "${DEPRECATED_HA}" ]; then
+            HIGH_AVAILABILITY="none"
+        elif [ ${DEPRECATED_HA} == "standalone" ]; then
+            # Standalone is now 'none'
+            HIGH_AVAILABILITY="none"
         else
-            RECOVERY_MODE=${OLD_RECOVERY_MODE}
+            HIGH_AVAILABILITY=${DEPRECATED_HA}
         fi
+     else
+         HIGH_AVAILABILITY="none"
      fi
 fi
 

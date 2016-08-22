@@ -38,10 +38,10 @@ public class ZooKeeperTestUtils {
 	 *                          recovery)
 	 * @return A new configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
 	 */
-	public static Configuration createZooKeeperRecoveryModeConfig(
+	public static Configuration createZooKeeperHAConfig(
 			String zooKeeperQuorum, String fsStateHandlePath) {
 
-		return setZooKeeperRecoveryMode(new Configuration(), zooKeeperQuorum, fsStateHandlePath);
+		return configureZooKeeperHA(new Configuration(), zooKeeperQuorum, fsStateHandlePath);
 	}
 
 	/**
@@ -53,7 +53,7 @@ public class ZooKeeperTestUtils {
 	 *                          recovery)
 	 * @return The modified configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
 	 */
-	public static Configuration setZooKeeperRecoveryMode(
+	public static Configuration configureZooKeeperHA(
 			Configuration config,
 			String zooKeeperQuorum,
 			String fsStateHandlePath) {
@@ -66,7 +66,7 @@ public class ZooKeeperTestUtils {
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1);
 
 		// ZooKeeper recovery mode
-		config.setString(ConfigConstants.HIGH_AVAILABILITY, "ZOOKEEPER");
+		config.setString(ConfigConstants.HA_MODE, "ZOOKEEPER");
 		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, zooKeeperQuorum);
 
 		int connTimeout = 5000;
@@ -81,7 +81,7 @@ public class ZooKeeperTestUtils {
 		// File system state backend
 		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
 		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, fsStateHandlePath + "/checkpoints");
-		config.setString(ConfigConstants.ZOOKEEPER_HA_PATH, fsStateHandlePath + "/recovery");
+		config.setString(ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH, fsStateHandlePath + "/recovery");
 
 		// Akka failure detection and execution retries
 		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");

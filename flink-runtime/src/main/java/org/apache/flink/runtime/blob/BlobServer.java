@@ -66,7 +66,7 @@ public class BlobServer extends Thread implements BlobService {
 	/** Is the root directory for file storage */
 	private final File storageDir;
 
-	/** Blob store for recovery */
+	/** Blob store for HA */
 	private final BlobStore blobStore;
 
 	/** Set of currently running threads */
@@ -77,7 +77,7 @@ public class BlobServer extends Thread implements BlobService {
 
 	/**
 	 * Shutdown hook thread to ensure deletion of the storage directory (or <code>null</code> if
-	 * the configured recovery mode does not equal{@link HighAvailabilityMode#NONE})
+	 * the configured high availability mode does not equal{@link HighAvailabilityMode#NONE})
 	 */
 	private final Thread shutdownHook;
 
@@ -97,15 +97,12 @@ public class BlobServer extends Thread implements BlobService {
 		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
-		// No recovery.
 		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
 			this.blobStore = new VoidBlobStore();
-		}
-		// Recovery.
-		else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
+		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
 			this.blobStore = new FileSystemBlobStore(config);
 		} else {
-			throw new IllegalConfigurationException("Unexpected recovery mode '" + highAvailabilityMode + ".");
+			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + ".");
 		}
 
 		// configure the maximum number of concurrent connections

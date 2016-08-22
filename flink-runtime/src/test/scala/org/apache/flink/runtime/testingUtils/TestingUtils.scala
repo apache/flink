@@ -423,8 +423,8 @@ object TestingUtils {
       prefix: String)
     : ActorGateway = {
 
-    configuration.setString(ConfigConstants.HIGH_AVAILABILITY,
-      ConfigConstants.DEFAULT_HIGH_AVAILABILTY)
+    configuration.setString(ConfigConstants.HA_MODE,
+      ConfigConstants.DEFAULT_HA_MODE)
 
       val (actor, _) = JobManager.startJobManagerActors(
         configuration,
@@ -503,8 +503,8 @@ object TestingUtils {
       configuration: Configuration)
   : ActorGateway = {
 
-    configuration.setString(ConfigConstants.HIGH_AVAILABILITY,
-      ConfigConstants.DEFAULT_HIGH_AVAILABILTY)
+    configuration.setString(ConfigConstants.HA_MODE,
+      ConfigConstants.DEFAULT_HA_MODE)
 
     val actor = FlinkResourceManager.startResourceManagerActors(
       configuration,

@@ -101,7 +101,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	@Test
 	public void testLeaderElection() throws Exception {
 		final Configuration configuration = ZooKeeperTestUtils
-			.createZooKeeperRecoveryModeConfig(
+			.createZooKeeperHAConfig(
 				testingServer.getConnectString(),
 				tempFolder.getRoot().getPath());
 
@@ -130,7 +130,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	@Test
 	public void testLeaderReelection() throws Exception {
 		final Configuration configuration = ZooKeeperTestUtils
-			.createZooKeeperRecoveryModeConfig(
+			.createZooKeeperHAConfig(
 				testingServer.getConnectString(),
 				tempFolder.getRoot().getPath());
 

@@ -84,7 +84,7 @@ abstract class FlinkMiniCluster(
 
   implicit val timeout = AkkaUtils.getTimeout(configuration)
 
-  val recoveryMode = HighAvailabilityMode.fromConfig(configuration)
+  val haMode = HighAvailabilityMode.fromConfig(configuration)
 
   val numJobManagers = getNumberOfJobManagers
 
@@ -122,7 +122,7 @@ abstract class FlinkMiniCluster(
   // --------------------------------------------------------------------------
 
   def getNumberOfJobManagers: Int = {
-    if(recoveryMode == HighAvailabilityMode.NONE) {
+    if(haMode == HighAvailabilityMode.NONE) {
       1
     } else {
       configuration.getInteger(
@@ -133,7 +133,7 @@ abstract class FlinkMiniCluster(
   }
 
   def getNumberOfResourceManagers: Int = {
-    if(recoveryMode == HighAvailabilityMode.NONE) {
+    if(haMode == HighAvailabilityMode.NONE) {
       1
     } else {
       configuration.getInteger(
@@ -372,7 +372,7 @@ abstract class FlinkMiniCluster(
     webMonitor foreach {
       _.stop()
     }
-    
+
     val tmFutures = taskManagerActors map {
       _.map(gracefulStop(_, timeout))
     } getOrElse(Seq())
@@ -417,7 +417,7 @@ abstract class FlinkMiniCluster(
       _ foreach(_.awaitTermination())
     }
   }
-  
+
   def running = isRunning
 
   // --------------------------------------------------------------------------
@@ -466,7 +466,7 @@ abstract class FlinkMiniCluster(
   : JobExecutionResult = {
     submitJobAndWait(jobGraph, printUpdates, timeout, createLeaderRetrievalService())
   }
-  
+
   @throws(classOf[JobExecutionException])
   def submitJobAndWait(
       jobGraph: JobGraph,
@@ -524,7 +524,7 @@ abstract class FlinkMiniCluster(
   protected def createLeaderRetrievalService(): LeaderRetrievalService = {
     (jobManagerActorSystems, jobManagerActors) match {
       case (Some(jmActorSystems), Some(jmActors)) =>
-        if (recoveryMode == HighAvailabilityMode.NONE) {
+        if (haMode == HighAvailabilityMode.NONE) {
           new StandaloneLeaderRetrievalService(
             AkkaUtils.getAkkaURL(jmActorSystems(0), jmActors(0)))
         } else {

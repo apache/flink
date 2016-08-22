@@ -20,18 +20,18 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.ConfigurationUtil;
 
 /**
- * Recovery mode for Flink's cluster execution. Currently supported modes are:
+ * High availability mode for Flink's cluster execution. Currently supported modes are:
  *
- * - Standalone: No recovery from JobManager failures
+ * - NONE: No high availability.
  * - ZooKeeper: JobManager high availability via ZooKeeper
  * ZooKeeper is used to select a leader among a group of JobManager. This JobManager
  * is responsible for the job execution. Upon failure of the leader a new leader is elected
  * which will take over the responsibilities of the old leader
  */
 public enum HighAvailabilityMode {
-	// STANDALONE mode renamed to NONE
 	NONE,
 	ZOOKEEPER;
 
@@ -39,30 +39,24 @@ public enum HighAvailabilityMode {
 	 * Return the configured {@link HighAvailabilityMode}.
 	 *
 	 * @param config The config to parse
-	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_HIGH_AVAILABILTY} if not
+	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_HA_MODE} if not
 	 * configured.
 	 */
 	public static HighAvailabilityMode fromConfig(Configuration config) {
-		// Not passing the default value here so that we could determine
-		// if there is an older config set
-		String recoveryMode = config.getString(
-			ConfigConstants.HIGH_AVAILABILITY, "");
-		if (recoveryMode.isEmpty()) {
-			// New config is not set.
-			// check the older one
-			// check for older 'recover.mode' config
-			recoveryMode = config.getString(
-				ConfigConstants.RECOVERY_MODE,
-				ConfigConstants.DEFAULT_RECOVERY_MODE);
-			if (recoveryMode.equalsIgnoreCase(ConfigConstants.DEFAULT_RECOVERY_MODE)) {
-				// There is no HA configured.
-				return HighAvailabilityMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
-			}
-		} else if (recoveryMode.equalsIgnoreCase(ConfigConstants.DEFAULT_HIGH_AVAILABILTY)) {
-			// The new config is found but with default value. So use this
-			return HighAvailabilityMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
+		String haMode = ConfigurationUtil.getStringWithDeprecatedKeys(
+				config,
+				ConfigConstants.HA_MODE,
+				null,
+				ConfigConstants.RECOVERY_MODE);
+
+		if (haMode == null) {
+			return HighAvailabilityMode.NONE;
+		} else if (haMode.equalsIgnoreCase(ConfigConstants.DEFAULT_RECOVERY_MODE)) {
+			// Map old default to new default
+			return HighAvailabilityMode.NONE;
+		} else {
+			return HighAvailabilityMode.valueOf(haMode.toUpperCase());
 		}
-		return HighAvailabilityMode.valueOf(recoveryMode.toUpperCase());
 	}
 
 	/**

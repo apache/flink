@@ -624,128 +624,133 @@ public final class ConfigConstants {
 	
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
-	// --------------------------- Recovery -----------------------------------
+	// --------------------------- High Availability --------------------------
 
-	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper")
-	 *  Use {@link #HIGH_AVAILABILITY} instead
-	 * */
+	/** Defines high availabilty mode used for the cluster execution ("NONE", "ZOOKEEPER") */
+	@PublicEvolving
+	public static final String HA_MODE = "high-availability";
+
+	/** Ports used by the job manager if not in 'none' recovery mode */
+	@PublicEvolving
+	public static final String HA_JOB_MANAGER_PORT = "high-availability.jobmanager.port";
+
+	/** The time before the JobManager recovers persisted jobs */
+	@PublicEvolving
+	public static final String HA_JOB_DELAY = "high-availability.job.delay";
+
+	/** Deprecated in favour of {@link #HA_MODE}. */
 	@Deprecated
 	public static final String RECOVERY_MODE = "recovery.mode";
 
-	/** Defines recovery mode used for the cluster execution ("NONE", "ZOOKEEPER") */
-	public static final String HIGH_AVAILABILITY = "high-availability";
-
-	/** Ports used by the job manager if not in standalone recovery mode */
+	/** Deprecated in favour of {@link #HA_JOB_MANAGER_PORT}. */
 	@Deprecated
 	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
 
-	/** Ports used by the job manager if not in 'none' recovery mode */
-	public static final String HA_JOB_MANAGER_PORT =
-		"high-availability.jobmanager.port";
-
-	/** The time before the JobManager recovers persisted jobs */
+	/** Deprecated in favour of {@link #HA_JOB_DELAY}. */
 	@Deprecated
 	public static final String RECOVERY_JOB_DELAY = "recovery.job.delay";
-
-	/** The time before the JobManager recovers persisted jobs */
-	public static final String HA_JOB_DELAY = "high-availability.job.delay";
 
 	// --------------------------- ZooKeeper ----------------------------------
 
 	/** ZooKeeper servers. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_QUORUM_KEY = "high-availability.zookeeper.quorum";
+
+	/**
+	 * File system state backend base path for recoverable state handles. Recovery state is written
+	 * to this path and the file state handles are persisted for recovery.
+	 */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_STORAGE_PATH = "high-availability.zookeeper.storageDir";
+
+	/** ZooKeeper root path. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_DIR_KEY = "high-availability.zookeeper.path.root";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_NAMESPACE_KEY = "high-availability.zookeeper.path.namespace";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_LATCH_PATH = "high-availability.zookeeper.path.latch";
+
+	/** ZooKeeper root path (ZNode) for job graphs. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_JOBGRAPHS_PATH = "high-availability.zookeeper.path.jobgraphs";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_LEADER_PATH = "high-availability.zookeeper.path.leader";
+
+	/** ZooKeeper root path (ZNode) for completed checkpoints. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CHECKPOINTS_PATH = "high-availability.zookeeper.path.checkpoints";
+
+	/** ZooKeeper root path (ZNode) for checkpoint counters. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "high-availability.zookeeper.path.checkpoint-counter";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_SESSION_TIMEOUT = "high-availability.zookeeper.client.session-timeout";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CONNECTION_TIMEOUT = "high-availability.zookeeper.client.connection-timeout";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_RETRY_WAIT = "high-availability.zookeeper.client.retry-wait";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS = "high-availability.zookeeper.client.max-retry-attempts";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_QUORUM_KEY}. */
 	@Deprecated
 	public static final String ZOOKEEPER_QUORUM_KEY = "recovery.zookeeper.quorum";
 
-	/** ZooKeeper servers. */
-	public static final String HA_ZOOKEEPER_QUORUM_KEY =
-		"high-availability.zookeeper.quorum";
-
-	/**
-	 * File system state backend base path for recoverable state handles. Recovery state is written
-	 * to this path and the file state handles are persisted for recovery.
-	 */
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_STORAGE_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_RECOVERY_PATH = "recovery.zookeeper.storageDir";
 
-	/**
-	 * File system state backend base path for recoverable state handles. Recovery state is written
-	 * to this path and the file state handles are persisted for recovery.
-	 */
-	public static final String ZOOKEEPER_HA_PATH =
-		"high-availability.zookeeper.storageDir";
-
-	/** ZooKeeper root path. */
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_DIR_KEY}. */
 	@Deprecated
 	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
 
-	/** ZooKeeper root path. */
-	public static final String HA_ZOOKEEPER_DIR_KEY =
-		"high-availability.zookeeper.path.root";
-
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_NAMESPACE_KEY}. */
 	@Deprecated
 	public static final String ZOOKEEPER_NAMESPACE_KEY = "recovery.zookeeper.path.namespace";
 
-	public static final String HA_ZOOKEEPER_NAMESPACE_KEY =
-		"high-availability.zookeeper.path.namespace";
-
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_LATCH_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
 
-	public static final String HA_ZOOKEEPER_LATCH_PATH =
-		"high-availability.zookeeper.path.latch";
-
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_LEADER_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
 
-	public static final String HA_ZOOKEEPER_LEADER_PATH = "high-availability.zookeeper.path.leader";
-
-	/** ZooKeeper root path (ZNode) for job graphs. */
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_JOBGRAPHS_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.path.jobgraphs";
 
-	/** ZooKeeper root path (ZNode) for job graphs. */
-	public static final String HA_ZOOKEEPER_JOBGRAPHS_PATH =
-		"high-availability.zookeeper.path.jobgraphs";
-
-	/** ZooKeeper root path (ZNode) for completed checkpoints. */
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINTS_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.path.checkpoints";
 
-	/** ZooKeeper root path (ZNode) for completed checkpoints. */
-	public static final String HA_ZOOKEEPER_CHECKPOINTS_PATH =
-		"high-availability.zookeeper.path.checkpoints";
-
-	/** ZooKeeper root path (ZNode) for checkpoint counters. */
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.path.checkpoint-counter";
 
-	/** ZooKeeper root path (ZNode) for checkpoint counters. */
-	public static final String HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH =
-		"high-availability.zookeeper.path.checkpoint-counter";
-
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_SESSION_TIMEOUT}. */
 	@Deprecated
 	public static final String ZOOKEEPER_SESSION_TIMEOUT = "recovery.zookeeper.client.session-timeout";
 
-	public static final String HA_ZOOKEEPER_SESSION_TIMEOUT =
-		"high-availability.zookeeper.client.session-timeout";
-
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CONNECTION_TIMEOUT}. */
 	@Deprecated
 	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "recovery.zookeeper.client.connection-timeout";
 
-	public static final String HA_ZOOKEEPER_CONNECTION_TIMEOUT =
-		"high-availability.zookeeper.client.connection-timeout";
-
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_RETRY_WAIT}. */
 	@Deprecated
 	public static final String ZOOKEEPER_RETRY_WAIT = "recovery.zookeeper.client.retry-wait";
 
-	public static final String HA_ZOOKEEPER_RETRY_WAIT =
-		"high-availability.zookeeper.client.retry-wait";
-
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS}. */
 	@Deprecated
 	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "recovery.zookeeper.client.max-retry-attempts";
-
-	public static final String HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS =
-		"high-availability.zookeeper.client.max-retry-attempts";
 
 	// ---------------------------- Metrics -----------------------------------
 
@@ -1090,16 +1095,24 @@ public final class ConfigConstants {
 
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
 
-	// --------------------------- Recovery ---------------------------------
+	// --------------------------- High Availability ---------------------------------
+
+	@PublicEvolving
+	public static String DEFAULT_HA_MODE = "none";
+
+	/** Deprecated in favour of {@link #DEFAULT_HA_MODE} */
 	@Deprecated
 	public static String DEFAULT_RECOVERY_MODE = "standalone";
-
-	public static String DEFAULT_HIGH_AVAILABILTY = "none";
 
 	/**
 	 * Default port used by the job manager if not in standalone recovery mode. If <code>0</code>
 	 * the OS picks a random port port.
 	 */
+	@PublicEvolving
+	public static final String DEFAULT_HA_JOB_MANAGER_PORT = "0";
+
+	/** Deprecated in favour of {@link #DEFAULT_HA_JOB_MANAGER_PORT} */
+	@Deprecated
 	public static final String DEFAULT_RECOVERY_JOB_MANAGER_PORT = "0";
 
 	// --------------------------- ZooKeeper ----------------------------------

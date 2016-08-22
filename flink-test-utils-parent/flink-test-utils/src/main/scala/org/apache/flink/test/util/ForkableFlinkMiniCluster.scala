@@ -263,7 +263,7 @@ class ForkableFlinkMiniCluster(
   override def start(): Unit = {
     val zookeeperURL = configuration.getString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, "")
 
-    zookeeperCluster = if (recoveryMode == HighAvailabilityMode.ZOOKEEPER &&
+    zookeeperCluster = if (haMode == HighAvailabilityMode.ZOOKEEPER &&
       zookeeperURL.equals("")) {
       LOG.info("Starting ZooKeeper cluster.")
 

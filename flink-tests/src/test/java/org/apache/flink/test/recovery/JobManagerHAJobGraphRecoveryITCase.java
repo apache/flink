@@ -125,7 +125,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	 */
 	@Test
 	public void testJobPersistencyWhenJobManagerShutdown() throws Exception {
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
 
 		// Configure the cluster
@@ -172,7 +172,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	 */
 	@Test
 	public void testSubmitJobToNonLeader() throws Exception {
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
 
 		// Configure the cluster
@@ -257,7 +257,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	 */
 	@Test
 	public void testClientNonDetachedListeningBehaviour() throws Exception {
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
 
 		// Test actor system

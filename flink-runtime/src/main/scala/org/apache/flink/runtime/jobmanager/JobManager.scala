@@ -82,7 +82,7 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.{InstantiationUtil, NetUtils}
+import org.apache.flink.util.{ConfigurationUtil, InstantiationUtil, NetUtils}
 
 import org.jboss.netty.channel.ChannelException
 
@@ -155,7 +155,7 @@ class JobManager(
   /** Either running or not yet archived jobs (session hasn't been ended). */
   protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
-  protected val recoveryMode = HighAvailabilityMode.fromConfig(flinkConfiguration)
+  protected val haMode = HighAvailabilityMode.fromConfig(flinkConfiguration)
 
   var leaderSessionID: Option[UUID] = None
 
@@ -317,7 +317,7 @@ class JobManager(
 
         // TODO (critical next step) This needs to be more flexible and robust (e.g. wait for task
         // managers etc.)
-        if (recoveryMode != HighAvailabilityMode.NONE) {
+        if (haMode != HighAvailabilityMode.NONE) {
           log.info(s"Delaying recovery of all jobs by $jobRecoveryTimeout.")
 
           context.system.scheduler.scheduleOnce(
@@ -2462,7 +2462,7 @@ object JobManager {
         // The port range of allowed job manager ports or 0 for random
         configuration.getString(
           ConfigConstants.RECOVERY_JOB_MANAGER_PORT,
-          ConfigConstants.DEFAULT_RECOVERY_JOB_MANAGER_PORT)
+          ConfigConstants.DEFAULT_HA_JOB_MANAGER_PORT)
       }
       else {
         LOG.info("Starting JobManager without high-availability")
@@ -2594,10 +2594,11 @@ object JobManager {
 
     val savepointStore = SavepointStoreFactory.createFromConfig(configuration)
 
-    var jobRecoveryTimeoutStr = configuration.getString(ConfigConstants.HA_JOB_DELAY, "");
-    if (jobRecoveryTimeoutStr.isEmpty) {
-      jobRecoveryTimeoutStr = configuration.getString(ConfigConstants.RECOVERY_JOB_DELAY, "");
-    }
+    val jobRecoveryTimeoutStr = ConfigurationUtil.getStringWithDeprecatedKeys(
+      configuration,
+      ConfigConstants.HA_JOB_DELAY,
+      null,
+      ConfigConstants.RECOVERY_JOB_DELAY)
 
     val jobRecoveryTimeout = if (jobRecoveryTimeoutStr == null || jobRecoveryTimeoutStr.isEmpty) {
       timeout
