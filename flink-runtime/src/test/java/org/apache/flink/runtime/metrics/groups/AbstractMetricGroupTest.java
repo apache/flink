@@ -32,7 +32,7 @@ public class AbstractMetricGroupTest {
 	public void testGetAllVariables() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 
-		AbstractMetricGroup group = new AbstractMetricGroup<AbstractMetricGroup>(registry, new String[0], null) {
+		AbstractMetricGroup group = new AbstractMetricGroup<AbstractMetricGroup<?>>(registry, new String[0], null) {
 		};
 		assertTrue(group.getAllVariables().isEmpty());
 		
