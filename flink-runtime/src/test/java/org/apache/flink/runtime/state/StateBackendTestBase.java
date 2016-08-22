@@ -1048,6 +1048,29 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 
 	}
+	
+	@Test
+	public void testEmptyStateCheckpointing() {
+		try {
+			DummyEnvironment env = new DummyEnvironment("test", 1, 0);
+			backend.initializeForJob(env, "test_op", IntSerializer.INSTANCE);
+
+			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot = backend
+					.snapshotPartitionedState(682375462379L, 1);
+			
+			assertNull(snapshot);
+			backend.dispose();
+
+			// Make sure we can restore from empty state
+			backend.initializeForJob(env, "test_op", IntSerializer.INSTANCE);
+			backend.injectKeyValueStateSnapshots((HashMap) snapshot);
+			backend.dispose();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 
 	private static class AppendingReduce implements ReduceFunction<String> {
 		@Override
