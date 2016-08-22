@@ -1,5 +1,8 @@
 ---
-layout: base
+title: "Monitoring REST API"
+layout: redirect
+redirect: /monitoring/rest_api.html
+permalink: /internals/monitoring_rest_api.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -19,9 +22,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<meta http-equiv="refresh" content="1; url={{ site.baseurl }}{{ page.redirect }}" />
-
-<h1>Page '{{ page.title }}' Has Moved</h1>
-
-The <strong>{{ page.title }}</strong> has been moved. Redirecting to <a href="{{ site.baseurl }}/{{ page.redirect }}">{{ site.baseurl }}{{ page.redirect }}</a> in 1 second.
