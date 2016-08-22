@@ -25,6 +25,9 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * A special {@link MetricGroup} that does not register any metrics at the metrics registry
  * and any reporters.
@@ -84,6 +87,11 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 	@Override
 	public String[] getScopeComponents() {
 		return new String[0];
+	}
+
+	@Override
+	public Map<String, String> getAllVariables() {
+		return new HashMap<>();
 	}
 
 	@Override

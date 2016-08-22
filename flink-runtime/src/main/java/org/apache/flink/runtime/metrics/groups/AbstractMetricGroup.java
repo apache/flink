@@ -24,9 +24,8 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.metrics.SimpleCounter;
-
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,13 +53,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * return Counters, Gauges, etc to the code, to prevent exceptions in the monitored code.
  * These metrics simply do not get reported any more, when created on a closed group.
  */
-public abstract class AbstractMetricGroup implements MetricGroup {
+public abstract class AbstractMetricGroup<A extends AbstractMetricGroup> implements MetricGroup {
 
 	/** shared logger */
 	private static final Logger LOG = LoggerFactory.getLogger(MetricGroup.class);
 
 	// ------------------------------------------------------------------------
 
+	/** The parent group containing this group */
+	protected final A parent;
+
+	/** The map containing all variables and their associated values, lazily computed. */
+	protected Map<String, String> variables;
+	
 	/** The registry that this metrics group belongs to */
 	protected final MetricRegistry registry;
 
@@ -83,9 +88,25 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 
 	// ------------------------------------------------------------------------
 
-	public AbstractMetricGroup(MetricRegistry registry, String[] scope) {
+	public AbstractMetricGroup(MetricRegistry registry, String[] scope, A parent) {
 		this.registry = checkNotNull(registry);
 		this.scopeComponents = checkNotNull(scope);
+		this.parent = parent;
+	}
+
+	public Map<String, String> getAllVariables() {
+		if (variables == null) { // avoid synchronization for common case
+			synchronized(this) {
+				if (variables == null) {
+					if (parent != null) {
+						variables = parent.getAllVariables();
+					} else { // this case should only be true for mock groups
+						variables = new HashMap<>();
+					}
+				}
+			}
+		}
+		return variables;
 	}
 
 	/**

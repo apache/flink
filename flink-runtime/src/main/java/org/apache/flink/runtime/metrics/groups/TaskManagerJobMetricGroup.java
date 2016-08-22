@@ -34,10 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Contains extra logic for adding Tasks ({@link TaskMetricGroup}).
  */
-public class TaskManagerJobMetricGroup extends JobMetricGroup {
-
-	/** The metrics group that contains this group */
-	private final TaskManagerMetricGroup parent;
+public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricGroup> {
 
 	/** Map from execution attempt ID (task identifier) to task metrics */
 	private final Map<AbstractID, TaskMetricGroup> tasks = new HashMap<>();
@@ -49,8 +46,7 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup {
 			TaskManagerMetricGroup parent,
 			JobID jobId,
 			@Nullable String jobName) {
-		super(registry, jobId, jobName, registry.getScopeFormats().getTaskManagerJobFormat().formatScope(checkNotNull(parent), jobId, jobName));
-		this.parent = parent;
+		super(registry, parent, jobId, jobName, registry.getScopeFormats().getTaskManagerJobFormat().formatScope(checkNotNull(parent), jobId, jobName));
 	}
 
 	public final TaskManagerMetricGroup parent() {

@@ -25,7 +25,7 @@ public class TaskManagerScopeFormat extends ScopeFormat {
 
 	public TaskManagerScopeFormat(String format) {
 		super(format, null, new String[] {
-				SCOPE_ACTOR_HOST,
+				SCOPE_HOST,
 				SCOPE_TASKMANAGER_ID
 		});
 	}

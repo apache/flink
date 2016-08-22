@@ -29,19 +29,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Special {@link org.apache.flink.metrics.MetricGroup} representing everything belonging to
  * a specific job, running on the JobManager.
  */
-public class JobManagerJobMetricGroup extends JobMetricGroup {
-
-	/** The metrics group that contains this group */
-	private final JobManagerMetricGroup parent;
-
+public class JobManagerJobMetricGroup extends JobMetricGroup<JobManagerMetricGroup> {
 	public JobManagerJobMetricGroup(
 			MetricRegistry registry,
 			JobManagerMetricGroup parent,
 			JobID jobId,
 			@Nullable String jobName) {
-		super(registry, jobId, jobName, registry.getScopeFormats().getJobManagerJobFormat().formatScope(checkNotNull(parent), jobId, jobName));
-
-		this.parent = parent;
+		super(registry, checkNotNull(parent), jobId, jobName, registry.getScopeFormats().getJobManagerJobFormat().formatScope(checkNotNull(parent), jobId, jobName));
 	}
 
 	public final JobManagerMetricGroup parent() {
