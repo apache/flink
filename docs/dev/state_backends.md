@@ -110,7 +110,7 @@ project:
 {% endhighlight %}
 
 The backend is currently not part of the binary distribution. See
-[here]({{ site.baseurl}}/monitoring/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
+[here]({{ site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
 for an explanation of how to include it for cluster execution.
 
 ## Configuring a State Backend

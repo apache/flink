@@ -164,7 +164,7 @@ In order to link against the latest SNAPSHOT versions of the code, please follow
 
 The *flink-clients* dependency is only necessary to invoke the Flink program locally (for example to
 run it standalone for testing and debugging).  If you intend to only export the program as a JAR
-file and [run it on a cluster]({{ site.baseurl }}/testing/cluster_execution.html), you can skip that dependency.
+file and [run it on a cluster]({{ site.baseurl }}/dev/cluster_execution.html), you can skip that dependency.
 
 {% top %}
 
