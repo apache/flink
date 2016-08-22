@@ -41,6 +41,8 @@ public interface HighAvailabilityServices {
 
 	/**
 	 * Gets the leader election service for the given job.
+	 *
+	 * @param jobID The identifier of the job running the election.
 	 */
 	LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception;
 }
