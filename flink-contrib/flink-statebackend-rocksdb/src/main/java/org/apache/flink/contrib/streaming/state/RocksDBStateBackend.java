@@ -386,7 +386,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	@Override
 	public HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshotPartitionedState(long checkpointId, long timestamp) throws Exception {
 		if (keyValueStatesByName == null || keyValueStatesByName.size() == 0) {
-			return new HashMap<>();
+			return null;
 		}
 
 		if (fullyAsyncBackup) {
@@ -482,7 +482,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	@Override
 	public final void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots) throws Exception {
-		if (keyValueStateSnapshots.size() == 0) {
+		if (keyValueStateSnapshots == null) {
 			return;
 		}
 
