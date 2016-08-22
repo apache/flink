@@ -599,10 +599,9 @@ public class YarnApplicationMasterRunner {
 
 		ctx.setEnvironment(containerEnv);
 
-		try {
+		try (DataOutputBuffer dob = new DataOutputBuffer()) {
 			UserGroupInformation user = UserGroupInformation.getCurrentUser();
 			Credentials credentials = user.getCredentials();
-			DataOutputBuffer dob = new DataOutputBuffer();
 			credentials.writeTokenStorageToStream(dob);
 			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 			ctx.setTokens(securityTokens);
