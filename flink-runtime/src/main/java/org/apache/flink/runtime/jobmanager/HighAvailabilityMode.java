@@ -30,21 +30,39 @@ import org.apache.flink.configuration.Configuration;
  * is responsible for the job execution. Upon failure of the leader a new leader is elected
  * which will take over the responsibilities of the old leader
  */
-public enum RecoveryMode {
-	STANDALONE,
+public enum HighAvailabilityMode {
+	// STANDALONE mode renamed to NONE
+	NONE,
 	ZOOKEEPER;
 
 	/**
-	 * Return the configured {@link RecoveryMode}.
+	 * Return the configured {@link HighAvailabilityMode}.
 	 *
 	 * @param config The config to parse
-	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_RECOVERY_MODE} if not
+	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_HIGH_AVAILABILTY} if not
 	 * configured.
 	 */
-	public static RecoveryMode fromConfig(Configuration config) {
-		return RecoveryMode.valueOf(config.getString(
+	public static HighAvailabilityMode fromConfig(Configuration config) {
+		// Not passing the default value here so that we could determine
+		// if there is an older config set
+		String recoveryMode = config.getString(
+			ConfigConstants.HIGH_AVAILABILITY, "");
+		if (recoveryMode.isEmpty()) {
+			// New config is not set.
+			// check the older one
+			// check for older 'recover.mode' config
+			recoveryMode = config.getString(
 				ConfigConstants.RECOVERY_MODE,
-				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase());
+				ConfigConstants.DEFAULT_RECOVERY_MODE);
+			if (recoveryMode.equalsIgnoreCase(ConfigConstants.DEFAULT_RECOVERY_MODE)) {
+				// There is no HA configured.
+				return HighAvailabilityMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
+			}
+		} else if (recoveryMode.equalsIgnoreCase(ConfigConstants.DEFAULT_HIGH_AVAILABILTY)) {
+			// The new config is found but with default value. So use this
+			return HighAvailabilityMode.valueOf(ConfigConstants.DEFAULT_HIGH_AVAILABILTY.toUpperCase());
+		}
+		return HighAvailabilityMode.valueOf(recoveryMode.toUpperCase());
 	}
 
 	/**
@@ -54,19 +72,15 @@ public enum RecoveryMode {
 	 * @return true if high availability is supported by the recovery mode, otherwise false
 	 */
 	public static boolean isHighAvailabilityModeActivated(Configuration configuration) {
-		String recoveryMode = configuration.getString(
-			ConfigConstants.RECOVERY_MODE,
-			ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
-
-		RecoveryMode mode = RecoveryMode.valueOf(recoveryMode);
-
-		switch(mode) {
-			case STANDALONE:
+		HighAvailabilityMode mode = fromConfig(configuration);
+		switch (mode) {
+			case NONE:
 				return false;
 			case ZOOKEEPER:
 				return true;
 			default:
 				return false;
 		}
+
 	}
 }

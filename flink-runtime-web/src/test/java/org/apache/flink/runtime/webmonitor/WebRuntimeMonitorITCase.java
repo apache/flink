@@ -296,8 +296,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			final Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
 			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
-			config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
-			config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zooKeeper.getConnectString());
+			config.setString(ConfigConstants.HIGH_AVAILABILITY, "ZOOKEEPER");
+			config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, zooKeeper.getConnectString());
 
 			actorSystem = AkkaUtils.createDefaultActorSystem();
 

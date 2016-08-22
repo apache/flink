@@ -564,7 +564,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			fail(fsCheckpoints + " does not exist: " + Arrays.toString(FileStateBackendBasePath.listFiles()));
 		}
 
-		File fsRecovery = new File(new URI(config.getString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "")).getPath());
+		File fsRecovery = new File(new URI(config.getString(ConfigConstants.ZOOKEEPER_HA_PATH, "")).getPath());
 
 		LOG.info("Checking " + fsRecovery);
 
