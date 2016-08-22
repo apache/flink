@@ -26,19 +26,36 @@ public class AMQExceptionListener implements ExceptionListener {
 
 	private final boolean logFailuresOnly;
 	private final Logger logger;
+	private JMSException exception;
 
 	public AMQExceptionListener(Logger logger, boolean logFailuresOnly) {
 		this.logger = logger;
 		this.logFailuresOnly = logFailuresOnly;
 	}
 
-
 	@Override
 	public void onException(JMSException e) {
+		this.exception = e;
+	}
+
+	/**
+	 * Check if the listener received an asynchronous exception. Throws an exception if it was
+	 * received and if logFailuresOnly was set to true. Resets the state after the call
+	 * so a single exception can be thrown only once.
+	 *
+	 * @throws JMSException if exception was received and logFailuresOnly was set to true.
+	 */
+	public void checkErroneous() throws JMSException {
+		if (exception == null) {
+			return;
+		}
+
+		JMSException recordedException = exception;
+		exception = null;
 		if (logFailuresOnly) {
-			logger.error("Received ActiveMQ exception", e);
+			logger.error("Received ActiveMQ exception", recordedException);
 		} else {
-			throw new RuntimeException("Received ActiveMQ exception", e);
+			throw recordedException;
 		}
 	}
 }

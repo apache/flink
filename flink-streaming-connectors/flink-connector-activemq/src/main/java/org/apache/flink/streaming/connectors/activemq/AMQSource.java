@@ -84,6 +84,8 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	private boolean autoAck;
 	// Map of message ids to currently unacknowledged AMQ messages
 	private HashMap<String, Message> unacknowledgedMessages = new HashMap<>();
+	// Listener for AMQ exceptions
+	private AMQExceptionListener exceptionListener;
 
 	/**
 	 * Create AMQSource.
@@ -111,6 +113,11 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 		this.logFailuresOnly = logFailuresOnly;
 	}
 
+	// Visible for testing
+	void setExceptionListener(AMQExceptionListener exceptionListener) {
+		this.exceptionListener = exceptionListener;
+	}
+
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
@@ -118,7 +125,8 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 		connection = connectionFactory.createConnection();
 		connection.start();
 
-		connection.setExceptionListener(new AMQExceptionListener(LOG, logFailuresOnly));
+		exceptionListener = new AMQExceptionListener(LOG, logFailuresOnly);
+		connection.setExceptionListener(exceptionListener);
 
 		RuntimeContext runtimeContext = getRuntimeContext();
 		int acknowledgeType;
@@ -206,6 +214,8 @@ public class AMQSource<OUT> extends MessageAcknowledgingSourceBase<OUT, String>
 	@Override
 	public void run(SourceContext<OUT> ctx) throws Exception {
 		while (runningChecker.isRunning()) {
+			exceptionListener.checkErroneous();
+
 			Message message = consumer.receive(1000);
 			if (! (message instanceof BytesMessage)) {
 				LOG.warn("Active MQ source received non bytes message: {}");

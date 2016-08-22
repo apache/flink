@@ -23,23 +23,56 @@ import org.slf4j.Logger;
 
 import javax.jms.JMSException;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 public class AMQExceptionListenerTest {
 	@Test
-	public void testLogMessageOnException() {
+	public void logMessageOnException() throws JMSException {
 		Logger logger = mock(Logger.class);
 		AMQExceptionListener listener = new AMQExceptionListener(logger, true);
 		JMSException exception = new JMSException("error");
 		listener.onException(exception);
+		listener.checkErroneous();
 		verify(logger).error("Received ActiveMQ exception", exception);
 	}
 
-	@Test(expected = RuntimeException.class)
-	public void testThrowException() {
+	@Test
+	public void logMessageWrittenOnlyOnce() throws JMSException {
+		Logger logger = mock(Logger.class);
+		AMQExceptionListener listener = new AMQExceptionListener(logger, true);
+		JMSException exception = new JMSException("error");
+		listener.onException(exception);
+		listener.checkErroneous();
+		listener.checkErroneous();
+		verify(logger, times(1)).error("Received ActiveMQ exception", exception);
+	}
+
+	@Test(expected = JMSException.class)
+	public void throwException() throws JMSException {
 		Logger logger = mock(Logger.class);
 		AMQExceptionListener listener = new AMQExceptionListener(logger, false);
 		listener.onException(new JMSException("error"));
+		listener.checkErroneous();
+	}
+
+	@Test
+	public void throwExceptionOnlyOnce() throws JMSException {
+		Logger logger = mock(Logger.class);
+		AMQExceptionListener listener = new AMQExceptionListener(logger, false);
+		listener.onException(new JMSException("error"));
+
+		try {listener.checkErroneous();} catch (JMSException ignore) {}
+		listener.checkErroneous();
+	}
+
+	@Test
+	public void logMessageNotWrittenIfNoException() throws JMSException {
+		Logger logger = mock(Logger.class);
+		AMQExceptionListener listener = new AMQExceptionListener(logger, false);
+		listener.checkErroneous();
+		verify(logger, times(0)).error(any(String.class), any(Throwable.class));
 	}
 }

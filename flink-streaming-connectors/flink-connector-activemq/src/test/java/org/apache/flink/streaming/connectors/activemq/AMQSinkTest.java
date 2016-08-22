@@ -67,7 +67,6 @@ public class AMQSinkTest {
 
 		when(connectionFactory.createConnection()).thenReturn(connection);
 		when(connection.createSession(anyBoolean(), anyInt())).thenReturn(session);
-//		when(session.createQueue(DESTINATION_NAME)).thenReturn((Queue) destination);
 		when(session.createProducer(null)).thenReturn(producer);
 		when(session.createBytesMessage()).thenReturn(message);
 		serializationSchema = new SimpleStringSchema();

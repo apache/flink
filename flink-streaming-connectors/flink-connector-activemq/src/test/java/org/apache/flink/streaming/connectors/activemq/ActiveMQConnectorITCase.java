@@ -79,7 +79,7 @@ public class ActiveMQConnectorITCase {
 	}
 
 	@Test
-	public void testAMQTopologyWithQueue() throws Exception {
+	public void AMQTopologyWithQueue() throws Exception {
 		StreamExecutionEnvironment env = createExecutionEnvironment();
 		AMQSinkConfig<String> sinkConfig = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
 			.setConnectionFactory(createConnectionFactory())
@@ -100,7 +100,7 @@ public class ActiveMQConnectorITCase {
 	}
 
 	@Test
-	public void testAMQTopologyWithTopic() throws Exception {
+	public void AMQTopologyWithTopic() throws Exception {
 		StreamExecutionEnvironment env = createExecutionEnvironment();
 		AMQSinkConfig<String> sinkConfig = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
 			.setConnectionFactory(createConnectionFactory())
@@ -170,7 +170,7 @@ public class ActiveMQConnectorITCase {
 	}
 
 	@Test
-	public void testAMQTopologyWithCheckpointing() throws Exception {
+	public void AMQTopologyWithCheckpointing() throws Exception {
 		ActiveMQConnectionFactory connectionFactory = createConnectionFactory();
 		AMQSinkConfig<String> sinkConfig = new AMQSinkConfig.AMQSinkConfigBuilder<String>()
 			.setConnectionFactory(connectionFactory)

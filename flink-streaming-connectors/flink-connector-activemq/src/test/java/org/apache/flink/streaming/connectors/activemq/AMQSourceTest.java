@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.activemq.internal.AMQExceptionListener;
 import org.apache.flink.streaming.connectors.activemq.internal.RunningChecker;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.junit.Before;
@@ -160,6 +161,14 @@ public class AMQSourceTest {
 		amqSource.acknowledgeIDs(CHECKPOINT_ID, Collections.singletonList(MSG_ID));
 
 		verify(message, times(1)).acknowledge();
+	}
+
+	@Test(expected = JMSException.class)
+	public void propagateAsyncException() throws Exception {
+		AMQExceptionListener exceptionListener = mock(AMQExceptionListener.class);
+		amqSource.setExceptionListener(exceptionListener);
+		doThrow(JMSException.class).when(exceptionListener).checkErroneous();
+		amqSource.run(context);
 	}
 
 	@Test(expected = RuntimeException.class)
