@@ -164,6 +164,7 @@ public final class Utils {
 
 		ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 		amContainer.setTokens(securityTokens);
+		dob.close();
 	}
 
 	/**
