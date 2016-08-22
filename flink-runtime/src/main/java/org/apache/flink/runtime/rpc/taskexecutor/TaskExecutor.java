@@ -764,6 +764,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//  Error Handling
+	// ------------------------------------------------------------------------
+
 	/**
 	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
 	 * This method should be used when asynchronous threads want to notify the
