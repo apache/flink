@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Table API"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/table_api.html
+permalink: /apis/table.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

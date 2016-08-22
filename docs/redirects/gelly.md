@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Gelly"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/libs/gelly/index.html
+permalink: /apis/batch/libs/gelly/index.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Storm Compatability"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/libs/storm_compatibility.html
+permalink: /apis/streaming/storm_compatibility.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

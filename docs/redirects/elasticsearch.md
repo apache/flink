@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Elasticsearch Connector"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/connectors/elasticsearch.html
+permalink: /apis/streaming/connectors/elasticsearch.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "State Backends"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/state_backends.html
+permalink: /apis/streaming/state_backends.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

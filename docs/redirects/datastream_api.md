@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "DataStream API"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/datastream_api.html
+permalink: /apis/streaming/index.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

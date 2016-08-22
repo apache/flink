@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Metrics"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /monitoring/metrics.html
+permalink: /apis/metrics.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Event Time"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/event_time.html
+permalink: /apis/streaming/event_time.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

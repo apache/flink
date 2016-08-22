@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Java8"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/java8.html
+permalink: /apis/java8.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

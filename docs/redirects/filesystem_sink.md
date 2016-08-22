@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "FileSystem Connector"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/connectors/filesystem_sink.html
+permalink: /apis/streaming/connectors/filesystem_sink.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

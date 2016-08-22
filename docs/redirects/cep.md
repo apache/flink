@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "CEP"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/libs/cep.html
+permalink: /apis/streaming/libs/cep.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

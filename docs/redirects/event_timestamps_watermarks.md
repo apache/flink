@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Generating Timestamps / Watermarks"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/event_timestamps_watermarks.html
+permalink: /apis/streaming/event_timestamps_watermarks.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

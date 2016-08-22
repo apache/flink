@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Pre-defined Timestamp Extractors / Watermark Emitters"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/event_timestamp_extractors.html
+permalink: /apis/streaming/event_timestamp_extractors.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

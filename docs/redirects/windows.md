@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Windows"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/windows.html
+permalink: /apis/streaming/windows.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

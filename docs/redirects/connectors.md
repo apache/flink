@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Connectors"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/connectors/index.html
+permalink: /apis/connectors.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

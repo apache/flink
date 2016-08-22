@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Savepoints"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /setup/savepoints.html
+permalink: /apis/streaming/savepoints.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

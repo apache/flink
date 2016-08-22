@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Local Execution"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/local_execution.html
+permalink: /apis/local_execution.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

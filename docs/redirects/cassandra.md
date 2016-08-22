@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Cassandra Connector"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /dev/connectors/cassandra.html
+permalink: /apis/streaming/connectors/cassandra.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

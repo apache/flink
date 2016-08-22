@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "CLI"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /setup/cli.html
+permalink: /apis/cli.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

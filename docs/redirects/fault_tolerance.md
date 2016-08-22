@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Fault Tolerance"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /setup/fault_tolerance.html
+permalink: /apis/streaming/fault_tolerance.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

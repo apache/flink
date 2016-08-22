@@ -1,8 +1,8 @@
 ---
-title: "Back Pressure Monitoring"
+title: "Best Practices"
 layout: redirect
-redirect: /monitoring/back_pressure.html
-permalink: /internals/back_pressure_monitoring.html
+redirect: /monitoring/best_practices.html
+permalink: /apis/best_practices.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
