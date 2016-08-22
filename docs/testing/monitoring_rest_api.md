@@ -1,6 +1,6 @@
 ---
 title:  "Monitoring REST API"
-nav-parent_id: testing
+nav-parent_id: monitoring
 nav-pos: 3
 ---
 <!--

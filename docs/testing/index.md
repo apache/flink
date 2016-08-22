@@ -1,7 +1,7 @@
 ---
-title: "Testing & Debugging"
-nav-title: '<i class="fa fa-bug" aria-hidden="true"></i> Testing & Debugging'
-nav-id: testing
+title: "Monitoring & Debugging"
+nav-title: '<i class="fa fa-bug" aria-hidden="true"></i> Monitoring & Debugging'
+nav-id: monitoring
 nav-parent_id: root
 nav-pos: 4
 ---

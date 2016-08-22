@@ -1,6 +1,6 @@
 ---
 title: "Metrics"
-nav-parent_id: testing
+nav-parent_id: monitoring
 nav-pos: 1
 ---
 <!--
