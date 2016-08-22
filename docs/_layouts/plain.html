@@ -44,8 +44,10 @@ under the License.
   {% capture title %}{% if p.nav-title %}{{ p.nav-title }}{% else %}{{ p.title }}{% endif %}{% endcapture %}
   {% if forloop.last == true %}
     <li class="active">{{ title }}</li>
-  {% else %}
+  {% elsif p.nav-show_overview %}
     <li><a href="{{ site.baseurl }}{{ p.url }}">{{ title }}</a></li>
+  {% else %}
+    <li>{{ title }}</li>
   {% endif %}
 {% endfor %}
 </ol>
