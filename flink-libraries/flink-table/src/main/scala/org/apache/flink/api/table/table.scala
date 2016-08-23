@@ -26,8 +26,6 @@ import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 
 import scala.collection.JavaConverters._
-import org.apache.flink.api.table.sinks.{TableSink, TableSinkBase}
-import org.apache.flink.api.table.typeutils.TypeConverter
 
 /**
   * A Table is the core component of the Table API.

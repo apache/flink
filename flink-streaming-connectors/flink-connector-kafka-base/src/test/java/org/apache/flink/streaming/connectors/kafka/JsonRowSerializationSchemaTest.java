@@ -35,19 +35,29 @@ public class JsonRowSerializationSchemaTest {
 		row.setField(1, true);
 		row.setField(2, "str");
 
+		Row resultRow = serializeAndDeserialize(fieldNames, fieldTypes, row);
+		assertEqualRows(row, resultRow);
+	}
 
-		JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(fieldNames);
-		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(fieldNames, fieldTypes);
+	@Test
+	public void testSerializationOfTwoRows() throws IOException {
+		String[] fieldNames1 = new String[] {"f1", "f2", "f3"};
+		Class[] fieldTypes1 = new Class[] {Integer.class, Boolean.class, String.class};
+		Row row1 = new Row(3);
+		row1.setField(0, 1);
+		row1.setField(1, true);
+		row1.setField(2, "str");
 
-		byte[] bytes = serializationSchema.serialize(row);
-		Row resultRow = deserializationSchema.deserialize(bytes);
+		Row resultRow = serializeAndDeserialize(fieldNames1, fieldTypes1, row1);
+		assertEqualRows(row1, resultRow);
 
-		assertEquals("Deserialized row should have expected number of fields",
-			row.productArity(), resultRow.productArity());
-		for (int i = 0; i < row.productArity(); i++) {
-			assertEquals(String.format("Field number %d should be as in the original row", i),
-				row.productElement(i), resultRow.productElement(i));
-		}
+		String[] fieldNames2 = new String[] {"f1"};
+		Class[] fieldTypes2 = new Class[] {Integer.class};
+		Row row2 = new Row(1);
+		row2.setField(0, 1);
+
+		resultRow = serializeAndDeserialize(fieldNames2, fieldTypes2, row2);
+		assertEqualRows(row2, resultRow);
 	}
 
 	@Test(expected = NullPointerException.class)
@@ -65,4 +75,22 @@ public class JsonRowSerializationSchemaTest {
 		JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(fieldNames);
 		serializationSchema.serialize(row);
 	}
+
+	private Row serializeAndDeserialize(String[] fieldNames, Class[] fieldTypes, Row row) throws IOException {
+		JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(fieldNames);
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(fieldNames, fieldTypes);
+
+		byte[] bytes = serializationSchema.serialize(row);
+		return deserializationSchema.deserialize(bytes);
+	}
+
+	private void assertEqualRows(Row expectedRow, Row resultRow) {
+		assertEquals("Deserialized row should have expected number of fields",
+			expectedRow.productArity(), resultRow.productArity());
+		for (int i = 0; i < expectedRow.productArity(); i++) {
+			assertEquals(String.format("Field number %d should be as in the original row", i),
+				expectedRow.productElement(i), resultRow.productElement(i));
+		}
+	}
+
 }

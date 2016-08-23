@@ -36,16 +36,16 @@ import java.util.Properties;
  */
 public abstract class KafkaTableSink implements StreamTableSink<Row> {
 
-	private final String topic;
-	private final Properties properties;
-	private SerializationSchema<Row> serializationSchema;
-	private final KafkaPartitioner<Row> partitioner;
-	private String[] fieldNames;
-	private TypeInformation[] fieldTypes;
+	protected final String topic;
+	protected final Properties properties;
+	protected SerializationSchema<Row> serializationSchema;
+	protected final KafkaPartitioner<Row> partitioner;
+	protected String[] fieldNames;
+	protected TypeInformation[] fieldTypes;
 	/**
 	 * Creates KafkaTableSink
 	 *
-	 * @param topic                 Kafka topic to consume.
+	 * @param topic                 Kafka topic to write to.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param partitioner           Partitioner to select Kafka partition for each item
 	 */
@@ -75,6 +75,8 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 
 	protected abstract SerializationSchema<Row> createSerializationSchema(String[] fieldNames);
 
+	protected abstract KafkaTableSink createCopy();
+
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
 		FlinkKafkaProducerBase<Row> kafkaProducer = createKafkaProducer(topic, properties, serializationSchema, partitioner);
@@ -97,14 +99,17 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 
 	@Override
 	public KafkaTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		this.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
-		this.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
+		KafkaTableSink copy = createCopy();
+		copy.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
+		copy.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
 		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
 			"Number of provided field names and types does not match.");
-		this.serializationSchema = createSerializationSchema(fieldNames);
+		copy.serializationSchema = createSerializationSchema(fieldNames);
 
-		return this;
+		return copy;
 	}
+
+
 
 
 }

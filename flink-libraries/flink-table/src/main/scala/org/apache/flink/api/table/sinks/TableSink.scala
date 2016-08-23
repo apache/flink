@@ -44,7 +44,15 @@ trait TableSink[T] {
   /** Returns the types of the table fields. */
   def getFieldTypes: Array[TypeInformation[_]]
 
-
+  /**
+    * Return a copy of this [[TableSink]] configured with the field names and types of the
+    * [[org.apache.flink.api.table.Table]] to emit.
+    *
+    * @param fieldNames The field names of the table to emit.
+    * @param fieldTypes The field types of the table to emit.
+    * @return A copy of this [[TableSink]] configured with the field names and types of the
+    *         [[org.apache.flink.api.table.Table]] to emit.
+    */
   def configure(fieldNames: Array[String],
                 fieldTypes: Array[TypeInformation[_]]): TableSink[T]
 }

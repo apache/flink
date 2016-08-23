@@ -30,7 +30,7 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	/**
 	 * Creates {@link KafkaTableSink} for Kafka 0.8
 	 *
-	 * @param topic topic in Kafka
+	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
 	 * @param partitioner Kafka partitioner
 	 */
@@ -40,7 +40,12 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 
 	@Override
 	protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, KafkaPartitioner<Row> partitioner) {
-		return new FlinkKafkaProducer08<Row>(topic,serializationSchema, properties, partitioner);
+		return new FlinkKafkaProducer08<>(topic, serializationSchema, properties, partitioner);
+	}
+
+	@Override
+	protected Kafka08JsonTableSink createCopy() {
+		return new Kafka08JsonTableSink(topic, properties, partitioner);
 	}
 }
 

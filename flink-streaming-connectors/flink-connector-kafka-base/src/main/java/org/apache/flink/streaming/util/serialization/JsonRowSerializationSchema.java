@@ -55,6 +55,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		}
 
 		ObjectNode objectNode = mapper.createObjectNode();
+
 		for (int i = 0; i < row.productArity(); i++) {
 			JsonNode node = mapper.valueToTree(row.productElement(i));
 			objectNode.set(fieldNames[i], node);

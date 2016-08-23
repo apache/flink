@@ -20,13 +20,8 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
-import org.junit.Test;
 
 public class Kafka08JsonTableSinkTest extends KafkaTableSinkTestBase {
-	@Test
-	public void kafka08JsonTableSinkTest() throws Exception {
-		testKafkaTableSink();
-	}
 
 	@Override
 	protected KafkaTableSink createTableSink() {
@@ -34,8 +29,7 @@ public class Kafka08JsonTableSinkTest extends KafkaTableSinkTestBase {
 			TOPIC,
 			createSinkProperties(),
 			createPartitioner());
-		sink.configure(FIELD_NAMES, FIELD_TYPES);
-		return sink;
+		return sink.configure(FIELD_NAMES, FIELD_TYPES);
 	}
 
 	protected DeserializationSchema<Row> createRowDeserializationSchema() {

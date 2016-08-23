@@ -29,6 +29,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.TypeUtil;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.test.util.SuccessException;
+import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.HashSet;
@@ -43,6 +44,7 @@ public abstract class KafkaTableSinkTestBase extends KafkaTestBase implements Se
 	protected final static String[] FIELD_NAMES = new String[] {"field1", "field2"};
 	protected final static TypeInformation[] FIELD_TYPES = TypeUtil.toTypeInfo(new Class[] {Integer.class, String.class});
 
+	@Test
 	public void testKafkaTableSink() throws Exception {
 		LOG.info("Starting KafkaTableSinkTestBase.testKafkaTableSink()");
 

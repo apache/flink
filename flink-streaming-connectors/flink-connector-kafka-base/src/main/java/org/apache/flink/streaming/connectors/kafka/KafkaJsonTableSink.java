@@ -32,7 +32,7 @@ public abstract class KafkaJsonTableSink extends KafkaTableSink {
 	/**
 	 * Creates KafkaJsonTableSink
 	 *
-	 * @param topic topic in Kafka
+	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
 	 * @param partitioner Kafka partitioner
 	 */
