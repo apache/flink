@@ -66,7 +66,7 @@ function deploy_to_s3() {
 pwd
 
 
-echo "install lifecylce mapping fake plugin"
+echo "install lifecycle mapping fake plugin"
 git clone https://github.com/mfriedenhagen/dummy-lifecycle-mapping-plugin.git
 cd dummy-lifecycle-mapping-plugin
 mvn -B install

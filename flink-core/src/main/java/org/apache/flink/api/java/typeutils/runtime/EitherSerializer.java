@@ -18,18 +18,18 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import static org.apache.flink.types.Either.Left;
-import static org.apache.flink.types.Either.Right;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.Either;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.types.Either;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+import static org.apache.flink.types.Either.Left;
+import static org.apache.flink.types.Either.Right;
 
 /**
- * A {@link TypeSerializer} for the {@ link Either} type of the Java class.
+ * A {@link TypeSerializer} for the {@link Either} type of the Java class.
  *
  * @param <L> the Left value type
  * @param <R> the Right value type
