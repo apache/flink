@@ -197,7 +197,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 				@Override
 				public void onFailure(Throwable failure) {
 					if (!isCanceled()) {
-						log.warn("Could not resolve {} address {}, retrying...", targetName, targetAddress);
+						log.warn("Could not resolve {} address {}, retrying...", targetName, targetAddress, failure);
 						startRegistration();
 					}
 				}

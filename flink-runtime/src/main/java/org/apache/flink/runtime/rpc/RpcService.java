@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
@@ -32,12 +33,14 @@ public interface RpcService {
 
 	/**
 	 * Connect to a remote rpc server under the provided address. Returns a rpc gateway which can
-	 * be used to communicate with the rpc server.
+	 * be used to communicate with the rpc server. If the connection failed, then the returned
+	 * future is failed with a {@link RpcConnectionException}.
 	 *
 	 * @param address Address of the remote rpc server
 	 * @param clazz Class of the rpc gateway to return
 	 * @param <C> Type of the rpc gateway to return
-	 * @return Future containing the rpc gateway
+	 * @return Future containing the rpc gateway or an {@link RpcConnectionException} if the
+	 * connection attempt failed
 	 */
 	<C extends RpcGateway> Future<C> connect(String address, Class<C> clazz);
 
