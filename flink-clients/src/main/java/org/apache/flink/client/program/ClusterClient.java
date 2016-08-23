@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -57,6 +56,7 @@ import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.ConnectionUtils;
+import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -232,27 +232,16 @@ public abstract class ClusterClient {
 	}
 
 	/**
-	 * Gets the current JobManager address from the Flink configuration (may change in case of a HA setup).
-	 * @return The address (host and port) of the leading JobManager when it was last retrieved (may be outdated)
-	 */
-	public InetSocketAddress getJobManagerAddressFromConfig() {
-		try {
-			String hostName = flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-			int port = flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
-			return new InetSocketAddress(hostName, port);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to retrieve JobManager address", e);
-		}
-	}
-
-	/**
 	 * Gets the current JobManager address (may change in case of a HA setup).
 	 * @return The address (host and port) of the leading JobManager
 	 */
 	public InetSocketAddress getJobManagerAddress() {
 		try {
-			final ActorRef jmActor = getJobManagerGateway().actor();
-			return AkkaUtils.getInetSockeAddressFromAkkaURL(jmActor.path().toSerializationFormat());
+			LeaderConnectionInfo leaderConnectionInfo =
+				LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+					LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig), timeout);
+
+			return AkkaUtils.getInetSockeAddressFromAkkaURL(leaderConnectionInfo.getAddress());
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to retrieve JobManager address", e);
 		}
