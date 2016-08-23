@@ -347,86 +347,82 @@ public class CheckpointCoordinator {
 					return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 				}
 			}
-		}
 
-		// check if all tasks that we need to trigger are running.
-		// if not, abort the checkpoint
-		ExecutionAttemptID[] triggerIDs = new ExecutionAttemptID[tasksToTrigger.length];
-		for (int i = 0; i < tasksToTrigger.length; i++) {
-			Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
-			if (ee != null && ee.getState() == ExecutionState.RUNNING) {
-				triggerIDs[i] = ee.getAttemptId();
-			} else {
-				LOG.info("Checkpoint triggering task {} is not being executed at the moment. Aborting checkpoint.",
-						tasksToTrigger[i].getSimpleName());
-				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-			}
-		}
+	  	// check if all tasks that we need to trigger are running.
+  		// if not, abort the checkpoint
+  		ExecutionAttemptID[] triggerIDs = new ExecutionAttemptID[tasksToTrigger.length];
+  		for (int i = 0; i < tasksToTrigger.length; i++) {
+  			Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
+  			if (ee != null && ee.getState() == ExecutionState.RUNNING) {
+  				triggerIDs[i] = ee.getAttemptId();
+  			} else {
+  				LOG.info("Checkpoint triggering task {} is not being executed at the moment. Aborting checkpoint.",
+  						tasksToTrigger[i].getSimpleName());
+  				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+  			}
+  		}
 
-		// next, check if all tasks that need to acknowledge the checkpoint are running.
-		// if not, abort the checkpoint
-		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(tasksToWaitFor.length);
+  		// next, check if all tasks that need to acknowledge the checkpoint are running.
+  		// if not, abort the checkpoint
+  		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(tasksToWaitFor.length);
 
-		for (ExecutionVertex ev : tasksToWaitFor) {
-			Execution ee = ev.getCurrentExecutionAttempt();
-			if (ee != null) {
-				ackTasks.put(ee.getAttemptId(), ev);
-			} else {
-				LOG.info("Checkpoint acknowledging task {} is not being executed at the moment. Aborting checkpoint.",
-						ev.getSimpleName());
-				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-			}
-		}
+  		for (ExecutionVertex ev : tasksToWaitFor) {
+  			Execution ee = ev.getCurrentExecutionAttempt();
+  			if (ee != null) {
+  				ackTasks.put(ee.getAttemptId(), ev);
+  			} else {
+  				LOG.info("Checkpoint acknowledging task {} is not being executed at the moment. Aborting checkpoint.",
+  						ev.getSimpleName());
+  				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+  			}
+  		}
 
-		// we will actually trigger this checkpoint!
+  		// we will actually trigger this checkpoint!
 
-		lastTriggeredCheckpoint = timestamp;
-		final long checkpointID;
-		try {
-			// this must happen outside the locked scope, because it communicates
-			// with external services (in HA mode) and may block for a while.
-			checkpointID = checkpointIdCounter.getAndIncrement();
-		}
-		catch (Throwable t) {
-			int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
-			LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
-			return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
-		}
+  		lastTriggeredCheckpoint = timestamp;
+  		final long checkpointID;
+  		try {
+  			// this must happen outside the locked scope, because it communicates
+  			// with external services (in HA mode) and may block for a while.
+  			checkpointID = checkpointIdCounter.getAndIncrement();
+  		}
+  		catch (Throwable t) {
+  			int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
+  			LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
+  			return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
+  		}
 
-		LOG.info("Triggering checkpoint " + checkpointID + " @ " + timestamp);
+  		LOG.info("Triggering checkpoint " + checkpointID + " @ " + timestamp);
 
-		final PendingCheckpoint checkpoint = props.isSavepoint() ?
-			new PendingSavepoint(job, checkpointID, timestamp, ackTasks, userClassLoader, savepointStore) :
-			new PendingCheckpoint(job, checkpointID, timestamp, ackTasks, userClassLoader);
+  		final PendingCheckpoint checkpoint = props.isSavepoint() ?
+  			new PendingSavepoint(job, checkpointID, timestamp, ackTasks, userClassLoader, savepointStore) :
+  			new PendingCheckpoint(job, checkpointID, timestamp, ackTasks, userClassLoader);
 
-		// schedule the timer that will clean up the expired checkpoints
-		TimerTask canceller = new TimerTask() {
-			@Override
-			public void run() {
-				try {
-					synchronized (lock) {
-						// only do the work if the checkpoint is not discarded anyways
-						// note that checkpoint completion discards the pending checkpoint object
-						if (!checkpoint.isDiscarded()) {
-							LOG.info("Checkpoint " + checkpointID + " expired before completing.");
+  		// schedule the timer that will clean up the expired checkpoints
+  		TimerTask canceller = new TimerTask() {
+  			@Override
+  			public void run() {
+  				try {
+  					synchronized (lock) {
+  						// only do the work if the checkpoint is not discarded anyways
+  						// note that checkpoint completion discards the pending checkpoint object
+  						if (!checkpoint.isDiscarded()) {
+  							LOG.info("Checkpoint " + checkpointID + " expired before completing.");
 
-							checkpoint.abortExpired();
-							pendingCheckpoints.remove(checkpointID);
-							rememberRecentCheckpointId(checkpointID);
+  							checkpoint.abortExpired();
+  							pendingCheckpoints.remove(checkpointID);
+  							rememberRecentCheckpointId(checkpointID);
 
-							triggerQueuedRequests();
-						}
-					}
-				}
-				catch (Throwable t) {
-					LOG.error("Exception while handling checkpoint timeout", t);
-				}
-			}
-		};
+  							triggerQueuedRequests();
+  						}
+  					}
+  				}
+  				catch (Throwable t) {
+  					LOG.error("Exception while handling checkpoint timeout", t);
+  				}
+  			}
+  		};
 
-		try {
-			// re-acquire the lock
-			synchronized (lock) {
 				// since we released the lock in the meantime, we need to re-check
 				// that the conditions still hold. this is clumsy, but it allows us to
 				// release the lock in the meantime while calls to external services are
