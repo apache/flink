@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.TestLogger;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
@@ -36,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 public class AkkaRpcActorTest extends TestLogger {
 
@@ -70,6 +72,22 @@ public class AkkaRpcActorTest extends TestLogger {
 		DummyRpcGateway rpcGateway = Await.result(futureRpcGateway, timeout.duration());
 
 		assertEquals(rpcEndpoint.getAddress(), rpcGateway.getAddress());
+	}
+
+	/**
+	 * Tests that a {@link RpcConnectionException} is thrown if the rpc endpoint cannot be connected to.
+	 */
+	@Test
+	public void testFailingAddressResolution() throws Exception {
+		Future<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect("foobar", DummyRpcGateway.class);
+
+		try {
+			DummyRpcGateway gateway = Await.result(futureRpcGateway, timeout.duration());
+
+			fail("The rpc connection resolution should have failed.");
+		} catch (RpcConnectionException exception) {
+			// we're expecting a RpcConnectionException
+		}
 	}
 
 	/**
