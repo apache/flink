@@ -337,6 +337,15 @@ Flink exposes the following system metrics:
       <td></td>
     </tr>
     <tr>
+      <th rowspan="2"><strong>TaskManager.Status</strong></th>
+      <td>Network.AvailableMemorySegments</td>
+      <td>The number of unused memory segments.</td>
+    </tr>
+    <tr>
+      <td>Network.TotalMemorySegments</td>
+      <td>The number of allocated memory segments.</td>
+    </tr>
+    <tr>
       <th rowspan="19"><strong>TaskManager.Status.JVM</strong></th>
       <td>ClassLoader.ClassesLoaded</td>
       <td>The total number of classes loaded since the start of the JVM.</td>
