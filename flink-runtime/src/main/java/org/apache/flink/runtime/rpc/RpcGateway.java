@@ -28,6 +28,5 @@ public interface RpcGateway {
 	 *
 	 * @return Fully qualified address under which the associated rpc endpoint is reachable
 	 */
-	@NativeMethod
 	String getAddress();
 }

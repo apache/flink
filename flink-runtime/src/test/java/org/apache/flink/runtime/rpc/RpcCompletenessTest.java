@@ -348,11 +348,17 @@ public class RpcCompletenessTest extends TestLogger {
 			fail(interfaceClass.getName() + "is not a interface");
 		}
 		ArrayList<Method> allMethods = new ArrayList<>();
-		for(Method method : interfaceClass.getDeclaredMethods()) {
-			if (!method.isAnnotationPresent(NativeMethod.class)) {
-				allMethods.add(method);
-			}
+		// Methods defined in RpcGateway are native method
+		if(interfaceClass.equals(RpcGateway.class)) {
+			return allMethods;
 		}
+
+		// Get all methods declared in current interface
+		for(Method method : interfaceClass.getDeclaredMethods()) {
+			allMethods.add(method);
+		}
+
+		// Get all method inherited from super interface
 		for(Class superClass : interfaceClass.getInterfaces()) {
 			allMethods.addAll(getRpcMethodsFromGateway(superClass));
 		}
