@@ -340,6 +340,7 @@ public class RpcCompletenessTest extends TestLogger {
 
 	/**
 	 * Extract all rpc methods defined by the gateway interface
+	 *
 	 * @param interfaceClass the given rpc gateway interface
 	 * @return all methods defined by the given interface
 	 */
@@ -347,6 +348,7 @@ public class RpcCompletenessTest extends TestLogger {
 		if(!interfaceClass.isInterface()) {
 			fail(interfaceClass.getName() + "is not a interface");
 		}
+
 		ArrayList<Method> allMethods = new ArrayList<>();
 		// Methods defined in RpcGateway are native method
 		if(interfaceClass.equals(RpcGateway.class)) {
