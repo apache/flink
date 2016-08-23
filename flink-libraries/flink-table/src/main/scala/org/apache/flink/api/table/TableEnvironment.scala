@@ -336,6 +336,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     val (fieldIndexes, fieldNames) = indexedNames.unzip
+
+    if (fieldNames.contains("*")) {
+      throw new ValidationException("field name can not be '*'.")
+    }
+
     (fieldNames.toArray, fieldIndexes.toArray)
   }
 
