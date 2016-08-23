@@ -671,7 +671,7 @@ public class CheckpointCoordinator {
 						pendingCheckpoints.remove(checkpointId);
 						rememberRecentCheckpointId(checkpointId);
 
-						dropSubsumedCheckpoints(completed.getTimestamp());
+						dropSubsumedCheckpoints(completed.getCheckpointID());
 
 						triggerQueuedRequests();
 					}
@@ -726,12 +726,13 @@ public class CheckpointCoordinator {
 		recentPendingCheckpoints.addLast(id);
 	}
 
-	private void dropSubsumedCheckpoints(long timestamp) throws Exception {
+	private void dropSubsumedCheckpoints(long checkpointId) throws Exception {
 		Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
 
 		while (entries.hasNext()) {
 			PendingCheckpoint p = entries.next().getValue();
-			if (p.getCheckpointTimestamp() <= timestamp && p.canBeSubsumed()) {
+			// remove all pending checkpoints that are lesser than the current completed checkpoint
+			if (p.getCheckpointId() < checkpointId && p.canBeSubsumed()) {
 				rememberRecentCheckpointId(p.getCheckpointId());
 				p.abortSubsumed();
 				entries.remove();
