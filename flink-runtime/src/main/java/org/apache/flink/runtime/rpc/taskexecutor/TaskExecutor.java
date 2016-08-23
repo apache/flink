@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -27,6 +25,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.resourcemanager.SlotRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -79,8 +78,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	public void start() {
 		// start by connecting to the ResourceManager
 		try {
-			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
 			super.start();
+			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
 		} catch (Exception e) {
 			onFatalErrorAsync(e);
 		}
@@ -122,11 +121,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	}
 
 	@RpcMethod
-	void notifyOfResourceManagerRevokeLeadership(UUID resourceManagerLeaderId) {
-		// TODO
-	}
-
-	@RpcMethod
 	public SlotReport triggerHeartbeatToResourceManager(UUID resourceManagerLeaderId) {
 		// TODO
 		List<SlotStatus> slotsStatus = new ArrayList<>();
@@ -134,13 +128,13 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	}
 
 	@RpcMethod
-	public SlotAllocationResponse requestSlotForJob(AllocationID allocationID, JobID jobID, SlotID slotID, UUID resourceManagerLeaderId) {
+	public SlotAllocationResponse requestSlotForJob(SlotRequest slotRequest, SlotID slotID, UUID resourceManagerLeaderId) {
 		// TODO
 		return null;
 	}
 
 	@RpcMethod
-	public void shutDown(UUID resourceManagerLeaderId) {
+	public void markedFailed(UUID resourceManagerLeaderId) {
 		// TODO
 	}
 

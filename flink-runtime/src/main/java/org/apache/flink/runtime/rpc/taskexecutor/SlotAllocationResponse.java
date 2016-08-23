@@ -11,9 +11,9 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.runtime.rpc.taskexecutor;
@@ -26,9 +26,11 @@ import java.io.Serializable;
 import java.util.UUID;
 
 /**
- * base class  for response from TaskManager to a requestSlot from resourceManager
+ * base class for response from TaskManager to a requestSlot from resourceManager
  */
 public abstract class SlotAllocationResponse implements Serializable {
+
+	private static final long serialVersionUID = 6208478892646714551L;
 
 	private final AllocationID allocationID;
 

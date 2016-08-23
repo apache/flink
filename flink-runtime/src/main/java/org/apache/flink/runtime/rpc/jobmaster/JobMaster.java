@@ -123,15 +123,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			registrationDuration.fromNow());
 	}
 
-	/**
-	 * handle a notification from ResourceManager which says that the resourceManager was revoked leadership
-	 * @param resourceManagerLeaderId
-	 */
-	@RpcMethod
-	void notifyOfResourceManagerRevokeLeadership(UUID resourceManagerLeaderId) {
-		// TODO
-	}
-
 	//----------------------------------------------------------------------------------------------
 	// Helper methods
 	//----------------------------------------------------------------------------------------------

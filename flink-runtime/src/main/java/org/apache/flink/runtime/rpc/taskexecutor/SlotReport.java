@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 import java.io.Serializable;
@@ -35,14 +37,13 @@ public class SlotReport implements Serializable {
 	/** the status of all slots of the TaskManager */
 	private final List<SlotStatus> slotsStatus;
 
-	// resourceID identify the taskExecutor
+	/** resourceID identify the taskExecutor */
 	private final ResourceID resourceID;
 
 	public SlotReport(List<SlotStatus> slotsStatus, ResourceID resourceID) {
-		this.slotsStatus = slotsStatus;
-		this.resourceID = resourceID;
+		this.slotsStatus = checkNotNull(slotsStatus, "slotStatus cannot be null");
+		this.resourceID = checkNotNull(resourceID, "resourceID cannot be null");
 	}
-
 
 	public List<SlotStatus> getSlotsStatus() {
 		return slotsStatus;

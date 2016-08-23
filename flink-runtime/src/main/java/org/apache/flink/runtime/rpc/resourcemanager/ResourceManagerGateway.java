@@ -53,7 +53,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration);
 
 	/**
-	 * JobMaster Requests a slot from the resource manager.
+	 * JobMaster requests a slot from the resource manager.
 	 *
 	 * @param slotRequest Slot request
 	 * @return Future slot assignment
@@ -61,6 +61,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	Future<AcknowledgeSlotRequest> requestSlot(SlotRequest slotRequest);
 
 	/**
+	 * Register a {@link org.apache.flink.runtime.rpc.taskexecutor.TaskExecutor} at the resource manager.
 	 *
 	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
 	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
@@ -75,12 +76,4 @@ public interface ResourceManagerGateway extends RpcGateway {
 		ResourceID resourceID,
 		@RpcTimeout FiniteDuration timeout);
 
-	/**
-	 * notify resource failure to resourceManager, because of two reasons:
-	 * 1. cannot keep heartbeat with taskManager for several times, mark the resource as failed
-	 * 2. in some corner cases, TM will be marked as invalid by cluster manager master(e.g. yarn master), but TM itself does not realize.
-	 *
-	 * @param resourceID identify the taskManager which to stop
-	 */
-	void notifyResourceFailure(ResourceID resourceID);
 }

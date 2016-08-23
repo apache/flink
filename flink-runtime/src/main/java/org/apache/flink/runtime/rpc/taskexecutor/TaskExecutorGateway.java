@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.rpc.resourcemanager.SlotRequest;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -37,13 +36,13 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * handle a slot request from ResourceManager, allocate the slot to the allocationID, or reject it if the slot was
 	 * already occupied
 	 *
-	 * @param allocationID allocationId identifying which request will be allocated a slot
-	 * @param jobID        jobID identifying which job send the slot request
-	 * @param slotID       slotID identifying the choosen slot
+	 * @param slotRequest             slot request from resourceManager
+	 * @param slotID                  slotID identifying the choosen slot
 	 * @param resourceManagerLeaderId id to identify a resourceManager which is granted leadership
 	 * @return response ack request if allocate slot successful; decline request if the slot was already occupied
 	 */
-	Future<SlotAllocationResponse> requestSlotForJob(AllocationID allocationID, JobID jobID, SlotID slotID, UUID resourceManagerLeaderId);
+	Future<SlotAllocationResponse> requestSlotForJob(SlotRequest slotRequest, SlotID slotID,
+		UUID resourceManagerLeaderId);
 
 	/**
 	 * trigger the heartbeat from ResourceManager, taskManager send the SlotReport which is about the current status
@@ -57,20 +56,15 @@ public interface TaskExecutorGateway extends RpcGateway {
 		@RpcTimeout FiniteDuration timeout);
 
 	/**
-	 * receive the stop command from resourceManager
+	 * receive notification from resourceManager that current taskExecutor is marked failed.
+	 *
 	 * @param resourceManagerLeaderId id to identify a resourceManager which is granted leadership
 	 */
-	void shutDown(UUID resourceManagerLeaderId);
+	void markedFailed(UUID resourceManagerLeaderId);
 
 	// ------------------------------------------------------------------------
 	//  ResourceManager handlers
 	// ------------------------------------------------------------------------
 
 	void notifyOfNewResourceManagerLeader(String address, UUID resourceManagerLeaderId);
-
-	/**
-	 * handle a notification from ResourceManager which says that the resourceManager was revoked leadership
-	 * @param resourceManagerLeaderId id to identify a resourceManager which is granted leadership
-	 */
-	void notifyOfResourceManagerRevokeLeadership(UUID resourceManagerLeaderId);
 }

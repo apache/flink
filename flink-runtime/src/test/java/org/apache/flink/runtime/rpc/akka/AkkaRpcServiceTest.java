@@ -23,23 +23,13 @@ import akka.util.Timeout;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
-import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
-import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.resourcemanager.ResourceManager;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Test;
 
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class AkkaRpcServiceTest extends TestLogger {
@@ -86,46 +76,4 @@ public class AkkaRpcServiceTest extends TestLogger {
 	//  specific component tests - should be moved to the test classes
 	//  for those components
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Tests that the {@link JobMaster} can connect to the {@link ResourceManager} using the
-	 * {@link AkkaRpcService}.
-	 */
-	@Test
-	public void testJobMasterResourceManagerRegistration() throws Exception {
-		Timeout akkaTimeout = new Timeout(10, TimeUnit.SECONDS);
-		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
-		ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
-		AkkaRpcService akkaRpcService = new AkkaRpcService(actorSystem, akkaTimeout);
-		AkkaRpcService akkaRpcService2 = new AkkaRpcService(actorSystem2, akkaTimeout);
-		ExecutorService executorService = new ForkJoinPool();
-
-		ResourceManager resourceManager = new ResourceManager(akkaRpcService, executorService, new StandaloneLeaderElectionService());
-		JobMaster jobMaster = new JobMaster(akkaRpcService2, executorService);
-
-		resourceManager.start();
-		jobMaster.start();
-
-		ResourceManagerGateway rm = resourceManager.getSelf();
-
-		assertTrue(rm instanceof AkkaGateway);
-
-		AkkaGateway akkaClient = (AkkaGateway) rm;
-
-		
-		jobMaster.registerAtResourceManager(AkkaUtils.getAkkaURL(actorSystem, akkaClient.getRpcEndpoint()));
-
-		// wait for successful registration
-		FiniteDuration timeout = new FiniteDuration(200, TimeUnit.SECONDS);
-		Deadline deadline = timeout.fromNow();
-
-		while (deadline.hasTimeLeft() && !jobMaster.isConnected()) {
-			Thread.sleep(100);
-		}
-
-		assertFalse(deadline.isOverdue());
-
-		jobMaster.shutDown();
-		resourceManager.shutDown();
-	}
 }

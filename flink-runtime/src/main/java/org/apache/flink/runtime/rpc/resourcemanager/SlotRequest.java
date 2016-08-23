@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Slot allocation request from jobManager to resourceManager
@@ -86,10 +87,7 @@ public class SlotRequest implements Serializable {
 
 	@Override
 	public int hashCode() {
-		int result = jobID.hashCode();
-		result = 31 * result + allocationID.hashCode();
-		result = 31 * result + profile.hashCode();
-		return result;
+		return Objects.hash(jobID, allocationID, profile);
 	}
 }
 

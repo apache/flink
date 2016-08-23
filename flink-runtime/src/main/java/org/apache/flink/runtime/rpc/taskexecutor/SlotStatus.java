@@ -25,9 +25,11 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
- * SlotStatus implementation. It is responsible for describe slot allocation.
+ * SlotStatus describe the current status of a slot on TaskExecutor, describing whether it is available and allocated,
+ * and which job this allocated slot has been allocated to .
  */
 public class SlotStatus implements Serializable {
 
@@ -98,11 +100,7 @@ public class SlotStatus implements Serializable {
 
 	@Override
 	public int hashCode() {
-		int result = slotID.hashCode();
-		result = 31 * result + profile.hashCode();
-		result = 31 * result + (allocationID != null ? allocationID.hashCode() : 0);
-		result = 31 * result + (jobID != null ? jobID.hashCode() : 0);
-		return result;
+		return Objects.hash(slotID,profile, allocationID, jobID);
 	}
 
 }

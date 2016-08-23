@@ -18,21 +18,24 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
+import java.io.Serializable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 
-import java.io.Serializable;
 
 /**
  * receipt from ResourceManager to ack previous slotRequest
  */
-public class AcknowledgeSlotRequest implements Serializable{
+public class AcknowledgeSlotRequest implements Serializable {
 	private static final long serialVersionUID = -6990813455942742322L;
 
 	/** Unique identifier for the attempt to allocate a slot, normally created by JobManager when requesting a slot */
 	private final AllocationID allocationID;
 
 	public AcknowledgeSlotRequest(AllocationID allocationID) {
-		this.allocationID = allocationID;
+		this.allocationID = checkNotNull(allocationID, "allocationID cannot be null");
 	}
 
 	public AllocationID getAllocationID() {
