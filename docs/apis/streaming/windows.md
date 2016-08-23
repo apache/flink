@@ -477,7 +477,7 @@ input
 
 /* ... */
 
-private static  class myFoldFunction implements FoldFunction<SensorReading, Long> {
+private static class MyFoldFunction implements FoldFunction<SensorReading, Long> {
 
     public Long fold(Long acc, SensorReading s) {
         return Math.max(acc, s.timestamp());
@@ -499,7 +499,7 @@ input
 
 /* ... */
 
-private static  class myReduceFunction implements ReduceFunction<SensorReading> {
+private static class MyReduceFunction implements ReduceFunction<SensorReading> {
 
     public SensorReading reduce(SensorReading s1, SensorReading s2)  {
         return s1;
