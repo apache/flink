@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,25 +100,32 @@ public class AkkaRpcService implements RpcService {
 		final Future<Object> identify = asker.ask(new Identify(42), timeout);
 		return identify.map(new Mapper<Object, C>(){
 			@Override
-			public C apply(Object obj) {
-				ActorRef actorRef = ((ActorIdentity) obj).getRef();
+			public C checkedApply(Object obj) throws Exception {
 
-				final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+				ActorIdentity actorIdentity = (ActorIdentity) obj;
 
-				InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(address, actorRef, timeout, maximumFramesize);
+				if (actorIdentity.getRef() == null) {
+					throw new RpcConnectionException("Could not connect to rpc endpoint under address " + address + '.');
+				} else {
+					ActorRef actorRef = actorIdentity.getRef();
 
-				// Rather than using the System ClassLoader directly, we derive the ClassLoader
-				// from this class . That works better in cases where Flink runs embedded and all Flink
-				// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
-				ClassLoader classLoader = AkkaRpcService.this.getClass().getClassLoader();
-				
-				@SuppressWarnings("unchecked")
-				C proxy = (C) Proxy.newProxyInstance(
-					classLoader,
-					new Class<?>[] {clazz},
-					akkaInvocationHandler);
+					final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
 
-				return proxy;
+					InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(address, actorRef, timeout, maximumFramesize);
+
+					// Rather than using the System ClassLoader directly, we derive the ClassLoader
+					// from this class . That works better in cases where Flink runs embedded and all Flink
+					// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
+					ClassLoader classLoader = AkkaRpcService.this.getClass().getClassLoader();
+
+					@SuppressWarnings("unchecked")
+					C proxy = (C) Proxy.newProxyInstance(
+						classLoader,
+						new Class<?>[]{clazz},
+						akkaInvocationHandler);
+
+					return proxy;
+				}
 			}
 		}, actorSystem.dispatcher());
 	}
