@@ -37,7 +37,7 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<kafka.version>0.10.0.0</kafka.version>
+		<kafka.version>0.10.0.1</kafka.version>
 	</properties>
 
 	<dependencies>
@@ -48,13 +48,14 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-0.9_2.10</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<!-- Exclude Kafka 0.9 dependency -->
-				<exclusion>
-					<groupId>org.apache.kafka</groupId>
-					<artifactId>kafka_${scala.binary.version}</artifactId>
-				</exclusion>
-			</exclusions>
+		</dependency>
+
+		<!-- Add Kafka 0.10.x as a dependency -->
+
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>${kafka.version}</version>
 		</dependency>
 
 		<dependency>
@@ -65,12 +66,6 @@ under the License.
 			<!-- Projects depending on this project,
 			won't depend on flink-table. -->
 			<optional>true</optional>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>${kafka.version}</version>
 		</dependency>
 
 		<!-- test dependencies -->
