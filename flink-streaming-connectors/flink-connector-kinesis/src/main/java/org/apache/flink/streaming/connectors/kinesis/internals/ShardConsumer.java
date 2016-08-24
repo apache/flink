@@ -36,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Properties;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -87,6 +88,9 @@ public class ShardConsumer<T> implements Runnable {
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
+		checkArgument(
+			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
+			"Should not start a ShardConsumer if the shard has already been completely read.");
 
 		this.deserializer = fetcherRef.getClonedDeserializationSchema();
 
