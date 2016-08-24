@@ -61,7 +61,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.HDFSCopyFromLocal;
 import org.apache.flink.streaming.util.HDFSCopyToLocal;
-
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.rocksdb.BackupEngine;
@@ -580,7 +580,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		for (int i = 0; i < numColumns; i++) {
 			byte mappingByte = inputView.readByte();
 
-			ObjectInputStream ooIn = new ObjectInputStream(new DataInputViewStream(inputView));
+			ObjectInputStream ooIn = new InstantiationUtil.ClassLoaderObjectInputStream(new DataInputViewStream(inputView), userCodeClassLoader);
 			StateDescriptor stateDescriptor = (StateDescriptor) ooIn.readObject();
 
 			columnFamilyMapping.put(mappingByte, stateDescriptor);
