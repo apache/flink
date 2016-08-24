@@ -530,7 +530,45 @@ input
 
 {% endhighlight %}
 </div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
 
+val input: DataStream[SensorReading] = ...
+
+    input
+     .keyBy(<key selector>)
+     .window(<window assigner>)
+     .apply (
+        ("", 0L, 0),
+          (acc: (String, Long, Int), reading: SensorReading) => {
+          ("", 0L, acc._3 + 1)
+        },
+        (key: String, window: TimeWindow, counts: Iterable[(String, Long, Int)], out: Collector[(String, Long, Int)]) => {
+          val count = counts.iterator.next()
+          out.collect((s, window.getEnd, count._3))
+        }
+        )
+
+// for reducing incremental computation
+val input: DataStream[SensorReading] = ...
+
+    readings
+      .keyBy(_.sensorId)
+      .timeWindow(Time.minutes(1), Time.seconds(10))
+      .apply ((reading1: SensorReading, reading2: SensorReading) => {
+        reading1.reading > reading2.reading match{
+          case true => reading2
+          case _ => reading1
+        }
+      },
+        (key: String, window: TimeWindow, minReadings: Iterable[SensorReading],
+         out: Collector[(Long, SensorReading)]) => {
+          val min = minReadings.iterator.next()
+          out.collect((window.getStart, min))
+        }
+      )
+
+</div>
 </div>
 
 ## Dealing with Late Data
