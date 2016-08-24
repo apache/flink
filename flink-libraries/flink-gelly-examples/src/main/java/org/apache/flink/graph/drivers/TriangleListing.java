@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -27,11 +28,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphCsvReader;
 import org.apache.flink.graph.asm.simple.undirected.Simplify;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
+import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
@@ -54,27 +56,30 @@ import java.text.NumberFormat;
  */
 public class TriangleListing {
 
-	public static final int DEFAULT_SCALE = 10;
+	private static final int DEFAULT_SCALE = 10;
 
-	public static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final int DEFAULT_EDGE_FACTOR = 16;
 
-	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
+	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
-	private static void printUsage() {
-		System.out.println(WordUtils.wrap("Lists all triangles in a graph.", 80));
-		System.out.println();
-		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex IDs for each triangle and" +
-			" for directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80));
-		System.out.println();
-		System.out.println("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>");
-		System.out.println();
-		System.out.println("options:");
-		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
-		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
-		System.out.println();
-		System.out.println("  --output print");
-		System.out.println("  --output hash");
-		System.out.println("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
+	private static String getUsage(String message) {
+		return new StrBuilder()
+			.appendNewLine()
+			.appendln(WordUtils.wrap("Lists all triangles in a graph.", 80))
+			.appendNewLine()
+			.appendln(WordUtils.wrap("This algorithm returns tuples containing the vertex IDs for each triangle and" +
+				" for directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80))
+			.appendNewLine()
+			.appendln("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>")
+			.appendNewLine()
+			.appendln("options:")
+			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
+			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
+			.appendNewLine()
+			.appendln("  --output print")
+			.appendln("  --output hash")
+			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
+			.toString();
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -84,8 +89,7 @@ public class TriangleListing {
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
 		if (! parameters.has("directed")) {
-			printUsage();
-			return;
+			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
 		}
 		boolean directedAlgorithm = parameters.getBoolean("directed");
 
@@ -111,9 +115,19 @@ public class TriangleListing {
 							.keyType(LongValue.class);
 
 						if (directedAlgorithm) {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+							}
+
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>());
 						} else {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
+							}
+
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
 						}
@@ -124,17 +138,26 @@ public class TriangleListing {
 							.keyType(StringValue.class);
 
 						if (directedAlgorithm) {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>());
+							}
+
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<StringValue, NullValue, NullValue>());
 						} else {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false));
+							}
+
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<StringValue, NullValue, NullValue>());
 						}
 					} break;
 
 					default:
-						printUsage();
-						return;
+						throw new ProgramParametrizationException(getUsage("invalid CSV type"));
 				}
 
 
@@ -183,8 +206,7 @@ public class TriangleListing {
 			} break;
 
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid input type"));
 		}
 
 		switch (parameters.get("output", "")) {
@@ -218,8 +240,7 @@ public class TriangleListing {
 				env.execute();
 				break;
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid output type"));
 		}
 
 		JobExecutionResult result = env.getLastJobExecutionResult();
