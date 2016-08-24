@@ -21,7 +21,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.TaskManagerScopeFormat;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +32,7 @@ import java.util.Map;
  * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do
  * not contain tasks any more
  */
-public class TaskManagerMetricGroup extends ComponentMetricGroup {
+public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetricGroup> {
 
 	private final Map<JobID, TaskManagerJobMetricGroup> jobs = new HashMap<>();
 
@@ -42,15 +42,7 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 
 
 	public TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
-		this(registry, registry.getScopeFormats().getTaskManagerFormat(), hostname, taskManagerId);
-	}
-
-	public TaskManagerMetricGroup(
-			MetricRegistry registry,
-			TaskManagerScopeFormat scopeFormat,
-			String hostname, String taskManagerId) {
-
-		super(registry, scopeFormat.formatScope(hostname, taskManagerId));
+		super(registry, registry.getScopeFormats().getTaskManagerFormat().formatScope(hostname, taskManagerId), null);
 		this.hostname = hostname;
 		this.taskManagerId = taskManagerId;
 	}
@@ -123,6 +115,12 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 	// ------------------------------------------------------------------------
 	//  Component Metric Group Specifics
 	// ------------------------------------------------------------------------
+
+	@Override
+	protected void putVariables(Map<String, String> variables) {
+		variables.put(ScopeFormat.SCOPE_HOST, hostname);
+		variables.put(ScopeFormat.SCOPE_TASKMANAGER_ID, taskManagerId);
+	}
 
 	@Override
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {

@@ -33,7 +33,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 
 	private static final Logger LOG = LoggerFactory.getLogger(RedisClusterContainer.class);
 
-	private JedisCluster jedisCluster;
+	private transient JedisCluster jedisCluster;
 
 	/**
 	 * Initialize Redis command container for Redis cluster.
@@ -44,6 +44,16 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		Preconditions.checkNotNull(jedisCluster, "Jedis cluster can not be null");
 
 		this.jedisCluster = jedisCluster;
+	}
+
+	@Override
+	public void open() throws Exception {
+
+		// echo() tries to open a connection and echos back the
+		// message passed as argument. Here we use it to monitor
+		// if we can communicate with the cluster.
+
+		jedisCluster.echo("Test");
 	}
 
 	@Override

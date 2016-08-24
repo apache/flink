@@ -28,7 +28,7 @@ public class TaskScopeFormat extends ScopeFormat {
 
 	public TaskScopeFormat(String format, TaskManagerJobScopeFormat parentFormat) {
 		super(format, parentFormat, new String[] {
-				SCOPE_ACTOR_HOST,
+				SCOPE_HOST,
 				SCOPE_TASKMANAGER_ID,
 				SCOPE_JOB_ID,
 				SCOPE_JOB_NAME,

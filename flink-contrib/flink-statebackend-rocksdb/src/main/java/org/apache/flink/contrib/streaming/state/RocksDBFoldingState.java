@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
@@ -32,8 +31,6 @@ import org.rocksdb.WriteOptions;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * {@link FoldingState} implementation that stores state in RocksDB.
@@ -44,14 +41,11 @@ import static java.util.Objects.requireNonNull;
  * @param <ACC> The type of the value in the folding state.
  */
 public class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
+	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, ACC>
 	implements FoldingState<T, ACC> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<ACC> valueSerializer;
-
-	/** This holds the name of the state and can create an initial default value for the state. */
-	private final FoldingStateDescriptor<T, ACC> stateDesc;
 
 	/** User-specified fold function */
 	private final FoldFunction<T, ACC> foldFunction;
@@ -74,9 +68,8 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			FoldingStateDescriptor<T, ACC> stateDesc,
 			RocksDBStateBackend backend) {
 
-		super(columnFamily, namespaceSerializer, backend);
-		
-		this.stateDesc = requireNonNull(stateDesc);
+		super(columnFamily, namespaceSerializer, stateDesc, backend);
+
 		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
 
@@ -125,5 +118,5 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
-}
 
+}

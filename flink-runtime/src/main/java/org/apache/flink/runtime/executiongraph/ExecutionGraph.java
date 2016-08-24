@@ -36,7 +36,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointCoordinator;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -49,10 +48,10 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
@@ -64,7 +63,6 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -104,15 +102,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *         about deployment of tasks and updates in the task status always use the ExecutionAttemptID to
  *         address the message receiver.</li>
  * </ul>
- * 
- * <p>The ExecutionGraph implements {@link java.io.Serializable}, because it can be archived by
- * sending it to an archive actor via an actor message. The execution graph does contain some
- * non-serializable fields. These fields are not required in the archived form and are cleared
- * in the {@link #prepareForArchiving()} method.</p>
  */
-public class ExecutionGraph implements Serializable {
-
-	private static final long serialVersionUID = 42L;
+public class ExecutionGraph {
 
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
@@ -179,7 +170,7 @@ public class ExecutionGraph implements Serializable {
 	// ------ Configuration of the Execution -------
 
 	/** The execution configuration (see {@link ExecutionConfig}) related to this specific job. */
-	private SerializedValue<ExecutionConfig> serializedExecutionConfig;
+	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
@@ -188,7 +179,7 @@ public class ExecutionGraph implements Serializable {
 	/** The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
 	 * from results than need to be materialized. */
-	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
+	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
 	/** Flag to indicate whether the Graph has been archived */
 	private boolean isArchived = false;
@@ -208,31 +199,26 @@ public class ExecutionGraph implements Serializable {
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
 	/** The scheduler to use for scheduling new tasks as they are needed */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private Scheduler scheduler;
 
 	/** Strategy to use for restarts */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private RestartStrategy restartStrategy;
 
 	/** The classloader for the user code. Needed for calls into user code classes */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ClassLoader userClassLoader;
 
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
 
-	/** The coordinator for savepoints, if snapshot checkpoints are enabled */
-	private transient SavepointCoordinator savepointCoordinator;
-
-	/** Checkpoint stats tracker seperate from the coordinator in order to be
+	/** Checkpoint stats tracker separate from the coordinator in order to be
 	 * available after archiving. */
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	/** The execution context which is used to execute futures. */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ExecutionContext executionContext;
+
+	/** Registered KvState instances reported by the TaskManagers. */
+	private KvStateLocationRegistry kvStateLocationRegistry;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
@@ -314,6 +300,8 @@ public class ExecutionGraph implements Serializable {
 		this.restartStrategy = restartStrategy;
 
 		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
+
+		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobId, getAllVertices());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -361,7 +349,6 @@ public class ExecutionGraph implements Serializable {
 			UUID leaderSessionID,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
-			RecoveryMode recoveryMode,
 			SavepointStore savepointStore,
 			CheckpointStatsTracker statsTracker) throws Exception {
 
@@ -396,32 +383,13 @@ public class ExecutionGraph implements Serializable {
 				userClassLoader,
 				checkpointIDCounter,
 				checkpointStore,
-				recoveryMode,
+				savepointStore,
 				checkpointStatsTracker);
 
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
 		registerJobStatusListener(
 				checkpointCoordinator.createActivatorDeactivator(actorSystem, leaderSessionID));
-
-		// Savepoint Coordinator
-		savepointCoordinator = new SavepointCoordinator(
-				jobID,
-				interval,
-				checkpointTimeout,
-				numberKeyGroups,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				// Important: this counter needs to be shared with the periodic
-				// checkpoint coordinator.
-				checkpointIDCounter,
-				savepointStore,
-				checkpointStatsTracker);
-
-		registerJobStatusListener(savepointCoordinator
-				.createActivatorDeactivator(actorSystem, leaderSessionID));
 	}
 
 	/**
@@ -436,14 +404,9 @@ public class ExecutionGraph implements Serializable {
 		}
 
 		if (checkpointCoordinator != null) {
-			checkpointCoordinator.shutdown();
+			checkpointCoordinator.suspend();
 			checkpointCoordinator = null;
 			checkpointStatsTracker = null;
-		}
-
-		if (savepointCoordinator != null) {
-			savepointCoordinator.shutdown();
-			savepointCoordinator = null;
 		}
 	}
 
@@ -451,8 +414,8 @@ public class ExecutionGraph implements Serializable {
 		return checkpointCoordinator;
 	}
 
-	public SavepointCoordinator getSavepointCoordinator() {
-		return savepointCoordinator;
+	public KvStateLocationRegistry getKvStateLocationRegistry() {
+		return kvStateLocationRegistry;
 	}
 
 	public RestartStrategy getRestartStrategy() {
@@ -727,7 +690,7 @@ public class ExecutionGraph implements Serializable {
 
 			switch (scheduleMode) {
 
-				case FROM_SOURCES:
+				case LAZY_FROM_SOURCES:
 					// simply take the vertices without inputs.
 					for (ExecutionJobVertex ejv : this.tasks.values()) {
 						if (ejv.getJobVertex().isInputVertex()) {
@@ -736,15 +699,12 @@ public class ExecutionGraph implements Serializable {
 					}
 					break;
 
-				case ALL:
+				case EAGER:
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 						ejv.scheduleAll(scheduler, allowQueuedScheduling);
 					}
 					break;
 
-				case BACKTRACKING:
-					// go back from vertices that need computation to the ones we need to run
-					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
 				default:
 					throw new JobException("Schedule mode is invalid.");
 			}
@@ -927,17 +887,7 @@ public class ExecutionGraph implements Serializable {
 
 				// if we have checkpointed state, reload it into the executions
 				if (checkpointCoordinator != null) {
-					boolean restored = checkpointCoordinator
-							.restoreLatestCheckpointedState(getAllVertices(), false, false);
-
-					// TODO(uce) Temporary work around to restore initial state on
-					// failure during recovery. Will be superseded by FLINK-3397.
-					if (!restored && savepointCoordinator != null) {
-						String savepointPath = savepointCoordinator.getSavepointRestorePath();
-						if (savepointPath != null) {
-							savepointCoordinator.restoreSavepoint(getAllVertices(), savepointPath);
-						}
-					}
+					checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
 				}
 			}
 
@@ -964,33 +914,6 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
-	 * Restores the execution state back to a savepoint.
-	 *
-	 * <p>The execution vertices need to be in state {@link ExecutionState#CREATED} when calling
-	 * this method. The operation might block. Make sure that calls don't block the job manager
-	 * actor.
-	 *
-	 * @param savepointPath The path of the savepoint to rollback to.
-	 * @throws IllegalStateException If checkpointing is disabled
-	 * @throws IllegalStateException If checkpoint coordinator is shut down
-	 * @throws Exception If failure during rollback
-	 */
-	public void restoreSavepoint(String savepointPath) throws Exception {
-		synchronized (progressLock) {
-			if (savepointCoordinator != null) {
-				LOG.info("Restoring savepoint: " + savepointPath + ".");
-
-				savepointCoordinator.restoreSavepoint(
-						getAllVertices(), savepointPath);
-			}
-			else {
-				// Sanity check
-				throw new IllegalStateException("Checkpointing disabled.");
-			}
-		}
-	}
-
-	/**
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
 	public void prepareForArchiving() {
@@ -1003,6 +926,7 @@ public class ExecutionGraph implements Serializable {
 		scheduler = null;
 		checkpointCoordinator = null;
 		executionContext = null;
+		kvStateLocationRegistry = null;
 
 		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
 			vertex.prepareForArchiving();
@@ -1131,21 +1055,6 @@ public class ExecutionGraph implements Serializable {
 
 			// We don't clean the checkpoint stats tracker, because we want
 			// it to be available after the job has terminated.
-		} catch (Exception e) {
-			LOG.error("Error while cleaning up after execution", e);
-		}
-
-		try {
-			CheckpointCoordinator coord = this.savepointCoordinator;
-			this.savepointCoordinator = null;
-
-			if (coord != null) {
-				if (state.isGloballyTerminalState()) {
-					coord.shutdown();
-				} else {
-					coord.suspend();
-				}
-			}
 		} catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
 		}

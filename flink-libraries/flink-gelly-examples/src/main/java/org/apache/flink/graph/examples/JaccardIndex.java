@@ -69,7 +69,7 @@ public class JaccardIndex {
 		System.out.println(WordUtils.wrap("This algorithm returns 4-tuples containing two vertex IDs, the" +
 			" number of shared neighbors, and the number of distinct neighbors.", 80));
 		System.out.println();
-		System.out.println("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]>");
 		System.out.println();
 		System.out.println("options:");
 		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");

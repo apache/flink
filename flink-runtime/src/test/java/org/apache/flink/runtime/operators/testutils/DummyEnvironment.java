@@ -34,6 +34,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
@@ -48,9 +50,17 @@ public class DummyEnvironment implements Environment {
 	private final ExecutionAttemptID executionId = new ExecutionAttemptID();
 	private final ExecutionConfig executionConfig = new ExecutionConfig();
 	private final TaskInfo taskInfo;
+	private final KvStateRegistry kvStateRegistry = new KvStateRegistry();
+	private final TaskKvStateRegistry taskKvStateRegistry;
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this.taskInfo = new TaskInfo(taskName, subTaskIndex, numSubTasks, 0);
+
+		this.taskKvStateRegistry = kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+	}
+
+	public KvStateRegistry getKvStateRegistry() {
+		return kvStateRegistry;
 	}
 
 	@Override
@@ -131,6 +141,11 @@ public class DummyEnvironment implements Environment {
 	@Override
 	public AccumulatorRegistry getAccumulatorRegistry() {
 		return null;
+	}
+
+	@Override
+	public TaskKvStateRegistry getTaskKvStateRegistry() {
+		return taskKvStateRegistry;
 	}
 
 	@Override

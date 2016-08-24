@@ -18,6 +18,7 @@
 package org.apache.flink.api.table
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
+import org.apache.flink.api.table.typeutils.IntervalTypeInfo
 
 /**
   * This class enumerates all supported types of the Table API.
@@ -38,5 +39,7 @@ object Types {
   val DATE = SqlTimeTypeInfo.DATE
   val TIME = SqlTimeTypeInfo.TIME
   val TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP
+  val INTERVAL_MONTHS = IntervalTypeInfo.INTERVAL_MONTHS
+  val INTERVAL_MILLIS = IntervalTypeInfo.INTERVAL_MILLIS
 
 }

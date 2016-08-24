@@ -28,7 +28,6 @@ import org.junit.Test
 
 /**
  * This checks whether the streaming Scala API is up to feature parity with the Java API.
- * Implements the {@link ScalaAPICompletenessTest} for streaming.
  */
 class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
@@ -40,7 +39,7 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.DataStream.getType",
       "org.apache.flink.streaming.api.datastream.DataStream.copy",
       "org.apache.flink.streaming.api.datastream.DataStream.getTransformation",
-      "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.copy",
+      "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.forceNonParallel",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getFirstInput",

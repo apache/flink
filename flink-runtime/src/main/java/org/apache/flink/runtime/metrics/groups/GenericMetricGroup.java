@@ -24,10 +24,10 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
  * A simple named {@link org.apache.flink.metrics.MetricGroup} that is used to hold
  * subgroups of metrics.
  */
-public class GenericMetricGroup extends AbstractMetricGroup {
+public class GenericMetricGroup extends AbstractMetricGroup<AbstractMetricGroup<?>> {
 
 	public GenericMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {
-		super(registry, makeScopeComponents(parent, name));
+		super(registry, makeScopeComponents(parent, name), parent);
 	}
 
 	// ------------------------------------------------------------------------

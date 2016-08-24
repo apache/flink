@@ -33,6 +33,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
@@ -146,6 +148,13 @@ public interface Environment {
 	 * @return the registry
 	 */
 	AccumulatorRegistry getAccumulatorRegistry();
+
+	/**
+	 * Returns the registry for {@link KvState} instances.
+	 *
+	 * @return KvState registry
+	 */
+	TaskKvStateRegistry getTaskKvStateRegistry();
 
 	/**
 	 * Confirms that the invokable has successfully completed all steps it needed to

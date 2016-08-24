@@ -17,8 +17,8 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**

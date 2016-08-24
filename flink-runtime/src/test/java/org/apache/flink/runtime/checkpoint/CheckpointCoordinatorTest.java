@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
@@ -33,8 +33,10 @@ import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import scala.concurrent.Future;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -80,17 +82,19 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				42,
-				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
-				new ExecutionVertex[] { ackVertex1, ackVertex2 },
-				new ExecutionVertex[] {},
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					600000,
+					0, Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
+					new ExecutionVertex[] { ackVertex1, ackVertex2 },
+					new ExecutionVertex[] {},
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -131,17 +135,20 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				42,
-				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
-				new ExecutionVertex[] { ackVertex1, ackVertex2 },
-				new ExecutionVertex[] {},
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					600000,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
+					new ExecutionVertex[] { ackVertex1, ackVertex2 },
+					new ExecutionVertex[] {},
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -180,17 +187,20 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				42,
-				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
-				new ExecutionVertex[] { ackVertex1, ackVertex2 },
-				new ExecutionVertex[] {},
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					600000,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
+					new ExecutionVertex[] { ackVertex1, ackVertex2 },
+					new ExecutionVertex[] {},
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -230,17 +240,20 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				42,
-				new ExecutionVertex[] { vertex1, vertex2 },
-				new ExecutionVertex[] { vertex1, vertex2 },
-				new ExecutionVertex[] { vertex1, vertex2 },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					600000,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { vertex1, vertex2 },
+					new ExecutionVertex[] { vertex1, vertex2 },
+					new ExecutionVertex[] { vertex1, vertex2 },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -353,17 +366,20 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				42,
-				new ExecutionVertex[] { vertex1, vertex2 },
-				new ExecutionVertex[] { vertex1, vertex2 },
-				new ExecutionVertex[] { vertex1, vertex2 },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					600000,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { vertex1, vertex2 },
+					new ExecutionVertex[] { vertex1, vertex2 },
+					new ExecutionVertex[] { vertex1, vertex2 },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -472,17 +488,20 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				42,
-				new ExecutionVertex[] { vertex1, vertex2 },
-				new ExecutionVertex[] { vertex1, vertex2 },
-				new ExecutionVertex[] { vertex1, vertex2 },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					600000,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { vertex1, vertex2 },
+					new ExecutionVertex[] { vertex1, vertex2 },
+					new ExecutionVertex[] { vertex1, vertex2 },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -621,17 +640,20 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				42,
-				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
-				new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
-				new ExecutionVertex[] { commitVertex },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					600000,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
+					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
+					new ExecutionVertex[] { commitVertex },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(2, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -755,17 +777,20 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				600000,
-				42,
-				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
-				new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
-				new ExecutionVertex[] { commitVertex },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(10, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					600000,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
+					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
+					new ExecutionVertex[] { commitVertex },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(10, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -875,17 +900,20 @@ public class CheckpointCoordinatorTest {
 			// the timeout for the checkpoint is a 200 milliseconds
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				600000,
-				200,
-				42,
-				new ExecutionVertex[] { triggerVertex },
-				new ExecutionVertex[] { ackVertex1, ackVertex2 },
-				new ExecutionVertex[] { commitVertex },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					600000,
+					200,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex1, ackVertex2 },
+					new ExecutionVertex[] { commitVertex },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(2, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			// trigger a checkpoint, partially acknowledged
 			assertTrue(coord.triggerCheckpoint(timestamp));
@@ -942,17 +970,20 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				200000,
-				200000,
-				42,
-				new ExecutionVertex[] { triggerVertex },
-				new ExecutionVertex[] { ackVertex1, ackVertex2 },
-				new ExecutionVertex[] { commitVertex },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					200000,
+					200000,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex1, ackVertex2 },
+					new ExecutionVertex[] { commitVertex },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(2, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			assertTrue(coord.triggerCheckpoint(timestamp));
 
@@ -1020,17 +1051,20 @@ public class CheckpointCoordinatorTest {
 			}).when(triggerVertex).sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class));
 			
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				10,		// periodic interval is 10 ms
-				200000,	// timeout is very long (200 s)
-				42,
-				new ExecutionVertex[] { triggerVertex },
-				new ExecutionVertex[] { ackVertex },
-				new ExecutionVertex[] { commitVertex },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					10,        // periodic interval is 10 ms
+					200000,    // timeout is very long (200 s)
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex },
+					new ExecutionVertex[] { commitVertex },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(2, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			
 			coord.startCheckpointScheduler();
@@ -1110,20 +1144,20 @@ public class CheckpointCoordinatorTest {
 			}).when(vertex1).sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class));
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				10,		// periodic interval is 10 ms
-				200000,	// timeout is very long (200 s)
-				500,	// 500ms delay between checkpoints
-				10,
-				42,
-				new ExecutionVertex[] { vertex1 },
-				new ExecutionVertex[] { vertex1 },
-				new ExecutionVertex[] { vertex1 },
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(2, cl),
-				RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker());
+					jid,
+					10,        // periodic interval is 10 ms
+					200000,    // timeout is very long (200 s)
+					500,    // 500ms delay between checkpoints
+					10,
+					42,
+					new ExecutionVertex[] { vertex1 },
+					new ExecutionVertex[] { vertex1 },
+					new ExecutionVertex[] { vertex1 },
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(2, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			coord.startCheckpointScheduler();
 
@@ -1170,20 +1204,236 @@ public class CheckpointCoordinatorTest {
 
 	@Test
 	public void testMaxConcurrentAttempts1() {
-		testMaxConcurrentAttemps(1);
+		testMaxConcurrentAttempts(1);
 	}
 
 	@Test
 	public void testMaxConcurrentAttempts2() {
-		testMaxConcurrentAttemps(2);
+		testMaxConcurrentAttempts(2);
 	}
 
 	@Test
 	public void testMaxConcurrentAttempts5() {
-		testMaxConcurrentAttemps(5);
+		testMaxConcurrentAttempts(5);
 	}
 	
-	private void testMaxConcurrentAttemps(int maxConcurrentAttempts) {
+	@Test
+	public void testTriggerAndConfirmSimpleSavepoint() throws Exception {
+		final JobID jid = new JobID();
+		final long timestamp = System.currentTimeMillis();
+
+		// create some mock Execution vertices that receive the checkpoint trigger messages
+		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+		final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
+		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+
+		// set up the coordinator and validate the initial state
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				600000,
+				600000,
+				0,
+				Integer.MAX_VALUE,
+				42,
+				new ExecutionVertex[] { vertex1, vertex2 },
+				new ExecutionVertex[] { vertex1, vertex2 },
+				new ExecutionVertex[] { vertex1, vertex2 },
+				cl,
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1, cl),
+				new HeapSavepointStore(),
+				new DisabledCheckpointStatsTracker());
+
+		assertEquals(0, coord.getNumberOfPendingCheckpoints());
+		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
+
+		// trigger the first checkpoint. this should succeed
+		Future<String> savepointFuture = coord.triggerSavepoint(timestamp);
+		assertFalse(savepointFuture.isCompleted());
+
+		// validate that we have a pending savepoint
+		assertEquals(1, coord.getNumberOfPendingCheckpoints());
+
+		long checkpointId = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
+		PendingCheckpoint pending = coord.getPendingCheckpoints().get(checkpointId);
+
+		assertNotNull(pending);
+		assertEquals(checkpointId, pending.getCheckpointId());
+		assertEquals(timestamp, pending.getCheckpointTimestamp());
+		assertEquals(jid, pending.getJobId());
+		assertEquals(2, pending.getNumberOfNonAcknowledgedTasks());
+		assertEquals(0, pending.getNumberOfAcknowledgedTasks());
+		assertEquals(0, pending.getTaskStates().size());
+		assertFalse(pending.isDiscarded());
+		assertFalse(pending.isFullyAcknowledged());
+		assertFalse(pending.canBeSubsumed());
+		assertTrue(pending instanceof PendingSavepoint);
+
+
+		// acknowledge from one of the tasks
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId));
+		assertEquals(1, pending.getNumberOfAcknowledgedTasks());
+		assertEquals(1, pending.getNumberOfNonAcknowledgedTasks());
+		assertFalse(pending.isDiscarded());
+		assertFalse(pending.isFullyAcknowledged());
+		assertFalse(savepointFuture.isCompleted());
+
+		// acknowledge the same task again (should not matter)
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId));
+		assertFalse(pending.isDiscarded());
+		assertFalse(pending.isFullyAcknowledged());
+		assertFalse(savepointFuture.isCompleted());
+
+		// acknowledge the other task.
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId));
+
+		// the checkpoint is internally converted to a successful checkpoint and the
+		// pending checkpoint object is disposed
+		assertTrue(pending.isDiscarded());
+		assertTrue(savepointFuture.isCompleted());
+
+		// the now we should have a completed checkpoint
+		assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
+		assertEquals(0, coord.getNumberOfPendingCheckpoints());
+
+		// validate that the relevant tasks got a confirmation message
+		{
+			NotifyCheckpointComplete confirmMessage1 = new NotifyCheckpointComplete(jid, attemptID1, checkpointId, timestamp);
+			NotifyCheckpointComplete confirmMessage2 = new NotifyCheckpointComplete(jid, attemptID2, checkpointId, timestamp);
+			verify(vertex1, times(1)).sendMessageToCurrentExecution(eq(confirmMessage1), eq(attemptID1));
+			verify(vertex2, times(1)).sendMessageToCurrentExecution(eq(confirmMessage2), eq(attemptID2));
+		}
+
+		CompletedCheckpoint success = coord.getSuccessfulCheckpoints().get(0);
+		assertEquals(jid, success.getJobId());
+		assertEquals(timestamp, success.getTimestamp());
+		assertEquals(pending.getCheckpointId(), success.getCheckpointID());
+		assertTrue(success.getTaskStates().isEmpty());
+
+		// ---------------
+		// trigger another checkpoint and see that this one replaces the other checkpoint
+		// ---------------
+		final long timestampNew = timestamp + 7;
+		savepointFuture = coord.triggerSavepoint(timestampNew);
+		assertFalse(savepointFuture.isCompleted());
+
+		long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointIdNew));
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointIdNew));
+
+		assertEquals(0, coord.getNumberOfPendingCheckpoints());
+		assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
+
+		CompletedCheckpoint successNew = coord.getSuccessfulCheckpoints().get(0);
+		assertEquals(jid, successNew.getJobId());
+		assertEquals(timestampNew, successNew.getTimestamp());
+		assertEquals(checkpointIdNew, successNew.getCheckpointID());
+		assertTrue(successNew.getTaskStates().isEmpty());
+		assertTrue(savepointFuture.isCompleted());
+
+		// validate that the relevant tasks got a confirmation message
+		{
+			TriggerCheckpoint expectedMessage1 = new TriggerCheckpoint(jid, attemptID1, checkpointIdNew, timestampNew);
+			TriggerCheckpoint expectedMessage2 = new TriggerCheckpoint(jid, attemptID2, checkpointIdNew, timestampNew);
+			verify(vertex1, times(1)).sendMessageToCurrentExecution(eq(expectedMessage1), eq(attemptID1));
+			verify(vertex2, times(1)).sendMessageToCurrentExecution(eq(expectedMessage2), eq(attemptID2));
+
+			NotifyCheckpointComplete confirmMessage1 = new NotifyCheckpointComplete(jid, attemptID1, checkpointIdNew, timestampNew);
+			NotifyCheckpointComplete confirmMessage2 = new NotifyCheckpointComplete(jid, attemptID2, checkpointIdNew, timestampNew);
+			verify(vertex1, times(1)).sendMessageToCurrentExecution(eq(confirmMessage1), eq(attemptID1));
+			verify(vertex2, times(1)).sendMessageToCurrentExecution(eq(confirmMessage2), eq(attemptID2));
+		}
+
+		coord.shutdown();
+	}
+
+	/**
+	 * Triggers a savepoint and two checkpoints. The second checkpoint completes
+	 * and subsumes the first checkpoint, but not the first savepoint. Then we
+	 * trigger another checkpoint and savepoint. The 2nd savepoint completes and
+	 * subsumes the last checkpoint, but not the first savepoint.
+	 */
+	@Test
+	public void testSavepointsAreNotSubsumed() throws Exception {
+		final JobID jid = new JobID();
+		final long timestamp = System.currentTimeMillis();
+
+		// create some mock Execution vertices that receive the checkpoint trigger messages
+		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+		final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
+		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+
+		StandaloneCheckpointIDCounter counter = new StandaloneCheckpointIDCounter();
+
+		// set up the coordinator and validate the initial state
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				600000,
+				600000,
+				0,
+				Integer.MAX_VALUE,
+				42,
+				new ExecutionVertex[] { vertex1, vertex2 },
+				new ExecutionVertex[] { vertex1, vertex2 },
+				new ExecutionVertex[] { vertex1, vertex2 },
+				cl,
+				counter,
+				new StandaloneCompletedCheckpointStore(10, cl),
+				new HeapSavepointStore(),
+				new DisabledCheckpointStatsTracker());
+
+		// Trigger savepoint and checkpoint
+		Future<String> savepointFuture1 = coord.triggerSavepoint(timestamp);
+		long savepointId1 = counter.getLast();
+		assertEquals(1, coord.getNumberOfPendingCheckpoints());
+
+		assertTrue(coord.triggerCheckpoint(timestamp + 1));
+		assertEquals(2, coord.getNumberOfPendingCheckpoints());
+
+		assertTrue(coord.triggerCheckpoint(timestamp + 2));
+		long checkpointId2 = counter.getLast();
+		assertEquals(3, coord.getNumberOfPendingCheckpoints());
+
+		// 2nd checkpoint should subsume the 1st checkpoint, but not the savepoint
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId2));
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId2));
+
+		assertEquals(1, coord.getNumberOfPendingCheckpoints());
+		assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
+
+		assertFalse(coord.getPendingCheckpoints().get(savepointId1).isDiscarded());
+		assertFalse(savepointFuture1.isCompleted());
+
+		assertTrue(coord.triggerCheckpoint(timestamp + 3));
+		assertEquals(2, coord.getNumberOfPendingCheckpoints());
+
+		Future<String> savepointFuture2 = coord.triggerSavepoint(timestamp + 4);
+		long savepointId2 = counter.getLast();
+		assertEquals(3, coord.getNumberOfPendingCheckpoints());
+
+		// 2nd savepoint should subsume the last checkpoint, but not the 1st savepoint
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, savepointId2));
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, savepointId2));
+
+		assertEquals(1, coord.getNumberOfPendingCheckpoints());
+		assertEquals(2, coord.getNumberOfRetainedSuccessfulCheckpoints());
+		assertFalse(coord.getPendingCheckpoints().get(savepointId1).isDiscarded());
+
+		assertFalse(savepointFuture1.isCompleted());
+		assertTrue(savepointFuture2.isCompleted());
+
+		// Ack first savepoint
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, savepointId1));
+		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, savepointId1));
+
+		assertEquals(0, coord.getNumberOfPendingCheckpoints());
+		assertEquals(3, coord.getNumberOfRetainedSuccessfulCheckpoints());
+		assertTrue(savepointFuture1.isCompleted());
+	}
+
+	private void testMaxConcurrentAttempts(int maxConcurrentAttempts) {
 		try {
 			final JobID jid = new JobID();
 
@@ -1207,17 +1457,18 @@ public class CheckpointCoordinatorTest {
 			}).when(triggerVertex).sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class));
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				10,		// periodic interval is 10 ms
-				200000,	// timeout is very long (200 s)
-				0L,		// no extra delay
-				maxConcurrentAttempts,
-				42,
-				new ExecutionVertex[] { triggerVertex },
-				new ExecutionVertex[] { ackVertex },
-				new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
-				(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker());
+					jid,
+					10,        // periodic interval is 10 ms
+					200000,    // timeout is very long (200 s)
+					0L,        // no extra delay
+					maxConcurrentAttempts,
+					42,
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex },
+					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
+					(), new StandaloneCompletedCheckpointStore(2, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			coord.startCheckpointScheduler();
 
@@ -1278,17 +1529,18 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				10,		// periodic interval is 10 ms
-				200000,	// timeout is very long (200 s)
-				0L,		// no extra delay
-				maxConcurrentAttempts, // max two concurrent checkpoints
-				42,
-				new ExecutionVertex[] { triggerVertex },
-				new ExecutionVertex[] { ackVertex },
-				new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
-				(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker());
+					jid,
+					10,        // periodic interval is 10 ms
+					200000,    // timeout is very long (200 s)
+					0L,        // no extra delay
+					maxConcurrentAttempts, // max two concurrent checkpoints
+					42,
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex },
+					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
+					(), new StandaloneCompletedCheckpointStore(2, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			coord.startCheckpointScheduler();
 
@@ -1358,17 +1610,18 @@ public class CheckpointCoordinatorTest {
 					});
 			
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				10,		// periodic interval is 10 ms
-				200000,	// timeout is very long (200 s)
-				0L,		// no extra delay
-				2, // max two concurrent checkpoints
-				42,
-				new ExecutionVertex[] { triggerVertex },
-				new ExecutionVertex[] { ackVertex },
-				new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
-				new DisabledCheckpointStatsTracker());
+					jid,
+					10,        // periodic interval is 10 ms
+					200000,    // timeout is very long (200 s)
+					0L,        // no extra delay
+					2, // max two concurrent checkpoints
+					42,
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex },
+					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(2, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 			
 			coord.startCheckpointScheduler();
 
@@ -1394,7 +1647,94 @@ public class CheckpointCoordinatorTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * Tests that the savepoints can be triggered concurrently.
+	 */
+	@Test
+	public void testConcurrentSavepoints() throws Exception {
+		JobID jobId = new JobID();
+
+		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+
+		StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
+
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+				jobId,
+				100000,
+				200000,
+				0L,
+				1, // max one checkpoint at a time => should not affect savepoints
+				42,
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				cl,
+				checkpointIDCounter,
+				new StandaloneCompletedCheckpointStore(2, cl),
+				new HeapSavepointStore(),
+				new DisabledCheckpointStatsTracker());
+
+		List<Future<String>> savepointFutures = new ArrayList<>();
+
+		int numSavepoints = 5;
+
+		// Trigger savepoints
+		for (int i = 0; i < numSavepoints; i++) {
+			savepointFutures.add(coord.triggerSavepoint(i));
+		}
+
+		// After triggering multiple savepoints, all should in progress
+		for (Future<String> savepointFuture : savepointFutures) {
+			assertFalse(savepointFuture.isCompleted());
+		}
+
+		// ACK all savepoints
+		long checkpointId = checkpointIDCounter.getLast();
+		for (int i = 0; i < numSavepoints; i++, checkpointId--) {
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, attemptID1, checkpointId));
+		}
+
+		// After ACKs, all should be completed
+		for (Future<String> savepointFuture : savepointFutures) {
+			assertTrue(savepointFuture.isCompleted());
+		}
+	}
+
+	/**
+	 * Tests that no minimum delay between savepoints is enforced.
+	 */
+	@Test
+	public void testMinDelayBetweenSavepoints() throws Exception {
+		JobID jobId = new JobID();
+
+		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+				jobId,
+				100000,
+				200000,
+				100000000L, // very long min delay => should not affect savepoints
+				1,
+				42,
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				cl,
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(2, cl),
+				new HeapSavepointStore(),
+				new DisabledCheckpointStatsTracker());
+
+		Future<String> savepoint0 = coord.triggerSavepoint(0);
+		assertFalse("Did not trigger savepoint", savepoint0.isCompleted());
+
+		Future<String> savepoint1 = coord.triggerSavepoint(1);
+		assertFalse("Did not trigger savepoint", savepoint1.isCompleted());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

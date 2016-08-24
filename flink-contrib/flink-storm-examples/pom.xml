@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-contrib</artifactId>
-		<version>1.1-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -34,6 +34,18 @@ under the License.
 
 	<packaging>jar</packaging>
 
+
+	<repositories>
+		<!-- This repository is needed as a stable source for some Clojure libraries -->
+		<repository>
+			<id>clojars</id>
+			<url>https://clojars.org/repo/</url>
+			<releases><enabled>true</enabled></releases>
+			<snapshots><enabled>false</enabled></snapshots>
+		</repository>
+	</repositories>
+
+	
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -41,6 +53,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-storm_2.10</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -54,6 +72,15 @@ under the License.
 			<groupId>org.apache.storm</groupId>
 			<artifactId>storm-starter</artifactId>
 			<version>0.9.4</version>
+			
+			<!-- remove storm dependency - it should be drawn only (with proper
+				customization) via the 'flink-storm' dependency -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.storm</groupId>
+					<artifactId>storm-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- test dependencies -->

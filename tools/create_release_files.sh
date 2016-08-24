@@ -37,9 +37,9 @@
 #   Can be called like this:
 #
 #    sonatype_user=APACHEID sonatype_pw=APACHEIDPASSWORD \
-#     NEW_VERSION=0.9.0 \
-#     RELEASE_CANDIDATE="rc1" RELEASE_BRANCH=release-0.9.0
-#     OLD_VERSION=0.9-SNAPSHOT \
+#     NEW_VERSION=1.2.0 \
+#     RELEASE_CANDIDATE="rc1" RELEASE_BRANCH=release-1.2.0
+#     OLD_VERSION=1.1-SNAPSHOT \
 #     USER_NAME=APACHEID \
 #     GPG_PASSPHRASE=XXX GPG_KEY=KEYID \
 #     GIT_AUTHOR="`git config --get user.name` <`git config --get user.email`>" \
@@ -66,7 +66,7 @@ fi
 GPG_PASSPHRASE=${GPG_PASSPHRASE:-XXX}
 GPG_KEY=${GPG_KEY:-XXX}
 GIT_AUTHOR=${GIT_AUTHOR:-"Your name <you@apache.org>"}
-OLD_VERSION=${OLD_VERSION:-0.10-SNAPSHOT}
+OLD_VERSION=${OLD_VERSION:-1.1-SNAPSHOT}
 RELEASE_VERSION=${NEW_VERSION}
 RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-rc1}
 RELEASE_BRANCH=${RELEASE_BRANCH:-master}
@@ -93,9 +93,11 @@ prepare() {
   cd flink
   git checkout -b "release-$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
   rm -f .gitignore
+  rm -f .gitattributes
   rm -f .travis.yml
   rm -f deploysettings.xml
   rm -f CHANGELOG
+  rm -rf .github
   cd ..
 }
 

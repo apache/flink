@@ -42,9 +42,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -69,9 +69,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
  * which time it spawns an {@link Execution}.
  */
-public class ExecutionVertex implements Serializable {
-
-	private static final long serialVersionUID = 42L;
+public class ExecutionVertex {
 
 	private static final Logger LOG = ExecutionGraph.LOG;
 
@@ -90,6 +88,9 @@ public class ExecutionVertex implements Serializable {
 	private final List<Execution> priorExecutions;
 
 	private final FiniteDuration timeout;
+
+	/** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations */
+	private final String taskNameWithSubtask;
 
 	private volatile CoLocationConstraint locationConstraint;
 
@@ -115,8 +116,11 @@ public class ExecutionVertex implements Serializable {
 			IntermediateResult[] producedDataSets,
 			FiniteDuration timeout,
 			long createTimestamp) {
+
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
+		this.taskNameWithSubtask = String.format("%s (%d/%d)",
+				jobVertex.getJobVertex().getName(), subTaskIndex + 1, jobVertex.getParallelism());
 
 		this.resultPartitions = new LinkedHashMap<IntermediateResultPartitionID, IntermediateResultPartition>(producedDataSets.length, 1);
 
@@ -172,11 +176,7 @@ public class ExecutionVertex implements Serializable {
 	}
 
 	public String getTaskNameWithSubtaskIndex() {
-		return String.format(
-				"%s (%d/%d)",
-				jobVertex.getJobVertex().getName(),
-				subTaskIndex + 1,
-				getTotalNumberOfParallelSubtasks());
+		return this.taskNameWithSubtask;
 	}
 
 	public int getTotalNumberOfParallelSubtasks() {
@@ -547,10 +547,9 @@ public class ExecutionVertex implements Serializable {
 	 */
 	public void prepareForArchiving() throws IllegalStateException {
 		Execution execution = currentExecution;
-		ExecutionState state = execution.getState();
 
 		// sanity check
-		if (!(state == FINISHED || state == CANCELED || state == FAILED)) {
+		if (!execution.isFinished()) {
 			throw new IllegalStateException("Cannot archive ExecutionVertex that is not in a finished state.");
 		}
 
@@ -637,7 +636,6 @@ public class ExecutionVertex implements Serializable {
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
 			SerializedValue<StateHandle<?>> operatorState,
-			Map<Integer, SerializedValue<StateHandle<?>>> operatorKvState,
 			int attemptNumber) {
 
 		// Produced intermediate results

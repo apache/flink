@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.1-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -70,13 +70,12 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Hadoop is only needed here for serialization interoperability with the Writable type -->
+		<!-- The common collections are needed for some hash tables used in the collection execution -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>${shading-artifact.name}</artifactId>
-			<version>${project.version}</version>
+			<groupId>commons-collections</groupId>
+			<artifactId>commons-collections</artifactId>
 		</dependency>
-
+		
 		<!-- test dependencies -->
 
 		<dependency>
@@ -108,7 +107,8 @@ under the License.
 
 	<build>
 		<plugins>
-			<!-- Exclude removed CONFIG_KEY from ccheck -->
+
+			<!-- activate API compatibility checks -->
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
@@ -116,17 +116,10 @@ under the License.
 					<parameter>
 						<excludes combine.children="append">
 							<exclude>org.apache.flink.api.common.ExecutionConfig#CONFIG_KEY</exclude>
+							<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
-				<executions>
-					<execution>
-						<phase>verify</phase>
-						<goals>
-							<goal>cmp</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!-- publish some test base classes -->

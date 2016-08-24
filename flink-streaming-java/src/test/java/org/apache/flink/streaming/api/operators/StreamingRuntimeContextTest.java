@@ -22,17 +22,20 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
-
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.memory.MemListState;
 import org.junit.Test;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -40,8 +43,12 @@ import java.util.Collections;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class StreamingRuntimeContextTest {
 	
@@ -54,7 +61,7 @@ public class StreamingRuntimeContextTest {
 		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 		
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
-				createMockOp(descriptorCapture, config),
+				createDescriptorCapturingMockOp(descriptorCapture, config),
 				createMockEnvironment(),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
@@ -70,7 +77,7 @@ public class StreamingRuntimeContextTest {
 	}
 
 	@Test
-	public void testReduceingStateInstantiation() throws Exception {
+	public void testReducingStateInstantiation() throws Exception {
 
 		final ExecutionConfig config = new ExecutionConfig();
 		config.registerKryoType(Path.class);
@@ -78,7 +85,7 @@ public class StreamingRuntimeContextTest {
 		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
-				createMockOp(descriptorCapture, config),
+				createDescriptorCapturingMockOp(descriptorCapture, config),
 				createMockEnvironment(),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
@@ -107,7 +114,7 @@ public class StreamingRuntimeContextTest {
 		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
-				createMockOp(descriptorCapture, config),
+				createDescriptorCapturingMockOp(descriptorCapture, config),
 				createMockEnvironment(),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
@@ -121,13 +128,29 @@ public class StreamingRuntimeContextTest {
 		assertTrue(serializer instanceof KryoSerializer);
 		assertTrue(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
 	}
+
+	@Test
+	public void testListStateReturnsEmptyListByDefault() throws Exception {
+
+		StreamingRuntimeContext context = new StreamingRuntimeContext(
+				createPlainMockOp(),
+				createMockEnvironment(),
+				Collections.<String, Accumulator<?, ?>>emptyMap());
+
+		ListStateDescriptor<String> descr = new ListStateDescriptor<>("name", String.class);
+		ListState<String> state = context.getListState(descr);
+
+		Iterable<String> value = state.get();
+		assertNotNull(value);
+		assertFalse(value.iterator().hasNext());
+	}
 	
 	// ------------------------------------------------------------------------
 	//  
 	// ------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	private static AbstractStreamOperator<?> createMockOp(
+	private static AbstractStreamOperator<?> createDescriptorCapturingMockOp(
 			final AtomicReference<Object> ref, final ExecutionConfig config) throws Exception {
 		
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
@@ -143,6 +166,29 @@ public class StreamingRuntimeContextTest {
 					}
 				});
 		
+		return operatorMock;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static AbstractStreamOperator<?> createPlainMockOp() throws Exception {
+
+		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
+		when(operatorMock.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
+		when(operatorMock.getPartitionedState(any(ListStateDescriptor.class))).thenAnswer(
+				new Answer<ListState<String>>() {
+
+					@Override
+					public ListState<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
+						ListStateDescriptor<String> descr =
+							(ListStateDescriptor<String>) invocationOnMock.getArguments()[0];
+						MemListState<String, VoidNamespace, String> listState = new MemListState<>(
+								StringSerializer.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
+						listState.setCurrentNamespace(VoidNamespace.INSTANCE);
+						return listState;
+					}
+				});
+
 		return operatorMock;
 	}
 	

@@ -131,12 +131,14 @@ public class MetricRegistry {
 
 						executor.scheduleWithFixedDelay(
 								new ReporterTask((Scheduled) reporterInstance), period, period, timeunit);
+					} else {
+						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
 					reporters.add(reporterInstance);
 				}
 				catch (Throwable t) {
 					shutdownExecutor();
-					LOG.error("Could not instantiate metrics reporter" + namedReporter + ". Metrics might not be exposed/reported.", t);
+					LOG.error("Could not instantiate metrics reporter " + namedReporter + ". Metrics might not be exposed/reported.", t);
 				}
 			}
 		}

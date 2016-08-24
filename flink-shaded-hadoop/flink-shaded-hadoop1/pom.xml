@@ -25,11 +25,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-shaded-hadoop</artifactId>
-		<version>1.1-SNAPSHOT</version>
+		<version>1.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-shaded-hadoop1_2.10</artifactId>
+	<artifactId>flink-shaded-hadoop1</artifactId>
 	<name>flink-shaded-hadoop1</name>
 
 	<packaging>jar</packaging>

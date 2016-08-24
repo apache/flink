@@ -38,9 +38,9 @@ import org.apache.flink.mesos.util.ZooKeeperUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -210,6 +210,7 @@ public class MesosApplicationMasterRunner {
 				throw new RuntimeException("Invalid value for " + MesosConfigKeys.ENV_TM_COUNT + " : "
 					+ e.getMessage());
 			}
+
 			try {
 				slotsPerTaskManager = Integer.parseInt(ENV.get(MesosConfigKeys.ENV_SLOTS));
 			} catch (NumberFormatException e) {
@@ -481,17 +482,17 @@ public class MesosApplicationMasterRunner {
 
 	private static MesosWorkerStore createWorkerStore(Configuration flinkConfig) throws Exception {
 		MesosWorkerStore workerStore;
-		RecoveryMode recoveryMode = RecoveryMode.fromConfig(flinkConfig);
-		if (recoveryMode == RecoveryMode.STANDALONE) {
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(flinkConfig);
+		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
 			workerStore = new StandaloneMesosWorkerStore();
 		}
-		else if (recoveryMode == RecoveryMode.ZOOKEEPER) {
+		else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
 			// note: the store is responsible for closing the client.
 			CuratorFramework client = ZooKeeperUtils.startCuratorFramework(flinkConfig);
 			workerStore = ZooKeeperMesosWorkerStore.createMesosWorkerStore(client, flinkConfig);
 		}
 		else {
-			throw new IllegalConfigurationException("Unexpected recovery mode '" + recoveryMode + ".");
+			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + ".");
 		}
 
 		return workerStore;

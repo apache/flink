@@ -18,13 +18,12 @@
 package org.apache.flink.api.table.expressions
 
 import scala.collection.JavaConversions._
-
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.expressions.TrimMode.TrimMode
 import org.apache.flink.api.table.validate._
 
 /**
@@ -37,7 +36,8 @@ case class CharLength(child: Expression) extends UnaryExpression {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"CharLength only accepts String input, get ${child.resultType}")
+      ValidationFailure(s"CharLength operator requires String input, " +
+        s"but $child is of type ${child.resultType}")
     }
   }
 
@@ -59,7 +59,8 @@ case class InitCap(child: Expression) extends UnaryExpression {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"InitCap only accepts String input, get ${child.resultType}")
+      ValidationFailure(s"InitCap operator requires String input, " + 
+        s"but $child is of type ${child.resultType}")
     }
   }
 
@@ -83,8 +84,8 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
     if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Like only accepts (String, String) input, " +
-        s"get (${str.resultType}, ${pattern.resultType})")
+      ValidationFailure(s"Like operator requires (String, String) input, " +
+        s"but ($str, $pattern) is of type (${str.resultType}, ${pattern.resultType})")
     }
   }
 
@@ -105,7 +106,8 @@ case class Lower(child: Expression) extends UnaryExpression {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Lower only accepts String input, get ${child.resultType}")
+      ValidationFailure(s"Lower operator requires String input, " +
+        s"but $child is of type ${child.resultType}")
     }
   }
 
@@ -129,8 +131,8 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
     if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Similar only accepts (String, String) input, " +
-        s"get (${str.resultType}, ${pattern.resultType})")
+      ValidationFailure(s"Similar operator requires (String, String) input, " +
+        s"but ($str, $pattern) is of type (${str.resultType}, ${pattern.resultType})")
     }
   }
 
@@ -142,23 +144,23 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
 }
 
 /**
-  * Returns subString of `str` from `begin`(inclusive) to `end`(not inclusive).
+  * Returns subString of `str` from `begin`(inclusive) for `length`.
   */
 case class SubString(
     str: Expression,
     begin: Expression,
-    end: Expression) extends Expression with InputTypeSpec {
+    length: Expression) extends Expression with InputTypeSpec {
 
   def this(str: Expression, begin: Expression) = this(str, begin, CharLength(str))
 
-  override private[flink] def children: Seq[Expression] = str :: begin :: end :: Nil
+  override private[flink] def children: Seq[Expression] = str :: begin :: length :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
-  override def toString: String = s"$str.subString($begin, $end)"
+  override def toString: String = s"$str.subString($begin, $length)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.SUBSTRING, children.map(_.toRexNode))
@@ -166,22 +168,32 @@ case class SubString(
 }
 
 /**
-  * Trim `trimString` from `str` according to `trimFlag`:
-  * 0 for TRIM_BOTH, 1 for TRIM_LEADING and 2 for TRIM_TRAILING.
+  * Trim `trimString` from `str` according to `trimMode`.
   */
 case class Trim(
-    trimFlag: Expression,
+    trimMode: Expression,
     trimString: Expression,
-    str: Expression) extends Expression with InputTypeSpec {
+    str: Expression) extends Expression {
 
-  override private[flink] def children: Seq[Expression] = trimFlag :: trimString :: str :: Nil
+  override private[flink] def children: Seq[Expression] = trimMode :: trimString :: str :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
-    Seq(INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO)
+  override private[flink] def validateInput(): ExprValidationResult = {
+    trimMode match {
+      case SymbolExpression(_: TrimMode) =>
+        if (trimString.resultType != STRING_TYPE_INFO) {
+          ValidationFailure(s"String expected for trimString, get ${trimString.resultType}")
+        } else if (str.resultType != STRING_TYPE_INFO) {
+          ValidationFailure(s"String expected for str, get ${str.resultType}")
+        } else {
+          ValidationSuccess
+        }
+      case _ => ValidationFailure("TrimMode symbol expected.")
+    }
+  }
 
-  override def toString: String = s"trim($trimFlag, $trimString, $str)"
+  override def toString: String = s"trim($trimMode, $trimString, $str)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.TRIM, children.map(_.toRexNode))
@@ -192,9 +204,6 @@ case class Trim(
   * Enumeration of trim flags.
   */
 object TrimConstants {
-  val TRIM_BOTH = Literal(0)
-  val TRIM_LEADING = Literal(1)
-  val TRIM_TRAILING = Literal(2)
   val TRIM_DEFAULT_CHAR = Literal(" ")
 }
 
@@ -208,7 +217,8 @@ case class Upper(child: Expression) extends UnaryExpression {
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Upper only accepts String input, get ${child.resultType}")
+      ValidationFailure(s"Upper operator requires String input, " +
+        s"but $child is of type ${child.resultType}")
     }
   }
 

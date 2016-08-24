@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.TaskScopeFormat;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
@@ -33,10 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 
  * <p>Contains extra logic for adding operators.
  */
-public class TaskMetricGroup extends ComponentMetricGroup {
-
-	/** The job metrics group containing this task metrics group */
-	private final TaskManagerJobMetricGroup parent;
+public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGroup> {
 
 	private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
 
@@ -65,25 +62,9 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 			@Nullable String taskName,
 			int subtaskIndex,
 			int attemptNumber) {
-		
-		this(registry, parent, registry.getScopeFormats().getTaskFormat(),
-				vertexId, executionId, taskName, subtaskIndex, attemptNumber);
-	}
+		super(registry, registry.getScopeFormats().getTaskFormat().formatScope(
+			checkNotNull(parent), vertexId, checkNotNull(executionId), taskName, subtaskIndex, attemptNumber), parent);
 
-	public TaskMetricGroup(
-			MetricRegistry registry,
-			TaskManagerJobMetricGroup parent,
-			TaskScopeFormat scopeFormat, 
-			@Nullable AbstractID vertexId,
-			AbstractID executionId,
-			@Nullable String taskName,
-			int subtaskIndex,
-			int attemptNumber) {
-
-		super(registry, scopeFormat.formatScope(
-				parent, vertexId, executionId, taskName, subtaskIndex, attemptNumber));
-
-		this.parent = checkNotNull(parent);
 		this.executionId = checkNotNull(executionId);
 		this.vertexId = vertexId;
 		this.taskName = taskName;
@@ -162,6 +143,15 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 	// ------------------------------------------------------------------------
 	//  Component Metric Group Specifics
 	// ------------------------------------------------------------------------
+
+	@Override
+	protected void putVariables(Map<String, String> variables) {
+		variables.put(ScopeFormat.SCOPE_TASK_VERTEX_ID, vertexId.toString());
+		variables.put(ScopeFormat.SCOPE_TASK_NAME, taskName);
+		variables.put(ScopeFormat.SCOPE_TASK_ATTEMPT_ID, executionId.toString());
+		variables.put(ScopeFormat.SCOPE_TASK_ATTEMPT_NUM, String.valueOf(attemptNumber));
+		variables.put(ScopeFormat.SCOPE_TASK_SUBTASK_INDEX, String.valueOf(subtaskIndex));
+	}
 
 	@Override
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {

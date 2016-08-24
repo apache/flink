@@ -22,6 +22,7 @@ import akka.dispatch.OnFailure;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -35,11 +36,21 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
 import org.apache.flink.runtime.messages.TaskMessages.FailTask;
+import org.apache.flink.runtime.query.KvStateID;
+import org.apache.flink.runtime.query.KvStateMessage;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistryListener;
+import org.apache.flink.runtime.query.KvStateServerAddress;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
+import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -84,6 +95,12 @@ public class NetworkEnvironment {
 
 	private PartitionStateChecker partitionStateChecker;
 
+	/** Server for {@link org.apache.flink.runtime.state.KvState} requests. */
+	private KvStateServer kvStateServer;
+
+	/** Registry for {@link org.apache.flink.runtime.state.KvState} instances. */
+	private KvStateRegistry kvStateRegistry;
+
 	private boolean isShutdown;
 
 	/**
@@ -92,17 +109,21 @@ public class NetworkEnvironment {
 	 */
 	private final ExecutionContext executionContext;
 
+	private final InstanceConnectionInfo connectionInfo;
+
 	/**
 	 * Initializes all network I/O components.
 	 */
 	public NetworkEnvironment(
-		ExecutionContext executionContext,
-		FiniteDuration jobManagerTimeout,
-		NetworkEnvironmentConfiguration config) throws IOException {
+			ExecutionContext executionContext,
+			FiniteDuration jobManagerTimeout,
+			NetworkEnvironmentConfiguration config,
+			InstanceConnectionInfo connectionInfo) throws IOException {
 
 		this.executionContext = executionContext;
 		this.configuration = checkNotNull(config);
 		this.jobManagerTimeout = checkNotNull(jobManagerTimeout);
+		this.connectionInfo = checkNotNull(connectionInfo);
 
 		// create the network buffers - this is the operation most likely to fail upon
 		// mis-configuration, so we do this first
@@ -151,6 +172,10 @@ public class NetworkEnvironment {
 		return configuration.partitionRequestInitialAndMaxBackoff();
 	}
 
+	public TaskKvStateRegistry createKvStateTaskRegistry(JobID jobId, JobVertexID jobVertexId) {
+		return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Association / Disassociation with JobManager / TaskManager
 	// --------------------------------------------------------------------------------------------
@@ -183,7 +208,9 @@ public class NetworkEnvironment {
 			if (this.partitionConsumableNotifier == null &&
 				this.partitionManager == null &&
 				this.taskEventDispatcher == null &&
-				this.connectionManager == null)
+				this.connectionManager == null &&
+				this.kvStateRegistry == null &&
+				this.kvStateServer == null)
 			{
 				// good, not currently associated. start the individual components
 
@@ -211,6 +238,41 @@ public class NetworkEnvironment {
 				catch (Throwable t) {
 					throw new IOException("Failed to instantiate network connection manager: " + t.getMessage(), t);
 				}
+
+				try {
+					kvStateRegistry = new KvStateRegistry();
+
+					if (nettyConfig.isDefined()) {
+						int numNetworkThreads = configuration.queryServerNetworkThreads();
+						if (numNetworkThreads == 0) {
+							numNetworkThreads = nettyConfig.get().getNumberOfSlots();
+						}
+
+						int numQueryThreads = configuration.queryServerNetworkThreads();
+						if (numQueryThreads == 0) {
+							numQueryThreads = nettyConfig.get().getNumberOfSlots();
+						}
+
+						kvStateServer = new KvStateServer(
+								connectionInfo.address(),
+								configuration.queryServerPort(),
+								numNetworkThreads,
+								numQueryThreads,
+								kvStateRegistry,
+								new DisabledKvStateRequestStats());
+
+						kvStateServer.start();
+
+						KvStateRegistryListener listener = new JobManagerKvStateRegistryListener(
+								jobManagerGateway,
+								kvStateServer.getAddress());
+
+						kvStateRegistry.registerListener(listener);
+					}
+				} catch (Throwable t) {
+					throw new IOException("Failed to instantiate KvState management components: "
+							+ t.getMessage(), t);
+				}
 			}
 			else {
 				throw new IllegalStateException(
@@ -226,6 +288,19 @@ public class NetworkEnvironment {
 			}
 
 			LOG.debug("Disassociating NetworkEnvironment from TaskManager. Cleaning all intermediate results.");
+
+			// Shut down KvStateRegistry
+			kvStateRegistry = null;
+
+			// Shut down KvStateServer
+			if (kvStateServer != null) {
+				try {
+					kvStateServer.shutDown();
+				} catch (Throwable t) {
+					throw new IOException("Cannot shutdown KvStateNettyServer", t);
+				}
+				kvStateServer = null;
+			}
 
 			// terminate all network connections
 			if (connectionManager != null) {
@@ -509,6 +584,60 @@ public class NetworkEnvironment {
 					jobId, partitionId, executionAttemptID, resultId);
 
 			jobManager.tell(msg, taskManager);
+		}
+	}
+
+	/**
+	 * Simple {@link KvStateRegistry} listener, which forwards registrations to
+	 * the JobManager.
+	 */
+	private static class JobManagerKvStateRegistryListener implements KvStateRegistryListener {
+
+		private ActorGateway jobManager;
+
+		private KvStateServerAddress kvStateServerAddress;
+
+		public JobManagerKvStateRegistryListener(
+				ActorGateway jobManager,
+				KvStateServerAddress kvStateServerAddress) {
+
+			this.jobManager = Preconditions.checkNotNull(jobManager, "JobManager");
+			this.kvStateServerAddress = Preconditions.checkNotNull(kvStateServerAddress, "KvStateServerAddress");
+		}
+
+		@Override
+		public void notifyKvStateRegistered(
+				JobID jobId,
+				JobVertexID jobVertexId,
+				int keyGroupIndex,
+				String registrationName,
+				KvStateID kvStateId) {
+
+			Object msg = new KvStateMessage.NotifyKvStateRegistered(
+					jobId,
+					jobVertexId,
+					keyGroupIndex,
+					registrationName,
+					kvStateId,
+					kvStateServerAddress);
+
+			jobManager.tell(msg);
+		}
+
+		@Override
+		public void notifyKvStateUnregistered(
+				JobID jobId,
+				JobVertexID jobVertexId,
+				int keyGroupIndex,
+				String registrationName) {
+
+			Object msg = new KvStateMessage.NotifyKvStateUnregistered(
+					jobId,
+					jobVertexId,
+					keyGroupIndex,
+					registrationName);
+
+			jobManager.tell(msg);
 		}
 	}
 }
