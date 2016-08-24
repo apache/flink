@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
@@ -231,7 +232,7 @@ public class KinesisDataFetcher<T> {
 		if (LOG.isDebugEnabled()) {
 			String logFormat = (isRestoredFromFailure)
 				? "Subtask {} is trying to discover initial shards ..."
-				: "Subtask {} is trying to discover any new shards that were created while the consumer wasn't" +
+				: "Subtask {} is trying to discover any new shards that were created while the consumer wasn't " +
 				"running due to failure ...";
 
 			LOG.debug(logFormat, indexOfThisConsumerSubtask);
@@ -252,8 +253,8 @@ public class KinesisDataFetcher<T> {
 			if (LOG.isInfoEnabled()) {
 				String logFormat = (isRestoredFromFailure)
 					? "Subtask {} will be seeded with initial shard {}, starting state set as sequence number {}"
-					: "Subtask {} will be seeded with new shard {} that was created while the consumer wasn't" +
-						"running due to failure, starting state set as sequence number {}";
+					: "Subtask {} will be seeded with new shard {} that was created while the consumer wasn't " +
+					"running due to failure, starting state set as sequence number {}";
 
 				LOG.info(logFormat, indexOfThisConsumerSubtask, shard.toString(), startingStateForNewShard.get());
 			}
@@ -311,12 +312,41 @@ public class KinesisDataFetcher<T> {
 				ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
 
+		// FLINK-4341:
+		// For downstream operators that work on time (ex. window operators), we are required to emit a max value watermark
+		// for subtasks that initially do not have shards and won't collect records, otherwise the downstream watermarks
+		// would not advance, leading to unbounded accumulating state.
+
+		// The side-effect of this limitation is that on resharding, we must fail hard if the newly discovered shard
+		// is to be subscribed by a subtask that initially does not have any shards, otherwise the max value watermark
+		// emitted at the beginning will mess up the watermarks.
+		//
+		// TODO: This is a temporary workaround until a min-watermark information service is available in the JobManager
+		// Please see FLINK-4341 for more detail
+		boolean initiallyHadNoSubscribedShards = false;
+		if (subscribedShardsState.size() == 0) {
+			initiallyHadNoSubscribedShards = true;
+			sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
+		}
+
 		while (running) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Subtask {} is trying to discover new shards that were created due to resharding ...",
 					indexOfThisConsumerSubtask);
 			}
 			List<KinesisStreamShard> newShardsDueToResharding = discoverNewShardsToSubscribe();
+
+			// deliberately fail hard if we discover new shards to subscribe but this subtask initially had no subscribed
+			// shards; the new shards will be picked up by this same subtask after restore as initial shards
+			//
+			// TODO: This is a temporary workaround until a min-watermark information service is available in the JobManager
+			// Please see FLINK-4341 for more detail
+			if (newShardsDueToResharding.size() > 0 && initiallyHadNoSubscribedShards) {
+				throw new RuntimeException(
+					"Subtask " + indexOfThisConsumerSubtask + " has discovered " + newShardsDueToResharding.size() +
+						" new shards to subscribe, but is failing hard to avoid messing up watermarks; the new shards" +
+						" will be subscribed by this subtask after restore ...");
+			}
 
 			for (KinesisStreamShard shard : newShardsDueToResharding) {
 				// since there may be delay in discovering a new shard, all new shards due to

@@ -210,7 +210,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Subtask {} is seeding the fetcher with restored shard {}," +
-						"starting state set to the restored sequence number {}" +
+						"starting state set to the restored sequence number {}",
 						getRuntimeContext().getIndexOfThisSubtask(), restored.getKey().toString(), restored.getValue());
 				}
 				fetcher.registerNewSubscribedShardState(
