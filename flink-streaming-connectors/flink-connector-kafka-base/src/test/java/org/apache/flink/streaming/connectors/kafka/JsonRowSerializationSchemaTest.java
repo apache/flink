@@ -41,23 +41,26 @@ public class JsonRowSerializationSchemaTest {
 
 	@Test
 	public void testSerializationOfTwoRows() throws IOException {
-		String[] fieldNames1 = new String[] {"f1", "f2", "f3"};
-		Class[] fieldTypes1 = new Class[] {Integer.class, Boolean.class, String.class};
+		String[] fieldNames = new String[] {"f1", "f2", "f3"};
+		Class[] fieldTypes = new Class[] {Integer.class, Boolean.class, String.class};
 		Row row1 = new Row(3);
 		row1.setField(0, 1);
 		row1.setField(1, true);
 		row1.setField(2, "str");
 
-		Row resultRow = serializeAndDeserialize(fieldNames1, fieldTypes1, row1);
-		assertEqualRows(row1, resultRow);
+		JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(fieldNames);
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(fieldNames, fieldTypes);
 
-		String[] fieldNames2 = new String[] {"f1"};
-		Class[] fieldTypes2 = new Class[] {Integer.class};
-		Row row2 = new Row(1);
-		row2.setField(0, 1);
+		byte[] bytes = serializationSchema.serialize(row1);
+		assertEqualRows(row1, deserializationSchema.deserialize(bytes));
 
-		resultRow = serializeAndDeserialize(fieldNames2, fieldTypes2, row2);
-		assertEqualRows(row2, resultRow);
+		Row row2 = new Row(3);
+		row2.setField(0, 10);
+		row2.setField(1, false);
+		row2.setField(2, "newStr");
+
+		bytes = serializationSchema.serialize(row2);
+		assertEqualRows(row2, deserializationSchema.deserialize(bytes));
 	}
 
 	@Test(expected = NullPointerException.class)
@@ -68,7 +71,6 @@ public class JsonRowSerializationSchemaTest {
 	@Test(expected = IllegalStateException.class)
 	public void testSerializeRowWithInvalidNumberOfFields() {
 		String[] fieldNames = new String[] {"f1", "f2", "f3"};
-		Class[] fieldTypes = new Class[] {Integer.class};
 		Row row = new Row(1);
 		row.setField(0, 1);
 

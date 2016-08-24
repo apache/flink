@@ -73,8 +73,19 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 		SerializationSchema<Row> serializationSchema,
 		KafkaPartitioner<Row> partitioner);
 
+	/**
+	 * Create serialization schema for converting table rows into bytes.
+	 *
+	 * @param fieldNames Field names in table rows.
+	 * @return Instance of serialization schema
+	 */
 	protected abstract SerializationSchema<Row> createSerializationSchema(String[] fieldNames);
 
+	/**
+	 * Create a deep copy of this sink.
+	 *
+	 * @return Deep copy of this sink
+	 */
 	protected abstract KafkaTableSink createCopy();
 
 	@Override

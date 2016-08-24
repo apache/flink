@@ -29,7 +29,7 @@ import org.apache.flink.util.Preconditions;
  * <p>Serializes the input {@link Row} object into a JSON string and
  * converts it into <code>byte[]</code>.
  *
- * <p>Result <bode>byte[]</bode> messages can be deserialized using
+ * <p>Result <code>byte[]</code> messages can be deserialized using
  * {@link JsonRowDeserializationSchema}.
  */
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
