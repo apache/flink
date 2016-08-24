@@ -546,7 +546,7 @@ val input: DataStream[SensorReading] = ...
         (key: String, window: TimeWindow, counts: Iterable[(String, Long, Int)],
          out: Collector[(String, Long, Int)]) => {
           val count = counts.iterator.next()
-          out.collect((s, window.getEnd, count._3))
+          out.collect((key, window.getEnd, count._3))
         }
         )
 
