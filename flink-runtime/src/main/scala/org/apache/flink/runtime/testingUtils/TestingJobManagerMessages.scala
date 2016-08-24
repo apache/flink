@@ -86,6 +86,14 @@ object TestingJobManagerMessages {
     * Notifies the sender when the [[TestingJobManager]] receives new clients for jobs
     */
   case object NotifyWhenClientConnects
+  /**
+    * Notifes of client connect
+    */
+  case object ClientConnected
+  /**
+    * Notifies when the client has requested class loading information
+    */
+  case object ClassLoadingPropsDelivered
 
   /**
    * Registers to be notified by an [[org.apache.flink.runtime.messages.Messages.Acknowledge]]
@@ -118,5 +126,8 @@ object TestingJobManagerMessages {
   def getNotifyWhenLeader(): AnyRef = NotifyWhenLeader
   def getNotifyWhenClientConnects(): AnyRef = NotifyWhenClientConnects
   def getDisablePostStop(): AnyRef = DisablePostStop
+
+  def getClientConnected(): AnyRef = ClientConnected
+  def getClassLoadingPropsDelivered(): AnyRef = ClassLoadingPropsDelivered
 
 }
