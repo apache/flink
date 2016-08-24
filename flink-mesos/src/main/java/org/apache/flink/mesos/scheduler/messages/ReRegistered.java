@@ -27,7 +27,10 @@ import static java.util.Objects.requireNonNull;
  * when the scheduler re-registers with a newly elected Mesos master.
  */
 public class ReRegistered extends Connected {
-	private Protos.MasterInfo masterInfo;
+
+	private static final long serialVersionUID = 1L;
+
+	private final Protos.MasterInfo masterInfo;
 
 	public ReRegistered(Protos.MasterInfo masterInfo) {
 		requireNonNull(masterInfo);

@@ -30,47 +30,75 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * A store of Mesos workers and associated framework information.
- *
- * Generates a framework ID as necessary.
  */
 public interface MesosWorkerStore {
 
-	static final DecimalFormat TASKID_FORMAT = new DecimalFormat("taskmanager-00000");
-
-	void start() throws Exception;
-
-	void stop() throws Exception;
-
-	Option<Protos.FrameworkID> getFrameworkID() throws Exception;
-
-	void setFrameworkID(Option<Protos.FrameworkID> frameworkID) throws Exception;
-
-	List<Worker> recoverWorkers() throws Exception;
-
-	Protos.TaskID newTaskID() throws Exception;
-
-	void putWorker(Worker worker) throws Exception;
-
-	void removeWorker(Protos.TaskID taskID) throws Exception;
-
-	void cleanup() throws Exception;
+	/**
+	 * The template for naming the worker.
+	 */
+	DecimalFormat TASKID_FORMAT = new DecimalFormat("taskmanager-00000");
 
 	/**
-	 * A stored task.
+	 * Start the worker store.
+	 */
+	void start() throws Exception;
+
+	/**
+	 * Stop the worker store.
+	 * @param cleanup if true, cleanup any stored information.
+	 */
+	void stop(boolean cleanup) throws Exception;
+
+	/**
+	 * Get the stored Mesos framework ID.
+	 */
+	Option<Protos.FrameworkID> getFrameworkID() throws Exception;
+
+	/**
+	 * Set the stored Mesos framework ID.
+	 */
+	void setFrameworkID(Option<Protos.FrameworkID> frameworkID) throws Exception;
+
+	/**
+	 * Recover the stored workers.
+	 */
+	List<Worker> recoverWorkers() throws Exception;
+
+	/**
+	 * Generate a new task ID for a worker.
+	 */
+	Protos.TaskID newTaskID() throws Exception;
+
+	/**
+	 * Put a worker into storage.
+	 */
+	void putWorker(Worker worker) throws Exception;
+
+	/**
+	 * Remove a worker from storage.
+	 * @return true if the worker existed.
+	 */
+	boolean removeWorker(Protos.TaskID taskID) throws Exception;
+
+	/**
+	 * A stored worker.
 	 *
 	 * The assigned slaveid/hostname is valid in Launched and Released states.  The hostname is needed
 	 * by Fenzo for optimization purposes.
 	 */
 	class Worker implements Serializable {
-		private Protos.TaskID taskID;
 
-		private Option<Protos.SlaveID> slaveID;
+		private static final long serialVersionUID = 1L;
 
-		private Option<String> hostname;
+		private final Protos.TaskID taskID;
 
-		private TaskState state;
+		private final Option<Protos.SlaveID> slaveID;
 
-		public Worker(Protos.TaskID taskID, Option<Protos.SlaveID> slaveID, Option<String> hostname, TaskState state) {
+		private final Option<String> hostname;
+
+		private final WorkerState state;
+
+		private Worker(Protos.TaskID taskID, Option<Protos.SlaveID> slaveID, Option<String> hostname, WorkerState state) {
 			requireNonNull(taskID, "taskID");
 			requireNonNull(slaveID, "slaveID");
 			requireNonNull(hostname, "hostname");
@@ -82,37 +110,61 @@ public interface MesosWorkerStore {
 			this.state = state;
 		}
 
+		/**
+		 * Get the worker's task ID.
+         */
 		public Protos.TaskID taskID() {
 			return taskID;
 		}
 
+		/**
+		 * Get the worker's assigned slave ID.
+         */
 		public Option<Protos.SlaveID> slaveID() {
 			return slaveID;
 		}
 
+		/**
+		 * Get the worker's assigned hostname.
+         */
 		public Option<String> hostname() {
 			return hostname;
 		}
 
-		public TaskState state() {
+		/**
+		 * Get the worker's state.
+         */
+		public WorkerState state() {
 			return state;
 		}
 
 		// valid transition methods
 
-		public static Worker newTask(Protos.TaskID taskID) {
+		/**
+		 * Create a new worker with the given taskID.
+		 * @return a new worker instance.
+		 */
+		public static Worker newWorker(Protos.TaskID taskID) {
 			return new Worker(
 				taskID,
 				Option.<Protos.SlaveID>empty(), Option.<String>empty(),
-				TaskState.New);
+				WorkerState.New);
 		}
 
-		public Worker launchTask(Protos.SlaveID slaveID, String hostname) {
-			return new Worker(taskID, Option.apply(slaveID), Option.apply(hostname), TaskState.Launched);
+		/**
+		 * Transition the worker to a launched state.
+		 * @return a new worker instance (does not mutate the current instance).
+		 */
+		public Worker launchWorker(Protos.SlaveID slaveID, String hostname) {
+			return new Worker(taskID, Option.apply(slaveID), Option.apply(hostname), WorkerState.Launched);
 		}
 
-		public Worker releaseTask() {
-			return new Worker(taskID, slaveID, hostname, TaskState.Released);
+		/**
+		 * Transition the worker to a released state.
+		 * @return a new worker instance (does not mutate the current instance).
+		 */
+		public Worker releaseWorker() {
+			return new Worker(taskID, slaveID, hostname, WorkerState.Released);
 		}
 
 		@Override
@@ -125,14 +177,14 @@ public interface MesosWorkerStore {
 			}
 			Worker worker = (Worker) o;
 			return Objects.equals(taskID, worker.taskID) &&
-				Objects.equals(slaveID.isDefined() ? slaveID.get() : null, worker.slaveID.isDefined() ? worker.slaveID.get() : null) &&
-				Objects.equals(hostname.isDefined() ? hostname.get() : null, worker.hostname.isDefined() ? worker.hostname.get() : null) &&
+				Objects.equals(slaveID, worker.slaveID) &&
+				Objects.equals(hostname, worker.hostname) &&
 				state == worker.state;
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(taskID, slaveID.isDefined() ? slaveID.get() : null, hostname.isDefined() ? hostname.get() : null, state);
+			return Objects.hash(taskID, slaveID, hostname, state);
 		}
 
 		@Override
@@ -146,7 +198,24 @@ public interface MesosWorkerStore {
 		}
 	}
 
-	enum TaskState {
-		New,Launched,Released
+	/**
+	 * The (planned) state of the worker.
+	 */
+	enum WorkerState {
+
+		/**
+		 * Indicates that the worker is new (not yet launched).
+		 */
+		New,
+
+		/**
+		 * Indicates that the worker is launched.
+		 */
+		Launched,
+
+		/**
+		 * Indicates that the worker is released.
+		 */
+		Released
 	}
 }

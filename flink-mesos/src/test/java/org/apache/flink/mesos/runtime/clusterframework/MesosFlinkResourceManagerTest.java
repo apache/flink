@@ -235,9 +235,9 @@ public class MesosFlinkResourceManagerTest {
 				protected void run() {
 					try {
 						// set the initial persistent state then initialize the RM
-						MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newTask(task1);
-						MesosWorkerStore.Worker worker2 = MesosWorkerStore.Worker.newTask(task2).launchTask(slave1, slave1host);
-						MesosWorkerStore.Worker worker3 = MesosWorkerStore.Worker.newTask(task3).launchTask(slave1, slave1host).releaseTask();
+						MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newWorker(task1);
+						MesosWorkerStore.Worker worker2 = MesosWorkerStore.Worker.newWorker(task2).launchWorker(slave1, slave1host);
+						MesosWorkerStore.Worker worker3 = MesosWorkerStore.Worker.newWorker(task3).launchWorker(slave1, slave1host).releaseWorker();
 						when(workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 						when(workerStore.recoverWorkers()).thenReturn(Arrays.asList(worker1, worker2, worker3));
 						initialize();
@@ -276,7 +276,7 @@ public class MesosFlinkResourceManagerTest {
 				protected void run() {
 					try {
 						// set the initial persistent state then initialize the RM
-						MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newTask(task1).launchTask(slave1, slave1host);
+						MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
 						when(workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 						when(workerStore.recoverWorkers()).thenReturn(singletonList(worker1launched));
 						initialize();
@@ -306,7 +306,7 @@ public class MesosFlinkResourceManagerTest {
 				protected void run() {
 					try {
 						// set the initial state with a (recovered) launched worker
-						MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newTask(task1).launchTask(slave1, slave1host);
+						MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
 						when(workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 						when(workerStore.recoverWorkers()).thenReturn(singletonList(worker1launched));
 						initialize();
@@ -339,7 +339,7 @@ public class MesosFlinkResourceManagerTest {
 				protected void run() {
 					try {
 						// set the initial persistent state, initialize the RM, then register with task1 as a registered worker
-						MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newTask(task1).launchTask(slave1, slave1host);
+						MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
 						when(workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 						when(workerStore.recoverWorkers()).thenReturn(singletonList(worker1));
 						initialize();
@@ -351,12 +351,13 @@ public class MesosFlinkResourceManagerTest {
 
 						// verify that the worker was persisted, the internal state was updated, the task router was notified,
 						// and the launch coordinator was notified about the host assignment change
-						MesosWorkerStore.Worker worker2Released = worker1.releaseTask();
+						MesosWorkerStore.Worker worker2Released = worker1.releaseWorker();
 						verify(workerStore).putWorker(worker2Released);
 						assertThat(resourceManagerInstance.workersBeingReturned, hasEntry(extractResourceID(task1), worker2Released));
 						resourceManagerInstance.launchCoordinator.expectMsg(new LaunchCoordinator.Unassign(task1, slave1host));
 
 						// send the subsequent terminated message
+						when(workerStore.removeWorker(task1)).thenReturn(true);
 						resourceManager.tell(new TaskMonitor.TaskTerminated(task1, Protos.TaskStatus.newBuilder()
 							.setTaskId(task1).setSlaveId(slave1).setState(Protos.TaskState.TASK_FINISHED).build()));
 
@@ -391,7 +392,7 @@ public class MesosFlinkResourceManagerTest {
 
 						// verify that a new worker was persisted, the internal state was updated, the task router was notified,
 						// and the launch coordinator was asked to launch a task
-						MesosWorkerStore.Worker expected = MesosWorkerStore.Worker.newTask(task1);
+						MesosWorkerStore.Worker expected = MesosWorkerStore.Worker.newWorker(task1);
 						verify(workerStore).putWorker(expected);
 						assertThat(resourceManagerInstance.workersInNew, hasEntry(extractResourceID(task1), expected));
 						resourceManagerInstance.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
@@ -438,7 +439,7 @@ public class MesosFlinkResourceManagerTest {
 				protected void run() {
 					try {
 						// set the initial persistent state with a new task then initialize the RM
-						MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newTask(task1);
+						MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newWorker(task1);
 						when(workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 						when(workerStore.recoverWorkers()).thenReturn(singletonList(worker1));
 						initialize();
@@ -455,7 +456,7 @@ public class MesosFlinkResourceManagerTest {
 
 						// verify that the worker was persisted, the internal state was updated,
 						// Mesos was asked to launch task1, and the task router was notified
-						MesosWorkerStore.Worker worker1launched = worker1.launchTask(slave1, slave1host);
+						MesosWorkerStore.Worker worker1launched = worker1.launchWorker(slave1, slave1host);
 						verify(workerStore).putWorker(worker1launched);
 						assertThat(resourceManagerInstance.workersInNew.entrySet(), empty());
 						assertThat(resourceManagerInstance.workersInLaunch, hasEntry(extractResourceID(task1), worker1launched));
@@ -505,7 +506,7 @@ public class MesosFlinkResourceManagerTest {
 				protected void run() {
 					try {
 						// set the initial persistent state with a launched worker that hasn't yet registered
-						MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newTask(task1).launchTask(slave1, slave1host);
+						MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
 						when(workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 						when(workerStore.recoverWorkers()).thenReturn(singletonList(worker1launched));
 						initialize();
@@ -513,6 +514,7 @@ public class MesosFlinkResourceManagerTest {
 
 						// tell the RM that a task failed (and prepare a replacement task)
 						when(workerStore.newTaskID()).thenReturn(task2);
+						when(workerStore.removeWorker(task1)).thenReturn(true);
 						resourceManager.tell(new SetWorkerPoolSize(1), jobManager);
 						resourceManager.tell(new TaskMonitor.TaskTerminated(task1, Protos.TaskStatus.newBuilder()
 							.setTaskId(task1).setSlaveId(slave1).setState(Protos.TaskState.TASK_FAILED).build()));
@@ -540,7 +542,7 @@ public class MesosFlinkResourceManagerTest {
 				protected void run() {
 					try {
 						// set the initial persistent state with a launched & registered worker
-						MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newTask(task1).launchTask(slave1, slave1host);
+						MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
 						when(workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 						when(workerStore.recoverWorkers()).thenReturn(singletonList(worker1launched));
 						initialize();
@@ -548,6 +550,7 @@ public class MesosFlinkResourceManagerTest {
 
 						// tell the RM that a task failed (and prepare a replacement task)
 						when(workerStore.newTaskID()).thenReturn(task2);
+						when(workerStore.removeWorker(task1)).thenReturn(true);
 						resourceManager.tell(new SetWorkerPoolSize(1), jobManager);
 						resourceManager.tell(new TaskMonitor.TaskTerminated(task1, Protos.TaskStatus.newBuilder()
 							.setTaskId(task1).setSlaveId(slave1).setState(Protos.TaskState.TASK_FAILED).build()));
@@ -582,7 +585,7 @@ public class MesosFlinkResourceManagerTest {
 
 						// verify that the Mesos framework is shutdown
 						verify(schedulerDriver).stop(false);
-						verify(workerStore).cleanup();
+						verify(workerStore).stop(true);
 						expectTerminated(resourceManager.actor());
 					}
 					catch(Exception ex) {

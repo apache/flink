@@ -54,7 +54,8 @@ class ReconciliationCoordinatorTest
   def randomTask = {
     val slaveID = Protos.SlaveID.newBuilder.setValue(UUID.randomUUID.toString).build()
     val taskID = Protos.TaskID.newBuilder.setValue(UUID.randomUUID.toString).build
-    val taskStatus = Protos.TaskStatus.newBuilder().setTaskId(taskID).setSlaveId(slaveID).setState(TASK_STAGING).build()
+    val taskStatus = Protos.TaskStatus.newBuilder()
+      .setTaskId(taskID).setSlaveId(slaveID).setState(TASK_STAGING).build()
     (taskID, taskStatus)
   }
 

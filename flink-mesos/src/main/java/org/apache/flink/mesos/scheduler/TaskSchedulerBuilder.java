@@ -28,7 +28,14 @@ import com.netflix.fenzo.functions.Action1;
  * Note that the Fenzo-provided {@link TaskScheduler.Builder} cannot be mocked, which motivates this interface.
  */
 public interface TaskSchedulerBuilder {
+
+	/**
+	 * Set the callback action for rejecting a lease.
+	 */
 	TaskSchedulerBuilder withLeaseRejectAction(Action1<VirtualMachineLease> action);
 
+	/**
+	 * Build a Fenzo task scheduler.
+	 */
 	TaskScheduler build();
 }

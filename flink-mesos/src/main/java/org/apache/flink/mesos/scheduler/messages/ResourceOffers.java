@@ -20,6 +20,7 @@ package org.apache.flink.mesos.scheduler.messages;
 
 import org.apache.mesos.Protos;
 
+import java.io.Serializable;
 import java.util.List;
 import static java.util.Objects.requireNonNull;
 
@@ -27,8 +28,11 @@ import static java.util.Objects.requireNonNull;
  * Message sent by the callback handler to the scheduler actor
  * when resources have been offered to this framework.
  */
-public class ResourceOffers {
-	private List<Protos.Offer> offers;
+public class ResourceOffers implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	private final List<Protos.Offer> offers;
 
 	public ResourceOffers(List<Protos.Offer> offers) {
 		requireNonNull(offers);

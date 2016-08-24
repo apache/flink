@@ -18,6 +18,8 @@
 
 package org.apache.flink.mesos.scheduler
 
+import java.util.Collections
+
 import akka.actor.{Actor, ActorRef, FSM, Props}
 import com.netflix.fenzo._
 import com.netflix.fenzo.functions.Action1
@@ -27,7 +29,6 @@ import org.apache.flink.api.java.tuple.{Tuple2=>FlinkTuple2}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.mesos.scheduler.LaunchCoordinator._
 import org.apache.flink.mesos.scheduler.messages._
-import org.apache.mesos.Protos.TaskInfo
 import org.apache.mesos.{SchedulerDriver, Protos}
 
 import scala.collection.JavaConverters._
@@ -38,9 +39,10 @@ import scala.concurrent.duration._
   * The launch coordinator handles offer processing, including
   * matching offers to tasks and making reservations.
   *
-  * The coordinator uses Netflix Fenzo to optimize task placement.   During the GatheringOffers phase,
-  * offers are evaluated by Fenzo for suitability to the planned tasks.   Reservations are then placed
-  * against the best offers, leading to revised offers containing reserved resources with which to launch task(s).
+  * The coordinator uses Netflix Fenzo to optimize task placement.   During the GatheringOffers
+  * phase, offers are evaluated by Fenzo for suitability to the planned tasks.   Reservations are
+  * then placed against the best offers, leading to revised offers containing reserved resources
+  * with which to launch task(s).
   */
 class LaunchCoordinator(
     manager: ActorRef,
@@ -62,7 +64,8 @@ class LaunchCoordinator(
     optimizerBuilder
       .withLeaseRejectAction(new Action1[VirtualMachineLease]() {
         def call(lease: VirtualMachineLease) {
-          LOG.info(s"Declined offer ${lease.getId} from ${lease.hostname()} of ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus.")
+          LOG.info(s"Declined offer ${lease.getId} from ${lease.hostname()} "
+            + s"of ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus.")
           schedulerDriver.declineOffer(lease.getOffer.getId)
         }
       }).build
@@ -81,7 +84,7 @@ class LaunchCoordinator(
   /**
     * State: Suspended
     *
-    * Wait for (re-)connection to Mesos.   No offers exist in this state, but outstanding tasks might.
+    * Wait for (re-)connection to Mesos. No offers exist in this state, but outstanding tasks might.
     */
   when(Suspended) {
     case Event(msg: Connected, data: GatherData) =>
@@ -127,6 +130,7 @@ class LaunchCoordinator(
       assert(nextStateData.newLeases.isEmpty)
       schedulerDriver.suppressOffers()
       optimizer.expireAllLeases()
+      optimizer.scheduleOnce(Collections.emptyList(), Collections.emptyList())
   }
 
   /**
@@ -143,20 +147,24 @@ class LaunchCoordinator(
       goto(Suspended) using data.copy(newLeases = Nil)
 
     case Event(offers: ResourceOffers, data: GatherData) =>
-      val leases = offers.offers().asScala.map(new VMLeaseObject(_).asInstanceOf[VirtualMachineLease])
+      val leases = offers.offers().asScala.map(
+        new VMLeaseObject(_).asInstanceOf[VirtualMachineLease])
       if(LOG.isInfoEnabled) {
-        val (cpus, mem) = leases.foldLeft((0.0,0.0)) { (z,o) => (z._1 + o.cpuCores(), z._2 + o.memoryMB()) }
+        val (cpus, mem) = leases.foldLeft((0.0,0.0)) {
+          (z,o) => (z._1 + o.cpuCores(), z._2 + o.memoryMB())
+        }
         LOG.info(s"Received offer(s) of $mem MB, $cpus cpus:")
-        for(lease <- leases) {
-          LOG.info(s"  ${lease.getId} from ${lease.hostname()} of ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus")
+        for(l <- leases) {
+          LOG.info(s"  ${l.getId} from ${l.hostname()} of ${l.memoryMB()} MB, ${l.cpuCores()} cpus")
         }
       }
-      stay using data.copy(newLeases = data.newLeases ++ leases)
+      stay using data.copy(newLeases = data.newLeases ++ leases) forMax (1 seconds)
 
     case Event(StateTimeout, data: GatherData) =>
       val remaining = MutableMap(data.tasks.map(t => t.taskRequest.getId -> t):_*)
 
-      LOG.info(s"Processing ${remaining.size} task(s) against ${data.newLeases.length} new offer(s) plus outstanding offers.")
+      LOG.info(s"Processing ${remaining.size} task(s) against ${data.newLeases.length}"
+        + s" new offer(s) plus outstanding offers.")
 
       // attempt to assign the outstanding tasks using the optimizer
       val result = optimizer.scheduleOnce(
@@ -193,7 +201,8 @@ class LaunchCoordinator(
         manager ! new AcceptOffers(hostname, offerIds.asJava, operations.asJava)
 
         if(LOG.isInfoEnabled) {
-          LOG.info(s"Launched ${launchedTasks.length} task(s) on ${hostname} using ${offerIds.length} offer(s):")
+          LOG.info(s"Launched ${launchedTasks.length} task(s) on ${hostname}"
+            + s" using ${offerIds.length} offer(s):")
           for(offerId <- offerIds) {
             LOG.info(s"  ${offerId.getValue}")
           }
@@ -206,7 +215,7 @@ class LaunchCoordinator(
       } else {
         LOG.info(s"Waiting for more offers; ${remaining.size} task(s) are not yet launched.")
 
-        stay using data.copy(newLeases = Nil, tasks = remaining.values.toList) forMax SUBSEQUENT_GATHER_DURATION
+        stay using data.copy(newLeases = Nil, tasks = remaining.values.toList)
       }
   }
 
@@ -222,7 +231,8 @@ class LaunchCoordinator(
       // forget rescinded offers
       LOG.info(s"Offer ${offer.offerId()} was rescinded.")
       optimizer.expireLease(offer.offerId().getValue)
-      stay using data.copy(newLeases = data.newLeases.filterNot(_.getOffer.getId == offer.offerId()))
+      stay using data.copy(
+        newLeases = data.newLeases.filterNot(_.getOffer.getId == offer.offerId()))
 
     case Event(msg: Assign, _) =>
       // recovering an earlier task assignment
@@ -250,7 +260,6 @@ class LaunchCoordinator(
 object LaunchCoordinator {
 
   val GATHER_DURATION = 5.seconds
-  val SUBSEQUENT_GATHER_DURATION = 5.seconds
 
   // ------------------------------------------------------------------------
   //  FSM State
@@ -284,15 +293,17 @@ object LaunchCoordinator {
   }
 
   /**
-    * Informs the launch coordinator that some task(s) are assigned to a host (for planning purposes).
+    * Informs the launch coordinator that some task(s) are assigned
+    * to a host (for planning purposes).
     *
-    * This is sent by the RM in recovery procedures to recover the optimizer state.  In normal operation,
-    * the launch coordinator itself updates the optimizer state.
+    * This is sent by the RM in recovery procedures to recover the optimizer state.
+    * In normal operation, the launch coordinator itself updates the optimizer state.
     */
   case class Assign(tasks: java.util.List[FlinkTuple2[TaskRequest, String]])
 
   /**
-    * Informs the launch coordinator that some task is no longer assigned to a host (for planning purposes).
+    * Informs the launch coordinator that some task is no longer assigned
+    * to a host (for planning purposes).
     */
   case class Unassign(taskID: Protos.TaskID, hostname: String)
 
@@ -319,11 +330,13 @@ object LaunchCoordinator {
       allTasks(assignment.getTaskId).launch(slaveId, assignment)
     }
 
-    val launches = Protos.Offer.Operation.newBuilder().setType(Protos.Offer.Operation.Type.LAUNCH).setLaunch(
-      Protos.Offer.Operation.Launch.newBuilder().addAllTaskInfos(
-        assignments.getTasksAssigned.asScala.map(taskInfo).asJava
-      )
-    ).build()
+    val launches = Protos.Offer.Operation.newBuilder()
+      .setType(Protos.Offer.Operation.Type.LAUNCH)
+      .setLaunch(
+        Protos.Offer.Operation.Launch.newBuilder().addAllTaskInfos(
+          assignments.getTasksAssigned.asScala.map(taskInfo).asJava
+        ))
+      .build()
 
     Seq(launches)
   }
