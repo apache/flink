@@ -29,9 +29,13 @@ import java.io.Serializable;
 @PublicEvolving
 public abstract class FilePathFilter implements Serializable {
 
+	// Name of an unfinished Hadoop's file
+	private static final String HADOOP_COPYING = "_COPYING_";
+
 	public static FilePathFilter createDefaultFilter() {
 		return new DefaultFilter();
 	}
+
 	/**
 	 * Returns {@code true} if the {@code filePath} given is to be
 	 * ignored when processing a directory, e.g.
@@ -59,7 +63,7 @@ public abstract class FilePathFilter implements Serializable {
 			return filePath == null ||
 				filePath.getName().startsWith(".") ||
 				filePath.getName().startsWith("_") ||
-				filePath.getName().contains("_COPYING_");
+				filePath.getName().contains(HADOOP_COPYING);
 		}
 	}
 }

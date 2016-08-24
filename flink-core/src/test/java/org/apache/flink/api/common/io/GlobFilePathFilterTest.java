@@ -105,4 +105,37 @@ public class GlobFilePathFilterTest {
 		assertTrue(matcher.filterPath(new Path("hdfs:///dir/file2.txt")));
 		assertFalse(matcher.filterPath(new Path("hdfs:///dir/file3.txt")));
 	}
+
+	@Test
+	public void excludeFilenameWithStart() {
+		GlobFilePathFilter matcher = new GlobFilePathFilter(
+			Collections.singletonList("**"),
+			Collections.singletonList("\\*"));
+
+		assertTrue(matcher.filterPath(new Path("*")));
+		assertFalse(matcher.filterPath(new Path("**")));
+		assertFalse(matcher.filterPath(new Path("other.txt")));
+	}
+
+	@Test
+	public void singleStarPattern() {
+		GlobFilePathFilter matcher = new GlobFilePathFilter(
+			Collections.singletonList("*"),
+			Collections.<String>emptyList());
+
+		assertFalse(matcher.filterPath(new Path("a")));
+		assertTrue(matcher.filterPath(new Path("a/b")));
+		assertTrue(matcher.filterPath(new Path("a/b/c")));
+	}
+
+	@Test
+	public void doubleStarPattern() {
+		GlobFilePathFilter matcher = new GlobFilePathFilter(
+			Collections.singletonList("**"),
+			Collections.<String>emptyList());
+
+		assertFalse(matcher.filterPath(new Path("a")));
+		assertFalse(matcher.filterPath(new Path("a/b")));
+		assertFalse(matcher.filterPath(new Path("a/b/c")));
+	}
 }

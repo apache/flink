@@ -36,6 +36,7 @@ import java.util.List;
  * Glob filter support the following expressions:
  * <ul>
  *     <li>* - matches any number of any characters including none</li>
+ *     <li>** - matches any file in all subdirectories</li>
  *     <li>? - matches any single character</li>
  *     <li>[abc] - matches one of the characters listed in a brackets</li>
  *     <li>[a-z] - matches one character from the range given in the brackets</li>

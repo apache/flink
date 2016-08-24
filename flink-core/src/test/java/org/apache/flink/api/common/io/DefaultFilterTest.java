@@ -34,14 +34,18 @@ public class DefaultFilterTest {
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][] {
 			{"file.txt",			false},
+
 			{".file.txt",			true},
-			{"_file.txt",			true},
-			{"_COPYING_",			true},
 			{"dir/.file.txt",		true},
-			{"dir/_file.txt",		true},
-			{"dir/_COPYING_",		true},
 			{".dir/file.txt",		false},
+
+			{"_file.txt",			true},
+			{"dir/_file.txt",		true},
 			{"_dir/file.txt",		false},
+
+			// Check filtering Hadoop's unfinished files
+			{"_COPYING_",			true},
+			{"dir/_COPYING_",		true},
 			{"_COPYING_/file.txt",	false},
 		});
 	}
