@@ -125,12 +125,12 @@ public class MesosArtifactServer {
 
 		baseURL = new URL("http", serverHostname, port, "/" + sessionID + "/");
 
-		LOG.info("Mesos artifact server listening at " + address + ':' + port);
+		LOG.info("Mesos artifact server listening at {}:{}", address, port);
 	}
 
 	/**
 	 * Get the server port on which the artifact server is listening.
-     */
+	 */
 	public synchronized int getServerPort() {
 		Channel server = this.serverChannel;
 		if (server != null) {
@@ -149,7 +149,7 @@ public class MesosArtifactServer {
 	 * @param remoteFile the remote path with which to locate the file.
 	 * @return the fully-qualified remote path to the file.
 	 * @throws MalformedURLException if the remote path is invalid.
-     */
+	 */
 	public synchronized URL addFile(File localFile, String remoteFile) throws MalformedURLException {
 		URL fileURL = new URL(baseURL, remoteFile);
 		router.ANY(fileURL.getPath(), new VirtualFileServerHandler(localFile));
@@ -159,7 +159,7 @@ public class MesosArtifactServer {
 	/**
 	 * Stops the artifact server.
 	 * @throws Exception
-     */
+	 */
 	public synchronized void stop() throws Exception {
 		if (this.serverChannel != null) {
 			this.serverChannel.close().awaitUninterruptibly();
@@ -179,7 +179,7 @@ public class MesosArtifactServer {
 	@ChannelHandler.Sharable
 	public static class VirtualFileServerHandler extends SimpleChannelInboundHandler<Routed> {
 
-		private File file;
+		private final File file;
 
 		public VirtualFileServerHandler(File file) {
 			this.file = file;
@@ -194,7 +194,7 @@ public class MesosArtifactServer {
 			HttpRequest request = routed.request();
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug(request.getMethod() + " request for file '" + file.getAbsolutePath() + '\'');
+				LOG.debug("{} request for file '{}'", request.getMethod(), file.getAbsolutePath());
 			}
 
 			if(!(request.getMethod() == GET || request.getMethod() == HEAD)) {

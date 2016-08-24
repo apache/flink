@@ -331,19 +331,19 @@ public class YarnApplicationMasterRunner {
 			// make sure that everything whatever ends up in the log
 			LOG.error("YARN Application Master initialization failed", t);
 
-			if (actorSystem != null) {
-				try {
-					actorSystem.shutdown();
-				} catch (Throwable tt) {
-					LOG.error("Error shutting down actor system", tt);
-				}
-			}
-
 			if (webMonitor != null) {
 				try {
 					webMonitor.stop();
 				} catch (Throwable ignored) {
 					LOG.warn("Failed to stop the web frontend", t);
+				}
+			}
+
+			if (actorSystem != null) {
+				try {
+					actorSystem.shutdown();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down actor system", tt);
 				}
 			}
 

@@ -20,6 +20,7 @@ package org.apache.flink.mesos.runtime.clusterframework;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Address;
 import akka.actor.Props;
 
 import org.apache.curator.framework.CuratorFramework;
@@ -68,6 +69,8 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.mesos.Utils.uri;
 import static org.apache.flink.mesos.Utils.variable;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class is the executable entry point for the Mesos Application Master.
@@ -170,10 +173,10 @@ public class MesosApplicationMasterRunner {
 			// configuration problem occurs
 
 			final String workingDir = ENV.get(MesosConfigKeys.ENV_MESOS_SANDBOX);
-			require(workingDir != null, "Sandbox directory variable (%s) not set", MesosConfigKeys.ENV_MESOS_SANDBOX);
+			checkState(workingDir != null, "Sandbox directory variable (%s) not set", MesosConfigKeys.ENV_MESOS_SANDBOX);
 
 			final String sessionID = ENV.get(MesosConfigKeys.ENV_SESSION_ID);
-			require(sessionID != null, "Session ID (%s) not set", MesosConfigKeys.ENV_SESSION_ID);
+			checkState(sessionID != null, "Session ID (%s) not set", MesosConfigKeys.ENV_SESSION_ID);
 
 			// Note that we use the "appMasterHostname" given by the system, to make sure
 			// we use the hostnames consistently throughout akka.
@@ -232,7 +235,7 @@ public class MesosApplicationMasterRunner {
 			// JM endpoint, which should be explicitly configured by the dispatcher (based on acquired net resources)
 			final int listeningPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-			require(listeningPort >= 0 && listeningPort <= 65536, "Config parameter \"" +
+			checkState(listeningPort >= 0 && listeningPort <= 65536, "Config parameter \"" +
 				ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + "\" is invalid, it must be between 0 and 65536");
 
 			// ----------------- (2) start the actor system -------------------
@@ -241,8 +244,9 @@ public class MesosApplicationMasterRunner {
 			// using the configured address and ports
 			actorSystem = BootstrapTools.startActorSystem(config, appMasterHostname, listeningPort, LOG);
 
-			final String akkaHostname = AkkaUtils.getAddress(actorSystem).host().get();
-			final int akkaPort = (Integer) AkkaUtils.getAddress(actorSystem).port().get();
+			Address address = AkkaUtils.getAddress(actorSystem);
+			final String akkaHostname = address.host().get();
+			final int akkaPort = (Integer) address.port().get();
 
 			LOG.info("Actor system bound to hostname {}.", akkaHostname);
 
@@ -259,7 +263,7 @@ public class MesosApplicationMasterRunner {
 			LOG.debug("TaskManager configuration: {}", taskManagerConfig);
 
 			final Protos.TaskInfo.Builder taskManagerContext = createTaskManagerContext(
-				config, mesosConfig, ENV,
+				config, ENV,
 				taskManagerParameters, taskManagerConfig,
 				workingDir, getTaskManagerClass(), artifactServer, LOG);
 
@@ -315,7 +319,6 @@ public class MesosApplicationMasterRunner {
 
 			ActorRef resourceMaster = actorSystem.actorOf(resourceMasterProps, "Mesos_Resource_Master");
 
-
 			// 4: Process reapers
 			// The process reapers ensure that upon unexpected actor death, the process exits
 			// and does not stay lingering around unresponsive
@@ -334,14 +337,6 @@ public class MesosApplicationMasterRunner {
 			// make sure that everything whatever ends up in the log
 			LOG.error("Mesos JobManager initialization failed", t);
 
-			if (actorSystem != null) {
-				try {
-					actorSystem.shutdown();
-				} catch (Throwable tt) {
-					LOG.error("Error shutting down actor system", tt);
-				}
-			}
-
 			if (webMonitor != null) {
 				try {
 					webMonitor.stop();
@@ -355,6 +350,14 @@ public class MesosApplicationMasterRunner {
 					artifactServer.stop();
 				} catch (Throwable ignored) {
 					LOG.error("Failed to stop the artifact server", ignored);
+				}
+			}
+
+			if (actorSystem != null) {
+				try {
+					actorSystem.shutdown();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down actor system", tt);
 				}
 			}
 
@@ -407,29 +410,14 @@ public class MesosApplicationMasterRunner {
 	}
 
 	/**
-	 * Validates a condition, throwing a RuntimeException if the condition is violated.
-	 *
-	 * @param condition The condition.
-	 * @param message The message for the runtime exception, with format variables as defined by
-	 *                {@link String#format(String, Object...)}.
-	 * @param values The format arguments.
-	 */
-	private static void require(boolean condition, String message, Object... values) {
-		if (!condition) {
-			throw new RuntimeException(String.format(message, values));
-		}
-	}
-
-	/**
 	 *
 	 * @param baseDirectory
 	 * @param additional
 	 *
 	 * @return The configuration to be used by the TaskManagers.
 	 */
-	@SuppressWarnings("deprecation")
 	private static Configuration createConfiguration(String baseDirectory, Configuration additional) {
-		LOG.info("Loading config from directory " + baseDirectory);
+		LOG.info("Loading config from directory {}", baseDirectory);
 
 		Configuration configuration = GlobalConfiguration.loadConfiguration(baseDirectory);
 
@@ -491,7 +479,7 @@ public class MesosApplicationMasterRunner {
 		return mesos;
 	}
 
-	private MesosWorkerStore createWorkerStore(Configuration flinkConfig) throws Exception {
+	private static MesosWorkerStore createWorkerStore(Configuration flinkConfig) throws Exception {
 		MesosWorkerStore workerStore;
 		RecoveryMode recoveryMode = RecoveryMode.fromConfig(flinkConfig);
 		if (recoveryMode == RecoveryMode.STANDALONE) {
@@ -523,8 +511,6 @@ public class MesosApplicationMasterRunner {
 	 *
 	 * @param flinkConfig
 	 *         The Flink configuration object.
-	 * @param mesosConfig
-	 *         The Mesos configuration object.
 	 * @param env
 	 *         The environment variables.
 	 * @param tmParams
@@ -547,7 +533,6 @@ public class MesosApplicationMasterRunner {
 	 */
 	public static Protos.TaskInfo.Builder createTaskManagerContext(
 		Configuration flinkConfig,
-		MesosConfiguration mesosConfig,
 		Map<String, String> env,
 		MesosTaskManagerParameters tmParams,
 		Configuration taskManagerConfig,
@@ -563,13 +548,13 @@ public class MesosApplicationMasterRunner {
 		log.info("Setting up artifacts for TaskManagers");
 
 		String shipListString = env.get(MesosConfigKeys.ENV_CLIENT_SHIP_FILES);
-		require(shipListString != null, "Environment variable %s not set", MesosConfigKeys.ENV_CLIENT_SHIP_FILES);
+		checkState(shipListString != null, "Environment variable %s not set", MesosConfigKeys.ENV_CLIENT_SHIP_FILES);
 
 		String clientUsername = env.get(MesosConfigKeys.ENV_CLIENT_USERNAME);
-		require(clientUsername != null, "Environment variable %s not set", MesosConfigKeys.ENV_CLIENT_USERNAME);
+		checkState(clientUsername != null, "Environment variable %s not set", MesosConfigKeys.ENV_CLIENT_USERNAME);
 
 		String classPathString = env.get(MesosConfigKeys.ENV_FLINK_CLASSPATH);
-		require(classPathString != null, "Environment variable %s not set", MesosConfigKeys.ENV_FLINK_CLASSPATH);
+		checkState(classPathString != null, "Environment variable %s not set", MesosConfigKeys.ENV_FLINK_CLASSPATH);
 
 		// register the Flink jar
 		final File flinkJarFile = new File(workingDirectory, "flink.jar");

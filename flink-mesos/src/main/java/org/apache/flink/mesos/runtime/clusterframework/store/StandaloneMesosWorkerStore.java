@@ -46,7 +46,7 @@ public class StandaloneMesosWorkerStore implements MesosWorkerStore {
 	}
 
 	@Override
-	public void stop() throws Exception {
+	public void stop(boolean cleanup) throws Exception {
 
 	}
 
@@ -77,11 +77,8 @@ public class StandaloneMesosWorkerStore implements MesosWorkerStore {
 	}
 
 	@Override
-	public void removeWorker(Protos.TaskID taskID) throws Exception {
-		storedWorkers.remove(taskID);
-	}
-
-	@Override
-	public void cleanup() throws Exception {
+	public boolean removeWorker(Protos.TaskID taskID) throws Exception {
+		Worker prior = storedWorkers.remove(taskID);
+		return prior != null;
 	}
 }

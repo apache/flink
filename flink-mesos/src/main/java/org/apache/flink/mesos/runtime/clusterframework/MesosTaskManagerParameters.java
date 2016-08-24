@@ -24,6 +24,12 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * This class describes the Mesos-specific parameters for launching a TaskManager process.
+ *
+ * These parameters are in addition to the common parameters
+ * provided by {@link ContaineredTaskManagerParameters}.
+ */
 public class MesosTaskManagerParameters {
 
 	private double cpus;
@@ -36,10 +42,16 @@ public class MesosTaskManagerParameters {
 		this.containeredParameters = containeredParameters;
 	}
 
+	/**
+	 * Get the CPU units to use for the TaskManager process.
+     */
 	public double cpus() {
 		return cpus;
 	}
 
+	/**
+	 * Get the common containered parameters.
+     */
 	public ContaineredTaskManagerParameters containeredParameters() {
 		return containeredParameters;
 	}

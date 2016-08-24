@@ -18,12 +18,17 @@
 
 package org.apache.flink.mesos.scheduler.messages;
 
+import java.io.Serializable;
+
 /**
  * Message sent when there is an unrecoverable error in the scheduler or
  * driver. The driver will be aborted BEFORE invoking this callback.
  */
-public class Error {
-	private String message;
+public class Error implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	private final String message;
 
 	public Error(String message) {
 		this.message = message;

@@ -21,29 +21,47 @@ package org.apache.flink.mesos.scheduler.messages;
 import org.apache.mesos.Protos;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
- * Message sent by the callback handler to the scheduler actor
- * when an offer is no longer valid (e.g., the slave was lost or another framework used resources in the offer).
+ * Message sent when an executor sends a message. These messages are best
+ * effort; do not expect a framework message to be retransmitted in
+ * any reliable fashion.
  */
-public class OfferRescinded implements Serializable {
+public class FrameworkMessage implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private final Protos.OfferID offerId;
+	private final Protos.ExecutorID executorId;
 
-	public OfferRescinded(Protos.OfferID offerId) {
-		this.offerId = offerId;
+	private final Protos.SlaveID slaveId;
+
+	private final byte[] data;
+
+	public FrameworkMessage(Protos.ExecutorID executorId, Protos.SlaveID slaveId, byte[] data) {
+		this.executorId = executorId;
+		this.slaveId = slaveId;
+		this.data = data;
 	}
 
-	public Protos.OfferID offerId() {
-		return offerId;
+	public Protos.ExecutorID executorId() {
+		return executorId;
+	}
+
+	public Protos.SlaveID slaveId() {
+		return slaveId;
+	}
+
+	public byte[] data() {
+		return data;
 	}
 
 	@Override
 	public String toString() {
-		return "OfferRescinded{" +
-			"offerId=" + offerId +
+		return "FrameworkMessage{" +
+			"executorId=" + executorId +
+			", slaveId=" + slaveId +
+			", data=" + Arrays.toString(data) +
 			'}';
 	}
 }

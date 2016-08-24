@@ -28,8 +28,10 @@ import static java.util.Objects.requireNonNull;
  */
 public class Registered extends Connected {
 
-	private org.apache.mesos.Protos.FrameworkID frameworkId;
-	private Protos.MasterInfo masterInfo;
+	private static final long serialVersionUID = 1L;
+
+	private final Protos.FrameworkID frameworkId;
+	private final Protos.MasterInfo masterInfo;
 
 	public Registered(Protos.FrameworkID frameworkId, Protos.MasterInfo masterInfo) {
 		requireNonNull(frameworkId);

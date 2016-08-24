@@ -18,11 +18,11 @@
 
 package org.apache.flink.mesos.scheduler
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.SupervisorStrategy.Escalate
+import akka.actor._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.mesos.scheduler.ReconciliationCoordinator.Reconcile
-import org.apache.flink.mesos.scheduler.TaskMonitor.{TaskGoalState, TaskGoalStateUpdated, TaskTerminated}
-import org.apache.flink.mesos.scheduler.Tasks._
+import org.apache.flink.mesos.scheduler.TaskMonitor._
 import org.apache.flink.mesos.scheduler.messages._
 import org.apache.mesos.{SchedulerDriver, Protos}
 
@@ -33,23 +33,23 @@ import scala.collection.mutable.{Map => MutableMap}
   *
   * Routes messages between the scheduler and individual task monitor actors.
   */
-class Tasks[M <: TaskMonitor](
+class Tasks(
      flinkConfig: Configuration,
      schedulerDriver: SchedulerDriver,
-     taskMonitorClass: Class[M]) extends Actor {
+     taskMonitorCreator: (ActorRefFactory,TaskGoalState) => ActorRef) extends Actor {
 
   /**
     * A map of task monitors by task ID.
     */
-  private val taskMap: MutableMap[Protos.TaskID,ActorRef] = MutableMap()
+  private[scheduler] val taskMap: MutableMap[Protos.TaskID,ActorRef] = MutableMap()
 
   /**
     * Cache of current connection state.
     */
-  private var registered: Option[Any] = None
+  private[scheduler] var registered: Option[Any] = None
 
-  override def preStart(): Unit = {
-    // TODO subscribe to context.system.deadLetters for messages to nonexistent tasks
+  override def supervisorStrategy: SupervisorStrategy = AllForOneStrategy() {
+    case _ => Escalate
   }
 
   override def receive: Receive = {
@@ -65,27 +65,42 @@ class Tasks[M <: TaskMonitor](
     case msg: TaskGoalStateUpdated =>
       val taskID = msg.state.taskID
 
-      // ensure task monitor exists
-      if(!taskMap.contains(taskID)) {
-        val actorRef = createTask(msg.state)
-        registered.foreach(actorRef ! _)
+      taskMap.get(taskID) match {
+        case None =>
+          // create a new actor to monitor the task, with the appropriate initial goal state
+          val actorRef = createTask(msg.state)
+          registered.foreach(actorRef ! _)
+
+        case Some(actor) =>
+          // tell the actor to update its goal state
+          actor ! msg
       }
 
-      taskMap(taskID) ! msg
-
     case msg: StatusUpdate =>
-      taskMap(msg.status().getTaskId) ! msg
+      taskMap.get(msg.status().getTaskId) match {
+        case Some(ref) =>
+          // tell the actor about the status change
+          ref ! msg
+        case None =>
+          // a status update was received for an unrecognized task, which may occur
+          // when a task is resurrected (i.e. the Mesos master isn't using a strict registry).
+          // see the Mesos reconciliation guide for more information.
+
+          // create a monitor to reliably terminate the resurrected task
+          val actorRef = createTask(Released(msg.status().getTaskId, msg.status().getSlaveId))
+          registered.foreach(actorRef ! _)
+      }
 
     case msg: Reconcile =>
       context.parent.forward(msg)
 
     case msg: TaskTerminated =>
+      taskMap.remove(msg.taskID)
       context.parent.forward(msg)
   }
 
   private def createTask(task: TaskGoalState): ActorRef = {
-    val actorProps = TaskMonitor.createActorProps(taskMonitorClass, flinkConfig, schedulerDriver, task)
-    val actorRef = context.actorOf(actorProps, name = actorName(task.taskID))
+    val actorRef = taskMonitorCreator(context, task)
     taskMap.put(task.taskID, actorRef)
     actorRef
   }
@@ -94,21 +109,19 @@ class Tasks[M <: TaskMonitor](
 object Tasks {
 
   /**
-    * Extract the actor name for the given task ID.
-    */
-  def actorName(taskID: Protos.TaskID): String = {
-    taskID.getValue
-  }
-
-  /**
     * Create a tasks actor.
     */
-  def createActorProps[T <: Tasks[M], M <: TaskMonitor](
+  def createActorProps[T <: Tasks, M <: TaskMonitor](
       actorClass: Class[T],
       flinkConfig: Configuration,
       schedulerDriver: SchedulerDriver,
       taskMonitorClass: Class[M]): Props = {
 
-    Props.create(actorClass, flinkConfig, schedulerDriver, taskMonitorClass)
+    val taskMonitorCreator = (factory: ActorRefFactory, task: TaskGoalState) => {
+      val props = TaskMonitor.createActorProps(taskMonitorClass, flinkConfig, schedulerDriver, task)
+      factory.actorOf(props)
+    }
+
+    Props.create(actorClass, flinkConfig, schedulerDriver, taskMonitorCreator)
   }
 }

@@ -59,7 +59,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	 * @param params the TM parameters such as memory, cpu to acquire.
 	 * @param template a template for the TaskInfo to be constructed at launch time.
 	 * @param taskID the taskID for this worker.
-     */
+	 */
 	public LaunchableMesosWorker(MesosTaskManagerParameters params, Protos.TaskInfo.Builder template, Protos.TaskID taskID) {
 		this.params = params;
 		this.template = template;
@@ -152,8 +152,8 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	 * Construct the TaskInfo needed to launch the worker.
 	 * @param slaveId the assigned slave.
 	 * @param assignment the assignment details.
-     * @return a fully-baked TaskInfo.
-     */
+	 * @return a fully-baked TaskInfo.
+	 */
 	@Override
 	public Protos.TaskInfo launch(Protos.SlaveID slaveId, TaskAssignmentResult assignment) {
 
@@ -167,10 +167,9 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			.setName(taskID.getValue())
 			.addResources(scalar("cpus", assignment.getRequest().getCPUs()))
 			.addResources(scalar("mem", assignment.getRequest().getMemory()));
-		//.addResources(scalar("disk", assignment.getRequest.getDisk).setRole("Flink"))
 
 		// use the assigned ports for the TM
-		if (assignment.getAssignedPorts().size() != TM_PORT_KEYS.length) {
+		if (assignment.getAssignedPorts().size() < TM_PORT_KEYS.length) {
 			throw new IllegalArgumentException("unsufficient # of ports assigned");
 		}
 		for (int i = 0; i < TM_PORT_KEYS.length; i++) {

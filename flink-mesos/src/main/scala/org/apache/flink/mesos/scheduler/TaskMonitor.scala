@@ -34,14 +34,15 @@ import scala.concurrent.duration._
 /**
   * Monitors a Mesos task throughout its lifecycle.
   *
-  * Models a task with a state machine reflecting the perceived state of the task in Mesos.   The state
-  * is primarily updated when task status information arrives from Mesos.
+  * Models a task with a state machine reflecting the perceived state of the task in Mesos.
+  * The state is primarily updated when task status information arrives from Mesos.
   *
-  * The associated state data primarily tracks the task's goal (intended) state, as persisted by the scheduler.
-  * Keep in mind that goal state is persisted before actions are taken.    The goal state strictly transitions
-  * thru New->Launched->Released.
+  * The associated state data primarily tracks the task's goal (intended) state, as
+  * persisted by the scheduler. Keep in mind that goal state is persisted before actions are taken.
+  * The goal state strictly transitions thru New->Launched->Released.
   *
-  * Unlike most exchanges with Mesos, task status is delivered at-least-once, so status handling should be idempotent.
+  * Unlike most exchanges with Mesos, task status is delivered at-least-once,
+  * so status handling should be idempotent.
   */
 class TaskMonitor(
     flinkConfig: Configuration,
@@ -103,7 +104,8 @@ class TaskMonitor(
 
   when(Staging, stateTimeout = LAUNCH_TIMEOUT) {
     case Event(StateTimeout, _) =>
-      LOG.warn(s"Mesos task ${stateData.goal.taskID.getValue} didn't launch as expected; reconciling.")
+      LOG.warn(s"Mesos task ${stateData.goal.taskID.getValue} didn't launch as expected;"
+        + s" reconciling.")
 
       // likely cause: the task launch message was dropped - docs suggest reconciliation
       goto(Reconciling)

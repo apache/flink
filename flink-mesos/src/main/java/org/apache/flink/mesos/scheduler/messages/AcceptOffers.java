@@ -20,17 +20,20 @@ package org.apache.flink.mesos.scheduler.messages;
 
 import org.apache.mesos.Protos;
 
+import java.io.Serializable;
 import java.util.Collection;
 
 /**
  * Local message sent by the launch coordinator to the scheduler to accept offers.
  */
-public class AcceptOffers {
+public class AcceptOffers implements Serializable {
 
-	private String hostname;
-	private Collection<Protos.OfferID> offerIds;
-	private Collection<Protos.Offer.Operation> operations;
-	private Protos.Filters filters;
+	private static final long serialVersionUID = 1L;
+
+	private final String hostname;
+	private final Collection<Protos.OfferID> offerIds;
+	private final Collection<Protos.Offer.Operation> operations;
+	private final Protos.Filters filters;
 
 	public AcceptOffers(String hostname, Collection<Protos.OfferID> offerIds, Collection<Protos.Offer.Operation> operations) {
 		this.hostname = hostname;

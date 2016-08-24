@@ -96,8 +96,9 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	private ActorRef reconciliationCoordinator;
 
-	private MesosWorkerStore workerStore;
+	private final MesosWorkerStore workerStore;
 
+	/** planning state related to workers - package private for unit test purposes */
 	final Map<ResourceID, MesosWorkerStore.Worker> workersInNew;
 	final Map<ResourceID, MesosWorkerStore.Worker> workersInLaunch;
 	final Map<ResourceID, MesosWorkerStore.Worker> workersBeingReturned;
@@ -250,7 +251,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 *
 	 * @param finalStatus The application status to report.
 	 * @param optionalDiagnostics An optional diagnostics message.
-     */
+	 */
 	@Override
 	protected void shutdownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) {
 
@@ -264,10 +265,10 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		}
 
 		try {
-			workerStore.cleanup();
+			workerStore.stop(true);
 		}
 		catch(Exception ex) {
-			LOG.warn("unable to cleanup the ZooKeeper state", ex);
+			LOG.warn("unable to stop the worker state store", ex);
 		}
 
 		context().stop(self());
@@ -336,7 +337,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 * Plan for some additional workers to be launched.
 	 *
 	 * @param numWorkers The number of workers to allocate.
-     */
+	 */
 	@Override
 	protected void requestNewWorkers(int numWorkers) {
 
@@ -346,7 +347,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 			// generate new workers into persistent state and launch associated actors
 			for (int i = 0; i < numWorkers; i++) {
-				MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newTask(workerStore.newTaskID());
+				MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(workerStore.newTaskID());
 				workerStore.putWorker(worker);
 				workersInNew.put(extractResourceID(worker.taskID()), worker);
 
@@ -379,7 +380,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 *
 	 * Acceptance is routed through the RM to update the persistent state before
 	 * forwarding the message to Mesos.
-     */
+	 */
 	private void acceptOffers(AcceptOffers msg) {
 
 		try {
@@ -394,7 +395,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 					MesosWorkerStore.Worker worker = workersInNew.remove(extractResourceID(info.getTaskId()));
 					assert (worker != null);
 
-					worker = worker.launchTask(info.getSlaveId(), msg.hostname());
+					worker = worker.launchWorker(info.getSlaveId(), msg.hostname());
 					workerStore.putWorker(worker);
 					workersInLaunch.put(extractResourceID(worker.taskID()), worker);
 
@@ -450,7 +451,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 *
 	 * @param toConsolidate The worker IDs known previously to the JobManager.
 	 * @return A collection of registered worker node records.
-     */
+	 */
 	@Override
 	protected Collection<RegisteredMesosWorkerNode> reacceptRegisteredWorkers(Collection<ResourceID> toConsolidate) {
 
@@ -497,13 +498,13 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	/**
 	 * Plan for the removal of the given worker.
-     */
+	 */
 	private void releaseWorker(MesosWorkerStore.Worker worker) {
 		try {
 			LOG.info("Releasing worker {}", worker.taskID());
 
 			// update persistent state of worker to Released
-			worker = worker.releaseTask();
+			worker = worker.releaseWorker();
 			workerStore.putWorker(worker);
 			workersBeingReturned.put(extractResourceID(worker.taskID()), worker);
 			taskRouter.tell(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)), self());
@@ -580,17 +581,23 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	/**
 	 * Invoked when a Mesos task reaches a terminal status.
-     */
+	 */
 	private void taskTerminated(Protos.TaskID taskID, Protos.TaskStatus status) {
 		// this callback occurs for failed containers and for released containers alike
 
 		final ResourceID id = extractResourceID(taskID);
 
+		boolean existed;
 		try {
-			workerStore.removeWorker(taskID);
+			existed = workerStore.removeWorker(taskID);
 		}
 		catch(Exception ex) {
 			fatalError("unable to remove worker", ex);
+			return;
+		}
+
+		if(!existed) {
+			LOG.info("Received a termination notice for an unrecognized worker: {}", id);
 			return;
 		}
 
@@ -624,7 +631,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			sendInfoMessage(diagMessage);
 
 			LOG.info(diagMessage);
-			LOG.info("Total number of failed tasks so far: " + failedTasksSoFar);
+			LOG.info("Total number of failed tasks so far: {}", failedTasksSoFar);
 
 			// maxFailedTasks == -1 is infinite number of retries.
 			if (maxFailedTasks >= 0 && failedTasksSoFar > maxFailedTasks) {
@@ -672,20 +679,20 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 * Extracts the Mesos task goal state from the worker information.
 	 * @param worker the persistent worker information.
 	 * @return goal state information for the {@Link TaskMonitor}.
-     */
+	 */
 	static TaskMonitor.TaskGoalState extractGoalState(MesosWorkerStore.Worker worker) {
 		switch(worker.state()) {
 			case New: return new TaskMonitor.New(worker.taskID());
 			case Launched: return new TaskMonitor.Launched(worker.taskID(), worker.slaveID().get());
 			case Released: return new TaskMonitor.Released(worker.taskID(), worker.slaveID().get());
-			default: throw new IllegalArgumentException();
+			default: throw new IllegalArgumentException("unsupported worker state");
 		}
 	}
 
 	/**
 	 * Creates the Fenzo optimizer (builder).
-	 * The builder is an indirection to faciliate unit testing of the Launch Coordinator.
-     */
+	 * The builder is an indirection to facilitate unit testing of the Launch Coordinator.
+	 */
 	private static TaskSchedulerBuilder createOptimizer() {
 		return new TaskSchedulerBuilder() {
 			TaskScheduler.Builder builder = new TaskScheduler.Builder();

@@ -60,7 +60,8 @@ class TaskMonitorTest
 
   def randomTask(slaveID: Protos.SlaveID) = {
     val taskID = Protos.TaskID.newBuilder.setValue(UUID.randomUUID.toString).build
-    val taskStatus = Protos.TaskStatus.newBuilder().setTaskId(taskID).setSlaveId(slaveID).setState(TASK_STAGING).build()
+    val taskStatus = Protos.TaskStatus.newBuilder()
+      .setTaskId(taskID).setSlaveId(slaveID).setState(TASK_STAGING).build()
     (taskID, taskStatus)
   }
 
@@ -70,7 +71,8 @@ class TaskMonitorTest
     val slave = randomSlave
     val task = randomTask(slave._1)
     val parent = TestProbe()
-    val fsm = TestFSMUtils.testFSMRef(new TaskMonitor(config, schedulerDriver, New(task._1)), parent.ref)
+    val fsm =
+      TestFSMUtils.testFSMRef(new TaskMonitor(config, schedulerDriver, New(task._1)), parent.ref)
     parent.watch(fsm)
   }
 
@@ -79,13 +81,13 @@ class TaskMonitorTest
 
   def handlesStatusUpdate(state: TaskMonitorState) = {
     "StatusUpdate" which {
-      "transitions to Staging when goal state is Launched and status is TASK_STAGING|TASK_STARTING" in new Context {
+      "transitions to Staging when goal state is Launched and status is staging" in new Context {
         fsm.setState(state, StateData(Launched(task._1, slave._1)))
         fsm ! new StatusUpdate(task._2.toBuilder.setState(TASK_STAGING).build())
         fsm.stateName should be (Staging)
         fsm.stateData should be (StateData(Launched(task._1, slave._1)))
       }
-      "transitions to Running when goal state is Launched and status is TASK_RUNNING" in new Context {
+      "transitions to Running when goal state is Launched and status is running" in new Context {
         fsm.setState(state, StateData(Launched(task._1, slave._1)))
         fsm ! new StatusUpdate(task._2.toBuilder.setState(TASK_RUNNING).build())
         fsm.stateName should be (Running)
@@ -100,13 +102,13 @@ class TaskMonitorTest
         }
         parent.expectTerminated(fsm)
       }
-      "transitions to Killing when goal state is Released and status is TASK_STAGING|TASK_STARTING|TASK_RUNNING" in new Context {
+      "transitions to Killing when goal state is Released and status is running" in new Context {
         fsm.setState(state, StateData(Released(task._1, slave._1)))
         fsm ! new StatusUpdate(task._2.toBuilder.setState(TASK_RUNNING).build())
         fsm.stateName should be (Killing)
         fsm.stateData should be (StateData(Released(task._1, slave._1)))
       }
-      "stops when goal state is Released and status is TASK_KILLED" in new Context {
+      "stops when goal state is Released and status is killed" in new Context {
         fsm.setState(state, StateData(Released(task._1, slave._1)))
         fsm ! new StatusUpdate(task._2.toBuilder.setState(TASK_KILLED).build())
         parent.fishForMessage() {
