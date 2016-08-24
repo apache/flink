@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Props;
 import akka.dispatch.ExecutionContexts$;
+import akka.util.Timeout;
 import com.typesafe.config.Config;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -31,6 +32,7 @@ import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -39,16 +41,16 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.taskmanager.TaskManagerConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
@@ -56,10 +58,10 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import scala.Tuple2;
 import scala.Option;
 import scala.Some;
-import scala.Tuple2;
-import scala.Tuple4;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
@@ -67,6 +69,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -81,12 +84,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutor.class);
 
-	/** Return code for critical errors during the runtime */
-	private static final int RUNTIME_FAILURE_RETURN_CODE = 2;
-
-	/** The name of the TaskManager actor */
-	private static final String TASK_MANAGER_NAME = "taskmanager";
-
 	/** The unique resource ID of this TaskManager */
 	private final ResourceID resourceID;
 
@@ -94,7 +91,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	private final HighAvailabilityServices haServices;
 
 	/** The task manager configuration */
-	private final TaskManagerConfiguration taskManagerConfig;
+	private final TaskExecutorConfiguration taskExecutorConfig;
 
 	/** The connection information of the task manager */
 	private final InstanceConnectionInfo connectionInfo;
@@ -117,7 +114,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ------------------------------------------------------------------------
 
 	public TaskExecutor(
-			TaskManagerConfiguration taskManagerConfig,
+			TaskExecutorConfiguration taskExecutorConfig,
 			ResourceID resourceID,
 			InstanceConnectionInfo connectionInfo,
 			MemoryManager memoryManager,
@@ -129,7 +126,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		super(rpcService);
 
-		this.taskManagerConfig = checkNotNull(taskManagerConfig);
+		this.taskExecutorConfig = checkNotNull(taskExecutorConfig);
 		this.resourceID = checkNotNull(resourceID);
 		this.connectionInfo = checkNotNull(connectionInfo);
 		this.memoryManager = checkNotNull(memoryManager);
@@ -154,20 +151,18 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * (library cache, shuffle network stack, ...), and starts the TaskManager itself.
 	 *
 	 * @param configuration    The configuration for the TaskManager.
-	 * @param taskManagerClass The actor class to instantiate.
-	 *                         Allows to use TaskManager subclasses for example for YARN.
+	 * @param resourceID       The id of the resource which the task manager will run on.
 	 */
 	public static void selectNetworkInterfaceAndRunTaskManager(
 		Configuration configuration,
-		ResourceID resourceID,
-		Class<? extends TaskManager> taskManagerClass) throws Exception {
+		ResourceID resourceID) throws Exception {
 
-		Tuple2<String, Integer> tuple2 = selectNetworkInterfaceAndPort(configuration);
+		InetSocketAddress taskManagerAddress = selectNetworkInterfaceAndPort(configuration);
 
-		runTaskManager(tuple2._1(), resourceID, tuple2._2(), configuration, taskManagerClass);
+		runTaskManager(taskManagerAddress.getHostName(), resourceID, taskManagerAddress.getPort(), configuration);
 	}
 
-	private static Tuple2<String, Integer> selectNetworkInterfaceAndPort(Configuration configuration)
+	private static InetSocketAddress selectNetworkInterfaceAndPort(Configuration configuration)
 		throws Exception {
 		String taskManagerHostname = configuration.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null);
 		if (taskManagerHostname != null) {
@@ -191,7 +186,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				" - Leave config parameter empty or use 0 to let the system choose a port automatically.");
 		}
 
-		return new Tuple2<>(taskManagerHostname, actorSystemPort);
+		return new InetSocketAddress(taskManagerHostname, actorSystemPort);
 	}
 
 	/**
@@ -205,17 +200,14 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * @param taskManagerHostname The hostname/address of the interface where the actor system
 	 *                            will communicate.
 	 * @param resourceID          The id of the resource which the task manager will run on.
-	 * @param actorSystemPort     The port at which the actor system will communicate.
+	 * @param actorSystemPort   The port at which the actor system will communicate.
 	 * @param configuration       The configuration for the TaskManager.
-	 * @param taskManagerClass    The actor class to instantiate. Allows the use of TaskManager
-	 *                            subclasses for example for YARN.
 	 */
 	private static void runTaskManager(
 		String taskManagerHostname,
 		ResourceID resourceID,
 		int actorSystemPort,
-		Configuration configuration,
-		Class<? extends TaskManager> taskManagerClass) throws Exception {
+		final Configuration configuration) throws Exception {
 
 		LOG.info("Starting TaskManager");
 
@@ -224,7 +216,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		LOG.info("Starting TaskManager actor system at " +
 			NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort));
 
-		ActorSystem taskManagerSystem;
+		final ActorSystem taskManagerSystem;
 		try {
 			Tuple2<String, Object> address = new Tuple2<String, Object>(taskManagerHostname, actorSystemPort);
 			Config akkaConfig = AkkaUtils.getAkkaConfig(configuration, new Some<>(address));
@@ -242,27 +234,36 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			throw new Exception("Could not create TaskManager actor system", t);
 		}
 
+		// start akka rpc service based on actor system
+		Timeout timeout = new Timeout(AkkaUtils.getTimeout(configuration).toMillis(), TimeUnit.MILLISECONDS);
+		AkkaRpcService akkaRpcService = new AkkaRpcService(taskManagerSystem, timeout);
+
+		// start high availability service to implement getResourceManagerLeaderRetriever method only
+		HighAvailabilityServices haServices = new HighAvailabilityServices() {
+			@Override
+			public LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception {
+				return LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
+			}
+
+			@Override
+			public LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception {
+				return null;
+			}
+		};
+
 		// start all the TaskManager services (network stack,  library cache, ...)
 		// and the TaskManager actor
 		try {
 			LOG.info("Starting TaskManager actor");
-			ActorRef taskManagerActor = startTaskManagerComponentsAndActor(
+			TaskExecutor taskExecutor = startTaskManagerComponentsAndActor(
 				configuration,
 				resourceID,
-				taskManagerSystem,
+				akkaRpcService,
 				taskManagerHostname,
-				TASK_MANAGER_NAME,
-				null,
-				false,
-				taskManagerClass);
+				haServices,
+				false);
 
-			// start a process reaper that watches the JobManager. If the TaskManager actor dies,
-			// the process reaper will kill the JVM process (to ensure easy failure detection)
-			LOG.debug("Starting TaskManager process reaper");
-
-			taskManagerSystem.actorOf(
-				Props.create(ProcessReaper.class, taskManagerActor, LOG, RUNTIME_FAILURE_RETURN_CODE),
-				"TaskManager_Process_Reaper");
+			taskExecutor.start();
 
 			// if desired, start the logging daemon that periodically logs the memory usage information
 			if (LOG.isInfoEnabled() && configuration.getBoolean(
@@ -298,15 +299,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	/**
 	 * @param configuration                 The configuration for the TaskManager.
 	 * @param resourceID                    The id of the resource which the task manager will run on.
-	 * @param actorSystem                  The actor system that should run the TaskManager actor.
+	 * @param rpcService                  The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
 	 * @param taskManagerHostname       The hostname/address that describes the TaskManager's data location.
-	 * @param taskManagerActorName      Optionally the name of the TaskManager actor. If none is given,
-	 *                                      the actor will use a random name.
-	 * @param leaderRetrievalService        Optionally, a leader retrieval service can be provided. If none is given,
-	 *                                      then a LeaderRetrievalService is constructed from the configuration.
+	 * @param haServices        Optionally, a high availability service can be provided. If none is given,
+	 *                                      then a HighAvailabilityServices is constructed from the configuration.
 	 * @param localTaskManagerCommunication If true, the TaskManager will not initiate the TCP network stack.
-	 * @param taskManagerClass      The class of the TaskManager actor. May be used to give
-	 *                                      subclasses that understand additional actor messages.
 	 * @return An ActorRef to the TaskManager actor.
 	 * @throws org.apache.flink.configuration.IllegalConfigurationException     Thrown, if the given config contains illegal values.
 	 * @throws java.io.IOException      Thrown, if any of the I/O components (such as buffer pools,
@@ -314,31 +311,29 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * @throws java.lang.Exception      Thrown is some other error occurs while parsing the configuration
 	 *                                      or starting the TaskManager components.
 	 */
-	public static ActorRef startTaskManagerComponentsAndActor(
+	public static TaskExecutor startTaskManagerComponentsAndActor(
 		Configuration configuration,
 		ResourceID resourceID,
-		ActorSystem actorSystem,
+		RpcService rpcService,
 		String taskManagerHostname,
-		String taskManagerActorName,
-		LeaderRetrievalService leaderRetrievalService,
-		boolean localTaskManagerCommunication,
-		Class<? extends TaskManager> taskManagerClass) throws Exception {
+		HighAvailabilityServices haServices,
+		boolean localTaskManagerCommunication) throws Exception {
 
-		Tuple4<TaskManagerConfiguration, NetworkEnvironmentConfiguration, InstanceConnectionInfo, MemoryType> tuple4
+		Tuple4<TaskExecutorConfiguration, NetworkEnvironmentConfiguration, InstanceConnectionInfo, MemoryType> tuple4
 			= parseTaskManagerConfiguration(configuration, taskManagerHostname, localTaskManagerCommunication);
 
-		TaskManagerConfiguration taskManagerConfig = tuple4._1();
-		NetworkEnvironmentConfiguration netConfig = tuple4._2();
-		InstanceConnectionInfo connectionInfo = tuple4._3();
-		MemoryType memType = tuple4._4();
+		TaskExecutorConfiguration taskExecutorConfig = tuple4.f0;
+		NetworkEnvironmentConfiguration netConfig = tuple4.f1;
+		InstanceConnectionInfo connectionInfo = tuple4.f2;
+		MemoryType memType = tuple4.f3;
 
 		// pre-start checks
-		checkTempDirs(taskManagerConfig.tmpDirPaths());
+		checkTempDirs(taskExecutorConfig.getTmpDirPaths());
 
 		ExecutionContext executionContext = ExecutionContexts$.MODULE$.fromExecutor(new ForkJoinPool());
 
 		// we start the network first, to make sure it can allocate its buffers first
-		NetworkEnvironment network = new NetworkEnvironment(executionContext, taskManagerConfig.timeout(), netConfig);
+		NetworkEnvironment network = new NetworkEnvironment(executionContext, taskExecutorConfig.getTimeout(), netConfig);
 
 		// computing the amount of memory to use depends on how much memory is available
 		// it strictly needs to happen AFTER the network stack has been initialized
@@ -398,11 +393,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		// now start the memory manager
-		MemoryManager memoryManager;
+		final MemoryManager memoryManager;
 		try {
 			memoryManager = new MemoryManager(
 				memorySize,
-				taskManagerConfig.numberOfSlots(),
+				taskExecutorConfig.getNumberOfSlots(),
 				netConfig.networkBufferSize(),
 				memType,
 				preAllocateMemory);
@@ -420,32 +415,20 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		// start the I/O manager, it will create some temp directories.
-		IOManager ioManager = new IOManagerAsync(taskManagerConfig.tmpDirPaths());
+		IOManager ioManager = new IOManagerAsync(taskExecutorConfig.getTmpDirPaths());
 
-		if (leaderRetrievalService == null){
-			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
-		}
-
-		// create the actor properties (which define the actor constructor parameters)
-		Props tmProps = Props.create(
-			taskManagerClass,
-			taskManagerConfig,
+		TaskExecutor taskExecutor = new TaskExecutor(
+			taskExecutorConfig,
 			resourceID,
 			connectionInfo,
 			memoryManager,
 			ioManager,
 			network,
-			taskManagerConfig.numberOfSlots(),
-			leaderRetrievalService);
+			taskExecutorConfig.getNumberOfSlots(),
+			rpcService,
+			haServices);
 
-		ActorRef taskManagerActorRef;
-		if (taskManagerActorName != null && !taskManagerActorName.equals("")) {
-			taskManagerActorRef = actorSystem.actorOf(tmProps, taskManagerActorName);
-		} else {
-			taskManagerActorRef = actorSystem.actorOf(tmProps);
-		}
-
-		return taskManagerActorRef;
+		return taskExecutor;
 	}
 
 	// --------------------------------------------------------------------------
@@ -463,7 +446,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * @return A tuple (TaskManagerConfiguration, network configuration,
 	 * InstanceConnectionInfo, JobManager actor Akka URL).
 	 */
-	private static Tuple4<TaskManagerConfiguration, NetworkEnvironmentConfiguration, InstanceConnectionInfo, MemoryType>
+	private static Tuple4<TaskExecutorConfiguration, NetworkEnvironmentConfiguration, InstanceConnectionInfo, MemoryType>
 		parseTaskManagerConfiguration(Configuration configuration, String taskManagerHostname, boolean localTaskManagerCommunication)
 		throws Exception {
 
@@ -512,7 +495,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			"Memory segment size must be a power of 2.");
 
 		// check whether we use heap or off-heap memory
-		MemoryType memType;
+		final MemoryType memType;
 		if (configuration.getBoolean(ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_KEY, false)) {
 			memType = MemoryType.OFF_HEAP;
 		} else {
@@ -540,9 +523,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
 
-		NettyConfig nettyConfig = null;
+		final NettyConfig nettyConfig;
 		if (!localTaskManagerCommunication) {
 			nettyConfig = new NettyConfig(connectionInfo.address(), connectionInfo.dataPort(), pageSize, slots, configuration);
+		} else {
+			nettyConfig = null;
 		}
 
 		// Default spill I/O mode for intermediate results
@@ -550,7 +535,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			ConfigConstants.TASK_MANAGER_NETWORK_DEFAULT_IO_MODE,
 			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE);
 
-		IOMode ioMode;
+		final IOMode ioMode;
 		if (syncOrAsync == "async") {
 			ioMode = IOManager.IOMode.ASYNC;
 		} else {
@@ -562,12 +547,12 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			pageSize,
 			memType,
 			ioMode,
-			nettyConfig == null ? Option.<NettyConfig>empty() : new Some<>(nettyConfig),
+			localTaskManagerCommunication ? Option.<NettyConfig>empty() : new Some<>(nettyConfig),
 			new Tuple2<>(500, 3000));
 
 		// ----> timeouts, library caching, profiling
 
-		FiniteDuration timeout;
+		final FiniteDuration timeout;
 		try {
 			timeout = AkkaUtils.getTimeout(configuration);
 		} catch (Exception e) {
@@ -581,20 +566,22 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
 			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
 
-		FiniteDuration finiteRegistrationDuration = null;
+		final FiniteDuration finiteRegistrationDuration;
 		try {
 			Duration maxRegistrationDuration = Duration.create(configuration.getString(
 				ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
 				ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION));
 			if (maxRegistrationDuration.isFinite()) {
 				finiteRegistrationDuration = new FiniteDuration(maxRegistrationDuration.toSeconds(), TimeUnit.SECONDS);
+			} else {
+				finiteRegistrationDuration = null;
 			}
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
 				ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, e);
 		}
 
-		FiniteDuration initialRegistrationPause;
+		final FiniteDuration initialRegistrationPause;
 		try {
 			Duration pause = Duration.create(configuration.getString(
 				ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
@@ -609,7 +596,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE, e);
 		}
 
-		FiniteDuration maxRegistrationPause;
+		final FiniteDuration maxRegistrationPause;
 		try {
 			Duration pause = Duration.create(configuration.getString(
 				ConfigConstants.TASK_MANAGER_MAX_REGISTARTION_PAUSE,
@@ -624,7 +611,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE, e);
 		}
 
-		FiniteDuration refusedRegistrationPause;
+		final FiniteDuration refusedRegistrationPause;
 		try {
 			Duration pause = Duration.create(configuration.getString(
 				ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE,
@@ -639,18 +626,18 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE, e);
 		}
 
-		TaskManagerConfiguration taskManagerConfig = new TaskManagerConfiguration(
+		TaskExecutorConfiguration taskExecutorConfig = new TaskExecutorConfiguration(
 			tmpDirs,
 			cleanupInterval,
 			timeout,
-			finiteRegistrationDuration == null ? Option.<FiniteDuration>empty() : new Some<>(finiteRegistrationDuration),
+			finiteRegistrationDuration,
 			slots,
 			configuration,
 			initialRegistrationPause,
 			maxRegistrationPause,
 			refusedRegistrationPause);
 
-		return new Tuple4<>(taskManagerConfig, networkConfig, connectionInfo, memType);
+		return new Tuple4<>(taskExecutorConfig, networkConfig, connectionInfo, memType);
 	}
 
 	/**
@@ -661,13 +648,12 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * @param parameter    The parameter value. Will be shown in the exception message.
 	 * @param name         The name of the config parameter. Will be shown in the exception message.
 	 * @param errorMessage The optional custom error message to append to the exception message.
-	 * @throws IllegalConfigurationException Thrown if the condition is violated.
 	 */
 	private static void checkConfigParameter(
 		boolean condition,
 		Object parameter,
 		String name,
-		String errorMessage) throws IllegalConfigurationException {
+		String errorMessage) {
 		if (!condition) {
 			throw new IllegalConfigurationException("Invalid configuration value for " + name + " : " + parameter + " - " + errorMessage);
 		}
@@ -723,6 +709,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	@Override
 	public void start() {
+		super.start();
+
 		// start by connecting to the ResourceManager
 		try {
 			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
@@ -794,6 +782,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		// to be determined, probably delegate to a fatal error handler that 
 		// would either log (mini cluster) ot kill the process (yarn, mesos, ...)
 		log.error("FATAL ERROR", t);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Access to fields for testing
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	TaskExecutorToResourceManagerConnection getResourceManagerConnection() {
+		return resourceManagerConnection;
 	}
 
 	// ------------------------------------------------------------------------
