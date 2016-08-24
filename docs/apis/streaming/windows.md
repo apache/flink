@@ -543,7 +543,8 @@ val input: DataStream[SensorReading] = ...
           (acc: (String, Long, Int), reading: SensorReading) => {
           ("", 0L, acc._3 + 1)
         },
-        (key: String, window: TimeWindow, counts: Iterable[(String, Long, Int)], out: Collector[(String, Long, Int)]) => {
+        (key: String, window: TimeWindow, counts: Iterable[(String, Long, Int)],
+         out: Collector[(String, Long, Int)]) => {
           val count = counts.iterator.next()
           out.collect((s, window.getEnd, count._3))
         }
@@ -553,8 +554,8 @@ val input: DataStream[SensorReading] = ...
 val input: DataStream[SensorReading] = ...
 
     readings
-      .keyBy(_.sensorId)
-      .timeWindow(Time.minutes(1), Time.seconds(10))
+      .keyBy(<key selector>)
+      .window(<window assigner>)
       .apply ((reading1: SensorReading, reading2: SensorReading) => {
         reading1.reading > reading2.reading match{
           case true => reading2
