@@ -475,6 +475,9 @@ public class WindowedStream<T, K, W extends Window> {
 			ListStateDescriptor<StreamRecord<T>> stateDesc = new ListStateDescriptor<>("window-contents",
 				new StreamRecordSerializer<>(input.getType().createSerializer(getExecutionEnvironment().getConfig())));
 
+			FoldApplyWindowFunction<K, W, T, R> foldApplyWindowFunction = new FoldApplyWindowFunction<>(initialValue, foldFunction, function);
+			foldApplyWindowFunction.setOutputType(resultType, input.getExecutionConfig());
+
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator = new EvictingWindowOperator<>(windowAssigner,
@@ -482,7 +485,7 @@ public class WindowedStream<T, K, W extends Window> {
 				keySel,
 				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 				stateDesc,
-				new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function)),
+				new InternalIterableWindowFunction<>(foldApplyWindowFunction),
 				trigger,
 				evictor,
 				allowedLateness);
