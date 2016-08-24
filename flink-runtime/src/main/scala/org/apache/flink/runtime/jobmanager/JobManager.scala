@@ -478,7 +478,7 @@ class JobManager(
       val client = sender()
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) =>
-          log.info("Registering client for job $jobID")
+          log.info(s"Registering client for job $jobID")
           jobInfo.clients += ((client, listeningBehaviour))
           val listener = new StatusListenerMessenger(client, leaderSessionID.orNull)
           executionGraph.registerJobStatusListener(listener)

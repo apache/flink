@@ -25,7 +25,6 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.runtime.client.JobRetrievalException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -86,7 +85,7 @@ public class JobRetrievalITCase extends TestLogger {
 			public void run() {
 				try {
 					assertNotNull(client.retrieveJob(jobID));
-				} catch (JobExecutionException e) {
+				} catch (Throwable e) {
 					fail(e.getMessage());
 				}
 			}
@@ -106,7 +105,10 @@ public class JobRetrievalITCase extends TestLogger {
 		resumingThread.start();
 
 		// wait for client to connect
-		testkit.expectMsgEquals(true);
+		testkit.expectMsgAllOf(
+			TestingJobManagerMessages.getClientConnected(),
+			TestingJobManagerMessages.getClassLoadingPropsDelivered());
+
 		// client has connected, we can release the lock
 		lock.release();
 

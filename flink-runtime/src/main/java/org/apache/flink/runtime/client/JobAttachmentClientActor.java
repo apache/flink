@@ -130,7 +130,8 @@ public class JobAttachmentClientActor extends JobClientActor {
 	}
 
 	private void tryToAttachToJob() {
-		LOG.info("Sending message to JobManager {} to attach to job {} and wait for progress", jobID);
+		LOG.info("Sending message to JobManager {} to attach to job {} and wait for progress",
+			jobManager, jobID);
 
 		Futures.future(new Callable<Object>() {
 			@Override
