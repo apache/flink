@@ -32,7 +32,8 @@ abstract class FSMSpec extends FSMSpecLike {
 }
 
 /**
-  * Implementation trait for class <code>FSMSpec</code>, which extends wordspec with FSM functionality.
+  * Implementation trait for class <code>FSMSpec</code>, which extends wordspec
+  * with FSM functionality.
   *
   * For example: "MyFSM" when inState {
   *   "Connected" should handle {

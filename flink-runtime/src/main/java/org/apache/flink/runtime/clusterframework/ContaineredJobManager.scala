@@ -18,26 +18,24 @@
 
 package org.apache.flink.runtime.clusterframework
 
-import java.util.concurrent.{TimeUnit, ExecutorService}
+import java.util.concurrent.ExecutorService
 
 import akka.actor.ActorRef
-
 import org.apache.flink.api.common.JobID
-import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
+import org.apache.flink.configuration.{Configuration => FlinkConfiguration}
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
-import org.apache.flink.runtime.clusterframework.ApplicationStatus
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.clusterframework.messages._
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
+import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobgraph.JobStatus
-import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
+import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
+import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatus, CurrentJobStatus, JobNotFound}
+import org.apache.flink.runtime.messages.JobManagerMessages.{CurrentJobStatus, JobNotFound, RequestJobStatus}
 import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
-import org.apache.flink.runtime.instance.InstanceManager
-import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -59,20 +57,20 @@ import scala.language.postfixOps
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
 abstract class ContaineredJobManager(
-                      flinkConfiguration: FlinkConfiguration,
-                      executorService: ExecutorService,
-                      instanceManager: InstanceManager,
-                      scheduler: FlinkScheduler,
-                      libraryCacheManager: BlobLibraryCacheManager,
-                      archive: ActorRef,
-                      restartStrategyFactory: RestartStrategyFactory,
-                      timeout: FiniteDuration,
-                      leaderElectionService: LeaderElectionService,
-                      submittedJobGraphs : SubmittedJobGraphStore,
-                      checkpointRecoveryFactory : CheckpointRecoveryFactory,
-                      savepointStore: SavepointStore,
-                      jobRecoveryTimeout: FiniteDuration,
-                      metricsRegistry: Option[FlinkMetricRegistry])
+    flinkConfiguration: FlinkConfiguration,
+    executorService: ExecutorService,
+    instanceManager: InstanceManager,
+    scheduler: FlinkScheduler,
+    libraryCacheManager: BlobLibraryCacheManager,
+    archive: ActorRef,
+    restartStrategyFactory: RestartStrategyFactory,
+    timeout: FiniteDuration,
+    leaderElectionService: LeaderElectionService,
+    submittedJobGraphs : SubmittedJobGraphStore,
+    checkpointRecoveryFactory : CheckpointRecoveryFactory,
+    savepointStore: SavepointStore,
+    jobRecoveryTimeout: FiniteDuration,
+    metricsRegistry: Option[FlinkMetricRegistry])
   extends JobManager(
     flinkConfiguration,
     executorService,
@@ -107,7 +105,7 @@ abstract class ContaineredJobManager(
           // we forward the message
           rm.forward(decorateMessage(msg))
         case None =>
-        // client has to try again
+          // client has to try again
       }
 
     case msg: ShutdownClusterAfterJob =>
@@ -149,7 +147,7 @@ abstract class ContaineredJobManager(
           log.warn(s"Received job status for job ${jobStatus.jobID} but expected status for " +
             s"job $stopWhenJobFinished")
         } else {
-          if (jobStatus.status.isTerminalState) {
+          if (jobStatus.status.isGloballyTerminalState) {
             log.info(s"Job with ID ${jobStatus.jobID} is in terminal state ${jobStatus.status}. " +
               s"Shutting down session")
             if (jobStatus.status == JobStatus.FINISHED) {

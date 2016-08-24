@@ -50,7 +50,10 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperMesosWorkerStore.class);
 
-	private final Object cacheLock = new Object();
+	private final Object startStopLock = new Object();
+
+	/** Root store path in ZK. */
+	private final String storePath;
 
 	/** Client (not a namespace facade) */
 	private final CuratorFramework client;
@@ -79,6 +82,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		// Keep a reference to the original client and not the namespace facade. The namespace
 		// facade cannot be closed.
 		this.client = checkNotNull(client, "client");
+		this.storePath = storePath;
 
 		// All operations will have the given path as root
 		client.newNamespaceAwareEnsurePath(storePath).ensure(client.getZookeeperClient());
@@ -94,6 +98,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		facade.newNamespaceAwareEnsurePath("/workers").ensure(client.getZookeeperClient());
 		CuratorFramework storeFacade = client.usingNamespace(facade.getNamespace() + "/workers");
 
+		// using late-binding as a workaround for shaded curator dependency of flink-runtime.
 		this.workersInZooKeeper = ZooKeeperStateHandleStore.class
 			.getConstructor(CuratorFramework.class, StateStorageHelper.class)
 			.newInstance(storeFacade, stateStorage);
@@ -101,7 +106,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 	@Override
 	public void start() throws Exception {
-		synchronized (cacheLock) {
+		synchronized (startStopLock) {
 			if (!isRunning) {
 				isRunning = true;
 				frameworkIdInZooKeeper.start();
@@ -110,11 +115,17 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		}
 	}
 
-	public void stop() throws Exception {
-		synchronized (cacheLock) {
+	public void stop(boolean cleanup) throws Exception {
+		synchronized (startStopLock) {
 			if (isRunning) {
 				frameworkIdInZooKeeper.close();
 				totalTaskCountInZooKeeper.close();
+
+				if(cleanup) {
+					workersInZooKeeper.removeAndDiscardAllState();
+					client.delete().deletingChildrenIfNeeded().forPath(storePath);
+				}
+
 				client.close();
 				isRunning = false;
 			}
@@ -132,10 +143,10 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	 * Get the persisted framework ID.
 	 * @return the current ID or empty if none is yet persisted.
 	 * @throws Exception on ZK failures, interruptions.
-     */
+	 */
 	@Override
 	public Option<Protos.FrameworkID> getFrameworkID() throws Exception {
-		synchronized (cacheLock) {
+		synchronized (startStopLock) {
 			verifyIsRunning();
 
 			Option<Protos.FrameworkID> frameworkID;
@@ -154,10 +165,10 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	 * Update the persisted framework ID.
 	 * @param frameworkID the new ID or empty to remove the persisted ID.
 	 * @throws Exception on ZK failures, interruptions.
-     */
+	 */
 	@Override
 	public void setFrameworkID(Option<Protos.FrameworkID> frameworkID) throws Exception {
-		synchronized (cacheLock) {
+		synchronized (startStopLock) {
 			verifyIsRunning();
 
 			byte[] value = frameworkID.isDefined() ? frameworkID.get().getValue().getBytes() : new byte[0];
@@ -170,7 +181,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	 */
 	@Override
 	public Protos.TaskID newTaskID() throws Exception {
-		synchronized (cacheLock) {
+		synchronized (startStopLock) {
 			verifyIsRunning();
 
 			int nextCount;
@@ -189,7 +200,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 	@Override
 	public List<MesosWorkerStore.Worker> recoverWorkers() throws Exception {
-		synchronized (cacheLock) {
+		synchronized (startStopLock) {
 			verifyIsRunning();
 
 			List<Tuple2<StateHandle<MesosWorkerStore.Worker>, String>> handles = workersInZooKeeper.getAll();
@@ -216,7 +227,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		checkNotNull(worker, "worker");
 		String path = getPathForWorker(worker.taskID());
 
-		synchronized (cacheLock) {
+		synchronized (startStopLock) {
 			verifyIsRunning();
 
 			int currentVersion = workersInZooKeeper.exists(path);
@@ -239,20 +250,21 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	}
 
 	@Override
-	public void removeWorker(Protos.TaskID taskID) throws Exception {
+	public boolean removeWorker(Protos.TaskID taskID) throws Exception {
 		checkNotNull(taskID, "taskID");
 		String path = getPathForWorker(taskID);
-		synchronized (cacheLock) {
+		synchronized (startStopLock) {
 			verifyIsRunning();
 
-			workersInZooKeeper.remove(path);
-			LOG.debug("Removed worker {} from ZooKeeper.", taskID);
-		}
-	}
+			if(workersInZooKeeper.exists(path) == -1) {
+				LOG.debug("No such worker {} in ZooKeeper.", taskID);
+				return false;
+			}
 
-	@Override
-	public void cleanup() throws Exception {
-		// TODO
+			workersInZooKeeper.removeAndDiscardState(path);
+			LOG.debug("Removed worker {} from ZooKeeper.", taskID);
+			return true;
+		}
 	}
 
 	/**
@@ -269,7 +281,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	 * @param configuration the Flink configuration.
 	 * @return a worker store.
 	 * @throws Exception
-     */
+	 */
 	public static ZooKeeperMesosWorkerStore createMesosWorkerStore(
 			CuratorFramework client,
 			Configuration configuration) throws Exception {

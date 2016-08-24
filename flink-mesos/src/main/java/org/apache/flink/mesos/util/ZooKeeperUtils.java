@@ -33,7 +33,7 @@ public class ZooKeeperUtils {
 	@SuppressWarnings("unchecked")
 	public static CuratorFramework startCuratorFramework(Configuration configuration) {
 
-		// workaround for shaded curator dependency of flink-runtime
+		// using late-binding as a workaround for shaded curator dependency of flink-runtime
 		Object client = org.apache.flink.runtime.util.ZooKeeperUtils.startCuratorFramework(configuration);
 		return (CuratorFramework) client;
 	}

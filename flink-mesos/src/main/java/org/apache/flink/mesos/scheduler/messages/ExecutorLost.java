@@ -23,27 +23,44 @@ import org.apache.mesos.Protos;
 import java.io.Serializable;
 
 /**
- * Message sent by the callback handler to the scheduler actor
- * when an offer is no longer valid (e.g., the slave was lost or another framework used resources in the offer).
+ * Message sent when an executor has exited/terminated. Note that any
+ * tasks running will have TASK_LOST status updates automagically
+ * generated.
  */
-public class OfferRescinded implements Serializable {
+public class ExecutorLost implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private final Protos.OfferID offerId;
+	private final Protos.ExecutorID executorId;
 
-	public OfferRescinded(Protos.OfferID offerId) {
-		this.offerId = offerId;
+	private final Protos.SlaveID slaveId;
+
+	private final int status;
+
+	public ExecutorLost(Protos.ExecutorID executorId, Protos.SlaveID slaveId, int status) {
+		this.executorId = executorId;
+		this.slaveId = slaveId;
+		this.status = status;
 	}
 
-	public Protos.OfferID offerId() {
-		return offerId;
+	public Protos.ExecutorID executorId() {
+		return executorId;
+	}
+
+	public Protos.SlaveID slaveId() {
+		return slaveId;
+	}
+
+	public int status() {
+		return status;
 	}
 
 	@Override
 	public String toString() {
-		return "OfferRescinded{" +
-			"offerId=" + offerId +
+		return "ExecutorLost{" +
+			"executorId=" + executorId +
+			", slaveId=" + slaveId +
+			", status=" + status +
 			'}';
 	}
 }

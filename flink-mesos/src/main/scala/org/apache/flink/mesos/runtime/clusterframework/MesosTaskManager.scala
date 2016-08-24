@@ -30,14 +30,14 @@ import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerConfigurati
   * messages.
   */
 class MesosTaskManager(
-                       config: TaskManagerConfiguration,
-                       resourceID: ResourceID,
-                       connectionInfo: InstanceConnectionInfo,
-                       memoryManager: MemoryManager,
-                       ioManager: IOManager,
-                       network: NetworkEnvironment,
-                       numberOfSlots: Int,
-                       leaderRetrievalService: LeaderRetrievalService)
+    config: TaskManagerConfiguration,
+    resourceID: ResourceID,
+    connectionInfo: InstanceConnectionInfo,
+    memoryManager: MemoryManager,
+    ioManager: IOManager,
+    network: NetworkEnvironment,
+    numberOfSlots: Int,
+    leaderRetrievalService: LeaderRetrievalService)
   extends TaskManager(
     config,
     resourceID,

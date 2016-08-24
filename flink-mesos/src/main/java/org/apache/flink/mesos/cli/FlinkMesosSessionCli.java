@@ -26,10 +26,18 @@ import org.apache.flink.configuration.Configuration;
 import java.io.IOException;
 import java.util.Map;
 
+/**
+ * Class handling the command line interface to the Mesos session.
+ */
 public class FlinkMesosSessionCli {
 
 	private static final ObjectMapper mapper = new ObjectMapper();
 
+	/**
+	 * Decode encoded dynamic properties.
+	 * @param dynamicPropertiesEncoded encoded properties produced by the encoding method.
+	 * @return a configuration instance to be merged with the static configuration.
+	 */
 	public static Configuration decodeDynamicProperties(String dynamicPropertiesEncoded) {
 		try {
 			Configuration configuration = new Configuration();
@@ -47,6 +55,11 @@ public class FlinkMesosSessionCli {
 		}
 	}
 
+	/**
+	 * Encode dynamic properties as a string to be transported as an environment variable.
+	 * @param configuration the dynamic properties to encode.
+	 * @return a string to be decoded later.
+	 */
 	public static String encodeDynamicProperties(Configuration configuration) {
 		try {
 			String dynamicPropertiesEncoded = mapper.writeValueAsString(configuration.toMap());

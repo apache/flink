@@ -18,9 +18,12 @@
 
 package org.apache.flink.mesos.scheduler.messages;
 
+import java.io.Serializable;
+
 /**
  * Message sent by the callback handler to the scheduler actor
  * when the scheduler becomes "connected" to the master.
  */
-public abstract class Connected {
+public abstract class Connected implements Serializable {
+	private static final long serialVersionUID = 1L;
 }

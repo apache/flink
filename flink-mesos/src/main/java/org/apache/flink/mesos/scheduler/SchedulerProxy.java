@@ -22,7 +22,8 @@ import akka.actor.ActorRef;
 
 import org.apache.flink.mesos.scheduler.messages.Disconnected;
 import org.apache.flink.mesos.scheduler.messages.Error;
-import org.apache.flink.mesos.scheduler.messages.Error;
+import org.apache.flink.mesos.scheduler.messages.ExecutorLost;
+import org.apache.flink.mesos.scheduler.messages.FrameworkMessage;
 import org.apache.flink.mesos.scheduler.messages.OfferRescinded;
 import org.apache.flink.mesos.scheduler.messages.ReRegistered;
 import org.apache.flink.mesos.scheduler.messages.Registered;
@@ -46,7 +47,7 @@ import java.util.List;
 public class SchedulerProxy implements Scheduler {
 
 	/** The actor to which we report the callbacks */
-	private ActorRef mesosActor;
+	private final ActorRef mesosActor;
 
 	public SchedulerProxy(ActorRef mesosActor) {
 		this.mesosActor = mesosActor;
@@ -67,7 +68,6 @@ public class SchedulerProxy implements Scheduler {
 		mesosActor.tell(new Disconnected(), ActorRef.noSender());
 	}
 
-
 	@Override
 	public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
 		mesosActor.tell(new ResourceOffers(offers), ActorRef.noSender());
@@ -85,7 +85,7 @@ public class SchedulerProxy implements Scheduler {
 
 	@Override
 	public void frameworkMessage(SchedulerDriver driver, Protos.ExecutorID executorId, Protos.SlaveID slaveId, byte[] data) {
-		throw new UnsupportedOperationException("frameworkMessage is unexpected");
+		mesosActor.tell(new FrameworkMessage(executorId, slaveId, data), ActorRef.noSender());
 	}
 
 	@Override
@@ -95,7 +95,7 @@ public class SchedulerProxy implements Scheduler {
 
 	@Override
 	public void executorLost(SchedulerDriver driver, Protos.ExecutorID executorId, Protos.SlaveID slaveId, int status) {
-		throw new UnsupportedOperationException("executorLost is unexpected");
+		mesosActor.tell(new ExecutorLost(executorId, slaveId, status), ActorRef.noSender());
 	}
 
 	@Override

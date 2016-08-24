@@ -27,25 +27,27 @@ import scala.Option;
 
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The typed configuration settings associated with a Mesos scheduler.
  */
 public class MesosConfiguration {
 
-	private String masterUrl;
+	private final String masterUrl;
 
-	private Protos.FrameworkInfo.Builder frameworkInfo;
+	private final Protos.FrameworkInfo.Builder frameworkInfo;
 
-	private Option<Protos.Credential.Builder> credential = Option.empty();
+	private final Option<Protos.Credential.Builder> credential;
 
 	public MesosConfiguration(
 		String masterUrl,
 		Protos.FrameworkInfo.Builder frameworkInfo,
 		Option<Protos.Credential.Builder> credential) {
 
-		this.masterUrl = masterUrl;
-		this.frameworkInfo = frameworkInfo;
-		this.credential = credential;
+		this.masterUrl = checkNotNull(masterUrl);
+		this.frameworkInfo = checkNotNull(frameworkInfo);
+		this.credential = checkNotNull(credential);
 	}
 
 	/**
@@ -89,19 +91,20 @@ public class MesosConfiguration {
 	/**
 	 * Create the Mesos scheduler driver based on this configuration.
 	 * @param scheduler the scheduler to use.
-	 * @param implicitAcknowledgements whether to configure the driver for implicit implicit acknowledgements.
+	 * @param implicitAcknowledgements whether to configure the driver for implicit acknowledgements.
      * @return a scheduler driver.
      */
 	public SchedulerDriver createDriver(Scheduler scheduler, boolean implicitAcknowledgements) {
 		MesosSchedulerDriver schedulerDriver;
 		if(this.credential().isDefined()) {
 			schedulerDriver =
-				new MesosSchedulerDriver(scheduler, frameworkInfo.build(), this.masterUrl(), false,
-					this.credential().get().build());
+				new MesosSchedulerDriver(scheduler, frameworkInfo.build(), this.masterUrl(),
+					implicitAcknowledgements, this.credential().get().build());
 		}
 		else {
 			schedulerDriver =
-				new MesosSchedulerDriver(scheduler, frameworkInfo.build(), this.masterUrl(), false);
+				new MesosSchedulerDriver(scheduler, frameworkInfo.build(), this.masterUrl(),
+					implicitAcknowledgements);
 		}
 		return schedulerDriver;
 	}

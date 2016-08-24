@@ -63,7 +63,7 @@ public class MesosTaskManagerRunner {
 			configuration.addAll(dynamicProperties);
 		}
 		catch (Throwable t) {
-			LOG.error(t.getMessage(), t);
+			LOG.error("Failed to load the TaskManager configuration and dynamic properties.", t);
 			System.exit(TaskManager.STARTUP_FAILURE_RETURN_CODE());
 			return;
 		}
@@ -77,15 +77,15 @@ public class MesosTaskManagerRunner {
 		String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);
 		if (flinkTempDirs != null) {
 			LOG.info("Overriding Mesos temporary file directories with those " +
-				"specified in the Flink config: " + flinkTempDirs);
+				"specified in the Flink config: {}", flinkTempDirs);
 		}
 		else if (tmpDirs != null) {
-			LOG.info("Setting directories for temporary files to: " + tmpDirs);
+			LOG.info("Setting directories for temporary files to: {}", tmpDirs);
 			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, tmpDirs);
 		}
 
-		LOG.info("Mesos task runs as '" + UserGroupInformation.getCurrentUser().getShortUserName() +
-			"', setting user to execute Flink TaskManager to '" + effectiveUsername + "'");
+		LOG.info("Mesos task runs as '{}', setting user to execute Flink TaskManager to '{}'",
+			UserGroupInformation.getCurrentUser().getShortUserName(), effectiveUsername);
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true);

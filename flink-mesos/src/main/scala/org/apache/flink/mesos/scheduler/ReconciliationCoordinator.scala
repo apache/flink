@@ -48,7 +48,8 @@ class ReconciliationCoordinator(
   when(Suspended) {
     case Event(reconcile: Reconcile, data: ReconciliationData) =>
       val tasks = reconcile.tasks.map(task => (task.getTaskId,task))
-      stay using data.copy(remaining = if(reconcile.replace) tasks.toMap else data.remaining ++ tasks)
+      stay using data.copy(
+        remaining = if(reconcile.replace) tasks.toMap else data.remaining ++ tasks)
 
     case Event(msg: Connected, data: ReconciliationData) =>
       if(data.remaining.nonEmpty) goto(Reconciling)
@@ -75,7 +76,8 @@ class ReconciliationCoordinator(
       // initiate reconciliation for additional tasks (even while reconciliation is ongoing)
       schedulerDriver.reconcileTasks(reconcile.tasks.asJavaCollection)
       val tasks = reconcile.tasks.map(task => (task.getTaskId,task))
-      stay using data.copy(remaining = if(reconcile.replace) tasks.toMap else data.remaining ++ tasks)
+      stay using data.copy(
+        remaining = if(reconcile.replace) tasks.toMap else data.remaining ++ tasks)
 
     case Event(update: StatusUpdate, data: ReconciliationData) =>
       // status information arrived for a task
@@ -143,7 +145,9 @@ object ReconciliationCoordinator {
     * @param remaining
     * @param retries
     */
-  case class ReconciliationData(remaining: Map[Protos.TaskID,Protos.TaskStatus] = Map(), retries: Int = 0)
+  case class ReconciliationData(
+      remaining: Map[Protos.TaskID,Protos.TaskStatus] = Map(),
+      retries: Int = 0)
 
   /**
     * Initiates the task reconciliation process.

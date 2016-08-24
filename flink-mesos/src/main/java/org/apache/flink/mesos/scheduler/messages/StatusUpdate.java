@@ -20,13 +20,18 @@ package org.apache.flink.mesos.scheduler.messages;
 
 import org.apache.mesos.Protos;
 
+import java.io.Serializable;
+
 /**
  * Message sent by the callback handler to the scheduler actor
  * when the status of a task has changed (e.g., a slave is lost and so the task is lost,
  * a task finishes and an executor sends a status update saying so, etc).
  */
-public class StatusUpdate {
-	private Protos.TaskStatus status;
+public class StatusUpdate implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	private final Protos.TaskStatus status;
 
 	public StatusUpdate(Protos.TaskStatus status) {
 		this.status = status;
