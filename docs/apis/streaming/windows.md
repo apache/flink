@@ -473,23 +473,31 @@ DataStream<SensorReading> input = ...;
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
-    .apply(Long.MIN_VALUE, new MyFoldFunction(), new MyWindowFunction());
+    .apply(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyWindowFunction())
+
 
 /* ... */
 
-private static class MyFoldFunction implements FoldFunction<SensorReading, Long> {
+    private static class MyFoldFunction implements FoldFunction<SensorReading,
+            Tuple3<String, Long, Integer> > {
 
-    public Long fold(Long acc, SensorReading s) {
-        return Math.max(acc, s.timestamp());
-    }
-}
-
-private static class MyWindowFunction implements WindowFunction<Long, Long, String, TimeWindow> {
-
-    public void apply(String key, TimeWindow window, Iterable<Long> timestamps, Collector<Long> out) {
-            out.collect(timestamps.iterator().next());
+        public Tuple3<String, Long, Integer> fold(Tuple3<String, Long, Integer> acc, SensorReading s) {
+            Integer cur = acc.getField(2);
+            acc.setField(2, cur + 1);
+            return acc;
         }
-}
+    }
+
+    private static class MyWindowFunction implements WindowFunction<Tuple3<String, Long, Integer>,
+            Tuple3<String, Long, Integer>, String, TimeWindow> {
+        public void apply(String key,
+                          TimeWindow window,
+                          Iterable<Tuple3<String, Long, Integer>> counts,
+                          Collector<Tuple3<String, Long, Integer>> out) {
+            Integer count = counts.iterator().next().getField(2);
+            out.collect(new Tuple3<String, Long, Integer>(key, window.getEnd(),count));
+        }
+    }
 
 // for reducing incremental computation
 input
@@ -499,68 +507,27 @@ input
 
 /* ... */
 
-private static class MyReduceFunction implements ReduceFunction<SensorReading> {
+    private static class MyReduceFunction implements ReduceFunction<SensorReading> {
 
-    public SensorReading reduce(SensorReading s1, SensorReading s2)  {
-        return s1;
+        public SensorReading reduce(SensorReading reading1, SensorReading reading2) {
+            return reading1.reading() > reading2.reading() ? reading2 : reading1;
+        }
     }
-}
 
-private static class MyWindowFunction implements WindowFunction<SensorReading, SensorReading, String, TimeWindow> {
-
-    public void apply(String key, TimeWindow window, Iterable<SensorReading> readings, Collector<SensorReading> out) {
-        out.collect(readings.iterator().next());
+    private static class MyWindowFunction implements WindowFunction<SensorReading,
+            Tuple2<Long, SensorReading>, String, TimeWindow> {
+        public void apply(String key,
+                          TimeWindow window,
+                          Iterable<SensorReading> minReadings,
+                          Collector<Tuple2<Long, SensorReading>> out) {
+            SensorReading min = minReadings.iterator().next();
+            out.collect(new Tuple2<Long, SensorReading>(window.getStart(),min));
+        }
     }
-}
 
 {% endhighlight %}
 </div>
 
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val input: DataStream[SensorReading] = ...
-
-// for folding incremental computation
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .apply(Long.MinValue, new MyFoldFunction(), new MyWindowFunction())
-
-class MyFoldFunction extends FoldFunction[SensorReading, Long] {
-
-    def fold(acc: Long, s: SensorReading): () = {
-        return Math.max(acc, s.timestamp())
-    }
-}
-
-class MyWindowFunction extends WindowFunction[Long, Long, String, TimeWindow] {
-
-    def apply(key: String, window: TimeWindow, timestamps: Iterable[Long], out: Collector[Long]): () = {
-        out.collect(timestamps.iterator().next())
-}
-
-// for reducing incremental computation
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .apply(new MyReduceFunction(), new MyWindowFunction())
-
-class MyReduceFunction extends ReduceFunction[SensorReading] {
-
-    def reduce(s1: SensorReading, s2: SensorReading): () = {
-        return s1
-    }
-}
-
-class MyWindowFunction extends WindowFunction[SensorReading, SensorReading, String, TimeWindow] {
-
-    def apply(key: String, window: TimeWindow, readings: Iterable[SensorReading], out: Collector[SensorReading]): () = {
-        out.collect(readings.iterator().next())
-    }
-}
-
-{% endhighlight %}
-</div>
 </div>
 
 ## Dealing with Late Data
