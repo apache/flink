@@ -201,8 +201,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		if (getRecordsResult == null) {
-			throw new RuntimeException("Rate Exceeded for getRecords operation - all " + getRecordsMaxAttempts + "retry" +
-				"attempts returned ProvisionedThroughputExceededException.");
+			throw new RuntimeException("Rate Exceeded for getRecords operation - all " + getRecordsMaxAttempts +
+				" retry attempts returned ProvisionedThroughputExceededException.");
 		}
 
 		return getRecordsResult;
@@ -245,8 +245,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		if (getShardIteratorResult == null) {
-			throw new RuntimeException("Rate Exceeded for getShardIterator operation - all " + getShardIteratorMaxAttempts + "retry" +
-				"attempts returned ProvisionedThroughputExceededException.");
+			throw new RuntimeException("Rate Exceeded for getShardIterator operation - all " + getShardIteratorMaxAttempts +
+				" retry attempts returned ProvisionedThroughputExceededException.");
 		}
 		return getShardIteratorResult.getShardIterator();
 	}
