@@ -182,7 +182,6 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 
 			// initialize sequence numbers with restored state
 			lastStateSnapshot = sequenceNumsToRestore;
-			sequenceNumsToRestore = null;
 		} else {
 			// start fresh with empty sequence numbers if there are no snapshots to restore from.
 			lastStateSnapshot = new HashMap<>();
@@ -198,7 +197,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 		fetcher = new KinesisDataFetcher<>(
 			streams, sourceContext, getRuntimeContext(), configProps, deserializer);
 
-		boolean isRestoringFromFailure = !lastStateSnapshot.isEmpty();
+		boolean isRestoringFromFailure = (sequenceNumsToRestore != null);
 		fetcher.setIsRestoringFromFailure(isRestoringFromFailure);
 
 		// if we are restoring from a checkpoint, we iterate over the restored
@@ -210,7 +209,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Subtask {} is seeding the fetcher with restored shard {}," +
-						"starting state set to the restored sequence number {}" +
+							" starting state set to the restored sequence number {}",
 						getRuntimeContext().getIndexOfThisSubtask(), restored.getKey().toString(), restored.getValue());
 				}
 				fetcher.registerNewSubscribedShardState(
@@ -285,13 +284,13 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Snapshotting state. ...");
+			LOG.debug("Snapshotting state ...");
 		}
 
 		lastStateSnapshot = fetcher.snapshotState();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Snapshotting state. Last processed sequence numbers: {}, checkpoint id: {}, timestamp: {}",
+			LOG.debug("Snapshotted state, last processed sequence numbers: {}, checkpoint id: {}, timestamp: {}",
 				lastStateSnapshot.toString(), checkpointId, checkpointTimestamp);
 		}
 

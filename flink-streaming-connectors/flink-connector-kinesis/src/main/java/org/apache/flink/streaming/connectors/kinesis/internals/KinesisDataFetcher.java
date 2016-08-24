@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
@@ -45,6 +46,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -150,6 +152,14 @@ public class KinesisDataFetcher<T> {
 	/** Thread that executed runFetcher() */
 	private Thread mainThread;
 
+	/**
+	 * The current number of shards that are actively read by this fetcher.
+	 *
+	 * This value is updated in {@link KinesisDataFetcher#registerNewSubscribedShardState(KinesisStreamShardState)},
+	 * and {@link KinesisDataFetcher#updateState(int, SequenceNumber)}.
+	 */
+	private final AtomicInteger numberOfActiveShards = new AtomicInteger(0);
+
 	private volatile boolean running = true;
 
 	/**
@@ -229,9 +239,9 @@ public class KinesisDataFetcher<T> {
 		//  1. query for any new shards that may have been created while the Kinesis consumer was not running,
 		//     and register them to the subscribedShardState list.
 		if (LOG.isDebugEnabled()) {
-			String logFormat = (isRestoredFromFailure)
+			String logFormat = (!isRestoredFromFailure)
 				? "Subtask {} is trying to discover initial shards ..."
-				: "Subtask {} is trying to discover any new shards that were created while the consumer wasn't" +
+				: "Subtask {} is trying to discover any new shards that were created while the consumer wasn't " +
 				"running due to failure ...";
 
 			LOG.debug(logFormat, indexOfThisConsumerSubtask);
@@ -250,10 +260,10 @@ public class KinesisDataFetcher<T> {
 				: initialPosition.toSentinelSequenceNumber();
 
 			if (LOG.isInfoEnabled()) {
-				String logFormat = (isRestoredFromFailure)
+				String logFormat = (!isRestoredFromFailure)
 					? "Subtask {} will be seeded with initial shard {}, starting state set as sequence number {}"
-					: "Subtask {} will be seeded with new shard {} that was created while the consumer wasn't" +
-						"running due to failure, starting state set as sequence number {}";
+					: "Subtask {} will be seeded with new shard {} that was created while the consumer wasn't " +
+					"running due to failure, starting state set as sequence number {}";
 
 				LOG.info(logFormat, indexOfThisConsumerSubtask, shard.toString(), startingStateForNewShard.get());
 			}
@@ -287,18 +297,22 @@ public class KinesisDataFetcher<T> {
 		for (int seededStateIndex = 0; seededStateIndex < subscribedShardsState.size(); seededStateIndex++) {
 			KinesisStreamShardState seededShardState = subscribedShardsState.get(seededStateIndex);
 
-			if (LOG.isInfoEnabled()) {
-				LOG.info("Subtask {} will start consuming seeded shard {} from sequence number {} with ShardConsumer {}",
-					indexOfThisConsumerSubtask, seededShardState.getKinesisStreamShard().toString(),
-					seededShardState.getLastProcessedSequenceNum(), seededStateIndex);
-			}
+			// only start a consuming thread if the seeded subscribed shard has not been completely read already
+			if (!seededShardState.getLastProcessedSequenceNum().equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
 
-			shardConsumersExecutor.submit(
-				new ShardConsumer<>(
-					this,
-					seededStateIndex,
-					subscribedShardsState.get(seededStateIndex).getKinesisStreamShard(),
-					subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum()));
+				if (LOG.isInfoEnabled()) {
+					LOG.info("Subtask {} will start consuming seeded shard {} from sequence number {} with ShardConsumer {}",
+						indexOfThisConsumerSubtask, seededShardState.getKinesisStreamShard().toString(),
+						seededShardState.getLastProcessedSequenceNum(), seededStateIndex);
+					}
+
+				shardConsumersExecutor.submit(
+					new ShardConsumer<>(
+						this,
+						seededStateIndex,
+						subscribedShardsState.get(seededStateIndex).getKinesisStreamShard(),
+						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum()));
+			}
 		}
 
 		// ------------------------------------------------------------------------
@@ -311,12 +325,78 @@ public class KinesisDataFetcher<T> {
 				ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
 
+		// FLINK-4341:
+		// For downstream operators that work on time (ex. window operators), we are required to emit a max value watermark
+		// for subtasks that won't continue to have shards to read from unless resharding happens in the future, otherwise
+		// the downstream watermarks would not advance, leading to unbounded accumulating state.
+		//
+		// The side-effect of this limitation is that on resharding, we must fail hard if the newly discovered shard
+		// is to be subscribed by a subtask that has previously emitted a max value watermark, otherwise the watermarks
+		// will be messed up.
+		//
+		// There are 2 cases were we need to either emit a max value watermark, or deliberately fail hard:
+		//  (a) if this subtask has no more shards to read from unless resharding happens in the future, we emit a max
+		//      value watermark. This case is encountered when 1) all previously read shards by this subtask were closed
+		//      due to resharding, 2) when this subtask was initially only subscribed to closed shards while the consumer
+		//      was told to start from TRIM_HORIZON, or 3) there was initially no shards for this subtask to read on startup.
+		//  (b) this subtask has discovered new shards to read from due to a reshard; if this subtask has already emitted
+		//      a max value watermark, we must deliberately fail hard to avoid messing up the watermarks. The new shards
+		//      will be subscribed by this subtask after restore as initial shards on startup.
+		//
+		// TODO: This is a temporary workaround until a min-watermark information service is available in the JobManager
+		// Please see FLINK-4341 for more detail
+
+		boolean emittedMaxValueWatermark = false;
+
+		if (this.numberOfActiveShards.get() == 0) {
+			// FLINK-4341 workaround case (a) - please see the above for details on this case
+			LOG.info("Subtask {} has no initial shards to read on startup; emitting max value watermark ...",
+				indexOfThisConsumerSubtask);
+			sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
+			emittedMaxValueWatermark = true;
+		}
+
 		while (running) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Subtask {} is trying to discover new shards that were created due to resharding ...",
 					indexOfThisConsumerSubtask);
 			}
 			List<KinesisStreamShard> newShardsDueToResharding = discoverNewShardsToSubscribe();
+
+			// -- NOTE: Potential race condition between newShardsDueToResharding and numberOfActiveShards --
+			// Since numberOfActiveShards is updated by parallel shard consuming threads in updateState(), there exists
+			// a race condition with the currently queried newShardsDueToResharding. Therefore, numberOfActiveShards
+			// may not correctly reflect the discover result in the below case determination. This may lead to incorrect
+			// case determination on the current discovery attempt, but can still be correctly handled on future attempts.
+			//
+			// Although this can be resolved by wrapping the current shard discovery attempt with the below
+			// case determination within a synchronized block on the checkpoint lock for atomicity, there will be
+			// considerable throughput performance regression as shard discovery is a remote call to AWS. Therefore,
+			// since the case determination is a temporary workaround for FLINK-4341, the race condition is tolerable as
+			// we can still eventually handle max value watermark emitting / deliberately failing on successive
+			// discovery attempts.
+
+			if (newShardsDueToResharding.size() == 0 && this.numberOfActiveShards.get() == 0 && !emittedMaxValueWatermark) {
+				// FLINK-4341 workaround case (a) - please see the above for details on this case
+				LOG.info("Subtask {} has completed reading all shards; emitting max value watermark ...",
+					indexOfThisConsumerSubtask);
+				sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
+				emittedMaxValueWatermark = true;
+			} else if (newShardsDueToResharding.size() > 0 && emittedMaxValueWatermark) {
+				// FLINK-4341 workaround case (b) - please see the above for details on this case
+				//
+				// Note that in the case where on resharding this subtask ceased to read all of it's previous shards
+				// but new shards is also to be subscribed by this subtask immediately after, emittedMaxValueWatermark
+				// will be false; this allows the fetcher to continue reading the new shards without failing on such cases.
+				// However, due to the race condition mentioned above, we might still fall into case (a) first, and
+				// then (b) on the next discovery attempt. Although the failure is ideally unnecessary, max value
+				// watermark emitting still remains to be correct.
+
+				LOG.warn("Subtask {} has discovered {} new shards to subscribe, but is failing hard to avoid messing" +
+						" up watermarks; the new shards will be subscribed by this subtask after restore ...",
+					indexOfThisConsumerSubtask, newShardsDueToResharding.size());
+				throw new RuntimeException("Deliberate failure to avoid messing up watermarks");
+			}
 
 			for (KinesisStreamShard shard : newShardsDueToResharding) {
 				// since there may be delay in discovering a new shard, all new shards due to
@@ -521,6 +601,14 @@ public class KinesisDataFetcher<T> {
 	protected void updateState(int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (checkpointLock) {
 			subscribedShardsState.get(shardStateIndex).setLastProcessedSequenceNum(lastSequenceNumber);
+
+			// if a shard's state is updated to be SENTINEL_SHARD_ENDING_SEQUENCE_NUM by its consumer thread,
+			// we've finished reading the shard and should determine it to be non-active
+			if (lastSequenceNumber.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
+				this.numberOfActiveShards.decrementAndGet();
+				LOG.info("Subtask {} has reached the end of subscribed shard: {}",
+					indexOfThisConsumerSubtask, subscribedShardsState.get(shardStateIndex).getKinesisStreamShard());
+			}
 		}
 	}
 
@@ -530,9 +618,16 @@ public class KinesisDataFetcher<T> {
 	 * @param newSubscribedShardState the new shard state that this fetcher is to be subscribed to
 	 */
 	public int registerNewSubscribedShardState(KinesisStreamShardState newSubscribedShardState) {
-
 		synchronized (checkpointLock) {
 			subscribedShardsState.add(newSubscribedShardState);
+
+			// If a registered shard has initial state that is not SENTINEL_SHARD_ENDING_SEQUENCE_NUM (will be the case
+			// if the consumer had already finished reading a shard before we failed and restored), we determine that
+			// this subtask has a new active shard
+			if (!newSubscribedShardState.getLastProcessedSequenceNum().equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
+				this.numberOfActiveShards.incrementAndGet();
+			}
+
 			return subscribedShardsState.size()-1;
 		}
 	}
