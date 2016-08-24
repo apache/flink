@@ -51,7 +51,7 @@ import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceMa
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
-import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
+import org.apache.flink.runtime.executiongraph.{StatusListenerMessenger, ExecutionGraph, ExecutionJobVertex}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
@@ -1249,8 +1249,6 @@ class JobManager(
             triggerVertices,
             ackVertices,
             confirmVertices,
-            context.system,
-            leaderSessionID.orNull,
             checkpointIdCounter,
             completedCheckpoints,
             savepointStore,
@@ -1259,14 +1257,14 @@ class JobManager(
 
         // get notified about job status changes
         executionGraph.registerJobStatusListener(
-          new AkkaActorGateway(self, leaderSessionID.orNull))
+          new StatusListenerMessenger(self, leaderSessionID.orNull))
 
         if (jobInfo.listeningBehaviour == ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES) {
           // the sender wants to be notified about state changes
-          val gateway = new AkkaActorGateway(jobInfo.client, leaderSessionID.orNull)
+          val listener  = new StatusListenerMessenger(jobInfo.client, leaderSessionID.orNull)
 
-          executionGraph.registerExecutionListener(gateway)
-          executionGraph.registerJobStatusListener(gateway)
+          executionGraph.registerExecutionListener(listener)
+          executionGraph.registerJobStatusListener(listener)
         }
       } catch {
         case t: Throwable =>

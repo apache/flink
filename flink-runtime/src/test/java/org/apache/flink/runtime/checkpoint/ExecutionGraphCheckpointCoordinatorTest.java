@@ -40,7 +40,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.net.URL;
 import java.util.Collections;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.mock;
@@ -117,8 +116,6 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				Collections.<ExecutionJobVertex>emptyList(),
 				Collections.<ExecutionJobVertex>emptyList(),
 				Collections.<ExecutionJobVertex>emptyList(),
-				system,
-				UUID.randomUUID(),
 				counter,
 				store,
 				new HeapSavepointStore(),

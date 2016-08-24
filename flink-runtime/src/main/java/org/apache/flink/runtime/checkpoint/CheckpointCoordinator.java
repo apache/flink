@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import akka.actor.ActorSystem;
-import akka.actor.PoisonPill;
-import akka.actor.Props;
 import akka.dispatch.Futures;
 
 import org.apache.flink.api.common.JobID;
@@ -31,8 +28,7 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
@@ -57,7 +53,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -137,7 +132,7 @@ public class CheckpointCoordinator {
 	private final Timer timer;
 
 	/** Actor that receives status updates from the execution graph this coordinator works for */
-	private ActorGateway jobStatusListener;
+	private JobStatusListener jobStatusListener;
 
 	/** The number of consecutive failed trigger attempts */
 	private int numUnsuccessfulCheckpointsTriggers;
@@ -265,12 +260,6 @@ public class CheckpointCoordinator {
 
 				// shut down the thread that handles the timeouts and pending triggers
 				timer.cancel();
-
-				// make sure that the actor does not linger
-				if (jobStatusListener != null) {
-					jobStatusListener.tell(PoisonPill.getInstance());
-					jobStatusListener = null;
-				}
 
 				// clear and discard all pending checkpoints
 				for (PendingCheckpoint pending : pendingCheckpoints.values()) {
@@ -903,7 +892,7 @@ public class CheckpointCoordinator {
 	//  Periodic scheduling of checkpoints
 	// --------------------------------------------------------------------------------------------
 
-	public void startCheckpointScheduler() throws Exception {
+	public void startCheckpointScheduler() {
 		synchronized (lock) {
 			if (shutdown) {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
@@ -918,7 +907,7 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	public void stopCheckpointScheduler() throws Exception {
+	public void stopCheckpointScheduler() {
 		synchronized (lock) {
 			triggerRequestQueued = false;
 			periodicScheduling = false;
@@ -929,10 +918,14 @@ public class CheckpointCoordinator {
 			}
 
 			for (PendingCheckpoint p : pendingCheckpoints.values()) {
-				p.abortError(new Exception("Checkpoint Coordinator is suspending."));
+				try {
+					p.abortError(new Exception("Checkpoint Coordinator is suspending."));
+				} catch (Throwable t) {
+					LOG.error("Error while disposing pending checkpoint", t);
+				}
 			}
-			pendingCheckpoints.clear();
 
+			pendingCheckpoints.clear();
 			numUnsuccessfulCheckpointsTriggers = 0;
 		}
 	}
@@ -941,17 +934,14 @@ public class CheckpointCoordinator {
 	//  job status listener that schedules / cancels periodic checkpoints
 	// ------------------------------------------------------------------------
 
-	public ActorGateway createActivatorDeactivator(ActorSystem actorSystem, UUID leaderSessionID) {
+	public JobStatusListener createActivatorDeactivator() {
 		synchronized (lock) {
 			if (shutdown) {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
 			}
 
 			if (jobStatusListener == null) {
-				Props props = Props.create(CheckpointCoordinatorDeActivator.class, this, leaderSessionID);
-
-				// wrap the ActorRef in a AkkaActorGateway to support message decoration
-				jobStatusListener = new AkkaActorGateway(actorSystem.actorOf(props), leaderSessionID);
+				jobStatusListener = new CheckpointCoordinatorDeActivator(this);
 			}
 
 			return jobStatusListener;
