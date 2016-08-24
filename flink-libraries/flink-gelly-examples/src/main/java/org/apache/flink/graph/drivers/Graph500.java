@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.drivers;
 
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -45,13 +45,13 @@ import java.text.NumberFormat;
  */
 public class Graph500 {
 
-	public static final int DEFAULT_SCALE = 10;
+	private static final int DEFAULT_SCALE = 10;
 
-	public static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final int DEFAULT_EDGE_FACTOR = 16;
 
-	public static final boolean DEFAULT_SIMPLIFY = false;
+	private static final boolean DEFAULT_SIMPLIFY = false;
 
-	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
+	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
 	public static void main(String[] args) throws Exception {
 		// Set up the execution environment

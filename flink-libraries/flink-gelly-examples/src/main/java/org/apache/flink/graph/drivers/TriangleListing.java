@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.WordUtils;
@@ -54,11 +54,11 @@ import java.text.NumberFormat;
  */
 public class TriangleListing {
 
-	public static final int DEFAULT_SCALE = 10;
+	private static final int DEFAULT_SCALE = 10;
 
-	public static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final int DEFAULT_EDGE_FACTOR = 16;
 
-	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
+	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
 	private static void printUsage() {
 		System.out.println(WordUtils.wrap("Lists all triangles in a graph.", 80));
@@ -69,7 +69,7 @@ public class TriangleListing {
 		System.out.println("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>");
 		System.out.println();
 		System.out.println("options:");
-		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
+		System.out.println("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
 		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
 		System.out.println();
 		System.out.println("  --output print");
@@ -111,9 +111,19 @@ public class TriangleListing {
 							.keyType(LongValue.class);
 
 						if (directedAlgorithm) {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+							}
+
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>());
 						} else {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
+							}
+
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
 						}
@@ -124,9 +134,19 @@ public class TriangleListing {
 							.keyType(StringValue.class);
 
 						if (directedAlgorithm) {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>());
+							}
+
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<StringValue, NullValue, NullValue>());
 						} else {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false));
+							}
+
 							tl = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<StringValue, NullValue, NullValue>());
 						}

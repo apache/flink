@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.StrBuilder;
@@ -78,7 +78,7 @@ public class JaccardIndex {
 			.appendln("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]>")
 			.appendNewLine()
 			.appendln("options:")
-			.appendln("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
+			.appendln("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
 			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
 			.appendNewLine()
 			.appendln("  --output print")
@@ -116,15 +116,29 @@ public class JaccardIndex {
 
 				switch (parameters.get("type", "")) {
 					case "integer": {
-						ji = reader
-							.keyType(LongValue.class)
+						Graph<LongValue, NullValue, NullValue> graph = reader
+							.keyType(LongValue.class);
+
+						if (parameters.getBoolean("simplify", false)) {
+							graph = graph
+								.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
+						}
+
+						ji = graph
 							.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
 					} break;
 
 					case "string": {
-						ji = reader
-							.keyType(StringValue.class)
+						Graph<StringValue, NullValue, NullValue> graph = reader
+							.keyType(StringValue.class);
+
+						if (parameters.getBoolean("simplify", false)) {
+							graph = graph
+								.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>());
+						}
+
+						ji = graph
 							.run(new org.apache.flink.graph.library.similarity.JaccardIndex<StringValue, NullValue, NullValue>()
 								.setLittleParallelism(little_parallelism));
 					} break;
@@ -193,7 +207,7 @@ public class JaccardIndex {
 
 				ji.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
-				env.execute();
+				env.execute("Jaccard Index");
 				break;
 
 			default:

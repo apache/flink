@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.WordUtils;
@@ -54,11 +54,11 @@ import java.text.NumberFormat;
  */
 public class HITS {
 
-	public static final int DEFAULT_ITERATIONS = 10;
+	private static final int DEFAULT_ITERATIONS = 10;
 
-	public static final int DEFAULT_SCALE = 10;
+	private static final int DEFAULT_SCALE = 10;
 
-	public static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final int DEFAULT_EDGE_FACTOR = 16;
 
 	private static void printUsage() {
 		System.out.println(WordUtils.wrap("Hyperlink-Induced Topic Search computes two interdependent" +

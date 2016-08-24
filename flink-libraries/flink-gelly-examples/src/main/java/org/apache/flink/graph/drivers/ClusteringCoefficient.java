@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.WordUtils;
@@ -59,11 +59,11 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  */
 public class ClusteringCoefficient {
 
-	public static final int DEFAULT_SCALE = 10;
+	private static final int DEFAULT_SCALE = 10;
 
-	public static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final int DEFAULT_EDGE_FACTOR = 16;
 
-	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
+	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
 	private static void printUsage() {
 		System.out.println(WordUtils.wrap("The local clustering coefficient measures the connectedness of each" +
@@ -77,7 +77,7 @@ public class ClusteringCoefficient {
 		System.out.println("usage: ClusteringCoefficient --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]>");
 		System.out.println();
 		System.out.println("options:");
-		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
+		System.out.println("  --input csv --type <integer | string> [--simplify <true | false>] --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
 		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
 		System.out.println();
 		System.out.println("  --output print");
@@ -125,6 +125,11 @@ public class ClusteringCoefficient {
 							.keyType(LongValue.class);
 
 						if (directedAlgorithm) {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+							}
+
 							gcc = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
@@ -135,6 +140,11 @@ public class ClusteringCoefficient {
 								.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
 						} else {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
+							}
+
 							gcc = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
@@ -152,6 +162,11 @@ public class ClusteringCoefficient {
 							.keyType(StringValue.class);
 
 						if (directedAlgorithm) {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.directed.Simplify<StringValue, NullValue, NullValue>());
+							}
+
 							gcc = graph
 								.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<StringValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
@@ -162,6 +177,11 @@ public class ClusteringCoefficient {
 								.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<StringValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
 						} else {
+							if (parameters.getBoolean("simplify", false)) {
+								graph = graph
+									.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<StringValue, NullValue, NullValue>(false));
+							}
+
 							gcc = graph
 								.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<StringValue, NullValue, NullValue>()
 									.setLittleParallelism(little_parallelism));
@@ -286,14 +306,10 @@ public class ClusteringCoefficient {
 						System.out.println(result.toVerboseString());
 					}
 				}
-				System.out.println(gcc.getResult());
-				System.out.println(acc.getResult());
 				break;
 
 			case "hash":
 				System.out.println(DataSetUtils.checksumHashCode(lcc));
-				System.out.println(gcc.getResult());
-				System.out.println(acc.getResult());
 				break;
 
 			case "csv":
@@ -308,15 +324,15 @@ public class ClusteringCoefficient {
 				lcc.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
 				env.execute("Clustering Coefficient");
-
-				System.out.println(gcc.getResult());
-				System.out.println(acc.getResult());
 				break;
 
 			default:
 				printUsage();
 				return;
 		}
+
+		System.out.println(gcc.getResult());
+		System.out.println(acc.getResult());
 
 		JobExecutionResult result = env.getLastJobExecutionResult();
 
