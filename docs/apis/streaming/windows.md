@@ -460,9 +460,12 @@ the additional meta information that writing a `WindowFunction` provides.
 
 This is an example that shows how incremental aggregation functions can be combined with
 a `WindowFunction`.  The `FoldFunction`/`WindowFunction` example shows how to extract the
-ending event-time of a window of sensor readings that contain a timestamp, 
-and the `ReduceFunction`/`WindowFunctions` example shows how to do eager window
-aggregation (only a single element is kept in the window).
+number of events in the window and return also the key and end time of the window.   
+The `ReduceFunction`/`WindowFunctions` example shows how to return the sensor with the 
+smallest reading in the window along with the start time of the window.  As of now, 
+the use of a `FoldFunction` in combination with `WindowFunction is
+ restricted in that the types of the `Iterable` and `Collector` arguments in
+ `WindowFunction` must both correspond to the type of the accumulator in the `FoldFunction`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
