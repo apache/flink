@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.examples;
 
-import com.google.common.collect.Maps;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -58,7 +57,7 @@ public class ElasticsearchExample {
 			}
 		});
 
-		Map<String, String> config = Maps.newHashMap();
+		Map<String, String> config = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
