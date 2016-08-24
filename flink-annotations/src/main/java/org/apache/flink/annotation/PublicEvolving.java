@@ -21,6 +21,8 @@ package org.apache.flink.annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * Annotation to mark classes and methods for public use, but with evolving interfaces.
@@ -34,6 +36,7 @@ import java.lang.annotation.Target;
  *
  */
 @Documented
+@Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.CONSTRUCTOR })
 @Public
 public @interface PublicEvolving {

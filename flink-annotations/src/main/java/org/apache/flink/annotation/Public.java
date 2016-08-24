@@ -21,6 +21,8 @@ package org.apache.flink.annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * Annotation for marking classes as public, stable interfaces.
@@ -31,6 +33,7 @@ import java.lang.annotation.Target;
  * <p>Only major releases (1.0, 2.0, 3.0) can break interfaces with this annotation.
  */
 @Documented
+@Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Public
 public @interface Public {}

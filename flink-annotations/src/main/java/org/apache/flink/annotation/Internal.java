@@ -21,6 +21,8 @@ package org.apache.flink.annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * Interface to mark methods within stable, public APIs as an internal developer API.
@@ -28,6 +30,7 @@ import java.lang.annotation.Target;
  * <p>Developer APIs are stable but internal to Flink and might change across releases.
  */
 @Documented
+@Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR })
 @Public
 public @interface Internal {
