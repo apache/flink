@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -27,11 +28,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphCsvReader;
 import org.apache.flink.graph.asm.simple.directed.Simplify;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
+import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
@@ -54,26 +56,29 @@ import java.text.NumberFormat;
  */
 public class HITS {
 
-	public static final int DEFAULT_ITERATIONS = 10;
+	private static final int DEFAULT_ITERATIONS = 10;
 
-	public static final int DEFAULT_SCALE = 10;
+	private static final int DEFAULT_SCALE = 10;
 
-	public static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final int DEFAULT_EDGE_FACTOR = 16;
 
-	private static void printUsage() {
-		System.out.println(WordUtils.wrap("Hyperlink-Induced Topic Search computes two interdependent" +
-			" scores for every vertex in a directed graph. A good \"hub\" links to good \"authorities\"" +
-			" and good \"authorities\" are linked from good \"hubs\".", 80));
-		System.out.println();
-		System.out.println("usage: HITS --input <csv | rmat [options]> --output <print | hash | csv [options]>");
-		System.out.println();
-		System.out.println("options:");
-		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
-		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
-		System.out.println();
-		System.out.println("  --output print");
-		System.out.println("  --output hash");
-		System.out.println("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
+	private static String getUsage(String message) {
+		return new StrBuilder()
+			.appendNewLine()
+			.appendln(WordUtils.wrap("Hyperlink-Induced Topic Search computes two interdependent" +
+				" scores for every vertex in a directed graph. A good \"hub\" links to good \"authorities\"" +
+				" and good \"authorities\" are linked from good \"hubs\".", 80))
+			.appendNewLine()
+			.appendln("usage: HITS --input <csv | rmat [options]> --output <print | hash | csv [options]>")
+			.appendNewLine()
+			.appendln("options:")
+			.appendln("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]")
+			.appendln("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]")
+			.appendNewLine()
+			.appendln("  --output print")
+			.appendln("  --output hash")
+			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
+			.toString();
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -114,8 +119,7 @@ public class HITS {
 					} break;
 
 					default:
-						printUsage();
-						return;
+						throw new ProgramParametrizationException(getUsage("invalid CSV type"));
 				}
 				} break;
 
@@ -144,8 +148,7 @@ public class HITS {
 				} break;
 
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid input type"));
 		}
 
 		switch (parameters.get("output", "")) {
@@ -173,8 +176,7 @@ public class HITS {
 				env.execute();
 				break;
 			default:
-				printUsage();
-				return;
+				throw new ProgramParametrizationException(getUsage("invalid output type"));
 		}
 
 		JobExecutionResult result = env.getLastJobExecutionResult();

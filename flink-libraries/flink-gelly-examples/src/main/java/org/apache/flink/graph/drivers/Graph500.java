@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.drivers;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.StrBuilder;
+import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.DataSet;
@@ -26,6 +29,7 @@ import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.simple.undirected.Simplify;
 import org.apache.flink.graph.generator.RMatGraph;
@@ -45,13 +49,32 @@ import java.text.NumberFormat;
  */
 public class Graph500 {
 
-	public static final int DEFAULT_SCALE = 10;
+	private static final int DEFAULT_SCALE = 10;
 
-	public static final int DEFAULT_EDGE_FACTOR = 16;
+	private static final int DEFAULT_EDGE_FACTOR = 16;
 
-	public static final boolean DEFAULT_SIMPLIFY = false;
+	private static final boolean DEFAULT_SIMPLIFY = false;
 
-	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
+	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
+
+	private static String getUsage(String message) {
+		return new StrBuilder()
+			.appendNewLine()
+			.appendln("A Graph500 generator using the Recursive Matrix (RMat) graph generator.")
+			.appendNewLine()
+			.appendln(WordUtils.wrap("The graph matrix contains 2^scale vertices although not every vertex will" +
+				" be represented in an edge. The number of edges is edge_factor * 2^scale edges" +
+				" although some edges may be duplicates.", 80))
+			.appendNewLine()
+			.appendln("Note: this does not yet implement permutation of vertex labels or edges.")
+			.appendNewLine()
+			.appendln("  --output print")
+			.appendln("  --output hash")
+			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
+			.appendNewLine()
+			.appendln("Usage error: " + message)
+			.toString();
+	}
 
 	public static void main(String[] args) throws Exception {
 		// Set up the execution environment
@@ -96,29 +119,18 @@ public class Graph500 {
 		case "csv":
 			String filename = parameters.get("filename");
 
-			String row_delimiter = parameters.get("row_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER);
-			String field_delimiter = parameters.get("field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+			String lineDelimiter = StringEscapeUtils.unescapeJava(
+				parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
 
-			edges.writeAsCsv(filename, row_delimiter, field_delimiter);
+			String fieldDelimiter = StringEscapeUtils.unescapeJava(
+				parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-			env.execute();
+			edges.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
+
+			env.execute("Graph500");
 			break;
 		default:
-			System.out.println("A Graph500 generator using the Recursive Matrix (RMat) graph generator.");
-			System.out.println();
-			System.out.println("The graph matrix contains 2^scale vertices although not every vertex will");
-			System.out.println("be represented in an edge. The number of edges is edge_factor * 2^scale edges");
-			System.out.println("although some edges may be duplicates.");
-			System.out.println();
-			System.out.println("Note: this does not yet implement permutation of vertex labels or edges.");
-			System.out.println();
-			System.out.println("usage:");
-			System.out.println("  Graph500 [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
-			System.out.println("  Graph500 [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
-			System.out.println("  Graph500 [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
-					" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
-
-			return;
+			throw new ProgramParametrizationException(getUsage("invalid output type"));
 		}
 
 		JobExecutionResult result = env.getLastJobExecutionResult();
