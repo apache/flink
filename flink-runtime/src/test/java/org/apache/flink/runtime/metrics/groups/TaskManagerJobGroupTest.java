@@ -19,10 +19,9 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.TaskManagerJobScopeFormat;
-import org.apache.flink.runtime.metrics.scope.TaskManagerScopeFormat;
 
 import org.junit.Test;
 
@@ -50,15 +49,15 @@ public class TaskManagerJobGroupTest {
 
 	@Test
 	public void testGenerateScopeCustom() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
-
-		TaskManagerScopeFormat tmFormat = new TaskManagerScopeFormat("abc");
-		TaskManagerJobScopeFormat jmFormat = new TaskManagerJobScopeFormat("some-constant.<job_name>", tmFormat);
+		Configuration cfg = new Configuration();
+		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "abc");
+		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, "some-constant.<job_name>");
+		MetricRegistry registry = new MetricRegistry(cfg);
 
 		JobID jid = new JobID();
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
-		JobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, jmFormat, jid, "myJobName");
+		JobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
 
 		assertArrayEquals(
 				new String[] { "some-constant", "myJobName" },
@@ -72,15 +71,15 @@ public class TaskManagerJobGroupTest {
 
 	@Test
 	public void testGenerateScopeCustomWildcard() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
-
-		TaskManagerScopeFormat tmFormat = new TaskManagerScopeFormat("peter.<tm_id>");
-		TaskManagerJobScopeFormat jmFormat = new TaskManagerJobScopeFormat("*.some-constant.<job_id>", tmFormat);
+		Configuration cfg = new Configuration();
+		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "peter.<tm_id>");
+		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, "*.some-constant.<job_id>");
+		MetricRegistry registry = new MetricRegistry(cfg);
 
 		JobID jid = new JobID();
 
-		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, tmFormat, "theHostName", "test-tm-id");
-		JobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, jmFormat, jid, "myJobName");
+		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
+		JobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
 
 		assertArrayEquals(
 				new String[] { "peter", "test-tm-id", "some-constant", jid.toString() },

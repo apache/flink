@@ -38,6 +38,8 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -73,6 +75,12 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	@SuppressWarnings("rawtypes")
 	private transient KvState lastState;
 
+	/** KvStateRegistry helper for this task */
+	protected transient TaskKvStateRegistry kvStateRegistry;
+
+	/** Key group index of this state backend */
+	protected transient int keyGroupIndex;
+
 	// ------------------------------------------------------------------------
 	//  initialization and cleanup
 	// ------------------------------------------------------------------------
@@ -87,11 +95,16 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 *                   case the job that uses the state backend is considered failed during
 	 *                   deployment.
 	 */
-	public void initializeForJob(Environment env,
-		String operatorIdentifier,
-		TypeSerializer<?> keySerializer) throws Exception {
+	public void initializeForJob(
+			Environment env,
+			String operatorIdentifier,
+			TypeSerializer<?> keySerializer) throws Exception {
+
 		this.userCodeClassLoader = env.getUserClassLoader();
 		this.keySerializer = keySerializer;
+
+		this.keyGroupIndex = env.getTaskInfo().getIndexOfThisSubtask();
+		this.kvStateRegistry = env.getTaskKvStateRegistry();
 	}
 
 	/**
@@ -110,6 +123,10 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	public abstract void close() throws Exception;
 
 	public void dispose() {
+		if (kvStateRegistry != null) {
+			kvStateRegistry.unregisterAll();
+		}
+
 		lastName = null;
 		lastState = null;
 		if (keyValueStates != null) {
@@ -176,7 +193,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 */
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setCurrentKey(Object currentKey) {
-		this.currentKey = currentKey;
+		this.currentKey = Preconditions.checkNotNull(currentKey, "Key");
 		if (keyValueStates != null) {
 			for (KvState kv : keyValueStates) {
 				kv.setCurrentKey(currentKey);
@@ -203,6 +220,8 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 */
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	public <N, S extends State> S getPartitionedState(final N namespace, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S, ?> stateDescriptor) throws Exception {
+		Preconditions.checkNotNull(namespace, "Namespace");
+		Preconditions.checkNotNull(namespaceSerializer, "Namespace serializer");
 
 		if (keySerializer == null) {
 			throw new RuntimeException("State key serializer has not been configured in the config. " +
@@ -231,7 +250,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 		}
 
 		// create a new blank key/value state
-		S kvstate = stateDescriptor.bind(new StateBackend() {
+		S state = stateDescriptor.bind(new StateBackend() {
 			@Override
 			public <T> ValueState<T> createValueState(ValueStateDescriptor<T> stateDesc) throws Exception {
 				return AbstractStateBackend.this.createValueState(namespaceSerializer, stateDesc);
@@ -254,16 +273,31 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 
 		});
 
-		keyValueStatesByName.put(stateDescriptor.getName(), (KvState) kvstate);
+		KvState kvState = (KvState) state;
+
+		keyValueStatesByName.put(stateDescriptor.getName(), kvState);
 		keyValueStates = keyValueStatesByName.values().toArray(new KvState[keyValueStatesByName.size()]);
 
 		lastName = stateDescriptor.getName();
-		lastState = (KvState<?, ?, ?, ?, ?>) kvstate;
+		lastState = kvState;
 
-		((KvState) kvstate).setCurrentKey(currentKey);
-		((KvState) kvstate).setCurrentNamespace(namespace);
+		if (currentKey != null) {
+			kvState.setCurrentKey(currentKey);
+		}
 
-		return kvstate;
+		kvState.setCurrentNamespace(namespace);
+
+		// Publish queryable state
+		if (stateDescriptor.isQueryable()) {
+			if (kvStateRegistry == null) {
+				throw new IllegalStateException("State backend has not been initialized for job.");
+			}
+
+			String name = stateDescriptor.getQueryableStateName();
+			kvStateRegistry.registerKvState(keyGroupIndex, name, kvState);
+		}
+
+		return state;
 	}
 
 	@SuppressWarnings("unchecked,rawtypes")
@@ -352,6 +386,16 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 					keySerializer,
 					userCodeClassLoader);
 				keyValueStatesByName.put(state.getKey(), kvState);
+
+				try {
+					// Publish queryable state
+					StateDescriptor stateDesc = kvState.getStateDescriptor();
+					if (stateDesc.isQueryable()) {
+						String queryableStateName = stateDesc.getQueryableStateName();
+						kvStateRegistry.registerKvState(keyGroupIndex, queryableStateName, kvState);
+					}
+				} catch (Throwable ignored) {
+				}
 			}
 			keyValueStates = keyValueStatesByName.values().toArray(new KvState[keyValueStatesByName.size()]);
 		}

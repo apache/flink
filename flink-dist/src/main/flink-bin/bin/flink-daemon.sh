@@ -58,6 +58,18 @@ pid=$FLINK_PID_DIR/flink-$FLINK_IDENT_STRING-$DAEMON.pid
 
 mkdir -p "$FLINK_PID_DIR"
 
+# Log files for daemons are indexed from the process ID's position in the PID
+# file. The following lock prevents a race condition during daemon startup
+# when multiple daemons read, index, and write to the PID file concurrently.
+# The lock is created on the PID directory since a lock file cannot be safely
+# removed. The daemon is started with the lock closed and the lock remains
+# active in this script until the script exits.
+command -v flock >/dev/null 2>&1
+if [[ $? -eq 0 ]]; then
+    exec 200<"$FLINK_PID_DIR"
+    flock 200
+fi
+
 # Ascending ID depending on number of lines in pid file.
 # This allows us to start multiple daemon of each type.
 id=$([ -f "$pid" ] && echo $(wc -l < $pid) || echo "0")
@@ -101,7 +113,7 @@ case $STARTSTOP in
         fi
 
         echo "Starting $DAEMON daemon on host $HOSTNAME."
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 200<&- 2>&1 < /dev/null &
 
         mypid=$!
 

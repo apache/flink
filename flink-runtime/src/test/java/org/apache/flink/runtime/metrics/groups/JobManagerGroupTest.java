@@ -18,10 +18,10 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.JobManagerScopeFormat;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -36,8 +36,8 @@ public class JobManagerGroupTest {
 
 	@Test
 	public void addAndRemoveJobs() {
-		final JobManagerMetricGroup group = new JobManagerMetricGroup(
-			new MetricRegistry(new Configuration()), "localhost");
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+		final JobManagerMetricGroup group = new JobManagerMetricGroup(registry, "localhost");
 
 		final JobID jid1 = new JobID();
 		final JobID jid2 = new JobID();
@@ -62,12 +62,14 @@ public class JobManagerGroupTest {
 
 		assertTrue(jmJobGroup21.isClosed());
 		assertEquals(0, group.numRegisteredJobMetricGroups());
+
+		registry.shutdown();
 	}
 
 	@Test
 	public void testCloseClosesAll() {
-		final JobManagerMetricGroup group = new JobManagerMetricGroup(
-			new MetricRegistry(new Configuration()), "localhost");
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+		final JobManagerMetricGroup group = new JobManagerMetricGroup(registry, "localhost");
 
 		final JobID jid1 = new JobID();
 		final JobID jid2 = new JobID();
@@ -82,6 +84,8 @@ public class JobManagerGroupTest {
 
 		assertTrue(jmJobGroup11.isClosed());
 		assertTrue(jmJobGroup21.isClosed());
+
+		registry.shutdown();
 	}
 
 	// ------------------------------------------------------------------------
@@ -95,15 +99,21 @@ public class JobManagerGroupTest {
 
 		assertArrayEquals(new String[]{"localhost", "jobmanager"}, group.getScopeComponents());
 		assertEquals("localhost.jobmanager.name", group.getMetricIdentifier("name"));
+
+		registry.shutdown();
 	}
 
 	@Test
 	public void testGenerateScopeCustom() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
-		JobManagerScopeFormat format = new JobManagerScopeFormat("constant.<host>.foo.<host>");
-		JobManagerMetricGroup group = new JobManagerMetricGroup(registry, format, "host");
+		Configuration cfg = new Configuration();
+		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_JM, "constant.<host>.foo.<host>");
+		MetricRegistry registry = new MetricRegistry(cfg);
+
+		JobManagerMetricGroup group = new JobManagerMetricGroup(registry, "host");
 
 		assertArrayEquals(new String[]{"constant", "host", "foo", "host"}, group.getScopeComponents());
 		assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
+
+		registry.shutdown();
 	}
 }

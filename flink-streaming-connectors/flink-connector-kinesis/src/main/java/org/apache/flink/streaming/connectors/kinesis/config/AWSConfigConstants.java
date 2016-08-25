@@ -40,7 +40,10 @@ public class AWSConfigConstants {
 		PROFILE,
 
 		/** Simply create AWS credentials by supplying the AWS access key ID and AWS secret key in the configuration properties */
-		BASIC
+		BASIC,
+
+		/** A credentials provider chain will be used that searches for credentials in this order: ENV_VARS, SYS_PROPS, PROFILE in the AWS instance metadata **/
+		AUTO,
 	}
 
 	/** The AWS region of the Kinesis streams to be pulled ("us-east-1" is used if not set) */

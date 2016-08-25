@@ -74,7 +74,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSource.class);
 
 	private final RMQConnectionConfig rmqConnectionConfig;
-	private final String queueName;
+	protected final String queueName;
 	private final boolean usesCorrelationId;
 	protected DeserializationSchema<OUT> schema;
 

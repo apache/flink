@@ -37,6 +37,7 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -134,11 +135,15 @@ public class InterruptSensitiveRestoreTest {
 	}
 	
 	private static Task createTask(TaskDeploymentDescriptor tdd) throws IOException {
+		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
+		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
+				.thenReturn(mock(TaskKvStateRegistry.class));
+
 		return new Task(
 				tdd,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
-				mock(NetworkEnvironment.class),
+				networkEnvironment,
 				mock(BroadcastVariableManager.class),
 				mock(ActorGateway.class),
 				mock(ActorGateway.class),

@@ -27,5 +27,8 @@ case class NetworkEnvironmentConfiguration(
   networkBufferSize: Int,
   memoryType: MemoryType,
   ioMode: IOMode,
+  queryServerPort: Int,
+  queryServerNetworkThreads: Int,
+  queryServerQueryThreads: Int,
   nettyConfig: Option[NettyConfig] = None,
   partitionRequestInitialAndMaxBackoff: (Integer, Integer) = (500, 3000))

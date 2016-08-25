@@ -25,6 +25,7 @@ import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
+import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
@@ -35,6 +36,7 @@ import org.apache.flink.api.scala.table.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
+import org.apache.flink.api.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
 import org.apache.flink.api.table.plan.schema.{RelTable, TransStreamTable}
 import org.apache.flink.api.table.sinks.TableSink
@@ -60,6 +62,12 @@ abstract class TableEnvironment(val config: TableConfig) {
   // the catalog to hold all registered and translated tables
   private val tables: SchemaPlus = Frameworks.createRootSchema(true)
 
+  // Table API/SQL function catalog
+  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuildIns
+
+  // SQL operator and function catalog
+  private val sqlOperatorTable: SqlOperatorTable = functionCatalog.getSqlOperatorTable
+
   // the configuration to create a Calcite planner
   private val frameworkConfig: FrameworkConfig = Frameworks
     .newConfigBuilder
@@ -67,6 +75,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     .parserConfig(parserConfig)
     .costFactory(new DataSetCostFactory)
     .typeSystem(new FlinkTypeSystem)
+    .operatorTable(sqlOperatorTable)
     .build
 
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
@@ -77,13 +86,29 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   private val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
 
-  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuildIns
-
   // a counter for unique attribute names
   private val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig = config
+
+  /**
+    * Registers a [[UserDefinedFunction]] under a unique name. Replaces already existing
+    * user-defined functions under this name.
+    */
+  def registerFunction(name: String, function: UserDefinedFunction): Unit = {
+    function match {
+      case sf: ScalarFunction =>
+        // register in Table API
+        functionCatalog.registerFunction(name, function.getClass)
+
+        // register in SQL API
+        functionCatalog.registerSqlFunction(sf.getSqlFunction(name, typeFactory))
+
+      case _ =>
+        throw new TableException("Unsupported user-defined function type.")
+    }
+  }
 
   /**
     * Registers a [[Table]] under a unique name in the TableEnvironment's catalog.

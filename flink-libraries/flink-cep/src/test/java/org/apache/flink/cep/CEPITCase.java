@@ -504,7 +504,72 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		expected = "Left(1.0)\nRight(2.0,2.0,2.0)";
 
 		env.execute();
+	}
 
+	/**
+	 * Checks that a certain event sequence is recognized with an OR filter
+	 * @throws Exception
+	 */
+	@Test
+	public void testSimpleOrFilterPatternCEP() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "start", 1.0),
+			new Event(2, "middle", 2.0),
+			new Event(3, "end", 3.0),
+			new Event(4, "start", 4.0),
+			new Event(5, "middle", 5.0),
+			new Event(6, "end", 6.0)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
+			.where(new FilterFunction<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("start");
+				}
+			})
+			.followedBy("middle")
+			.where(new FilterFunction<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getPrice() == 2.0;
+				}
+			})
+			.or(new FilterFunction<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getPrice() == 5.0;
+				}
+			})
+			.followedBy("end").where(new FilterFunction<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
+			});
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+
+			@Override
+			public String select(Map<String, Event> pattern) {
+				StringBuilder builder = new StringBuilder();
+
+				builder.append(pattern.get("start").getId()).append(",")
+					.append(pattern.get("middle").getId()).append(",")
+					.append(pattern.get("end").getId());
+
+				return builder.toString();
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		// expected sequence of matching event ids
+		expected = "1,5,6\n1,2,3\n4,5,6\n1,2,6";
+
+		env.execute();
 	}
 }

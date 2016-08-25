@@ -19,32 +19,22 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.OperatorScopeFormat;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.Collections;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator.
  */
-public class OperatorMetricGroup extends ComponentMetricGroup {
-
-	/** The task metric group that contains this operator metric groups */
-	private final TaskMetricGroup parent;
+public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
+	private final String operatorName;
 
 	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, String operatorName) {
-		this(registry, parent, registry.getScopeFormats().getOperatorFormat(), operatorName);
-	}
-
-	public OperatorMetricGroup(
-			MetricRegistry registry,
-			TaskMetricGroup parent,
-			OperatorScopeFormat scopeFormat,
-			String operatorName) {
-
-		super(registry, scopeFormat.formatScope(parent, operatorName));
-		this.parent = checkNotNull(parent);
+		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(checkNotNull(parent), operatorName), parent);
+		this.operatorName = operatorName;
 	}
 
 	// ------------------------------------------------------------------------
@@ -56,6 +46,12 @@ public class OperatorMetricGroup extends ComponentMetricGroup {
 	// ------------------------------------------------------------------------
 	//  Component Metric Group Specifics
 	// ------------------------------------------------------------------------
+
+	@Override
+	protected void putVariables(Map<String, String> variables) {
+		variables.put(ScopeFormat.SCOPE_OPERATOR_NAME, operatorName);
+		// we don't enter the subtask_index as the task group does that already
+	}
 
 	@Override
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {

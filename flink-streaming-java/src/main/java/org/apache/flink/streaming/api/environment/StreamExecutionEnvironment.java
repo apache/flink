@@ -52,7 +52,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.FilePathFilter;
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
@@ -208,7 +208,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Sets the maximum time frequency (milliseconds) for the flushing of the
+	 * Gets the maximum time frequency (milliseconds) for the flushing of the
 	 * output buffers. For clarification on the extremal values see
 	 * {@link #setBufferTimeout(long)}.
 	 *
@@ -917,11 +917,11 @@ public abstract class StreamExecutionEnvironment {
 		Preconditions.checkNotNull(filePath.isEmpty(), "The file path must not be empty.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 		format.setCharsetName(charsetName);
 
-		return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1,
-			FilePathFilter.createDefaultFilter(), typeInfo);
+		return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1, typeInfo);
 	}
 
 	/**
@@ -952,7 +952,52 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
 												String filePath) {
-		return readFile(inputFormat, filePath, FileProcessingMode.PROCESS_ONCE, -1, FilePathFilter.createDefaultFilter());
+		return readFile(inputFormat, filePath, FileProcessingMode.PROCESS_ONCE, -1);
+	}
+
+	/**
+	 *
+	 * Reads the contents of the user-specified {@code filePath} based on the given {@link FileInputFormat}. Depending
+	 * on the provided {@link FileProcessingMode}.
+	 * <p>
+	 * See {@link #readFile(FileInputFormat, String, FileProcessingMode, long)}
+	 *
+	 * @param inputFormat
+	 * 		The input format used to create the data stream
+	 * @param filePath
+	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
+	 * @param watchType
+	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
+	 * @param interval
+	 * 		In the case of periodic path monitoring, this specifies the interval (in millis) between consecutive path scans
+	 * @param filter
+	 * 		The files to be excluded from the processing
+	 * @param <OUT>
+	 * 		The type of the returned data stream
+	 * @return The data stream that represents the data read from the given file
+	 *
+	 * @deprecated Use {@link FileInputFormat#setFilesFilter(FilePathFilter)} to set a filter and
+	 * 		{@link StreamExecutionEnvironment#readFile(FileInputFormat, String, FileProcessingMode, long)}
+	 *
+	 */
+	@PublicEvolving
+	@Deprecated
+	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
+												String filePath,
+												FileProcessingMode watchType,
+												long interval,
+												FilePathFilter filter) {
+		inputFormat.setFilesFilter(filter);
+
+		TypeInformation<OUT> typeInformation;
+		try {
+			typeInformation = TypeExtractor.getInputFormatTypes(inputFormat);
+		} catch (Exception e) {
+			throw new InvalidProgramException("The type returned by the input format could not be " +
+				"automatically determined. Please specify the TypeInformation of the produced type " +
+				"explicitly by using the 'createInput(InputFormat, TypeInformation)' method instead.");
+		}
+		return readFile(inputFormat, filePath, watchType, interval, typeInformation);
 	}
 
 	/**
@@ -986,8 +1031,6 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
 	 * @param interval
 	 * 		In the case of periodic path monitoring, this specifies the interval (in millis) between consecutive path scans
-	 * @param filter
-	 * 		The files to be excluded from the processing
 	 * @param <OUT>
 	 * 		The type of the returned data stream
 	 * @return The data stream that represents the data read from the given file
@@ -996,8 +1039,7 @@ public abstract class StreamExecutionEnvironment {
 	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
 												String filePath,
 												FileProcessingMode watchType,
-												long interval,
-												FilePathFilter filter) {
+												long interval) {
 
 		TypeInformation<OUT> typeInformation;
 		try {
@@ -1007,7 +1049,7 @@ public abstract class StreamExecutionEnvironment {
 				"automatically determined. Please specify the TypeInformation of the produced type " +
 				"explicitly by using the 'createInput(InputFormat, TypeInformation)' method instead.");
 		}
-		return readFile(inputFormat, filePath, watchType, interval, filter, typeInformation);
+		return readFile(inputFormat, filePath, watchType, interval, typeInformation);
 	}
 
 	/**
@@ -1057,8 +1099,6 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
 	 * @param watchType
 	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
-	 * @param filter
-	 * 		The files to be excluded from the processing
 	 * @param typeInformation
 	 * 		Information on the type of the elements in the output stream
 	 * @param interval
@@ -1072,7 +1112,6 @@ public abstract class StreamExecutionEnvironment {
 												String filePath,
 												FileProcessingMode watchType,
 												long interval,
-												FilePathFilter filter,
 												TypeInformation<OUT> typeInformation) {
 
 		Preconditions.checkNotNull(inputFormat, "InputFormat must not be null.");
@@ -1080,7 +1119,7 @@ public abstract class StreamExecutionEnvironment {
 		Preconditions.checkNotNull(filePath.isEmpty(), "The file path must not be empty.");
 
 		inputFormat.setFilePath(filePath);
-		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, filter, interval);
+		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, interval);
 	}
 
 	/**
@@ -1250,8 +1289,7 @@ public abstract class StreamExecutionEnvironment {
 		if (inputFormat instanceof FileInputFormat) {
 			FileInputFormat<OUT> format = (FileInputFormat<OUT>) inputFormat;
 			source = createFileInput(format, typeInfo, "Custom File source",
-				FileProcessingMode.PROCESS_ONCE,
-				FilePathFilter.createDefaultFilter(),  -1);
+				FileProcessingMode.PROCESS_ONCE, -1);
 		} else {
 			source = createInput(inputFormat, typeInfo, "Custom Source");
 		}
@@ -1270,14 +1308,12 @@ public abstract class StreamExecutionEnvironment {
 														TypeInformation<OUT> typeInfo,
 														String sourceName,
 														FileProcessingMode monitoringMode,
-														FilePathFilter pathFilter,
 														long interval) {
 
 		Preconditions.checkNotNull(inputFormat, "Unspecified file input format.");
 		Preconditions.checkNotNull(typeInfo, "Unspecified output type information.");
 		Preconditions.checkNotNull(sourceName, "Unspecified name for the source.");
 		Preconditions.checkNotNull(monitoringMode, "Unspecified monitoring mode.");
-		Preconditions.checkNotNull(pathFilter, "Unspecified path name filtering function.");
 
 		Preconditions.checkArgument(monitoringMode.equals(FileProcessingMode.PROCESS_ONCE) ||
 			interval >= ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL,
@@ -1286,7 +1322,7 @@ public abstract class StreamExecutionEnvironment {
 
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction = new ContinuousFileMonitoringFunction<>(
 			inputFormat, inputFormat.getFilePath().toString(),
-			pathFilter, monitoringMode, getParallelism(), interval);
+			monitoringMode, getParallelism(), interval);
 
 		ContinuousFileReaderOperator<OUT, ?> reader = new ContinuousFileReaderOperator<>(inputFormat);
 

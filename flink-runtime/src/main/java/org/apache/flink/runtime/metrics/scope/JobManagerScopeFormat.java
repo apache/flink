@@ -25,7 +25,7 @@ public class JobManagerScopeFormat extends ScopeFormat {
 
 	public JobManagerScopeFormat(String format) {
 		super(format, null, new String[] {
-			SCOPE_ACTOR_HOST
+			SCOPE_HOST
 		});
 	}
 

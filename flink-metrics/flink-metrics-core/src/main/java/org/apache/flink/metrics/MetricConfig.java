@@ -19,12 +19,25 @@ package org.apache.flink.metrics;
 
 import java.util.Properties;
 
+/**
+ * A properties class with added utility method to extract primitives.
+ */
 public class MetricConfig extends Properties {
 
 	public String getString(String key, String defaultValue) {
 		return getProperty(key, defaultValue);
 	}
 
+	/**
+	 * Searches for the property with the specified key in this property list.
+	 * If the key is not found in this property list, the default property list,
+	 * and its defaults, recursively, are then checked. The method returns the
+	 * default value argument if the property is not found.
+	 *
+	 * @param key          the hashtable key.
+	 * @param defaultValue a default value.
+	 * @return the value in this property list with the specified key value parsed as an int.
+	 */
 	public int getInteger(String key, int defaultValue) {
 		String argument = getProperty(key, null);
 		return argument == null
@@ -32,6 +45,16 @@ public class MetricConfig extends Properties {
 			: Integer.parseInt(argument);
 	}
 
+	/**
+	 * Searches for the property with the specified key in this property list.
+	 * If the key is not found in this property list, the default property list,
+	 * and its defaults, recursively, are then checked. The method returns the
+	 * default value argument if the property is not found.
+	 *
+	 * @param key          the hashtable key.
+	 * @param defaultValue a default value.
+	 * @return the value in this property list with the specified key value parsed as a long.
+	 */
 	public long getLong(String key, long defaultValue) {
 		String argument = getProperty(key, null);
 		return argument == null
@@ -39,6 +62,16 @@ public class MetricConfig extends Properties {
 			: Long.parseLong(argument);
 	}
 
+	/**
+	 * Searches for the property with the specified key in this property list.
+	 * If the key is not found in this property list, the default property list,
+	 * and its defaults, recursively, are then checked. The method returns the
+	 * default value argument if the property is not found.
+	 *
+	 * @param key          the hashtable key.
+	 * @param defaultValue a default value.
+	 * @return the value in this property list with the specified key value parsed as a float.
+	 */
 	public float getFloat(String key, float defaultValue) {
 		String argument = getProperty(key, null);
 		return argument == null
@@ -46,6 +79,16 @@ public class MetricConfig extends Properties {
 			: Float.parseFloat(argument);
 	}
 
+	/**
+	 * Searches for the property with the specified key in this property list.
+	 * If the key is not found in this property list, the default property list,
+	 * and its defaults, recursively, are then checked. The method returns the
+	 * default value argument if the property is not found.
+	 *
+	 * @param key          the hashtable key.
+	 * @param defaultValue a default value.
+	 * @return the value in this property list with the specified key value parsed as a double.
+	 */
 	public double getDouble(String key, double defaultValue) {
 		String argument = getProperty(key, null);
 		return argument == null
@@ -53,6 +96,16 @@ public class MetricConfig extends Properties {
 			: Double.parseDouble(argument);
 	}
 
+	/**
+	 * Searches for the property with the specified key in this property list.
+	 * If the key is not found in this property list, the default property list,
+	 * and its defaults, recursively, are then checked. The method returns the
+	 * default value argument if the property is not found.
+	 *
+	 * @param key          the hashtable key.
+	 * @param defaultValue a default value.
+	 * @return the value in this property list with the specified key value parsed as a boolean.
+	 */
 	public boolean getBoolean(String key, boolean defaultValue) {
 		String argument = getProperty(key, null);
 		return argument == null

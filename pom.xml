@@ -84,8 +84,6 @@ under the License.
 		<shading-artifact.name>error</shading-artifact.name>
 		<!-- Internal property to reduce build times on TravisCi -->
 		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
-		<!-- The shading artifact module name can be used as a module name. it does not get a scala version suffix -->
-		<shading-artifact-module.name>error</shading-artifact-module.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
 		<hadoop-two.version>2.3.0</hadoop-two.version>
 		<!-- Need to use a user property here because the surefire
@@ -115,7 +113,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>force-shading</artifactId>
-			<version>1.1-SNAPSHOT</version>
+			<version>1.2-SNAPSHOT</version>
 		</dependency>
 
 		<!-- Add the 'javax.annotation' annotations (JSR305), such as '@Nullable' -->
@@ -233,6 +231,13 @@ under the License.
 				<groupId>commons-io</groupId>
 				<artifactId>commons-io</artifactId>
 				<version>2.4</version>
+			</dependency>
+
+			<!--- commons collections needs to be pinned to this critical security fix version -->
+			<dependency>
+				<groupId>commons-collections</groupId>
+				<artifactId>commons-collections</artifactId>
+				<version>3.2.2</version>
 			</dependency>
 
 			<!-- common-beanutils-bean-collections is used by flink-shaded-hadoop2 -->
@@ -430,8 +435,7 @@ under the License.
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-one.version}</hadoop.version>
-				<shading-artifact.name>flink-shaded-hadoop1_2.10</shading-artifact.name>
-				<shading-artifact-module.name>flink-shaded-hadoop1</shading-artifact-module.name>
+				<shading-artifact.name>flink-shaded-hadoop1</shading-artifact.name>
 			</properties>
 		</profile>
 
@@ -447,7 +451,6 @@ under the License.
 			<properties>
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
 				<shading-artifact.name>flink-shaded-hadoop2</shading-artifact.name>
-				<shading-artifact-module.name>flink-shaded-hadoop2</shading-artifact-module.name>
 			</properties>
 			<modules>
 				<module>flink-yarn</module>
@@ -766,63 +769,6 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-				<version>0.7.0</version>
-				<configuration>
-					<oldVersion>
-						<dependency>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>${project.artifactId}</artifactId>
-							<version>1.0.0</version>
-							<type>${project.packaging}</type>
-						</dependency>
-					</oldVersion>
-					<newVersion>
-						<file>
-							<path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
-						</file>
-					</newVersion>
-					<parameter>
-						<onlyModified>true</onlyModified>
-						<includes>
-							<include>@org.apache.flink.annotation.Public</include>
-						</includes>
-						<excludes>
-							<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
-							<exclude>@org.apache.flink.annotation.Internal</exclude>
-						</excludes>
-						<accessModifier>public</accessModifier>
-						<breakBuildOnModifications>false</breakBuildOnModifications>
-						<breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
-						<breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
-						<onlyBinaryIncompatible>false</onlyBinaryIncompatible>
-						<includeSynthetic>true</includeSynthetic>
-						<ignoreMissingClasses>false</ignoreMissingClasses>
-						<skipPomModules>true</skipPomModules>
-						<!-- Don't break build on newly added maven modules -->
-						<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
-					</parameter>
-					<skip>false</skip>
-					<dependencies>
-						<dependency>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-annotations</artifactId>
-							<version>${project.version}</version>
-						</dependency>
-					</dependencies>
-				</configuration>
-				<executions>
-					<execution>
-						<phase>verify</phase>
-						<goals>
-							<goal>cmp</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
@@ -892,6 +838,7 @@ under the License.
 						<exclude>docs/**/bootstrap*</exclude>
 						<exclude>docs/Gemfile.lock</exclude>
 						<exclude>docs/img/*.svg</exclude>
+						<exclude>**/docs/page/font-awesome/**</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
@@ -931,11 +878,7 @@ under the License.
 						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
-						<exclude>CHANGELOG</exclude>
-						<exclude>CONTRIBUTING.md</exclude>
-						<exclude>CONTRIBUTORS</exclude>
-						<exclude>DEPENDENCIES</exclude>
-						<exclude>PULL_REQUEST_TEMPLATE.md</exclude>
+						<exclude>.github/**</exclude>
 						<!-- Build files -->
 						<exclude>**/*.iml</exclude>
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
@@ -1132,20 +1075,19 @@ under the License.
 
 		</plugins>
 
-		<!--
-		Disable git-commit-id-plugin in eclipse
-		See https://github.com/stratosphere/stratosphere/pull/231#issuecomment-27896187
-		-->
+		<!-- Plugin configurations for plugins activated in sub-projects --> 
+
 		<pluginManagement>
 			<plugins>
-				<!--set maven shade plugin version-->
+
+				<!-- Pin the version of the maven shade plugin -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
 					<version>2.4.1</version>
 				</plugin>
-				<!--This plugin's configuration is used to store Eclipse m2e settings
-					only. It has no influence on the Maven build itself. -->
+				
+				<!-- Disable certain plugins in Eclipse -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -1155,15 +1097,9 @@ under the License.
 							<pluginExecutions>
 								<pluginExecution>
 									<pluginExecutionFilter>
-										<groupId>
-											pl.project13.maven
-										</groupId>
-										<artifactId>
-											git-commit-id-plugin
-										</artifactId>
-										<versionRange>
-											[2.1.5,)
-										</versionRange>
+										<groupId>pl.project13.maven</groupId>
+										<artifactId>git-commit-id-plugin</artifactId>
+										<versionRange>[2.1.5,)</versionRange>
 										<goals>
 											<goal>revision</goal>
 										</goals>
@@ -1174,15 +1110,9 @@ under the License.
 								</pluginExecution>
 								<pluginExecution>
 									<pluginExecutionFilter>
-										<groupId>
-											org.apache.maven.plugins
-										</groupId>
-										<artifactId>
-											maven-checkstyle-plugin
-										</artifactId>
-										<versionRange>
-											[2.12.1,)
-										</versionRange>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-checkstyle-plugin</artifactId>
+										<versionRange>[2.12.1,)</versionRange>
 										<goals>
 											<goal>check</goal>
 										</goals>
@@ -1252,7 +1182,67 @@ under the License.
 					<artifactId>scala-maven-plugin</artifactId>
 					<version>3.2.2</version>
 				</plugin>
+
+				<!-- Configuration for the binary compatibility checker -->
+				<plugin>
+					<groupId>com.github.siom79.japicmp</groupId>
+					<artifactId>japicmp-maven-plugin</artifactId>
+					<version>0.7.0</version>
+					<configuration>
+						<oldVersion>
+							<dependency>
+								<groupId>org.apache.flink</groupId>
+								<artifactId>${project.artifactId}</artifactId>
+								<version>1.0.0</version>
+								<type>${project.packaging}</type>
+							</dependency>
+						</oldVersion>
+						<newVersion>
+							<file>
+								<path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
+							</file>
+						</newVersion>
+						<parameter>
+							<onlyModified>true</onlyModified>
+							<includes>
+								<include>@org.apache.flink.annotation.Public</include>
+							</includes>
+							<excludes>
+								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
+								<exclude>@org.apache.flink.annotation.Internal</exclude>
+							</excludes>
+							<accessModifier>public</accessModifier>
+							<breakBuildOnModifications>false</breakBuildOnModifications>
+							<breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+							<breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
+							<onlyBinaryIncompatible>false</onlyBinaryIncompatible>
+							<includeSynthetic>true</includeSynthetic>
+							<ignoreMissingClasses>false</ignoreMissingClasses>
+							<skipPomModules>true</skipPomModules>
+							<!-- Don't break build on newly added maven modules -->
+							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
+						</parameter>
+						<skip>false</skip>
+						<dependencies>
+							<dependency>
+								<groupId>org.apache.flink</groupId>
+								<artifactId>flink-annotations</artifactId>
+								<version>${project.version}</version>
+							</dependency>
+						</dependencies>
+					</configuration>
+					<executions>
+						<execution>
+							<phase>verify</phase>
+							<goals>
+								<goal>cmp</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+
 			</plugins>
 		</pluginManagement>
 	</build>
+
 </project>

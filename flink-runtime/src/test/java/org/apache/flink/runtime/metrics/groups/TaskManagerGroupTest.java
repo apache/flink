@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.scope.TaskManagerScopeFormat;
 import org.apache.flink.util.AbstractID;
 
 import org.apache.flink.util.SerializedValue;
@@ -260,9 +260,10 @@ public class TaskManagerGroupTest {
 
 	@Test
 	public void testGenerateScopeCustom() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
-		TaskManagerScopeFormat format = new TaskManagerScopeFormat("constant.<host>.foo.<host>");
-		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, format, "host", "id");
+		Configuration cfg = new Configuration();
+		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "constant.<host>.foo.<host>");
+		MetricRegistry registry = new MetricRegistry(cfg);
+		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
 
 		assertArrayEquals(new String[] { "constant", "host", "foo", "host" }, group.getScopeComponents());
 		assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));

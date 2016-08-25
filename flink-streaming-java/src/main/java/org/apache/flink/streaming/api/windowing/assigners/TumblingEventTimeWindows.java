@@ -47,17 +47,19 @@ import java.util.Collections;
 public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
-	private long size;
+	private final long size;
 
-	protected TumblingEventTimeWindows(long size) {
+	private final long offset;
+
+	protected TumblingEventTimeWindows(long size, long offset){
 		this.size = size;
+		this.offset = offset;
 	}
-
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		if (timestamp > Long.MIN_VALUE) {
 			// Long.MIN_VALUE is currently assigned when no timestamp is present
-			long start = timestamp - (timestamp % size);
+			long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);
 			return Collections.singletonList(new TimeWindow(start, start + size));
 		} else {
 			throw new RuntimeException("Record has Long.MIN_VALUE timestamp (= no timestamp marker). " +
@@ -88,7 +90,30 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	 * @return The time policy.
 	 */
 	public static TumblingEventTimeWindows of(Time size) {
-		return new TumblingEventTimeWindows(size.toMilliseconds());
+		return new TumblingEventTimeWindows(size.toMilliseconds(), 0);
+	}
+
+	/**
+	 *  Creates a new {@code TumblingEventTimeWindows} {@link WindowAssigner} that assigns
+	 *  elements to time windows based on the element timestamp and offset.
+	 *<p>
+	 *     For example, if you want window a stream by hour,but window begins at the 15th minutes
+	 *     of each hour, you can use {@code of(Time.hours(1),Time.minutes(15))},then you will get
+	 *     time windows start at 0:15:00,1:15:00,2:15:00,etc.
+	 *</p>
+	 *
+	 * <p>
+	 *     Rather than that,if you are living in somewhere which is not using UTC±00:00 time,
+	 *     such as China which is using UTC+08:00,and you want a time window with size of one day,
+	 *     and window begins at every 00:00:00 of local time,you may use {@code of(Time.days(1),Time.hours(-8))}.
+	 *     The parameter of offset is {@code Time.hours(-8))} since UTC+08:00 is 8 hours earlier than UTC time.
+	 * </p>
+	 * @param size The size of the generated windows.
+	 * @param offset The offset which window start would be shifted by.
+	 * @return The time policy.
+	 */
+	public static TumblingEventTimeWindows of(Time size, Time offset) {
+		return new TumblingEventTimeWindows(size.toMilliseconds(), offset.toMilliseconds() % size.toMilliseconds());
 	}
 
 	@Override

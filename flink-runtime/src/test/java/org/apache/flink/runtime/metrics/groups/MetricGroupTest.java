@@ -135,7 +135,7 @@ public class MetricGroupTest {
 	private static class DummyAbstractMetricGroup extends AbstractMetricGroup {
 
 		public DummyAbstractMetricGroup(MetricRegistry registry) {
-			super(registry, new String[0]);
+			super(registry, new String[0], null);
 		}
 
 		@Override

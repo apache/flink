@@ -33,7 +33,7 @@ public class SlidingTimeWindows extends SlidingEventTimeWindows {
 	private static final long serialVersionUID = 1L;
 
 	private SlidingTimeWindows(long size, long slide) {
-		super(size, slide);
+		super(size, slide, 0);
 	}
 
 	/**

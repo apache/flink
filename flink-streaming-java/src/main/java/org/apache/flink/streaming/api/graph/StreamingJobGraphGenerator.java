@@ -113,7 +113,7 @@ public class StreamingJobGraphGenerator {
 		jobGraph = new JobGraph(streamGraph.getJobName());
 
 		// make sure that all vertices start immediately
-		jobGraph.setScheduleMode(ScheduleMode.ALL);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
 		init();
 
@@ -469,7 +469,6 @@ public class StreamingJobGraphGenerator {
 				if (vertex.isInputVertex()) {
 					triggerVertices.add(vertex.getID());
 				}
-				// TODO: add check whether the user function implements the checkpointing interface
 				commitVertices.add(vertex.getID());
 				ackVertices.add(vertex.getID());
 			}

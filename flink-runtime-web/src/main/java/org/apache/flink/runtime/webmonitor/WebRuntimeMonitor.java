@@ -159,10 +159,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 		final boolean webSubmitAllow = cfg.isProgramSubmitEnabled();
 		if (webSubmitAllow) {
 			// create storage for uploads
-			String uploadDirName = "flink-web-upload-" + UUID.randomUUID();
-			this.uploadDir = new File(getBaseDir(config), uploadDirName);
-			if (!uploadDir.mkdir() || !uploadDir.canWrite()) {
-				throw new IOException("Unable to create temporary directory to support jar uploads.");
+			this.uploadDir = getUploadDir(config);
+			// the upload directory should either 1. exist and writable or 2. can be created and writable
+			if (!(uploadDir.exists() && uploadDir.canWrite()) && !(uploadDir.mkdir() && uploadDir.canWrite())) {
+				throw new IOException(
+					String.format("Jar upload directory %s cannot be created or is not writable.",
+						uploadDir.getAbsolutePath()));
 			}
 			LOG.info("Using directory {} for web frontend JAR file uploads", uploadDir);
 		}
@@ -437,12 +439,23 @@ public class WebRuntimeMonitor implements WebMonitor {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-
 	private RuntimeMonitorHandler handler(RequestHandler handler) {
 		return new RuntimeMonitorHandler(handler, retriever, jobManagerAddressPromise.future(), timeout);
 	}
 
 	File getBaseDir(Configuration configuration) {
-		return new File(configuration.getString(ConfigConstants.JOB_MANAGER_WEB_TMPDIR_KEY, System.getProperty("java.io.tmpdir")));
+		return new File(getBaseDirStr(configuration));
+	}
+
+	private String getBaseDirStr(Configuration configuration) {
+		return configuration.getString(ConfigConstants.JOB_MANAGER_WEB_TMPDIR_KEY, System.getProperty("java.io.tmpdir"));
+	}
+
+	private File getUploadDir(Configuration configuration) {
+		File baseDir = new File(configuration.getString(ConfigConstants.JOB_MANAGER_WEB_UPLOAD_DIR_KEY,
+			getBaseDirStr(configuration)));
+
+		boolean uploadDirSpecified = configuration.containsKey(ConfigConstants.JOB_MANAGER_WEB_UPLOAD_DIR_KEY);
+		return uploadDirSpecified ? baseDir : new File(baseDir, "flink-web-" + UUID.randomUUID());
 	}
 }

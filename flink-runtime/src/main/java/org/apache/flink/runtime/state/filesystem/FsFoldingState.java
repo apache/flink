@@ -23,8 +23,10 @@ import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -71,7 +73,7 @@ public class FsFoldingState<K, N, T, ACC>
 	 * @param keySerializer The serializer for the key.
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param stateDesc The state identifier for the state. This contains name
-*                           and can create a default state value.
+	 * and can create a default state value.
 	 * @param state The map of key/value pairs to initialize the state with.
 	 */
 	public FsFoldingState(FsStateBackend backend,
@@ -86,20 +88,24 @@ public class FsFoldingState<K, N, T, ACC>
 	@Override
 	public ACC get() {
 		if (currentNSState == null) {
+			Preconditions.checkState(currentNamespace != null, "No namespace set");
 			currentNSState = state.get(currentNamespace);
 		}
-		return currentNSState != null ?
-			currentNSState.get(currentKey) : null;
+		if (currentNSState != null) {
+			Preconditions.checkState(currentKey != null, "No key set");
+			return currentNSState.get(currentKey);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public void add(T value) throws IOException {
-		if (currentKey == null) {
-			throw new RuntimeException("No key available.");
-		}
+		Preconditions.checkState(currentKey != null, "No key set");
 
 		if (currentNSState == null) {
-			currentNSState = new HashMap<>();
+			Preconditions.checkState(currentNamespace != null, "No namespace set");
+			currentNSState = createNewNamespaceMap();
 			state.put(currentNamespace, currentNSState);
 		}
 
@@ -121,6 +127,19 @@ public class FsFoldingState<K, N, T, ACC>
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, filePath);
 	}
 
+	@Override
+	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+		Preconditions.checkNotNull(key, "Key");
+		Preconditions.checkNotNull(namespace, "Namespace");
+
+		Map<K, ACC> stateByKey = state.get(namespace);
+
+		if (stateByKey != null) {
+			return KvStateRequestSerializer.serializeValue(stateByKey.get(key), stateDesc.getSerializer());
+		} else {
+			return null;
+		}
+	}
 
 	public static class Snapshot<K, N, T, ACC> extends AbstractFsStateSnapshot<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> {
 		private static final long serialVersionUID = 1L;

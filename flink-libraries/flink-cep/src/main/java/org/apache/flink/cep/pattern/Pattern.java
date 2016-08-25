@@ -93,6 +93,24 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
+	 * Specifies a filter condition which is ORed with an existing filter function.
+	 *
+	 * @param orFilterFunction OR filter condition
+	 * @return The same pattern operator where the new filter condition is set
+	 */
+	public Pattern<T, F> or(FilterFunction<F> orFilterFunction) {
+		ClosureCleaner.clean(orFilterFunction, true);
+
+		if (this.filterFunction == null) {
+			this.filterFunction = orFilterFunction;
+		} else {
+			this.filterFunction = new OrFilterFunction<>(this.filterFunction, orFilterFunction);
+		}
+
+		return this;
+	}
+
+	/**
 	 * Applies a subtype constraint on the current pattern operator. This means that an event has
 	 * to be of the given subtype in order to be matched.
 	 *

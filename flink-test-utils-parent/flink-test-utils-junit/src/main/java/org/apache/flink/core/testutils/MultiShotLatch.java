@@ -42,7 +42,7 @@ public final class MultiShotLatch {
 	}
 
 	/**
-	 * Waits until {@link #trigger())} is called.
+	 * Waits until {@link #trigger()} is called.
 	 */
 	public void await() throws InterruptedException {
 		synchronized (lock) {
