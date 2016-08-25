@@ -908,25 +908,27 @@ public class CheckpointCoordinator {
 	}
 
 	public void stopCheckpointScheduler() {
-		synchronized (lock) {
-			triggerRequestQueued = false;
-			periodicScheduling = false;
+		synchronized (triggerLock) {
+			synchronized (lock) {
+				triggerRequestQueued = false;
+				periodicScheduling = false;
 
-			if (currentPeriodicTrigger != null) {
-				currentPeriodicTrigger.cancel();
-				currentPeriodicTrigger = null;
-			}
-
-			for (PendingCheckpoint p : pendingCheckpoints.values()) {
-				try {
-					p.abortError(new Exception("Checkpoint Coordinator is suspending."));
-				} catch (Throwable t) {
-					LOG.error("Error while disposing pending checkpoint", t);
+				if (currentPeriodicTrigger != null) {
+					currentPeriodicTrigger.cancel();
+					currentPeriodicTrigger = null;
 				}
-			}
 
-			pendingCheckpoints.clear();
-			numUnsuccessfulCheckpointsTriggers = 0;
+				for (PendingCheckpoint p : pendingCheckpoints.values()) {
+					try {
+						p.abortError(new Exception("Checkpoint Coordinator is suspending."));
+					} catch (Throwable t) {
+						LOG.error("Error while disposing pending checkpoint", t);
+					}
+				}
+
+				pendingCheckpoints.clear();
+				numUnsuccessfulCheckpointsTriggers = 0;
+			}
 		}
 	}
 
