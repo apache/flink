@@ -27,12 +27,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.api.common.io.FilePathFilter;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
@@ -51,7 +53,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 
 public class ContinuousFileMonitoringTest {
@@ -106,6 +107,117 @@ public class ContinuousFileMonitoringTest {
 	//						TESTS
 
 	@Test
+	public void testFileReadingOperatorWithIngestionTime() throws Exception {
+		Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
+		Map<Integer, String> expectedFileContents = new HashMap<>();
+		for(int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = fillWithData(hdfsURI, "file", i, "This is test line.");
+			filesCreated.add(file.f0);
+			expectedFileContents.put(i, file.f1);
+		}
+
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
+
+		ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setAutoWatermarkInterval(100);
+
+		TestTimeServiceProvider timeServiceProvider = new TestTimeServiceProvider();
+		OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
+			new OneInputStreamOperatorTestHarness<>(reader, executionConfig,
+				timeServiceProvider, TimeCharacteristic.IngestionTime);
+
+		reader.setOutputType(typeInfo, executionConfig);
+		tester.open();
+
+		// test that watermarks are correctly emitted
+
+		timeServiceProvider.setCurrentTime(201);
+		timeServiceProvider.setCurrentTime(301);
+		timeServiceProvider.setCurrentTime(401);
+		timeServiceProvider.setCurrentTime(501);
+
+		int i = 0;
+		for(Object line: tester.getOutput()) {
+			if (!(line instanceof Watermark)) {
+				Assert.fail("Only watermarks are expected here ");
+			}
+			Watermark w = (Watermark) line;
+			Assert.assertEquals(w.getTimestamp(), 200 + (i * 100));
+			i++;
+		}
+
+		// clear the output to get the elements only and the final watermark
+		tester.getOutput().clear();
+		Assert.assertEquals(tester.getOutput().size(), 0);
+
+		// create the necessary splits for the test
+		FileInputSplit[] splits = format.createInputSplits(
+			reader.getRuntimeContext().getNumberOfParallelSubtasks());
+
+		// and feed them to the operator
+		for(FileInputSplit split: splits) {
+			tester.processElement(new StreamRecord<>(split));
+		}
+
+		// then close the reader gracefully so that
+		// we wait until all input is read
+		synchronized (tester.getCheckpointLock()) {
+			tester.close();
+		}
+
+		for(org.apache.hadoop.fs.Path file: filesCreated) {
+			hdfs.delete(file, false);
+		}
+
+		// the lines received must be the elements in the files +1 for the Long.MAX_VALUE watermark
+		Assert.assertEquals(tester.getOutput().size(), NO_OF_FILES * LINES_PER_FILE + 1);
+
+		// put the elements read in a map by file they belong to
+		Map<Integer, List<String>> actualFileContents = new HashMap<>();
+		for(Object line: tester.getOutput()) {
+			if (line instanceof StreamRecord) {
+				StreamRecord<String> element = (StreamRecord<String>) line;
+				Assert.assertEquals(element.getTimestamp(), 501);
+
+				int fileIdx = Character.getNumericValue(element.getValue().charAt(0));
+				List<String> content = actualFileContents.get(fileIdx);
+				if (content == null) {
+					content = new ArrayList<>();
+					actualFileContents.put(fileIdx, content);
+				}
+				content.add(element.getValue() + "\n");
+			} else if (line instanceof Watermark) {
+				Assert.assertEquals(((Watermark) line).getTimestamp(), Long.MAX_VALUE);
+			} else {
+				Assert.fail("Unknown element in the list.");
+			}
+		}
+
+		// check if the elements are the expected ones.
+		Assert.assertEquals(expectedFileContents.size(), actualFileContents.size());
+		for (Integer fileIdx: expectedFileContents.keySet()) {
+			Assert.assertTrue("file" + fileIdx + " not found", actualFileContents.keySet().contains(fileIdx));
+
+			List<String> cntnt = actualFileContents.get(fileIdx);
+			Collections.sort(cntnt, new Comparator<String>() {
+				@Override
+				public int compare(String o1, String o2) {
+					return getLineNo(o1) - getLineNo(o2);
+				}
+			});
+
+			StringBuilder cntntStr = new StringBuilder();
+			for (String line: cntnt) {
+				cntntStr.append(line);
+			}
+			Assert.assertEquals(expectedFileContents.get(fileIdx), cntntStr.toString());
+		}
+	}
+
+	@Test
 	public void testFileReadingOperator() throws Exception {
 		Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
 		Map<Integer, String> expectedFileContents = new HashMap<>();
@@ -134,24 +246,15 @@ public class ContinuousFileMonitoringTest {
 			tester.processElement(new StreamRecord<>(split));
 		}
 
-		// then close the reader gracefully
+		// then close the reader gracefully (and wait to finish reading)
 		synchronized (tester.getCheckpointLock()) {
 			tester.close();
 		}
 
-		/*
-		* Given that the reader is multithreaded, the test finishes before the reader thread finishes
-		* reading. This results in files being deleted by the test before being read, thus throwing an exception.
-		* In addition, even if file deletion happens at the end, the results are not ready for testing.
-		* To face this, we wait until all the output is collected or until the waiting time exceeds 1000 ms, or 1s.
-		*/
+		// the lines received must be the elements in the files, no final watermark because
+		// by default we are in processing time, which emits no watermarks.
 
-		long start = System.currentTimeMillis();
-		Queue<Object> output;
-		do {
-			output = tester.getOutput();
-			Thread.sleep(50);
-		} while ((output == null || output.size() != NO_OF_FILES * LINES_PER_FILE) && (System.currentTimeMillis() - start) < 1000);
+		Assert.assertEquals(tester.getOutput().size(), NO_OF_FILES * LINES_PER_FILE);
 
 		Map<Integer, List<String>> actualFileContents = new HashMap<>();
 		for(Object line: tester.getOutput()) {
@@ -159,7 +262,7 @@ public class ContinuousFileMonitoringTest {
 
 			int fileIdx = Character.getNumericValue(element.getValue().charAt(0));
 			List<String> content = actualFileContents.get(fileIdx);
-			if(content == null) {
+			if (content == null) {
 				content = new ArrayList<>();
 				actualFileContents.put(fileIdx, content);
 			}
@@ -224,7 +327,7 @@ public class ContinuousFileMonitoringTest {
 		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
 
-		Assert.assertTrue(uniqFilesFound.size() == NO_OF_FILES);
+		Assert.assertEquals(uniqFilesFound.size(), NO_OF_FILES);
 		for(int i = 0; i < NO_OF_FILES; i++) {
 			org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(hdfsURI + "/file" + i);
 			Assert.assertTrue(uniqFilesFound.contains(file.toString()));
@@ -268,8 +371,8 @@ public class ContinuousFileMonitoringTest {
 		t.interrupt();
 		fc.join();
 
-		Assert.assertTrue(fc.getFilesCreated().size() == NO_OF_FILES);
-		Assert.assertTrue(uniqFilesFound.size() == NO_OF_FILES);
+		Assert.assertEquals(fc.getFilesCreated().size(), NO_OF_FILES);
+		Assert.assertEquals(uniqFilesFound.size(), NO_OF_FILES);
 
 		Set<org.apache.hadoop.fs.Path> filesCreated = fc.getFilesCreated();
 		Set<String> fileNamesCreated = new HashSet<>();
@@ -316,7 +419,7 @@ public class ContinuousFileMonitoringTest {
 		// wait until all the files are created
 		fc.join();
 
-		Assert.assertTrue(filesCreated.size() == NO_OF_FILES);
+		Assert.assertEquals(filesCreated.size(), NO_OF_FILES);
 
 		Set<String> fileNamesCreated = new HashSet<>();
 		for (org.apache.hadoop.fs.Path path: fc.getFilesCreated()) {
@@ -337,7 +440,7 @@ public class ContinuousFileMonitoringTest {
 
 	private int getLineNo(String line) {
 		String[] tkns = line.split("\\s");
-		Assert.assertTrue(tkns.length == 6);
+		Assert.assertEquals(tkns.length, 6);
 		return Integer.parseInt(tkns[tkns.length - 1]);
 	}
 

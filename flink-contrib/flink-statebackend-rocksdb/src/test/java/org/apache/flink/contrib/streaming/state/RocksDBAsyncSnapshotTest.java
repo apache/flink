@@ -89,7 +89,7 @@ public class RocksDBAsyncSnapshotTest {
 	}
 
 	/**
-	 * This ensures that asynchronous state handles are actually materialized asynchonously.
+	 * This ensures that asynchronous state handles are actually materialized asynchronously.
 	 *
 	 * <p>We use latches to block at various stages and see if the code still continues through
 	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
@@ -171,7 +171,6 @@ public class RocksDBAsyncSnapshotTest {
 				while (!field.getBoolean(task)) {
 					Thread.sleep(10);
 				}
-
 			}
 		}
 
@@ -192,7 +191,9 @@ public class RocksDBAsyncSnapshotTest {
 		Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 
 		testHarness.waitForTaskCompletion();
-		task.checkTimerException();
+		if (mockEnv.wasFailedExternally()) {
+			Assert.fail("Unexpected exception during execution.");
+		}
 	}
 
 	/**
@@ -264,8 +265,10 @@ public class RocksDBAsyncSnapshotTest {
 			threadPool.shutdown();
 			Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 			testHarness.waitForTaskCompletion();
-			task.checkTimerException();
 
+			if (mockEnv.wasFailedExternally()) {
+				throw new AsynchronousException(new InterruptedException("Exception was thrown as expected."));
+			}
 			Assert.fail("Operation completed. Cancel failed.");
 		} catch (Exception expected) {
 			AsynchronousException asynchronousException = null;
