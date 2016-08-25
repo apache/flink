@@ -31,7 +31,7 @@ Currently these systems are supported:
 
  * [Apache Kafka](https://kafka.apache.org/) (sink/source)
  * [Elasticsearch](https://elastic.co/) (sink)
- * [Elasticsearch 2x](https://elastic.com) (sink)
+ * [Elasticsearch 2x](https://elastic.co) (sink)
  * [Hadoop FileSystem](http://hadoop.apache.org) (sink)
  * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
  * [Amazon Kinesis Streams](http://aws.amazon.com/kinesis/streams/) (sink/source)
