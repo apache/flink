@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -57,7 +56,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	/** Configuration of the job */
 	private final Configuration configuration;
-	private final RecoveryMode recoveryMode;
 
 	/** Service to contend for and retrieve the leadership of JM and RM */
 	private final HighAvailabilityServices highAvailabilityServices;
@@ -86,7 +84,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		this.jobID = Preconditions.checkNotNull(jobGraph.getJobID());
 
 		this.configuration = Preconditions.checkNotNull(configuration);
-		this.recoveryMode = RecoveryMode.fromConfig(configuration);
 
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityService);
 	}
