@@ -18,13 +18,16 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link TaskExecutor} Configuration
@@ -47,9 +50,15 @@ public class TaskExecutorConfiguration implements Serializable {
 	private final FiniteDuration maxRegistrationPause;
 	private final FiniteDuration refusedRegistrationPause;
 
+	private final NetworkEnvironmentConfiguration networkConfig;
+
+	private final InstanceConnectionInfo connectionInfo;
+
 	public TaskExecutorConfiguration(
 			String[] tmpDirPaths,
 			long cleanupInterval,
+			InstanceConnectionInfo connectionInfo,
+			NetworkEnvironmentConfiguration networkConfig,
 			FiniteDuration timeout,
 			FiniteDuration maxRegistrationDuration,
 			int numberOfSlots,
@@ -57,6 +66,8 @@ public class TaskExecutorConfiguration implements Serializable {
 
 		this (tmpDirPaths,
 			cleanupInterval,
+			connectionInfo,
+			networkConfig,
 			timeout,
 			maxRegistrationDuration,
 			numberOfSlots,
@@ -69,6 +80,8 @@ public class TaskExecutorConfiguration implements Serializable {
 	public TaskExecutorConfiguration(
 			String[] tmpDirPaths,
 			long cleanupInterval,
+			InstanceConnectionInfo connectionInfo,
+			NetworkEnvironmentConfiguration networkConfig,
 			FiniteDuration timeout,
 			FiniteDuration maxRegistrationDuration,
 			int numberOfSlots,
@@ -79,13 +92,15 @@ public class TaskExecutorConfiguration implements Serializable {
 
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.cleanupInterval = checkNotNull(cleanupInterval);
+		this.connectionInfo = checkNotNull(connectionInfo);
+		this.networkConfig = checkNotNull(networkConfig);
 		this.timeout = checkNotNull(timeout);
 		this.maxRegistrationDuration = maxRegistrationDuration;
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 		this.configuration = checkNotNull(configuration);
 		this.initialRegistrationPause = checkNotNull(initialRegistrationPause);
 		this.maxRegistrationPause = checkNotNull(maxRegistrationPause);
-		this.refusedRegistrationPause =checkNotNull(refusedRegistrationPause);
+		this.refusedRegistrationPause = checkNotNull(refusedRegistrationPause);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -99,6 +114,10 @@ public class TaskExecutorConfiguration implements Serializable {
 	public long getCleanupInterval() {
 		return cleanupInterval;
 	}
+
+	public InstanceConnectionInfo getConnectionInfo() { return connectionInfo; }
+
+	public NetworkEnvironmentConfiguration getNetworkConfig() { return networkConfig; }
 
 	public FiniteDuration getTimeout() {
 		return timeout;

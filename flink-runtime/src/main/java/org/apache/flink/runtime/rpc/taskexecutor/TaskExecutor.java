@@ -22,8 +22,10 @@ import akka.actor.ActorSystem;
 import akka.dispatch.ExecutionContexts$;
 import akka.util.Timeout;
 import com.typesafe.config.Config;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -50,14 +52,11 @@ import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import scala.Tuple2;
 import scala.Option;
@@ -93,9 +92,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	/** The task manager configuration */
 	private final TaskExecutorConfiguration taskExecutorConfig;
 
-	/** The connection information of the task manager */
-	private final InstanceConnectionInfo connectionInfo;
-
 	/** The I/O manager component in the task manager */
 	private final IOManager ioManager;
 
@@ -116,7 +112,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	public TaskExecutor(
 			TaskExecutorConfiguration taskExecutorConfig,
 			ResourceID resourceID,
-			InstanceConnectionInfo connectionInfo,
 			MemoryManager memoryManager,
 			IOManager ioManager,
 			NetworkEnvironment networkEnvironment,
@@ -128,12 +123,60 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		this.taskExecutorConfig = checkNotNull(taskExecutorConfig);
 		this.resourceID = checkNotNull(resourceID);
-		this.connectionInfo = checkNotNull(connectionInfo);
 		this.memoryManager = checkNotNull(memoryManager);
 		this.ioManager = checkNotNull(ioManager);
 		this.networkEnvironment = checkNotNull(networkEnvironment);
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 		this.haServices = checkNotNull(haServices);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Life cycle
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void start() {
+		super.start();
+
+		// start by connecting to the ResourceManager
+		try {
+			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
+		} catch (Exception e) {
+			onFatalErrorAsync(e);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  RPC methods - ResourceManager related
+	// ------------------------------------------------------------------------
+
+	@RpcMethod
+	public void notifyOfNewResourceManagerLeader(String newLeaderAddress, UUID newLeaderId) {
+		if (resourceManagerConnection != null) {
+			if (newLeaderAddress != null) {
+				// the resource manager switched to a new leader
+				log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
+					resourceManagerConnection.getResourceManagerAddress(), newLeaderAddress);
+			} else {
+				// address null means that the current leader is lost without a new leader being there, yet
+				log.info("Current ResourceManager {} lost leader status. Waiting for new ResourceManager leader.",
+					resourceManagerConnection.getResourceManagerAddress());
+			}
+
+			// drop the current connection or connection attempt
+			if (resourceManagerConnection != null) {
+				resourceManagerConnection.close();
+				resourceManagerConnection = null;
+			}
+		}
+
+		// establish a connection to the new leader
+		if (newLeaderAddress != null) {
+			log.info("Attempting to register at ResourceManager {}", newLeaderAddress);
+			resourceManagerConnection =
+				new TaskExecutorToResourceManagerConnection(log, this, newLeaderAddress, newLeaderId);
+			resourceManagerConnection.start();
+		}
 	}
 
 	/**
@@ -303,7 +346,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * @param taskManagerHostname       The hostname/address that describes the TaskManager's data location.
 	 * @param haServices        Optionally, a high availability service can be provided. If none is given,
 	 *                                      then a HighAvailabilityServices is constructed from the configuration.
-	 * @param localTaskManagerCommunication If true, the TaskManager will not initiate the TCP network stack.
+	 * @param localTaskManagerCommunication     If true, the TaskManager will not initiate the TCP network stack.
 	 * @return An ActorRef to the TaskManager actor.
 	 * @throws org.apache.flink.configuration.IllegalConfigurationException     Thrown, if the given config contains illegal values.
 	 * @throws java.io.IOException      Thrown, if any of the I/O components (such as buffer pools,
@@ -319,13 +362,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		HighAvailabilityServices haServices,
 		boolean localTaskManagerCommunication) throws Exception {
 
-		Tuple4<TaskExecutorConfiguration, NetworkEnvironmentConfiguration, InstanceConnectionInfo, MemoryType> tuple4
-			= parseTaskManagerConfiguration(configuration, taskManagerHostname, localTaskManagerCommunication);
+		TaskExecutorConfiguration taskExecutorConfig = parseTaskManagerConfiguration(
+			configuration, taskManagerHostname, localTaskManagerCommunication);
 
-		TaskExecutorConfiguration taskExecutorConfig = tuple4.f0;
-		NetworkEnvironmentConfiguration netConfig = tuple4.f1;
-		InstanceConnectionInfo connectionInfo = tuple4.f2;
-		MemoryType memType = tuple4.f3;
+		MemoryType memType = taskExecutorConfig.getNetworkConfig().memoryType();
 
 		// pre-start checks
 		checkTempDirs(taskExecutorConfig.getTmpDirPaths());
@@ -333,7 +373,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		ExecutionContext executionContext = ExecutionContexts$.MODULE$.fromExecutor(new ForkJoinPool());
 
 		// we start the network first, to make sure it can allocate its buffers first
-		NetworkEnvironment network = new NetworkEnvironment(executionContext, taskExecutorConfig.getTimeout(), netConfig);
+		NetworkEnvironment network = new NetworkEnvironment(
+			executionContext,
+			taskExecutorConfig.getTimeout(),
+			taskExecutorConfig.getNetworkConfig());
 
 		// computing the amount of memory to use depends on how much memory is available
 		// it strictly needs to happen AFTER the network stack has been initialized
@@ -398,7 +441,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			memoryManager = new MemoryManager(
 				memorySize,
 				taskExecutorConfig.getNumberOfSlots(),
-				netConfig.networkBufferSize(),
+				taskExecutorConfig.getNetworkConfig().networkBufferSize(),
 				memType,
 				preAllocateMemory);
 		} catch (OutOfMemoryError e) {
@@ -420,7 +463,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		TaskExecutor taskExecutor = new TaskExecutor(
 			taskExecutorConfig,
 			resourceID,
-			connectionInfo,
 			memoryManager,
 			ioManager,
 			network,
@@ -441,14 +483,14 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 *
 	 * @param configuration                 The configuration.
 	 * @param taskManagerHostname           The host name under which the TaskManager communicates.
-	 * @param localTaskManagerCommunication True, to skip initializing the network stack.
+	 * @param localTaskManagerCommunication             True, to skip initializing the network stack.
 	 *                                      Use only in cases where only one task manager runs.
-	 * @return A tuple (TaskManagerConfiguration, network configuration,
-	 * InstanceConnectionInfo, JobManager actor Akka URL).
+	 * @return TaskExecutorConfiguration that wrappers InstanceConnectionInfo, NetworkEnvironmentConfiguration, etc.
 	 */
-	private static Tuple4<TaskExecutorConfiguration, NetworkEnvironmentConfiguration, InstanceConnectionInfo, MemoryType>
-		parseTaskManagerConfiguration(Configuration configuration, String taskManagerHostname, boolean localTaskManagerCommunication)
-		throws Exception {
+	private static TaskExecutorConfiguration parseTaskManagerConfiguration(
+		Configuration configuration,
+		String taskManagerHostname,
+		boolean localTaskManagerCommunication) throws Exception {
 
 		// ------- read values from the config and check them ---------
 		//                      (a lot of them)
@@ -536,7 +578,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE);
 
 		final IOMode ioMode;
-		if (syncOrAsync == "async") {
+		if (syncOrAsync.equals("async")) {
 			ioMode = IOManager.IOMode.ASYNC;
 		} else {
 			ioMode = IOManager.IOMode.SYNC;
@@ -626,9 +668,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE, e);
 		}
 
-		TaskExecutorConfiguration taskExecutorConfig = new TaskExecutorConfiguration(
+		return new TaskExecutorConfiguration(
 			tmpDirs,
 			cleanupInterval,
+			connectionInfo,
+			networkConfig,
 			timeout,
 			finiteRegistrationDuration,
 			slots,
@@ -636,8 +680,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			initialRegistrationPause,
 			maxRegistrationPause,
 			refusedRegistrationPause);
-
-		return new Tuple4<>(taskExecutorConfig, networkConfig, connectionInfo, memType);
 	}
 
 	/**
@@ -701,55 +743,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	public ResourceID getResourceID() {
 		return resourceID;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Life cycle
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void start() {
-		super.start();
-
-		// start by connecting to the ResourceManager
-		try {
-			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
-		} catch (Exception e) {
-			onFatalErrorAsync(e);
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  RPC methods - ResourceManager related
-	// ------------------------------------------------------------------------
-
-	@RpcMethod
-	public void notifyOfNewResourceManagerLeader(String newLeaderAddress, UUID newLeaderId) {
-		if (resourceManagerConnection != null) {
-			if (newLeaderAddress != null) {
-				// the resource manager switched to a new leader
-				log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
-					resourceManagerConnection.getResourceManagerAddress(), newLeaderAddress);
-			} else {
-				// address null means that the current leader is lost without a new leader being there, yet
-				log.info("Current ResourceManager {} lost leader status. Waiting for new ResourceManager leader.",
-					resourceManagerConnection.getResourceManagerAddress());
-			}
-
-			// drop the current connection or connection attempt
-			if (resourceManagerConnection != null) {
-				resourceManagerConnection.close();
-				resourceManagerConnection = null;
-			}
-		}
-
-		// establish a connection to the new leader
-		if (newLeaderAddress != null) {
-			log.info("Attempting to register at ResourceManager {}", newLeaderAddress);
-			resourceManagerConnection =
-				new TaskExecutorToResourceManagerConnection(log, this, newLeaderAddress, newLeaderId);
-			resourceManagerConnection.start();
-		}
 	}
 
 	// ------------------------------------------------------------------------
