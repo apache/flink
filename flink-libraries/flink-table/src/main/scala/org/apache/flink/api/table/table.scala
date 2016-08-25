@@ -20,7 +20,7 @@ package org.apache.flink.api.table
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.expressions.{Asc, ExpressionParser, UnresolvedAlias, Expression, Ordering}
+import org.apache.flink.api.table.expressions.{Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias}
 import org.apache.flink.api.table.plan.RexNodeTranslator._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
@@ -201,9 +201,6 @@ class Table(
     * }}}
     */
   def groupBy(fields: Expression*): GroupedTable = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new ValidationException(s"Group by on stream tables is currently not supported.")
-    }
     new GroupedTable(this, fields)
   }
 
@@ -632,6 +629,26 @@ class Table(
     // emit the table to the configured table sink
     tableEnv.writeToSink(this, configuredSink)
   }
+
+  /**
+    * Windows a table to divide a (potentially) infinite stream of records into finite slices
+    * based on the timestamps of elements or other criteria. This division is required when
+    * working with infinite data and performing transformations that aggregate elements.
+    *
+    * __Note__: By using windows on non-grouped tables you have the disadvantage that work cannot be
+    * distributed in the cluster because windows cannot be computed independently per group. This
+    * can have severe performance implications.
+    *
+    * @param groupWindow group-window specification required to bound the infinite input stream
+    *                    into a finite group
+    * @return windowed table with an empty group
+    */
+  def window(groupWindow: GroupWindow): GroupWindowedTable = {
+    if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
+      throw new ValidationException(s"Windows on batch tables are currently not supported.")
+    }
+    new GroupWindowedTable(this, Seq(), groupWindow)
+  }
 }
 
 /**
@@ -675,11 +692,77 @@ class GroupedTable(
     * Example:
     *
     * {{{
-    *   tab.groupBy("key").select("key, value.avg + " The average" as average")
+    *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
     * }}}
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
   }
+
+  /**
+    * Windows a table to divide a (potentially) infinite stream of records into finite slices
+    * based on the timestamps of elements or other criteria. This division is required when
+    * working with infinite data and performing transformations that aggregate elements.
+    *
+    * @param groupWindow group-window specification required to bound the infinite input stream
+    *                    into a finite group
+    * @return group-windowed table
+    */
+  def window(groupWindow: GroupWindow): GroupWindowedTable = {
+    if (table.tableEnv.isInstanceOf[BatchTableEnvironment]) {
+      throw new ValidationException(s"Windows on batch tables are currently not supported.")
+    }
+    new GroupWindowedTable(table, groupKey, groupWindow)
+  }
+}
+
+class GroupWindowedTable(
+    private[flink] val table: Table,
+    private[flink] val groupKey: Seq[Expression],
+    private[flink] val window: GroupWindow) {
+
+  /**
+    * Performs a selection operation on a group-windowed table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   groupWindowTable.select('key, 'window.start, 'value.avg + " The average" as 'average)
+    * }}}
+    */
+  def select(fields: Expression*): Table = {
+    val projectionOnAggregates = fields.map(extractAggregations(_, table.tableEnv))
+    val aggregations = projectionOnAggregates.flatMap(_._2)
+
+    val groupWindow = window.toLogicalWindow
+
+    val logical = if (aggregations.nonEmpty) {
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        WindowAggregate(groupKey, groupWindow, aggregations, table.logicalPlan)
+          .validate(table.tableEnv))
+    } else {
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        WindowAggregate(groupKey, groupWindow, Nil, table.logicalPlan).validate(table.tableEnv))
+    }
+
+    new Table(table.tableEnv, logical.validate(table.tableEnv))
+  }
+
+  /**
+    * Performs a selection operation on a group-windows table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   groupWindowTable.select("key, window.start, value.avg + ' The average' as average")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
+  }
+
 }

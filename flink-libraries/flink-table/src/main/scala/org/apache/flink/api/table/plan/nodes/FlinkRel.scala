@@ -19,6 +19,12 @@
 package org.apache.flink.api.table.plan.nodes
 
 import org.apache.calcite.rex._
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.codegen.CodeGenerator
+import org.apache.flink.api.table.runtime.MapRunner
+
 import scala.collection.JavaConversions._
 
 trait FlinkRel {
@@ -43,5 +49,42 @@ trait FlinkRel {
       }
       case _ => throw new IllegalArgumentException("Unknown expression type: " + expr)
     }
+  }
+
+  private[flink] def getConversionMapper(
+      config: TableConfig,
+      nullableInput: Boolean,
+      inputType: TypeInformation[Any],
+      expectedType: TypeInformation[Any],
+      conversionOperatorName: String,
+      fieldNames: Seq[String],
+      inputPojoFieldMapping: Option[Array[Int]] = None)
+    : MapFunction[Any, Any] = {
+
+    val generator = new CodeGenerator(
+      config,
+      nullableInput,
+      inputType,
+      None,
+      inputPojoFieldMapping)
+    val conversion = generator.generateConverterResultExpression(expectedType, fieldNames)
+
+    val body =
+      s"""
+         |${conversion.code}
+         |return ${conversion.resultTerm};
+         |""".stripMargin
+
+    val genFunction = generator.generateFunction(
+      conversionOperatorName,
+      classOf[MapFunction[Any, Any]],
+      body,
+      expectedType)
+
+    new MapRunner[Any, Any](
+      genFunction.name,
+      genFunction.code,
+      genFunction.returnType)
+
   }
 }

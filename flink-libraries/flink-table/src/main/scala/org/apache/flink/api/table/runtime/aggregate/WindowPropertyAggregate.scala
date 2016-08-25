@@ -17,40 +17,41 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.sql.Timestamp
+
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
-import org.apache.flink.streaming.api.windowing.windows.Window
+import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 
-class CountAggregate extends Aggregate[Long] {
-  private var countIndex: Int = _
+class WindowPropertyAggregate(start: Boolean) extends Aggregate[Timestamp] {
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(countIndex, 0L)
+    // nothing to do here
   }
 
   override def merge(intermediate: Row, buffer: Row): Unit = {
-    val partialCount = intermediate.productElement(countIndex).asInstanceOf[Long]
-    val bufferCount = buffer.productElement(countIndex).asInstanceOf[Long]
-    buffer.setField(countIndex, partialCount + bufferCount)
+    // nothing to do here
   }
 
-  override def evaluate(buffer: Row, context: AggContext): Long = {
-    buffer.productElement(countIndex).asInstanceOf[Long]
-  }
-
-  override def prepare(value: Any, intermediate: Row): Unit = {
-    if (value == null) {
-      intermediate.setField(countIndex, 0L)
-    } else {
-      intermediate.setField(countIndex, 1L)
+  override def evaluate(buffer: Row, context: AggContext): Timestamp = {
+    context.window match {
+      case Some(timeWindow: TimeWindow) =>
+        val ts = if (start) timeWindow.getStart else timeWindow.getEnd
+        SqlFunctions.internalToTimestamp(ts)
+      case _ => null
     }
   }
 
-  override def intermediateDataType = Array(BasicTypeInfo.LONG_TYPE_INFO)
+  override def prepare(value: Any, intermediate: Row): Unit = {
+    // nothing to do here
+  }
+
+  override def intermediateDataType = Array()
 
   override def supportPartial: Boolean = true
 
   override def setAggOffsetInRow(aggIndex: Int): Unit = {
-    countIndex = aggIndex
+    // nothing to do here
   }
 }

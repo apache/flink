@@ -54,6 +54,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val MIN: Keyword = Keyword("min")
   lazy val MAX: Keyword = Keyword("max")
   lazy val SUM: Keyword = Keyword("sum")
+  lazy val START: Keyword = Keyword("start")
+  lazy val END: Keyword = Keyword("end")
   lazy val CAST: Keyword = Keyword("cast")
   lazy val NULL: Keyword = Keyword("Null")
   lazy val IF: Keyword = Keyword("?")
@@ -77,7 +79,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
-      not(SUM) ~ not(CAST) ~ not(NULL) ~
+      not(SUM) ~ not(START) ~ not(END)~ not(CAST) ~ not(NULL) ~
       not(IF) ~> super.ident
 
   // symbols
@@ -180,6 +182,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixAvg: PackratParser[Expression] =
     composite <~ "." ~ AVG ~ opt("()") ^^ { e => Avg(e) }
 
+  lazy val suffixStart: PackratParser[Expression] =
+    composite <~ "." ~ START ~ opt("()") ^^ { e => WindowStart(e) }
+
+  lazy val suffixEnd: PackratParser[Expression] =
+    composite <~ "." ~ END ~ opt("()") ^^ { e => WindowEnd(e) }
+
   lazy val suffixCast: PackratParser[Expression] =
     composite ~ "." ~ CAST ~ "(" ~ dataType ~ ")" ^^ {
     case e ~ _ ~ _ ~ _ ~ dt ~ _ => Cast(e, dt)
@@ -258,7 +266,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val suffixed: PackratParser[Expression] =
-    suffixTimeInterval | suffixSum | suffixMin | suffixMax |
+    suffixTimeInterval | suffixSum | suffixMin | suffixMax | suffixStart |suffixEnd |
       suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs |
       suffixIf | suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime |
       suffixExtract | suffixFloor | suffixCeil |
@@ -280,6 +288,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixAvg: PackratParser[Expression] =
     AVG ~ "(" ~> expression <~ ")" ^^ { e => Avg(e) }
+
+  lazy val prefixStart: PackratParser[Expression] =
+    START ~ "(" ~> expression <~ ")" ^^ { e => WindowStart(e) }
+
+  lazy val prefixEnd: PackratParser[Expression] =
+    END ~ "(" ~> expression <~ ")" ^^ { e => WindowEnd(e) }
 
   lazy val prefixCast: PackratParser[Expression] =
     CAST ~ "(" ~ expression ~ "," ~ dataType ~ ")" ^^ {
@@ -325,7 +339,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val prefixed: PackratParser[Expression] =
-    prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
+    prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg | prefixStart | prefixEnd |
       prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
       prefixFloor | prefixCeil |
       prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end

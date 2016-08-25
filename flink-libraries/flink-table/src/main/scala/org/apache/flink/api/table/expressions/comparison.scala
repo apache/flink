@@ -37,7 +37,7 @@ abstract class BinaryComparison extends BinaryExpression {
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
-  override private[flink] def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ValidationResult =
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
       case (lType, rType) if isComparable(lType) && lType == rType => ValidationSuccess
@@ -53,7 +53,7 @@ case class EqualTo(left: Expression, right: Expression) extends BinaryComparison
 
   private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
 
-  override private[flink] def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ValidationResult =
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
       // TODO widen this rule once we support custom objects as types (FLINK-3916)
@@ -68,7 +68,7 @@ case class NotEqualTo(left: Expression, right: Expression) extends BinaryCompari
 
   private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
 
-  override private[flink] def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ValidationResult =
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
       // TODO widen this rule once we support custom objects as types (FLINK-3916)

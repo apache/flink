@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.table.runtime.aggregate
 
 import java.lang.Iterable
 
-import org.apache.flink.api.common.functions.RichGroupReduceFunction
+import org.apache.flink.api.common.functions.{CombineFunction, RichGroupReduceFunction}
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -27,22 +28,24 @@ import org.apache.flink.util.{Collector, Preconditions}
 
 import scala.collection.JavaConversions._
 
+
 /**
- * It wraps the aggregate logic inside of 
- * [[org.apache.flink.api.java.operators.GroupReduceOperator]].
+ * It wraps the aggregate logic inside of
+ * [[org.apache.flink.api.java.operators.GroupReduceOperator]] and
+ * [[org.apache.flink.api.java.operators.GroupCombineOperator]]
  *
  * @param aggregates   The aggregate functions.
- * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row 
+ * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
  *                         and output Row.
  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
  *                         index in output Row.
  */
-class AggregateReduceGroupFunction(
+class AggregateReduceCombineFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int)
-    extends RichGroupReduceFunction[Row, Row] {
+    extends RichGroupReduceFunction[Row, Row] with CombineFunction[Row, Row] {
 
   private var aggregateBuffer: Row = _
   private var output: Row = _
@@ -55,7 +58,7 @@ class AggregateReduceGroupFunction(
     this.aggContext = aggContext
   }
 
-  override def open(config: Configuration) {
+  override def open(config: Configuration): Unit = {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
     val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
@@ -66,8 +69,8 @@ class AggregateReduceGroupFunction(
 
   /**
    * For grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
-   * calculate aggregated values output by aggregate buffer, and set them into output 
-   * Row based on the mapping relation between intermediate aggregate data and output data.
+   * calculate aggregated values output by aggregate buffer, and set them into output
+   * Row based on the mapping relation between intermediate aggregate Row and output Row.
    *
    * @param records  Grouped intermediate aggregate Rows iterator.
    * @param out The collector to hand results to.
@@ -98,5 +101,32 @@ class AggregateReduceGroupFunction(
     }
 
     out.collect(output)
+  }
+
+  /**
+   * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
+   *
+   * @param records  Sub-grouped intermediate aggregate Rows iterator.
+   * @return Combined intermediate aggregate Row.
+   *
+   */
+  override def combine(records: Iterable[Row]): Row = {
+
+    // Initiate intermediate aggregate value.
+    aggregates.foreach(_.initiate(aggregateBuffer))
+
+    // Merge intermediate aggregate value to buffer.
+    var last: Row = null
+    records.foreach((record) => {
+      aggregates.foreach(_.merge(record, aggregateBuffer))
+      last = record
+    })
+
+    // Set group keys to aggregateBuffer.
+    for (i <- 0 until groupKeysMapping.length) {
+      aggregateBuffer.setField(i, last.productElement(i))
+    }
+
+    aggregateBuffer
   }
 }

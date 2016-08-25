@@ -19,6 +19,7 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.Row
+import org.apache.flink.streaming.api.windowing.windows.Window
 
 /**
  * The interface for all Flink aggregate functions, which expressed in terms of initiate(),
@@ -69,9 +70,10 @@ trait Aggregate[T] extends Serializable {
     * Calculate the final aggregated result based on aggregate buffer.
     *
     * @param buffer The aggregate buffer from which the final aggregate is computed.
+    * @param context Additional context information such as window metadata.
     * @return The final result of the aggregate.
     */
-  def evaluate(buffer: Row): T
+  def evaluate(buffer: Row, context: AggContext): T
 
   /**
     * Intermediate aggregate value types.

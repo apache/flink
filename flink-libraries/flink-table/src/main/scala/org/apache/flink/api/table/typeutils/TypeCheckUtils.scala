@@ -67,7 +67,7 @@ object TypeCheckUtils {
   def assertNumericExpr(
       dataType: TypeInformation[_],
       caller: String)
-    : ExprValidationResult = dataType match {
+    : ValidationResult = dataType match {
     case _: NumericTypeInfo[_] =>
       ValidationSuccess
     case BIG_DEC_TYPE_INFO =>
@@ -76,7 +76,7 @@ object TypeCheckUtils {
       ValidationFailure(s"$caller requires numeric types, get $dataType here")
   }
 
-  def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ExprValidationResult = {
+  def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ValidationResult = {
     if (dataType.isSortKeyType) {
       ValidationSuccess
     } else {

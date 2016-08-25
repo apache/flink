@@ -23,6 +23,8 @@ import org.apache.flink.api.table.Row
 import java.math.BigDecimal
 import java.math.BigInteger
 
+import org.apache.flink.streaming.api.windowing.windows.Window
+
 abstract class AvgAggregate[T] extends Aggregate[T] {
   protected var partialSumIndex: Int = _
   protected var partialCountIndex: Int = _
@@ -60,7 +62,7 @@ abstract class IntegralAvgAggregate[T] extends AvgAggregate[T] {
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
-  override def evaluate(buffer : Row): T = {
+  override def evaluate(buffer: Row, context: AggContext): T = {
     doEvaluate(buffer).asInstanceOf[T]
   }
 
@@ -201,7 +203,7 @@ abstract class FloatingAvgAggregate[T: Numeric] extends AvgAggregate[T] {
     buffer.setField(partialCountIndex, partialCount + bufferCount)
   }
 
-  override def evaluate(buffer : Row): T = {
+  override def evaluate(buffer: Row, context: AggContext): T = {
     doEvaluate(buffer).asInstanceOf[T]
   }
 
@@ -283,7 +285,7 @@ class DecimalAvgAggregate extends AvgAggregate[BigDecimal] {
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
-  override def evaluate(buffer: Row): BigDecimal = {
+  override def evaluate(buffer: Row, context: AggContext): BigDecimal = {
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
     if (bufferCount != 0) {
       val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigDecimal]

@@ -16,26 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.dataSet
+package org.apache.flink.api.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.flink.api.table.TableException
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
+import org.apache.flink.api.table.plan.logical.rel.LogicalWindowAggregate
+import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamAggregate, DataStreamConvention}
+
 import scala.collection.JavaConversions._
 
-class DataSetAggregateRule
+class DataStreamAggregateRule
   extends ConverterRule(
-      classOf[LogicalAggregate],
+      classOf[LogicalWindowAggregate],
       Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetAggregateRule")
+      DataStreamConvention.INSTANCE,
+      "DataStreamAggregateRule")
   {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
+    val agg: LogicalWindowAggregate = call.rel(0).asInstanceOf[LogicalWindowAggregate]
 
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
@@ -53,11 +54,12 @@ class DataSetAggregateRule
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
+    val agg: LogicalWindowAggregate = rel.asInstanceOf[LogicalWindowAggregate]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
+    val convInput: RelNode = RelOptRule.convert(agg.getInput, DataStreamConvention.INSTANCE)
 
-    new DataSetAggregate(
+    new DataStreamAggregate(
+      agg.getWindow,
       rel.getCluster,
       traitSet,
       convInput,
@@ -68,6 +70,7 @@ class DataSetAggregateRule
     }
   }
 
-object DataSetAggregateRule {
-  val INSTANCE: RelOptRule = new DataSetAggregateRule
+object DataStreamAggregateRule {
+  val INSTANCE: RelOptRule = new DataStreamAggregateRule
 }
+

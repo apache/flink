@@ -21,6 +21,7 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
+import org.apache.flink.streaming.api.windowing.windows.Window
 
 abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
 
@@ -75,7 +76,7 @@ abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
    * @param buffer
    * @return
    */
-  override def evaluate(buffer: Row): T = {
+  override def evaluate(buffer: Row, context: AggContext): T = {
     buffer.productElement(maxIndex).asInstanceOf[T]
   }
 
@@ -159,7 +160,7 @@ class DecimalMaxAggregate extends Aggregate[BigDecimal] {
     }
   }
 
-  override def evaluate(buffer: Row): BigDecimal = {
+  override def evaluate(buffer: Row, context: AggContext): BigDecimal = {
     buffer.productElement(minIndex).asInstanceOf[BigDecimal]
   }
 

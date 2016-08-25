@@ -30,7 +30,7 @@ import org.apache.flink.api.table.expressions.ExpressionUtils.{divide, getFactor
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.api.table.typeutils.{IntervalTypeInfo, TypeCheckUtils}
-import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure, ValidationSuccess}
+import org.apache.flink.api.table.validate.{ValidationResult, ValidationFailure, ValidationSuccess}
 
 import scala.collection.JavaConversions._
 
@@ -40,7 +40,7 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
 
   override private[flink] def resultType: TypeInformation[_] = LONG_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (!TypeCheckUtils.isTemporal(temporal.resultType)) {
       return ValidationFailure(s"Extract operator requires Temporal input, " +
         s"but $temporal is of type ${temporal.resultType}")
@@ -146,7 +146,7 @@ abstract class TemporalCeilFloor(
 
   override private[flink] def resultType: TypeInformation[_] = temporal.resultType
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (!TypeCheckUtils.isTimePoint(temporal.resultType)) {
       return ValidationFailure(s"Temporal ceil/floor operator requires Time Point input, " +
         s"but $temporal is of type ${temporal.resultType}")
@@ -211,7 +211,7 @@ abstract class CurrentTimePoint(
 
   override private[flink] def resultType: TypeInformation[_] = targetType
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (!TypeCheckUtils.isTimePoint(targetType)) {
       ValidationFailure(s"CurrentTimePoint operator requires Time Point target type, " +
         s"but get $targetType.")
@@ -293,7 +293,7 @@ case class TemporalOverlaps(
 
   override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (!TypeCheckUtils.isTimePoint(leftTimePoint.resultType)) {
       return ValidationFailure(s"TemporalOverlaps operator requires leftTimePoint to be of type " +
         s"Time Point, but get ${leftTimePoint.resultType}.")

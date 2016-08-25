@@ -39,6 +39,8 @@ object ExpressionUtils {
   private[flink] def toMilliInterval(expr: Expression, multiplier: Long): Expression = expr match {
     case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
       Literal(value * multiplier, IntervalTypeInfo.INTERVAL_MILLIS)
+    case Literal(value: Long, BasicTypeInfo.LONG_TYPE_INFO) =>
+      Literal(value * multiplier, IntervalTypeInfo.INTERVAL_MILLIS)
     case _ =>
       Cast(Mul(expr, Literal(multiplier)), IntervalTypeInfo.INTERVAL_MILLIS)
   }
