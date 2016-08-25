@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -187,12 +188,11 @@ public class StreamSourceOperatorTest {
 
 		final List<StreamElement> output = new ArrayList<>();
 
-		StreamSource.AutomaticWatermarkContext<String> ctx =
-			new StreamSource.AutomaticWatermarkContext<>(
-				operator,
-				operator.getContainingTask().getCheckpointLock(),
-				new CollectorOutput<String>(output),
-				operator.getExecutionConfig().getAutoWatermarkInterval());
+		StreamSourceContexts.getSourceContext(TimeCharacteristic.IngestionTime,
+			operator.getContainingTask().getTimerService(),
+			operator.getContainingTask().getCheckpointLock(),
+			new CollectorOutput<String>(output),
+			operator.getExecutionConfig().getAutoWatermarkInterval());
 
 		// periodically emit the watermarks
 		// even though we start from 1 the watermark are still
@@ -218,7 +218,7 @@ public class StreamSourceOperatorTest {
 	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
 												TimeCharacteristic timeChar,
 												long watermarkInterval,
-												final TimeServiceProvider timeProvider) {
+												final TestTimeServiceProvider timeProvider) {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setAutoWatermarkInterval(watermarkInterval);
@@ -241,9 +241,6 @@ public class StreamSourceOperatorTest {
 		doAnswer(new Answer<TimeServiceProvider>() {
 			@Override
 			public TimeServiceProvider answer(InvocationOnMock invocation) throws Throwable {
-				if (timeProvider == null) {
-					throw new RuntimeException("The time provider is null.");
-				}
 				return timeProvider;
 			}
 		}).when(mockTask).getTimerService();

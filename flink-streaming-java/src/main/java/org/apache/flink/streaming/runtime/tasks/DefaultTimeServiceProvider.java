@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -49,9 +50,9 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 	private DefaultTimeServiceProvider(AsyncExceptionHandler task,
 									ScheduledExecutorService threadPoolExecutor,
 									Object checkpointLock) {
-		this.task = task;
-		this.timerService = threadPoolExecutor;
-		this.checkpointLock = checkpointLock;
+		this.task = Preconditions.checkNotNull(task);
+		this.timerService = Preconditions.checkNotNull(threadPoolExecutor);
+		this.checkpointLock = Preconditions.checkNotNull(checkpointLock);
 	}
 
 	@Override
@@ -99,7 +100,7 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 					target.trigger(timestamp);
 				} catch (Throwable t) {
 					TimerException asyncException = new TimerException(t);
-					exceptionHandler.registerAsyncException(asyncException);
+					exceptionHandler.handleAsyncException("Caught exception while processing timer.", asyncException);
 				}
 			}
 		}
@@ -109,7 +110,7 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 	public static DefaultTimeServiceProvider createForTesting(ScheduledExecutorService executor, Object checkpointLock) {
 		return new DefaultTimeServiceProvider(new AsyncExceptionHandler() {
 			@Override
-			public void registerAsyncException(AsynchronousException exception) {
+			public void handleAsyncException(String message, Throwable exception) {
 				exception.printStackTrace();
 			}
 		}, executor, checkpointLock);

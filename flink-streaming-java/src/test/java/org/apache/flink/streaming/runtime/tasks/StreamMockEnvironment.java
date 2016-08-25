@@ -102,6 +102,8 @@ public class StreamMockEnvironment implements Environment {
 
 	private final ExecutionConfig executionConfig;
 
+	private volatile boolean wasFailedExternally = false;
+
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
 									long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.taskInfo = new TaskInfo("", 1, 0, 1, 0);
@@ -325,7 +327,11 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public void failExternally(Throwable cause) {
-		throw new UnsupportedOperationException("StreamMockEnvironment does not support external task failure.");
+		this.wasFailedExternally = true;
+	}
+
+	public boolean wasFailedExternally() {
+		return wasFailedExternally;
 	}
 
 	@Override

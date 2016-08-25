@@ -53,6 +53,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,11 +159,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private List<Collection<OperatorStateHandle>> lazyRestoreOperatorState;
 
-	/**
-	 * This field is used to forward an exception that is caught in the timer thread or other
-	 * asynchronous Threads. Subclasses must ensure that exceptions stored here get thrown on the
-	 * actual execution Thread. */
-	private volatile AsynchronousException asyncException;
 
 	/** The currently active background materialization threads */
 	private final ClosableRegistry cancelables = new ClosableRegistry();
@@ -301,9 +297,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// still let the computation fail
 			tryDisposeAllOperators();
 			disposed = true;
-
-			// Don't forget to check and throw exceptions that happened in async thread one last time
-			checkTimerException();
 		}
 		finally {
 			// clean up everything we initialized
@@ -352,19 +345,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				disposeAllOperators();
 			}
 		}
-	}
-
-	/**
-	 * Marks task execution failed for an external reason (a reason other than the task code itself
-	 * throwing an exception). If the task is already in a terminal state
-	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
-	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
-	 * starts an asynchronous thread that aborts that code.
-	 *
-	 * <p>This method never blocks.</p>
-	 */
-	public void failExternally(Throwable cause) {
-		getEnvironment().failExternally(cause);
 	}
 
 	@Override
@@ -898,27 +878,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Check whether an exception was thrown in a Thread other than the main Thread. (For example
-	 * in the processing-time trigger Thread). This will rethrow that exception in case on
-	 * occurred.
+	 * Handles an exception thrown by another thread (e.g. a TriggerTask),
+	 * other than the one executing the main task by failing the task entirely.
 	 *
-	 * <p>This must be called in the main loop of {@code StreamTask} subclasses to ensure
-	 * that we propagate failures.
+	 * In more detail, it marks task execution failed for an external reason
+	 * (a reason other than the task code itself throwing an exception). If the task
+	 * is already in a terminal state (such as FINISHED, CANCELED, FAILED), or if the
+	 * task is already canceling this does nothing. Otherwise it sets the state to
+	 * FAILED, and, if the invokable code is running, starts an asynchronous thread
+	 * that aborts that code.
+	 *
+	 * <p>This method never blocks.</p>
 	 */
-	public void checkTimerException() throws AsynchronousException {
-		if (asyncException != null) {
-			throw asyncException;
-		}
-	}
-
 	@Override
-	public void registerAsyncException(AsynchronousException exception) {
-		if (isRunning) {
-			LOG.error("Asynchronous exception registered.", exception);
-		}
-		if (this.asyncException == null) {
-			this.asyncException = exception;
-		}
+	public void handleAsyncException(String message, Throwable exception) {
+		getEnvironment().failExternally(exception);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1030,7 +1004,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			catch (Exception e) {
 				// registers the exception and tries to fail the whole task
 				AsynchronousException asyncException = new AsynchronousException(e);
-				owner.registerAsyncException(asyncException);
+				owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
 			}
 			finally {
 				cancelables.unregisterClosable(this);
