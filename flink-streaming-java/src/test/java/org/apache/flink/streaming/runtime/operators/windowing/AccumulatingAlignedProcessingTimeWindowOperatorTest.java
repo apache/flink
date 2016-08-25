@@ -493,7 +493,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			for (int i = 0; i < 300; i++) {
 				testHarness.processElement(new StreamRecord<>(i + numElementsFirst));
 			}
-			
+
 			op.dispose();
 			
 			// re-create the operator and restore the state
@@ -502,9 +502,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
-
+			timerService = new TestTimeServiceProvider();
+			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -580,15 +579,16 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			for (int i = numElementsFirst; i < numElements; i++) {
 				testHarness.processElement(new StreamRecord<>(i));
 			}
-			
+
 			op.dispose();
-			
+
 			// re-create the operator and restore the state
 			op = new AccumulatingProcessingTimeWindowOperator<>(
 					validatingIdentityFunction, identitySelector,
 					IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 					windowSize, windowSlide);
 
+			timerService = new TestTimeServiceProvider();
 			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();

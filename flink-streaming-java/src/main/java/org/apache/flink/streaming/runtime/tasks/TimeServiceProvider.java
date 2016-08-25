@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -34,7 +35,10 @@ public abstract class TimeServiceProvider {
 	 * 						the task to be executed
 	 * @return the result to be returned.
 	 */
-	public abstract ScheduledFuture<?> registerTimer(final long timestamp, final Runnable target);
+	public abstract ScheduledFuture<?> registerTimer(final long timestamp, final Triggerable target);
+
+	/** Returns <tt>true</tt> if the service has been shut down, <tt>false</tt> otherwise. */
+	public abstract boolean isTerminated();
 
 	/** Shuts down and clean up the timer service provider. */
 	public abstract void shutdownService() throws Exception;

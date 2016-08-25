@@ -17,11 +17,13 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.streaming.runtime.operators.Triggerable;
+
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -32,30 +34,34 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 
 	private long currentTime = 0;
 
-	private Map<Long, List<Runnable>> registeredTasks = new HashMap<>();
+	private boolean isTerminated = false;
 
-	public void setCurrentTime(long timestamp) {
+	// sorts the timers by timestamp so that they are processed in the correct order.
+	private Map<Long, List<Triggerable>> registeredTasks = new TreeMap<>();
+
+	public void setCurrentTime(long timestamp) throws Exception {
 		this.currentTime = timestamp;
 
 		// decide which timers to fire and put them in a list
 		// we do not fire them here to be able to accommodate timers
-		// that register other timers. The latter would through an exception.
+		// that register other timers.
 
-		Iterator<Map.Entry<Long, List<Runnable>>> it = registeredTasks.entrySet().iterator();
-		List<Runnable> toRun = new ArrayList<>();
+		Iterator<Map.Entry<Long, List<Triggerable>>> it = registeredTasks.entrySet().iterator();
+		List<Map.Entry<Long, List<Triggerable>>> toRun = new ArrayList<>();
 		while (it.hasNext()) {
-			Map.Entry<Long, List<Runnable>> t = it.next();
+			Map.Entry<Long, List<Triggerable>> t = it.next();
 			if (t.getKey() <= this.currentTime) {
-				for (Runnable r: t.getValue()) {
-					toRun.add(r);
-				}
+				toRun.add(t);
 				it.remove();
 			}
 		}
 
 		// now do the actual firing.
-		for (Runnable r: toRun) {
-			r.run();
+		for (Map.Entry<Long, List<Triggerable>> tasks: toRun) {
+			long now = tasks.getKey();
+			for (Triggerable task: tasks.getValue()) {
+				task.trigger(now);
+			}
 		}
 	}
 
@@ -65,8 +71,8 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 	}
 
 	@Override
-	public ScheduledFuture<?> registerTimer(long timestamp, Runnable target) {
-		List<Runnable> tasks = registeredTasks.get(timestamp);
+	public ScheduledFuture<?> registerTimer(long timestamp, Triggerable target) {
+		List<Triggerable> tasks = registeredTasks.get(timestamp);
 		if (tasks == null) {
 			tasks = new ArrayList<>();
 			registeredTasks.put(timestamp, tasks);
@@ -75,9 +81,14 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 		return null;
 	}
 
+	@Override
+	public boolean isTerminated() {
+		return isTerminated;
+	}
+
 	public int getNoOfRegisteredTimers() {
 		int count = 0;
-		for (List<Runnable> tasks: registeredTasks.values()) {
+		for (List<Triggerable> tasks: registeredTasks.values()) {
 			count += tasks.size();
 		}
 		return count;
@@ -85,7 +96,6 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 
 	@Override
 	public void shutdownService() throws Exception {
-		this.registeredTasks.clear();
-		this.registeredTasks = null;
+		this.isTerminated = true;
 	}
 }
