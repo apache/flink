@@ -26,6 +26,8 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -77,6 +79,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		// start by connecting to the ResourceManager
 		try {
+			super.start();
 			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
 		} catch (Exception e) {
 			onFatalErrorAsync(e);
@@ -118,6 +121,18 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
+	@RpcMethod
+	public SlotReport triggerHeartbeatToResourceManager(UUID resourceManagerLeaderId) {
+		// TODO
+		List<SlotStatus> slotsStatus = new ArrayList<>();
+		return new SlotReport(slotsStatus, resourceID);
+	}
+
+	@RpcMethod
+	public void markedFailed(UUID resourceManagerLeaderId) {
+		// TODO
+	}
+
 	// ------------------------------------------------------------------------
 	//  Error handling
 	// ------------------------------------------------------------------------
@@ -149,6 +164,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		// would either log (mini cluster) ot kill the process (yarn, mesos, ...)
 		log.error("FATAL ERROR", t);
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  Access to fields for testing

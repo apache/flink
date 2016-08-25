@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.rpc.taskexecutor;
 
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcTimeout;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
 
@@ -26,6 +29,24 @@ import java.util.UUID;
  * {@link TaskExecutor} RPC gateway interface
  */
 public interface TaskExecutorGateway extends RpcGateway {
+
+	/**
+	 * trigger the heartbeat from ResourceManager, taskManager send the SlotReport which is about the current status
+	 * of all slots of the TaskExecutor
+	 *
+	 * @param resourceManagerLeaderId id to identify a resourceManager which is granted leadership
+	 * @param timeout                 Timeout for the future to complete
+	 * @return Future SlotReport response
+	 */
+	Future<SlotReport> triggerHeartbeatToResourceManager(UUID resourceManagerLeaderId,
+		@RpcTimeout FiniteDuration timeout);
+
+	/**
+	 * receive notification from resourceManager that current taskExecutor is marked failed.
+	 *
+	 * @param resourceManagerLeaderId id to identify a resourceManager which is granted leadership
+	 */
+	void markedFailed(UUID resourceManagerLeaderId);
 
 	// ------------------------------------------------------------------------
 	//  ResourceManager handlers

@@ -53,7 +53,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration);
 
 	/**
-	 * Requests a slot from the resource manager.
+	 * JobMaster requests a slot from the resource manager.
 	 *
 	 * @param slotRequest Slot request
 	 * @return Future slot assignment
@@ -61,17 +61,19 @@ public interface ResourceManagerGateway extends RpcGateway {
 	Future<SlotAssignment> requestSlot(SlotRequest slotRequest);
 
 	/**
-	 * 
-	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader 
-	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
-	 * @param resourceID               The resource ID of the TaskExecutor that registers
-	 * @param timeout                  The timeout for the response.
-	 * 
+	 * Register a {@link org.apache.flink.runtime.rpc.taskexecutor.TaskExecutor} at the resource manager.
+	 *
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
+	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
+	 * @param resourceID              The resource ID of the TaskExecutor that registers
+	 * @param timeout                 The timeout for the response.
+	 *
 	 * @return The future to the response by the ResourceManager.
 	 */
 	Future<org.apache.flink.runtime.rpc.registration.RegistrationResponse> registerTaskExecutor(
-			UUID resourceManagerLeaderId,
-			String taskExecutorAddress,
-			ResourceID resourceID,
-			@RpcTimeout FiniteDuration timeout);
+		UUID resourceManagerLeaderId,
+		String taskExecutorAddress,
+		ResourceID resourceID,
+		@RpcTimeout FiniteDuration timeout);
+
 }
