@@ -214,9 +214,9 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * @param record The record to emit
 	 * @param partitionState The state of the Kafka partition from which the record was fetched
 	 * @param offset The offset of the record
-	 * @param kafkaRecord The original Kafka record
+	 * @param timestamp The record's event-timestamp
 	 */
-	protected <R> void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset, R kafkaRecord) throws Exception {
+	protected void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long timestamp) throws Exception {
 		if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
 			// fast path logic, in case there are no watermarks
 
@@ -228,10 +228,10 @@ public abstract class AbstractFetcher<T, KPH> {
 			}
 		}
 		else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
-			emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, Long.MIN_VALUE);
+			emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, timestamp);
 		}
 		else {
-			emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, Long.MIN_VALUE);
+			emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, timestamp);
 		}
 	}
 

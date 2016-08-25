@@ -60,12 +60,17 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 		consumer.assign(topicPartitions);
 	}
 
+	@Override
+	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partition, long offset, ConsumerRecord consumerRecord) throws Exception {
+		// pass timestamp
+		super.emitRecord(record, partition, offset, consumerRecord.timestamp());
+	}
+
 	/**
 	 * Emit record Kafka-timestamp aware.
 	 */
 	@Override
-	protected <R> void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partitionState, long offset, R kafkaRecord) throws Exception {
-		long timestamp = ((ConsumerRecord) kafkaRecord).timestamp();
+	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partitionState, long offset, long timestamp) throws Exception {
 		if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
 			// fast path logic, in case there are no watermarks
 

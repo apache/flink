@@ -376,7 +376,7 @@ class SimpleConsumerThread<T> extends Thread {
 								continue partitionsLoop;
 							}
 							
-							owner.emitRecord(value, currentPartition, offset, msg);
+							owner.emitRecord(value, currentPartition, offset, Long.MAX_VALUE);
 						}
 						else {
 							// no longer running

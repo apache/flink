@@ -262,6 +262,10 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		}
 	}
 
+	// Kafka09Fetcher ignores the timestamp.
+	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partition, long offset, ConsumerRecord consumerRecord) throws Exception {
+		emitRecord(record, partition, offset, Long.MAX_VALUE);
+	}
 	/**
 	 * Protected method to make the partition assignment pluggable, for different Kafka versions.
 	 */
