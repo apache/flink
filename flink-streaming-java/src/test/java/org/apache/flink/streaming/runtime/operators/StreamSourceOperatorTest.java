@@ -184,6 +184,8 @@ public class StreamSourceOperatorTest {
 
 		long watermarkInterval = 10;
 		TestTimeServiceProvider timeProvider = new TestTimeServiceProvider();
+		timeProvider.setCurrentTime(0);
+
 		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, timeProvider);
 
 		final List<StreamElement> output = new ArrayList<>();
@@ -249,17 +251,7 @@ public class StreamSourceOperatorTest {
 					throw new RuntimeException("The time provider is null");
 				}
 
-				timeProvider.registerTimer(execTime, new Runnable() {
-
-					@Override
-					public void run() {
-						try {
-							target.trigger(execTime);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					}
-				});
+				timeProvider.registerTimer(execTime, target);
 				return null;
 			}
 		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));

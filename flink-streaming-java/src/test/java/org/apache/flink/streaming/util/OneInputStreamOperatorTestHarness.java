@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.AsynchronousException;
 import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
@@ -87,7 +88,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 */
 	private boolean setupCalled = false;
 
-
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
 		this(operator, new ExecutionConfig());
 	}
@@ -95,7 +95,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig) {
-		this(operator, executionConfig, DefaultTimeServiceProvider.create(Executors.newSingleThreadScheduledExecutor()));
+		this(operator, executionConfig, null);
 	}
 
 	public OneInputStreamOperatorTestHarness(
@@ -112,7 +112,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
-		timeServiceProvider = testTimeProvider;
 
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
@@ -128,8 +127,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				final long execTime = (Long) invocation.getArguments()[0];
 				final Triggerable target = (Triggerable) invocation.getArguments()[1];
 
-				timeServiceProvider.registerTimer(
-						execTime, new TriggerTask(checkpointLock, target, execTime));
+				timeServiceProvider.registerTimer(execTime, target);
 				return null;
 			}
 		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
@@ -140,6 +138,14 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				return timeServiceProvider.getCurrentProcessingTime();
 			}
 		}).when(mockTask).getCurrentProcessingTime();
+
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				// do nothing
+				return null;
+			}
+		}).when(mockTask).registerAsyncException(any(String.class), any(AsynchronousException.class));
 
 		try {
 			doAnswer(new Answer<CheckpointStreamFactory>() {
@@ -154,6 +160,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			throw new RuntimeException(e.getMessage(), e);
 		}
 
+		timeServiceProvider = testTimeProvider != null ? testTimeProvider :
+			DefaultTimeServiceProvider.create(mockTask, Executors.newSingleThreadScheduledExecutor(), checkpointLock);
 	}
 
 	public void setStateBackend(AbstractStateBackend stateBackend) {
@@ -216,7 +224,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		operator.notifyOfCompletedCheckpoint(checkpointId);
 	}
 
-
 	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(org.apache.flink.core.fs.FSDataInputStream)} ()}
 	 */
@@ -273,34 +280,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		@Override
 		public void close() {
 			// ignore
-		}
-	}
-
-	private static final class TriggerTask implements Runnable {
-
-		private final Object lock;
-		private final Triggerable target;
-		private final long timestamp;
-
-		TriggerTask(final Object lock, Triggerable target, long timestamp) {
-			this.lock = lock;
-			this.target = target;
-			this.timestamp = timestamp;
-		}
-
-		@Override
-		public void run() {
-			synchronized (lock) {
-				try {
-					target.trigger(timestamp);
-				} catch (Throwable t) {
-					try {
-						throw t;
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				}
-			}
 		}
 	}
 }
