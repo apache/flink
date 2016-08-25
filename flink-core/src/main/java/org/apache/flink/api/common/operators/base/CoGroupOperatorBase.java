@@ -76,11 +76,11 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 	}
 
 	public CoGroupOperatorBase(FT udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
-		this(new UserCodeObjectWrapper<FT>(udf), operatorInfo, keyPositions1, keyPositions2, name);
+		this(new UserCodeObjectWrapper<>(udf), operatorInfo, keyPositions1, keyPositions2, name);
 	}
 
 	public CoGroupOperatorBase(Class<? extends FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
-		this(new UserCodeClassWrapper<FT>(udf), operatorInfo, keyPositions1, keyPositions2, name);
+		this(new UserCodeClassWrapper<>(udf), operatorInfo, keyPositions1, keyPositions2, name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -253,7 +253,7 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		}
 
 		CoGroupSortListIterator<IN1, IN2> coGroupIterator =
-				new CoGroupSortListIterator<IN1, IN2>(input1, inputSortComparator1, inputComparator1, inputSerializer1,
+				new CoGroupSortListIterator<>(input1, inputSortComparator1, inputComparator1, inputSerializer1,
 						input2, inputSortComparator2, inputComparator2, inputSerializer2);
 
 		// --------------------------------------------------------------------
@@ -264,8 +264,8 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, parameters);
 
-		List<OUT> result = new ArrayList<OUT>();
-		Collector<OUT> resultCollector = new CopyingListCollector<OUT>(result, getOperatorInfo().getOutputType().createSerializer(executionConfig));
+		List<OUT> result = new ArrayList<>();
+		Collector<OUT> resultCollector = new CopyingListCollector<>(result, getOperatorInfo().getOutputType().createSerializer(executionConfig));
 
 		while (coGroupIterator.next()) {
 			function.coGroup(coGroupIterator.getValues1(), coGroupIterator.getValues2(), resultCollector);
@@ -289,7 +289,7 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 
 	private static class CoGroupSortListIterator<IN1, IN2> {
 
-		private static enum MatchStatus {
+		private enum MatchStatus {
 			NONE_REMAINED, FIRST_REMAINED, SECOND_REMAINED, FIRST_EMPTY, SECOND_EMPTY
 		}
 
@@ -309,10 +309,10 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 				List<IN1> input1, final TypeComparator<IN1> inputSortComparator1, TypeComparator<IN1> inputComparator1, TypeSerializer<IN1> serializer1,
 				List<IN2> input2, final TypeComparator<IN2> inputSortComparator2, TypeComparator<IN2> inputComparator2, TypeSerializer<IN2> serializer2)
 		{
-			this.pairComparator = new GenericPairComparator<IN1, IN2>(inputComparator1, inputComparator2);
+			this.pairComparator = new GenericPairComparator<>(inputComparator1, inputComparator2);
 
-			this.iterator1 = new ListKeyGroupedIterator<IN1>(input1, serializer1, inputComparator1);
-			this.iterator2 = new ListKeyGroupedIterator<IN2>(input2, serializer2, inputComparator2);
+			this.iterator1 = new ListKeyGroupedIterator<>(input1, serializer1, inputComparator1);
+			this.iterator2 = new ListKeyGroupedIterator<>(input2, serializer2, inputComparator2);
 
 			// ----------------------------------------------------------------
 			// Sort
@@ -364,14 +364,14 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 				// both inputs are empty
 				return false;
 			}
-			else if (firstEmpty && !secondEmpty) {
+			else if (firstEmpty) {
 				// input1 is empty, input2 not
 				this.firstReturn = Collections.emptySet();
 				this.secondReturn = this.iterator2.getValues();
 				this.matchStatus = MatchStatus.FIRST_EMPTY;
 				return true;
 			}
-			else if (!firstEmpty && secondEmpty) {
+			else if (secondEmpty) {
 				// input1 is not empty, input 2 is empty
 				this.firstReturn = this.iterator1.getValues();
 				this.secondReturn = Collections.emptySet();

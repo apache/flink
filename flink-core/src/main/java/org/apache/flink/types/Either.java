@@ -36,14 +36,14 @@ public abstract class Either<L, R> {
 	 * Create a Left value of Either
 	 */
 	public static <L, R> Either<L, R> Left(L value) {
-		return new Left<L, R>(value);
+		return new Left<>(value);
 	}
 
 	/**
 	 * Create a Right value of Either
 	 */
 	public static <L, R> Either<L, R> Right(R value) {
-		return new Right<L, R>(value);
+		return new Right<>(value);
 	}
 
 	/**
@@ -129,7 +129,7 @@ public abstract class Either<L, R> {
 		 * 
 		 */
 		public static <L, R> Left<L, R> of(L left) {
-			return new Left<L, R>(left);
+			return new Left<>(left);
 		}
 	}
 
@@ -182,7 +182,7 @@ public abstract class Either<L, R> {
 		 * 
 		 */
 		public static <L, R> Right<L, R> of(R right) {
-			return new Right<L, R>(right);
+			return new Right<>(right);
 		}
 	}
 }

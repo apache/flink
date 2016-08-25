@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.util;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.flink.annotation.Internal;
 
@@ -66,7 +67,7 @@ public class FieldList extends FieldSet {
 		if (size() == 0) {
 			return new FieldList(fieldID);
 		} else {
-			ArrayList<Integer> list = new ArrayList<Integer>(size() + 1);
+			ArrayList<Integer> list = new ArrayList<>(size() + 1);
 			list.addAll(this.collection);
 			list.add(fieldID);
 			return new FieldList(Collections.unmodifiableList(list));
@@ -81,7 +82,7 @@ public class FieldList extends FieldSet {
 		if (size() == 0) {
 			return new FieldList(fieldIDs);
 		} else {
-			ArrayList<Integer> list = new ArrayList<Integer>(size() + fieldIDs.length);
+			ArrayList<Integer> list = new ArrayList<>(size() + fieldIDs.length);
 			list.addAll(this.collection);
 			for (int i = 0; i < fieldIDs.length; i++) {
 				list.add(fieldIDs[i]);
@@ -104,7 +105,7 @@ public class FieldList extends FieldSet {
 			return (FieldList) set;
 		}
 		else {
-			ArrayList<Integer> list = new ArrayList<Integer>(size() + set.size());
+			ArrayList<Integer> list = new ArrayList<>(size() + set.size());
 			list.addAll(this.collection);
 			list.addAll(set.collection);
 			return new FieldList(Collections.unmodifiableList(list));
@@ -166,7 +167,7 @@ public class FieldList extends FieldSet {
 			return false;
 		} else {
 			for (int i = 0; i < this.size(); i++) {
-				if (this.get(i) != list.get(i)) {
+				if (!Objects.equals(this.get(i), list.get(i))) {
 					return false;
 				}
 			}
@@ -190,11 +191,11 @@ public class FieldList extends FieldSet {
 		return (List<Integer>) this.collection;
 	}
 	
-	private static final List<Integer> fromInts(int... ints) {
+	private static List<Integer> fromInts(int... ints) {
 		if (ints == null || ints.length == 0) {
 			return Collections.emptyList();
 		} else {
-			ArrayList<Integer> al = new ArrayList<Integer>(ints.length);
+			ArrayList<Integer> al = new ArrayList<>(ints.length);
 			for (int i = 0; i < ints.length; i++) {
 				al.add(ints[i]);
 			}

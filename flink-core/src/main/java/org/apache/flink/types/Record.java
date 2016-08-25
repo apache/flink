@@ -1355,7 +1355,7 @@ public final class Record implements Value, CopyableValue<Record> {
 				} else {
 					throw new ArrayIndexOutOfBoundsException();
 				}
-			} else if (len < 0) {
+			} else {
 				throw new IllegalArgumentException("Length may not be negative.");
 			}
 		}

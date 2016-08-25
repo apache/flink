@@ -425,7 +425,7 @@ public class PackagedProgram {
 	}
 
 	public List<URL> getAllLibraries() {
-		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
+		List<URL> libs = new ArrayList<>(this.extractedTempLibraries.size() + 1);
 
 		if (jarFile != null) {
 			libs.add(jarFile);
@@ -699,7 +699,7 @@ public class PackagedProgram {
 							out = new FileOutputStream(tempFile);
 							in = new BufferedInputStream(jar.getInputStream(entry));
 							
-							int numRead = 0;
+							int numRead;
 							while ((numRead = in.read(buffer)) != -1) {
 								out.write(buffer, 0, numRead);
 							}
@@ -736,7 +736,7 @@ public class PackagedProgram {
 			if (jar != null) {
 				try {
 					jar.close();
-				} catch (Throwable t) {}
+				} catch (Throwable ignore) {}
 			}
 		}
 	}

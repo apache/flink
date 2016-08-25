@@ -318,10 +318,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			
 			// let the file input format deal with the up-to-date check and the basic size
 			final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
-			if (stats == null) {
-				return null;
-			}
-			
+
 			// check whether the width per record is already known or the total size is unknown as well
 			// in both cases, we return the stats as they are
 			if (stats.getAverageRecordWidth() != FileBaseStatistics.AVG_RECORD_BYTES_UNKNOWN ||

@@ -202,7 +202,7 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 		}
 	}
 
-	private static final boolean isLocal(String flinkHost, String[] hosts) {
+	private static boolean isLocal(String flinkHost, String[] hosts) {
 		if (flinkHost == null || hosts == null) {
 			return false;
 		}
