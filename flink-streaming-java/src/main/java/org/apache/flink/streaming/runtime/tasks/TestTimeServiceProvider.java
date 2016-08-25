@@ -86,6 +86,5 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 	@Override
 	public void shutdownService() throws Exception {
 		this.registeredTasks.clear();
-		this.registeredTasks = null;
 	}
 }

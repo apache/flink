@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.api.functions.source;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
@@ -29,10 +30,12 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AsyncExceptionChecker;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -63,22 +66,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<FileInputSplit, OUT>, OutputTypeConfigurable<OUT> {
+	implements OneInputStreamOperator<FileInputSplit, OUT>, OutputTypeConfigurable<OUT>, AsyncExceptionChecker {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileReaderOperator.class);
 
+	@VisibleForTesting
 	private static final FileInputSplit EOS = new FileInputSplit(-1, null, -1, -1, null);
-
-	private transient SplitReader<S, OUT> reader;
-	private transient TimestampedCollector<OUT> collector;
 
 	private FileInputFormat<OUT> format;
 	private TypeSerializer<OUT> serializer;
 
 	private transient Object checkpointLock;
 
+	private transient SplitReader<S, OUT> reader;
+	private transient SourceFunction.SourceContext<OUT> readerContext;
 	private Tuple3<List<FileInputSplit>, FileInputSplit, S> readerState;
 
 	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
@@ -103,12 +106,28 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		this.format.setRuntimeContext(getRuntimeContext());
 		this.format.configure(new Configuration());
 
-		this.collector = new TimestampedCollector<>(output);
 		this.checkpointLock = getContainingTask().getCheckpointLock();
 
 		Preconditions.checkState(reader == null, "The reader is already initialized.");
 
-		this.reader = new SplitReader<>(format, serializer, collector, checkpointLock, readerState);
+		// set the reader context based on the time characteristic
+		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
+		switch (timeCharacteristic) {
+			case EventTime:
+				readerContext = new StreamSource.ManualWatermarkContext<>(this, checkpointLock, output);
+				break;
+			case IngestionTime:
+				readerContext = new StreamSource.AutomaticWatermarkContext<>(this, checkpointLock, output,
+					getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval());
+				break;
+			case ProcessingTime:
+				readerContext = new StreamSource.NonTimestampContext<>(this, checkpointLock, output);
+				break;
+			default:
+				throw new Exception("Invalid time characteristic: " + String.valueOf(timeCharacteristic));
+		}
+
+		this.reader = new SplitReader<>(format, serializer, readerContext, checkpointLock, readerState);
 
 		// the readerState is needed for the initialization of the reader
 		// when recovering from a failure. So after the initialization,
@@ -124,7 +143,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		output.emitWatermark(mark);
+		// we do nothing because we emit our own watermarks if needed.
 	}
 
 	@Override
@@ -158,7 +177,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			}
 		}
 		reader = null;
-		collector = null;
+		readerContext = null;
 		format = null;
 		serializer = null;
 	}
@@ -179,7 +198,21 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			// called by the StreamTask while having it.
 			checkpointLock.wait();
 		}
-		collector.close();
+
+		// finally if we are closed normally and we are operating on
+		// event or ingestion time, emit the max watermark indicating
+		// the end of the stream, like a normal source would do.
+
+		if (readerContext != null) {
+			readerContext.emitWatermark(Watermark.MAX_WATERMARK);
+			readerContext.close();
+		}
+		output.close();
+	}
+
+	@Override
+	public void checkAsyncException() {
+		// do nothing
 	}
 
 	private class SplitReader<S extends Serializable, OT> extends Thread {
@@ -190,7 +223,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		private final TypeSerializer<OT> serializer;
 
 		private final Object checkpointLock;
-		private final TimestampedCollector<OT> collector;
+		private final SourceFunction.SourceContext<OT> readerContext;
 
 		private final Queue<FileInputSplit> pendingSplits;
 
@@ -202,7 +235,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 		private SplitReader(FileInputFormat<OT> format,
 					TypeSerializer<OT> serializer,
-					TimestampedCollector<OT> collector,
+					SourceFunction.SourceContext<OT> readerContext,
 					Object checkpointLock,
 					Tuple3<List<FileInputSplit>, FileInputSplit, S> restoredState) {
 
@@ -210,7 +243,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			this.serializer = checkNotNull(serializer, "Unspecified Serializer.");
 
 			this.pendingSplits = new LinkedList<>();
-			this.collector = collector;
+			this.readerContext = readerContext;
 			this.checkpointLock = checkpointLock;
 			this.isRunning = true;
 
@@ -301,7 +334,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 							synchronized (checkpointLock) {
 								nextElement = format.nextRecord(nextElement);
 								if (nextElement != null) {
-									collector.collect(nextElement);
+									readerContext.collect(nextElement);
 								} else {
 									break;
 								}
