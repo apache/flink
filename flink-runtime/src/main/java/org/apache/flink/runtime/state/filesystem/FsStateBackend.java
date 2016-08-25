@@ -484,6 +484,7 @@ public class FsStateBackend extends AbstractStateBackend {
 				flush();
 				// write the bytes directly
 				outStream.write(b, off, len);
+				outStream.close();
 			}
 		}
 
@@ -500,6 +501,7 @@ public class FsStateBackend extends AbstractStateBackend {
 						try {
 							statePath = new Path(basePath, UUID.randomUUID().toString());
 							outStream = fs.create(statePath, false);
+							outStream.close();
 							break;
 						}
 						catch (Exception e) {

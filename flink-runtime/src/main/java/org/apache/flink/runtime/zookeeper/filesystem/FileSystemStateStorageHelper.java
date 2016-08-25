@@ -64,6 +64,7 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Sta
 			FSDataOutputStream outStream;
 			try {
 				outStream = fs.create(filePath, false);
+				outStream.close();
 			}
 			catch (Exception e) {
 				latestException = e;
@@ -72,6 +73,7 @@ public class FileSystemStateStorageHelper<T extends Serializable> implements Sta
 
 			try(ObjectOutputStream os = new ObjectOutputStream(outStream)) {
 				os.writeObject(state);
+				os.close();
 			}
 
 			return new FileSerializableStateHandle<>(filePath);

@@ -32,4 +32,5 @@ public abstract class FSDataOutputStream extends OutputStream {
 	public abstract void flush() throws IOException;
 
 	public abstract void sync() throws IOException;
+
 }
