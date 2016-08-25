@@ -23,10 +23,15 @@ import akka.dispatch.Futures;
 import akka.util.Timeout;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import scala.concurrent.Await;
@@ -48,32 +53,26 @@ import static org.mockito.Mockito.when;
  * resourceManager HA test, including grant leadership and revoke leadership
  */
 public class ResourceManagerHATest {
-	private static ActorSystem actorSystem;
-	private static AkkaRpcService akkaRpcService;
 
-	private static final Timeout timeout = new Timeout(10000, TimeUnit.MILLISECONDS);
+	private RpcService rpcService;
 
-	@BeforeClass
-	public static void setup() throws Exception {
-		actorSystem = AkkaUtils.createDefaultActorSystem();
-
-		akkaRpcService = new AkkaRpcService(actorSystem, timeout);
+	@Before
+	public void setup() throws Exception {
+		rpcService = new TestingRpcService();
 	}
 
-	@AfterClass
-	public static void teardown() throws Exception {
-		akkaRpcService.stopService();
-
-		actorSystem.shutdown();
-		actorSystem.awaitTermination();
+	@After
+	public void teardown() throws Exception {
+		rpcService.stopService();
 	}
 
 	@Test
 	public void testGrantAndRevokeLeadership() throws Exception {
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
-		HighAvailabilityServices highAvailabilityServices = mock(HighAvailabilityServices.class);
-		when(highAvailabilityServices.getResourceManagerLeaderElectionService()).thenReturn(leaderElectionService);
-		final ResourceManager resourceManager = new ResourceManager(akkaRpcService, highAvailabilityServices);
+		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
+
+		final ResourceManager resourceManager = new ResourceManager(rpcService, highAvailabilityServices);
 		resourceManager.start();
 		// before grant leadership, resourceManager's leaderId is null
 		Assert.assertNull(resourceManager.getLeaderSessionID());

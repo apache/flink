@@ -22,7 +22,7 @@ import akka.dispatch.Mapper;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -88,7 +88,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	 * @return return the leaderSessionId of current resourceManager, this returns null until the current resourceManager is granted leadership.
 	 */
 	@VisibleForTesting
-	public UUID getLeaderSessionID() {
+	UUID getLeaderSessionID() {
 		return leaderSessionID;
 	}
 
@@ -170,7 +170,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	}
 
 	/**
-	 * notify lost heartbeat with specified taskExecutor
+	 * Notify lost heartbeat with specified taskExecutor
 	 *
 	 * @param resourceID identify the taskManager which lost heartbeat with
 	 */
@@ -189,7 +189,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 
 
 	/**
-	 * notify slotReport which is sent by taskManager to resourceManager
+	 * Notify slotReport which is sent by taskManager to resourceManager
 	 *
 	 * @param slotReport the slot allocation report from taskManager
 	 */
@@ -199,7 +199,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 
 
 	/**
-	 * callback method when current resourceManager is granted leadership
+	 * Callback method when current resourceManager is granted leadership
 	 *
 	 * @param newLeaderSessionID unique leadershipID
 	 */

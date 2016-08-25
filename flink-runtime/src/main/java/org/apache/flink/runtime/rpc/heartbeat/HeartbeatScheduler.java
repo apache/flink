@@ -135,7 +135,7 @@ public abstract class HeartbeatScheduler<Gateway extends RpcGateway, Payload ext
 	}
 
 	/**
-	 * start to schedule heartbeat
+	 * Start to schedule heartbeat
 	 */
 	public void start() {
 		checkState(!closed, "The heartbeat connection is already closed");
@@ -153,14 +153,14 @@ public abstract class HeartbeatScheduler<Gateway extends RpcGateway, Payload ext
 	}
 
 	/**
-	 * stop to schedule heartbeat
+	 * Stop to schedule heartbeat
 	 */
 	public void close() {
 		closed = true;
 	}
 
 	/**
-	 * get the heartbeat interval
+	 * Get the heartbeat interval
 	 *
 	 * @return heartbeat interval
 	 */
@@ -169,7 +169,7 @@ public abstract class HeartbeatScheduler<Gateway extends RpcGateway, Payload ext
 	}
 
 	/**
-	 * trigger heartbeat to target gateway
+	 * Trigger heartbeat to target gateway
 	 *
 	 * @param leaderID leader session id of current sender
 	 * @param timeout  timeout for heartbeat response
@@ -178,25 +178,26 @@ public abstract class HeartbeatScheduler<Gateway extends RpcGateway, Payload ext
 	protected abstract Future<Payload> triggerHeartbeat(UUID leaderID, FiniteDuration timeout);
 
 	/**
-	 * report heartbeat response payload to sender who sending heartbeat
+	 * Report heartbeat response payload to sender who sending heartbeat
 	 *
 	 * @param heartbeatResponsePayload heartbeat response which contains payload
 	 */
 	protected abstract void reportHeartbeatPayload(Payload heartbeatResponsePayload);
 
 	/**
-	 * callback method when heartbeat sender lost heartbeat with target
+	 * Callback method when heartbeat sender lost heartbeat with target
 	 */
-	protected abstract void lossHeartbeat();
+	protected abstract void lostHeartbeat();
 
 	/**
-	 * send a heartbeat attempt to target, receive the response from target or failed depends on the future result.
+	 * Send a heartbeat attempt to target, receive the response from target or failed depends on the future result.
 	 *
-	 * @param attempt
-	 * @param timeoutMillis
-	 * @param currentHeartbeatBeginTime
+	 * @param attempt                   current attempt time
+	 * @param timeoutMillis             heartbeat timeout in millisecond
+	 * @param currentHeartbeatBeginTime begin time of current heartbeat
 	 */
-	private void sendHeartbeatToTaskManager(final int attempt, final long timeoutMillis, final long currentHeartbeatBeginTime) {
+	private void sendHeartbeatToTaskManager(final int attempt, final long timeoutMillis,
+		final long currentHeartbeatBeginTime) {
 		// eager check for closed to avoid some unnecessary work
 		if (closed) {
 			return;
@@ -222,11 +223,11 @@ public abstract class HeartbeatScheduler<Gateway extends RpcGateway, Payload ext
 			public void onFailure(Throwable failure) {
 				if (!isClosed()) {
 					long currentTime = System.currentTimeMillis();
-					if(currentTime - currentHeartbeatBeginTime >= maxAttemptTime) {
+					if (currentTime - currentHeartbeatBeginTime >= maxAttemptTime) {
 						log.error("Lost heartbeat with at {} ({}) after {} attempts", targetName, targetAddress, attempt);
 						closed = true;
 						// mark target as failed after heartbeat interaction attempts failed for max attempt time
-						lossHeartbeat();
+						lostHeartbeat();
 					} else {
 						// we simply have not received a heartbeat response in time. maybe the timeout was
 						// very low (initial fast registration attempts), maybe the target endpoint is
@@ -253,29 +254,31 @@ public abstract class HeartbeatScheduler<Gateway extends RpcGateway, Payload ext
 	}
 
 	/**
-	 * schedule a new heartbeat after delayMills
-	 * @param timeoutMillis
-	 * @param delayMills
+	 * Schedule a new heartbeat after delayMills
+	 *
+	 * @param timeoutMillis heartbeat timeout in millisecond
+	 * @param delayMillis   delay in millisecond to schedule new heartbeat
 	 */
-	private void scheduleNewHeartbeatToTaskManagerLater(final long timeoutMillis, final long delayMills) {
+	private void scheduleNewHeartbeatToTaskManagerLater(final long timeoutMillis, final long delayMillis) {
 		rpcService.scheduleRunnable(new Runnable() {
 			@Override
 			public void run() {
 				long currentHeartbeatBeginTime = System.currentTimeMillis();
 				sendHeartbeatToTaskManager(1, timeoutMillis, currentHeartbeatBeginTime);
 			}
-		}, delayMills, TimeUnit.MILLISECONDS);
+		}, delayMillis, TimeUnit.MILLISECONDS);
 	}
 
 	/**
-	 * retry to sendHeartbeatToTaskManager after a few milliseconds
+	 * Retry to sendHeartbeatToTaskManager after a few milliseconds
 	 *
-	 * @param attempt
-	 * @param timeoutMillis
-	 * @param delayMills
-	 * @param currentHeartbeatBeginTime
+	 * @param attempt                   current attempt time
+	 * @param timeoutMillis             heartbeat timeout in millisecond
+	 * @param delayMills                delay in millisecond to schedule new heartbeat
+	 * @param currentHeartbeatBeginTime begin time of current heartbeat
 	 */
-	private void sendHeartbeatToTaskManagerLater(final int attempt, final long timeoutMillis, final long delayMills, final long currentHeartbeatBeginTime) {
+	private void sendHeartbeatToTaskManagerLater(final int attempt, final long timeoutMillis, final long delayMills,
+		final long currentHeartbeatBeginTime) {
 		rpcService.scheduleRunnable(new Runnable() {
 			@Override
 			public void run() {

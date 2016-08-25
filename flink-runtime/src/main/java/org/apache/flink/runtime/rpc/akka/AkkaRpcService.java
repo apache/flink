@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,23 +100,32 @@ public class AkkaRpcService implements RpcService {
 		final Future<Object> identify = asker.ask(new Identify(42), timeout);
 		return identify.map(new Mapper<Object, C>(){
 			@Override
-			public C apply(Object obj) {
-				ActorRef actorRef = ((ActorIdentity) obj).getRef();
+			public C checkedApply(Object obj) throws Exception {
 
-				InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout, maximumFramesize);
+				ActorIdentity actorIdentity = (ActorIdentity) obj;
 
-				// Rather than using the System ClassLoader directly, we derive the ClassLoader
-				// from this class . That works better in cases where Flink runs embedded and all Flink
-				// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
-				ClassLoader classLoader = AkkaRpcService.this.getClass().getClassLoader();
-				
-				@SuppressWarnings("unchecked")
-				C proxy = (C) Proxy.newProxyInstance(
-					classLoader,
-					new Class<?>[] {clazz},
-					akkaInvocationHandler);
+				if (actorIdentity.getRef() == null) {
+					throw new RpcConnectionException("Could not connect to rpc endpoint under address " + address + '.');
+				} else {
+					ActorRef actorRef = actorIdentity.getRef();
 
-				return proxy;
+					final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+
+					InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(address, actorRef, timeout, maximumFramesize);
+
+					// Rather than using the System ClassLoader directly, we derive the ClassLoader
+					// from this class . That works better in cases where Flink runs embedded and all Flink
+					// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
+					ClassLoader classLoader = AkkaRpcService.this.getClass().getClassLoader();
+
+					@SuppressWarnings("unchecked")
+					C proxy = (C) Proxy.newProxyInstance(
+						classLoader,
+						new Class<?>[]{clazz},
+						akkaInvocationHandler);
+
+					return proxy;
+				}
 			}
 		}, actorSystem.dispatcher());
 	}
@@ -135,7 +145,9 @@ public class AkkaRpcService implements RpcService {
 
 		LOG.info("Starting RPC endpoint for {} at {} .", rpcEndpoint.getClass().getName(), actorRef.path());
 
-		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(actorRef, timeout, maximumFramesize);
+		final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+
+		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(address, actorRef, timeout, maximumFramesize);
 
 		// Rather than using the System ClassLoader directly, we derive the ClassLoader
 		// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -194,19 +206,6 @@ public class AkkaRpcService implements RpcService {
 		}
 
 		actorSystem.awaitTermination();
-	}
-
-	@Override
-	public String getAddress(RpcGateway selfGateway) {
-		checkState(!stopped, "RpcService is stopped");
-
-		if (selfGateway instanceof AkkaGateway) {
-			ActorRef actorRef = ((AkkaGateway) selfGateway).getRpcEndpoint();
-			return AkkaUtils.getAkkaURL(actorSystem, actorRef);
-		} else {
-			String className = AkkaGateway.class.getName();
-			throw new IllegalArgumentException("Cannot get address for non " + className + '.');
-		}
 	}
 
 	@Override

@@ -16,17 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.runtime.rpc.exceptions;
+
+import java.util.concurrent.ExecutionException;
 
 /**
- * Rpc gateway interface which has to be implemented by Rpc gateways.
+ * Exception class which is thrown if a rpc connection failed. Usually this happens if the remote
+ * host cannot be reached.
  */
-public interface RpcGateway {
+public class RpcConnectionException extends ExecutionException {
+	private static final long serialVersionUID = -5500560405481142472L;
 
-	/**
-	 * Returns the fully qualified address under which the associated rpc endpoint is reachable.
-	 *
-	 * @return Fully qualified address under which the associated rpc endpoint is reachable
-	 */
-	String getAddress();
+	public RpcConnectionException(String message) {
+		super(message);
+	}
+
+	public RpcConnectionException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public RpcConnectionException(Throwable cause) {
+		super(cause);
+	}
 }

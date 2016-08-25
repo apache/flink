@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -61,6 +62,11 @@ public class NonHaServices implements HighAvailabilityServices {
 
 	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() throws Exception {
+		return new StandaloneLeaderElectionService();
+	}
+
+	@Override
+	public LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception {
 		return new StandaloneLeaderElectionService();
 	}
 }

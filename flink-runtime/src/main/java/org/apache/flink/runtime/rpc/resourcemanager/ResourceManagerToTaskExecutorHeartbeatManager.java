@@ -33,8 +33,8 @@ import java.util.UUID;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * ResourceManagerToTaskExecutorHeartbeatManager is responsible for trigger heartbeat between resourceManager and all registered taskExecutors,
- * notify ResourceManager about failure of taskManager instance which lost heartbeat
+ * Responsible for trigger heartbeat between {@link ResourceManager} and all registered {@link org.apache.flink.runtime.rpc.taskexecutor.TaskExecutor},
+ * notify resource manager about failure of task executor instance which lost heartbeat
  */
 public class ResourceManagerToTaskExecutorHeartbeatManager {
 	/** active heartbeat schedulers between resourceManager and TaskExecutors */
@@ -48,22 +48,24 @@ public class ResourceManagerToTaskExecutorHeartbeatManager {
 	private final Logger log;
 
 	/**
+	 * Creates a new heartbeat manager from resource manager to all registered taskExecutors
+	 *
 	 * @param resourceManager                resourceManager which handles heartbeat communication with taskManager
 	 * @param resourceManagerLeaderSessionID leader session id of current resourceManager
 	 * @param log
 	 */
-	public ResourceManagerToTaskExecutorHeartbeatManager(ResourceManager resourceManager,
-		UUID resourceManagerLeaderSessionID, Logger log) {
-		this.resourceManager = resourceManager;
-		this.leaderID = resourceManagerLeaderSessionID;
-		this.log = log;
+	public ResourceManagerToTaskExecutorHeartbeatManager(ResourceManager resourceManager, UUID resourceManagerLeaderSessionID, Logger log) {
+		this.resourceManager = checkNotNull(resourceManager);
+		this.leaderID = checkNotNull(resourceManagerLeaderSessionID);
+		this.log = checkNotNull(log);
 		this.activeHeartbeatSchedulers = new HashMap<>();
 	}
 
 	/**
-	 * register heartbeat target
-	 * @param resourceID target taskExecutor resourceID
-	 * @param targetTarget target taskExecutor gateway
+	 * Register a new task executor, which will start a new heartbeat connection between current resource manager and the input task executor gateway
+	 *
+	 * @param resourceID    target taskExecutor resourceID
+	 * @param targetTarget  target taskExecutor gateway
 	 * @param targetAddress target taskExecutor address
 	 * @return heartbeat interval in millisecond
 	 */
@@ -81,7 +83,7 @@ public class ResourceManagerToTaskExecutorHeartbeatManager {
 	}
 
 	/**
-	 * stop and clean all active heartbeat scheduler
+	 * Stop and clean all active heartbeat scheduler
 	 */
 	public void stopHeartbeatToAllTaskExecutor() {
 		for (ResourceManagerToTaskExecutorHeartbeatScheduler heartbeatScheduler : activeHeartbeatSchedulers.values()) {
@@ -91,7 +93,8 @@ public class ResourceManagerToTaskExecutorHeartbeatManager {
 	}
 
 	/**
-	 * stop and clean heartbeat scheduler to the specified taskExecutor, usually happens when taskExecutor marked failed
+	 * Stop and clean heartbeat scheduler to the specified taskExecutor, usually happens when taskExecutor marked failed
+	 *
 	 * @param resourceID taskExecutor's resourceID which to stop heartbeat
 	 */
 	public void stopHeartbeatToTaskExecutor(ResourceID resourceID) {
@@ -126,10 +129,11 @@ public class ResourceManagerToTaskExecutorHeartbeatManager {
 		public ResourceManagerToTaskExecutorHeartbeatScheduler(
 			ResourceManager resourceManager, UUID resourceManagerLeaderSessionID,
 			TaskExecutorGateway taskExecutorGateway,
-			String taskExecutorAddress, ResourceID taskExecutorResourceID, Logger log) {
+			String taskExecutorAddress, ResourceID taskExecutorResourceID, Logger log)
+		{
 			super(resourceManager.getRpcService(), resourceManagerLeaderSessionID, taskExecutorGateway, taskExecutorAddress,
 				"taskExecutor " + taskExecutorResourceID.toString(), log);
-			this.resourceManager = resourceManager;
+			this.resourceManager = checkNotNull(resourceManager);
 			this.resourceID = checkNotNull(taskExecutorResourceID);
 		}
 
@@ -151,10 +155,11 @@ public class ResourceManagerToTaskExecutorHeartbeatManager {
 			ResourceManager resourceManager, UUID resourceManagerLeaderSessionID,
 			TaskExecutorGateway taskExecutorGateway,
 			String taskExecutorAddress, ResourceID taskExecutorResourceID, Logger log, long heartbeatInterval,
-			long heartbeatTimeout, long maxHeartbeatTimeout, long delayOnError, long maxAttemptTime) {
+			long heartbeatTimeout, long maxHeartbeatTimeout, long delayOnError, long maxAttemptTime)
+		{
 			super(resourceManager.getRpcService(), resourceManagerLeaderSessionID, taskExecutorGateway, taskExecutorAddress,
 				"taskExecutor " + taskExecutorResourceID.toString(), log, heartbeatInterval, heartbeatTimeout, maxHeartbeatTimeout, delayOnError, maxAttemptTime);
-			this.resourceManager = resourceManager;
+			this.resourceManager = checkNotNull(resourceManager);
 			this.resourceID = checkNotNull(taskExecutorResourceID);
 		}
 
@@ -169,7 +174,7 @@ public class ResourceManagerToTaskExecutorHeartbeatManager {
 		}
 
 		@Override
-		protected void lossHeartbeat() {
+		protected void lostHeartbeat() {
 			resourceManager.notifyLostHeartbeat(resourceID);
 		}
 

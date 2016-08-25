@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -76,6 +77,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	@Override
 	public void start() {
+		super.start();
+
 		// start by connecting to the ResourceManager
 		try {
 			super.start();
@@ -170,6 +173,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		log.error("FATAL ERROR", t);
 	}
 
+
+	// ------------------------------------------------------------------------
+	//  Access to fields for testing
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	TaskExecutorToResourceManagerConnection getResourceManagerConnection() {
+		return resourceManagerConnection;
+	}
 
 	// ------------------------------------------------------------------------
 	//  Utility classes

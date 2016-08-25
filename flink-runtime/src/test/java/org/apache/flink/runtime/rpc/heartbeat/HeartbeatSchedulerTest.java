@@ -25,10 +25,13 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.util.TestLogger;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -58,25 +61,16 @@ public class HeartbeatSchedulerTest extends TestLogger {
 	private static final long DELAY_ON_ERROR = 100;
 	private static final long MAX_ATTEMPT_TIME = 300;
 
+	private RpcService rpcService;
 
-	private static ActorSystem actorSystem;
-	private static AkkaRpcService akkaRpcService;
-
-	private static final Timeout timeout = new Timeout(10000, TimeUnit.MILLISECONDS);
-
-	@BeforeClass
-	public static void setup() throws Exception {
-		actorSystem = AkkaUtils.createDefaultActorSystem();
-
-		akkaRpcService = new AkkaRpcService(actorSystem, timeout);
+	@Before
+	public void setup() throws Exception {
+		rpcService = new TestingRpcService();
 	}
 
-	@AfterClass
-	public static void teardown() throws Exception {
-		akkaRpcService.stopService();
-
-		actorSystem.shutdown();
-		actorSystem.awaitTermination();
+	@After
+	public void teardown() throws Exception {
+		rpcService.stopService();
 	}
 
 
@@ -96,7 +90,7 @@ public class HeartbeatSchedulerTest extends TestLogger {
 			Futures.successful(response)
 		);
 
-		TestingHeartbeatScheduler heartbeatScheduler = new TestingHeartbeatScheduler(sender, akkaRpcService, leaderSessionID,
+		TestingHeartbeatScheduler heartbeatScheduler = new TestingHeartbeatScheduler(sender, rpcService, leaderSessionID,
 			targetGateway, "taskExecutor-test-address", "testTargetGateway", log, INITIAL_INTERVAL, INITIAL_TIMEOUT, MAX_TIMEOUT, DELAY_ON_ERROR, MAX_ATTEMPT_TIME);
 		heartbeatScheduler.start();
 
@@ -125,7 +119,7 @@ public class HeartbeatSchedulerTest extends TestLogger {
 			Futures.successful(response) // second attempt success
 		);
 
-		TestingHeartbeatScheduler heartbeatScheduler = new TestingHeartbeatScheduler(sender, akkaRpcService, leaderSessionID,
+		TestingHeartbeatScheduler heartbeatScheduler = new TestingHeartbeatScheduler(sender, rpcService, leaderSessionID,
 			targetGateway, "taskExecutor-test-address", "testTargetGateway", log, INITIAL_INTERVAL, INITIAL_TIMEOUT, MAX_TIMEOUT, DELAY_ON_ERROR, MAX_ATTEMPT_TIME);
 		heartbeatScheduler.start();
 
@@ -151,7 +145,7 @@ public class HeartbeatSchedulerTest extends TestLogger {
 		when(targetGateway.triggerHeartbeat(any(UUID.class), any(FiniteDuration.class))).thenReturn(
 			Futures.<String> failed(new Exception("error happened")));
 
-		TestingHeartbeatScheduler heartbeatScheduler = new TestingHeartbeatScheduler(sender, akkaRpcService, leaderSessionID,
+		TestingHeartbeatScheduler heartbeatScheduler = new TestingHeartbeatScheduler(sender, rpcService, leaderSessionID,
 			targetGateway, "taskExecutor-test-address", "testTargetGateway", log, INITIAL_INTERVAL, INITIAL_TIMEOUT, MAX_TIMEOUT, DELAY_ON_ERROR, MAX_ATTEMPT_TIME);
 		heartbeatScheduler.start();
 		// verify lost heartbeat after max attempts and notifyLostHeartbeat is invoked
@@ -183,7 +177,7 @@ public class HeartbeatSchedulerTest extends TestLogger {
 			Futures.successful(response) // last attempt success
 		);
 
-		TestingHeartbeatScheduler heartbeatScheduler = new TestingHeartbeatScheduler(sender, akkaRpcService, leaderSessionID,
+		TestingHeartbeatScheduler heartbeatScheduler = new TestingHeartbeatScheduler(sender, rpcService, leaderSessionID,
 			targetGateway, "taskExecutor-test-address", "testTargetGateway", log, INITIAL_INTERVAL, INITIAL_TIMEOUT, MAX_TIMEOUT, DELAY_ON_ERROR, MAX_ATTEMPT_TIME);
 		heartbeatScheduler.start();
 
@@ -230,7 +224,7 @@ public class HeartbeatSchedulerTest extends TestLogger {
 		}
 
 		@Override
-		protected void lossHeartbeat() {
+		protected void lostHeartbeat() {
 			this.sender.notifyLostHeartbeat();
 		}
 	}
