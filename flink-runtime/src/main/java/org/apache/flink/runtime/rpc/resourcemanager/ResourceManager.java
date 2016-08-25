@@ -126,8 +126,9 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	 * @return Slot assignment
 	 */
 	@RpcMethod
-	public AcknowledgeSlotRequest requestSlot(SlotRequest slotRequest) {
-		return new AcknowledgeSlotRequest(slotRequest.getAllocationID());
+	public SlotAssignment requestSlot(SlotRequest slotRequest) {
+		System.out.println("SlotRequest: " + slotRequest);
+		return new SlotAssignment();
 	}
 
 

@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * This utility class implements the basis of trigger heartbeat from one component to another component periodically,
+ * This utility class implements the basis of schedule heartbeat from one component to another component periodically,
  * for example trigger heartbeat from the ResourceManager to TaskExecutor.
  *
  * @param <Gateway> The type of the gateway to connect to.

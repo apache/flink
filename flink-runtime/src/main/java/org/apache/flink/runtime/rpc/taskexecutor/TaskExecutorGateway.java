@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
-import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.rpc.resourcemanager.SlotRequest;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -31,18 +29,6 @@ import java.util.UUID;
  * {@link TaskExecutor} RPC gateway interface
  */
 public interface TaskExecutorGateway extends RpcGateway {
-
-	/**
-	 * handle a slot request from ResourceManager, allocate the slot to the allocationID, or reject it if the slot was
-	 * already occupied
-	 *
-	 * @param slotRequest             slot request from resourceManager
-	 * @param slotID                  slotID identifying the choosen slot
-	 * @param resourceManagerLeaderId id to identify a resourceManager which is granted leadership
-	 * @return response ack request if allocate slot successful; decline request if the slot was already occupied
-	 */
-	Future<SlotAllocationResponse> requestSlotForJob(SlotRequest slotRequest, SlotID slotID,
-		UUID resourceManagerLeaderId);
 
 	/**
 	 * trigger the heartbeat from ResourceManager, taskManager send the SlotReport which is about the current status

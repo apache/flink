@@ -58,7 +58,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param slotRequest Slot request
 	 * @return Future slot assignment
 	 */
-	Future<AcknowledgeSlotRequest> requestSlot(SlotRequest slotRequest);
+	Future<SlotAssignment> requestSlot(SlotRequest slotRequest);
 
 	/**
 	 * Register a {@link org.apache.flink.runtime.rpc.taskexecutor.TaskExecutor} at the resource manager.

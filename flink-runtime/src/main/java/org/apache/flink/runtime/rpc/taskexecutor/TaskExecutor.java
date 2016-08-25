@@ -20,13 +20,11 @@ package org.apache.flink.runtime.rpc.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.resourcemanager.SlotRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -128,12 +126,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		// TODO
 		List<SlotStatus> slotsStatus = new ArrayList<>();
 		return new SlotReport(slotsStatus, resourceID);
-	}
-
-	@RpcMethod
-	public SlotAllocationResponse requestSlotForJob(SlotRequest slotRequest, SlotID slotID, UUID resourceManagerLeaderId) {
-		// TODO
-		return null;
 	}
 
 	@RpcMethod
