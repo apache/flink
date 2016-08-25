@@ -26,6 +26,8 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -116,6 +118,27 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					new TaskExecutorToResourceManagerConnection(log, this, newLeaderAddress, newLeaderId);
 			resourceManagerConnection.start();
 		}
+	}
+
+	@RpcMethod
+	public SlotReport triggerHeartbeatToResourceManager(UUID resourceManagerLeaderId) {
+		resourceManagerConnection.notifyOfReceivingHeartbeat();
+		List<SlotStatus> slotsStatus = new ArrayList<>();
+		return new SlotReport(slotsStatus, resourceID);
+	}
+
+	void notifyOfLossHeartbeatWithResourceManager(final String leaderAddress, final UUID leaderId) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.error("Lost heartbeat with  ResourceManager {} at ({}).", leaderId, leaderAddress);
+				// drop the current connection or connection attempt
+				if (resourceManagerConnection != null) {
+					resourceManagerConnection.close();
+					resourceManagerConnection = null;
+				}
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------------
