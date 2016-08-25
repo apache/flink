@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -135,7 +136,7 @@ public class CheckpointCoordinator {
 	private JobStatusListener jobStatusListener;
 
 	/** The number of consecutive failed trigger attempts */
-	private int numUnsuccessfulCheckpointsTriggers;
+	private final AtomicInteger numUnsuccessfulCheckpointsTriggers = new AtomicInteger(0);
 
 	private ScheduledTrigger currentPeriodicTrigger;
 
@@ -397,7 +398,7 @@ public class CheckpointCoordinator {
 				checkpointID = checkpointIdCounter.getAndIncrement();
 			}
 			catch (Throwable t) {
-				int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
+				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
@@ -490,7 +491,7 @@ public class CheckpointCoordinator {
 					tasksToTrigger[i].sendMessageToCurrentExecution(message, id);
 				}
 
-				numUnsuccessfulCheckpointsTriggers = 0;
+				numUnsuccessfulCheckpointsTriggers.set(0);
 				return new CheckpointTriggerResult(checkpoint);
 			}
 			catch (Throwable t) {
@@ -499,7 +500,7 @@ public class CheckpointCoordinator {
 					pendingCheckpoints.remove(checkpointID);
 				}
 
-				int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
+				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 
 				if (!checkpoint.isDiscarded()) {
@@ -964,7 +965,7 @@ public class CheckpointCoordinator {
 			}
 
 			pendingCheckpoints.clear();
-			numUnsuccessfulCheckpointsTriggers = 0;
+			numUnsuccessfulCheckpointsTriggers.set(0);
 		}
 	}
 
