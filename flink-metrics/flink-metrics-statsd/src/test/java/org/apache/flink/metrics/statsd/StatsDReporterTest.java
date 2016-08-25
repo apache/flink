@@ -232,10 +232,7 @@ public class StatsDReporterTest extends TestLogger {
 
 			Set<String> expectedLines = new HashSet<>();
 
-			expectedLines.add(prefix + ".1minrate:1.0|g");
-			expectedLines.add(prefix + ".5minrate:5.0|g");
-			expectedLines.add(prefix + ".15minrate:15.0|g");
-			expectedLines.add(prefix + ".meanrate:10.0|g");
+			expectedLines.add(prefix + ".rate:5.0|g");
 			expectedLines.add(prefix + ".count:100|g");
 
 			receiver.waitUntilNumLines(expectedLines.size(), timeout);

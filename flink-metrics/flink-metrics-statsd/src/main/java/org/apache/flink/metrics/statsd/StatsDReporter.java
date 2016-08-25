@@ -166,10 +166,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 	private void reportMeter(final String name, final Meter meter) {
 		if (meter != null) {
-			send(prefix(name, "1minrate"), String.valueOf(meter.getOneMinuteRate()));
-			send(prefix(name, "5minrate"), String.valueOf(meter.getFiveMinuteRate()));
-			send(prefix(name, "15minrate"), String.valueOf(meter.getFifteenMinuteRate()));
-			send(prefix(name, "meanrate"), String.valueOf(meter.getMeanRate()));
+			send(prefix(name, "rate"), String.valueOf(meter.getRate()));
 			send(prefix(name, "count"), String.valueOf(meter.getCount()));
 		}
 	}

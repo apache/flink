@@ -31,23 +31,8 @@ public class TestMeter implements Meter {
 	}
 
 	@Override
-	public double getOneMinuteRate() {
-		return 1;
-	}
-
-	@Override
-	public double getFiveMinuteRate() {
+	public double getRate() {
 		return 5;
-	}
-
-	@Override
-	public double getFifteenMinuteRate() {
-		return 15;
-	}
-
-	@Override
-	public double getMeanRate() {
-		return 10;
 	}
 
 	@Override

@@ -46,23 +46,8 @@ public class DropwizardMeterWrapper implements Meter {
 	}
 
 	@Override
-	public double getOneMinuteRate() {
+	public double getRate() {
 		return meter.getOneMinuteRate();
-	}
-
-	@Override
-	public double getFiveMinuteRate() {
-		return meter.getFiveMinuteRate();
-	}
-
-	@Override
-	public double getFifteenMinuteRate() {
-		return meter.getFifteenMinuteRate();
-	}
-
-	@Override
-	public double getMeanRate() {
-		return meter.getMeanRate();
 	}
 
 	@Override

@@ -56,22 +56,22 @@ public class FlinkMeterWrapper extends com.codahale.metrics.Meter {
 	}
 
 	@Override
-	public double getFifteenMinuteRate() {
-		return meter.getFifteenMinuteRate();
+	public double getOneMinuteRate() {
+		return meter.getRate();
 	}
 
 	@Override
 	public double getFiveMinuteRate() {
-		return meter.getFiveMinuteRate();
+		return 0;
+	}
+
+	@Override
+	public double getFifteenMinuteRate() {
+		return 0;
 	}
 
 	@Override
 	public double getMeanRate() {
-		return meter.getMeanRate();
-	}
-
-	@Override
-	public double getOneMinuteRate() {
-		return meter.getOneMinuteRate();
+		return 0;
 	}
 }

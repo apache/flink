@@ -31,18 +31,12 @@ public class DropwizardMeterWrapperTest {
 	@Test
 	public void testWrapper() {
 		com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
-		when(dropwizardMeter.getMeanRate()).thenReturn(10.0);
 		when(dropwizardMeter.getOneMinuteRate()).thenReturn(1.0);
-		when(dropwizardMeter.getFiveMinuteRate()).thenReturn(5.0);
-		when(dropwizardMeter.getFifteenMinuteRate()).thenReturn(15.0);
 		when(dropwizardMeter.getCount()).thenReturn(100L);
 
 		DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
 
-		assertEquals(10.0, wrapper.getMeanRate(), DELTA);
-		assertEquals(1.0, wrapper.getOneMinuteRate(), DELTA);
-		assertEquals(5.0, wrapper.getFiveMinuteRate(), DELTA);
-		assertEquals(15.0, wrapper.getFifteenMinuteRate(), DELTA);
+		assertEquals(1.0, wrapper.getRate(), DELTA);
 		assertEquals(100L, wrapper.getCount());
 	}
 

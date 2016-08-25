@@ -36,32 +36,11 @@ public interface Meter extends Metric {
 	void markEvent(long n);
 
 	/**
-	 * Returns one-minute exponentially-weighted moving average rate.
+	 * Returns one-minute rate.
 	 *
-	 * @return one-minute exponentially-weighted moving average rate
+	 * @return one-minute rate
 	 */
-	double getOneMinuteRate();
-
-	/**
-	 * Returns five-minute exponentially-weighted moving average rate.
-	 *
-	 * @return five-minute exponentially-weighted moving average rate
-	 */
-	double getFiveMinuteRate();
-
-	/**
-	 * Returns fifteen-minute exponentially-weighted moving average rate.
-	 *
-	 * @return fifteen-minute exponentially-weighted moving average rate
-	 */
-	double getFifteenMinuteRate();
-
-	/**
-	 * Return mean rate at which events has occurred.
-	 *
-	 * @return mean rate at which events has occurred
-	 */
-	double getMeanRate();
+	double getRate();
 
 	/**
 	 * Get number of events marked on the meter.
