@@ -155,16 +155,16 @@ public final class Utils {
 			LOG.info("Adding user token " + id + " with " + token);
 			credentials.addToken(id, token);
 		}
-		DataOutputBuffer dob = new DataOutputBuffer();
-		credentials.writeTokenStorageToStream(dob);
+		try (DataOutputBuffer dob = new DataOutputBuffer()) {
+			credentials.writeTokenStorageToStream(dob);
 
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
+			if(LOG.isDebugEnabled()) {
+				LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
+			}
+
+			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+			amContainer.setTokens(securityTokens);
 		}
-
-		ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-		amContainer.setTokens(securityTokens);
-		dob.close();
 	}
 
 	/**
