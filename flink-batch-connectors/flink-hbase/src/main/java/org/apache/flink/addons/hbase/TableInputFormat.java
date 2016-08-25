@@ -17,13 +17,9 @@
  */
 package org.apache.flink.addons.hbase;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
@@ -37,6 +33,10 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
@@ -67,20 +67,24 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	protected abstract T mapResultToTuple(Result r);
 
 	/**
-	 * @param parameters
+	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
+	 * These are opened here because they are needed in the createInputSplits
+	 * which is called before the openInputFormat method.
+	 * So the connection is opened in {@link #configure(Configuration)} and closed in {@link #closeInputFormat()}.
+	 * @param parameters The configuration that is to be used
 	 * @see Configuration
 	 */
 	@Override
 	public void configure(Configuration parameters) {
+		table = createTable();
+		scan = getScanner();
 	}
 
 	/**
-	 * Creates a {@link Scan} object and opens the {@link HTable} connection
+	 * Do nothing.
 	 */
 	@Override
 	public void openInputFormat() throws IOException {
-		table = createTable();
-		scan = getScanner();
 	}
 
 	/** Create an {@link HTable} instance and set it into this format */
