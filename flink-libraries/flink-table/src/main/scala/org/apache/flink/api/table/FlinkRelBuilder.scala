@@ -20,12 +20,20 @@ package org.apache.flink.api.table
 
 import java.util.Collections
 
+import org.apache.calcite.plan.volcano.VolcanoPlanner
+import java.lang.Iterable
+
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
-import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.prepare.CalciteCatalogReader
+import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rex.RexBuilder
+import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
+import org.apache.flink.api.table.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.api.table.expressions.WindowProperty
+import org.apache.flink.api.table.plan.logical.LogicalWindow
+import org.apache.flink.api.table.plan.logical.rel.LogicalWindowAggregate
 
 /**
   * Flink specific [[RelBuilder]] that changes the default type factory to a [[FlinkTypeFactory]].
@@ -41,10 +49,25 @@ class FlinkRelBuilder(
 
   def getPlanner: RelOptPlanner = cluster.getPlanner
 
-  def getCluster = cluster
+  def getCluster: RelOptCluster = relOptCluster
 
   override def getTypeFactory: FlinkTypeFactory =
     super.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+
+  def aggregate(
+      window: LogicalWindow,
+      groupKey: GroupKey,
+      namedProperties: Seq[NamedWindowProperty],
+      aggCalls: Iterable[AggCall])
+    : RelBuilder = {
+    // build logical aggregate
+    val aggregate = super.aggregate(groupKey, aggCalls).build().asInstanceOf[LogicalAggregate]
+
+    // build logical window aggregate from it
+    push(LogicalWindowAggregate.create(window, namedProperties, aggregate))
+    this
+  }
+
 }
 
 object FlinkRelBuilder {
@@ -68,5 +91,12 @@ object FlinkRelBuilder {
 
     new FlinkRelBuilder(config.getContext, cluster, relOptSchema)
   }
+
+  /**
+    * Information necessary to create a window aggregate.
+    *
+    * Similar to [[RelBuilder.AggCall]] or [[RelBuilder.GroupKey]].
+    */
+  case class NamedWindowProperty(name: String, property: WindowProperty)
 
 }

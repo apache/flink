@@ -44,7 +44,7 @@ abstract class BinaryArithmetic extends BinaryExpression {
     }
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (!isNumeric(left.resultType) || !isNumeric(right.resultType)) {
       ValidationFailure(s"$this requires both operands Numeric, get " +
         s"$left : ${left.resultType} and $right : ${right.resultType}")
@@ -81,7 +81,7 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
     }
   }
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (isString(left.resultType) || isString(right.resultType)) {
       ValidationSuccess
     } else if (isTimeInterval(left.resultType) && left.resultType == right.resultType) {
@@ -110,7 +110,7 @@ case class UnaryMinus(child: Expression) extends UnaryExpression {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (isNumeric(child.resultType)) {
       ValidationSuccess
     } else if (isTimeInterval(child.resultType)) {
@@ -126,7 +126,7 @@ case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
 
   private[flink] val sqlOperator = SqlStdOperatorTable.MINUS
 
-  override private[flink] def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ValidationResult = {
     if (isTimeInterval(left.resultType) && left.resultType == right.resultType) {
       ValidationSuccess
     } else {

@@ -28,6 +28,7 @@ import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table._
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeutils.TypeConverter
+import org.apache.flink.api.table.validate.{ValidationFailure, ValidationSuccess}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -55,28 +56,27 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     val resolvedProject = super.validate(tableEnv).asInstanceOf[Project]
+    val names: mutable.Set[String] = mutable.Set()
 
-    def checkUniqueNames(exprs: Seq[Expression]): Unit = {
-      val names: mutable.Set[String] = mutable.Set()
-      exprs.foreach {
-        case n: Alias =>
-          // explicit name
-          if (names.contains(n.name)) {
-            throw ValidationException(s"Duplicate field name ${n.name}.")
-          } else {
-            names.add(n.name)
-          }
-        case r: ResolvedFieldReference =>
-          // simple field forwarding
-          if (names.contains(r.name)) {
-            throw ValidationException(s"Duplicate field name ${r.name}.")
-          } else {
-            names.add(r.name)
-          }
-        case _ => // Do nothing
+    def checkName(name: String): Unit = {
+      if (names.contains(name)) {
+        failValidation(s"Duplicate field name $name.")
+      } else if (tableEnv.isInstanceOf[StreamTableEnvironment] && name == "rowtime") {
+        failValidation("'rowtime' cannot be used as field name in a streaming environment.")
+      } else {
+        names.add(name)
       }
     }
-    checkUniqueNames(resolvedProject.projectList)
+
+    resolvedProject.projectList.foreach {
+      case n: Alias =>
+        // explicit name
+        checkName(n.name)
+      case r: ResolvedFieldReference =>
+        // simple field forwarding
+        checkName(r.name)
+      case _ => // Do nothing
+    }
     resolvedProject
   }
 
@@ -112,6 +112,10 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
       failValidation("Alias only accept name expressions as arguments")
     } else if (!aliasList.forall(_.asInstanceOf[UnresolvedFieldReference].name != "*")) {
       failValidation("Alias can not accept '*' as name")
+    } else if (tableEnv.isInstanceOf[StreamTableEnvironment] && !aliasList.forall {
+          case UnresolvedFieldReference(name) => name != "rowtime"
+        }) {
+      failValidation("'rowtime' cannot be used as field name in a streaming environment.")
     } else {
       val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
       val input = child.output
@@ -497,4 +501,106 @@ case class LogicalRelNode(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = this
+}
+
+case class WindowAggregate(
+    groupingExpressions: Seq[Expression],
+    window: LogicalWindow,
+    propertyExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[NamedExpression],
+    child: LogicalNode)
+  extends UnaryNode {
+
+  override def output: Seq[Attribute] = {
+    (groupingExpressions ++ aggregateExpressions ++ propertyExpressions) map {
+      case ne: NamedExpression => ne.toAttribute
+      case e => Alias(e, e.toString).toAttribute
+    }
+  }
+
+  // resolve references of this operator's parameters
+  override def resolveReference(
+      tableEnv: TableEnvironment,
+      name: String)
+    : Option[NamedExpression] = tableEnv match {
+    // resolve reference to rowtime attribute in a streaming environment
+    case _: StreamTableEnvironment if name == "rowtime" =>
+      Some(RowtimeAttribute())
+    case _ =>
+      window.alias match {
+        // resolve reference to this window's alias
+        case Some(UnresolvedFieldReference(alias)) if name == alias =>
+          // check if reference can already be resolved by input fields
+          val found = super.resolveReference(tableEnv, name)
+          if (found.isDefined) {
+            failValidation(s"Reference $name is ambiguous.")
+          } else {
+            Some(WindowReference(name))
+          }
+        case _ =>
+          // resolve references as usual
+          super.resolveReference(tableEnv, name)
+      }
+  }
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    val flinkRelBuilder = relBuilder.asInstanceOf[FlinkRelBuilder]
+    child.construct(flinkRelBuilder)
+    flinkRelBuilder.aggregate(
+      window,
+      relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
+      propertyExpressions.map {
+        case Alias(prop: WindowProperty, name) => prop.toNamedWindowProperty(name)(relBuilder)
+        case _ => throw new RuntimeException("This should never happen.")
+      },
+      aggregateExpressions.map {
+        case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
+        case _ => throw new RuntimeException("This should never happen.")
+      }.asJava)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    val resolvedWindowAggregate = super.validate(tableEnv).asInstanceOf[WindowAggregate]
+    val groupingExprs = resolvedWindowAggregate.groupingExpressions
+    val aggregateExprs = resolvedWindowAggregate.aggregateExpressions
+    aggregateExprs.foreach(validateAggregateExpression)
+    groupingExprs.foreach(validateGroupingExpression)
+
+    def validateAggregateExpression(expr: Expression): Unit = expr match {
+      // check no nested aggregation exists.
+      case aggExpr: Aggregation =>
+        aggExpr.children.foreach { child =>
+          child.preOrderVisit {
+            case agg: Aggregation =>
+              failValidation(
+                "It's not allowed to use an aggregate function as " +
+                  "input of another aggregate function")
+            case _ => // ok
+          }
+        }
+      case a: Attribute if !groupingExprs.exists(_.checkEquals(a)) =>
+        failValidation(
+          s"Expression '$a' is invalid because it is neither" +
+            " present in group by nor an aggregate function")
+      case e if groupingExprs.exists(_.checkEquals(e)) => // ok
+      case e => e.children.foreach(validateAggregateExpression)
+    }
+
+    def validateGroupingExpression(expr: Expression): Unit = {
+      if (!expr.resultType.isKeyType) {
+        failValidation(
+          s"Expression $expr cannot be used as a grouping expression " +
+            "because it's not a valid key type which must be hashable and comparable")
+      }
+    }
+
+    // validate window
+    resolvedWindowAggregate.window.validate(tableEnv) match {
+      case ValidationFailure(msg) =>
+        failValidation(s"$window is invalid: $msg")
+      case ValidationSuccess => // ok
+    }
+
+    resolvedWindowAggregate
+  }
 }

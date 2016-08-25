@@ -180,7 +180,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     // check that table belongs to this table environment
     if (table.tableEnv != this) {
-      throw new ValidationException(
+      throw new TableException(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
@@ -230,7 +230,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     *
     * @param name The name under which the table is registered.
     * @param table The table to register in the catalog
-    * @throws ValidationException if another table is registered under the provided name.
+    * @throws TableException if another table is registered under the provided name.
     */
   @throws[TableException]
   protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
@@ -330,7 +330,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     val fieldIndexes = fieldNames.indices.toArray
 
     if (fieldNames.contains("*")) {
-      throw new ValidationException("Field name can not be '*'.")
+      throw new TableException("Field name can not be '*'.")
     }
 
     (fieldNames, fieldIndexes)
@@ -408,7 +408,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     val (fieldIndexes, fieldNames) = indexedNames.unzip
 
     if (fieldNames.contains("*")) {
-      throw new ValidationException("Field name can not be '*'.")
+      throw new TableException("Field name can not be '*'.")
     }
 
     (fieldNames.toArray, fieldIndexes.toArray)
