@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.heartbeat.HeartbeatTracker;
 import org.apache.flink.runtime.rpc.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.registration.RetryingRegistration;
 import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
@@ -64,6 +65,8 @@ public class TaskExecutorToResourceManagerConnection {
 	/** flag indicating that the connection is closed */
 	private volatile boolean closed;
 
+	private TaskExecutorHeartbeatTracker taskExecutorHeartbeatTracker;
+
 
 	public TaskExecutorToResourceManagerConnection(
 			Logger log,
@@ -99,6 +102,10 @@ public class TaskExecutorToResourceManagerConnection {
 			public void onSuccess(Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess> result) {
 				registeredResourceManager = result.f0;
 				registrationId = result.f1.getRegistrationId();
+				long heartbeatInterval = result.f1.getHeartbeatInterval();
+				taskExecutorHeartbeatTracker = new TaskExecutorHeartbeatTracker(log, taskExecutor.getRpcService(), heartbeatInterval, taskExecutor,
+					resourceManagerLeaderId, resourceManagerAddress);
+				taskExecutorHeartbeatTracker.start();
 			}
 		}, taskExecutor.getMainThreadExecutionContext());
 		
@@ -117,6 +124,9 @@ public class TaskExecutorToResourceManagerConnection {
 		// make sure we do not keep re-trying forever
 		if (pendingRegistration != null) {
 			pendingRegistration.cancel();
+		}
+		if(taskExecutorHeartbeatTracker != null) {
+			taskExecutorHeartbeatTracker.cancel();
 		}
 	}
 
@@ -153,6 +163,12 @@ public class TaskExecutorToResourceManagerConnection {
 
 	public boolean isRegistered() {
 		return registeredResourceManager != null;
+	}
+
+	public void notifyOfReceivingHeartbeat() {
+		if(taskExecutorHeartbeatTracker != null) {
+			taskExecutorHeartbeatTracker.notifyOfReceivingHeartbeat();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -193,6 +209,33 @@ public class TaskExecutorToResourceManagerConnection {
 
 			FiniteDuration timeout = new FiniteDuration(timeoutMillis, TimeUnit.MILLISECONDS);
 			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, timeout);
+		}
+	}
+
+	static class TaskExecutorHeartbeatTracker extends HeartbeatTracker {
+
+		private final TaskExecutor taskExecutor;
+
+		private final UUID resourceManagerLeaderId;
+
+		private final String resourceManagerAddress;
+
+		private final Logger log;
+
+		public TaskExecutorHeartbeatTracker(Logger log, RpcService rpcService, long heartbeatIntervalMillis, TaskExecutor taskExecutor,
+			UUID resourceManagerLeaderId, String resourceManagerAddress) {
+			super(log, rpcService, heartbeatIntervalMillis);
+			this.taskExecutor = checkNotNull(taskExecutor);
+			this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
+			this.log = checkNotNull(log);
+			this.resourceManagerAddress = checkNotNull(resourceManagerAddress);
+		}
+
+		protected void notifyOfLostHeartbeatWithSender() {
+			log.error("TaskExecutor {} at ({}) totally lost heartbeat interaction with resourceManager {} at ({})",
+				taskExecutor.getResourceID(), taskExecutor.getAddress(), resourceManagerLeaderId, resourceManagerAddress);
+			taskExecutor.notifyOfLossHeartbeatWithResourceManager(resourceManagerAddress, resourceManagerLeaderId);
+
 		}
 	}
 }

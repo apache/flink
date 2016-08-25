@@ -90,4 +90,21 @@ public interface RpcService {
 	 * @param delay    The delay after which the runnable will be executed
 	 */
 	void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit);
+
+	/**
+	 * Execute a periodic runnable that becomes enabled first
+	 * after the given initial delay, and subsequently with the given
+	 * period; that is executions will commence after
+	 * <tt>initialDelay</tt> then <tt>initialDelay+period</tt>, then
+	 * <tt>initialDelay + 2 * period</tt>, and so on.
+	 * If any execution of the task
+	 *
+	 * @param runnable     Runnable to be executed
+	 * @param initialDelay The time to delay first execution
+	 * @param interval     the period between successive executions
+	 * @param unit         the time unit of the initialDelay and period parameters
+	 * @return cancellable which can cancel the period scheduler
+	 */
+	Cancellable scheduleAtFixedRate(Runnable runnable, long initialDelay, long interval, TimeUnit unit);
+
 }

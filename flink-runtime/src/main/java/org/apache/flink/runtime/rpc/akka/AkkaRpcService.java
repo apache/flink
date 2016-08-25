@@ -30,6 +30,7 @@ import akka.pattern.AskableActorSelection;
 import akka.util.Timeout;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.rpc.Cancellable;
 import org.apache.flink.runtime.rpc.MainThreadExecutor;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -220,5 +221,27 @@ public class AkkaRpcService implements RpcService {
 		checkArgument(delay >= 0, "delay must be zero or larger");
 
 		actorSystem.scheduler().scheduleOnce(new FiniteDuration(delay, unit), runnable, getExecutionContext());
+	}
+
+	@Override
+	public Cancellable scheduleAtFixedRate(Runnable runnable,  final long initialDelay, long interval, TimeUnit unit) {
+		checkNotNull(runnable, "runnable");
+		checkNotNull(unit, "unit");
+		checkArgument(initialDelay >= 0, "initialDelay must be zero or larger");
+		checkArgument(interval > 0, "interval must be positive");
+
+		final akka.actor.Cancellable innerCancellable = actorSystem.scheduler().schedule(new FiniteDuration(initialDelay, unit), new FiniteDuration(interval, unit), runnable, getExecutionContext());
+
+		return new Cancellable() {
+			@Override
+			public void cancel() {
+				innerCancellable.cancel();
+			}
+
+			@Override
+			public boolean isCancelled() {
+				return innerCancellable.isCancelled();
+			}
+		};
 	}
 }
