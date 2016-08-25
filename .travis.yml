@@ -44,23 +44,15 @@ matrix:
 git:
   depth: 100
 
-notifications:
-  webhooks:
-    urls:
-      - https://webhooks.gitter.im/e/d70a7e674cb9354c77b2
-    on_success: always  # options: [always|never|change] default: always
-    on_failure: always  # options: [always|never|change] default: always
-  slack:
-    secure: iYjxJn8OkCRslJ30/PcE+EbMiqfKwsvUJiVUEQAEXqCEwZg+wYDsN0ilPQQT0zU16mYWKoMTx71zrOZpjirGq7ww0XZ0wAfXDjgmTxX/DaEdp87uNgTRdQzLV7mQouMKZni28eoa08Rb2NIoLLQ39q7uCu0W/p7vAD2e9xHlBBE=
 
 env:
     global:
         # Global variable to avoid hanging travis builds when downloading cache archives.
         - MALLOC_ARENA_MAX=2
         # Build artifacts like logs (variables for apache/flink repo)
-        - secure: "Fm3NK28qN8yLtpJl4VI58biBECpOodMYbYXPVWwa62R7jkhHl2U1s4Xa5ujEgNIDcsUsY66z0V4pU0Es0XLNOY2ajlaFOHTmngzFIXul1r4vuNy0H8okEBjs9Ks0TOWYrE6ndAv1J4/oUsRtehayrriaehn31emXL9c4RSKgaiQ="
-        - secure: "CGcWDpoPLKVPVxFCa+rh5svyrSy7tWTsydsFuLlw5BH5QR57FWH0P5ZBZ31MPppoNNpKEp1V5PBxOH0dUAx8SVNWQFNCsQrOwVpTnTlyl3Cd1udj2hahbB3l+IGf0+O3v2vv6blYm6vJb98NqzZknjdIefDDBfu52ndJy1UqHQw="
-        - secure: "J4IJ7ZG5X+x/2K00kCpj6N/j3wEc6vG59KdDFVZp1WnKH8H0cty2wujZvDhBV+krbqja2MHhXQt/2mDjqm7pkdk1YElDOWsx909aw29wUdDN4yOsxFekIa5jMCrcQxbwzDRal6JmAzCakk51qIEgCYuAKquT0N+oETmnOhmcQe0="
+        - secure: "c8AY4ucfq3eWpw1fzFqIoXg0B2JyBYFPruje6OJNN+eYZ/TEkXgoFXTXBYvx0Ovuy6T+nxokPyx+s+wFphVssEkJMhWZk7tYuWkOxM/ZeZ1tZpkrCUgeb2jFpmV0dbfOTeTW9ZSSSXUWCVIHfdDwm0BAoabsEwG2WcPZvnO9/js="
+        - secure: "Y1VnJbGPSC2trnV0RMN1NQtYQd97/WiFGuqHsoN3G778rPyX2NN9lPg9ZkWp4SZQrJewIR+te4TWgpmckDhMSxHFjQWlj6NBGdC9wrg13Tgll1Lh5ypg7QWhlMcob32K6xWmFaDYKf0RFx5PHnlKAZN4o9EyFHZoZXanoY/PS4w="
+        - secure: "Hl4fDGRUaV1YG8tWKamOZMgbmhy/NuzYRhyJI9arFkhoY5WD2waOEb+jIuEYiS6mNqgjed/Wimurpab2J5eIrHjeWZspqks0ROdCtlZCVXbXjsnado5bFOYXrrb7X3SPhm+0O99uKXdYkPyCn/WQ9Zj00Gz8urap05IzCT2JXjg="
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
