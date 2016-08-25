@@ -38,7 +38,18 @@ case class SqlParserException(
 /**
   * General Exception for all errors during table handling.
   */
-case class TableException(msg: String) extends RuntimeException(msg)
+case class TableException(
+    msg: String,
+    cause: Throwable)
+  extends RuntimeException(msg, cause) {
+
+  def this(msg: String) = this(msg, null)
+
+}
+
+object TableException {
+  def apply(msg: String): TableException = new TableException(msg)
+}
 
 /**
   * Exception for all errors occurring during validation phase.

@@ -118,7 +118,7 @@ public class TableEnvironmentITCase extends TableProgramsTestBase {
 		tableEnv.registerDataSet("MyTable", ds2);
 	}
 
-	@Test(expected = ValidationException.class)
+	@Test(expected = TableException.class)
 	public void testScanUnregisteredTable() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
@@ -146,7 +146,7 @@ public class TableEnvironmentITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = ValidationException.class)
+	@Test(expected = TableException.class)
 	public void testIllegalName() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
@@ -157,7 +157,7 @@ public class TableEnvironmentITCase extends TableProgramsTestBase {
 		tableEnv.registerTable("_DataSetTable_42", t);
 	}
 
-	@Test(expected = ValidationException.class)
+	@Test(expected = TableException.class)
 	public void testRegisterTableFromOtherEnv() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv1 = TableEnvironment.getTableEnvironment(env, config());

@@ -24,14 +24,14 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.base.{IntComparator, IntSerializer, LongComparator, LongSerializer}
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
-import org.apache.flink.api.table.typeutils.IntervalTypeInfo.instantiateComparator
+import org.apache.flink.api.table.typeutils.TimeIntervalTypeInfo.instantiateComparator
 import org.apache.flink.util.Preconditions._
 
 /**
   * TypeInformation for SQL INTERVAL types.
   */
 @SerialVersionUID(-1816179424364825258L)
-class IntervalTypeInfo[T](
+class TimeIntervalTypeInfo[T](
     val clazz: Class[T],
     val serializer: TypeSerializer[T],
     val comparatorClass: Class[_ <: TypeComparator[T]])
@@ -65,11 +65,11 @@ class IntervalTypeInfo[T](
 
   override def hashCode: Int = Objects.hash(clazz, serializer, comparatorClass)
 
-  def canEqual(obj: Any): Boolean = obj.isInstanceOf[IntervalTypeInfo[_]]
+  def canEqual(obj: Any): Boolean = obj.isInstanceOf[TimeIntervalTypeInfo[_]]
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case other: IntervalTypeInfo[_] =>
+      case other: TimeIntervalTypeInfo[_] =>
         other.canEqual(this) &&
           (this.clazz eq other.clazz) &&
           serializer == other.serializer &&
@@ -79,16 +79,20 @@ class IntervalTypeInfo[T](
     }
   }
 
-  override def toString: String = s"IntervalTypeInfo(${clazz.getSimpleName})"
+  override def toString: String = s"TimeIntervalTypeInfo(${clazz.getSimpleName})"
 }
 
-object IntervalTypeInfo {
+object TimeIntervalTypeInfo {
 
-  val INTERVAL_MONTHS =
-    new IntervalTypeInfo(classOf[java.lang.Integer], IntSerializer.INSTANCE, classOf[IntComparator])
+  val INTERVAL_MONTHS = new TimeIntervalTypeInfo(
+    classOf[java.lang.Integer],
+    IntSerializer.INSTANCE,
+    classOf[IntComparator])
 
-  val INTERVAL_MILLIS =
-    new IntervalTypeInfo(classOf[java.lang.Long], LongSerializer.INSTANCE, classOf[LongComparator])
+  val INTERVAL_MILLIS = new TimeIntervalTypeInfo(
+    classOf[java.lang.Long],
+    LongSerializer.INSTANCE,
+    classOf[LongComparator])
 
   // ----------------------------------------------------------------------------------------------
 

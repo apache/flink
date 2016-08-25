@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.{CodeGenException, GeneratedExpression}
-import org.apache.flink.api.table.typeutils.IntervalTypeInfo
+import org.apache.flink.api.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils._
 
 object ScalarOperators {
@@ -432,7 +432,7 @@ object ScalarOperators {
       }
 
     // Interval Months -> String
-    case (IntervalTypeInfo.INTERVAL_MONTHS, STRING_TYPE_INFO) =>
+    case (TimeIntervalTypeInfo.INTERVAL_MONTHS, STRING_TYPE_INFO) =>
       val method = qualifyMethod(BuiltInMethod.INTERVAL_YEAR_MONTH_TO_STRING.method)
       val timeUnitRange = qualifyEnum(TimeUnitRange.YEAR_TO_MONTH)
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
@@ -440,7 +440,7 @@ object ScalarOperators {
       }
 
     // Interval Millis -> String
-    case (IntervalTypeInfo.INTERVAL_MILLIS, STRING_TYPE_INFO) =>
+    case (TimeIntervalTypeInfo.INTERVAL_MILLIS, STRING_TYPE_INFO) =>
       val method = qualifyMethod(BuiltInMethod.INTERVAL_DAY_TIME_TO_STRING.method)
       val timeUnitRange = qualifyEnum(TimeUnitRange.DAY_TO_SECOND)
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
@@ -573,17 +573,17 @@ object ScalarOperators {
          (INT_TYPE_INFO, SqlTimeTypeInfo.DATE) |
          (INT_TYPE_INFO, SqlTimeTypeInfo.TIME) |
          (LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) |
-         (INT_TYPE_INFO, IntervalTypeInfo.INTERVAL_MONTHS) |
-         (LONG_TYPE_INFO, IntervalTypeInfo.INTERVAL_MILLIS) |
-         (IntervalTypeInfo.INTERVAL_MONTHS, INT_TYPE_INFO) |
-         (IntervalTypeInfo.INTERVAL_MILLIS, LONG_TYPE_INFO) =>
+         (INT_TYPE_INFO, TimeIntervalTypeInfo.INTERVAL_MONTHS) |
+         (LONG_TYPE_INFO, TimeIntervalTypeInfo.INTERVAL_MILLIS) |
+         (TimeIntervalTypeInfo.INTERVAL_MONTHS, INT_TYPE_INFO) |
+         (TimeIntervalTypeInfo.INTERVAL_MILLIS, LONG_TYPE_INFO) =>
       internalExprCasting(operand, targetType)
 
     // internal reinterpretation of temporal types
     // Date, Time, Interval Months -> Long
     case  (SqlTimeTypeInfo.DATE, LONG_TYPE_INFO)
         | (SqlTimeTypeInfo.TIME, LONG_TYPE_INFO)
-        | (IntervalTypeInfo.INTERVAL_MONTHS, LONG_TYPE_INFO) =>
+        | (TimeIntervalTypeInfo.INTERVAL_MONTHS, LONG_TYPE_INFO) =>
       internalExprCasting(operand, targetType)
 
     case (from, to) =>
@@ -659,11 +659,11 @@ object ScalarOperators {
     val operator = if (plus) "+" else "-"
 
     (left.resultType, right.resultType) match {
-      case (l: IntervalTypeInfo[_], r: IntervalTypeInfo[_]) if l == r =>
+      case (l: TimeIntervalTypeInfo[_], r: TimeIntervalTypeInfo[_]) if l == r =>
         generateArithmeticOperator(operator, nullCheck, l, left, right)
 
-      case (SqlTimeTypeInfo.DATE, IntervalTypeInfo.INTERVAL_MILLIS) |
-           (IntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.DATE) =>
+      case (SqlTimeTypeInfo.DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) |
+           (TimeIntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.DATE) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
           if (isTimePoint(left.resultType)) {
             (leftTerm, rightTerm) => s"$leftTerm + ((int) ($rightTerm / ${MILLIS_PER_DAY}L))"
@@ -672,8 +672,8 @@ object ScalarOperators {
           }
         }
 
-      case (SqlTimeTypeInfo.TIME, IntervalTypeInfo.INTERVAL_MILLIS) |
-           (IntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.TIME) =>
+      case (SqlTimeTypeInfo.TIME, TimeIntervalTypeInfo.INTERVAL_MILLIS) |
+           (TimeIntervalTypeInfo.INTERVAL_MILLIS, SqlTimeTypeInfo.TIME) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
           if (isTimePoint(left.resultType)) {
             (leftTerm, rightTerm) => s"$leftTerm + ((int) ($rightTerm))"
@@ -682,7 +682,7 @@ object ScalarOperators {
           }
         }
 
-      case (SqlTimeTypeInfo.TIMESTAMP, IntervalTypeInfo.INTERVAL_MILLIS) =>
+      case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
           (leftTerm, rightTerm) => s"$leftTerm + $rightTerm"
         }

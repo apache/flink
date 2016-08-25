@@ -965,7 +965,9 @@ composite = suffixed | atom ;
 
 suffixed = interval | cast | as | aggregation | if | functionCall ;
 
-interval = composite , "." , ("year" | "years" | "month" | "months" | "day" | "days" | "hour" | "hours" | "minute" | "minutes" | "second" | "seconds" | "milli" | "millis") ;
+timeInterval = composite , "." , ("year" | "years" | "month" | "months" | "day" | "days" | "hour" | "hours" | "minute" | "minutes" | "second" | "seconds" | "milli" | "millis") ;
+
+rowInterval = composite , "." , "rows" ;
 
 cast = composite , ".cast(" , dataType , ")" ;
 
@@ -973,7 +975,7 @@ dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | 
 
 as = composite , ".as(" , fieldReference , ")" ;
 
-aggregation = composite , ( ".sum" | ".min" | ".max" | ".count" | ".avg" ) , [ "()" ] ;
+aggregation = composite , ( ".sum" | ".min" | ".max" | ".count" | ".avg" | ".start" | ".end" ) , [ "()" ] ;
 
 if = composite , ".?(" , expression , "," , expression , ")" ;
 
@@ -992,7 +994,7 @@ timePointUnit = "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" | "QUART
 {% endhighlight %}
 
 Here, `literal` is a valid Java literal, `fieldReference` specifies a column in the data (or all columns if `*` is used), and `functionIdentifier` specifies a supported scalar function. The
-column names and function names follow Java identifier syntax. Expressions specified as Strings can also use prefix notation instead of suffix notation to call operators and functions.
+column names and function names follow Java identifier syntax. The column name `rowtime` is a reserved logical attribute in streaming environments. Expressions specified as Strings can also use prefix notation instead of suffix notation to call operators and functions.
 
 If working with exact numeric values or large decimals is required, the Table API also supports Java's BigDecimal type. In the Scala Table API decimals can be defined by `BigDecimal("123456")` and in Java by appending a "p" for precise e.g. `123456p`.
 
@@ -1002,6 +1004,266 @@ Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTH
 
 {% top %}
 
+### Windows
+
+The Table API is a declarative API to define queries on batch and streaming tables. Projection, selection, and union operations can be applied both on streaming and batch tables without additional semantics. Aggregations on (possibly) infinite streaming tables, however, can only be computed on finite groups of records. Group-window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, group-windows are a convenient shortcut to group records by time intervals.
+
+Group-windows are defined using the `window(w: GroupWindow)` clause. The following example shows how to define a group-window aggregation on a table.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+val table = input
+  .window(w: GroupWindow) // define window
+  .select("b.sum")        // aggregate
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val table = input
+  .window(w: GroupWindow) // define window
+  .select('b.sum)         // aggregate
+{% endhighlight %}
+</div>
+</div>
+
+In streaming environments, group-window aggregates can only be computed in parallel, if they are *keyed*, i.e., there is an additional `groupBy` attribute. Group-window aggregates without additional `groupBy`, such as in the example above, can only be evaluated in a single, non-parallel task. The following example shows how to define a keyed group-window aggregation on a table. 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+val table = input
+  .groupBy("a")
+  .window(w: GroupWindow) // define window
+  .select("a, b.sum")     // aggregate
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val table = input
+  .groupBy('a)
+  .window(w: GroupWindow) // define window
+  .select('a, 'b.sum)     // aggregate
+{% endhighlight %}
+</div>
+</div>
+
+The `GroupWindow` parameter defines how rows are mapped to windows. `GroupWindow` is not an interface that users can implement. Instead, the Table API provides a set of predefined `GroupWindow` classes with specific semantics, which are translated into underlying `DataStream` or `DataSet` operations. The supported window definitions are listed below. 
+By assigning the group-window an alias using `as`, properties such as the start and end timestamp of a time window can be accessed in the `select` statement.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+val table = input
+  .groupBy("a")
+  .window(XXX.as("myWin"))                      // define window alias
+  .select("a, myWin.start, myWin.end, b.count") // aggregate
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val table = input
+  .groupBy('a)
+  .window(XXX as 'myWin)                          // define window alias
+  .select('a, 'myWin.start, 'myWin.end, 'b.count) // aggregate
+{% endhighlight %}
+</div>
+</div>
+
+#### Tumble (Tumbling Windows)
+
+A tumbling window assigns rows to non-overlapping, continuous windows of fixed length. For example, a tumbling window of 5 minutes groups rows in 5 minutes intervals. Tumbling windows can be defined on event-time, processing-time, or on a row-count.
+
+Tumbling windows are defined by using the `Tumble` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left" style="width: 20%">Required?</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>over</code></td>
+      <td>Required.</td>
+      <td>Defines the length the window, either as time or row-count interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>Required for streaming event-time windows and windows on batch tables.</td>
+      <td>Defines the time mode for streaming tables (<code>rowtime</code> is a logical system attribute); for batch tables, the time attribute on which records are grouped.</td>
+    </tr>
+    <tr>
+      <td><code>as</code></td>
+      <td>Optional.</td>
+      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// Tumbling Event-time Window
+.window(Tumble.over("10.minutes").on("rowtime").as("w"))
+
+// Tumbling Processing-time Window
+.window(Tumble.over("10.minutes").as("w"))
+
+// Tumbling Row-count Window
+.window(Tumble.over("10.rows").as("w"))
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Tumbling Event-time Window
+.window(Tumble over 10.minutes on 'rowtime as 'w)
+
+// Tumbling Processing-time Window
+.window(Tumble over 10.minutes as 'w)
+
+// Tumbling Row-count Window
+.window(Tumble over 10.rows as 'w)
+{% endhighlight %}
+</div>
+</div>
+
+#### Slide (Sliding Windows)
+
+A sliding window has a fixed size and slides by a specified slide interval. If the slide interval is smaller than the window size, sliding windows are overlapping. Thus, rows can be assigned to multiple windows. For example, a sliding window of 15 minutes size and 5 minute slide interval assigns each row to 3 different windows of 15 minute size, which are evaluated in an interval of 5 minutes. Sliding windows can be defined on event-time, processing-time, or on a row-count.
+
+Sliding windows are defined by using the `Slide` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left" style="width: 20%">Required?</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>over</code></td>
+      <td>Required.</td>
+      <td>Defines the length of the window, either as time or row-count interval.</td>
+    </tr>
+    <tr>
+      <td><code>every</code></td>
+      <td>Required.</td>
+      <td>Defines the slide interval, either as time or row-count interval. The slide interval must be of the same type as the size interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>Required for event-time windows and windows on batch tables.</td>
+      <td>Defines the time mode for streaming tables (<code>rowtime</code> is a logical system attribute); for batch tables, the time attribute on which records are grouped</td>
+    </tr>
+    <tr>
+      <td><code>as</code></td>
+      <td>Optional.</td>
+      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// Sliding Event-time Window
+.window(Slide.over("10.minutes").every("5.minutes").on("rowtime").as("w"))
+
+// Sliding Processing-time window
+.window(Slide.over("10.minutes").every("5.minutes").as("w"))
+
+// Sliding Row-count window
+.window(Slide.over("10.rows").every("5.rows").as("w"))
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Sliding Event-time Window
+.window(Slide over 10.minutes every 5.minutes on 'rowtime as 'w)
+
+// Sliding Processing-time window
+.window(Slide over 10.minutes every 5.minutes as 'w)
+
+// Sliding Row-count window
+.window(Slide over 10.rows every 5.rows as 'w)
+{% endhighlight %}
+</div>
+</div>
+
+#### Session (Session Windows)
+
+Session windows do not have a fixed size but their bounds are defined by an interval of inactivity, i.e., a session window is closes if no event appears for a defined gap period. For example a session window with a 30 minute gap starts when a row is observed after 30 minutes inactivity (otherwise the row would be added to an existing window) and is closed if no row is added within 30 minutes. Session windows can work on event-time or processing-time.
+
+A session window is defined by using the `Session` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left" style="width: 20%">Required?</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>withGap</code></td>
+      <td>Required.</td>
+      <td>Defines the gap between two windows as time interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>Required for event-time windows and windows on batch tables.</td>
+      <td>Defines the time mode for streaming tables (<code>rowtime</code> is a logical system attribute); for batch tables, the time attribute on which records are grouped</td>
+    </tr>
+    <tr>
+      <td><code>as</code></td>
+      <td>Optional.</td>
+      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// Session Event-time Window
+.window(Session.withGap("10.minutes").on("rowtime").as("w"))
+
+// Session Processing-time Window
+.window(Session.withGap("10.minutes").as("w"))
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Session Event-time Window
+.window(Session withGap 10.minutes on 'rowtime as 'w)
+
+// Session Processing-time Window
+.window(Session withGap 10.minutes as 'w)
+{% endhighlight %}
+</div>
+</div>
+
+#### Limitations
+
+Currently the following features are not supported yet:
+
+- Row-count windows on event-time
+- Windows on batch tables
 
 SQL
 ----
@@ -1549,6 +1811,83 @@ STRING.toTimestamp()
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.year
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of months for a given number of years.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.month
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of months for a given number of months.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.day
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for a given number of days.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.hour
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for a given number of hours.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.minute
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for a given number of minutes.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.second
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for a given number of seconds.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.milli
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 TEMPORAL.extract(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
@@ -1653,6 +1992,17 @@ temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
       </td>
       <td>
         <p>Determines whether two anchored time intervals overlap. Time point and temporal are transformed into a range defined by two time points (start, end). The function evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>. E.g. <code>temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour)</code> leads to true.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.rows
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of rows.</p>
       </td>
     </tr>
 
@@ -1989,6 +2339,83 @@ STRING.toTimestamp
     <tr>
       <td>
         {% highlight scala %}
+NUMERIC.year
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of months for a given number of years.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.month
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of months for a given number of months.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.day
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for a given number of days.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.hour
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for a given number of hours.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.minute
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for a given number of minutes.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.second
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for a given number of seconds.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.milli
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 TEMPORAL.extract(TimeIntervalUnit)
 {% endhighlight %}
       </td>
@@ -2093,6 +2520,17 @@ temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
       </td>
       <td>
         <p>Determines whether two anchored time intervals overlap. Time point and temporal are transformed into a range defined by two time points (start, end). The function evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>. E.g. <code>temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hours)</code> leads to true.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.rows
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of rows.</p>
       </td>
     </tr>
 

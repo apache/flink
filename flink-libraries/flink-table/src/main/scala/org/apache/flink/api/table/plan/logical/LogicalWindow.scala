@@ -15,27 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.validate
 
-/**
-  * Represents the result of `Expression.validateInput`.
-  */
-sealed trait ExprValidationResult {
-  def isFailure: Boolean = !isSuccess
-  def isSuccess: Boolean
-}
+package org.apache.flink.api.table.plan.logical
 
-/**
-  * Represents the successful result of `Expression.checkInputDataTypes`.
-  */
-object ValidationSuccess extends ExprValidationResult {
-  val isSuccess: Boolean = true
-}
+import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.api.table.expressions.{Expression, WindowReference}
+import org.apache.flink.api.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-/**
-  * Represents the failing result of `Expression.checkInputDataTypes`,
-  * with a error message to show the reason of failure.
-  */
-case class ValidationFailure(message: String) extends ExprValidationResult {
-  val isSuccess: Boolean = false
+abstract class LogicalWindow(val alias: Option[Expression]) extends Resolvable[LogicalWindow] {
+
+  def resolveExpressions(resolver: (Expression) => Expression): LogicalWindow = this
+
+  def validate(tableEnv: TableEnvironment): ValidationResult = alias match {
+    case Some(WindowReference(_)) => ValidationSuccess
+    case Some(_) => ValidationFailure("Window reference for window expected.")
+    case None => ValidationSuccess
+  }
+
+  override def toString: String = getClass.getSimpleName
 }

@@ -21,7 +21,6 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils
 
@@ -47,7 +46,7 @@ case class Sum(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "sum")
 }
 
@@ -60,7 +59,7 @@ case class Min(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertOrderableExpr(child.resultType, "min")
 }
 
@@ -73,7 +72,7 @@ case class Max(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertOrderableExpr(child.resultType, "max")
 }
 
@@ -96,6 +95,6 @@ case class Avg(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "avg")
 }

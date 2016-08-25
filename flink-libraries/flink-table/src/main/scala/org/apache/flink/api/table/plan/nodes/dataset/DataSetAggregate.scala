@@ -25,10 +25,11 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.table.plan.nodes.FlinkAggregate
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
-import org.apache.flink.api.table.{FlinkTypeFactory, BatchTableEnvironment, Row}
+import org.apache.flink.api.table.{BatchTableEnvironment, FlinkTypeFactory, Row}
 
 import scala.collection.JavaConverters._
 
@@ -38,12 +39,13 @@ import scala.collection.JavaConverters._
 class DataSetAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    input: RelNode,
+    inputNode: RelNode,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
     grouping: Array[Int])
-  extends SingleRel(cluster, traitSet, input)
+  extends SingleRel(cluster, traitSet, inputNode)
+  with FlinkAggregate
   with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
@@ -61,16 +63,16 @@ class DataSetAggregate(
 
   override def toString: String = {
     s"Aggregate(${ if (!grouping.isEmpty) {
-      s"groupBy: ($groupingToString), "
+      s"groupBy: (${groupingToString(inputType, grouping)}), "
     } else {
       ""
-    }}}select:($aggregationToString))"
+    }}select: (${aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .itemIf("groupBy",groupingToString, !grouping.isEmpty)
-      .item("select", aggregationToString)
+      .itemIf("groupBy", groupingToString(inputType, grouping), !grouping.isEmpty)
+      .item("select", aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil))
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -90,8 +92,11 @@ class DataSetAggregate(
 
     val groupingKeys = grouping.indices.toArray
     // add grouping fields, position keys in the input, and input type
-    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(namedAggregates,
-      inputType, getRowType, grouping, config)
+    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(
+      namedAggregates,
+      inputType,
+      getRowType,
+      grouping)
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
       tableEnv,
@@ -103,7 +108,7 @@ class DataSetAggregate(
     .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
     .toArray
 
-    val aggString = aggregationToString
+    val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
     val prepareOpName = s"prepare select: ($aggString)"
     val mappedInput = inputDS
       .map(aggregateResult._1)
@@ -115,7 +120,8 @@ class DataSetAggregate(
     val result = {
       if (groupingKeys.length > 0) {
         // grouped aggregation
-        val aggOpName = s"groupBy: ($groupingToString), select:($aggString)"
+        val aggOpName = s"groupBy: (${groupingToString(inputType, grouping)}), " +
+          s"select: ($aggString)"
 
         mappedInput.asInstanceOf[DataSet[Row]]
           .groupBy(groupingKeys: _*)
@@ -151,36 +157,4 @@ class DataSetAggregate(
       case _ => result
     }
   }
-
-  private def groupingToString: String = {
-
-    val inFields = inputType.getFieldNames.asScala
-    grouping.map( inFields(_) ).mkString(", ")
-  }
-
-  private def aggregationToString: String = {
-
-    val inFields = inputType.getFieldNames.asScala
-    val outFields = getRowType.getFieldNames.asScala
-
-    val groupStrings = grouping.map( inFields(_) )
-
-    val aggs = namedAggregates.map(_.getKey)
-    val aggStrings = aggs.map( a => s"${a.getAggregation}(${
-      if (a.getArgList.size() > 0) {
-        inFields(a.getArgList.get(0))
-      } else {
-        "*"
-      }
-    })")
-
-    (groupStrings ++ aggStrings).zip(outFields).map {
-      case (f, o) => if (f == o) {
-        f
-      } else {
-        s"$f AS $o"
-      }
-    }.mkString(", ")
-  }
-
 }

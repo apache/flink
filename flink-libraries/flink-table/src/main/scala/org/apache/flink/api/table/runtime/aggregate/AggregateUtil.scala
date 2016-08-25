@@ -21,14 +21,14 @@ import java.util
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.sql.SqlAggFunction
+import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
-import org.apache.flink.api.common.functions.{GroupReduceFunction, MapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableConfig, TableException}
+import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableException}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -61,10 +61,12 @@ object AggregateUtil {
    * }}}
    *
    */
-  def createOperatorFunctionsForAggregates(namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      inputType: RelDataType, outputType: RelDataType,
-      groupings: Array[Int],
-      config: TableConfig): (MapFunction[Any, Row], GroupReduceFunction[Row, Row] ) = {
+  def createOperatorFunctionsForAggregates(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int])
+    : (MapFunction[Any, Row], RichGroupReduceFunction[Row, Row]) = {
 
     val aggregateFunctionsAndFieldIndexes =
       transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupings.length)
@@ -98,12 +100,20 @@ object AggregateUtil {
 
     val reduceGroupFunction =
       if (allPartialAggregate) {
-        new AggregateReduceCombineFunction(aggregates, groupingOffsetMapping,
-          aggOffsetMapping, intermediateRowArity)
+        new AggregateReduceCombineFunction(
+          aggregates,
+          groupingOffsetMapping,
+          aggOffsetMapping,
+          intermediateRowArity,
+          outputType.getFieldCount)
       }
       else {
-        new AggregateReduceGroupFunction(aggregates, groupingOffsetMapping,
-          aggOffsetMapping, intermediateRowArity)
+        new AggregateReduceGroupFunction(
+          aggregates,
+          groupingOffsetMapping,
+          aggOffsetMapping,
+          intermediateRowArity,
+          outputType.getFieldCount)
       }
 
     (mapFunction, reduceGroupFunction)
@@ -181,7 +191,7 @@ object AggregateUtil {
           }
         }
         case sqlMinMaxFunction: SqlMinMaxAggFunction => {
-          aggregates(index) = if (sqlMinMaxFunction.isMin) {
+          aggregates(index) = if (sqlMinMaxFunction.getKind == SqlKind.MIN) {
             sqlTypeName match {
               case TINYINT =>
                 new ByteMinAggregate
@@ -305,7 +315,7 @@ object AggregateUtil {
               // input data, so if inputIndex is not -1, it must be a group key. Then we can
               // find the field index in buffer data by the group keys index mapping between
               // input data and buffer data.
-              for (i <- 0 until groupKeys.length) {
+              for (i <- groupKeys.indices) {
                 if (inputIndex == groupKeys(i)) {
                   groupingOffsetMapping += ((outputIndex, i))
                 }

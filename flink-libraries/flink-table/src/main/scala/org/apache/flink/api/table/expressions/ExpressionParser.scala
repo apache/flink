@@ -24,7 +24,7 @@ import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, 
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.api.table.expressions.TrimMode.TrimMode
-import org.apache.flink.api.table.typeutils.IntervalTypeInfo
+import org.apache.flink.api.table.typeutils.TimeIntervalTypeInfo
 
 import scala.language.implicitConversions
 import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
@@ -54,6 +54,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val MIN: Keyword = Keyword("min")
   lazy val MAX: Keyword = Keyword("max")
   lazy val SUM: Keyword = Keyword("sum")
+  lazy val START: Keyword = Keyword("start")
+  lazy val END: Keyword = Keyword("end")
   lazy val CAST: Keyword = Keyword("cast")
   lazy val NULL: Keyword = Keyword("Null")
   lazy val IF: Keyword = Keyword("?")
@@ -80,11 +82,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val SECOND: Keyword = Keyword("second")
   lazy val MILLIS: Keyword = Keyword("millis")
   lazy val MILLI: Keyword = Keyword("milli")
+  lazy val ROWS: Keyword = Keyword("rows")
   lazy val STAR: Keyword = Keyword("*")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
-      not(SUM) ~ not(CAST) ~ not(NULL) ~
+      not(SUM) ~ not(START) ~ not(END)~ not(CAST) ~ not(NULL) ~
       not(IF) ~> super.ident
 
   // symbols
@@ -107,10 +110,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     "BYTE" ^^ { ti => BasicTypeInfo.BYTE_TYPE_INFO } |
       "SHORT" ^^ { ti => BasicTypeInfo.SHORT_TYPE_INFO } |
       "INTERVAL_MONTHS" ^^ {
-        ti => IntervalTypeInfo.INTERVAL_MONTHS.asInstanceOf[TypeInformation[_]]
+        ti => TimeIntervalTypeInfo.INTERVAL_MONTHS.asInstanceOf[TypeInformation[_]]
       } |
       "INTERVAL_MILLIS" ^^ {
-        ti => IntervalTypeInfo.INTERVAL_MILLIS.asInstanceOf[TypeInformation[_]]
+        ti => TimeIntervalTypeInfo.INTERVAL_MILLIS.asInstanceOf[TypeInformation[_]]
       } |
       "INT" ^^ { ti => BasicTypeInfo.INT_TYPE_INFO } |
       "LONG" ^^ { ti => BasicTypeInfo.LONG_TYPE_INFO } |
@@ -186,6 +189,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffixAvg: PackratParser[Expression] =
     composite <~ "." ~ AVG ~ opt("()") ^^ { e => Avg(e) }
+
+  lazy val suffixStart: PackratParser[Expression] =
+    composite <~ "." ~ START ~ opt("()") ^^ { e => WindowStart(e) }
+
+  lazy val suffixEnd: PackratParser[Expression] =
+    composite <~ "." ~ END ~ opt("()") ^^ { e => WindowEnd(e) }
 
   lazy val suffixCast: PackratParser[Expression] =
     composite ~ "." ~ CAST ~ "(" ~ dataType ~ ")" ^^ {
@@ -265,11 +274,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case expr ~ _ ~ (MILLIS.key | MILLI.key)=> toMilliInterval(expr, 1)
   }
 
+  lazy val suffixRowInterval : PackratParser[Expression] =
+    composite <~ "." ~ ROWS ^^ { e => ExpressionUtils.toRowInterval(e) }
+
   lazy val suffixed: PackratParser[Expression] =
-    suffixTimeInterval | suffixSum | suffixMin | suffixMax |
-      suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs |
-      suffixIf | suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime |
-      suffixExtract | suffixFloor | suffixCeil |
+    suffixTimeInterval | suffixRowInterval | suffixSum | suffixMin | suffixMax | suffixStart |
+      suffixEnd | suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim |
+      suffixTrimWithoutArgs | suffixIf | suffixAsc | suffixDesc | suffixToDate |
+      suffixToTimestamp | suffixToTime | suffixExtract | suffixFloor | suffixCeil |
       suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
 
   // prefix operators
@@ -288,6 +300,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixAvg: PackratParser[Expression] =
     AVG ~ "(" ~> expression <~ ")" ^^ { e => Avg(e) }
+
+  lazy val prefixStart: PackratParser[Expression] =
+    START ~ "(" ~> expression <~ ")" ^^ { e => WindowStart(e) }
+
+  lazy val prefixEnd: PackratParser[Expression] =
+    END ~ "(" ~> expression <~ ")" ^^ { e => WindowEnd(e) }
 
   lazy val prefixCast: PackratParser[Expression] =
     CAST ~ "(" ~ expression ~ "," ~ dataType ~ ")" ^^ {
@@ -333,7 +351,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val prefixed: PackratParser[Expression] =
-    prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
+    prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg | prefixStart | prefixEnd |
       prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
       prefixFloor | prefixCeil |
       prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end

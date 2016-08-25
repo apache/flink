@@ -81,6 +81,47 @@ abstract class StreamTableEnvironment(
   protected def createUniqueTableName(): String = "_DataStreamTable_" + nameCntr.getAndIncrement()
 
   /**
+    * Returns field names and field positions for a given [[TypeInformation]].
+    *
+    * Field names are automatically extracted for
+    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    * The method fails if inputType is not a
+    * [[org.apache.flink.api.common.typeutils.CompositeType]].
+    *
+    * @param inputType The TypeInformation extract the field names and positions from.
+    * @tparam A The type of the TypeInformation.
+    * @return A tuple of two arrays holding the field names and corresponding field positions.
+    */
+  override protected[flink] def getFieldInfo[A](inputType: TypeInformation[A])
+    : (Array[String], Array[Int]) = {
+    val fieldInfo = super.getFieldInfo(inputType)
+    if (fieldInfo._1.contains("rowtime")) {
+      throw new TableException("'rowtime' ia a reserved field name in stream environment.")
+    }
+    fieldInfo
+  }
+
+  /**
+    * Returns field names and field positions for a given [[TypeInformation]] and [[Array]] of
+    * [[Expression]].
+    *
+    * @param inputType The [[TypeInformation]] against which the [[Expression]]s are evaluated.
+    * @param exprs     The expressions that define the field names.
+    * @tparam A The type of the TypeInformation.
+    * @return A tuple of two arrays holding the field names and corresponding field positions.
+    */
+  override protected[flink] def getFieldInfo[A](
+      inputType: TypeInformation[A],
+      exprs: Array[Expression])
+    : (Array[String], Array[Int]) = {
+    val fieldInfo = super.getFieldInfo(inputType, exprs)
+    if (fieldInfo._1.contains("rowtime")) {
+      throw new TableException("'rowtime' is a reserved field name in stream environment.")
+    }
+    fieldInfo
+  }
+
+  /**
     * Ingests a registered table and returns the resulting [[Table]].
     *
     * The table to ingest must be registered in the [[TableEnvironment]]'s catalog.
@@ -226,11 +267,11 @@ abstract class StreamTableEnvironment(
     }
     catch {
       case e: CannotPlanException =>
-        throw new TableException(
+        throw TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(relNode)}\n" +
             s"This exception indicates that the query uses an unsupported SQL feature.\n" +
-            s"Please check the documentation for the set of currently supported SQL features.")
+            s"Please check the documentation for the set of currently supported SQL features.", e)
     }
     dataStreamPlan
   }
