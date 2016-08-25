@@ -21,7 +21,7 @@ import org.apache.flink.api.table.Row;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 
-public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
+public class Kafka09JsonTableSinkITCase extends KafkaTableSinkTestBase {
 
 	@Override
 	protected KafkaTableSink createTableSink() {
