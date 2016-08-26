@@ -26,7 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class DropwizardMeterWrapperTest {
-	private static final double DELTA = 0.0001;
 
 	@Test
 	public void testWrapper() {
@@ -36,7 +35,7 @@ public class DropwizardMeterWrapperTest {
 
 		DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
 
-		assertEquals(1.0, wrapper.getRate(), DELTA);
+		assertEquals(1.0, wrapper.getRate(), 0.00001);
 		assertEquals(100L, wrapper.getCount());
 	}
 

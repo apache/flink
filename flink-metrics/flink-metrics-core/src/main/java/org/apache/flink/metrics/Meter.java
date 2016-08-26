@@ -19,7 +19,7 @@
 package org.apache.flink.metrics;
 
 /**
- * Metric for measuring average throughput.
+ * Metric for measuring throughput.
  */
 public interface Meter extends Metric {
 

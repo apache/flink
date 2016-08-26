@@ -199,7 +199,7 @@ public class MyMapper extends RichMapFunction<Long, Integer> {
 
     this.meter = getRuntimeContext()
       .getMetricGroup()
-      .histogram("myMeter", new DropWizardMeterWrapper(meter));
+      .meter("myMeter", new DropWizardMeterWrapper(meter));
   }
 }
 {% endhighlight %}
