@@ -155,10 +155,6 @@ under the License.
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-core</artifactId>
 				</exclusion>
-				<!--<exclusion>-->
-					<!--<groupId>com.google.guava</groupId>-->
-					<!--<artifactId>guava</artifactId>-->
-				<!--</exclusion>-->
 			</exclusions>
 		</dependency>
 
@@ -172,10 +168,6 @@ under the License.
 					<groupId>org.apache.flink</groupId>
 					<artifactId>flink-shaded-include-yarn_2.10</artifactId>
 				</exclusion>
-				<!--<exclusion>-->
-					<!--<groupId>com.google.guava</groupId>-->
-					<!--<artifactId>guava</artifactId>-->
-				<!--</exclusion>-->
 			</exclusions>
 		</dependency>
 
