@@ -225,7 +225,7 @@ public class CoGroupedStreams<T1, T2> {
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
 		 */
-		public <T> SingleOutputStreamOperator<T> apply(CoGroupFunction<T1, T2, T> function) {
+		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function) {
 
 			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
 					function,
@@ -243,8 +243,24 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
+		 *
+		 * <p>
+		 *     Note: This is a temporary workaround for setting parallelism after co-group operator.
+		 *     This method only calls {@link #apply(CoGroupFunction)}, and
+		 *     cast the returned value to {@link SingleOutputStreamOperator}.
+		 * </p>
+		 * @deprecated This method will be replaced by {@link #apply(CoGroupFunction)} in Flink 2.0.
+		 * So use the {@link #apply(CoGroupFunction)} in the future.
+         */
+		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function) {
+			return (SingleOutputStreamOperator<T>) apply(function);
+		}
+
+		/**
+		 * Completes the co-group operation with the user function that is executed
+		 * for windowed groups.
 		 */
-		public <T> SingleOutputStreamOperator<T> apply(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
 			function = input1.getExecutionEnvironment().clean(function);
 
@@ -275,6 +291,22 @@ public class CoGroupedStreams<T1, T2> {
 			}
 
 			return windowOp.apply(new CoGroupWindowFunction<T1, T2, T, KEY, W>(function), resultType);
+		}
+
+		/**
+		 * Completes the co-group operation with the user function that is executed
+		 * for windowed groups.
+		 *
+		 * <p>
+		 *     Note: This is a temporary workaround for setting parallelism after co-group operator.
+		 *     This method only calls {@link #apply(CoGroupFunction, TypeInformation)}, and
+		 *     cast the returned value to {@link SingleOutputStreamOperator}.
+		 * </p>
+		 * @deprecated This method will be replaced by {@link #apply(CoGroupFunction, TypeInformation)} in Flink 2.0.
+		 * So use the {@link #apply(CoGroupFunction, TypeInformation)} in the future.
+		 */
+		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+			return (SingleOutputStreamOperator<T>) apply(function, resultType);
 		}
 	}
 
