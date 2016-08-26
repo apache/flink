@@ -39,6 +39,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.instance.SharedSlot;
@@ -65,7 +66,7 @@ import scala.concurrent.ExecutionContext;
  *         fulfilled as soon as a slot becomes available.</li>
  * </ul>
  */
-public class Scheduler implements InstanceListener, SlotAvailabilityListener {
+public class Scheduler implements InstanceListener, SlotAvailabilityListener, SlotProvider {
 
 	/** Scheduler-wide logger */
 	private static final Logger LOG = LoggerFactory.getLogger(Scheduler.class);
@@ -129,30 +130,24 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	// ------------------------------------------------------------------------
 	//  Scheduling
 	// ------------------------------------------------------------------------
-	
-	public SimpleSlot scheduleImmediately(ScheduledUnit task) throws NoResourceAvailableException {
-		Object ret = scheduleTask(task, false);
-		if (ret instanceof SimpleSlot) {
-			return (SimpleSlot) ret;
-		}
-		else {
-			throw new RuntimeException();
-		}
-	}
-	
-	public SlotAllocationFuture scheduleQueued(ScheduledUnit task) throws NoResourceAvailableException {
-		Object ret = scheduleTask(task, true);
+
+
+	@Override
+	public SlotAllocationFuture allocateSlot(ScheduledUnit task, boolean allowQueued) 
+			throws NoResourceAvailableException {
+
+		final Object ret = scheduleTask(task, allowQueued);
 		if (ret instanceof SimpleSlot) {
 			return new SlotAllocationFuture((SimpleSlot) ret);
 		}
-		if (ret instanceof SlotAllocationFuture) {
+		else if (ret instanceof SlotAllocationFuture) {
 			return (SlotAllocationFuture) ret;
 		}
 		else {
 			throw new RuntimeException();
 		}
 	}
-	
+
 	/**
 	 * Returns either a {@link org.apache.flink.runtime.instance.SimpleSlot}, or a {@link SlotAllocationFuture}.
 	 */
