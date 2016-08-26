@@ -30,16 +30,20 @@ class PartitionRequestProtocol implements NettyProtocol {
 
 	private final NettyMessageEncoder messageEncoder = new NettyMessageEncoder();
 
-	private final NettyMessage.NettyMessageDecoder messageDecoder = new NettyMessage.NettyMessageDecoder();
+	private final NettyMessage.NettyMessageDecoder messageDecoder;
 
 	private final ResultPartitionProvider partitionProvider;
 	private final TaskEventDispatcher taskEventDispatcher;
 	private final NetworkBufferPool networkbufferPool;
 
-	PartitionRequestProtocol(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) {
+	PartitionRequestProtocol(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher,
+							NetworkBufferPool networkbufferPool) {
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
 		this.networkbufferPool = networkbufferPool;
+
+		messageDecoder = new NettyMessage.NettyMessageDecoder();
+
 	}
 
 	// +-------------------------------------------------------------------+

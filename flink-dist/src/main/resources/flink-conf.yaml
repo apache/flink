@@ -182,6 +182,12 @@ jobmanager.web.port: 8081
 
 # security.kerberos.login.contexts: Client,KafkaClient
 
+# Flag to enable/disable service level authorization (disabled by default)
+#security.enabled: false
+
+#secure random cookie to be used for service level authorization (auto-generated or static if value supplied)
+#security.cookie: changeme
+
 #==============================================================================
 # ZK Security Configuration (optional configuration)
 #==============================================================================

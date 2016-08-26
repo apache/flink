@@ -99,7 +99,7 @@ public class ClientTransportErrorHandlingTest {
 		PartitionRequestClientHandler handler = getClientHandler(ch);
 
 		// Last outbound handler throws Exception after 1st write
-		ch.pipeline().addFirst(new ChannelOutboundHandlerAdapter() {
+		ch.pipeline().addLast(new ChannelOutboundHandlerAdapter() {
 			int writeNum = 0;
 
 			@Override
@@ -174,6 +174,7 @@ public class ClientTransportErrorHandlingTest {
 			handler.addInputChannel(r);
 		}
 
+		String secureCookie = "";
 		// Error msg for channel[0]
 		ch.pipeline().fireChannelRead(new NettyMessage.ErrorResponse(
 				new RuntimeException("Expected test exception"),

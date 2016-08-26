@@ -1542,6 +1542,17 @@ object TaskManager {
         null
     }
 
+    try {
+      //validate secure cookie configuration
+      SecurityUtils.validateAndGetSecureCookie(configuration)
+    }
+    catch {
+      case t: Throwable =>
+        LOG.error(t.getMessage(), t)
+        System.exit(STARTUP_FAILURE_RETURN_CODE)
+        null
+    }
+
     // In Standalone mode, we generate a resource identifier.
     val resourceId = ResourceID.generate()
 

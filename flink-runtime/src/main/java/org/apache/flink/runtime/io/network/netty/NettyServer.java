@@ -144,6 +144,10 @@ class NettyServer {
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 
+				if(config.isSecurityEnabled()) {
+					channel.pipeline().addLast("cookie-decoder",
+							new CookieHandler.ServerCookieDecoder(config.getSecureCookie()));
+				}
 				channel.pipeline().addLast(protocol.getServerChannelHandlers());
 			}
 		});

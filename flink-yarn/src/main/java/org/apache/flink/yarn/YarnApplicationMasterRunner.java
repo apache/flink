@@ -259,6 +259,13 @@ public class YarnApplicationMasterRunner {
 				config.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
+			final String secureCookie = ENV.get(YarnConfigKeys.ENV_SECURE_AUTH_COOKIE);
+			if(secureCookie != null) {
+				LOG.info("Found secure Cookie from the environment Map");
+				config.setBoolean(ConfigConstants.SECURITY_ENABLED, true);
+				config.setString(ConfigConstants.SECURITY_COOKIE, secureCookie);
+			}
+
 			// Hadoop/Yarn configuration (loads config data automatically from classpath files)
 			final YarnConfiguration yarnConfig = new YarnConfiguration();
 
@@ -314,8 +321,14 @@ public class YarnApplicationMasterRunner {
 
 			// ---- (3) Generate the configuration for the TaskManagers
 
+			Configuration flinkConfigClone = config.clone();
+			//reset cookie since we don't want to store it in the container path, it will stay only in-memory
+			if( SecurityUtils.isSecurityEnabled(flinkConfigClone) == true) {
+				flinkConfigClone.setString(ConfigConstants.SECURITY_COOKIE, "");
+			}
+
 			final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
-					config, akkaHostname, akkaPort, slotsPerTaskManager, TASKMANAGER_REGISTRATION_TIMEOUT);
+					flinkConfigClone, akkaHostname, akkaPort, slotsPerTaskManager, TASKMANAGER_REGISTRATION_TIMEOUT);
 			LOG.debug("TaskManager configuration: {}", taskManagerConfig);
 
 			final ContainerLaunchContext taskManagerContext = Utils.createTaskExecutorContext(

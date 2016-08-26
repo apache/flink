@@ -39,6 +39,7 @@ public class PartitionRequestQueueTest {
 
 	@Test
 	public void testProducerFailedException() throws Exception {
+
 		PartitionRequestQueue queue = new PartitionRequestQueue();
 
 		ResultPartitionProvider partitionProvider = mock(ResultPartitionProvider.class);

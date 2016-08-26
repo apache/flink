@@ -56,4 +56,10 @@ public interface BlobService {
 	void shutdown();
 	
 	BlobClient createClient() throws IOException;
+
+	/**
+	 * Returns the secure cookie for service level Authorization
+	 * @return secure cookie
+	 */
+	String getSecureCookie();
 }

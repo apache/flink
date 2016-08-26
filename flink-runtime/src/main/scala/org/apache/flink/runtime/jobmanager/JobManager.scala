@@ -36,7 +36,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup
 import org.apache.flink.metrics.{Gauge, MetricGroup}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
-import org.apache.flink.runtime.blob.BlobServer
+import org.apache.flink.runtime.blob.{BlobServer}
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.checkpoint.savepoint.{SavepointLoader, SavepointStore}
 import org.apache.flink.runtime.client._
@@ -1949,6 +1949,17 @@ object JobManager {
       case t: Throwable =>
         LOG.error(t.getMessage(), t)
         t.printStackTrace()
+        System.exit(STARTUP_FAILURE_RETURN_CODE)
+        null
+    }
+
+    try {
+      //validate secure cookie configuration
+      SecurityUtils.validateAndGetSecureCookie(configuration)
+    }
+    catch {
+      case t: Throwable =>
+        LOG.error(t.getMessage(), t)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
         null
     }

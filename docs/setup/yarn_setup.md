@@ -101,13 +101,19 @@ Usage:
    Optional
      -D <arg>                        Dynamic properties
      -d,--detached                   Start detached
+     -id,--applicationId <arg>       Attach to running YARN session
+     -j,--jar <arg>                  Path to Flink jar file
      -jm,--jobManagerMemory <arg>    Memory for JobManager Container [in MB]
-     -nm,--name                      Set a custom name for the application on YARN
+     -k,--cookie <arg>               Secure cookie to authenticate
+     -n,--container <arg>            Number of YARN container to allocate (=Number of Task Managers)
+     -nm,--name <arg>                Set a custom name for the application on YARN
      -q,--query                      Display available YARN resources (memory, cores)
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager
+     -st,--streaming                 Start Flink in streaming mode
+     -t,--ship <arg>                 Ship files in the specified directory (t for transfer)
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
-     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths for HA mode
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths for high availability mode
 ~~~
 
 Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable to be set to read the YARN and HDFS configuration.
@@ -133,6 +139,16 @@ Stop the YARN session by stopping the unix process (using CTRL+C) or by entering
 Flink on YARN will only start all requested containers if enough resources are available on the cluster. Most YARN schedulers account for the requested memory of the containers,
 some account also for the number of vcores. By default, the number of vcores is equal to the processing slots (`-s`) argument. The `yarn.containers.vcores` allows overwriting the
 number of vcores with a custom value.
+
+### Service Authorization using Secure Cookie
+
+If service authorization is enabled (For more details, [see here](flink_security.md)), you could pass the secure cookie value as command line argument (-k or --cookie) instead of hardcoding the value in Flink configuration file.
+ 
+The secure cookie parameter can be accepted in the context of creating a new cluster as well as accessing existing cluster.
+
+For a new cluster deployment, if the secure cookie is not provided through either configuration or command-line argument, the secure cookie will be automatically generated and applied across cluster components. The generated cookie will be persisted in the home directory of the user who started the cluster/yarn application. The persisted secure cookie will be used to communicate to the running cluster when accessed through Flink CLI.
+
+In the context of Yarn deployment mode, a secure cookie configuration is per-cluster parameter (Cookie per Yarn application) and all jobs that are running in that session will use the same cookie.
 
 #### Detached YARN Session
 

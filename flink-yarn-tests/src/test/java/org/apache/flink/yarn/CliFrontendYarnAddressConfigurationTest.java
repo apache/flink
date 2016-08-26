@@ -40,7 +40,8 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli.YarnAppState.YarnAppStateBuilder;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli.YarnAppState;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -49,6 +50,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -69,6 +72,8 @@ import static org.junit.Assert.assertEquals;
  * from configuration and configs.
  */
 public class CliFrontendYarnAddressConfigurationTest {
+
+	private static final Logger LOG = LoggerFactory.getLogger(CliFrontendYarnAddressConfigurationTest.class);
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -304,14 +309,19 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 	private File writeYarnPropertiesFile(String contents) throws IOException {
 		File tmpFolder = temporaryFolder.newFolder();
-		String currentUser = System.getProperty("user.name");
 
-		// copy .yarn-properties-<username>
-		File testPropertiesFile = new File(tmpFolder, ".yarn-properties-"+currentUser);
-		Files.write(testPropertiesFile.toPath(), contents.getBytes(), StandardOpenOption.CREATE);
+		File testPropertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation();
+		String token = "applicationID=";
+		if(contents.startsWith(token)) {
+			contents = contents.substring(token.length(),contents.length());
+		}
+
+		YarnAppStateBuilder builder = YarnAppState.builder();
+		builder.appId(contents);
+		FlinkYarnSessionCli.persistAppState(builder.build());
 
 		// copy reference flink-conf.yaml to temporary test directory and append custom configuration path.
-		String confFile = flinkConf + "\nyarn.properties-file.location: " + tmpFolder;
+		String confFile = flinkConf + "\nyarn.properties-file.location: " + testPropertiesFile;
 		File testConfFile = new File(tmpFolder.getAbsolutePath(), "flink-conf.yaml");
 		Files.write(testConfFile.toPath(), confFile.getBytes(), StandardOpenOption.CREATE);
 

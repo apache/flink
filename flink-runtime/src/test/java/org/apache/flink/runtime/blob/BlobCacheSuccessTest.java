@@ -98,9 +98,7 @@ public class BlobCacheSuccessTest {
 			// Upload BLOBs
 			BlobClient blobClient = null;
 			try {
-
 				blobClient = new BlobClient(serverAddress, config);
-
 				blobKeys.add(blobClient.put(buf));
 				buf[0] = 1; // Make sure the BLOB key changes
 				blobKeys.add(blobClient.put(buf));

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.highavailability.ZookeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
-
+import org.slf4j.LoggerFactory;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
@@ -39,13 +39,14 @@ import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to work with blob data.
  */
 public class BlobUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(BlobUtils.class);
 
 	/**
 	 * Algorithm to be used for calculating the BLOB keys.

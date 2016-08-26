@@ -150,7 +150,8 @@ public class PartitionRequestClient {
 	public void sendTaskEvent(ResultPartitionID partitionId, TaskEvent event, final RemoteInputChannel inputChannel) throws IOException {
 		checkNotClosed();
 
-		tcpChannel.writeAndFlush(new TaskEventRequest(event, partitionId, inputChannel.getInputChannelId()))
+		tcpChannel.writeAndFlush(new TaskEventRequest(event, partitionId,
+				inputChannel.getInputChannelId()))
 				.addListener(
 						new ChannelFutureListener() {
 							@Override

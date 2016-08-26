@@ -23,6 +23,8 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
+import org.apache.commons.configuration.HierarchicalINIConfiguration;
+import org.apache.commons.configuration.SubnodeConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
@@ -30,7 +32,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -45,23 +46,18 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Collections;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.Callable;
+import java.util.HashMap;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
 import static org.apache.flink.configuration.ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY;
@@ -83,10 +79,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private static final String ID = "yarn-cluster";
 
 	// YARN-session related constants
-	private static final String YARN_PROPERTIES_FILE = ".yarn-properties-";
+	private static final String YARN_APP_INI = "yarn-app.ini";
 	static final String YARN_APPLICATION_ID_KEY = "applicationID";
 	private static final String YARN_PROPERTIES_PARALLELISM = "parallelism";
 	private static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
+	private static final String YARN_PROPERTIES_SECURE_COOKIE = "secureCookie";
+	private static final String YARN_LATEST_ENTRY_SECTION_NAME = "latest";
 
 	private static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
 
@@ -110,6 +108,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private final Option NAME;
 
 	private final Options ALL_OPTIONS;
+
+	private final Option SECURE_COOKIE_OPTION;
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
@@ -144,6 +144,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		STREAMING = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		NAME = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 		ZOOKEEPER_NAMESPACE = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
+		SECURE_COOKIE_OPTION = new Option("k", "cookie", true,"String to authorize Akka-based RPC communication");
 
 		ALL_OPTIONS = new Options();
 		ALL_OPTIONS.addOption(FLINK_JAR);
@@ -160,6 +161,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		ALL_OPTIONS.addOption(NAME);
 		ALL_OPTIONS.addOption(APPLICATION_ID);
 		ALL_OPTIONS.addOption(ZOOKEEPER_NAMESPACE);
+		ALL_OPTIONS.addOption(SECURE_COOKIE_OPTION);
 	}
 
 
@@ -186,59 +188,36 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			}
 		}
 
-		// load the YARN properties
-		File propertiesFile = getYarnPropertiesLocation(flinkConfiguration);
-		if (!propertiesFile.exists()) {
-			return null;
-		}
+		YarnAppState appState = retrieveMostRecentYarnApp();
+		if (appState == null) { return null; }
 
-		logAndSysout("Found YARN properties file " + propertiesFile.getAbsolutePath());
-
-		Properties yarnProperties = new Properties();
-		try {
-			try (InputStream is = new FileInputStream(propertiesFile)) {
-				yarnProperties.load(is);
-			}
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Cannot read the YARN properties file", e);
-		}
-
-		// get the Yarn application id from the properties file
-		String applicationID = yarnProperties.getProperty(YARN_APPLICATION_ID_KEY);
-		if (applicationID == null) {
-			throw new IllegalConfigurationException("Yarn properties file found but doesn't contain a " +
-				"Yarn application id. Please delete the file at " + propertiesFile.getAbsolutePath());
-		}
-
+		String applicationID = appState.getApplicationId();
 		try {
 			// try converting id to ApplicationId
 			ConverterUtils.toApplicationId(applicationID);
 		}
 		catch (Exception e) {
 			throw new RuntimeException("YARN properties contains an invalid entry for " +
-				"application id: " + applicationID, e);
+					"application id: " + applicationID, e);
 		}
-
 		logAndSysout("Using Yarn application id from YARN properties " + applicationID);
 
 		// configure the default parallelism from YARN
-		String propParallelism = yarnProperties.getProperty(YARN_PROPERTIES_PARALLELISM);
+		String propParallelism = appState.getParallelism();
 		if (propParallelism != null) { // maybe the property is not set
 			try {
 				int parallelism = Integer.parseInt(propParallelism);
 				flinkConfiguration.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
-
 				logAndSysout("YARN properties set default parallelism to " + parallelism);
 			}
 			catch (NumberFormatException e) {
 				throw new RuntimeException("Error while parsing the YARN properties: " +
-					"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.");
+						"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.");
 			}
 		}
 
 		// handle the YARN client's dynamic properties
-		String dynamicPropertiesEncoded = yarnProperties.getProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING);
+		String dynamicPropertiesEncoded = appState.getDynamicProperties();
 		Map<String, String> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
 		for (Map.Entry<String, String> dynamicProperty : dynamicProperties.entrySet()) {
 			flinkConfiguration.setString(dynamicProperty.getKey(), dynamicProperty.getValue());
@@ -387,20 +366,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		formatter.printHelp(" ", options);
 	}
 
-	private static void writeYarnProperties(Properties properties, File propertiesFile) {
-		try (final OutputStream out = new FileOutputStream(propertiesFile)) {
-			properties.store(out, "Generated YARN properties file");
-		} catch (IOException e) {
-			throw new RuntimeException("Error writing the properties file", e);
-		}
-		propertiesFile.setReadable(true, false); // readable for all.
-	}
-
 	public static void runInteractiveCli(YarnClusterClient yarnCluster, boolean readConsoleInput) {
 		final String HELP = "Available commands:\n" +
 				"help - show these commands\n" +
 				"stop - stop the YARN session";
 		int numTaskmanagers = 0;
+		String applicationId = yarnCluster.getApplicationId().toString();
 		try {
 			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 			label:
@@ -446,7 +417,6 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 						case "stop":
 							yarnCluster.shutdownCluster();
 							break label;
-
 						case "help":
 							System.err.println(HELP);
 							break;
@@ -509,6 +479,10 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			CommandLine cmdLine,
 			Configuration config) throws UnsupportedOperationException {
 
+		// get secure cookie if passed as argument
+		String secureCookieArg = cmdLine.hasOption(SECURE_COOKIE_OPTION.getOpt()) ?
+				cmdLine.getOptionValue(SECURE_COOKIE_OPTION.getOpt()) : null;
+
 		// first check for an application id, then try to load from yarn properties
 		String applicationID = cmdLine.hasOption(APPLICATION_ID.getOpt()) ?
 				cmdLine.getOptionValue(APPLICATION_ID.getOpt())
@@ -519,6 +493,24 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 					cmdLine.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt())
 					: config.getString(HighAvailabilityOptions.HA_CLUSTER_ID, applicationID);
 			config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
+
+			// Use cookie from CLI if provided, instead look for configuration setting and finally
+			// try to retrieve from the persisted file
+			boolean securityEnabled = SecurityUtils.isSecurityEnabled(config);
+			LOG.debug("Security Enabled ? {}", securityEnabled);
+			if(securityEnabled ) {
+				if(secureCookieArg != null) {
+					LOG.debug("Security is enabled and secure cookie is provided as argument");
+					config.setString(ConfigConstants.SECURITY_COOKIE, secureCookieArg);
+				} else {
+					String secureCookie = config.getString(ConfigConstants.SECURITY_COOKIE, null);
+					if(secureCookie == null) {
+						LOG.debug("Security is enabled but cookie not provided. retrieving cookie from properties file");
+						secureCookie = getAppSecureCookie(applicationID);
+						config.setString(ConfigConstants.SECURITY_COOKIE, secureCookie);
+					}
+				}
+			}
 
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
 			yarnDescriptor.setFlinkConfiguration(config);
@@ -536,12 +528,28 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			List<URL> userJarFiles) {
 		Preconditions.checkNotNull(userJarFiles, "User jar files should not be null.");
 
+		// get secure cookie if passed as argument
+		String secureCookieArg = cmdLine.hasOption(SECURE_COOKIE_OPTION.getOpt()) ?
+				cmdLine.getOptionValue(SECURE_COOKIE_OPTION.getOpt()) : null;
+
+		boolean securityEnabled = SecurityUtils.isSecurityEnabled(config);
+		LOG.debug("Security Enabled ? {}", securityEnabled);
+
+		//override cookie configuration if supplied through CLI
+		if(securityEnabled && secureCookieArg != null) {
+			LOG.debug("Secure cookie is provided as CLI argument and will be used");
+			config.setBoolean(ConfigConstants.SECURITY_ENABLED, true);
+			config.setString(ConfigConstants.SECURITY_COOKIE, secureCookieArg);
+		}
+
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = createDescriptor(applicationName, cmdLine);
 		yarnClusterDescriptor.setFlinkConfiguration(config);
 		yarnClusterDescriptor.setProvidedUserJarFiles(userJarFiles);
 
 		try {
-			return yarnClusterDescriptor.deploy();
+			YarnClusterClient yarnCluster = yarnClusterDescriptor.deploy();
+			persistYarnApplicationState(yarnClusterDescriptor, yarnCluster);
+			return yarnCluster;
 		} catch (Exception e) {
 			throw new RuntimeException("Error deploying the YARN cluster", e);
 		}
@@ -566,6 +574,10 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			return 1;
 		}
 
+		// get secure cookie if passed as argument
+		String secureCookieArg = cmd.hasOption(SECURE_COOKIE_OPTION.getOpt()) ?
+				cmd.getOptionValue(SECURE_COOKIE_OPTION.getOpt()) : null;
+
 		// Query cluster for metrics
 		if (cmd.hasOption(QUERY.getOpt())) {
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
@@ -580,7 +592,6 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			System.out.println(description);
 			return 0;
 		} else if (cmd.hasOption(APPLICATION_ID.getOpt())) {
-
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
 
 			//configure ZK namespace depending on the value passed
@@ -590,6 +601,16 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 									.getString(HA_ZOOKEEPER_NAMESPACE_KEY, cmd.getOptionValue(APPLICATION_ID.getOpt()));
 			LOG.info("Going to use the ZK namespace: {}", zkNamespace);
 			yarnDescriptor.getFlinkConfiguration().setString(HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+
+			boolean securityEnabled = SecurityUtils.isSecurityEnabled(yarnDescriptor.getFlinkConfiguration());
+			LOG.debug("Security Enabled ? {}", securityEnabled);
+
+			//override cookie configuration if supplied through CLI
+			if(securityEnabled && secureCookieArg != null) {
+				LOG.debug("Secure cookie is provided as CLI argument and will be used");
+				yarnDescriptor.getFlinkConfiguration().setBoolean(ConfigConstants.SECURITY_ENABLED, true);
+				yarnDescriptor.getFlinkConfiguration().setString(ConfigConstants.SECURITY_COOKIE, secureCookieArg);
+			}
 
 			try {
 				yarnCluster = yarnDescriptor.retrieve(cmd.getOptionValue(APPLICATION_ID.getOpt()));
@@ -616,6 +637,16 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 				return 1;
 			}
 
+			boolean securityEnabled = SecurityUtils.isSecurityEnabled(yarnDescriptor.getFlinkConfiguration());
+			LOG.debug("Security Enabled ? {}", securityEnabled);
+
+			//override cookie configuration if supplied through CLI
+			if(securityEnabled && secureCookieArg != null) {
+				LOG.debug("Secure cookie is provided as CLI argument and will be used");
+				yarnDescriptor.getFlinkConfiguration().setBoolean(ConfigConstants.SECURITY_ENABLED, true);
+				yarnDescriptor.getFlinkConfiguration().setString(ConfigConstants.SECURITY_COOKIE, secureCookieArg);
+			}
+
 			try {
 				yarnCluster = yarnDescriptor.deploy();
 			} catch (Exception e) {
@@ -631,22 +662,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			System.out.println("Flink JobManager is now running on " + jobManagerAddress);
 			System.out.println("JobManager Web Interface: " + yarnCluster.getWebInterfaceURL());
 
-			// file that we write into the conf/ dir containing the jobManager address and the dop.
-			File yarnPropertiesFile = getYarnPropertiesLocation(yarnCluster.getFlinkConfiguration());
-
-			Properties yarnProps = new Properties();
-			yarnProps.setProperty(YARN_APPLICATION_ID_KEY, yarnCluster.getApplicationId().toString());
-			if (yarnDescriptor.getTaskManagerSlots() != -1) {
-				String parallelism =
-						Integer.toString(yarnDescriptor.getTaskManagerSlots() * yarnDescriptor.getTaskManagerCount());
-				yarnProps.setProperty(YARN_PROPERTIES_PARALLELISM, parallelism);
-			}
-			// add dynamic properties
-			if (yarnDescriptor.getDynamicPropertiesEncoded() != null) {
-				yarnProps.setProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING,
-						yarnDescriptor.getDynamicPropertiesEncoded());
-			}
-			writeYarnProperties(yarnProps, yarnPropertiesFile);
+			persistYarnApplicationState(yarnDescriptor, yarnCluster);
 
 			//------------------ ClusterClient running, let user control it ------------
 
@@ -703,16 +719,237 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		}
 	}
 
-	public static File getYarnPropertiesLocation(Configuration conf) {
-		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
-		String currentUser = System.getProperty("user.name");
-		String propertiesFileLocation =
-			conf.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+	public static File getYarnPropertiesLocation() {
+		String path = System.getProperty("user.home") + File.separator + YARN_APP_INI;
+		File stateFile;
+		try {
+			stateFile = new File(path);
+			if(!stateFile.exists()) {
+				stateFile.createNewFile();
+			}
+		} catch(IOException e) {
+			throw new RuntimeException(e);
+		}
+		return stateFile;
+	}
 
-		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
+	public static void persistAppState(YarnAppState appState) {
+
+		final String appId = appState.getApplicationId();
+		final String parallelism = appState.getParallelism();
+		final String dynaProps = appState.getDynamicProperties();
+		final String cookie = appState.getCookie();
+
+		if(appId == null) {
+			throw new RuntimeException("Missing application ID from Yarn application state");
+		}
+
+		String path = getYarnPropertiesLocation().getAbsolutePath();
+
+		LOG.debug("Going to persist Yarn application state: {} in {}", appState,path);
+
+		try {
+			HierarchicalINIConfiguration config = new HierarchicalINIConfiguration(path);
+
+			SubnodeConfiguration subNode = config.getSection(appId);
+			if(!subNode.isEmpty()) {
+				throw new RuntimeException("Application with ID " + appId + "already exists");
+			}
+
+			subNode.addProperty(YARN_PROPERTIES_PARALLELISM, parallelism);
+			subNode.addProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING, dynaProps);
+			subNode.addProperty(YARN_PROPERTIES_SECURE_COOKIE, cookie);
+
+			//update latest entry section with the most recent APP Id
+			config.clearTree(YARN_LATEST_ENTRY_SECTION_NAME);
+			SubnodeConfiguration activeAppSection = config.getSection(YARN_LATEST_ENTRY_SECTION_NAME);
+			activeAppSection.addProperty(YARN_APPLICATION_ID_KEY, appId);
+
+			config.save();
+			LOG.debug("Persisted Yarn App state: {}", appState);
+		} catch(Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static YarnAppState retrieveMostRecentYarnApp() {
+		String path = getYarnPropertiesLocation().getAbsolutePath();
+		LOG.debug("Going to fetch app state from {}", path);
+		try {
+			HierarchicalINIConfiguration config = new HierarchicalINIConfiguration(path);
+			SubnodeConfiguration subNode = config.getSection(YARN_LATEST_ENTRY_SECTION_NAME);
+			String appId = subNode.getString(YARN_APPLICATION_ID_KEY, null);
+			if(null != appId) {
+				subNode = config.getSection(appId);
+				YarnAppState.YarnAppStateBuilder builder = YarnAppState.builder();
+				builder.appId(appId);
+				builder.parallelism(subNode.getString(YARN_PROPERTIES_PARALLELISM, null));
+				builder.dynamicProps(subNode.getString(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING, null));
+				builder.cookie(subNode.getString(YARN_PROPERTIES_SECURE_COOKIE, null));
+				YarnAppState yarnAppState = builder.build();
+				LOG.debug("Retrieved Yarn App state: {} from: {} for the App ID: {}", yarnAppState, path, appId);
+				return yarnAppState;
+			}
+		} catch(Exception e) {
+			throw new RuntimeException(e);
+		}
+		return null;
+	}
+
+	public static String getAppSecureCookie(String appId) {
+		if(appId == null) {
+			throw new RuntimeException("Application ID is required to retrieve Yarn App cookie Info");
+		}
+		String cookieFromFile;
+		String path = getYarnPropertiesLocation().getAbsolutePath();
+		LOG.debug("Going to fetch cookie for the appID: {} from {}", appId, path);
+
+		try {
+			HierarchicalINIConfiguration config = new HierarchicalINIConfiguration(path);
+			SubnodeConfiguration subNode = config.getSection(appId);
+			if (!subNode.containsKey(YARN_PROPERTIES_SECURE_COOKIE)) {
+				String errorMessage = "Could  not find the app ID section in "+ path + " for the appID: "+ appId;
+				throw new RuntimeException(errorMessage);
+			}
+			cookieFromFile = subNode.getString(YARN_PROPERTIES_SECURE_COOKIE, "");
+			if(cookieFromFile.length() == 0) {
+				String errorMessage = "Could  not find cookie in "+ path + " for the appID: "+ appId;
+				throw new RuntimeException(errorMessage);
+			}
+		} catch(Exception e) {
+			throw new RuntimeException(e);
+		}
+
+		LOG.debug("Found cookie for the appID: {}", appId);
+		return cookieFromFile;
+	}
+
+	public static void removeAppState(String appId) {
+		if(appId == null) { return; }
+		String path = getYarnPropertiesLocation().getAbsolutePath();
+		LOG.debug("Going to remove the reference for the appId: {} from {}", appId, path);
+		try {
+			HierarchicalINIConfiguration config = new HierarchicalINIConfiguration(path);
+			config.clearTree(appId);
+
+			//clear app ID entry from most recent deployment section if the app id is part of it
+			SubnodeConfiguration activeAppSection = config.getSection(YARN_LATEST_ENTRY_SECTION_NAME);
+			String applicationId = activeAppSection.getString(YARN_APPLICATION_ID_KEY);
+			LOG.debug("Retrieved application ID: {} from the active list", applicationId);
+			if(applicationId == null || applicationId.equals(appId)) {
+				config.clearTree(YARN_LATEST_ENTRY_SECTION_NAME);
+			}
+
+			config.save();
+			LOG.debug("Removed the reference for the appId: {} from {}", appId, path);
+		} catch(Exception e) {
+			LOG.warn("Exception occurred while fetching cookie for app id: {}", appId, e);
+		}
 	}
 
 	protected AbstractYarnClusterDescriptor getClusterDescriptor() {
 		return new YarnClusterDescriptor();
+	}
+
+	private void persistYarnApplicationState(AbstractYarnClusterDescriptor yarnDescriptor, YarnClusterClient yarnCluster) {
+
+		YarnAppState.YarnAppStateBuilder yarnAppStateBuilder = YarnAppState.builder();
+
+		yarnAppStateBuilder.appId(yarnCluster.getApplicationId().toString());
+
+		if (yarnDescriptor.getTaskManagerSlots() != -1) {
+			String parallelism =
+					Integer.toString(yarnDescriptor.getTaskManagerSlots() * yarnDescriptor.getTaskManagerCount());
+			yarnAppStateBuilder.parallelism(parallelism);
+		}
+
+		if (yarnDescriptor.getDynamicPropertiesEncoded() != null) {
+			yarnAppStateBuilder.dynamicProps(yarnDescriptor.getDynamicPropertiesEncoded());
+		}
+
+		String secureCookie = yarnDescriptor.getFlinkConfiguration()
+				.getString(ConfigConstants.SECURITY_COOKIE, null);
+		yarnAppStateBuilder.cookie(secureCookie);
+
+		persistAppState(yarnAppStateBuilder.build());
+
+	}
+
+	public static class YarnAppState {
+
+		private String applicationId;
+		private String parallelism;
+		private String dynamicProperties;
+		private String cookie;
+
+		public String getApplicationId() {
+			return applicationId;
+		}
+
+		public String getParallelism() {
+			return parallelism;
+		}
+
+		public String getCookie() {
+			return cookie;
+		}
+
+		public String getDynamicProperties() {
+			return dynamicProperties;
+		}
+
+		@Override
+		public String toString() {
+			StringBuilder builder = new StringBuilder();
+			builder.append("Application ID: ").append(applicationId).append(" ");
+			builder.append("Parallelism: ").append(parallelism).append(" ");
+			builder.append("Dynamic Properties: ").append(dynamicProperties).append(" ");
+			builder.append("Cookie: ").append(cookie != null?"***":cookie).append(" ");
+			return builder.toString();
+		}
+
+		private YarnAppState(){}
+
+		public static YarnAppStateBuilder builder() {
+			return new YarnAppStateBuilder();
+		}
+
+		public static class YarnAppStateBuilder {
+
+			private String applicationId;
+			private String parallelism;
+			private String cookie;
+			private String dynamicProperties;
+
+			public YarnAppStateBuilder appId(String appId) {
+				this.applicationId = appId;
+				return this;
+			}
+
+			public YarnAppStateBuilder parallelism(String parallelism) {
+				this.parallelism = parallelism;
+				return this;
+			}
+
+			public YarnAppStateBuilder dynamicProps(String dynamicProps) {
+				this.dynamicProperties = dynamicProps;
+				return this;
+			}
+
+			public YarnAppStateBuilder cookie(String cookie) {
+				this.cookie = cookie;
+				return this;
+			}
+
+			public YarnAppState build() {
+				YarnAppState appState = new YarnAppState();
+				appState.applicationId = this.applicationId;
+				appState.parallelism = this.parallelism;
+				appState.dynamicProperties = this.dynamicProperties;
+				appState.cookie = this.cookie;
+				return appState;
+			}
+		}
+
 	}
 }

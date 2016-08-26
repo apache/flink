@@ -95,6 +95,9 @@ public class CliFrontendParser {
 			"directory is optional. If no directory is specified, the configured default " +
 			"directory (" + ConfigConstants.SAVEPOINT_DIRECTORY_KEY + ") is used.");
 
+	static final Option SECURE_COOKIE_OPTION = new Option("k", "cookie", true,
+			"String to authorize Akka-based RPC communication");
+
 	static {
 		HELP_OPTION.setRequired(false);
 
@@ -134,6 +137,10 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setRequired(false);
 		CANCEL_WITH_SAVEPOINT_OPTION.setArgName("targetDirectory");
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
+
+		SECURE_COOKIE_OPTION.setRequired(false);
+		SECURE_COOKIE_OPTION.setArgName("secureCookie");
+
 	}
 
 	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
@@ -188,6 +195,7 @@ public class CliFrontendParser {
 
 	private static Options getJobManagerAddressOption(Options options) {
 		options.addOption(ADDRESS_OPTION);
+		options.addOption(SECURE_COOKIE_OPTION);
 		return options;
 	}
 

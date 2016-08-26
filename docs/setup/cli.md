@@ -225,6 +225,8 @@ Action "run" compiles and runs a program.
                                                     java.net.URLClassLoader}.
      -d,--detached                                  If present, runs the job in
                                                     detached mode
+     -k,--cookie <secureCookie>                     Secure cookie to
+                                                    authenticate
      -m,--jobmanager <host:port>                    Address of the JobManager
                                                     (master) to which to
                                                     connect. Use this flag to
@@ -252,6 +254,7 @@ Action "run" compiles and runs a program.
                                                     availability mode
 
   Options for yarn-cluster mode:
+     -k,--cookie <arg>                    Secure cookie to authenticate
      -yD <arg>                            Dynamic properties
      -yd,--yarndetached                   Start detached
      -yid,--yarnapplicationId <arg>       Attach to running YARN session
@@ -297,6 +300,7 @@ Action "list" lists running and scheduled programs.
 
   Syntax: list [OPTIONS]
   "list" action options:
+     -k,--cookie <secureCookie>    Secure cookie to authenticate
      -m,--jobmanager <host:port>   Address of the JobManager (master) to which
                                    to connect. Use this flag to connect to a
                                    different JobManager than the one specified
@@ -312,6 +316,7 @@ Action "stop" stops a running program (streaming jobs only).
 
   Syntax: stop [OPTIONS] <Job ID>
   "stop" action options:
+     -k,--cookie <secureCookie>    Secure cookie to authenticate
      -m,--jobmanager <host:port>   Address of the JobManager (master) to which
                                    to connect. Use this flag to connect to a
                                    different JobManager than the one specified
@@ -325,6 +330,7 @@ Action "cancel" cancels a running program.
 
   Syntax: cancel [OPTIONS] <Job ID>
   "cancel" action options:
+     -k,--cookie <secureCookie>             Secure cookie to authenticate
      -m,--jobmanager <host:port>            Address of the JobManager (master)
                                             to which to connect. Use this flag
                                             to connect to a different JobManager
@@ -346,10 +352,12 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
   "savepoint" action options:
      -d,--dispose <arg>            Path of savepoint to dispose.
      -j,--jarfile <jarfile>        Flink program JAR file.
+     -k,--cookie <secureCookie>    Secure cookie to authenticate
      -m,--jobmanager <host:port>   Address of the JobManager (master) to which
                                    to connect. Use this flag to connect to a
                                    different JobManager than the one specified
                                    in the configuration.
   Options for yarn-cluster mode:
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
+
 ~~~
