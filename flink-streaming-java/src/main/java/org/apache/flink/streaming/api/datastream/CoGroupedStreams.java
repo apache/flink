@@ -245,13 +245,13 @@ public class CoGroupedStreams<T1, T2> {
 		 * for windowed groups.
 		 *
 		 * <p>
-		 *     Note: This is a temporary workaround for setting parallelism after co-group operator.
-		 *     This method only calls {@link #apply(CoGroupFunction)}, and
-		 *     cast the returned value to {@link SingleOutputStreamOperator}.
+		 *     Note: This is a temporary workaround while the {@link #apply(CoGroupFunction)} method has the wrong return type.
 		 * </p>
 		 * @deprecated This method will be replaced by {@link #apply(CoGroupFunction)} in Flink 2.0.
 		 * So use the {@link #apply(CoGroupFunction)} in the future.
          */
+		@PublicEvolving
+		@Deprecated
 		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function) {
 			return (SingleOutputStreamOperator<T>) apply(function);
 		}
@@ -298,13 +298,13 @@ public class CoGroupedStreams<T1, T2> {
 		 * for windowed groups.
 		 *
 		 * <p>
-		 *     Note: This is a temporary workaround for setting parallelism after co-group operator.
-		 *     This method only calls {@link #apply(CoGroupFunction, TypeInformation)}, and
-		 *     cast the returned value to {@link SingleOutputStreamOperator}.
+		 *     Note: This is a temporary workaround while the {@link #apply(CoGroupFunction, TypeInformation)} method has the wrong return type.
 		 * </p>
 		 * @deprecated This method will be replaced by {@link #apply(CoGroupFunction, TypeInformation)} in Flink 2.0.
 		 * So use the {@link #apply(CoGroupFunction, TypeInformation)} in the future.
 		 */
+		@PublicEvolving
+		@Deprecated
 		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			return (SingleOutputStreamOperator<T>) apply(function, resultType);
 		}
