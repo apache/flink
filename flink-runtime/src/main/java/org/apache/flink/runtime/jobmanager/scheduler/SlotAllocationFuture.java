@@ -21,72 +21,83 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.instance.SimpleSlot;
 
 public class SlotAllocationFuture {
-	
+
 	private final Object monitor = new Object();
-	
+
 	private volatile SimpleSlot slot;
-	
+
 	private volatile SlotAllocationFutureAction action;
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	public SlotAllocationFuture() {}
-	
+
 	public SlotAllocationFuture(SimpleSlot slot) {
 		this.slot = slot;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public SimpleSlot waitTillAllocated() throws InterruptedException {
 		return waitTillAllocated(0);
 	}
-	
+
 	public SimpleSlot waitTillAllocated(long timeout) throws InterruptedException {
 		synchronized (monitor) {
 			while (slot == null) {
 				monitor.wait(timeout);
 			}
-			
+
 			return slot;
 		}
 	}
-	
+
 	public void setFutureAction(SlotAllocationFutureAction action) {
 		synchronized (monitor) {
 			if (this.action != null) {
 				throw new IllegalStateException("Future already has an action registered.");
 			}
-			
+
 			this.action = action;
-			
+
 			if (this.slot != null) {
 				action.slotAllocated(this.slot);
 			}
 		}
 	}
-	
+
 	public void setSlot(SimpleSlot slot) {
 		if (slot == null) {
 			throw new NullPointerException();
 		}
-		
+
 		synchronized (monitor) {
 			if (this.slot != null) {
 				throw new IllegalStateException("The future has already been assigned a slot.");
 			}
-			
+
 			this.slot = slot;
 			monitor.notifyAll();
-			
+
 			if (action != null) {
 				action.slotAllocated(slot);
 			}
 		}
 	}
-	
+
+	/**
+	 * Get the allocated slot no matter whether the allocation is successful
+	 *
+	 * @return A SimpleSlot if the allocation success, null if failed or unfinished
+	 */
+	public SimpleSlot getSlot() {
+		synchronized (monitor) {
+			return slot;
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return slot == null ? "PENDING" : "DONE";

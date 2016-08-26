@@ -30,6 +30,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -58,7 +59,7 @@ public class TerminalStateDeadlockTest {
 	private final Field stateField;
 	private final Field resourceField;
 	private final Field execGraphStateField;
-	private final Field execGraphSchedulerField;
+	private final Field execGraphSlotProviderField;
 	
 	private final SimpleSlot resource;
 
@@ -75,8 +76,8 @@ public class TerminalStateDeadlockTest {
 			this.execGraphStateField = ExecutionGraph.class.getDeclaredField("state");
 			this.execGraphStateField.setAccessible(true);
 
-			this.execGraphSchedulerField = ExecutionGraph.class.getDeclaredField("scheduler");
-			this.execGraphSchedulerField.setAccessible(true);
+			this.execGraphSlotProviderField = ExecutionGraph.class.getDeclaredField("slotProvider");
+			this.execGraphSlotProviderField.setAccessible(true);
 			
 			// the dummy resource
 			InetAddress address = InetAddress.getByName("127.0.0.1");
@@ -135,7 +136,7 @@ public class TerminalStateDeadlockTest {
 				initializeExecution(e2);
 
 				execGraphStateField.set(eg, JobStatus.FAILING);
-				execGraphSchedulerField.set(eg, scheduler);
+				execGraphSlotProviderField.set(eg, scheduler);
 				
 				Runnable r1 = new Runnable() {
 					@Override
@@ -193,7 +194,7 @@ public class TerminalStateDeadlockTest {
 		}
 
 		@Override
-		public void scheduleForExecution(Scheduler scheduler) {
+		public void scheduleForExecution(SlotProvider slotProvider) {
 			// notify that we are done with the "restarting"
 			synchronized (this) {
 				done = true;

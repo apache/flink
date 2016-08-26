@@ -40,6 +40,7 @@ import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -47,7 +48,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
@@ -197,8 +197,8 @@ public class ExecutionGraph {
 
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
-	/** The scheduler to use for scheduling new tasks as they are needed */
-	private Scheduler scheduler;
+	/** The slot provider to use for allocating slots for tasks as they are needed */
+	private SlotProvider slotProvider;
 
 	/** Strategy to use for restarts */
 	private RestartStrategy restartStrategy;
@@ -472,8 +472,8 @@ public class ExecutionGraph {
 		return jsonPlan;
 	}
 
-	public Scheduler getScheduler() {
-		return scheduler;
+	public SlotProvider getSlotProvider() {
+		return slotProvider;
 	}
 
 	public JobID getJobID() {
@@ -672,17 +672,17 @@ public class ExecutionGraph {
 		}
 	}
 
-	public void scheduleForExecution(Scheduler scheduler) throws JobException {
-		if (scheduler == null) {
+	public void scheduleForExecution(SlotProvider slotProvider) throws JobException {
+		if (slotProvider == null) {
 			throw new IllegalArgumentException("Scheduler must not be null.");
 		}
 
-		if (this.scheduler != null && this.scheduler != scheduler) {
-			throw new IllegalArgumentException("Cannot use different schedulers for the same job");
+		if (this.slotProvider != null && this.slotProvider != slotProvider) {
+			throw new IllegalArgumentException("Cannot use different slot providers for the same job");
 		}
 
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
-			this.scheduler = scheduler;
+			this.slotProvider = slotProvider;
 
 			switch (scheduleMode) {
 
@@ -690,14 +690,14 @@ public class ExecutionGraph {
 					// simply take the vertices without inputs.
 					for (ExecutionJobVertex ejv : this.tasks.values()) {
 						if (ejv.getJobVertex().isInputVertex()) {
-							ejv.scheduleAll(scheduler, allowQueuedScheduling);
+							ejv.scheduleAll(slotProvider, allowQueuedScheduling);
 						}
 					}
 					break;
 
 				case EAGER:
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
-						ejv.scheduleAll(scheduler, allowQueuedScheduling);
+						ejv.scheduleAll(slotProvider, allowQueuedScheduling);
 					}
 					break;
 
@@ -852,8 +852,8 @@ public class ExecutionGraph {
 					throw new IllegalStateException("Can only restart job from state restarting.");
 				}
 
-				if (scheduler == null) {
-					throw new IllegalStateException("The execution graph has not been scheduled before - scheduler is null.");
+				if (slotProvider == null) {
+					throw new IllegalStateException("The execution graph has not been scheduled before - slotProvider is null.");
 				}
 
 				this.currentExecutions.clear();
@@ -887,7 +887,7 @@ public class ExecutionGraph {
 				}
 			}
 
-			scheduleForExecution(scheduler);
+			scheduleForExecution(slotProvider);
 		}
 		catch (Throwable t) {
 			fail(t);
@@ -919,7 +919,7 @@ public class ExecutionGraph {
 
 		// clear the non-serializable fields
 		restartStrategy = null;
-		scheduler = null;
+		slotProvider = null;
 		checkpointCoordinator = null;
 		executionContext = null;
 		kvStateLocationRegistry = null;
