@@ -200,7 +200,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		Configuration configuration,
 		ResourceID resourceID) throws Exception {
 
-		InetSocketAddress taskManagerAddress = selectNetworkInterfaceAndPort(configuration);
+		final InetSocketAddress taskManagerAddress = selectNetworkInterfaceAndPort(configuration);
 
 		runTaskManager(taskManagerAddress.getHostName(), resourceID, taskManagerAddress.getPort(), configuration);
 	}
@@ -221,7 +221,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		// if no task manager port has been configured, use 0 (system will pick any free port)
-		int actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
+		final int actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
 		if (actorSystemPort < 0 || actorSystemPort > 65535) {
 			throw new IllegalConfigurationException("Invalid value for '" +
 				ConfigConstants.TASK_MANAGER_IPC_PORT_KEY +
@@ -278,11 +278,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		// start akka rpc service based on actor system
-		Timeout timeout = new Timeout(AkkaUtils.getTimeout(configuration).toMillis(), TimeUnit.MILLISECONDS);
-		AkkaRpcService akkaRpcService = new AkkaRpcService(taskManagerSystem, timeout);
+		final Timeout timeout = new Timeout(AkkaUtils.getTimeout(configuration).toMillis(), TimeUnit.MILLISECONDS);
+		final AkkaRpcService akkaRpcService = new AkkaRpcService(taskManagerSystem, timeout);
 
 		// start high availability service to implement getResourceManagerLeaderRetriever method only
-		HighAvailabilityServices haServices = new HighAvailabilityServices() {
+		final HighAvailabilityServices haServices = new HighAvailabilityServices() {
 			@Override
 			public LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception {
 				return LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
@@ -362,7 +362,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		HighAvailabilityServices haServices,
 		boolean localTaskManagerCommunication) throws Exception {
 
-		TaskExecutorConfiguration taskExecutorConfig = parseTaskManagerConfiguration(
+		final TaskExecutorConfiguration taskExecutorConfig = parseTaskManagerConfiguration(
 			configuration, taskManagerHostname, localTaskManagerCommunication);
 
 		MemoryType memType = taskExecutorConfig.getNetworkConfig().memoryType();
@@ -373,7 +373,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		ExecutionContext executionContext = ExecutionContexts$.MODULE$.fromExecutor(new ForkJoinPool());
 
 		// we start the network first, to make sure it can allocate its buffers first
-		NetworkEnvironment network = new NetworkEnvironment(
+		final NetworkEnvironment network = new NetworkEnvironment(
 			executionContext,
 			taskExecutorConfig.getTimeout(),
 			taskExecutorConfig.getNetworkConfig());
@@ -389,7 +389,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				"If you leave this config parameter empty, the system automatically " +
 				"pick a fraction of the available memory.");
 
-		long memorySize;
+		final long memorySize;
 		boolean preAllocateMemory = configuration.getBoolean(
 			ConfigConstants.TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE);
@@ -458,9 +458,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		// start the I/O manager, it will create some temp directories.
-		IOManager ioManager = new IOManagerAsync(taskExecutorConfig.getTmpDirPaths());
+		final IOManager ioManager = new IOManagerAsync(taskExecutorConfig.getTmpDirPaths());
 
-		TaskExecutor taskExecutor = new TaskExecutor(
+		final TaskExecutor taskExecutor = new TaskExecutor(
 			taskExecutorConfig,
 			resourceID,
 			memoryManager,
@@ -506,7 +506,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
 
 		InetAddress taskManagerAddress = InetAddress.getByName(taskManagerHostname);
-		InstanceConnectionInfo connectionInfo = new InstanceConnectionInfo(taskManagerAddress, dataport);
+		final InstanceConnectionInfo connectionInfo = new InstanceConnectionInfo(taskManagerAddress, dataport);
 
 		// ----> memory / network stack (shuffles/broadcasts), task slots, temp directories
 
@@ -518,13 +518,13 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
 			"Number of task slots must be at least one.");
 
-		int numNetworkBuffers = configuration.getInteger(
+		final int numNetworkBuffers = configuration.getInteger(
 			ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
 		checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
 			ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, "");
 
-		int pageSize = configuration.getInteger(
+		final int pageSize = configuration.getInteger(
 			ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE);
 		// check page size of for minimum size
@@ -561,7 +561,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			}
 		}
 
-		String[] tmpDirs = configuration.getString(
+		final String[] tmpDirs = configuration.getString(
 			ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
 
@@ -573,7 +573,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		// Default spill I/O mode for intermediate results
-		String syncOrAsync = configuration.getString(
+		final String syncOrAsync = configuration.getString(
 			ConfigConstants.TASK_MANAGER_NETWORK_DEFAULT_IO_MODE,
 			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE);
 
@@ -584,7 +584,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			ioMode = IOManager.IOMode.SYNC;
 		}
 
-		NetworkEnvironmentConfiguration networkConfig = new NetworkEnvironmentConfiguration(
+		final NetworkEnvironmentConfiguration networkConfig = new NetworkEnvironmentConfiguration(
 			numNetworkBuffers,
 			pageSize,
 			memType,
@@ -604,7 +604,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 		LOG.info("Messages between TaskManager and JobManager have a max timeout of " + timeout);
 
-		long cleanupInterval = configuration.getLong(
+		final long cleanupInterval = configuration.getLong(
 			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
 			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
 
