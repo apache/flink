@@ -70,7 +70,7 @@ object TypeConverter {
       // check if expected physical type is compatible with logical field type
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
         if (typeInfo.getArity != logicalFieldTypes.length) {
-          throw new TableException("Arity of result does not match expected type.")
+          throw TableException("Arity of result does not match expected type.")
         }
         typeInfo match {
 
@@ -80,11 +80,11 @@ object TypeConverter {
               case (fName, fType) =>
                 val pojoIdx = pt.getFieldIndex(fName)
                 if (pojoIdx < 0) {
-                  throw new TableException(s"POJO does not define field name: $fName")
+                  throw TableException(s"POJO does not define field name: $fName")
                 }
                 val expectedTypeInfo = pt.getTypeAt(pojoIdx)
                 if (fType != expectedTypeInfo) {
-                  throw new TableException(s"Result field does not match expected type. " +
+                  throw TableException(s"Result field does not match expected type. " +
                     s"Expected: $expectedTypeInfo; Actual: $fType")
                 }
             }
@@ -95,7 +95,7 @@ object TypeConverter {
               case (fieldTypeInfo, i) =>
                 val expectedTypeInfo = ct.getTypeAt(i)
                 if (fieldTypeInfo != expectedTypeInfo) {
-                  throw new TableException(s"Result field does not match expected type. " +
+                  throw TableException(s"Result field does not match expected type. " +
                     s"Expected: $expectedTypeInfo; Actual: $fieldTypeInfo")
                 }
             }
@@ -104,12 +104,12 @@ object TypeConverter {
           case at: AtomicType[_] =>
             val fieldTypeInfo = logicalFieldTypes.head
             if (fieldTypeInfo != at) {
-              throw new TableException(s"Result field does not match expected type. " +
+              throw TableException(s"Result field does not match expected type. " +
                 s"Expected: $at; Actual: $fieldTypeInfo")
             }
 
           case _ =>
-            throw new TableException("Unsupported result type.")
+            throw TableException("Unsupported result type.")
         }
         typeInfo
 

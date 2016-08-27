@@ -73,7 +73,7 @@ abstract class BatchTableEnvironment(
     val m = internalNamePattern.findFirstIn(name)
     m match {
       case Some(_) =>
-        throw new ValidationException(s"Illegal Table name. " +
+        throw ValidationException(s"Illegal Table name. " +
           s"Please choose a name that does not contain the pattern $internalNamePattern")
       case None =>
     }
@@ -96,7 +96,7 @@ abstract class BatchTableEnvironment(
     if (isRegistered(tableName)) {
       new Table(this, CatalogNode(tableName, getRowType(tableName)))
     } else {
-      throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
+      throw ValidationException(s"Table \'$tableName\' was not found in the registry.")
     }
   }
 
@@ -154,7 +154,7 @@ abstract class BatchTableEnvironment(
         // Give the DataSet to the TableSink to emit it.
         batchSink.emitDataSet(result)
       case _ =>
-        throw new TableException("BatchTableSink required to emit batch Table")
+        throw TableException("BatchTableSink required to emit batch Table")
     }
   }
 
@@ -254,13 +254,13 @@ abstract class BatchTableEnvironment(
     }
     catch {
       case e: CannotPlanException =>
-        throw new TableException(
+        throw TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(relNode)}\n" +
             s"This exception indicates that the query uses an unsupported SQL feature.\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
       case t: TableException =>
-        throw new TableException(
+        throw TableException(
         s"Cannot generate a valid execution plan for the given query: \n\n" +
           s"${RelOptUtil.toString(relNode)}\n" +
           s"${t.msg}\n" +

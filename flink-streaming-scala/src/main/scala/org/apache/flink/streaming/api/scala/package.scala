@@ -39,8 +39,7 @@ package object scala {
    * Converts an [[org.apache.flink.streaming.api.datastream.DataStream]] to a
    * [[org.apache.flink.streaming.api.scala.DataStream]].
    */
-  private[flink] def asScalaStream[R](stream: JavaStream[R])
-                                             = new DataStream[R](stream)
+  private[flink] def asScalaStream[R](stream: JavaStream[R]) = new DataStream[R](stream)
 
   /**
    * Converts an [[org.apache.flink.streaming.api.datastream.KeyedStream]] to a

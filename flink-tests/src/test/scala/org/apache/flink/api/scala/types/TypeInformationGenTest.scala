@@ -198,7 +198,7 @@ class TypeInformationGenTest {
     Assert.assertEquals(9, ti.getArity)
     Assert.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
-    Assert.assertEquals(classOf[Tuple9[_,_,_,_,_,_,_,_,_]], tti.getTypeClass)
+    Assert.assertEquals(classOf[(_, _, _, _, _, _, _, _, _)], tti.getTypeClass)
     for (i <- 0 until 9) {
       Assert.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
     }

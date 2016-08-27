@@ -1090,10 +1090,12 @@ class JobManager(
         }
 
         val restartStrategy =
-          Option(jobGraph.getSerializedExecutionConfig()
+          Option(
+            jobGraph.getSerializedExecutionConfig
             .deserializeValue(userCodeLoader)
-            .getRestartStrategy())
-            .map(RestartStrategyFactory.createRestartStrategy(_)) match {
+            .getRestartStrategy
+          )
+            .map(RestartStrategyFactory.createRestartStrategy) match {
             case Some(strategy) => strategy
             case None => restartStrategyFactory.createRestartStrategy()
           }
@@ -2416,12 +2418,12 @@ object JobManager {
         s"Invalid command line arguments: ${args.mkString(" ")}. Usage: ${parser.usage}")
     }
     
-    val configDir = config.getConfigDir()
+    val configDir = config.getConfigDir
     
     if (configDir == null) {
       throw new Exception("Missing parameter '--configDir'")
     }
-    if (config.getJobManagerMode() == null) {
+    if (config.getJobManagerMode == null) {
       throw new Exception("Missing parameter '--executionMode'")
     }
 
@@ -2432,22 +2434,21 @@ object JobManager {
       FileSystem.setDefaultScheme(configuration)
     }
     catch {
-      case e: IOException => {
+      case e: IOException =>
         throw new Exception("Error while setting the default " +
           "filesystem scheme from configuration.", e)
-      }
     }
 
     if (new File(configDir).isDirectory) {
       configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir + "/..")
     }
 
-    if (config.getWebUIPort() >= 0) {
-      configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, config.getWebUIPort())
+    if (config.getWebUIPort >= 0) {
+      configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, config.getWebUIPort)
     }
 
-    if (config.getHost() != null) {
-      configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, config.getHost())
+    if (config.getHost != null) {
+      configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, config.getHost)
     }
 
     val host = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)

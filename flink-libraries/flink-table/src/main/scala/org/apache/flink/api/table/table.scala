@@ -202,7 +202,7 @@ class Table(
     */
   def groupBy(fields: Expression*): GroupedTable = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new ValidationException(s"Group by on stream tables is currently not supported.")
+      throw ValidationException(s"Group by on stream tables is currently not supported.")
     }
     new GroupedTable(this, fields)
   }
@@ -394,7 +394,7 @@ class Table(
   private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
+      throw ValidationException("Only tables from the same TableEnvironment can be joined.")
     }
     new Table(
       tableEnv,
@@ -418,7 +418,7 @@ class Table(
   def minus(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new ValidationException("Only tables from the same TableEnvironment can be " +
+      throw ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
     new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = false)
@@ -443,11 +443,10 @@ class Table(
   def minusAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new ValidationException("Only tables from the same TableEnvironment can be " +
+      throw ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = true)
-      .validate(tableEnv))
+    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
   }
 
   /**
@@ -465,7 +464,7 @@ class Table(
   def union(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
+      throw ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
     new Table(tableEnv, Union(logicalPlan, right.logicalPlan, all = false).validate(tableEnv))
   }
@@ -485,7 +484,7 @@ class Table(
   def unionAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
+      throw ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
     new Table(tableEnv, Union(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
   }
@@ -507,7 +506,7 @@ class Table(
   def intersect(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new ValidationException(
+      throw ValidationException(
         "Only tables from the same TableEnvironment can be intersected.")
     }
     new Table(tableEnv, Intersect(logicalPlan, right.logicalPlan, all = false).validate(tableEnv))
@@ -530,7 +529,7 @@ class Table(
   def intersectAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new ValidationException(
+      throw ValidationException(
         "Only tables from the same TableEnvironment can be intersected.")
     }
     new Table(tableEnv, Intersect(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
@@ -547,11 +546,9 @@ class Table(
     * }}}
     */
   def orderBy(fields: Expression*): Table = {
-    val order: Seq[Ordering] = fields.map { case e =>
-      e match {
-        case o: Ordering => o
-        case _ => Asc(e)
-      }
+    val order: Seq[Ordering] = fields.map {
+      case o: Ordering => o
+      case e => Asc(e)
     }
     new Table(tableEnv, Sort(order, logicalPlan).validate(tableEnv))
   }

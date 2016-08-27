@@ -81,7 +81,7 @@ class FunctionCatalog {
           case Success(seqCtor) =>
             Try(seqCtor.newInstance(children).asInstanceOf[Expression]) match {
               case Success(expr) => expr
-              case Failure(e) => throw new ValidationException(e.getMessage)
+              case Failure(e) => throw ValidationException(e.getMessage)
             }
           case Failure(e) =>
             val childrenClass = Seq.fill(children.length)(classOf[Expression])

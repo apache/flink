@@ -33,10 +33,10 @@ import org.apache.hive.hcatalog.data.schema.HCatFieldSchema
  *
  */
 class HCatInputFormat[T](
-                        database: String,
-                        table: String,
-                        config: Configuration
-                          ) extends HCatInputFormatBase[T](database, table, config) {
+  database: String,
+  table: String,
+  config: Configuration
+) extends HCatInputFormatBase[T](database, table, config) {
 
   def this(database: String, table: String) {
     this(database, table, new Configuration)
@@ -57,97 +57,83 @@ class HCatInputFormat[T](
     var i: Int = 0
     while (i < this.fieldNames.length) {
 
-        val o: AnyRef = record.get(this.fieldNames(i), this.outputSchema)
+      val o: AnyRef = record.get(this.fieldNames(i), this.outputSchema)
 
-        // partition columns are returned as String
-        //   Check and convert to actual type.
-        this.outputSchema.get(i).getType match {
-          case HCatFieldSchema.Type.INT =>
-            if (o.isInstanceOf[String]) {
-              vals(i) = o.asInstanceOf[String].toInt
-            }
-            else {
-              vals(i) = o.asInstanceOf[Int]
-            }
-          case HCatFieldSchema.Type.TINYINT =>
-            if (o.isInstanceOf[String]) {
-              vals(i) = o.asInstanceOf[String].toInt.toByte
-            }
-            else {
-              vals(i) = o.asInstanceOf[Byte]
-            }
-          case HCatFieldSchema.Type.SMALLINT =>
-            if (o.isInstanceOf[String]) {
-              vals(i) = o.asInstanceOf[String].toInt.toShort
-            }
-            else {
-              vals(i) = o.asInstanceOf[Short]
-            }
-          case HCatFieldSchema.Type.BIGINT =>
-            if (o.isInstanceOf[String]) {
-              vals(i) = o.asInstanceOf[String].toLong
-            }
-            else {
-              vals(i) = o.asInstanceOf[Long]
-            }
-          case HCatFieldSchema.Type.BOOLEAN =>
-            if (o.isInstanceOf[String]) {
-              vals(i) = o.asInstanceOf[String].toBoolean
-            }
-            else {
-              vals(i) = o.asInstanceOf[Boolean]
-            }
-          case HCatFieldSchema.Type.FLOAT =>
-            if (o.isInstanceOf[String]) {
-              vals(i) = o.asInstanceOf[String].toFloat
-            }
-            else {
-              vals(i) = o.asInstanceOf[Float]
-            }
-          case HCatFieldSchema.Type.DOUBLE =>
-            if (o.isInstanceOf[String]) {
-              vals(i) = o.asInstanceOf[String].toDouble
-            }
-            else {
-              vals(i) = o.asInstanceOf[Double]
-            }
-          case HCatFieldSchema.Type.STRING =>
-            vals(i) = o
-          case HCatFieldSchema.Type.BINARY =>
-            if (o.isInstanceOf[String]) {
-              throw new RuntimeException("Cannot handle partition keys of type BINARY.")
-            }
-            else {
-              vals(i) = o.asInstanceOf[Array[Byte]]
-            }
-          case HCatFieldSchema.Type.ARRAY =>
-            if (o.isInstanceOf[String]) {
-              throw new RuntimeException("Cannot handle partition keys of type ARRAY.")
-            }
-            else {
-              vals(i) = o.asInstanceOf[List[Object]]
-            }
-          case HCatFieldSchema.Type.MAP =>
-            if (o.isInstanceOf[String]) {
-              throw new RuntimeException("Cannot handle partition keys of type MAP.")
-            }
-            else {
-              vals(i) = o.asInstanceOf[Map[Object, Object]]
-            }
-          case HCatFieldSchema.Type.STRUCT =>
-            if (o.isInstanceOf[String]) {
-              throw new RuntimeException("Cannot handle partition keys of type STRUCT.")
-            }
-            else {
-              vals(i) = o.asInstanceOf[List[Object]]
-            }
-          case _ =>
-            throw new RuntimeException("Invalid type " + this.outputSchema.get(i).getType +
-              " encountered.")
-        }
-
-        i += 1
+      // partition columns are returned as String
+      //   Check and convert to actual type.
+      this.outputSchema.get(i).getType match {
+        case HCatFieldSchema.Type.INT =>
+          o match {
+            case s: String => vals(i) = s.toInt
+            case _ => vals(i) = o.asInstanceOf[Int]
+          }
+        case HCatFieldSchema.Type.TINYINT =>
+          o match {
+            case s: String => vals(i) = s.toInt.toByte
+            case _ => vals(i) = o.asInstanceOf[Byte]
+          }
+        case HCatFieldSchema.Type.SMALLINT =>
+          o match {
+            case s: String => vals(i) = s.toInt.toShort
+            case _ => vals(i) = o.asInstanceOf[Short]
+          }
+        case HCatFieldSchema.Type.BIGINT =>
+          o match {
+            case s: String => vals(i) = s.toLong
+            case _ => vals(i) = o.asInstanceOf[Long]
+          }
+        case HCatFieldSchema.Type.BOOLEAN =>
+          o match {
+            case s: String => vals(i) = s.toBoolean
+            case _ => vals(i) = o.asInstanceOf[Boolean]
+          }
+        case HCatFieldSchema.Type.FLOAT =>
+          o match {
+            case s: String => vals(i) = s.toFloat
+            case _ => vals(i) = o.asInstanceOf[Float]
+          }
+        case HCatFieldSchema.Type.DOUBLE =>
+          o match {
+            case s: String => vals(i) = s.toDouble
+            case _ => vals(i) = o.asInstanceOf[Double]
+          }
+        case HCatFieldSchema.Type.STRING =>
+          vals(i) = o
+        case HCatFieldSchema.Type.BINARY =>
+          if (o.isInstanceOf[String]) {
+            throw new RuntimeException("Cannot handle partition keys of type BINARY.")
+          }
+          else {
+            vals(i) = o.asInstanceOf[Array[Byte]]
+          }
+        case HCatFieldSchema.Type.ARRAY =>
+          if (o.isInstanceOf[String]) {
+            throw new RuntimeException("Cannot handle partition keys of type ARRAY.")
+          }
+          else {
+            vals(i) = o.asInstanceOf[List[Object]]
+          }
+        case HCatFieldSchema.Type.MAP =>
+          if (o.isInstanceOf[String]) {
+            throw new RuntimeException("Cannot handle partition keys of type MAP.")
+          }
+          else {
+            vals(i) = o.asInstanceOf[Map[Object, Object]]
+          }
+        case HCatFieldSchema.Type.STRUCT =>
+          if (o.isInstanceOf[String]) {
+            throw new RuntimeException("Cannot handle partition keys of type STRUCT.")
+          }
+          else {
+            vals(i) = o.asInstanceOf[List[Object]]
+          }
+        case _ =>
+          throw new RuntimeException("Invalid type " + this.outputSchema.get(i).getType +
+            " encountered.")
       }
+
+      i += 1
+    }
     createScalaTuple(vals)
   }
 
@@ -155,75 +141,75 @@ class HCatInputFormat[T](
 
     this.fieldNames.length match {
       case 1 =>
-        new Tuple1(vals(0)).asInstanceOf[T]
+        Tuple1(vals(0)).asInstanceOf[T]
       case 2 =>
-        new Tuple2(vals(0), vals(1)).asInstanceOf[T]
+        Tuple2(vals(0), vals(1)).asInstanceOf[T]
       case 3 =>
-        new Tuple3(vals(0), vals(1), vals(2)).asInstanceOf[T]
+        Tuple3(vals(0), vals(1), vals(2)).asInstanceOf[T]
       case 4 =>
-        new Tuple4(vals(0), vals(1), vals(2), vals(3)).asInstanceOf[T]
+        Tuple4(vals(0), vals(1), vals(2), vals(3)).asInstanceOf[T]
       case 5 =>
-        new Tuple5(vals(0), vals(1), vals(2), vals(3), vals(4)).asInstanceOf[T]
+        Tuple5(vals(0), vals(1), vals(2), vals(3), vals(4)).asInstanceOf[T]
       case 6 =>
-        new Tuple6(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5)).asInstanceOf[T]
+        Tuple6(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5)).asInstanceOf[T]
       case 7 =>
-        new Tuple7(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6)).asInstanceOf[T]
+        Tuple7(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6)).asInstanceOf[T]
       case 8 =>
-        new Tuple8(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7))
+        Tuple8(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7))
           .asInstanceOf[T]
       case 9 =>
-        new Tuple9(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple9(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8)).asInstanceOf[T]
       case 10 =>
-        new Tuple10(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple10(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9)).asInstanceOf[T]
       case 11 =>
-        new Tuple11(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple11(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10)).asInstanceOf[T]
       case 12 =>
-        new Tuple12(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple12(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11)).asInstanceOf[T]
       case 13 =>
-        new Tuple13(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple13(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12)).asInstanceOf[T]
       case 14 =>
-        new Tuple14(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple14(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13)).asInstanceOf[T]
       case 15 =>
-        new Tuple15(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple15(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13), vals(14)).asInstanceOf[T]
       case 16 =>
-        new Tuple16(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple16(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13), vals(14), vals(15))
           .asInstanceOf[T]
       case 17 =>
-        new Tuple17(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple17(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13), vals(14), vals(15),
           vals(16)).asInstanceOf[T]
       case 18 =>
-        new Tuple18(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple18(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13), vals(14), vals(15),
           vals(16), vals(17)).asInstanceOf[T]
       case 19 =>
-        new Tuple19(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple19(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13), vals(14), vals(15),
           vals(16), vals(17), vals(18)).asInstanceOf[T]
       case 20 =>
-        new Tuple20(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple20(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13), vals(14), vals(15),
           vals(16), vals(17), vals(18), vals(19)).asInstanceOf[T]
       case 21 =>
-        new Tuple21(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple21(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13), vals(14), vals(15),
           vals(16), vals(17), vals(18), vals(19), vals(20)).asInstanceOf[T]
       case 22 =>
-        new Tuple22(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
+        Tuple22(vals(0), vals(1), vals(2), vals(3), vals(4), vals(5), vals(6), vals(7),
           vals(8), vals(9), vals(10), vals(11), vals(12), vals(13), vals(14), vals(15),
           vals(16), vals(17), vals(18), vals(19), vals(20), vals(21)).asInstanceOf[T]
       case _ =>
         throw new RuntimeException("Only up to 22 fields supported for Scala Tuples.")
 
-  }
+    }
 
   }
 }

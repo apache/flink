@@ -40,7 +40,7 @@ package object scala {
 
   private[flink] def cleanClosure[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
     ClosureCleaner.clean(f, checkSerializable)
-    return f
+    f
   }
 }
 

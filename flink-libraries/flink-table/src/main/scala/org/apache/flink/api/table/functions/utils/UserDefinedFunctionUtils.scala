@@ -145,7 +145,7 @@ object UserDefinedFunctionUtils {
     // find method for signature
     val evalMethod = scalarFunction.getEvalMethods
       .find(m => signature.sameElements(m.getParameterTypes))
-      .getOrElse(throw new ValidationException("Given signature is invalid."))
+      .getOrElse(throw ValidationException("Given signature is invalid."))
 
     val userDefinedTypeInfo = scalarFunction.getResultType(signature)
     if (userDefinedTypeInfo != null) {
@@ -155,7 +155,7 @@ object UserDefinedFunctionUtils {
         TypeExtractor.getForClass(evalMethod.getReturnType)
       } catch {
         case ite: InvalidTypesException =>
-          throw new ValidationException(s"Return type of scalar function '$this' cannot be " +
+          throw ValidationException(s"Return type of scalar function '$this' cannot be " +
             s"automatically determined. Please provide type information manually.")
       }
     }

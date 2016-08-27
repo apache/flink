@@ -40,13 +40,13 @@ class DataSetAggregateRule
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
     if (distinctAggs) {
-      throw new TableException("DISTINCT aggregates are currently not supported.")
+      throw TableException("DISTINCT aggregates are currently not supported.")
     }
 
     // check if we have grouping sets
     val groupSets = agg.getGroupSets.size() != 1 || agg.getGroupSets.get(0) != agg.getGroupSet
     if (groupSets || agg.indicator) {
-      throw new TableException("GROUPING SETS are currently not supported.")
+      throw TableException("GROUPING SETS are currently not supported.")
     }
 
     !distinctAggs && !groupSets && !agg.indicator

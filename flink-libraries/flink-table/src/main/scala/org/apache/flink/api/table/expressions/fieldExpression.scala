@@ -19,13 +19,13 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.UnresolvedException
 import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure}
 
 trait NamedExpression extends Expression {
   private[flink] def name: String
+
   private[flink] def toAttribute: Attribute
 }
 
@@ -39,19 +39,20 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
 
   override def toString = "\"" + name
 
-  override private[flink] def withName(newName: String): Attribute =
-    UnresolvedFieldReference(newName)
+  override private[flink] def withName(newName: String): Attribute = UnresolvedFieldReference(newName)
 
-  override private[flink] def resultType: TypeInformation[_] =
-    throw new UnresolvedException(s"calling resultType on ${this.getClass}")
+  override private[flink] def resultType: TypeInformation[_] = {
+    throw UnresolvedException(s"calling resultType on ${this.getClass}")
+  }
 
-  override private[flink] def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ExprValidationResult = {
     ValidationFailure(s"Unresolved reference $name")
+  }
 }
 
 case class ResolvedFieldReference(
-    name: String,
-    resultType: TypeInformation[_]) extends Attribute {
+  name: String,
+  resultType: TypeInformation[_]) extends Attribute {
 
   override def toString = s"'$name"
 
@@ -69,7 +70,7 @@ case class ResolvedFieldReference(
 }
 
 case class Alias(child: Expression, name: String)
-    extends UnaryExpression with NamedExpression {
+  extends UnaryExpression with NamedExpression {
 
   override def toString = s"$child as '$name"
 
@@ -96,13 +97,13 @@ case class Alias(child: Expression, name: String)
 case class UnresolvedAlias(child: Expression) extends UnaryExpression with NamedExpression {
 
   override private[flink] def name: String =
-    throw new UnresolvedException("Invalid call to name on UnresolvedAlias")
+    throw UnresolvedException("Invalid call to name on UnresolvedAlias")
 
   override private[flink] def toAttribute: Attribute =
-    throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
+    throw UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
+    throw UnresolvedException("Invalid call to resultType on UnresolvedAlias")
 
   override private[flink] lazy val valid = false
 }

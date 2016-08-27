@@ -31,13 +31,13 @@ abstract class FlinkTable[T](
   extends AbstractTable {
 
   if (fieldIndexes.length != fieldNames.length) {
-    throw new TableException(
+    throw TableException(
       "Number of field indexes and field names must be equal.")
   }
 
   // check uniqueness of field names
   if (fieldNames.length != fieldNames.toSet.size) {
-    throw new TableException(
+    throw TableException(
       "Table field names must be unique.")
   }
 
@@ -45,14 +45,14 @@ abstract class FlinkTable[T](
     typeInfo match {
       case cType: CompositeType[T] =>
         if (fieldNames.length != cType.getArity) {
-          throw new TableException(
+          throw TableException(
           s"Arity of type (" + cType.getFieldNames.deep + ") " +
             "not equal to number of field names " + fieldNames.deep + ".")
         }
         fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
       case aType: AtomicType[T] =>
         if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
-          throw new TableException(
+          throw TableException(
             "Non-composite input type may have only a single field and its index must be 0.")
         }
         Array(aType)

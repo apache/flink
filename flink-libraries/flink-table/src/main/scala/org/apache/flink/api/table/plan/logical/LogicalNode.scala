@@ -140,7 +140,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
   }
 
   protected def failValidation(msg: String): Nothing = {
-    throw new ValidationException(msg)
+    throw ValidationException(msg)
   }
 }
 

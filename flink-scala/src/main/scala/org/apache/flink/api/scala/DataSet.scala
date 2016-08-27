@@ -749,10 +749,10 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     *
     */
   def maxBy(fields: Int*) : DataSet[T] = {
-    if (!getType.isTupleType) {
+    if (!getType().isTupleType) {
       throw new InvalidProgramException("DataSet#maxBy(int...) only works on Tuple types.")
     }
-    reduce(new SelectByMaxFunction[T](getType.asInstanceOf[TupleTypeInfoBase[T]], fields.toArray))
+    reduce(new SelectByMaxFunction[T](getType().asInstanceOf[TupleTypeInfoBase[T]], fields.toArray))
   }
 
   /**

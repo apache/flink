@@ -464,9 +464,7 @@ case class Join(
   }
 }
 
-case class CatalogNode(
-    tableName: String,
-    rowType: RelDataType) extends LeafNode {
+case class CatalogNode(tableName: String, rowType: RelDataType) extends LeafNode {
 
   val output: Seq[Attribute] = rowType.getFieldList.asScala.map { field =>
     ResolvedFieldReference(field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
@@ -482,8 +480,7 @@ case class CatalogNode(
 /**
   * Wrapper for valid logical plans generated from SQL String.
   */
-case class LogicalRelNode(
-    relNode: RelNode) extends LeafNode {
+case class LogicalRelNode(relNode: RelNode) extends LeafNode {
 
   val output: Seq[Attribute] = relNode.getRowType.getFieldList.asScala.map { field =>
     ResolvedFieldReference(field.getName, FlinkTypeFactory.toTypeInfo(field.getType))

@@ -106,7 +106,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         functionCatalog.registerSqlFunction(sf.getSqlFunction(name, typeFactory))
 
       case _ =>
-        throw new TableException("Unsupported user-defined function type.")
+        throw TableException("Unsupported user-defined function type.")
     }
   }
 
@@ -121,7 +121,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     // check that table belongs to this table environment
     if (table.tableEnv != this) {
-      throw new ValidationException(
+      throw ValidationException(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
@@ -151,7 +151,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     if (isRegistered(name)) {
       tables.add(name, table)
     } else {
-      throw new TableException(s"Table \'$name\' is not registered.")
+      throw TableException(s"Table \'$name\' is not registered.")
     }
   }
 
@@ -185,7 +185,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
 
     if (isRegistered(name)) {
-      throw new TableException(s"Table \'$name\' already exists. " +
+      throw TableException(s"Table \'$name\' already exists. " +
         s"Please, choose a different name.")
     } else {
       tables.add(name, table)
@@ -262,7 +262,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       case c: CaseClassTypeInfo[A] => c.getFieldNames
       case p: PojoTypeInfo[A] => p.getFieldNames
       case tpe =>
-        throw new TableException(s"Type $tpe lacks explicit field naming")
+        throw TableException(s"Type $tpe lacks explicit field naming")
     }
     val fieldIndexes = fieldNames.indices.toArray
     (fieldNames, fieldIndexes)
@@ -284,11 +284,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     val indexedNames: Array[(Int, String)] = inputType match {
       case a: AtomicType[A] =>
         if (exprs.length != 1) {
-          throw new TableException("Table of atomic type can only have a single field.")
+          throw TableException("Table of atomic type can only have a single field.")
         }
         exprs.map {
           case UnresolvedFieldReference(name) => (0, name)
-          case _ => throw new TableException("Field reference expression expected.")
+          case _ => throw TableException("Field reference expression expected.")
         }
       case t: TupleTypeInfo[A] =>
         exprs.zipWithIndex.map {
@@ -296,10 +296,10 @@ abstract class TableEnvironment(val config: TableConfig) {
           case (Alias(UnresolvedFieldReference(origName), name), _) =>
             val idx = t.getFieldIndex(origName)
             if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $t")
+              throw TableException(s"$origName is not a field of type $t")
             }
             (idx, name)
-          case _ => throw new TableException(
+          case _ => throw TableException(
             "Field reference expression or alias on field expression expected.")
         }
       case c: CaseClassTypeInfo[A] =>
@@ -308,10 +308,10 @@ abstract class TableEnvironment(val config: TableConfig) {
           case (Alias(UnresolvedFieldReference(origName), name), _) =>
             val idx = c.getFieldIndex(origName)
             if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $c")
+              throw TableException(s"$origName is not a field of type $c")
             }
             (idx, name)
-          case _ => throw new TableException(
+          case _ => throw TableException(
             "Field reference expression or alias on field expression expected.")
         }
       case p: PojoTypeInfo[A] =>
@@ -319,19 +319,19 @@ abstract class TableEnvironment(val config: TableConfig) {
           case (UnresolvedFieldReference(name)) =>
             val idx = p.getFieldIndex(name)
             if (idx < 0) {
-              throw new TableException(s"$name is not a field of type $p")
+              throw TableException(s"$name is not a field of type $p")
             }
             (idx, name)
           case Alias(UnresolvedFieldReference(origName), name) =>
             val idx = p.getFieldIndex(origName)
             if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $p")
+              throw TableException(s"$origName is not a field of type $p")
             }
             (idx, name)
-          case _ => throw new TableException(
+          case _ => throw TableException(
             "Field reference expression or alias on field expression expected.")
         }
-      case tpe => throw new TableException(
+      case tpe => throw TableException(
         s"Source of type $tpe cannot be converted into Table.")
     }
 

@@ -72,7 +72,7 @@ abstract class StreamTableEnvironment(
     val m = internalNamePattern.findFirstIn(name)
     m match {
       case Some(_) =>
-        throw new TableException(s"Illegal Table name. " +
+        throw TableException(s"Illegal Table name. " +
           s"Please choose a name that does not contain the pattern $internalNamePattern")
       case None =>
     }
@@ -97,7 +97,7 @@ abstract class StreamTableEnvironment(
       new Table(this, CatalogNode(tableName, getRowType(tableName)))
     }
     else {
-      throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
+      throw ValidationException(s"Table \'$tableName\' was not found in the registry.")
     }
   }
 
@@ -155,7 +155,7 @@ abstract class StreamTableEnvironment(
         // Give the DataSet to the TableSink to emit it.
         streamSink.emitDataStream(result)
       case _ =>
-        throw new TableException("StreamTableSink required to emit streaming Table")
+        throw TableException("StreamTableSink required to emit streaming Table")
     }
   }
 
@@ -209,21 +209,18 @@ abstract class StreamTableEnvironment(
     fields: Array[Expression],
     wrapper: Boolean): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType, fields.toArray)
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType, fields)
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
-      fieldIndexes.toArray,
-      fieldNames.toArray
+      fieldIndexes,
+      fieldNames
     )
     // when registering a DataStream, we need to wrap it into a StreamableTable
     // so that the SQL validation phase won't fail
+    registerTableInternal(name, dataStreamTable)
     if (wrapper) {
-      registerTableInternal(name, dataStreamTable)
       val t = ingest(name)
       replaceRegisteredTable(name, new TransStreamTable(t.getRelNode, true))
-    }
-    else {
-      registerTableInternal(name, dataStreamTable)
     }
   }
 
@@ -254,7 +251,7 @@ abstract class StreamTableEnvironment(
     }
     catch {
       case e: CannotPlanException =>
-        throw new TableException(
+        throw TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(relNode)}\n" +
             s"This exception indicates that the query uses an unsupported SQL feature.\n" +

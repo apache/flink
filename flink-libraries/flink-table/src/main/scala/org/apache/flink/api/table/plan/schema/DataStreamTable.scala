@@ -23,17 +23,20 @@ import org.apache.flink.api.table.FlinkTypeFactory
 import org.apache.flink.streaming.api.datastream.DataStream
 
 class DataStreamTable[T](
-    val dataStream: DataStream[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String])
-  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames) {
+  val dataStream: DataStream[T],
+  override val fieldIndexes: Array[Int],
+  override val fieldNames: Array[String]
+) extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames) {
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
     val builder = typeFactory.builder
-    fieldNames.zip(fieldTypes)
-      .foreach( f =>
-        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true) )
+    fieldNames
+      .zip(fieldTypes)
+      .foreach { f =>
+        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
+      }
+
     builder.build
   }
 }
