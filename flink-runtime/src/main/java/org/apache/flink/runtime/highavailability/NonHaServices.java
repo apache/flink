@@ -61,6 +61,11 @@ public class NonHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
+	public LeaderElectionService getResourceManagerLeaderElectionService() throws Exception {
+		return new StandaloneLeaderElectionService();
+	}
+
+	@Override
 	public LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception {
 		return new StandaloneLeaderElectionService();
 	}
