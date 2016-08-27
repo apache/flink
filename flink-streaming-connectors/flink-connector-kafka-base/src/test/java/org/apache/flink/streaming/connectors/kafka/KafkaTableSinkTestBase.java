@@ -17,123 +17,89 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.internals.TypeUtil;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Properties;
 
-import static org.apache.flink.test.util.TestUtils.tryExecute;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
-public abstract class KafkaTableSinkTestBase extends KafkaTestBase implements Serializable {
+public abstract class KafkaTableSinkTestBase implements Serializable {
 
-	protected final static String TOPIC = "customPartitioningTestTopic";
-	protected final static int PARALLELISM = 1;
-	protected final static String[] FIELD_NAMES = new String[] {"field1", "field2"};
-	protected final static TypeInformation[] FIELD_TYPES = TypeUtil.toTypeInfo(new Class[] {Integer.class, String.class});
+	private final static String TOPIC = "testTopic";
+	private final static String[] FIELD_NAMES = new String[] {"field1", "field2"};
+	private final static TypeInformation[] FIELD_TYPES = TypeUtil.toTypeInfo(new Class[] {Integer.class, String.class});
+
+	private final KafkaPartitioner<Row> partitioner = new CustomPartitioner();
+	private final Properties properties = createSinkProperties();
+	@SuppressWarnings("unchecked")
+	private final FlinkKafkaProducerBase<Row> kafkaProducer = mock(FlinkKafkaProducerBase.class);
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testKafkaTableSink() throws Exception {
-		LOG.info("Starting KafkaTableSinkTestBase.testKafkaTableSink()");
+		DataStream dataStream = mock(DataStream.class);
+		KafkaTableSink kafkaTableSink = createTableSink();
+		kafkaTableSink.emitDataStream(dataStream);
 
-		createTestTopic(TOPIC, PARALLELISM, 1);
-		StreamExecutionEnvironment env = createEnvironment();
-
-		createProducingTopology(env);
-		createConsumingTopology(env);
-
-		tryExecute(env, "custom partitioning test");
-		deleteTestTopic(TOPIC);
-		LOG.info("Finished KafkaTableSinkTestBase.testKafkaTableSink()");
+		verify(dataStream).addSink(kafkaProducer);
 	}
 
-	private StreamExecutionEnvironment createEnvironment() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env.setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
-		return env;
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testCreatedProducer() throws Exception {
+		DataStream dataStream = mock(DataStream.class);
+		KafkaTableSink kafkaTableSink = spy(createTableSink());
+		kafkaTableSink.emitDataStream(dataStream);
+
+		verify(kafkaTableSink).createKafkaProducer(
+			eq(TOPIC),
+			eq(properties),
+			any(getSerializationSchema()),
+			eq(partitioner));
 	}
 
-	private void createProducingTopology(StreamExecutionEnvironment env) {
-		DataStream<Row> stream = env.addSource(new SourceFunction<Row>() {
-			private boolean running = true;
+	@Test
+	public void testConfiguration() {
+		KafkaTableSink kafkaTableSink = createTableSink();
+		KafkaTableSink newKafkaTableSink = kafkaTableSink.configure(FIELD_NAMES, FIELD_TYPES);
+		assertNotSame(kafkaTableSink, newKafkaTableSink);
 
-			@Override
-			public void run(SourceContext<Row> ctx) throws Exception {
-				long cnt = 0;
-				while (running) {
-					Row row = new Row(2);
-					row.setField(0, cnt);
-					row.setField(1, "kafka-" + cnt);
-					ctx.collect(row);
-					cnt++;
-				}
-			}
-
-			@Override
-			public void cancel() {
-				running = false;
-			}
-		})
-		.setParallelism(1);
-
-		KafkaTableSink kafkaTableSinkBase = createTableSink();
-
-		kafkaTableSinkBase.emitDataStream(stream);
+		assertArrayEquals(FIELD_NAMES, newKafkaTableSink.getFieldNames());
+		assertArrayEquals(FIELD_TYPES, newKafkaTableSink.getFieldTypes());
+		assertEquals(new RowTypeInfo(FIELD_TYPES), newKafkaTableSink.getOutputType());
 	}
 
-	private void createConsumingTopology(StreamExecutionEnvironment env) {
-		DeserializationSchema<Row> deserializationSchema = createRowDeserializationSchema();
+	protected abstract KafkaTableSink createTableSink(String topic, Properties properties,
+			KafkaPartitioner<Row> partitioner, FlinkKafkaProducerBase<Row> kafkaProducer);
 
-		FlinkKafkaConsumerBase<Row> source = kafkaServer.getConsumer(TOPIC, deserializationSchema, standardProps);
+	protected abstract Class<SerializationSchema<Row>> getSerializationSchema();
 
-		env.addSource(source).setParallelism(PARALLELISM)
-			.map(new RichMapFunction<Row, Integer>() {
-				@Override
-				public Integer map(Row value) {
-					return (Integer) value.productElement(0);
-				}
-			}).setParallelism(PARALLELISM)
-
-			.addSink(new SinkFunction<Integer>() {
-				HashSet<Integer> ids = new HashSet<>();
-				@Override
-				public void invoke(Integer value) throws Exception {
-					ids.add(value);
-
-					if (ids.size() == 100) {
-						throw new SuccessException();
-					}
-				}
-			}).setParallelism(1);
+	private KafkaTableSink createTableSink() {
+		return createTableSink(TOPIC, properties, partitioner, kafkaProducer);
 	}
 
-	protected KafkaPartitioner<Row> createPartitioner() {
-		return new CustomPartitioner();
+	private static Properties createSinkProperties() {
+		Properties properties = new Properties();
+		properties.setProperty("testKey", "testValue");
+		return properties;
 	}
 
-	protected Properties createSinkProperties() {
-		return FlinkKafkaProducerBase.getPropertiesFromBrokerList(KafkaTestBase.brokerConnectionStrings);
-	}
-
-	protected abstract KafkaTableSink createTableSink();
-
-	protected abstract DeserializationSchema<Row> createRowDeserializationSchema();
-
-
-	public static class CustomPartitioner extends KafkaPartitioner<Row> implements Serializable {
+	private static class CustomPartitioner extends KafkaPartitioner<Row> implements Serializable {
 		@Override
 		public int partition(Row next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
 			return 0;
