@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.math.BigDecimal
 import org.apache.flink.api.table.Row
 import org.junit.Test
 import org.junit.Assert.assertEquals
@@ -63,8 +64,13 @@ abstract class AggregateTestBase[T] {
         finalAgg(rows)
       }
 
-      assertEquals(expected, result)
-
+      (expected, result) match {
+        case (e: BigDecimal, r: BigDecimal) =>
+          // BigDecimal.equals() value and scale but we are only interested in value.
+          assert(e.compareTo(r) == 0)
+        case _ =>
+          assertEquals(expected, result)
+      }
     }
   }
 

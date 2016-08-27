@@ -69,7 +69,7 @@ public interface StreamOperator<OUT> extends Serializable {
 
 	 * <p>
 	 * The method is expected to flush all remaining buffered data. Exceptions during this flushing
-	 * of buffered should be propagated, in order to cause the operation to be recognized asa failed,
+	 * of buffered should be propagated, in order to cause the operation to be recognized as failed,
 	 * because the last data items are not processed properly.
 	 * 
 	 * @throws java.lang.Exception An exception in this method causes the operator to fail.
@@ -115,13 +115,11 @@ public interface StreamOperator<OUT> extends Serializable {
 	 *
 	 * @param state The state of operator that was snapshotted as part of checkpoint
 	 *              from which the execution is restored.
-	 * 
-	 * @param recoveryTimestamp Global recovery timestamp
 	 *
 	 * @throws Exception Exceptions during state restore should be forwarded, so that the system can
 	 *                   properly react to failed state restore and fail the execution attempt.
 	 */
-	void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception;
+	void restoreState(StreamTaskState state) throws Exception;
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.
@@ -141,12 +139,6 @@ public interface StreamOperator<OUT> extends Serializable {
 
 	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
 
-	/**
-	 * An operator can return true here to disable copying of its input elements. This overrides
-	 * the object-reuse setting on the {@link org.apache.flink.api.common.ExecutionConfig}
-	 */
-	boolean isInputCopyingDisabled();
-	
 	ChainingStrategy getChainingStrategy();
 
 	void setChainingStrategy(ChainingStrategy strategy);

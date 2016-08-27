@@ -27,89 +27,90 @@ import org.apache.flink.api.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.table.validate._
 
 case class Abs(child: Expression) extends UnaryExpression {
-  override def resultType: TypeInformation[_] = child.resultType
+  override private[flink] def resultType: TypeInformation[_] = child.resultType
 
-  override def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ExprValidationResult =
     TypeCheckUtils.assertNumericExpr(child.resultType, "Abs")
 
-  override def toString(): String = s"abs($child)"
+  override def toString: String = s"abs($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.ABS, child.toRexNode)
   }
 }
 
 case class Ceil(child: Expression) extends UnaryExpression {
-  override def resultType: TypeInformation[_] = LONG_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = LONG_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ExprValidationResult =
     TypeCheckUtils.assertNumericExpr(child.resultType, "Ceil")
 
-  override def toString(): String = s"ceil($child)"
+  override def toString: String = s"ceil($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.CEIL, child.toRexNode)
   }
 }
 
 case class Exp(child: Expression) extends UnaryExpression with InputTypeSpec {
-  override def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  override def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
 
-  override def toString(): String = s"exp($child)"
+  override def toString: String = s"exp($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.EXP, child.toRexNode)
   }
 }
 
 
 case class Floor(child: Expression) extends UnaryExpression {
-  override def resultType: TypeInformation[_] = LONG_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = LONG_TYPE_INFO
 
-  override def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ExprValidationResult =
     TypeCheckUtils.assertNumericExpr(child.resultType, "Floor")
 
-  override def toString(): String = s"floor($child)"
+  override def toString: String = s"floor($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.FLOOR, child.toRexNode)
   }
 }
 
 case class Log10(child: Expression) extends UnaryExpression with InputTypeSpec {
-  override def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  override def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
 
-  override def toString(): String = s"log10($child)"
+  override def toString: String = s"log10($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.LOG10, child.toRexNode)
   }
 }
 
 case class Ln(child: Expression) extends UnaryExpression with InputTypeSpec {
-  override def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  override def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
 
-  override def toString(): String = s"ln($child)"
+  override def toString: String = s"ln($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.LN, child.toRexNode)
   }
 }
 
 case class Power(left: Expression, right: Expression) extends BinaryExpression with InputTypeSpec {
-  override def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  override def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: DOUBLE_TYPE_INFO :: Nil
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    DOUBLE_TYPE_INFO :: DOUBLE_TYPE_INFO :: Nil
 
-  override def toString(): String = s"pow($left, $right)"
+  override def toString: String = s"pow($left, $right)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.POWER, left.toRexNode, right.toRexNode)
   }
 }

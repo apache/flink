@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.TaskMetricGroup;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -42,7 +43,9 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.util.SerializedValue;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -137,7 +140,7 @@ public class TaskAsyncCallTest {
 		}
 	}
 	
-	private static Task createTask() {
+	private static Task createTask() throws Exception {
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 		
@@ -147,10 +150,12 @@ public class TaskAsyncCallTest {
 		when(networkEnvironment.getPartitionManager()).thenReturn(partitionManager);
 		when(networkEnvironment.getPartitionConsumableNotifier()).thenReturn(consumableNotifier);
 		when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
+		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
+				.thenReturn(mock(TaskKvStateRegistry.class));
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
 				new JobID(), "Job Name", new JobVertexID(), new ExecutionAttemptID(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				"Test Task", 0, 1, 0,
 				new Configuration(), new Configuration(),
 				CheckpointsInOrderInvokable.class.getName(),
@@ -199,9 +204,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void setInitialState(StateHandle<Serializable> stateHandle, long ts) throws Exception {
-
-		}
+		public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {}
 
 		@Override
 		public boolean triggerCheckpoint(long checkpointId, long timestamp) {

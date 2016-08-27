@@ -24,38 +24,56 @@ package org.apache.flink.runtime.jobgraph;
 public enum JobStatus {
 
 	/** Job is newly created, no task has started to run. */
-	CREATED(false),
+	CREATED(TerminalState.NON_TERMINAL),
 
 	/** Some tasks are scheduled or running, some may be pending, some may be finished. */
-	RUNNING(false),
+	RUNNING(TerminalState.NON_TERMINAL),
 
 	/** The job has failed and is currently waiting for the cleanup to complete */
-	FAILING(false),
+	FAILING(TerminalState.NON_TERMINAL),
 	
 	/** The job has failed with a non-recoverable task failure */
-	FAILED(true),
+	FAILED(TerminalState.GLOBALLY),
 
 	/** Job is being cancelled */
-	CANCELLING(false),
+	CANCELLING(TerminalState.NON_TERMINAL),
 	
 	/** Job has been cancelled */
-	CANCELED(true),
+	CANCELED(TerminalState.GLOBALLY),
 
 	/** All of the job's tasks have successfully finished. */
-	FINISHED(true),
+	FINISHED(TerminalState.GLOBALLY),
 	
 	/** The job is currently undergoing a reset and total restart */
-	RESTARTING(false);
+	RESTARTING(TerminalState.NON_TERMINAL),
+
+	/**
+	 * The job has been suspended which means that it has been stopped but not been removed from a
+	 * potential HA job store.
+	 */
+	SUSPENDED(TerminalState.LOCALLY);
 	
 	// --------------------------------------------------------------------------------------------
+
+	private enum TerminalState {
+		NON_TERMINAL,
+		LOCALLY,
+		GLOBALLY
+	}
 	
-	private final boolean terminalState;
+	private final TerminalState terminalState;
 	
-	JobStatus(boolean terminalState) {
+	JobStatus(TerminalState terminalState) {
 		this.terminalState = terminalState;
 	}
 	
+	public boolean isGloballyTerminalState() {
+		return terminalState == TerminalState.GLOBALLY;
+	}
+
 	public boolean isTerminalState() {
-		return terminalState;
+		return terminalState != TerminalState.NON_TERMINAL;
 	}
 }
+
+

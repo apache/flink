@@ -189,33 +189,33 @@ public class JarFileCreator {
 			this.outputFile.delete();
 		}
 
-		final JarOutputStream jos = new JarOutputStream(new FileOutputStream(this.outputFile), new Manifest());
-		final Iterator<Class<?>> it = this.classSet.iterator();
-		while (it.hasNext()) {
+		try ( JarOutputStream jos = new JarOutputStream(new FileOutputStream(this.outputFile), new Manifest())) {
+			final Iterator<Class<?>> it = this.classSet.iterator();
+			while (it.hasNext()) {
 
-			final Class<?> clazz = it.next();
-			final String entry = clazz.getName().replace('.', '/') + CLASS_EXTENSION;
+				final Class<?> clazz = it.next();
+				final String entry = clazz.getName().replace('.', '/') + CLASS_EXTENSION;
 
-			jos.putNextEntry(new JarEntry(entry));
+				jos.putNextEntry(new JarEntry(entry));
 
-			String name = clazz.getName();
-			int n = name.lastIndexOf('.');
-			String className = null;
-			if (n > -1) {
-				className = name.substring(n + 1, name.length());
+				String name = clazz.getName();
+				int n = name.lastIndexOf('.');
+				String className = null;
+				if (n > -1) {
+					className = name.substring(n + 1, name.length());
+				}
+				//Using the part after last dot instead of class.getSimpleName() could resolve the problem of inner class.
+				final InputStream classInputStream = clazz.getResourceAsStream(className + CLASS_EXTENSION);
+
+				int num = classInputStream.read(buf);
+				while (num != -1) {
+					jos.write(buf, 0, num);
+					num = classInputStream.read(buf);
+				}
+
+				classInputStream.close();
+				jos.closeEntry();
 			}
-			//Using the part after last dot instead of class.getSimpleName() could resolve the problem of inner class.
-			final InputStream classInputStream = clazz.getResourceAsStream(className + CLASS_EXTENSION);
-
-			int num = classInputStream.read(buf);
-			while (num != -1) {
-				jos.write(buf, 0, num);
-				num = classInputStream.read(buf);
-			}
-
-			classInputStream.close();
-			jos.closeEntry();
 		}
-		jos.close();
 	}
 }

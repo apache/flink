@@ -25,26 +25,27 @@ import org.apache.flink.api.table.UnresolvedException
 import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure}
 
 trait NamedExpression extends Expression {
-  def name: String
-  def toAttribute: Attribute
+  private[flink] def name: String
+  private[flink] def toAttribute: Attribute
 }
 
 abstract class Attribute extends LeafExpression with NamedExpression {
-  override def toAttribute: Attribute = this
+  override private[flink] def toAttribute: Attribute = this
 
-  def withName(newName: String): Attribute
+  private[flink] def withName(newName: String): Attribute
 }
 
 case class UnresolvedFieldReference(name: String) extends Attribute {
 
   override def toString = "\"" + name
 
-  override def withName(newName: String): Attribute = UnresolvedFieldReference(newName)
+  override private[flink] def withName(newName: String): Attribute =
+    UnresolvedFieldReference(newName)
 
-  override def resultType: TypeInformation[_] =
+  override private[flink] def resultType: TypeInformation[_] =
     throw new UnresolvedException(s"calling resultType on ${this.getClass}")
 
-  override def validateInput(): ExprValidationResult =
+  override private[flink] def validateInput(): ExprValidationResult =
     ValidationFailure(s"Unresolved reference $name")
 }
 
@@ -54,11 +55,11 @@ case class ResolvedFieldReference(
 
   override def toString = s"'$name"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.field(name)
   }
 
-  override def withName(newName: String): Attribute = {
+  override private[flink] def withName(newName: String): Attribute = {
     if (newName == name) {
       this
     } else {
@@ -72,18 +73,18 @@ case class Alias(child: Expression, name: String)
 
   override def toString = s"$child as '$name"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.alias(child.toRexNode, name)
   }
 
-  override def resultType: TypeInformation[_] = child.resultType
+  override private[flink] def resultType: TypeInformation[_] = child.resultType
 
-  override def makeCopy(anyRefs: Array[AnyRef]): this.type = {
+  override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
     copy(child, name).asInstanceOf[this.type]
   }
 
-  override def toAttribute: Attribute = {
+  override private[flink] def toAttribute: Attribute = {
     if (valid) {
       ResolvedFieldReference(name, child.resultType)
     } else {
@@ -94,14 +95,14 @@ case class Alias(child: Expression, name: String)
 
 case class UnresolvedAlias(child: Expression) extends UnaryExpression with NamedExpression {
 
-  override def name: String =
+  override private[flink] def name: String =
     throw new UnresolvedException("Invalid call to name on UnresolvedAlias")
 
-  override def toAttribute: Attribute =
+  override private[flink] def toAttribute: Attribute =
     throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
 
-  override def resultType: TypeInformation[_] =
+  override private[flink] def resultType: TypeInformation[_] =
     throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
 
-  override lazy val valid = false
+  override private[flink] lazy val valid = false
 }

@@ -67,7 +67,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -148,7 +148,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 		// -----------------------------------------------------------------------------------------
 
 		// Setup
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.toURI().toString());
 
 		// Akka and restart timeouts
@@ -564,7 +564,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			fail(fsCheckpoints + " does not exist: " + Arrays.toString(FileStateBackendBasePath.listFiles()));
 		}
 
-		File fsRecovery = new File(new URI(config.getString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "")).getPath());
+		File fsRecovery = new File(new URI(config.getString(ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH, "")).getPath());
 
 		LOG.info("Checking " + fsRecovery);
 

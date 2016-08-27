@@ -61,6 +61,7 @@ public class NoOpChainedDriver<IT> extends ChainedDriver<IT, IT> {
 	@Override
 	public void collect(IT record) {
 		try {
+			this.numRecordsIn.inc();
 			this.outputCollector.collect(record);
 		} catch (Exception ex) {
 			throw new ExceptionInChainedStubException(this.taskName, ex);

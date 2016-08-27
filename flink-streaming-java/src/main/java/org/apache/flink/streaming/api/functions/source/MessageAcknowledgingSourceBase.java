@@ -102,8 +102,6 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	 */
 	private transient Set<UId> idsProcessedButNotAcknowledged;
 
-	protected int numCheckpointsToKeep = 10;
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -127,8 +125,12 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		idsForCurrentCheckpoint = new ArrayList<>(64);
-		pendingCheckpoints = new ArrayDeque<>(numCheckpointsToKeep);
-		idsProcessedButNotAcknowledged = new HashSet<>();
+		if (pendingCheckpoints == null) {
+			pendingCheckpoints = new ArrayDeque<>();
+		}
+		if (idsProcessedButNotAcknowledged == null) {
+			idsProcessedButNotAcknowledged = new HashSet<>();
+		}
 	}
 
 	@Override
@@ -177,6 +179,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 
 	@Override
 	public void restoreState(SerializedCheckpointData[] state) throws Exception {
+		idsProcessedButNotAcknowledged = new HashSet<>();
 		pendingCheckpoints = SerializedCheckpointData.toDeque(state, idSerializer);
 		// build a set which contains all processed ids. It may be used to check if we have
 		// already processed an incoming message.

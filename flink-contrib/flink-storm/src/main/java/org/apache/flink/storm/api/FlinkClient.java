@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+
 import backtype.storm.Config;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
@@ -32,13 +33,13 @@ import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
 
 import com.esotericsoftware.kryo.Serializer;
-import com.google.common.collect.Lists;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -51,6 +52,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -205,16 +207,16 @@ public class FlinkClient {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
 
-		final Client client;
+		final ClusterClient client;
 		try {
-			client = new Client(configuration);
+			client = new StandaloneClusterClient(configuration);
 		} catch (final IOException e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 
 		try {
 			ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
-					Lists.newArrayList(uploadedJarUrl),
+					Collections.<URL>singletonList(uploadedJarUrl),
 					Collections.<URL>emptyList(),
 					this.getClass().getClassLoader());
 			client.runDetached(jobGraph, classLoader);
@@ -241,13 +243,13 @@ public class FlinkClient {
 			}
 		}
 
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, this.jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, this.jobManagerPort);
 
-		final Client client;
+		final ClusterClient client;
 		try {
-			client = new Client(configuration);
+			client = new StandaloneClusterClient(configuration);
 		} catch (final IOException e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
@@ -270,7 +272,7 @@ public class FlinkClient {
 	 * @return Flink's internally used {@link JobID}.
 	 */
 	JobID getTopologyJobId(final String id) {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
 			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
 		}
@@ -310,7 +312,7 @@ public class FlinkClient {
 	}
 
 	private FiniteDuration getTimeout() {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
 			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
 		}
@@ -319,7 +321,7 @@ public class FlinkClient {
 	}
 
 	private ActorRef getJobManager() throws IOException {
-		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 
 		ActorSystem actorSystem;
 		try {

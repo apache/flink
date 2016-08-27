@@ -18,17 +18,16 @@
 
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import java.sql.{Date, Time, Timestamp}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.expressions.utils.ExpressionEvaluator
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.junit.Assert.assertEquals
+import org.apache.flink.api.table.{Row, Types}
 import org.junit.Test
 
-class ScalarFunctionsTest {
+class ScalarFunctionsTest extends ExpressionTestBase {
 
   // ----------------------------------------------------------------------------------------------
   // String functions
@@ -36,46 +35,54 @@ class ScalarFunctionsTest {
 
   @Test
   def testSubstring(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.substring(2),
       "f0.substring(2)",
       "SUBSTRING(f0, 2)",
       "his is a test String.")
 
-    testFunction(
+    testAllApis(
       'f0.substring(2, 5),
       "f0.substring(2, 5)",
       "SUBSTRING(f0, 2, 5)",
       "his i")
 
-    testFunction(
+    testAllApis(
       'f0.substring(1, 'f7),
       "f0.substring(1, f7)",
       "SUBSTRING(f0, 1, f7)",
       "Thi")
+
+    testSqlApi(
+      "SUBSTRING(f0 FROM 2 FOR 1)",
+      "h")
+
+    testSqlApi(
+      "SUBSTRING(f0 FROM 2)",
+      "his is a test String.")
   }
 
   @Test
   def testTrim(): Unit = {
-    testFunction(
+    testAllApis(
       'f8.trim(),
       "f8.trim()",
       "TRIM(f8)",
       "This is a test String.")
 
-    testFunction(
+    testAllApis(
       'f8.trim(removeLeading = true, removeTrailing = true, " "),
       "trim(f8)",
       "TRIM(f8)",
       "This is a test String.")
 
-    testFunction(
+    testAllApis(
       'f8.trim(removeLeading = false, removeTrailing = true, " "),
       "f8.trim(TRAILING, ' ')",
       "TRIM(TRAILING FROM f8)",
       " This is a test String.")
 
-    testFunction(
+    testAllApis(
       'f0.trim(removeLeading = true, removeTrailing = true, "."),
       "trim(BOTH, '.', f0)",
       "TRIM(BOTH '.' FROM f0)",
@@ -84,13 +91,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testCharLength(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.charLength(),
       "f0.charLength()",
       "CHAR_LENGTH(f0)",
       "22")
 
-    testFunction(
+    testAllApis(
       'f0.charLength(),
       "charLength(f0)",
       "CHARACTER_LENGTH(f0)",
@@ -99,7 +106,7 @@ class ScalarFunctionsTest {
 
   @Test
   def testUpperCase(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.upperCase(),
       "f0.upperCase()",
       "UPPER(f0)",
@@ -108,7 +115,7 @@ class ScalarFunctionsTest {
 
   @Test
   def testLowerCase(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.lowerCase(),
       "f0.lowerCase()",
       "LOWER(f0)",
@@ -117,7 +124,7 @@ class ScalarFunctionsTest {
 
   @Test
   def testInitCap(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.initCap(),
       "f0.initCap()",
       "INITCAP(f0)",
@@ -126,7 +133,7 @@ class ScalarFunctionsTest {
 
   @Test
   def testConcat(): Unit = {
-    testFunction(
+    testAllApis(
       'f0 + 'f0,
       "f0 + f0",
       "f0||f0",
@@ -135,13 +142,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testLike(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.like("Th_s%"),
       "f0.like('Th_s%')",
       "f0 LIKE 'Th_s%'",
       "true")
 
-    testFunction(
+    testAllApis(
       'f0.like("%is a%"),
       "f0.like('%is a%')",
       "f0 LIKE '%is a%'",
@@ -150,13 +157,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testNotLike(): Unit = {
-    testFunction(
+    testAllApis(
       !'f0.like("Th_s%"),
       "!f0.like('Th_s%')",
       "f0 NOT LIKE 'Th_s%'",
       "false")
 
-    testFunction(
+    testAllApis(
       !'f0.like("%is a%"),
       "!f0.like('%is a%')",
       "f0 NOT LIKE '%is a%'",
@@ -165,13 +172,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testSimilar(): Unit = {
-    testFunction(
+    testAllApis(
       'f0.similar("_*"),
       "f0.similar('_*')",
       "f0 SIMILAR TO '_*'",
       "true")
 
-    testFunction(
+    testAllApis(
       'f0.similar("This (is)? a (test)+ Strin_*"),
       "f0.similar('This (is)? a (test)+ Strin_*')",
       "f0 SIMILAR TO 'This (is)? a (test)+ Strin_*'",
@@ -180,13 +187,13 @@ class ScalarFunctionsTest {
 
   @Test
   def testNotSimilar(): Unit = {
-    testFunction(
+    testAllApis(
       !'f0.similar("_*"),
       "!f0.similar('_*')",
       "f0 NOT SIMILAR TO '_*'",
       "false")
 
-    testFunction(
+    testAllApis(
       !'f0.similar("This (is)? a (test)+ Strin_*"),
       "!f0.similar('This (is)? a (test)+ Strin_*')",
       "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*'",
@@ -195,19 +202,19 @@ class ScalarFunctionsTest {
 
   @Test
   def testMod(): Unit = {
-    testFunction(
+    testAllApis(
       'f4.mod('f7),
       "f4.mod(f7)",
       "MOD(f4, f7)",
       "2")
 
-    testFunction(
+    testAllApis(
       'f4.mod(3),
       "mod(f4, 3)",
       "MOD(f4, 3)",
       "2")
 
-    testFunction(
+    testAllApis(
       'f4 % 3,
       "mod(44, 3)",
       "MOD(44, 3)",
@@ -217,37 +224,43 @@ class ScalarFunctionsTest {
 
   @Test
   def testExp(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.exp(),
       "f2.exp()",
       "EXP(f2)",
       math.exp(42.toByte).toString)
 
-    testFunction(
+    testAllApis(
       'f3.exp(),
       "f3.exp()",
       "EXP(f3)",
       math.exp(43.toShort).toString)
 
-    testFunction(
+    testAllApis(
       'f4.exp(),
       "f4.exp()",
       "EXP(f4)",
       math.exp(44.toLong).toString)
 
-    testFunction(
+    testAllApis(
       'f5.exp(),
       "f5.exp()",
       "EXP(f5)",
       math.exp(4.5.toFloat).toString)
 
-    testFunction(
+    testAllApis(
       'f6.exp(),
       "f6.exp()",
       "EXP(f6)",
       math.exp(4.6).toString)
 
-    testFunction(
+    testAllApis(
+      'f7.exp(),
+      "exp(3)",
+      "EXP(3)",
+      math.exp(3).toString)
+
+    testAllApis(
       'f7.exp(),
       "exp(3)",
       "EXP(3)",
@@ -256,31 +269,31 @@ class ScalarFunctionsTest {
 
   @Test
   def testLog10(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.log10(),
       "f2.log10()",
       "LOG10(f2)",
       math.log10(42.toByte).toString)
 
-    testFunction(
+    testAllApis(
       'f3.log10(),
       "f3.log10()",
       "LOG10(f3)",
       math.log10(43.toShort).toString)
 
-    testFunction(
+    testAllApis(
       'f4.log10(),
       "f4.log10()",
       "LOG10(f4)",
       math.log10(44.toLong).toString)
 
-    testFunction(
+    testAllApis(
       'f5.log10(),
       "f5.log10()",
       "LOG10(f5)",
       math.log10(4.5.toFloat).toString)
 
-    testFunction(
+    testAllApis(
       'f6.log10(),
       "f6.log10()",
       "LOG10(f6)",
@@ -289,19 +302,25 @@ class ScalarFunctionsTest {
 
   @Test
   def testPower(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.power('f7),
       "f2.power(f7)",
       "POWER(f2, f7)",
       math.pow(42.toByte, 3).toString)
 
-    testFunction(
+    testAllApis(
       'f3.power('f6),
       "f3.power(f6)",
       "POWER(f3, f6)",
       math.pow(43.toShort, 4.6D).toString)
 
-    testFunction(
+    testAllApis(
+      'f4.power('f5),
+      "f4.power(f5)",
+      "POWER(f4, f5)",
+      math.pow(44.toLong, 4.5.toFloat).toString)
+
+    testAllApis(
       'f4.power('f5),
       "f4.power(f5)",
       "POWER(f4, f5)",
@@ -310,31 +329,31 @@ class ScalarFunctionsTest {
 
   @Test
   def testLn(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.ln(),
       "f2.ln()",
       "LN(f2)",
       math.log(42.toByte).toString)
 
-    testFunction(
+    testAllApis(
       'f3.ln(),
       "f3.ln()",
       "LN(f3)",
       math.log(43.toShort).toString)
 
-    testFunction(
+    testAllApis(
       'f4.ln(),
       "f4.ln()",
       "LN(f4)",
       math.log(44.toLong).toString)
 
-    testFunction(
+    testAllApis(
       'f5.ln(),
       "f5.ln()",
       "LN(f5)",
       math.log(4.5.toFloat).toString)
 
-    testFunction(
+    testAllApis(
       'f6.ln(),
       "f6.ln()",
       "LN(f6)",
@@ -343,102 +362,350 @@ class ScalarFunctionsTest {
 
   @Test
   def testAbs(): Unit = {
-    testFunction(
+    testAllApis(
       'f2.abs(),
       "f2.abs()",
       "ABS(f2)",
       "42")
 
-    testFunction(
+    testAllApis(
       'f3.abs(),
       "f3.abs()",
       "ABS(f3)",
       "43")
 
-    testFunction(
+    testAllApis(
       'f4.abs(),
       "f4.abs()",
       "ABS(f4)",
       "44")
 
-    testFunction(
+    testAllApis(
       'f5.abs(),
       "f5.abs()",
       "ABS(f5)",
       "4.5")
 
-    testFunction(
+    testAllApis(
       'f6.abs(),
       "f6.abs()",
       "ABS(f6)",
       "4.6")
 
-    testFunction(
+    testAllApis(
       'f9.abs(),
       "f9.abs()",
       "ABS(f9)",
       "42")
 
-    testFunction(
+    testAllApis(
       'f10.abs(),
       "f10.abs()",
       "ABS(f10)",
       "43")
 
-    testFunction(
+    testAllApis(
       'f11.abs(),
       "f11.abs()",
       "ABS(f11)",
       "44")
 
-    testFunction(
+    testAllApis(
       'f12.abs(),
       "f12.abs()",
       "ABS(f12)",
       "4.5")
 
-    testFunction(
+    testAllApis(
       'f13.abs(),
       "f13.abs()",
       "ABS(f13)",
       "4.6")
+
+    testAllApis(
+      'f15.abs(),
+      "f15.abs()",
+      "ABS(f15)",
+      "1231.1231231321321321111")
   }
 
   @Test
   def testArithmeticFloorCeil(): Unit = {
-    testFunction(
+    testAllApis(
       'f5.floor(),
       "f5.floor()",
       "FLOOR(f5)",
       "4.0")
 
-    testFunction(
+    testAllApis(
      'f5.ceil(),
       "f5.ceil()",
       "CEIL(f5)",
       "5.0")
 
-    testFunction(
+    testAllApis(
       'f3.floor(),
       "f3.floor()",
       "FLOOR(f3)",
       "43")
 
-    testFunction(
+    testAllApis(
       'f3.ceil(),
       "f3.ceil()",
       "CEIL(f3)",
       "43")
+
+    testAllApis(
+      'f15.floor(),
+      "f15.floor()",
+      "FLOOR(f15)",
+      "-1232")
+
+    testAllApis(
+      'f15.ceil(),
+      "f15.ceil()",
+      "CEIL(f15)",
+      "-1231")
+  }
+
+  @Test
+  def testExtract(): Unit = {
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.YEAR),
+      "f16.extract(YEAR)",
+      "EXTRACT(YEAR FROM f16)",
+      "1996")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.MONTH),
+      "extract(f16, MONTH)",
+      "EXTRACT(MONTH FROM f16)",
+      "11")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.DAY),
+      "f16.extract(DAY)",
+      "EXTRACT(DAY FROM f16)",
+      "10")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.YEAR),
+      "f18.extract(YEAR)",
+      "EXTRACT(YEAR FROM f18)",
+      "1996")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.MONTH),
+      "f18.extract(MONTH)",
+      "EXTRACT(MONTH FROM f18)",
+      "11")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.DAY),
+      "f18.extract(DAY)",
+      "EXTRACT(DAY FROM f18)",
+      "10")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.HOUR),
+      "f18.extract(HOUR)",
+      "EXTRACT(HOUR FROM f18)",
+      "6")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.HOUR),
+      "f17.extract(HOUR)",
+      "EXTRACT(HOUR FROM f17)",
+      "6")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.MINUTE),
+      "f18.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f18)",
+      "55")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.MINUTE),
+      "f17.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f17)",
+      "55")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.SECOND),
+      "f18.extract(SECOND)",
+      "EXTRACT(SECOND FROM f18)",
+      "44")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.SECOND),
+      "f17.extract(SECOND)",
+      "EXTRACT(SECOND FROM f17)",
+      "44")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.DAY),
+      "f19.extract(DAY)",
+      "EXTRACT(DAY FROM f19)",
+      "16979")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.HOUR),
+      "f19.extract(HOUR)",
+      "EXTRACT(HOUR FROM f19)",
+      "7")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.MINUTE),
+      "f19.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f19)",
+      "23")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.SECOND),
+      "f19.extract(SECOND)",
+      "EXTRACT(SECOND FROM f19)",
+      "33")
+
+    testAllApis(
+      'f20.extract(TimeIntervalUnit.MONTH),
+      "f20.extract(MONTH)",
+      "EXTRACT(MONTH FROM f20)",
+      "1")
+
+    testAllApis(
+      'f20.extract(TimeIntervalUnit.YEAR),
+      "f20.extract(YEAR)",
+      "EXTRACT(YEAR FROM f20)",
+      "2")
+  }
+
+  @Test
+  def testTemporalFloor(): Unit = {
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.YEAR),
+      "f18.floor(YEAR)",
+      "FLOOR(f18 TO YEAR)",
+      "1996-01-01 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.MONTH),
+      "f18.floor(MONTH)",
+      "FLOOR(f18 TO MONTH)",
+      "1996-11-01 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.DAY),
+      "f18.floor(DAY)",
+      "FLOOR(f18 TO DAY)",
+      "1996-11-10 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.MINUTE),
+      "f18.floor(MINUTE)",
+      "FLOOR(f18 TO MINUTE)",
+      "1996-11-10 06:55:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.SECOND),
+      "f18.floor(SECOND)",
+      "FLOOR(f18 TO SECOND)",
+      "1996-11-10 06:55:44.0")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.HOUR),
+      "f17.floor(HOUR)",
+      "FLOOR(f17 TO HOUR)",
+      "06:00:00")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.MINUTE),
+      "f17.floor(MINUTE)",
+      "FLOOR(f17 TO MINUTE)",
+      "06:55:00")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.SECOND),
+      "f17.floor(SECOND)",
+      "FLOOR(f17 TO SECOND)",
+      "06:55:44")
+
+    testAllApis(
+      'f16.floor(TimeIntervalUnit.YEAR),
+      "f16.floor(YEAR)",
+      "FLOOR(f16 TO YEAR)",
+      "1996-01-01")
+
+    testAllApis(
+      'f16.floor(TimeIntervalUnit.MONTH),
+      "f16.floor(MONTH)",
+      "FLOOR(f16 TO MONTH)",
+      "1996-11-01")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.YEAR),
+      "f18.ceil(YEAR)",
+      "CEIL(f18 TO YEAR)",
+      "1997-01-01 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.MONTH),
+      "f18.ceil(MONTH)",
+      "CEIL(f18 TO MONTH)",
+      "1996-12-01 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.DAY),
+      "f18.ceil(DAY)",
+      "CEIL(f18 TO DAY)",
+      "1996-11-11 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.MINUTE),
+      "f18.ceil(MINUTE)",
+      "CEIL(f18 TO MINUTE)",
+      "1996-11-10 06:56:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.SECOND),
+      "f18.ceil(SECOND)",
+      "CEIL(f18 TO SECOND)",
+      "1996-11-10 06:55:45.0")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.HOUR),
+      "f17.ceil(HOUR)",
+      "CEIL(f17 TO HOUR)",
+      "07:00:00")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.MINUTE),
+      "f17.ceil(MINUTE)",
+      "CEIL(f17 TO MINUTE)",
+      "06:56:00")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.SECOND),
+      "f17.ceil(SECOND)",
+      "CEIL(f17 TO SECOND)",
+      "06:55:44")
+
+    testAllApis(
+      'f16.ceil(TimeIntervalUnit.YEAR),
+      "f16.ceil(YEAR)",
+      "CEIL(f16 TO YEAR)",
+      "1996-01-01")
+
+    testAllApis(
+      'f16.ceil(TimeIntervalUnit.MONTH),
+      "f16.ceil(MONTH)",
+      "CEIL(f16 TO MONTH)",
+      "1996-11-01")
   }
 
   // ----------------------------------------------------------------------------------------------
 
-  def testFunction(
-      expr: Expression,
-      exprString: String,
-      sqlExpr: String,
-      expected: String): Unit = {
-    val testData = new Row(15)
+  def testData = {
+    val testData = new Row(21)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -454,37 +721,37 @@ class ScalarFunctionsTest {
     testData.setField(12, -4.5.toFloat)
     testData.setField(13, -4.6)
     testData.setField(14, -3)
-
-    val typeInfo = new RowTypeInfo(Seq(
-      STRING_TYPE_INFO,
-      BOOLEAN_TYPE_INFO,
-      BYTE_TYPE_INFO,
-      SHORT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      FLOAT_TYPE_INFO,
-      DOUBLE_TYPE_INFO,
-      INT_TYPE_INFO,
-      STRING_TYPE_INFO,
-      BYTE_TYPE_INFO,
-      SHORT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      FLOAT_TYPE_INFO,
-      DOUBLE_TYPE_INFO,
-      INT_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
-
-    val exprResult = ExpressionEvaluator.evaluate(testData, typeInfo, expr)
-    assertEquals(expected, exprResult)
-
-    val exprStringResult = ExpressionEvaluator.evaluate(
-      testData,
-      typeInfo,
-      ExpressionParser.parseExpression(exprString))
-    assertEquals(expected, exprStringResult)
-
-    val exprSqlResult = ExpressionEvaluator.evaluate(testData, typeInfo, sqlExpr)
-    assertEquals(expected, exprSqlResult)
+    testData.setField(15, BigDecimal("-1231.1231231321321321111").bigDecimal)
+    testData.setField(16, Date.valueOf("1996-11-10"))
+    testData.setField(17, Time.valueOf("06:55:44"))
+    testData.setField(18, Timestamp.valueOf("1996-11-10 06:55:44.333"))
+    testData.setField(19, 1467012213000L) // +16979 07:23:33.000
+    testData.setField(20, 25) // +2-01
+    testData
   }
 
-
-
+  def typeInfo = {
+    new RowTypeInfo(Seq(
+      Types.STRING,
+      Types.BOOLEAN,
+      Types.BYTE,
+      Types.SHORT,
+      Types.LONG,
+      Types.FLOAT,
+      Types.DOUBLE,
+      Types.INT,
+      Types.STRING,
+      Types.BYTE,
+      Types.SHORT,
+      Types.LONG,
+      Types.FLOAT,
+      Types.DOUBLE,
+      Types.INT,
+      Types.DECIMAL,
+      Types.DATE,
+      Types.TIME,
+      Types.TIMESTAMP,
+      Types.INTERVAL_MILLIS,
+      Types.INTERVAL_MONTHS)).asInstanceOf[TypeInformation[Any]]
+  }
 }

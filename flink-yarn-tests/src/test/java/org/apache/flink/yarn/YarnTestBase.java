@@ -20,7 +20,8 @@ package org.apache.flink.yarn;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.CliFrontend;
-import org.apache.flink.client.FlinkYarnSessionCli;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.conf.Configuration;
@@ -60,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Pattern;
 
 
 /**
@@ -364,11 +366,11 @@ public abstract class YarnTestBase extends TestLogger {
 			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfDirPath);
 
-			map.put("FLINK_CONF_DIR", flinkConfDirPath.getParent());
+			map.put(ConfigConstants.ENV_FLINK_CONF_DIR, flinkConfDirPath.getParent());
 
 			File yarnConfFile = writeYarnSiteConfigXML(conf);
 			map.put("YARN_CONF_DIR", yarnConfFile.getParentFile().getAbsolutePath());
-			map.put("IN_TESTS", "yes we are in tests"); // see FlinkYarnClient() for more infos
+			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			TestBaseUtils.setEnv(map);
 
 			Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
@@ -446,12 +448,12 @@ public abstract class YarnTestBase extends TestLogger {
 	 * The test has been passed once the "terminateAfterString" has been seen.
 	 * @param args Command line arguments for the runner
 	 * @param terminateAfterString the runner is searching the stdout and stderr for this string. as soon as it appears, the test has passed
-	 * @param failOnStrings The runner is searching stdout and stderr for the strings specified here. If one appears, the test has failed
+	 * @param failOnPatterns The runner is searching stdout and stderr for the pattern (regexp) specified here. If one appears, the test has failed
 	 * @param type Set the type of the runner
 	 * @param returnCode Expected return code from the runner.
 	 * @param checkLogForTerminateString  If true, the runner checks also the log4j logger for the terminate string
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode, boolean checkLogForTerminateString) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int returnCode, boolean checkLogForTerminateString) {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -473,10 +475,10 @@ public abstract class YarnTestBase extends TestLogger {
 			sleep(1000);
 			String outContentString = outContent.toString();
 			String errContentString = errContent.toString();
-			if(failOnStrings != null) {
-				for (String failOnString : failOnStrings) {
-					if (outContentString.contains(failOnString)
-							|| errContentString.contains(failOnString)) {
+			if(failOnPatterns != null) {
+				for (String failOnString : failOnPatterns) {
+					Pattern pattern = Pattern.compile(failOnString);
+					if (pattern.matcher(outContentString).find() || pattern.matcher(errContentString).find()) {
 						LOG.warn("Failing test. Output contained illegal string '" + failOnString + "'");
 						sendOutput();
 						// stopping runner.
@@ -592,7 +594,12 @@ public abstract class YarnTestBase extends TestLogger {
 	// -------------------------- Tear down -------------------------- //
 
 	@AfterClass
-	public static void copyOnTravis() {
+	public static void teardown() throws Exception {
+		// Unset FLINK_CONF_DIR, as it might change the behavior of other tests
+		Map<String, String> map = new HashMap<>(System.getenv());
+		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
+		TestBaseUtils.setEnv(map);
+
 		// When we are on travis, we copy the tmp files of JUnit (containing the MiniYARNCluster log files)
 		// to <flinkRoot>/target/flink-yarn-tests-*.
 		// The files from there are picked up by the ./tools/travis_watchdog.sh script

@@ -21,7 +21,7 @@ package org.apache.flink.ml.regression
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{ParameterMap, WeightVector}
 import org.apache.flink.ml.preprocessing.PolynomialFeatures
-import org.apache.flink.test.util.FlinkTestBase
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 class MultipleLinearRegressionITSuite

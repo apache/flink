@@ -22,11 +22,13 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import static java.util.Objects.requireNonNull;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Base class for partitioned {@link ListState} implementations that are backed by a regular
@@ -43,7 +45,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 		implements KvState<K, N, S, SD, Backend>, State {
 
 	/** Map containing the actual key/value pairs */
-	protected final HashMap<N, Map<K, SV>> state;
+	protected final Map<N, Map<K, SV>> state;
 
 	/** Serializer for the state value. The state value could be a List<V>, for example. */
 	protected final TypeSerializer<SV> stateSerializer;
@@ -93,10 +95,20 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 		TypeSerializer<N> namespaceSerializer,
 		TypeSerializer<SV> stateSerializer,
 		SD stateDesc,
-		HashMap<N, Map<K, SV>> state) {
-		this.state = requireNonNull(state);
-		this.keySerializer = requireNonNull(keySerializer);
-		this.namespaceSerializer = requireNonNull(namespaceSerializer);
+		Map<N, Map<K, SV>> state) {
+
+		Preconditions.checkNotNull(state, "State map");
+
+		// Make sure that the state map supports concurrent read access for
+		// queries. See also #createNewNamespaceMap for the namespace maps.
+		if (stateDesc.isQueryable()) {
+			this.state = new ConcurrentHashMap<>(state);
+		} else {
+			this.state = state;
+		}
+
+		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+		this.namespaceSerializer = Preconditions.checkNotNull(namespaceSerializer);
 		this.stateSerializer = stateSerializer;
 		this.stateDesc = stateDesc;
 	}
@@ -116,7 +128,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 
 	@Override
 	public final void setCurrentKey(K currentKey) {
-		this.currentKey = currentKey;
+		this.currentKey = Preconditions.checkNotNull(currentKey, "Key");
 	}
 
 	@Override
@@ -124,9 +136,21 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 		if (namespace != null && namespace.equals(this.currentNamespace)) {
 			return;
 		}
-		this.currentNamespace = namespace;
+		this.currentNamespace = Preconditions.checkNotNull(namespace, "Namespace");
 		this.currentNSState = state.get(currentNamespace);
 	}
+
+	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
+
+		Tuple2<K, N> keyAndNamespace = KvStateRequestSerializer.deserializeKeyAndNamespace(
+				serializedKeyAndNamespace, keySerializer, namespaceSerializer);
+
+		return getSerializedValue(keyAndNamespace.f0, keyAndNamespace.f1);
+	}
+
+	protected abstract byte[] getSerializedValue(K key, N namespace) throws Exception;
 
 	/**
 	 * Returns the number of all state pairs in this state, across namespaces.
@@ -142,6 +166,11 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	@Override
 	public void dispose() {
 		state.clear();
+	}
+
+	@Override
+	public SD getStateDescriptor() {
+		return stateDesc;
 	}
 
 	/**
@@ -160,5 +189,32 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	 */
 	public final TypeSerializer<N> getNamespaceSerializer() {
 		return namespaceSerializer;
+	}
+
+	/**
+	 * Creates a new namespace map.
+	 *
+	 * <p>If the state queryable ({@link StateDescriptor#isQueryable()}, this
+	 * will create a concurrent hash map instead of a regular one.
+	 *
+	 * @return A new namespace map.
+	 */
+	protected Map<K, SV> createNewNamespaceMap() {
+		if (stateDesc.isQueryable()) {
+			return new ConcurrentHashMap<>();
+		} else {
+			return new HashMap<>();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns the internal state map for testing.
+	 *
+	 * @return The internal state map
+	 */
+	Map<N, Map<K, SV>> getStateMap() {
+		return state;
 	}
 }

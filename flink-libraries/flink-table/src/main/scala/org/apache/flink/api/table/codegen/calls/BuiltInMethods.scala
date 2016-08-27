@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.table.codegen.calls
 
+import java.math.{BigDecimal => JBigDecimal}
+
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.SqlFunctions
 
@@ -26,4 +28,5 @@ object BuiltInMethods {
   val POWER = Types.lookupMethod(classOf[Math], "pow", classOf[Double], classOf[Double])
   val LN = Types.lookupMethod(classOf[Math], "log", classOf[Double])
   val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])
+  val ABS_DEC = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[JBigDecimal])
 }

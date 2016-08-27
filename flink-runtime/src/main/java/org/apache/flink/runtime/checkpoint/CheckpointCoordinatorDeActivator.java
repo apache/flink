@@ -18,51 +18,32 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import com.google.common.base.Preconditions;
-import org.apache.flink.runtime.akka.FlinkUntypedActor;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 
-import java.util.UUID;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This actor listens to changes in the JobStatus and activates or deactivates the periodic
  * checkpoint scheduler.
  */
-public class CheckpointCoordinatorDeActivator extends FlinkUntypedActor {
+public class CheckpointCoordinatorDeActivator implements JobStatusListener {
 
 	private final CheckpointCoordinator coordinator;
-	private final UUID leaderSessionID;
-	
-	public CheckpointCoordinatorDeActivator(
-			CheckpointCoordinator coordinator,
-			UUID leaderSessionID) {
 
-		LOG.info("Create CheckpointCoordinatorDeActivator");
-
-		this.coordinator = Preconditions.checkNotNull(coordinator, "The checkpointCoordinator must not be null.");
-		this.leaderSessionID = leaderSessionID;
+	public CheckpointCoordinatorDeActivator(CheckpointCoordinator coordinator) {
+		this.coordinator = checkNotNull(coordinator);
 	}
 
 	@Override
-	public void handleMessage(Object message) {
-		if (message instanceof ExecutionGraphMessages.JobStatusChanged) {
-			JobStatus status = ((ExecutionGraphMessages.JobStatusChanged) message).newJobStatus();
-			
-			if (status == JobStatus.RUNNING) {
-				// start the checkpoint scheduler
-				coordinator.startCheckpointScheduler();
-			} else {
-				// anything else should stop the trigger for now
-				coordinator.stopCheckpointScheduler();
-			}
+	public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp, Throwable error) {
+		if (newJobStatus == JobStatus.RUNNING) {
+			// start the checkpoint scheduler
+			coordinator.startCheckpointScheduler();
+		} else {
+			// anything else should stop the trigger for now
+			coordinator.stopCheckpointScheduler();
 		}
-		
-		// we ignore all other messages
-	}
-
-	@Override
-	public UUID getLeaderSessionID() {
-		return leaderSessionID;
 	}
 }

@@ -33,6 +33,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -586,5 +587,8 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 		public int getNumberOfDiscardCalls() {
 			return numberOfDiscardCalls;
 		}
+
+		@Override
+		public void close() throws IOException {}
 	}
 }

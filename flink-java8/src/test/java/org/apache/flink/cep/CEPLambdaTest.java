@@ -20,6 +20,7 @@ package org.apache.flink.cep;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -44,18 +45,18 @@ public class CEPLambdaTest extends TestLogger {
 		TypeInformation<EventA> eventTypeInformation = TypeExtractor.getForClass(EventA.class);
 		TypeInformation<EventB> outputTypeInformation = TypeExtractor.getForClass(EventB.class);
 
-		TypeInformation<Map<String, EventA>> inputTpeInformation = (TypeInformation<Map<String, EventA>>) (TypeInformation<?>) TypeInformation.of(Map.class);
 
-		DataStream<Map<String, EventA>> inputStream = new DataStream<>(
+		DataStream<EventA> inputStream = new DataStream<>(
 			StreamExecutionEnvironment.getExecutionEnvironment(),
 			new SourceTransformation<>(
 				"source",
 				null,
-				inputTpeInformation,
+				eventTypeInformation,
 				1));
 
+		Pattern<EventA, ?> dummyPattern = Pattern.begin("start");
 
-		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, eventTypeInformation);
+		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern);
 
 		DataStream<EventB> result = patternStream.select(
 			map -> new EventB()
@@ -72,17 +73,17 @@ public class CEPLambdaTest extends TestLogger {
 		TypeInformation<EventA> eventTypeInformation = TypeExtractor.getForClass(EventA.class);
 		TypeInformation<EventB> outputTypeInformation = TypeExtractor.getForClass(EventB.class);
 
-		TypeInformation<Map<String, EventA>> inputTpeInformation = (TypeInformation<Map<String, EventA>>) (TypeInformation<?>) TypeInformation.of(Map.class);
-
-		DataStream<Map<String, EventA>> inputStream = new DataStream<>(
+		DataStream<EventA> inputStream = new DataStream<>(
 			StreamExecutionEnvironment.getExecutionEnvironment(),
 			new SourceTransformation<>(
 				"source",
 				null,
-				inputTpeInformation,
+				eventTypeInformation,
 				1));
 
-		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, eventTypeInformation);
+		Pattern<EventA, ?> dummyPattern = Pattern.begin("start");
+
+		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern);
 
 		DataStream<EventB> result = patternStream.flatSelect(
 			(map, collector) -> collector.collect(new EventB())

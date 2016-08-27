@@ -58,6 +58,28 @@ public class Murmur3_32 implements Serializable {
 	}
 
 	/**
+	 * Process a {@code double} value.
+	 *
+	 * @param input 64-bit input value
+	 * @return this
+	 */
+	public Murmur3_32 hash(double input) {
+		hash(Double.doubleToLongBits(input));
+		return this;
+	}
+
+	/**
+	 * Process a {@code float} value.
+	 *
+	 * @param input 32-bit input value
+	 * @return this
+	 */
+	public Murmur3_32 hash(float input) {
+		hash(Float.floatToIntBits(input));
+		return this;
+	}
+
+	/**
 	 * Process an {@code integer} value.
 	 *
 	 * @param input 32-bit input value
@@ -67,11 +89,11 @@ public class Murmur3_32 implements Serializable {
 		count++;
 
 		input *= 0xcc9e2d51;
-		input = input << 15;
+		input = Integer.rotateLeft(input, 15);
 		input *= 0x1b873593;
 
 		hash ^= input;
-		hash = hash << 13;
+		hash = Integer.rotateLeft(hash, 13);
 		hash = hash * 5 + 0xe6546b64;
 
 		return this;

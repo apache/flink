@@ -20,14 +20,16 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
@@ -176,7 +178,10 @@ public class RocksDBStateBackendConfigTest {
 				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar", IntSerializer.INSTANCE);
 
 				// actually get a state to see whether we can write to the storage directory
-				rocksDbBackend.getPartitionedState(null, VoidSerializer.INSTANCE, new ValueStateDescriptor<>("test", String.class, ""));
+				rocksDbBackend.getPartitionedState(
+						VoidNamespace.INSTANCE,
+						VoidNamespaceSerializer.INSTANCE,
+						new ValueStateDescriptor<>("test", String.class, ""));
 			}
 			catch (Exception e) {
 				e.printStackTrace();
@@ -307,6 +312,11 @@ public class RocksDBStateBackendConfigTest {
 		when(env.getJobID()).thenReturn(new JobID());
 		when(env.getUserClassLoader()).thenReturn(RocksDBStateBackendConfigTest.class.getClassLoader());
 		when(env.getIOManager()).thenReturn(ioMan);
+
+		TaskInfo taskInfo = mock(TaskInfo.class);
+		when(env.getTaskInfo()).thenReturn(taskInfo);
+
+		when(taskInfo.getIndexOfThisSubtask()).thenReturn(0);
 		return env;
 	}
 }

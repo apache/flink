@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.messages
 
+import java.util.UUID
+
 import akka.actor.ActorRef
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.instance.{InstanceConnectionInfo, InstanceID, HardwareDescription}
+import org.apache.flink.runtime.instance.{HardwareDescription, InstanceConnectionInfo, InstanceID}
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
@@ -42,12 +44,14 @@ object RegistrationMessages {
    * @param timeout The timeout for the message. The next retry will double this timeout.
    * @param deadline Optional deadline until when the registration must be completed.
    * @param attempt The attempt number, for logging.
+   * @param registrationRun UUID of the current registration run to filter out outdated runs
    */
   case class TriggerTaskManagerRegistration(
       jobManagerURL: String,
       timeout: FiniteDuration,
       deadline: Option[Deadline],
-      attempt: Int)
+      attempt: Int,
+      registrationRun: UUID)
     extends RegistrationMessage
 
   /**

@@ -18,16 +18,18 @@
 
 package org.apache.flink.graph.asm.degree.annotate.directed;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Annotates edges of a directed graph with the degree, out-degree, and
@@ -38,10 +40,10 @@ import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees
  * @param <EV> edge value type
  */
 public class EdgeSourceDegrees<K, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, Degrees>>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Edge<K, Tuple2<EV, Degrees>>> {
 
 	// Optional configuration
-	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Override the operator parallelism.
@@ -56,7 +58,27 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, Degrees>>>> {
 	}
 
 	@Override
-	public DataSet<Edge<K, Tuple2<EV, Degrees>>> run(Graph<K, VV, EV> input)
+	protected String getAlgorithmName() {
+		return EdgeSourceDegrees.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! EdgeSourceDegrees.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		EdgeSourceDegrees rhs = (EdgeSourceDegrees) other;
+
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public DataSet<Edge<K, Tuple2<EV, Degrees>>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, d(s)
 		DataSet<Vertex<K, Degrees>> vertexDegrees = input

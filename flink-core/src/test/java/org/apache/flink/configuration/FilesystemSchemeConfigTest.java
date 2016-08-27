@@ -21,7 +21,6 @@ package org.apache.flink.configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -31,21 +30,13 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.UUID;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class FilesystemSchemeConfigTest {
 
-	@Before
-	public void resetSingleton() throws SecurityException, NoSuchFieldException, IllegalArgumentException,
-		IllegalAccessException {
-		// reset GlobalConfiguration between tests
-		Field instance = GlobalConfiguration.class.getDeclaredField("SINGLETON");
-		instance.setAccessible(true);
-		instance.set(null, null);
-	}
-	
 	@Test
 	public void testExplicitFilesystemScheme() {
 		testSettingFilesystemScheme(false, "fs.default-scheme: otherFS://localhost:1234/", true);
@@ -64,7 +55,12 @@ public class FilesystemSchemeConfigTest {
 	private void testSettingFilesystemScheme(boolean useDefaultScheme,
 											String configFileScheme, boolean useExplicitScheme) {
 		final File tmpDir = getTmpDir();
-		final File confFile = createRandomFile(tmpDir, ".yaml");
+		final File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+		try {
+			confFile.createNewFile();
+		} catch (IOException e) {
+			throw new RuntimeException("Couldn't create file", e);
+		}
 		final File testFile = new File(tmpDir.getAbsolutePath() + File.separator + "testing.txt");
 
 		try {
@@ -82,8 +78,7 @@ public class FilesystemSchemeConfigTest {
 				fail(e.getMessage());
 			}
 
-			GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
-			Configuration conf = GlobalConfiguration.getConfiguration();
+			Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
 
 			try {
 				FileSystem.setDefaultScheme(conf);
@@ -111,11 +106,11 @@ public class FilesystemSchemeConfigTest {
 				Field f = FileSystem.class.getDeclaredField("defaultScheme");
 				f.setAccessible(true);
 				f.set(null, null);
-			} catch (IllegalAccessException e) {
+			} catch (IllegalAccessException | NoSuchFieldException e) {
 				e.printStackTrace();
-			} catch (NoSuchFieldException e) {
-				e.printStackTrace();
+				fail("Cannot reset default scheme: " + e.getMessage());
 			}
+			
 			confFile.delete();
 			testFile.delete();
 			tmpDir.delete();
@@ -124,13 +119,14 @@ public class FilesystemSchemeConfigTest {
 
 	private File getTmpDir() {
 		File tmpDir = new File(CommonTestUtils.getTempDir() + File.separator
-			+ CommonTestUtils.getRandomDirectoryName() + File.separator);
-		tmpDir.mkdirs();
+			+ UUID.randomUUID().toString() + File.separator);
+		
+		assertTrue(tmpDir.mkdirs());
 
 		return tmpDir;
 	}
 
 	private File createRandomFile(File path, String suffix) {
-		return new File(path.getAbsolutePath() + File.separator + CommonTestUtils.getRandomDirectoryName() + suffix);
+		return new File(path.getAbsolutePath() + File.separator + UUID.randomUUID() + suffix);
 	}
 }

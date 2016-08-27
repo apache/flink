@@ -129,8 +129,8 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		try {
 			sorter = new CombiningUnilateralSortMerger<>(new MockCombiningReduceStub(),
 				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
-				getOwningNepheleTask(), RecordSerializerFactory.get(), this.comparator.duplicate(), this.perSortFractionMem,
-					4, 0.8f, true);
+				getContainingTask(), RecordSerializerFactory.get(), this.comparator.duplicate(), this.perSortFractionMem,
+					4, 0.8f, true /* use large record handler */, true);
 			addInput(sorter.getIterator());
 			
 			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();

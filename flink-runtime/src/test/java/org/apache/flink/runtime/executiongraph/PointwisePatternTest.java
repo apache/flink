@@ -22,10 +22,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -46,7 +48,7 @@ public class PointwisePatternTest {
 	private final Configuration cfg = new Configuration();
 	
 	@Test
-	public void testNToN() {
+	public void testNToN() throws Exception {
 		final int N = 23;
 		
 		JobVertex v1 = new JobVertex("vertex1");
@@ -64,7 +66,7 @@ public class PointwisePatternTest {
 			jobId, 
 			jobName, 
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -88,7 +90,7 @@ public class PointwisePatternTest {
 	}
 	
 	@Test
-	public void test2NToN() {
+	public void test2NToN() throws Exception {
 		final int N = 17;
 		
 		JobVertex v1 = new JobVertex("vertex1");
@@ -106,7 +108,7 @@ public class PointwisePatternTest {
 			jobId, 
 			jobName, 
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -131,7 +133,7 @@ public class PointwisePatternTest {
 	}
 	
 	@Test
-	public void test3NToN() {
+	public void test3NToN() throws Exception {
 		final int N = 17;
 		
 		JobVertex v1 = new JobVertex("vertex1");
@@ -149,7 +151,7 @@ public class PointwisePatternTest {
 			jobId, 
 			jobName, 
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -175,7 +177,7 @@ public class PointwisePatternTest {
 	}
 	
 	@Test
-	public void testNTo2N() {
+	public void testNTo2N() throws Exception {
 		final int N = 41;
 		
 		JobVertex v1 = new JobVertex("vertex1");
@@ -193,7 +195,7 @@ public class PointwisePatternTest {
 			jobId, 
 			jobName,
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -217,7 +219,7 @@ public class PointwisePatternTest {
 	}
 	
 	@Test
-	public void testNTo7N() {
+	public void testNTo7N() throws Exception {
 		final int N = 11;
 		
 		JobVertex v1 = new JobVertex("vertex1");
@@ -235,7 +237,7 @@ public class PointwisePatternTest {
 			jobId, 
 			jobName, 
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -259,7 +261,7 @@ public class PointwisePatternTest {
 	}
 	
 	@Test
-	public void testLowHighIrregular() {
+	public void testLowHighIrregular() throws Exception {
 		testLowToHigh(3, 16);
 		testLowToHigh(19, 21);
 		testLowToHigh(15, 20);
@@ -267,14 +269,14 @@ public class PointwisePatternTest {
 	}
 	
 	@Test
-	public void testHighLowIrregular() {
+	public void testHighLowIrregular() throws Exception {
 		testHighToLow(16, 3);
 		testHighToLow(21, 19);
 		testHighToLow(20, 15);
 		testHighToLow(31, 11);
 	}
 	
-	private void testLowToHigh(int lowDop, int highDop) {
+	private void testLowToHigh(int lowDop, int highDop) throws Exception {
 		if (highDop < lowDop) {
 			throw new IllegalArgumentException();
 		}
@@ -297,7 +299,7 @@ public class PointwisePatternTest {
 			jobId, 
 			jobName, 
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -327,7 +329,7 @@ public class PointwisePatternTest {
 		}
 	}
 	
-	private void testHighToLow(int highDop, int lowDop) {
+	private void testHighToLow(int highDop, int lowDop) throws Exception {
 		if (highDop < lowDop) {
 			throw new IllegalArgumentException();
 		}
@@ -350,7 +352,7 @@ public class PointwisePatternTest {
 			jobId, 
 			jobName, 
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {

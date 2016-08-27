@@ -113,6 +113,13 @@ public class StreamTaskTestHarness<OUT> {
 		outputStreamRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outputSerializer);
 	}
 
+	public long getCurrentProcessingTime() {
+		if (!(task instanceof StreamTask)) {
+			System.currentTimeMillis();
+		}
+		return ((StreamTask) task).getCurrentProcessingTime();
+	}
+
 	/**
 	 * This must be overwritten for OneInputStreamTask or TwoInputStreamTask test harnesses.
 	 */
@@ -199,6 +206,13 @@ public class StreamTaskTestHarness<OUT> {
 				StreamTask<?, ?> streamTask = (StreamTask<?, ?>) taskThread.task;
 				while (!streamTask.isRunning()) {
 					Thread.sleep(100);
+					if (!taskThread.isAlive()) {
+						if (taskThread.getError() != null) {
+							throw new Exception("Task Thread failed due to an error.", taskThread.getError());
+						} else {
+							throw new Exception("Task Thread unexpectedly shut down.");
+						}
+					}
 				}
 			}
 			else {

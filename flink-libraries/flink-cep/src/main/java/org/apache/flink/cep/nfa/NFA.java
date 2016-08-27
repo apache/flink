@@ -20,10 +20,17 @@ package org.apache.flink.cep.nfa;
 
 import com.google.common.collect.LinkedHashMultimap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
+import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -34,7 +41,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
@@ -71,15 +77,22 @@ public class NFA<T> implements Serializable {
 	// Length of the window
 	private final long windowTime;
 
+	private final boolean handleTimeout;
+
 	// Current starting index for the next dewey version number
 	private int startEventCounter;
 
 	// Current set of computation states within the state machine
 	private transient Queue<ComputationState<T>> computationStates;
 
-	public NFA(final TypeSerializer<T> eventSerializer, final long windowTime) {
+	public NFA(
+		final TypeSerializer<T> eventSerializer,
+		final long windowTime,
+		final boolean handleTimeout) {
+
 		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
 		this.windowTime = windowTime;
+		this.handleTimeout = handleTimeout;
 		sharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
 		computationStates = new LinkedList<>();
 
@@ -107,16 +120,19 @@ public class NFA<T> implements Serializable {
 
 	/**
 	 * Processes the next input event. If some of the computations reach a final state then the
-	 * resulting event sequences are returned.
+	 * resulting event sequences are returned. If computations time out and timeout handling is
+	 * activated, then the timed out event patterns are returned.
 	 *
 	 * @param event The current event to be processed
 	 * @param timestamp The timestamp of the current event
-	 * @return The collection of matched patterns (e.g. the result of computations which have
-	 * reached a final state)
+	 * @return Tuple of the collection of matched patterns (e.g. the result of computations which have
+	 * reached a final state) and the collection of timed out patterns (if timeout handling is
+	 * activated)
 	 */
-	public Collection<Map<String, T>> process(final T event, final long timestamp) {
+	public Tuple2<Collection<Map<String, T>>, Collection<Tuple2<Map<String, T>, Long>>> process(final T event, final long timestamp) {
 		final int numberComputationStates = computationStates.size();
-		final List<Map<String, T>> result = new ArrayList<>();
+		final Collection<Map<String, T>> result = new ArrayList<>();
+		final Collection<Tuple2<Map<String, T>, Long>> timeoutResult = new ArrayList<>();
 
 		// iterate over all current computations
 		for (int i = 0; i < numberComputationStates; i++) {
@@ -127,6 +143,16 @@ public class NFA<T> implements Serializable {
 			if (!computationState.isStartState() &&
 				windowTime > 0 &&
 				timestamp - computationState.getStartTimestamp() >= windowTime) {
+
+				if (handleTimeout) {
+					// extract the timed out event patterns
+					Collection<Map<String, T>> timeoutPatterns = extractPatternMatches(computationState);
+
+					for (Map<String, T> timeoutPattern : timeoutPatterns) {
+						timeoutResult.add(Tuple2.of(timeoutPattern, timestamp));
+					}
+				}
+
 				// remove computation state which has exceeded the window length
 				sharedBuffer.release(computationState.getState(), computationState.getEvent(), computationState.getTimestamp());
 				sharedBuffer.remove(computationState.getState(), computationState.getEvent(), computationState.getTimestamp());
@@ -150,24 +176,24 @@ public class NFA<T> implements Serializable {
 					computationStates.add(newComputationState);
 				}
 			}
-
-			// prune shared buffer based on window length
-			if(windowTime > 0) {
-				long pruningTimestamp = timestamp - windowTime;
-
-				// sanity check to guard against underflows
-				if (pruningTimestamp >= timestamp) {
-					throw new IllegalStateException("Detected an underflow in the pruning timestamp. This indicates that" +
-						" either the window length is too long (" + windowTime + ") or that the timestamp has not been" +
-						" set correctly (e.g. Long.MIN_VALUE).");
-				}
-
-				// remove all elements which are expired with respect to the window length
-				sharedBuffer.prune(pruningTimestamp);
-			}
 		}
 
-		return result;
+		// prune shared buffer based on window length
+		if(windowTime > 0) {
+			long pruningTimestamp = timestamp - windowTime;
+
+			// sanity check to guard against underflows
+			if (pruningTimestamp >= timestamp) {
+				throw new IllegalStateException("Detected an underflow in the pruning timestamp. This indicates that" +
+					" either the window length is too long (" + windowTime + ") or that the timestamp has not been" +
+					" set correctly (e.g. Long.MIN_VALUE).");
+			}
+
+			// remove all elements which are expired with respect to the window length
+			sharedBuffer.prune(pruningTimestamp);
+		}
+
+		return Tuple2.of(result, timeoutResult);
 	}
 
 	@Override
@@ -432,6 +458,110 @@ public class NFA<T> implements Serializable {
 			return matcher.group(1) + index + matcher.group(2);
 		} else {
 			return name + "_" + index;
+		}
+	}
+
+	/**
+	 * {@link TypeSerializer} for {@link NFA} that uses Java Serialization.
+	 */
+	public static class Serializer<T> extends TypeSerializer<NFA<T>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean isImmutableType() {
+			return false;
+		}
+
+		@Override
+		public TypeSerializer<NFA<T>> duplicate() {
+			return this;
+		}
+
+		@Override
+		public NFA<T> createInstance() {
+			return null;
+		}
+
+		@Override
+		public NFA<T> copy(NFA<T> from) {
+			try {
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				ObjectOutputStream oos = new ObjectOutputStream(baos);
+
+				oos.writeObject(from);
+
+				oos.close();
+				baos.close();
+
+				byte[] data = baos.toByteArray();
+
+				ByteArrayInputStream bais = new ByteArrayInputStream(data);
+				ObjectInputStream ois = new ObjectInputStream(bais);
+
+				@SuppressWarnings("unchecked")
+				NFA<T> copy = (NFA<T>) ois.readObject();
+				return copy;
+			} catch (IOException|ClassNotFoundException e) {
+				throw new RuntimeException("Could not copy NFA.", e);
+			}
+		}
+
+		@Override
+		public NFA<T> copy(NFA<T> from, NFA<T> reuse) {
+			return copy(from);
+		}
+
+		@Override
+		public int getLength() {
+			return 0;
+		}
+
+		@Override
+		public void serialize(NFA<T> record, DataOutputView target) throws IOException {
+			ObjectOutputStream oos = new ObjectOutputStream(new DataOutputViewStream(target));
+			oos.writeObject(record);
+			oos.close();
+		}
+
+		@Override
+		public NFA<T> deserialize(DataInputView source) throws IOException {
+			ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(source));
+
+			try {
+				@SuppressWarnings("unchecked")
+				NFA<T> nfa = null;
+				nfa = (NFA<T>) ois.readObject();
+				return nfa;
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Could not deserialize NFA.", e);
+			}
+		}
+
+		@Override
+		public NFA<T> deserialize(NFA<T> reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			int size = source.readInt();
+			target.writeInt(size);
+			target.write(source, size);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof Serializer && ((Serializer) obj).canEqual(this);
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof Serializer;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
 		}
 	}
 }

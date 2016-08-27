@@ -32,6 +32,7 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -49,6 +50,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ResultPartitionWriter.class})
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class OneInputStreamTaskTest {
 
 	/**

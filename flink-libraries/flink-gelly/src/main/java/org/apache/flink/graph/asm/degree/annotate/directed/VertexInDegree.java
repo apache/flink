@@ -18,15 +18,19 @@
 
 package org.apache.flink.graph.asm.degree.annotate.directed;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeCount;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinVertexWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToTargetId;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Annotates vertices of a directed graph with the in-degree.
@@ -36,12 +40,12 @@ import org.apache.flink.types.LongValue;
  * @param <EV> edge value type
  */
 public class VertexInDegree<K, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 
 	// Optional configuration
-	private boolean includeZeroDegreeVertices = false;
+	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
 
-	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * By default only the edge set is processed for the computation of degree.
@@ -53,7 +57,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 	 * @return this
 	 */
 	public VertexInDegree<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
-		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
+		this.includeZeroDegreeVertices.set(includeZeroDegreeVertices);
 
 		return this;
 	}
@@ -65,13 +69,45 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 	 * @return this
 	 */
 	public VertexInDegree<K, VV, EV> setParallelism(int parallelism) {
+		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
 		this.parallelism = parallelism;
 
 		return this;
 	}
 
 	@Override
-	public DataSet<Vertex<K, LongValue>> run(Graph<K, VV, EV> input)
+	protected String getAlgorithmName() {
+		return VertexInDegree.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! VertexInDegree.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		VertexInDegree rhs = (VertexInDegree) other;
+
+		// verify that configurations can be merged
+
+		if (includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices)) {
+			return false;
+		}
+
+		// merge configurations
+
+		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public DataSet<Vertex<K, LongValue>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// t
 		DataSet<Vertex<K, LongValue>> targetIds = input
@@ -84,10 +120,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 		DataSet<Vertex<K, LongValue>> targetDegree = targetIds
 			.groupBy(0)
 			.reduce(new DegreeCount<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Degree count");
 
-		if (includeZeroDegreeVertices) {
+		if (includeZeroDegreeVertices.get()) {
 			targetDegree = input.getVertices()
 				.leftOuterJoin(targetDegree)
 				.where(0)

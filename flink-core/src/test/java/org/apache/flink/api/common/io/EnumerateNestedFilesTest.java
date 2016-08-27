@@ -23,6 +23,7 @@ import java.io.IOException;
 
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.TestFileUtils;
@@ -37,11 +38,12 @@ public class EnumerateNestedFilesTest {
 	protected Configuration config;
 	final String tempPath = System.getProperty("java.io.tmpdir");
 
-	private final DummyFileInputFormat format = new DummyFileInputFormat();
+	private DummyFileInputFormat format;
 
 	@Before
 	public void setup() {
 		this.config = new Configuration();
+		format = new DummyFileInputFormat();
 	}
 
 	@After

@@ -31,7 +31,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.StringWriter;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Request handler that returns a summary of the job status.

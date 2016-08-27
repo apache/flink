@@ -17,156 +17,568 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
+import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Map;
-import java.util.HashMap;
+
+import java.util.LinkedList;
 import java.util.List;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A Kinesis Data Fetcher that consumes data from a specific set of Kinesis shards.
- * The fetcher spawns a single thread for connection to each shard.
+ * A KinesisDataFetcher is responsible for fetching data from multiple Kinesis shards. Each parallel subtask instantiates
+ * and runs a single fetcher throughout the subtask's lifetime. The fetcher accomplishes the following:
+ * <ul>
+ *     <li>1. continuously poll Kinesis to discover shards that the subtask should subscribe to. The subscribed subset
+ *     		  of shards, including future new shards, is non-overlapping across subtasks (no two subtasks will be
+ *     		  subscribed to the same shard) and determinate across subtask restores (the subtask will always subscribe
+ *     		  to the same subset of shards even after restoring)</li>
+ *     <li>2. decide where in each discovered shard should the fetcher start subscribing to</li>
+ *     <li>3. subscribe to shards by creating a single thread for each shard</li>
+ * </ul>
+ *
+ * <p>The fetcher manages two states: 1) last seen shard ids of each subscribed stream (used for continuous shard discovery),
+ * and 2) last processed sequence numbers of each subscribed shard. Since operations on the second state will be performed
+ * by multiple threads, these operations should only be done using the handler methods provided in this class.
  */
-public class KinesisDataFetcher {
+public class KinesisDataFetcher<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisDataFetcher.class);
 
-	/** Config properties for the Flink Kinesis Consumer */
+	// ------------------------------------------------------------------------
+	//  Consumer-wide settings
+	// ------------------------------------------------------------------------
+
+	/** Configuration properties for the Flink Kinesis Consumer */
 	private final Properties configProps;
 
-	/** The name of the consumer task that this fetcher was instantiated */
-	private final String taskName;
+	/** The list of Kinesis streams that the consumer is subscribing to */
+	private final List<String> streams;
 
-	/** Information of the shards that this fetcher handles, along with the sequence numbers that they should start from */
-	private HashMap<KinesisStreamShard, String> assignedShardsWithStartingSequenceNum;
+	/**
+	 * The deserialization schema we will be using to convert Kinesis records to Flink objects.
+	 * Note that since this might not be thread-safe, {@link ShardConsumer}s using this must
+	 * clone a copy using {@link KinesisDataFetcher#getClonedDeserializationSchema()}.
+	 */
+	private final KinesisDeserializationSchema<T> deserializationSchema;
 
-	/** Reference to the thread that executed run() */
-	private volatile Thread mainThread;
+	// ------------------------------------------------------------------------
+	//  Subtask-specific settings
+	// ------------------------------------------------------------------------
 
-	/** Reference to the first error thrown by any of the spawned shard connection threads */
+	/** Runtime context of the subtask that this fetcher was created in */
+	private final RuntimeContext runtimeContext;
+
+	private final int totalNumberOfConsumerSubtasks;
+
+	private final int indexOfThisConsumerSubtask;
+
+	/**
+	 * This flag should be set by {@link FlinkKinesisConsumer} using
+	 * {@link KinesisDataFetcher#setIsRestoringFromFailure(boolean)}
+	 */
+	private boolean isRestoredFromFailure;
+
+	// ------------------------------------------------------------------------
+	//  Executor services to run created threads
+	// ------------------------------------------------------------------------
+
+	/** Executor service to run {@link ShardConsumer}s to consume Kinesis shards */
+	private final ExecutorService shardConsumersExecutor;
+
+	// ------------------------------------------------------------------------
+	//  Managed state, accessed and updated across multiple threads
+	// ------------------------------------------------------------------------
+
+	/** The last discovered shard ids of each subscribed stream, updated as the fetcher discovers new shards in.
+	 * Note: this state will be updated if new shards are found when {@link KinesisDataFetcher#discoverNewShardsToSubscribe()} is called.
+	 */
+	private final Map<String, String> subscribedStreamsToLastDiscoveredShardIds;
+
+	/**
+	 * The shards, along with their last processed sequence numbers, that this fetcher is subscribed to. The fetcher
+	 * will add new subscribed shard states to this list as it discovers new shards. {@link ShardConsumer} threads update
+	 * the last processed sequence number of subscribed shards as they fetch and process records.
+	 *
+	 * <p>Note that since multiple {@link ShardConsumer} threads will be performing operations on this list, all operations
+	 * must be wrapped in synchronized blocks on the {@link KinesisDataFetcher#checkpointLock} lock. For this purpose,
+	 * all threads must use the following thread-safe methods this class provides to operate on this list:
+	 * <ul>
+	 *     <li>{@link KinesisDataFetcher#registerNewSubscribedShardState(KinesisStreamShardState)}</li>
+	 *     <li>{@link KinesisDataFetcher#updateState(int, SequenceNumber)}</li>
+	 *     <li>{@link KinesisDataFetcher#emitRecordAndUpdateState(T, long, int, SequenceNumber)}</li>
+	 * </ul>
+	 */
+	private final List<KinesisStreamShardState> subscribedShardsState;
+
+	private final SourceFunction.SourceContext<T> sourceContext;
+
+	/** Checkpoint lock, also used to synchronize operations on subscribedShardsState */
+	private final Object checkpointLock;
+
+	/** Reference to the first error thrown by any of the {@link ShardConsumer} threads */
 	private final AtomicReference<Throwable> error;
+
+	/** The Kinesis proxy that the fetcher will be using to discover new shards */
+	private final KinesisProxyInterface kinesis;
+
+	/** Thread that executed runFetcher() */
+	private Thread mainThread;
 
 	private volatile boolean running = true;
 
 	/**
-	 * Creates a new Kinesis Data Fetcher for the specified set of shards
+	 * Creates a Kinesis Data Fetcher.
 	 *
-	 * @param assignedShards the shards that this fetcher will pull data from
-	 * @param configProps the configuration properties of this Flink Kinesis Consumer
-	 * @param taskName the task name of this consumer task
+	 * @param streams the streams to subscribe to
+	 * @param sourceContext context of the source function
+	 * @param runtimeContext this subtask's runtime context
+	 * @param configProps the consumer configuration properties
+	 * @param deserializationSchema deserialization schema
 	 */
-	public KinesisDataFetcher(List<KinesisStreamShard> assignedShards, Properties configProps, String taskName) {
+	public KinesisDataFetcher(List<String> streams,
+							SourceFunction.SourceContext<T> sourceContext,
+							RuntimeContext runtimeContext,
+							Properties configProps,
+							KinesisDeserializationSchema<T> deserializationSchema) {
+		this(streams,
+			sourceContext,
+			sourceContext.getCheckpointLock(),
+			runtimeContext,
+			configProps,
+			deserializationSchema,
+			new AtomicReference<Throwable>(),
+			new LinkedList<KinesisStreamShardState>(),
+			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
+			KinesisProxy.create(configProps));
+	}
+
+	/** This constructor is exposed for testing purposes */
+	protected KinesisDataFetcher(List<String> streams,
+								SourceFunction.SourceContext<T> sourceContext,
+								Object checkpointLock,
+								RuntimeContext runtimeContext,
+								Properties configProps,
+								KinesisDeserializationSchema<T> deserializationSchema,
+								AtomicReference<Throwable> error,
+								LinkedList<KinesisStreamShardState> subscribedShardsState,
+								HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
+								KinesisProxyInterface kinesis) {
+		this.streams = checkNotNull(streams);
 		this.configProps = checkNotNull(configProps);
-		this.assignedShardsWithStartingSequenceNum = new HashMap<>();
-		for (KinesisStreamShard shard : assignedShards) {
-			assignedShardsWithStartingSequenceNum.put(shard, SentinelSequenceNumber.SENTINEL_SEQUENCE_NUMBER_NOT_SET.toString());
-		}
-		this.taskName = taskName;
-		this.error = new AtomicReference<>();
+		this.sourceContext = checkNotNull(sourceContext);
+		this.checkpointLock = checkNotNull(checkpointLock);
+		this.runtimeContext = checkNotNull(runtimeContext);
+		this.totalNumberOfConsumerSubtasks = runtimeContext.getNumberOfParallelSubtasks();
+		this.indexOfThisConsumerSubtask = runtimeContext.getIndexOfThisSubtask();
+		this.deserializationSchema = checkNotNull(deserializationSchema);
+		this.kinesis = checkNotNull(kinesis);
+
+		this.error = checkNotNull(error);
+		this.subscribedShardsState = checkNotNull(subscribedShardsState);
+		this.subscribedStreamsToLastDiscoveredShardIds = checkNotNull(subscribedStreamsToLastDiscoveredShardIds);
+
+		this.shardConsumersExecutor =
+			createShardConsumersThreadPool(runtimeContext.getTaskNameWithSubtasks());
 	}
 
 	/**
-	 * Advance a shard's starting sequence number to a specified value
+	 * Starts the fetcher. After starting the fetcher, it can only
+	 * be stopped by calling {@link KinesisDataFetcher#shutdownFetcher()}.
 	 *
-	 * @param streamShard the shard to perform the advance on
-	 * @param sequenceNum the sequence number to advance to
+	 * @throws Exception the first error or exception thrown by the fetcher or any of the threads created by the fetcher.
 	 */
-	public void advanceSequenceNumberTo(KinesisStreamShard streamShard, String sequenceNum) {
-		if (!assignedShardsWithStartingSequenceNum.containsKey(streamShard)) {
-			throw new IllegalArgumentException("Can't advance sequence number on a shard we are not going to read.");
-		}
-		assignedShardsWithStartingSequenceNum.put(streamShard, sequenceNum);
-	}
+	public void runFetcher() throws Exception {
 
-	public <T> void run(SourceFunction.SourceContext<T> sourceContext,
-						KinesisDeserializationSchema<T> deserializationSchema,
-						HashMap<KinesisStreamShard, String> lastSequenceNums) throws Exception {
-
-		if (assignedShardsWithStartingSequenceNum == null || assignedShardsWithStartingSequenceNum.size() == 0) {
-			throw new IllegalArgumentException("No shards set to read for this fetcher");
-		}
-
-		this.mainThread = Thread.currentThread();
-
-		LOG.info("Reading from shards " + assignedShardsWithStartingSequenceNum);
-
-		// create a thread for each individual shard
-		ArrayList<ShardConsumerThread<?>> consumerThreads = new ArrayList<>(assignedShardsWithStartingSequenceNum.size());
-		for (Map.Entry<KinesisStreamShard, String> assignedShard : assignedShardsWithStartingSequenceNum.entrySet()) {
-			ShardConsumerThread<T> thread = new ShardConsumerThread<>(this, configProps, assignedShard.getKey(),
-				assignedShard.getValue(), sourceContext, InstantiationUtil.clone(deserializationSchema), lastSequenceNums);
-			thread.setName(String.format("ShardConsumer - %s - %s/%s",
-				taskName, assignedShard.getKey().getStreamName() ,assignedShard.getKey().getShardId()));
-			thread.setDaemon(true);
-			consumerThreads.add(thread);
-		}
-
-		// check that we are viable for running for the last time before starting threads
+		// check that we are running before proceeding
 		if (!running) {
 			return;
 		}
 
-		for (ShardConsumerThread<?> shardConsumer : consumerThreads) {
-			LOG.info("Starting thread {}", shardConsumer.getName());
-			shardConsumer.start();
+		this.mainThread = Thread.currentThread();
+
+		// ------------------------------------------------------------------------
+		//  Procedures before starting the infinite while loop:
+		// ------------------------------------------------------------------------
+
+		//  1. query for any new shards that may have been created while the Kinesis consumer was not running,
+		//     and register them to the subscribedShardState list.
+		if (LOG.isDebugEnabled()) {
+			String logFormat = (isRestoredFromFailure)
+				? "Subtask {} is trying to discover initial shards ..."
+				: "Subtask {} is trying to discover any new shards that were created while the consumer wasn't" +
+				"running due to failure ...";
+
+			LOG.debug(logFormat, indexOfThisConsumerSubtask);
+		}
+		List<KinesisStreamShard> newShardsCreatedWhileNotRunning = discoverNewShardsToSubscribe();
+		for (KinesisStreamShard shard : newShardsCreatedWhileNotRunning) {
+			// the starting state for new shards created while the consumer wasn't running depends on whether or not
+			// we are starting fresh (not restoring from a checkpoint); when we are starting fresh, this simply means
+			// all existing shards of streams we are subscribing to are new shards; when we are restoring from checkpoint,
+			// any new shards due to Kinesis resharding from the time of the checkpoint will be considered new shards.
+			InitialPosition initialPosition = InitialPosition.valueOf(configProps.getProperty(
+				ConsumerConfigConstants.STREAM_INITIAL_POSITION, ConsumerConfigConstants.DEFAULT_STREAM_INITIAL_POSITION));
+
+			SentinelSequenceNumber startingStateForNewShard = (isRestoredFromFailure)
+				? SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM
+				: initialPosition.toSentinelSequenceNumber();
+
+			if (LOG.isInfoEnabled()) {
+				String logFormat = (isRestoredFromFailure)
+					? "Subtask {} will be seeded with initial shard {}, starting state set as sequence number {}"
+					: "Subtask {} will be seeded with new shard {} that was created while the consumer wasn't" +
+						"running due to failure, starting state set as sequence number {}";
+
+				LOG.info(logFormat, indexOfThisConsumerSubtask, shard.toString(), startingStateForNewShard.get());
+			}
+			registerNewSubscribedShardState(new KinesisStreamShardState(shard, startingStateForNewShard.get()));
 		}
 
-		// wait until all consumer threads are done, or until the fetcher is aborted, or until
-		// an error occurred in one of the consumer threads
-		try {
-			boolean consumersStillRunning = true;
-			while (running && error.get() == null && consumersStillRunning) {
+		//  2. check that there is at least one shard in the subscribed streams to consume from (can be done by
+		//     checking if at least one value in subscribedStreamsToLastDiscoveredShardIds is not null)
+		boolean hasShards = false;
+		StringBuilder streamsWithNoShardsFound = new StringBuilder();
+		for (Map.Entry<String, String> streamToLastDiscoveredShardEntry : subscribedStreamsToLastDiscoveredShardIds.entrySet()) {
+			if (streamToLastDiscoveredShardEntry.getValue() != null) {
+				hasShards = true;
+			} else {
+				streamsWithNoShardsFound.append(streamToLastDiscoveredShardEntry.getKey()).append(", ");
+			}
+		}
+
+		if (streamsWithNoShardsFound.length() != 0 && LOG.isWarnEnabled()) {
+			LOG.warn("Subtask {} has failed to find any shards for the following subscribed streams: {}",
+				indexOfThisConsumerSubtask, streamsWithNoShardsFound.toString());
+		}
+
+		if (!hasShards) {
+			throw new RuntimeException("No shards can be found for all subscribed streams: " + streams);
+		}
+
+		//  3. start consuming any shard state we already have in the subscribedShardState up to this point; the
+		//     subscribedShardState may already be seeded with values due to step 1., or explicitly added by the
+		//     consumer using a restored state checkpoint
+		for (int seededStateIndex = 0; seededStateIndex < subscribedShardsState.size(); seededStateIndex++) {
+			KinesisStreamShardState seededShardState = subscribedShardsState.get(seededStateIndex);
+
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Subtask {} will start consuming seeded shard {} from sequence number {} with ShardConsumer {}",
+					indexOfThisConsumerSubtask, seededShardState.getKinesisStreamShard().toString(),
+					seededShardState.getLastProcessedSequenceNum(), seededStateIndex);
+			}
+
+			shardConsumersExecutor.submit(
+				new ShardConsumer<>(
+					this,
+					seededStateIndex,
+					subscribedShardsState.get(seededStateIndex).getKinesisStreamShard(),
+					subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum()));
+		}
+
+		// ------------------------------------------------------------------------
+
+		// finally, start the infinite shard discovery and consumer launching loop;
+		// we will escape from this loop only when shutdownFetcher() or stopWithError() is called
+
+		final long discoveryIntervalMillis = Long.valueOf(
+			configProps.getProperty(
+				ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
+				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
+
+		while (running) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Subtask {} is trying to discover new shards that were created due to resharding ...",
+					indexOfThisConsumerSubtask);
+			}
+			List<KinesisStreamShard> newShardsDueToResharding = discoverNewShardsToSubscribe();
+
+			for (KinesisStreamShard shard : newShardsDueToResharding) {
+				// since there may be delay in discovering a new shard, all new shards due to
+				// resharding should be read starting from the earliest record possible
+				KinesisStreamShardState newShardState =
+					new KinesisStreamShardState(shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
+				int newStateIndex = registerNewSubscribedShardState(newShardState);
+
+				if (LOG.isInfoEnabled()) {
+					LOG.info("Subtask {} has discovered a new shard {} due to resharding, and will start consuming " +
+							"the shard from sequence number {} with ShardConsumer {}",
+						indexOfThisConsumerSubtask, newShardState.getKinesisStreamShard().toString(),
+						newShardState.getLastProcessedSequenceNum(), newStateIndex);
+				}
+
+				shardConsumersExecutor.submit(
+					new ShardConsumer<>(
+						this,
+						newStateIndex,
+						newShardState.getKinesisStreamShard(),
+						newShardState.getLastProcessedSequenceNum()));
+			}
+
+			// we also check if we are running here so that we won't start the discovery sleep
+			// interval if the running flag was set to false during the middle of the while loop
+			if (running && discoveryIntervalMillis != 0) {
 				try {
-					// wait for the consumer threads. if an error occurs, we are interrupted
-					for (ShardConsumerThread<?> consumerThread : consumerThreads) {
-						consumerThread.join();
-					}
-
-					// check if there are consumer threads still running
-					consumersStillRunning = false;
-					for (ShardConsumerThread<?> consumerThread : consumerThreads) {
-						consumersStillRunning = consumersStillRunning | consumerThread.isAlive();
-					}
-				} catch (InterruptedException e) {
-					// ignore
+					Thread.sleep(discoveryIntervalMillis);
+				} catch (InterruptedException iex) {
+					// the sleep may be interrupted by shutdownFetcher()
 				}
 			}
+		}
 
-			// make sure any asynchronous error is noticed
-			Throwable error = this.error.get();
-			if (error != null) {
-				throw new Exception(error.getMessage(), error);
-			}
-		} finally {
-			for (ShardConsumerThread<?> consumerThread : consumerThreads) {
-				if (consumerThread.isAlive()) {
-					consumerThread.cancel();
-				}
+		// make sure all resources have been terminated before leaving
+		awaitTermination();
+
+		// any error thrown in the shard consumer threads will be thrown to the main thread
+		Throwable throwable = this.error.get();
+		if (throwable != null) {
+			if (throwable instanceof Exception) {
+				throw (Exception) throwable;
+			} else if (throwable instanceof Error) {
+				throw (Error) throwable;
+			} else {
+				throw new Exception(throwable);
 			}
 		}
 	}
 
-	public void close() throws IOException {
-		this.running = false;
+	/**
+	 * Creates a snapshot of the current last processed sequence numbers of each subscribed shard.
+	 *
+	 * @return state snapshot
+	 */
+	public HashMap<KinesisStreamShard, SequenceNumber> snapshotState() {
+		// this method assumes that the checkpoint lock is held
+		assert Thread.holdsLock(checkpointLock);
+
+		HashMap<KinesisStreamShard, SequenceNumber> stateSnapshot = new HashMap<>();
+		for (KinesisStreamShardState shardWithState : subscribedShardsState) {
+			stateSnapshot.put(shardWithState.getKinesisStreamShard(), shardWithState.getLastProcessedSequenceNum());
+		}
+		return stateSnapshot;
 	}
 
-	public void stopWithError(Throwable throwable) {
+	/**
+	 * Starts shutting down the fetcher. Must be called to allow {@link KinesisDataFetcher#runFetcher()} to complete.
+	 * Once called, the shutdown procedure will be executed and all shard consuming threads will be interrupted.
+	 */
+	public void shutdownFetcher() {
+		running = false;
+		mainThread.interrupt(); // the main thread may be sleeping for the discovery interval
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Shutting down the shard consumer threads of subtask {} ...", indexOfThisConsumerSubtask);
+		}
+		shardConsumersExecutor.shutdownNow();
+	}
+
+	/** After calling {@link KinesisDataFetcher#shutdownFetcher()}, this can be called to await the fetcher shutdown */
+	public void awaitTermination() throws InterruptedException {
+		while(!shardConsumersExecutor.isTerminated()) {
+			Thread.sleep(50);
+		}
+	}
+
+	/** Called by created threads to pass on errors. Only the first thrown error is set.
+	 * Once set, the shutdown process will be executed and all shard consuming threads will be interrupted. */
+	protected void stopWithError(Throwable throwable) {
 		if (this.error.compareAndSet(null, throwable)) {
-			if (mainThread != null) {
-				mainThread.interrupt();
+			shutdownFetcher();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Functions that update the subscribedStreamToLastDiscoveredShardIds state
+	// ------------------------------------------------------------------------
+
+	/** Updates the last discovered shard of a subscribed stream; only updates if the update is valid */
+	public void advanceLastDiscoveredShardOfStream(String stream, String shardId) {
+		String lastSeenShardIdOfStream = this.subscribedStreamsToLastDiscoveredShardIds.get(stream);
+
+		// the update is valid only if the given shard id is greater
+		// than the previous last seen shard id of the stream
+		if (lastSeenShardIdOfStream == null) {
+			// if not previously set, simply put as the last seen shard id
+			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
+		} else if (KinesisStreamShard.compareShardIds(shardId, lastSeenShardIdOfStream) > 0) {
+			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
+		}
+	}
+
+	/**
+	 * A utility function that does the following:
+	 *
+	 * 1. Find new shards for each stream that we haven't seen before
+	 * 2. For each new shard, determine whether this consumer subtask should subscribe to them;
+	 * 	  if yes, it is added to the returned list of shards
+	 * 3. Update the subscribedStreamsToLastDiscoveredShardIds state so that we won't get shards
+	 *    that we have already seen before the next time this function is called
+	 */
+	private List<KinesisStreamShard> discoverNewShardsToSubscribe() throws InterruptedException {
+
+		List<KinesisStreamShard> newShardsToSubscribe = new LinkedList<>();
+
+		GetShardListResult shardListResult = kinesis.getShardList(subscribedStreamsToLastDiscoveredShardIds);
+		if (shardListResult.hasRetrievedShards()) {
+			Set<String> streamsWithNewShards = shardListResult.getStreamsWithRetrievedShards();
+
+			for (String stream : streamsWithNewShards) {
+				List<KinesisStreamShard> newShardsOfStream = shardListResult.getRetrievedShardListOfStream(stream);
+				for (KinesisStreamShard newShard : newShardsOfStream) {
+					if (isThisSubtaskShouldSubscribeTo(newShard, totalNumberOfConsumerSubtasks, indexOfThisConsumerSubtask)) {
+						newShardsToSubscribe.add(newShard);
+					}
+				}
+
+				advanceLastDiscoveredShardOfStream(
+					stream, shardListResult.getLastSeenShardOfStream(stream).getShard().getShardId());
 			}
 		}
+
+		return newShardsToSubscribe;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Functions to get / set information about the consumer
+	// ------------------------------------------------------------------------
+
+	public void setIsRestoringFromFailure(boolean bool) {
+		this.isRestoredFromFailure = bool;
+	}
+
+	protected Properties getConsumerConfiguration() {
+		return configProps;
+	}
+
+	protected KinesisDeserializationSchema<T> getClonedDeserializationSchema() {
+		try {
+			return InstantiationUtil.clone(deserializationSchema, runtimeContext.getUserCodeClassLoader());
+		} catch (IOException | ClassNotFoundException ex) {
+			// this really shouldn't happen; simply wrap it around a runtime exception
+			throw new RuntimeException(ex);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Thread-safe operations for record emitting and shard state updating
+	//  that assure atomicity with respect to the checkpoint lock
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Atomic operation to collect a record and update state to the sequence number of the record.
+	 * This method is called by {@link ShardConsumer}s.
+	 *
+	 * @param record the record to collect
+	 * @param recordTimestamp timestamp to attach to the collected record
+	 * @param shardStateIndex index of the shard to update in subscribedShardsState;
+	 *                        this index should be the returned value from
+	 *                        {@link KinesisDataFetcher#registerNewSubscribedShardState(KinesisStreamShardState)}, called
+	 *                        when the shard state was registered.
+	 * @param lastSequenceNumber the last sequence number value to update
+	 */
+	protected void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
+		synchronized (checkpointLock) {
+			sourceContext.collectWithTimestamp(record, recordTimestamp);
+			updateState(shardStateIndex, lastSequenceNumber);
+		}
+	}
+
+	/**
+	 * Update the shard to last processed sequence number state.
+	 * This method is called by {@link ShardConsumer}s.
+	 *
+	 * @param shardStateIndex index of the shard to update in subscribedShardsState;
+	 *                        this index should be the returned value from
+	 *                        {@link KinesisDataFetcher#registerNewSubscribedShardState(KinesisStreamShardState)}, called
+	 *                        when the shard state was registered.
+	 * @param lastSequenceNumber the last sequence number value to update
+	 */
+	protected void updateState(int shardStateIndex, SequenceNumber lastSequenceNumber) {
+		synchronized (checkpointLock) {
+			subscribedShardsState.get(shardStateIndex).setLastProcessedSequenceNum(lastSequenceNumber);
+		}
+	}
+
+	/**
+	 * Register a new subscribed shard state.
+	 *
+	 * @param newSubscribedShardState the new shard state that this fetcher is to be subscribed to
+	 */
+	public int registerNewSubscribedShardState(KinesisStreamShardState newSubscribedShardState) {
+
+		synchronized (checkpointLock) {
+			subscribedShardsState.add(newSubscribedShardState);
+			return subscribedShardsState.size()-1;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Miscellaneous utility functions
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Utility function to determine whether a shard should be subscribed by this consumer subtask.
+	 *
+	 * @param shard the shard to determine
+	 * @param totalNumberOfConsumerSubtasks total number of consumer subtasks
+	 * @param indexOfThisConsumerSubtask index of this consumer subtask
+	 */
+	private static boolean isThisSubtaskShouldSubscribeTo(KinesisStreamShard shard,
+														int totalNumberOfConsumerSubtasks,
+														int indexOfThisConsumerSubtask) {
+		return (Math.abs(shard.hashCode() % totalNumberOfConsumerSubtasks)) == indexOfThisConsumerSubtask;
+	}
+
+	private static ExecutorService createShardConsumersThreadPool(final String subtaskName) {
+		return Executors.newCachedThreadPool(new ThreadFactory() {
+			@Override
+			public Thread newThread(Runnable runnable) {
+				final AtomicLong threadCount = new AtomicLong(0);
+				Thread thread = new Thread(runnable);
+				thread.setName("shardConsumers-" + subtaskName + "-thread-" + threadCount.getAndIncrement());
+				thread.setDaemon(true);
+				return thread;
+			}
+		});
+	}
+
+	/**
+	 * Utility function to create an initial map of the last discovered shard id of each subscribed stream, set to null;
+	 * This is called in the constructor; correct values will be set later on by calling advanceLastDiscoveredShardOfStream()
+	 *
+	 * @param streams the list of subscribed streams
+	 * @return the initial map for subscribedStreamsToLastDiscoveredShardIds
+	 */
+	protected static HashMap<String, String> createInitialSubscribedStreamsToLastDiscoveredShardsState(List<String> streams) {
+		HashMap<String, String> initial = new HashMap<>();
+		for (String stream : streams) {
+			initial.put(stream, null);
+		}
+		return initial;
 	}
 }

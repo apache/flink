@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,15 +6,16 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -23,6 +24,8 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import java.io.IOException;
 
 /**
  * Generic implementation of {@link FoldingState} based on a wrapped {@link ValueState}.
@@ -67,6 +70,11 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	}
 
 	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		return wrappedState.getSerializedValue(serializedKeyAndNamespace);
+	}
+
+	@Override
 	public KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> snapshot(
 		long checkpointId,
 		long timestamp) throws Exception {
@@ -79,6 +87,11 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	@Override
 	public void dispose() {
 		wrappedState.dispose();
+	}
+
+	@Override
+	public FoldingStateDescriptor<T, ACC> getStateDescriptor() {
+		throw new UnsupportedOperationException("Not supported by generic state type");
 	}
 
 	@Override
@@ -113,11 +126,10 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 		@Override
 		@SuppressWarnings("unchecked")
 		public KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> restoreState(
-			Backend stateBackend,
-			TypeSerializer<K> keySerializer,
-			ClassLoader classLoader,
-			long recoveryTimestamp) throws Exception {
-			return new GenericFoldingState((ValueState<ACC>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader, recoveryTimestamp), foldFunction);
+				Backend stateBackend,
+				TypeSerializer<K> keySerializer,
+				ClassLoader classLoader) throws Exception {
+			return new GenericFoldingState((ValueState<ACC>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader), foldFunction);
 		}
 
 		@Override
@@ -128,6 +140,11 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 		@Override
 		public long getStateSize() throws Exception {
 			return wrappedSnapshot.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			wrappedSnapshot.close();
 		}
 	}
 }

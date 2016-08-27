@@ -18,9 +18,13 @@
 package org.apache.flink.streaming.connectors.kinesis.util;
 
 import com.amazonaws.regions.Regions;
-import org.apache.flink.streaming.connectors.kinesis.config.CredentialProviderType;
-import org.apache.flink.streaming.connectors.kinesis.config.InitialPosition;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
+import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 
 import java.util.Properties;
 
@@ -32,59 +36,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class KinesisConfigUtil {
 
 	/**
-	 * Checks that the values specified for config keys in the properties config is recognizable.
+	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
 	 */
-	public static void validateConfiguration(Properties config) {
+	public static void validateConsumerConfiguration(Properties config) {
 		checkNotNull(config, "config can not be null");
 
-		if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE)) {
-			// if the credential provider type is not specified, it will default to BASIC later on,
-			// so the Access Key ID and Secret Key must be given
-			if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID)
-				|| !config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY)) {
-				throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
-						"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
-			}
-		} else {
-			String credentialsProviderType = config.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE);
+		validateAwsConfiguration(config);
 
-			// value specified for KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE needs to be recognizable
-			CredentialProviderType providerType;
-			try {
-				providerType = CredentialProviderType.valueOf(credentialsProviderType);
-			} catch (IllegalArgumentException e) {
-				StringBuilder sb = new StringBuilder();
-				for (CredentialProviderType type : CredentialProviderType.values()) {
-					sb.append(type.toString()).append(", ");
-				}
-				throw new IllegalArgumentException("Invalid AWS Credential Provider Type set in config. Valid values are: " + sb.toString());
-			}
-
-			// if BASIC type is used, also check that the Access Key ID and Secret Key is supplied
-			if (providerType == CredentialProviderType.BASIC) {
-				if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID)
-					|| !config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY)) {
-					throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
-							"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
-				}
-			}
-		}
-
-		if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_REGION)) {
-			throw new IllegalArgumentException("The AWS region ('" + KinesisConfigConstants.CONFIG_AWS_REGION + "') must be set in the config.");
-		} else {
-			// specified AWS Region name must be recognizable
-			if (!AWSUtil.isValidRegion(config.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION))) {
-				StringBuilder sb = new StringBuilder();
-				for (Regions region : Regions.values()) {
-					sb.append(region.getName()).append(", ");
-				}
-				throw new IllegalArgumentException("Invalid AWS region set in config. Valid values are: " + sb.toString());
-			}
-		}
-
-		if (config.containsKey(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE)) {
-			String initPosType = config.getProperty(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE);
+		if (config.containsKey(ConsumerConfigConstants.STREAM_INITIAL_POSITION)) {
+			String initPosType = config.getProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION);
 
 			// specified initial position in stream must be either LATEST or TRIM_HORIZON
 			try {
@@ -98,36 +58,148 @@ public class KinesisConfigUtil {
 			}
 		}
 
-		validateOptionalIntProperty(config, KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES,
-				"Invalid value given for describeStream stream operation retry count. Must be a valid integer value.");
+		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_MAX,
+			"Invalid value given for maximum records per getRecords shard operation. Must be a valid non-negative integer value.");
 
-		validateOptionalIntProperty(config, KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET,
-				"Invalid value given for maximum records per getRecords shard operation. Must be a valid integer value.");
+		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_RETRIES,
+			"Invalid value given for maximum retry attempts for getRecords shard operation. Must be a valid non-negative integer value.");
 
-		validateOptionalLongProperty(config, KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF,
-				"Invalid value given for describeStream stream operation backoff milliseconds. Must be a valid long value.");
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE,
+			"Invalid value given for get records operation base backoff milliseconds. Must be a valid non-negative long value");
 
-		validateOptionalLongProperty(config, KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT,
-				"Invalid value given for maximum number of items to pack into a PutRecords request. Must be a valid long value.");
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_MAX,
+			"Invalid value given for get records operation max backoff milliseconds. Must be a valid non-negative long value");
 
-		validateOptionalLongProperty(config, KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT,
-				"Invalid value given for maximum number of items to pack into an aggregated record. Must be a valid long value.");
+		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT,
+			"Invalid value given for get records operation backoff exponential constant. Must be a valid non-negative double value");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS,
+			"Invalid value given for getRecords sleep interval in milliseconds. Must be a valid non-negative long value.");
+
+		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES,
+			"Invalid value given for maximum retry attempts for getShardIterator shard operation. Must be a valid non-negative integer value.");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_BASE,
+			"Invalid value given for get shard iterator operation base backoff milliseconds. Must be a valid non-negative long value");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_MAX,
+			"Invalid value given for get shard iterator operation max backoff milliseconds. Must be a valid non-negative long value");
+
+		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT,
+			"Invalid value given for get shard iterator operation backoff exponential constant. Must be a valid non-negative double value");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
+			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
+			"Invalid value given for describe stream operation base backoff milliseconds. Must be a valid non-negative long value");
+
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
+			"Invalid value given for describe stream operation max backoff milliseconds. Must be a valid non-negative long value");
+
+		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
+			"Invalid value given for describe stream operation backoff exponential constant. Must be a valid non-negative double value");
 	}
 
-	private static void validateOptionalLongProperty(Properties config, String key, String message) {
+	/**
+	 * Validate configuration properties for {@link FlinkKinesisProducer}.
+	 */
+	public static void validateProducerConfiguration(Properties config) {
+		checkNotNull(config, "config can not be null");
+
+		validateAwsConfiguration(config);
+
+		validateOptionalPositiveLongProperty(config, ProducerConfigConstants.COLLECTION_MAX_COUNT,
+			"Invalid value given for maximum number of items to pack into a PutRecords request. Must be a valid non-negative long value.");
+
+		validateOptionalPositiveLongProperty(config, ProducerConfigConstants.AGGREGATION_MAX_COUNT,
+			"Invalid value given for maximum number of items to pack into an aggregated record. Must be a valid non-negative long value.");
+	}
+
+	/**
+	 * Validate configuration properties related to Amazon AWS service
+	 */
+	public static void validateAwsConfiguration(Properties config) {
+		if (!config.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
+			// if the credential provider type is not specified, it will default to BASIC later on,
+			// so the Access Key ID and Secret Key must be given
+			if (!config.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
+				|| !config.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
+				throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+ AWSConfigConstants.AWS_ACCESS_KEY_ID +"') " +
+					"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
+			}
+		} else {
+			String credentialsProviderType = config.getProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
+
+			// value specified for AWSConfigConstants.AWS_CREDENTIALS_PROVIDER needs to be recognizable
+			CredentialProvider providerType;
+			try {
+				providerType = CredentialProvider.valueOf(credentialsProviderType);
+			} catch (IllegalArgumentException e) {
+				StringBuilder sb = new StringBuilder();
+				for (CredentialProvider type : CredentialProvider.values()) {
+					sb.append(type.toString()).append(", ");
+				}
+				throw new IllegalArgumentException("Invalid AWS Credential Provider Type set in config. Valid values are: " + sb.toString());
+			}
+
+			// if BASIC type is used, also check that the Access Key ID and Secret Key is supplied
+			if (providerType == CredentialProvider.BASIC) {
+				if (!config.containsKey(AWSConfigConstants.AWS_ACCESS_KEY_ID)
+					|| !config.containsKey(AWSConfigConstants.AWS_SECRET_ACCESS_KEY)) {
+					throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+ AWSConfigConstants.AWS_ACCESS_KEY_ID +"') " +
+						"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
+				}
+			}
+		}
+
+		if (!config.containsKey(AWSConfigConstants.AWS_REGION)) {
+			throw new IllegalArgumentException("The AWS region ('" + AWSConfigConstants.AWS_REGION + "') must be set in the config.");
+		} else {
+			// specified AWS Region name must be recognizable
+			if (!AWSUtil.isValidRegion(config.getProperty(AWSConfigConstants.AWS_REGION))) {
+				StringBuilder sb = new StringBuilder();
+				for (Regions region : Regions.values()) {
+					sb.append(region.getName()).append(", ");
+				}
+				throw new IllegalArgumentException("Invalid AWS region set in config. Valid values are: " + sb.toString());
+			}
+		}
+	}
+
+	private static void validateOptionalPositiveLongProperty(Properties config, String key, String message) {
 		if (config.containsKey(key)) {
 			try {
-				Long.parseLong(config.getProperty(key));
+				long value = Long.parseLong(config.getProperty(key));
+				if (value < 0) {
+					throw new NumberFormatException();
+				}
 			} catch (NumberFormatException e) {
 				throw new IllegalArgumentException(message);
 			}
 		}
 	}
 
-	private static void validateOptionalIntProperty(Properties config, String key, String message) {
+	private static void validateOptionalPositiveIntProperty(Properties config, String key, String message) {
 		if (config.containsKey(key)) {
 			try {
-				Integer.parseInt(config.getProperty(key));
+				int value = Integer.parseInt(config.getProperty(key));
+				if (value < 0) {
+					throw new NumberFormatException();
+				}
+			} catch (NumberFormatException e) {
+				throw new IllegalArgumentException(message);
+			}
+		}
+	}
+
+	private static void validateOptionalPositiveDoubleProperty(Properties config, String key, String message) {
+		if (config.containsKey(key)) {
+			try {
+				double value = Double.parseDouble(config.getProperty(key));
+				if (value < 0) {
+					throw new NumberFormatException();
+				}
 			} catch (NumberFormatException e) {
 				throw new IllegalArgumentException(message);
 			}

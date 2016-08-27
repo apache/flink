@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
@@ -35,7 +35,8 @@ import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
 import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.java.{DataSet => JavaDataSet, Utils}
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+import org.apache.flink.api.java.{Utils, DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaAggregateOperator, ScalaCsvOutputFormat}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileSystem, Path}
@@ -262,7 +263,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       case udfOp: UdfOperator[_] => udfOp.withParameters(parameters)
       case source: DataSource[_] => source.withParameters(parameters)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + javaSet.toString 
+        throw new UnsupportedOperationException("Operator " + javaSet.toString
             + " cannot have parameters")
     }
     this
@@ -696,6 +697,62 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       implicitly[TypeInformation[R]],
       combiner,
       getCallLocationName()))
+  }
+
+  /**
+    * Selects an element with minimum value.
+    *
+    * The minimum is computed over the specified fields in lexicographical order.
+    *
+    * Example 1: Given a data set with elements [0, 1], [1, 0], the
+    * results will be:
+    * {{{
+    *   minBy(0)[0, 1]
+    *   minBy(1)[1, 0]
+    * }}}
+    * Example 2: Given a data set with elements [0, 0], [0, 1], the
+    * results will be:
+    * {{{
+    *   minBy(0, 1)[0, 0]
+    * }}}
+    * If multiple values with minimum value at the specified fields exist, a random one will be
+    * picked.
+    * Internally, this operation is implemented as a [[ReduceFunction]]
+    */
+  def minBy(fields: Int*) : DataSet[T]  = {
+    if (!getType.isTupleType) {
+      throw new InvalidProgramException("DataSet#minBy(int...) only works on Tuple types.")
+    }
+
+    reduce(new SelectByMinFunction[T](getType.asInstanceOf[TupleTypeInfoBase[T]], fields.toArray))
+  }
+
+  /**
+    * Selects an element with maximum value.
+    *
+    * The maximum is computed over the specified fields in lexicographical order.
+    *
+    * Example 1: Given a data set with elements [0, 1], [1, 0], the
+    * results will be:
+    * {{{
+    *   maxBy(0)[1, 0]
+    *   maxBy(1)[0, 1]
+    * }}}
+    * Example 2: Given a data set with elements [0, 0], [0, 1], the
+    * results will be:
+    * {{{
+    *   maxBy(0, 1)[0, 1]
+    * }}}
+    * If multiple values with maximum value at the specified fields exist, a random one will be
+    * picked
+    * Internally, this operation is implemented as a [[ReduceFunction]].
+    *
+    */
+  def maxBy(fields: Int*) : DataSet[T] = {
+    if (!getType.isTupleType) {
+      throw new InvalidProgramException("DataSet#maxBy(int...) only works on Tuple types.")
+    }
+    reduce(new SelectByMaxFunction[T](getType.asInstanceOf[TupleTypeInfoBase[T]], fields.toArray))
   }
 
   /**
@@ -1599,7 +1656,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def output(outputFormat: OutputFormat[T]): DataSink[T] = {
     javaSet.output(outputFormat)
   }
-  
+
   /**
    * Prints the elements in a DataSet to the standard output stream [[System.out]] of the
    * JVM that calls the print() method. For programs that are executed in a cluster, this

@@ -57,7 +57,15 @@ public abstract class RestartStrategyFactory implements Serializable {
 
 			return new FixedDelayRestartStrategy(
 				fixedDelayConfig.getRestartAttempts(),
-				fixedDelayConfig.getDelayBetweenAttempts());
+				fixedDelayConfig.getDelayBetweenAttemptsInterval().toMilliseconds());
+		} else if (restartStrategyConfiguration instanceof RestartStrategies.FailureRateRestartStrategyConfiguration) {
+			RestartStrategies.FailureRateRestartStrategyConfiguration config =
+					(RestartStrategies.FailureRateRestartStrategyConfiguration) restartStrategyConfiguration;
+			return new FailureRateRestartStrategy(
+					config.getMaxFailureRate(),
+					config.getFailureInterval(),
+					config.getDelayBetweenAttemptsInterval()
+			);
 		} else {
 			throw new IllegalArgumentException("Unknown restart strategy configuration " +
 				restartStrategyConfiguration + ".");
@@ -110,6 +118,9 @@ public abstract class RestartStrategyFactory implements Serializable {
 			case "fixeddelay":
 			case "fixed-delay":
 				return FixedDelayRestartStrategy.createFactory(configuration);
+			case "failurerate":
+			case "failure-rate":
+				return FailureRateRestartStrategy.createFactory(configuration);
 			default:
 				try {
 					Class<?> clazz = Class.forName(restartStrategyName);

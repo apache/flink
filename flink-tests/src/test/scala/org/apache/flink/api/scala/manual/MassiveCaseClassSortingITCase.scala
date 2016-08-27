@@ -98,7 +98,7 @@ class MassiveCaseClassSortingITCase {
         sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, inputIterator,
               new DummyInvokable(), 
               new RuntimeSerializerFactory[StringTuple](serializer, classOf[StringTuple]),
-              comparator, 1.0, 4, 0.8f, false)
+              comparator, 1.0, 4, 0.8f, true /*use large record handler*/, false)
             
         val sortedData = sorter.getIterator
         reader.close()

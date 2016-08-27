@@ -32,6 +32,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -56,11 +57,13 @@ import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.api.common.state.StateBackend;
-
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.HDFSCopyFromLocal;
 import org.apache.flink.streaming.util.HDFSCopyToLocal;
+
 import org.apache.hadoop.fs.FileSystem;
+
 import org.rocksdb.BackupEngine;
 import org.rocksdb.BackupableDBOptions;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -73,6 +76,7 @@ import org.rocksdb.RestoreOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,7 +159,14 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * to store state. The different k/v states that we have don't each have their own RocksDB
 	 * instance. They all write to this instance but to their own column family.
 	 */
-	protected transient RocksDB db;
+	protected volatile transient RocksDB db;
+
+	/**
+	 * Lock for protecting cleanup of the RocksDB db. We acquire this when doing asynchronous
+	 * checkpoints and when disposing the db. Otherwise, the asynchronous snapshot might try
+	 * iterating over a disposed db.
+	 */
+	private final SerializableObject dbCleanupLock = new SerializableObject();
 
 	/**
 	 * Information about the k/v states as we create them. This is used to retrieve the
@@ -305,28 +316,44 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		super.dispose();
 		nonPartitionedStateBackend.dispose();
 
-		if (this.dbOptions != null) {
-			this.dbOptions.dispose();
-			this.dbOptions = null;
+		// we have to lock because we might have an asynchronous checkpoint going on
+		synchronized (dbCleanupLock) {
+			if (db != null) {
+				if (this.dbOptions != null) {
+					this.dbOptions.dispose();
+					this.dbOptions = null;
+				}
+
+				for (Tuple2<ColumnFamilyHandle, StateDescriptor> column : kvStateInformation.values()) {
+					column.f0.dispose();
+				}
+
+				db.dispose();
+				db = null;
+			}
 		}
-		for (Tuple2<ColumnFamilyHandle, StateDescriptor> column: kvStateInformation.values()) {
-			column.f0.dispose();
-		}
-		db.dispose();
 	}
 
 	@Override
 	public void close() throws Exception {
 		nonPartitionedStateBackend.close();
-		
-		if (this.dbOptions != null) {
-			this.dbOptions.dispose();
-			this.dbOptions = null;
+
+		// we have to lock because we might have an asynchronous checkpoint going on
+		synchronized (dbCleanupLock) {
+			if (db != null) {
+				if (this.dbOptions != null) {
+					this.dbOptions.dispose();
+					this.dbOptions = null;
+				}
+
+				for (Tuple2<ColumnFamilyHandle, StateDescriptor> column : kvStateInformation.values()) {
+					column.f0.dispose();
+				}
+
+				db.dispose();
+				db = null;
+			}
 		}
-		for (Tuple2<ColumnFamilyHandle, StateDescriptor> column: kvStateInformation.values()) {
-			column.f0.dispose();
-		}
-		db.dispose();
 	}
 
 	private File getDbPath(String stateName) {
@@ -359,7 +386,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	@Override
 	public HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshotPartitionedState(long checkpointId, long timestamp) throws Exception {
 		if (keyValueStatesByName == null || keyValueStatesByName.size() == 0) {
-			return new HashMap<>();
+			return null;
 		}
 
 		if (fullyAsyncBackup) {
@@ -441,8 +468,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		// draw a copy in case it get's changed while performing the async snapshot
 		Map<String, Tuple2<ColumnFamilyHandle, StateDescriptor>> columnFamiliesCopy = new HashMap<>();
 		columnFamiliesCopy.putAll(kvStateInformation);
-		FullyAsynSnapshot dummySnapshot = new FullyAsynSnapshot(db,
-				snapshot,
+		FullyAsyncSnapshot dummySnapshot = new FullyAsyncSnapshot(snapshot,
 				this,
 				backupUri,
 				columnFamiliesCopy,
@@ -455,8 +481,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public final void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots, long recoveryTimestamp) throws Exception {
-		if (keyValueStateSnapshots.size() == 0) {
+	public final void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots) throws Exception {
+		if (keyValueStateSnapshots == null) {
 			return;
 		}
 
@@ -646,8 +672,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		public final KvState<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> restoreState(
 				RocksDBStateBackend stateBackend,
 				TypeSerializer<Object> keySerializer,
-				ClassLoader classLoader,
-				long recoveryTimestamp) throws Exception {
+				ClassLoader classLoader) throws Exception {
 			throw new RuntimeException("Should never happen.");
 		}
 
@@ -662,6 +687,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
 			return fs.getContentSummary(new org.apache.hadoop.fs.Path(backupUri)).getLength();
 		}
+
+		@Override
+		public void close() throws IOException {
+			// cannot do much here
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -672,10 +702,9 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * This does the snapshot using a RocksDB snapshot and an iterator over all keys
 	 * at the point of that snapshot.
 	 */
-	private static class FullyAsynSnapshot extends AsynchronousKvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> {
+	private class FullyAsyncSnapshot extends AsynchronousKvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> {
 		private static final long serialVersionUID = 1L;
 
-		private transient final RocksDB db;
 		private transient org.rocksdb.Snapshot snapshot;
 		private transient AbstractStateBackend backend;
 
@@ -683,13 +712,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		private final Map<String, Tuple2<ColumnFamilyHandle, StateDescriptor>> columnFamilies;
 		private final long checkpointId;
 
-		private FullyAsynSnapshot(RocksDB db,
-				org.rocksdb.Snapshot snapshot,
+		private FullyAsyncSnapshot(org.rocksdb.Snapshot snapshot,
 				AbstractStateBackend backend,
 				URI backupUri,
 				Map<String, Tuple2<ColumnFamilyHandle, StateDescriptor>> columnFamilies,
 				long checkpointId) {
-			this.db = db;
 			this.snapshot = snapshot;
 			this.backend = backend;
 			this.backupUri = backupUri;
@@ -723,17 +750,27 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 					count++;
 				}
 
+				ReadOptions readOptions = new ReadOptions();
+				readOptions.setSnapshot(snapshot);
+
 				for (Map.Entry<String, Tuple2<ColumnFamilyHandle, StateDescriptor>> column: columnFamilies.entrySet()) {
 					byte columnByte = columnFamilyMapping.get(column.getKey());
-					ReadOptions readOptions = new ReadOptions();
-					readOptions.setSnapshot(snapshot);
-					RocksIterator iterator = db.newIterator(column.getValue().f0, readOptions);
-					iterator.seekToFirst();
-					while (iterator.isValid()) {
-						outputView.writeByte(columnByte);
-						BytePrimitiveArraySerializer.INSTANCE.serialize(iterator.key(), outputView);
-						BytePrimitiveArraySerializer.INSTANCE.serialize(iterator.value(), outputView);
-						iterator.next();
+
+					synchronized (dbCleanupLock) {
+						if (db == null) {
+							throw new RuntimeException("RocksDB instance was disposed. This happens " +
+									"when we are in the middle of a checkpoint and the job fails.");
+						}
+						RocksIterator iterator = db.newIterator(column.getValue().f0, readOptions);
+						iterator.seekToFirst();
+						while (iterator.isValid()) {
+							outputView.writeByte(columnByte);
+							BytePrimitiveArraySerializer.INSTANCE.serialize(iterator.key(),
+									outputView);
+							BytePrimitiveArraySerializer.INSTANCE.serialize(iterator.value(),
+									outputView);
+							iterator.next();
+						}
 					}
 				}
 
@@ -743,23 +780,20 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				LOG.info("Fully asynchronous RocksDB materialization to " + backupUri + " (asynchronous part) took " + (endTime - startTime) + " ms.");
 				return new FinalFullyAsyncSnapshot(stateHandle, checkpointId);
 			} finally {
-				db.releaseSnapshot(snapshot);
+				synchronized (dbCleanupLock) {
+					if (db != null) {
+						db.releaseSnapshot(snapshot);
+					}
+				}
 				snapshot = null;
 			}
 		}
 
-		@Override
-		protected void finalize() throws Throwable {
-			if (snapshot != null) {
-				db.releaseSnapshot(snapshot);
-			}
-			super.finalize();
-		}
 	}
 
 	/**
 	 * Dummy {@link KvStateSnapshot} that holds the state of our one RocksDB data base. This
-	 * results from {@link FullyAsynSnapshot}.
+	 * results from {@link FullyAsyncSnapshot}.
 	 */
 	private static class FinalFullyAsyncSnapshot implements KvStateSnapshot<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> {
 		private static final long serialVersionUID = 1L;
@@ -771,7 +805,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		 * Creates a new snapshot from the given state parameters.
 		 */
 		private FinalFullyAsyncSnapshot(StateHandle<DataInputView> stateHandle, long checkpointId) {
-			this.stateHandle = stateHandle;
+			this.stateHandle = requireNonNull(stateHandle);
 			this.checkpointId = checkpointId;
 		}
 
@@ -779,8 +813,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		public final KvState<Object, Object, ValueState<Object>, ValueStateDescriptor<Object>, RocksDBStateBackend> restoreState(
 				RocksDBStateBackend stateBackend,
 				TypeSerializer<Object> keySerializer,
-				ClassLoader classLoader,
-				long recoveryTimestamp) throws Exception {
+				ClassLoader classLoader) throws Exception {
 			throw new RuntimeException("Should never happen.");
 		}
 
@@ -792,6 +825,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		@Override
 		public final long getStateSize() throws Exception {
 			return stateHandle.getStateSize();
+		}
+
+		@Override
+		public void close() throws IOException {
+			stateHandle.close();
 		}
 	}
 

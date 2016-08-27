@@ -41,8 +41,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Back pressure statistics tracker.
@@ -163,7 +163,7 @@ public class BackPressureStatsTracker {
 			}
 
 			if (!pendingStats.contains(vertex) &&
-					!vertex.getGraph().getState().isTerminalState()) {
+					!vertex.getGraph().getState().isGloballyTerminalState()) {
 
 				ExecutionContext executionContext = vertex.getGraph().getExecutionContext();
 
@@ -245,7 +245,7 @@ public class BackPressureStatsTracker {
 
 					// Job finished, ignore.
 					JobStatus jobState = vertex.getGraph().getState();
-					if (jobState.isTerminalState()) {
+					if (jobState.isGloballyTerminalState()) {
 						LOG.debug("Ignoring sample, because job is in state " + jobState + ".");
 					} else if (success != null) {
 						OperatorBackPressureStats stats = createStatsFromSample(success);

@@ -23,7 +23,7 @@ USAGE="Usage: jobmanager.sh (start (local|cluster) [host] [webui-port]|stop|stop
 STARTSTOP=$1
 EXECUTIONMODE=$2
 HOST=$3 # optional when starting multiple instances
-WEBUIPORT=$4 # optinal when starting multiple instances
+WEBUIPORT=$4 # optional when starting multiple instances
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -53,6 +53,9 @@ if [[ $STARTSTOP == "start" ]]; then
     if [ "${FLINK_JM_HEAP}" -gt "0" ]; then
         export JVM_ARGS="$JVM_ARGS -Xms"$FLINK_JM_HEAP"m -Xmx"$FLINK_JM_HEAP"m"
     fi
+
+    # Add JobManager-specific JVM options
+    export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_JM}"
 
     # Startup parameters
     args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "${EXECUTIONMODE}")

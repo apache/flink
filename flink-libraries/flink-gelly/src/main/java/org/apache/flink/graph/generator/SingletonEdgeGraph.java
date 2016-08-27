@@ -80,7 +80,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@ForwardedFields("*->f0")
-	private class LinkVertexToSingletonNeighbor
+	private static class LinkVertexToSingletonNeighbor
 	implements MapFunction<LongValue, Edge<LongValue,NullValue>> {
 
 		private LongValue source = new LongValue();

@@ -22,6 +22,8 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.io.IOException;
+
 /**
  * {@link KvStateSnapshot} that asynchronously materializes the state that it represents. Instead
  * of representing a materialized handle to state this would normally hold the (immutable) state
@@ -45,8 +47,7 @@ public abstract class AsynchronousKvStateSnapshot<K, N, S extends State, SD exte
 	public final KvState<K, N, S, SD, Backend> restoreState(
 		Backend stateBackend,
 		TypeSerializer<K> keySerializer,
-		ClassLoader classLoader,
-		long recoveryTimestamp) throws Exception {
+		ClassLoader classLoader) throws Exception {
 		throw new RuntimeException("This should never be called and probably points to a bug.");
 	}
 
@@ -57,6 +58,11 @@ public abstract class AsynchronousKvStateSnapshot<K, N, S extends State, SD exte
 
 	@Override
 	public long getStateSize() throws Exception {
+		throw new RuntimeException("This should never be called and probably points to a bug.");
+	}
+
+	@Override
+	public void close() throws IOException {
 		throw new RuntimeException("This should never be called and probably points to a bug.");
 	}
 }

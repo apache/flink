@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -25,7 +27,6 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import kafka.server.KafkaServer;
-
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -38,15 +39,20 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.table.StreamTableEnvironment;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.Table;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -62,6 +68,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -74,28 +81,29 @@ import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
-
 import org.apache.flink.util.StringUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
-
 import org.junit.Before;
 import org.junit.Rule;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -106,7 +114,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
@@ -265,7 +275,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		});
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
-		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null));
+		FlinkKafkaProducerBase<Tuple2<Long, String>> prod = kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
+		stream.addSink(prod);
 
 		// ----------- add consumer dataflow ----------
 
@@ -357,7 +368,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 		env.getConfig().disableSysoutLogging();
 
 		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
@@ -402,7 +413,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 		env.getConfig().disableSysoutLogging();
 
 		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
@@ -447,7 +458,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+		// set the number of restarts to one. The failing mapper will fail once, then it's only success exceptions.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 		env.getConfig().disableSysoutLogging();
 		env.setBufferTimeout(0);
 
@@ -732,6 +744,121 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		for (int i = 0; i < NUM_TOPICS; i++) {
 			final String topic = "topic-" + i;
 			deleteTestTopic(topic);
+		}
+	}
+
+	/**
+	 * Runs a table source test with JSON data.
+	 *
+	 * The table source needs to parse the following JSON fields:
+	 * - "long" -> number
+	 * - "string" -> "string"
+	 * - "boolean" -> true|false
+	 * - "double" -> fraction
+	 */
+	public void runJsonTableSource(String topic, KafkaTableSource kafkaTableSource) throws Exception {
+		final ObjectMapper mapper = new ObjectMapper();
+
+		final int numElements = 1024;
+		final long[] longs = new long[numElements];
+		final String[] strings = new String[numElements];
+		final boolean[] booleans = new boolean[numElements];
+		final double[] doubles = new double[numElements];
+
+		final byte[][] serializedJson = new byte[numElements][];
+
+		ThreadLocalRandom random = ThreadLocalRandom.current();
+
+		for (int i = 0; i < numElements; i++) {
+			longs[i] = random.nextLong();
+			strings[i] = Integer.toHexString(random.nextInt());
+			booleans[i] = random.nextBoolean();
+			doubles[i] = random.nextDouble();
+
+			ObjectNode entry = mapper.createObjectNode();
+			entry.put("long", longs[i]);
+			entry.put("string", strings[i]);
+			entry.put("boolean", booleans[i]);
+			entry.put("double", doubles[i]);
+
+			serializedJson[i] = mapper.writeValueAsBytes(entry);
+		}
+
+		// Produce serialized JSON data
+		createTestTopic(topic, 1, 1);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+
+		env.addSource(new SourceFunction<byte[]>() {
+			@Override
+			public void run(SourceContext<byte[]> ctx) throws Exception {
+				for (int i = 0; i < numElements; i++) {
+					ctx.collect(serializedJson[i]);
+				}
+			}
+
+			@Override
+			public void cancel() {
+			}
+		}).addSink(kafkaServer.getProducer(
+				topic,
+				new ByteArraySerializationSchema(),
+				standardProps,
+				null));
+
+		// Execute blocks
+		env.execute();
+
+		// Register as table source
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.getTableEnvironment(env);
+		tableEnvironment.registerTableSource("kafka", kafkaTableSource);
+
+		Table result = tableEnvironment.ingest("kafka");
+
+		tableEnvironment.toDataStream(result, Row.class).addSink(new SinkFunction<Row>() {
+
+			int i = 0;
+
+			@Override
+			public void invoke(Row value) throws Exception {
+				assertEquals(5, value.productArity());
+				assertEquals(longs[i], value.productElement(0));
+				assertEquals(strings[i], value.productElement(1));
+				assertEquals(booleans[i], value.productElement(2));
+				assertEquals(doubles[i], value.productElement(3));
+				assertNull(value.productElement(4));
+
+				if (i == numElements-1) {
+					throw new SuccessException();
+				} else {
+					i++;
+				}
+			}
+		});
+
+		tryExecutePropagateExceptions(env, "KafkaTableSource");
+	}
+
+	/**
+	 * Serialization scheme forwarding byte[] records.
+	 */
+	private static class ByteArraySerializationSchema implements KeyedSerializationSchema<byte[]> {
+
+		@Override
+		public byte[] serializeKey(byte[] element) {
+			return null;
+		}
+
+		@Override
+		public byte[] serializeValue(byte[] element) {
+			return element;
+		}
+
+		@Override
+		public String getTargetTopic(byte[] element) {
+			return null;
 		}
 	}
 
@@ -1053,12 +1180,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		producerProperties.setProperty("retries", "3");
 		kvStream.addSink(kafkaServer.getProducer(topic, schema, producerProperties, null));
 
-		JobExecutionResult result = env.execute("Write deletes to Kafka");
-
-		Map<String, Object> accuResults = result.getAllAccumulatorResults();
-		// there are 37 accumulator results in Kafka 0.9
-		// and 34 in Kafka 0.8
-		Assert.assertTrue("Not enough accumulators from Kafka Producer: " + accuResults.size(), accuResults.size() > 33);
+		env.execute("Write deletes to Kafka");
 
 		// ----------- Read the data again -------------------
 
@@ -1089,12 +1211,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Test that ensures that DeserializationSchema.isEndOfStream() is properly evaluated
-	 * and that the metrics for the consumer are properly reported.
+	 * Test that ensures that DeserializationSchema.isEndOfStream() is properly evaluated.
 	 *
 	 * @throws Exception
 	 */
-	public void runMetricsAndEndOfStreamTest() throws Exception {
+	public void runEndOfStreamTest() throws Exception {
 
 		final int ELEMENT_COUNT = 300;
 		final String topic = writeSequence("testEndOfStream", ELEMENT_COUNT, 1, 1);
@@ -1115,14 +1236,126 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		JobExecutionResult result = tryExecute(env1, "Consume " + ELEMENT_COUNT + " elements from Kafka");
 
-		Map<String, Object> accuResults = result.getAllAccumulatorResults();
-		// kafka 0.9 consumer: 39 results
-		if (kafkaServer.getVersion().equals("0.9")) {
-			assertTrue("Not enough accumulators from Kafka Consumer: " + accuResults.size(), accuResults.size() > 38);
+		deleteTestTopic(topic);
+	}
+
+	/**
+	 * Test metrics reporting for consumer
+	 *
+	 * @throws Exception
+	 */
+	public void runMetricsTest() throws Throwable {
+
+		// create a stream with 5 topics
+		final String topic = "metricsStream";
+		createTestTopic(topic, 5, 1);
+
+		final Tuple1<Throwable> error = new Tuple1<>(null);
+		Runnable job = new Runnable() {
+			@Override
+			public void run() {
+				try {
+					// start job writing & reading data.
+					final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+					env1.setParallelism(1);
+					env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+					env1.getConfig().disableSysoutLogging();
+					env1.disableOperatorChaining(); // let the source read everything into the network buffers
+
+					TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
+					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
+					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
+						@Override
+						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
+						}
+					});
+
+					DataStream<Tuple2<Integer, Integer>> fromGen = env1.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
+						boolean running = true;
+
+						@Override
+						public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+							int i = 0;
+							while (running) {
+								ctx.collect(Tuple2.of(i++, getRuntimeContext().getIndexOfThisSubtask()));
+								Thread.sleep(1);
+							}
+						}
+
+						@Override
+						public void cancel() {
+							running = false;
+						}
+					});
+
+					fromGen.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null));
+
+					env1.execute("Metrics test job");
+				} catch(Throwable t) {
+					LOG.warn("Got exception during execution", t);
+					if(!(t.getCause() instanceof JobCancellationException)) { // we'll cancel the job
+						error.f0 = t;
+					}
+				}
+			}
+		};
+		Thread jobThread = new Thread(job);
+		jobThread.start();
+
+		try {
+			// connect to JMX
+			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+			// wait until we've found all 5 offset metrics
+			Set<ObjectName> offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=current-offsets,*"), null);
+			while (offsetMetrics.size() < 5) { // test will time out if metrics are not properly working
+				if (error.f0 != null) {
+					// fail test early
+					throw error.f0;
+				}
+				offsetMetrics = mBeanServer.queryNames(new ObjectName("*:key7=current-offsets,*"), null);
+				Thread.sleep(50);
+			}
+			Assert.assertEquals(5, offsetMetrics.size());
+			// we can't rely on the consumer to have touched all the partitions already
+			// that's why we'll wait until all five partitions have a positive offset.
+			// The test will fail if we never meet the condition
+			while (true) {
+				int numPosOffsets = 0;
+				// check that offsets are correctly reported
+				for (ObjectName object : offsetMetrics) {
+					Object offset = mBeanServer.getAttribute(object, "Value");
+					if((long) offset >= 0) {
+						numPosOffsets++;
+					}
+				}
+				if (numPosOffsets == 5) {
+					break;
+				}
+				// wait for the consumer to consume on all partitions
+				Thread.sleep(50);
+			}
+
+			// check if producer metrics are also available.
+			Set<ObjectName> producerMetrics = mBeanServer.queryNames(new ObjectName("*:key6=KafkaProducer,*"), null);
+			Assert.assertTrue("No producer metrics found", producerMetrics.size() > 30);
+
+
+			LOG.info("Found all JMX metrics. Cancelling job.");
+		} finally {
+			// cancel
+			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		}
+
+		while (jobThread.isAlive()) {
+			Thread.sleep(50);
+		}
+		if (error.f0 != null) {
+			throw error.f0;
 		}
 
 		deleteTestTopic(topic);
 	}
+
 
 	public static class FixedNumberDeserializationSchema implements DeserializationSchema<Tuple2<Integer, Integer>> {
 		

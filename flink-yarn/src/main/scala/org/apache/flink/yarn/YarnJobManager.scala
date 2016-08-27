@@ -24,7 +24,8 @@ import akka.actor.ActorRef
 
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
-import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.clusterframework.messages._
@@ -33,10 +34,10 @@ import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatus, CurrentJobStatus, JobNotFound}
 import org.apache.flink.runtime.messages.Messages.Acknowledge
+import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
-
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -70,7 +71,8 @@ class YarnJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     savepointStore: SavepointStore,
-    jobRecoveryTimeout: FiniteDuration)
+    jobRecoveryTimeout: FiniteDuration,
+    metricsRegistry: Option[MetricRegistry])
   extends JobManager(
     flinkConfiguration,
     executorService,
@@ -84,7 +86,8 @@ class YarnJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     savepointStore,
-    jobRecoveryTimeout) {
+    jobRecoveryTimeout,
+    metricsRegistry) {
 
   val DEFAULT_YARN_HEARTBEAT_DELAY: FiniteDuration = 5 seconds
   val YARN_HEARTBEAT_DELAY: FiniteDuration =
@@ -137,7 +140,7 @@ class YarnJobManager(
       )
 
     case jnf: JobNotFound =>
-      log.warn(s"Job with ID ${jnf.jobID} not found in JobManager")
+      log.debug(s"Job with ID ${jnf.jobID} not found in JobManager")
       if (stopWhenJobFinished == null) {
         log.warn("The ApplicationMaster didn't expect to receive this message")
       }
@@ -150,7 +153,7 @@ class YarnJobManager(
           log.warn(s"Received job status for job ${jobStatus.jobID} but expected status for " +
             s"job $stopWhenJobFinished")
         } else {
-          if (jobStatus.status.isTerminalState) {
+          if (jobStatus.status.isGloballyTerminalState) {
             log.info(s"Job with ID ${jobStatus.jobID} is in terminal state ${jobStatus.status}. " +
               s"Shutting down YARN session")
             if (jobStatus.status == JobStatus.FINISHED) {

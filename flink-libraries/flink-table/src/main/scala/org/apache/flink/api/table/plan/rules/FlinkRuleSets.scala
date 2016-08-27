@@ -19,12 +19,10 @@
 package org.apache.flink.api.table.plan.rules
 
 import org.apache.calcite.rel.rules._
-import org.apache.calcite.rel.stream.StreamRules
 import org.apache.calcite.tools.{RuleSets, RuleSet}
 import org.apache.flink.api.table.plan.rules.dataSet._
 import org.apache.flink.api.table.plan.rules.datastream._
 import org.apache.flink.api.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
-import scala.collection.JavaConversions._
 
 object FlinkRuleSets {
 
@@ -102,6 +100,8 @@ object FlinkRuleSets {
     DataSetJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
     DataSetUnionRule.INSTANCE,
+    DataSetIntersectRule.INSTANCE,
+    DataSetMinusRule.INSTANCE,
     DataSetSortRule.INSTANCE,
     DataSetValuesRule.INSTANCE,
     BatchTableSourceScanRule.INSTANCE

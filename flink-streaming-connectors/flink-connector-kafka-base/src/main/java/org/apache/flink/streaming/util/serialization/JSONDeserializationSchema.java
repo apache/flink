@@ -18,22 +18,20 @@ package org.apache.flink.streaming.util.serialization;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.io.IOException;
 
-import static org.apache.flink.api.java.typeutils.TypeExtractor.getForClass;
 
 /**
  * DeserializationSchema that deserializes a JSON String into an ObjectNode.
  * <p>
  * Fields can be accessed by calling objectNode.get(&lt;name>).as(&lt;type>)
  */
-public class JSONDeserializationSchema implements KeyedDeserializationSchema<ObjectNode> {
+public class JSONDeserializationSchema extends AbstractDeserializationSchema<ObjectNode> {
 	private ObjectMapper mapper;
 
 	@Override
-	public ObjectNode deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+	public ObjectNode deserialize(byte[] message) throws IOException {
 		if (mapper == null) {
 			mapper = new ObjectMapper();
 		}
@@ -45,8 +43,4 @@ public class JSONDeserializationSchema implements KeyedDeserializationSchema<Obj
 		return false;
 	}
 
-	@Override
-	public TypeInformation<ObjectNode> getProducedType() {
-		return getForClass(ObjectNode.class);
-	}
 }

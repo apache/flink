@@ -676,7 +676,6 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			}
 
 			inputReaders[i].setReporter(reporter);
-			inputReaders[i].setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 
 			currentReaderOffset += groupSize;
 		}
@@ -927,7 +926,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
 					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.getExecutionConfig().isObjectReuseEnabled());
+					this.config.getSpillingThresholdInput(inputNum), this.config.getUseLargeRecordHandler(),
+					this.getExecutionConfig().isObjectReuseEnabled());
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
 				this.localStrategies[inputNum] = sorter;
@@ -963,7 +963,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.getExecutionConfig().isObjectReuseEnabled());
+					this.config.getSpillingThresholdInput(inputNum), this.getTaskConfig().getUseLargeRecordHandler(),
+					this.getExecutionConfig().isObjectReuseEnabled());
 				cSorter.setUdfConfiguration(this.config.getStubParameters());
 
 				// set the input to null such that it will be lazily fetched from the input strategy
@@ -1060,7 +1061,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	}
 
 	@Override
-	public AbstractInvokable getOwningNepheleTask() {
+	public AbstractInvokable getContainingTask() {
 		return this;
 	}
 
@@ -1153,7 +1154,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 *
 	 * @param message The main message for the log.
 	 * @param taskName The name of the task.
-	 * @param parent The nephele task that contains the code producing the message.
+	 * @param parent The task that contains the code producing the message.
 	 *
 	 * @return The string for logging.
 	 */
@@ -1259,7 +1260,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * The output collector applies the configured shipping strategy.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
+	public static <T> Collector<T> initOutputs(AbstractInvokable containingTask, ClassLoader cl, TaskConfig config,
 										List<ChainedDriver<?, ?>> chainedTasksTarget,
 										List<RecordWriter<?>> eventualOutputs,
 										ExecutionConfig executionConfig,
@@ -1298,21 +1299,21 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 				if (i == numChained - 1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs(), reporter);
+					previous = getOutputCollector(containingTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs(), reporter);
 				}
 
-				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig, accumulatorMap);
+				ct.setup(chainedStubConf, taskName, previous, containingTask, cl, executionConfig, accumulatorMap);
 				chainedTasksTarget.add(0, ct);
 
 				previous = ct;
 			}
-			// the collector of the first in the chain is the collector for the nephele task
+			// the collector of the first in the chain is the collector for the task
 			return (Collector<T>) previous;
 		}
 		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs, reporter);
+		return getOutputCollector(containingTask , config, cl, eventualOutputs, 0, numOutputs, reporter);
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -23,14 +23,15 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.taskmanager.OneShotLatch;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -51,6 +52,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -67,6 +69,7 @@ import static org.junit.Assert.assertTrue;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ResultPartitionWriter.class, FileSystem.class})
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 @SuppressWarnings("serial")
 public class RocksDBAsyncKVSnapshotTest {
 
@@ -293,8 +296,9 @@ public class RocksDBAsyncKVSnapshotTest {
 
 			// also get the state in open, this way we are sure that it was created before
 			// we trigger the test checkpoint
-			ValueState<String> state = getPartitionedState(null,
-					VoidSerializer.INSTANCE,
+			ValueState<String> state = getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("count",
 							StringSerializer.INSTANCE, "hello"));
 
@@ -304,8 +308,9 @@ public class RocksDBAsyncKVSnapshotTest {
 		public void processElement(StreamRecord<String> element) throws Exception {
 			// we also don't care
 
-			ValueState<String> state = getPartitionedState(null,
-					VoidSerializer.INSTANCE,
+			ValueState<String> state = getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("count",
 							StringSerializer.INSTANCE, "hello"));
 

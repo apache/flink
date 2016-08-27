@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstHashJoinIterator;
@@ -34,6 +35,8 @@ import org.apache.flink.runtime.operators.sort.NonReusingMergeInnerJoinIterator;
 import org.apache.flink.runtime.operators.sort.ReusingMergeInnerJoinIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
+import org.apache.flink.runtime.operators.util.metrics.CountingMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -84,6 +87,8 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 	@Override
 	public void prepare() throws Exception{
 		final TaskConfig config = this.taskContext.getTaskConfig();
+
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
 		
 		// obtain task manager's memory manager and I/O manager
 		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
@@ -96,8 +101,8 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 		// test minimum memory requirements
 		final DriverStrategy ls = config.getDriverStrategy();
 		
-		final MutableObjectIterator<IT1> in1 = this.taskContext.getInput(0);
-		final MutableObjectIterator<IT2> in2 = this.taskContext.getInput(1);
+		final MutableObjectIterator<IT1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<IT1>getInput(0), numRecordsIn);
+		final MutableObjectIterator<IT2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<IT2>getInput(1), numRecordsIn);
 
 		// get the key positions and types
 		final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
@@ -130,7 +135,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
-							memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
+							memoryManager, ioManager, numPages, this.taskContext.getContainingTask());
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
 					this.joinIterator = new ReusingBuildFirstHashJoinIterator<>(in1, in2,
@@ -138,7 +143,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator21(comparator1, comparator2),
 							memoryManager, ioManager,
-							this.taskContext.getOwningNepheleTask(),
+							this.taskContext.getContainingTask(),
 							fractionAvailableMemory,
 							false,
 							false,
@@ -150,7 +155,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
 							memoryManager, ioManager,
-							this.taskContext.getOwningNepheleTask(),
+							this.taskContext.getContainingTask(),
 							fractionAvailableMemory,
 							false,
 							false,
@@ -166,7 +171,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
-							memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
+							memoryManager, ioManager, numPages, this.taskContext.getContainingTask());
 
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
@@ -175,7 +180,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator21(comparator1, comparator2),
 							memoryManager, ioManager,
-							this.taskContext.getOwningNepheleTask(),
+							this.taskContext.getContainingTask(),
 							fractionAvailableMemory,
 							false,
 							false,
@@ -187,7 +192,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
 							memoryManager, ioManager,
-							this.taskContext.getOwningNepheleTask(),
+							this.taskContext.getContainingTask(),
 							fractionAvailableMemory,
 							false,
 							false,
@@ -209,8 +214,9 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 
 	@Override
 	public void run() throws Exception {
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
 		final FlatJoinFunction<IT1, IT2, OT> joinStub = this.taskContext.getStub();
-		final Collector<OT> collector = this.taskContext.getOutputCollector();
+		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final JoinTaskIterator<IT1, IT2, OT> joinIterator = this.joinIterator;
 		
 		while (this.running && joinIterator.callWithNextKey(joinStub, collector));

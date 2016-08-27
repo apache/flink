@@ -22,7 +22,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 
 import java.io.Serializable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Location of a result partition from the perspective of the consuming task.

@@ -24,7 +24,7 @@ import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.curator.framework.api.CuratorEventType;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.zookeeper.StateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
@@ -36,11 +36,11 @@ import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link CompletedCheckpointStore} for JobManagers running in {@link RecoveryMode#ZOOKEEPER}.
+ * {@link CompletedCheckpointStore} for JobManagers running in {@link HighAvailabilityMode#ZOOKEEPER}.
  *
  * <p>Checkpoints are added under a ZNode per job:
  * <pre>
@@ -232,7 +232,9 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	}
 
 	@Override
-	public void discardAllCheckpoints() throws Exception {
+	public void shutdown() throws Exception {
+		LOG.info("Shutting down");
+
 		for (Tuple2<StateHandle<CompletedCheckpoint>, String> checkpoint : checkpointStateHandles) {
 			try {
 				removeFromZooKeeperAndDiscardCheckpoint(checkpoint);
@@ -248,6 +250,14 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		LOG.info("Removing {} from ZooKeeper", path);
 		ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, true);
+	}
+
+	@Override
+	public void suspend() throws Exception {
+		LOG.info("Suspending");
+
+		// Clear the local handles, but don't remove any state
+		checkpointStateHandles.clear();
 	}
 
 	/**

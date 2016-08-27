@@ -51,4 +51,5 @@ public enum ApplicationStatus {
 	public int processExitCode() {
 		return processExitCode;
 	}
+
 }

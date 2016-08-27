@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A blocking in-memory subpartition, which is able to spill to disk.
@@ -152,12 +152,16 @@ class SpillableSubpartition extends ResultSubpartition {
 
 				final int numberOfBuffers = buffers.size();
 
+				long spilledBytes = 0;
+
 				// Spill all buffers
 				for (int i = 0; i < numberOfBuffers; i++) {
-					spillWriter.writeBlock(buffers.remove(0));
+					Buffer buffer = buffers.remove(0);
+					spilledBytes += buffer.getSize();
+					spillWriter.writeBlock(buffer);
 				}
 
-				LOG.debug("Spilling {} buffers of {}.", numberOfBuffers, this);
+				LOG.debug("Spilled {} bytes for sub partition {} of {}.", spilledBytes, index, parent.getPartitionId());
 
 				return numberOfBuffers;
 			}

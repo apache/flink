@@ -25,6 +25,11 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+/**
+ * A block of 24 bytes written at the <i>end</i> of a block in a binary file, and containing
+ * i) the number of records in the block, ii) the accumulated number of records, and
+ * iii) the offset of the first record in the block.
+ * */
 @Public
 public class BlockInfo implements IOReadableWritable {
 

@@ -26,7 +26,7 @@ import java.nio.channels.FileChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 public abstract class AbstractFileIOChannel implements FileIOChannel {
 

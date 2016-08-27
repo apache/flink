@@ -39,7 +39,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <SD> The type of the {@link StateDescriptor}
  * @param <Backend> The type of the backend that can restore the state from this snapshot.
  */
-public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> extends java.io.Serializable {
+public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> 
+		extends StateObject {
 
 	/**
 	 * Loads the key/value state back from this snapshot.
@@ -48,7 +49,6 @@ public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescript
 	 *                     from this snapshot.
 	 * @param keySerializer The serializer for the keys.
 	 * @param classLoader The class loader for user-defined types.
-	 * @param recoveryTimestamp The timestamp of the checkpoint we are recovering from.
 	 *
 	 * @return An instance of the key/value state loaded from this snapshot.
 	 * 
@@ -57,24 +57,5 @@ public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescript
 	KvState<K, N, S, SD, Backend> restoreState(
 		Backend stateBackend,
 		TypeSerializer<K> keySerializer,
-		ClassLoader classLoader,
-		long recoveryTimestamp) throws Exception;
-
-	/**
-	 * Discards the state snapshot, removing any resources occupied by it.
-	 * 
-	 * @throws Exception Exceptions occurring during the state disposal should be forwarded.
-	 */
-	void discardState() throws Exception;
-
-	/**
-	 * Returns the size of the state in bytes.
-	 *
-	 * <p>If the the size is not known, return <code>0</code>.
-	 *
-	 * @return Size of the state in bytes.
-	 *
-	 * @throws Exception If the operation fails during size retrieval.
-	 */
-	long getStateSize() throws Exception;
+		ClassLoader classLoader) throws Exception;
 }

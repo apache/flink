@@ -213,10 +213,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext) throws Exception {
 
+		boolean useMetrics = !Boolean.valueOf(kafkaProperties.getProperty(KEY_DISABLE_METRICS, "false"));
+
 		return new Kafka08Fetcher<>(sourceContext, thisSubtaskPartitions,
 				watermarksPeriodic, watermarksPunctuated,
 				runtimeContext, deserializer, kafkaProperties,
-				invalidOffsetBehavior, autoCommitInterval);
+				invalidOffsetBehavior, autoCommitInterval, useMetrics);
 	}
 
 	// ------------------------------------------------------------------------

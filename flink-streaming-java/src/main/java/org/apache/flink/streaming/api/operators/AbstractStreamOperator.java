@@ -23,17 +23,19 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,9 +70,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// A sane default for most operators
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
-	
-	private boolean inputCopyDisabled = false;
-	
+
 	// ---------------- runtime fields ------------------
 
 	/** The task that contains this operator (and other operators in the same chain) */
@@ -102,10 +102,10 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-		this.output = output;
 		String operatorName = containingTask.getEnvironment().getTaskInfo().getTaskName().split("->")[config.getChainIndex()].trim();
 		
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(operatorName);
+		this.output = new CountingOutput(output, this.metrics.counter("numRecordsOut"));
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
@@ -189,17 +189,16 @@ public abstract class AbstractStreamOperator<OUT>
 			}
 		}
 
-
 		return state;
 	}
 	
 	@Override
 	@SuppressWarnings("rawtypes,unchecked")
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
+	public void restoreState(StreamTaskState state) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
 		// the state again, because the restore method needs information provided by the user function
 		if (stateBackend != null) {
-			stateBackend.injectKeyValueStateSnapshots((HashMap)state.getKvStates(), recoveryTimestamp);
+			stateBackend.injectKeyValueStateSnapshots((HashMap)state.getKvStates());
 		}
 	}
 	
@@ -250,14 +249,18 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Register a timer callback. At the specified time the {@link Triggerable} will be invoked.
-	 * This call is guaranteed to not happen concurrently with method calls on the operator.
+	 * Register a timer callback. At the specified time the provided {@link Triggerable} will
+	 * be invoked. This call is guaranteed to not happen concurrently with method calls on the operator.
 	 *
 	 * @param time The absolute time in milliseconds.
 	 * @param target The target to be triggered.
 	 */
 	protected ScheduledFuture<?> registerTimer(long time, Triggerable target) {
 		return container.registerTimer(time, target);
+	}
+
+	protected long getCurrentProcessingTime() {
+		return container.getCurrentProcessingTime();
 	}
 
 	/**
@@ -267,7 +270,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
 	 */
 	protected <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
-		return getStateBackend().getPartitionedState(null, VoidSerializer.INSTANCE, stateDescriptor);
+		return getStateBackend().getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
 	}
 
 	/**
@@ -321,17 +324,30 @@ public abstract class AbstractStreamOperator<OUT>
 	public final ChainingStrategy getChainingStrategy() {
 		return chainingStrategy;
 	}
-	
-	@Override
-	public boolean isInputCopyingDisabled() {
-		return inputCopyDisabled;
-	}
 
-	/**
-	 * Enable object-reuse for this operator instance. This overrides the setting in
-	 * the {@link org.apache.flink.api.common.ExecutionConfig}
-	 */
-	public void disableInputCopy() {
-		this.inputCopyDisabled = true;
+	public class CountingOutput implements Output<StreamRecord<OUT>> {
+		private final Output<StreamRecord<OUT>> output;
+		private final Counter numRecordsOut;
+
+		public CountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
+			this.output = output;
+			this.numRecordsOut = counter;
+		}
+
+		@Override
+		public void emitWatermark(Watermark mark) {
+			output.emitWatermark(mark);
+		}
+
+		@Override
+		public void collect(StreamRecord<OUT> record) {
+			numRecordsOut.inc();
+			output.collect(record);
+		}
+
+		@Override
+		public void close() {
+			output.close();
+		}
 	}
 }

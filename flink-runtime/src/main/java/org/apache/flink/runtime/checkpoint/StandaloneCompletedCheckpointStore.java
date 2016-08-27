@@ -18,19 +18,19 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link CompletedCheckpointStore} for JobManagers running in {@link RecoveryMode#STANDALONE}.
+ * {@link CompletedCheckpointStore} for JobManagers running in {@link HighAvailabilityMode#NONE}.
  */
-class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
+public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 
 	/** The maximum number of checkpoints to retain (at least 1). */
 	private final int maxNumberOfCheckpointsToRetain;
@@ -67,7 +67,7 @@ class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 	}
 
 	@Override
-	public void addCheckpoint(CompletedCheckpoint checkpoint) {
+	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 		checkpoints.addLast(checkpoint);
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
 			checkpoints.removeFirst().discard(userClassLoader);
@@ -90,11 +90,17 @@ class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 	}
 
 	@Override
-	public void discardAllCheckpoints() {
+	public void shutdown() throws Exception {
 		for (CompletedCheckpoint checkpoint : checkpoints) {
 			checkpoint.discard(userClassLoader);
 		}
 
 		checkpoints.clear();
+	}
+
+	@Override
+	public void suspend() throws Exception {
+		// Do a regular shutdown, because we can't recovery anything
+		shutdown();
 	}
 }

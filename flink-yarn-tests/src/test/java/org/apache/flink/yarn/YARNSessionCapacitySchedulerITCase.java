@@ -120,8 +120,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 			"Job execution complete",
-				/* prohibited strings: (we want to see (2/2)) */
-			new String[]{"System.out)(1/1) switched to FINISHED "},
+			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
+			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
 			RunTypes.CLI_FRONTEND, 0, true);
 		LOG.info("Finished perJobYarnCluster()");
 	}
@@ -328,7 +328,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	@Test
 	public void testNonexistingQueue() {
 		LOG.info("Starting testNonexistingQueue()");
-		addTestAppender(FlinkYarnClient.class, Level.WARN);
+		addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",
@@ -360,8 +360,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 			"Job execution complete",
-				/* prohibited strings: (we want to see (2/2)) */
-			new String[]{"System.out)(1/1) switched to FINISHED "},
+			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
+			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
 			RunTypes.CLI_FRONTEND, 0, true);
 		LOG.info("Finished perJobYarnClusterWithParallelism()");
 	}
@@ -432,7 +432,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
 				"-ytm", "1024",
 				"-ys", "2", // test requesting slots from YARN.
-				"--yarndetached", job, "--input", tmpInFile.getAbsoluteFile().toString(), "--output", tmpOutFolder.getAbsoluteFile().toString()},
+				"--yarndetached", job,
+				"--input", tmpInFile.getAbsoluteFile().toString(),
+				"--output", tmpOutFolder.getAbsoluteFile().toString()},
 			"Job has been submitted with JobID",
 			RunTypes.CLI_FRONTEND);
 

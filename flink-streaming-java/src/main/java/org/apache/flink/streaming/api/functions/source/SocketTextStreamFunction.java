@@ -28,8 +28,8 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A source function that reads strings from a socket. The source will read bytes from the socket stream
@@ -57,7 +57,7 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	
 	private final String hostname;
 	private final int port;
-	private final char delimiter;
+	private final String delimiter;
 	private final long maxNumRetries;
 	private final long delayBetweenRetries;
 	
@@ -66,11 +66,11 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	private volatile boolean isRunning = true;
 
 	
-	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxNumRetries) {
+	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxNumRetries) {
 		this(hostname, port, delimiter, maxNumRetries, DEFAULT_CONNECTION_RETRY_SLEEP);
 	}
 	
-	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxNumRetries, long delayBetweenRetries) {
+	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxNumRetries, long delayBetweenRetries) {
 		checkArgument(port > 0 && port < 65536, "port is out of range");
 		checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
 		checkArgument(delayBetweenRetries >= 0, "delayBetweenRetries must be zero or positive");
@@ -96,19 +96,19 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 				socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
 				BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-				int data;
-				while (isRunning && (data = reader.read()) != -1) {
-					// check if the string is complete
-					if (data != delimiter) {
-						buffer.append((char) data);
-					}
-					else {
+				char[] cbuf = new char[8192];
+				int bytesRead;
+				while (isRunning && (bytesRead = reader.read(cbuf)) != -1) {
+					buffer.append(cbuf, 0, bytesRead);
+					int delimPos;
+					while (buffer.length() >= delimiter.length() && (delimPos = buffer.indexOf(delimiter)) != -1) {
+						String record = buffer.substring(0, delimPos);
 						// truncate trailing carriage return
-						if (delimiter == '\n' && buffer.length() > 0 && buffer.charAt(buffer.length() - 1) == '\r') {
-							buffer.setLength(buffer.length() - 1);
+						if (delimiter.equals("\n") && record.endsWith("\r")) {
+							record = record.substring(0, record.length() - 1);
 						}
-						ctx.collect(buffer.toString());
-						buffer.setLength(0);
+						ctx.collect(record);
+						buffer.delete(0, delimPos + delimiter.length());
 					}
 				}
 			}

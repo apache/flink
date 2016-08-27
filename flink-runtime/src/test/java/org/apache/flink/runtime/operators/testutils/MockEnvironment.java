@@ -19,19 +19,18 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -39,10 +38,13 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
@@ -89,6 +91,8 @@ public class MockEnvironment implements Environment {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
+	private final TaskKvStateRegistry kvStateRegistry;
+
 	private final int bufferSize;
 
 	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
@@ -105,6 +109,9 @@ public class MockEnvironment implements Environment {
 		this.bufferSize = bufferSize;
 
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
+
+		KvStateRegistry registry = new KvStateRegistry();
+		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
 	}
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
@@ -281,6 +288,11 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskKvStateRegistry getTaskKvStateRegistry() {
+		return kvStateRegistry;
+	}
+
+	@Override
 	public void acknowledgeCheckpoint(long checkpointId) {
 		throw new UnsupportedOperationException();
 	}
@@ -288,5 +300,10 @@ public class MockEnvironment implements Environment {
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void failExternally(Throwable cause) {
+		throw new UnsupportedOperationException("MockEnvironment does not support external task failure.");
 	}
 }

@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Simple bean to describe the state belonging to a parallel operator. It is part of the
@@ -81,12 +81,8 @@ public class SubtaskState implements Serializable {
 		return duration;
 	}
 
-	public void discard(ClassLoader userClassLoader) {
-		try {
-			state.deserializeValue(userClassLoader).discardState();
-		} catch (Exception e) {
-			LOG.warn("Failed to discard checkpoint state: " + this, e);
-		}
+	public void discard(ClassLoader userClassLoader) throws Exception {
+		state.deserializeValue(userClassLoader).discardState();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -115,6 +111,6 @@ public class SubtaskState implements Serializable {
 
 	@Override
 	public String toString() {
-		return String.format("StateForTask(Size: %d, Duration: %d, State: %s)", stateSize, duration, state);
+		return String.format("SubtaskState(Size: %d, Duration: %d, State: %s)", stateSize, duration, state);
 	}
 }

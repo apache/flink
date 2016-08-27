@@ -23,14 +23,14 @@ import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.curator.framework.recipes.shared.VersionedValue;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link CheckpointIDCounter} instances for JobManagers running in {@link RecoveryMode#ZOOKEEPER}.
+ * {@link CheckpointIDCounter} instances for JobManagers running in {@link HighAvailabilityMode#ZOOKEEPER}.
  *
  * <p>Each counter creates a ZNode:
  * <pre>
@@ -91,14 +91,30 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	}
 
 	@Override
-	public void stop() throws Exception {
+	public void shutdown() throws Exception {
 		synchronized (startStopLock) {
 			if (isStarted) {
+				LOG.info("Shutting down.");
 				sharedCount.close();
 				client.getConnectionStateListenable().removeListener(connStateListener);
 
 				LOG.info("Removing {} from ZooKeeper", counterPath);
 				client.delete().deletingChildrenIfNeeded().inBackground().forPath(counterPath);
+
+				isStarted = false;
+			}
+		}
+	}
+
+	@Override
+	public void suspend() throws Exception {
+		synchronized (startStopLock) {
+			if (isStarted) {
+				LOG.info("Suspending.");
+				sharedCount.close();
+				client.getConnectionStateListenable().removeListener(connStateListener);
+
+				// Don't remove any state
 
 				isStarted = false;
 			}
@@ -115,8 +131,13 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 			}
 
 			VersionedValue<Integer> current = sharedCount.getVersionedValue();
+			int newCount = current.getValue() + 1;
 
-			Integer newCount = current.getValue() + 1;
+			if (newCount < 0) {
+				// overflow and wrap around
+				throw new Exception("Checkpoint counter overflow. ZooKeeper checkpoint counter only supports " +
+						"checkpoints Ids up to " + Integer.MAX_VALUE);
+			}
 
 			if (sharedCount.trySetCount(current, newCount)) {
 				return current.getValue();
@@ -145,7 +166,7 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	 * Connection state listener. In case of {@link ConnectionState#SUSPENDED} or {@link
 	 * ConnectionState#LOST} we are not guaranteed to read a current count from ZooKeeper.
 	 */
-	private class SharedCountConnectionStateListener implements ConnectionStateListener {
+	private static class SharedCountConnectionStateListener implements ConnectionStateListener {
 
 		private volatile ConnectionState lastState;
 

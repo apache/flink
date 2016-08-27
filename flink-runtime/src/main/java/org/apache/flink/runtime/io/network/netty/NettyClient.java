@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.SocketAddress;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class NettyClient {
 

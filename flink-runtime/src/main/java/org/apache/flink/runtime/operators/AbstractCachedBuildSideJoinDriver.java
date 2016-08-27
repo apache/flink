@@ -25,12 +25,15 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstReOpenableHashJoinIterator;
 import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondReOpenableHashJoinIterator;
 import org.apache.flink.runtime.operators.hash.ReusingBuildFirstReOpenableHashJoinIterator;
 import org.apache.flink.runtime.operators.hash.ReusingBuildSecondReOpenableHashJoinIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
+import org.apache.flink.runtime.operators.util.metrics.CountingMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -63,13 +66,15 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 	@Override
 	public void initialize() throws Exception {
 		TaskConfig config = this.taskContext.getTaskConfig();
+
+		final Counter numRecordsIn = taskContext.getMetricGroup().counter("numRecordsIn");
 		
 		TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
 		TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
 		TypeComparator<IT1> comparator1 = this.taskContext.getDriverComparator(0);
 		TypeComparator<IT2> comparator2 = this.taskContext.getDriverComparator(1);
-		MutableObjectIterator<IT1> input1 = this.taskContext.getInput(0);
-		MutableObjectIterator<IT2> input2 = this.taskContext.getInput(1);
+		MutableObjectIterator<IT1> input1 = new CountingMutableObjectIterator<>(this.taskContext.<IT1>getInput(0), numRecordsIn);
+		MutableObjectIterator<IT2> input2 = new CountingMutableObjectIterator<>(this.taskContext.<IT2>getInput(1), numRecordsIn);
 
 		TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = 
 				this.taskContext.getTaskConfig().getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
@@ -92,7 +97,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						pairComparatorFactory.createComparator21(comparator1, comparator2),
 						this.taskContext.getMemoryManager(),
 						this.taskContext.getIOManager(),
-						this.taskContext.getOwningNepheleTask(),
+						this.taskContext.getContainingTask(),
 						availableMemory,
 						false,
 						false,
@@ -108,7 +113,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						pairComparatorFactory.createComparator12(comparator1, comparator2),
 						this.taskContext.getMemoryManager(),
 						this.taskContext.getIOManager(),
-						this.taskContext.getOwningNepheleTask(),
+						this.taskContext.getContainingTask(),
 						availableMemory,
 						false,
 						false,
@@ -127,7 +132,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						pairComparatorFactory.createComparator21(comparator1, comparator2),
 						this.taskContext.getMemoryManager(),
 						this.taskContext.getIOManager(),
-						this.taskContext.getOwningNepheleTask(),
+						this.taskContext.getContainingTask(),
 						availableMemory,
 						false,
 						false,
@@ -143,7 +148,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						pairComparatorFactory.createComparator12(comparator1, comparator2),
 						this.taskContext.getMemoryManager(),
 						this.taskContext.getIOManager(),
-						this.taskContext.getOwningNepheleTask(),
+						this.taskContext.getContainingTask(),
 						availableMemory,
 						false,
 						false,
@@ -164,8 +169,9 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 
 	@Override
 	public void run() throws Exception {
+		final Counter numRecordsOut = taskContext.getMetricGroup().counter("numRecordsOut");
 		final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
-		final Collector<OT> collector = this.taskContext.getOutputCollector();
+		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		
 		while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
 	}

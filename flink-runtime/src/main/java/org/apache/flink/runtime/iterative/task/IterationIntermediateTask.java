@@ -35,7 +35,7 @@ import java.io.IOException;
 /**
  * An intermediate iteration task, which runs a {@link org.apache.flink.runtime.operators.Driver} inside.
  * <p>
- * It will propagate {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to it's connected tasks. Furthermore
+ * It will propagate {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to its connected tasks. Furthermore
  * intermediate tasks can also update the iteration state, either the workset or the solution set.
  * <p>
  * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadTask} via

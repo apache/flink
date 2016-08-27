@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,7 +37,8 @@ import java.util.Map;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the value in the snapshot state.
  */
-public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> implements KvStateSnapshot<K, N, S, SD, MemoryStateBackend> {
+public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
+		implements KvStateSnapshot<K, N, S, SD, MemoryStateBackend> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -54,6 +56,8 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 
 	/** The serialized data of the state key/value pairs */
 	private final byte[] data;
+	
+	private transient boolean closed;
 
 	/**
 	 * Creates a new heap memory state snapshot.
@@ -82,7 +86,7 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 	public KvState<K, N, S, SD, MemoryStateBackend> restoreState(
 		MemoryStateBackend stateBackend,
 		final TypeSerializer<K> keySerializer,
-		ClassLoader classLoader, long recoveryTimestamp) throws Exception {
+		ClassLoader classLoader) throws Exception {
 
 		// validity checks
 		if (!this.keySerializer.equals(keySerializer)) {
@@ -92,14 +96,18 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 					"(" + this.keySerializer + ") " +
 					"now is (" + keySerializer + ")");
 		}
-		
+
+		if (closed) {
+			throw new IOException("snapshot has been closed");
+		}
+
 		// restore state
 		DataInputDeserializer inView = new DataInputDeserializer(data, 0, data.length);
 
 		final int numKeys = inView.readInt();
 		HashMap<N, Map<K, SV>> stateMap = new HashMap<>(numKeys);
 
-		for (int i = 0; i < numKeys; i++) {
+		for (int i = 0; i < numKeys && !closed; i++) {
 			N namespace = namespaceSerializer.deserialize(inView);
 			final int numValues = inView.readInt();
 			Map<K, SV> namespaceMap = new HashMap<>(numValues);
@@ -109,6 +117,10 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 				SV value = stateSerializer.deserialize(inView);
 				namespaceMap.put(key, value);
 			}
+		}
+
+		if (closed) {
+			throw new IOException("snapshot has been closed");
 		}
 
 		return createMemState(stateMap);
@@ -123,5 +135,10 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 	@Override
 	public long getStateSize() {
 		return data.length;
+	}
+
+	@Override
+	public void close() {
+		closed = true;
 	}
 }

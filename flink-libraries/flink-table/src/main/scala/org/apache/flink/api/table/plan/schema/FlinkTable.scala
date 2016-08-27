@@ -20,11 +20,9 @@ package org.apache.flink.api.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.api.common.typeinfo.{TypeInformation, AtomicType}
+import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.table.TableException
-import org.apache.flink.api.table.typeutils.TypeConverter
+import org.apache.flink.api.table.{FlinkTypeFactory, TableException}
 
 abstract class FlinkTable[T](
     val typeInfo: TypeInformation[T],
@@ -43,7 +41,7 @@ abstract class FlinkTable[T](
       "Table field names must be unique.")
   }
 
-  val fieldTypes: Array[SqlTypeName] =
+  val fieldTypes: Array[TypeInformation[_]] =
     typeInfo match {
       case cType: CompositeType[T] =>
         if (fieldNames.length != cType.getArity) {
@@ -51,21 +49,23 @@ abstract class FlinkTable[T](
           s"Arity of type (" + cType.getFieldNames.deep + ") " +
             "not equal to number of field names " + fieldNames.deep + ".")
         }
-        fieldIndexes
-          .map(cType.getTypeAt(_))
-          .map(TypeConverter.typeInfoToSqlType(_))
+        fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
       case aType: AtomicType[T] =>
         if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
           throw new TableException(
             "Non-composite input type may have only a single field and its index must be 0.")
         }
-        Array(TypeConverter.typeInfoToSqlType(aType))
+        Array(aType)
     }
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    val builder = typeFactory.builder
-    fieldNames.zip(fieldTypes)
-      .foreach( f => builder.add(f._1, f._2).nullable(true) )
+    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
+    val builder = flinkTypeFactory.builder
+    fieldNames
+      .zip(fieldTypes)
+      .foreach { f =>
+        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
+      }
     builder.build
   }
 

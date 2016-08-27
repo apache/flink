@@ -17,12 +17,13 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -40,6 +41,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,6 +56,7 @@ import java.util.Set;
 
 import static org.junit.Assert.*;
 
+@SuppressWarnings("serial")
 public class RescalePartitionerTest extends TestLogger {
 	
 	private RescalePartitioner<Tuple> distributePartitioner;
@@ -84,7 +87,7 @@ public class RescalePartitionerTest extends TestLogger {
 	}
 
 	@Test
-	public void testExecutionGraphGeneration() {
+	public void testExecutionGraphGeneration() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(4);
@@ -135,12 +138,13 @@ public class RescalePartitionerTest extends TestLogger {
 			jobId,
 			jobName,
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(),
-			ExecutionGraph.class.getClassLoader());
+			ExecutionGraph.class.getClassLoader(),
+			new UnregisteredMetricsGroup());
 		try {
 			eg.attachJobGraph(jobVertices);
 		}

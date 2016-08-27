@@ -40,13 +40,13 @@ extends AsmTestBase {
 	public void testWithSimpleGraph()
 			throws Exception {
 		String expectedResult =
-			"(0,1,((null),(3,2,1)))\n" +
-			"(0,2,((null),(3,1,2)))\n" +
-			"(1,2,((null),(3,1,2)))\n" +
-			"(1,3,((null),(4,2,2)))\n" +
+			"(0,1,((null),(3,0,3)))\n" +
+			"(0,2,((null),(3,2,1)))\n" +
+			"(2,1,((null),(3,0,3)))\n" +
 			"(2,3,((null),(4,2,2)))\n" +
+			"(3,1,((null),(3,0,3)))\n" +
 			"(3,4,((null),(1,0,1)))\n" +
-			"(3,5,((null),(1,0,1)))";
+			"(5,3,((null),(4,2,2)))";
 
 		DataSet<Edge<IntValue, Tuple2<NullValue, Degrees>>> degrees = directedSimpleGraph
 				.run(new EdgeTargetDegrees<IntValue, NullValue, NullValue>());
@@ -57,10 +57,10 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		ChecksumHashCode targetDegreeChecksum = DataSetUtils.checksumHashCode(directedRMatGraph
+		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
 			.run(new EdgeTargetDegrees<LongValue, NullValue, NullValue>()));
 
-		assertEquals(16384, targetDegreeChecksum.getCount());
-		assertEquals(0x00001f2867ba8b4fL, targetDegreeChecksum.getChecksum());
+		assertEquals(12009, checksum.getCount());
+		assertEquals(0x0000160af450cc81L, checksum.getChecksum());
 	}
 }

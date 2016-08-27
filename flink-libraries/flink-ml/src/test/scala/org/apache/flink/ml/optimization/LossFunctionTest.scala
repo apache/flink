@@ -21,7 +21,6 @@ package org.apache.flink.ml.optimization
 import org.apache.flink.ml.common.{LabeledVector, WeightVector}
 import org.apache.flink.ml.math.DenseVector
 import org.scalatest.{Matchers, FlatSpec}
-import org.apache.flink.test.util.FlinkTestBase
 
 
 class LossFunctionTest extends FlatSpec with Matchers {

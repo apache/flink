@@ -73,8 +73,6 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	/**  Configuration key to change the polling timeout **/
 	public static final String KEY_POLL_TIMEOUT = "flink.poll-timeout";
 
-	/** Boolean configuration key to disable metrics tracking **/
-	public static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
 
 	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
 	 * available. If 0, returns immediately with any records that are available now. */

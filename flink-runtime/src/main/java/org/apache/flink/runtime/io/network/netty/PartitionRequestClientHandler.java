@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.netty;
 import com.google.common.collect.Maps;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -46,7 +45,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
@@ -161,7 +160,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		try {
 			if (!bufferListener.hasStagedBufferOrEvent() && stagedMessages.isEmpty()) {
-				decodeMsg(msg);
+				decodeMsg(msg, false);
 			}
 			else {
 				stagedMessages.add(msg);
@@ -201,7 +200,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		super.channelReadComplete(ctx);
 	}
 
-	private boolean decodeMsg(Object msg) throws Throwable {
+	private boolean decodeMsg(Object msg, boolean isStagedBuffer) throws Throwable {
 		final Class<?> msgClazz = msg.getClass();
 
 		// ---- Buffer --------------------------------------------------------
@@ -217,7 +216,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				return true;
 			}
 
-			return decodeBufferOrEvent(inputChannel, bufferOrEvent);
+			return decodeBufferOrEvent(inputChannel, bufferOrEvent, isStagedBuffer);
 		}
 		// ---- Error ---------------------------------------------------------
 		else if (msgClazz == NettyMessage.ErrorResponse.class) {
@@ -252,7 +251,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		return true;
 	}
 
-	private boolean decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent) throws Throwable {
+	private boolean decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent, boolean isStagedBuffer) throws Throwable {
 		boolean releaseNettyBuffer = true;
 
 		try {
@@ -269,10 +268,9 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				BufferProvider bufferProvider = inputChannel.getBufferProvider();
 
 				if (bufferProvider == null) {
-
+					// receiver has been cancelled/failed
 					cancelRequestFor(bufferOrEvent.receiverId);
-
-					return false; // receiver has been cancelled/failed
+					return isStagedBuffer;
 				}
 
 				while (true) {
@@ -292,7 +290,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 						return false;
 					}
 					else if (bufferProvider.isDestroyed()) {
-						return false;
+						return isStagedBuffer;
 					}
 				}
 			}
@@ -474,7 +472,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			try {
 				Object msg;
 				while ((msg = stagedMessages.poll()) != null) {
-					if (!decodeMsg(msg)) {
+					if (!decodeMsg(msg, true)) {
 						return;
 					}
 				}

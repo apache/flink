@@ -17,15 +17,15 @@
  */
 package org.apache.flink.api.table
 
-import scala.collection.JavaConverters._
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.expressions.{Asc, ExpressionParser, UnresolvedAlias, Expression, Ordering}
+import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
-import org.apache.flink.api.table.typeutils.TypeConverter
+
+import scala.collection.JavaConverters._
 
 /**
   * A Table is the core component of the Table API.
@@ -202,7 +202,7 @@ class Table(
     */
   def groupBy(fields: Expression*): GroupedTable = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Group by on stream tables is currently not supported.")
+      throw new ValidationException(s"Group by on stream tables is currently not supported.")
     }
     new GroupedTable(this, fields)
   }
@@ -392,7 +392,6 @@ class Table(
   }
 
   private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
-
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
@@ -403,7 +402,56 @@ class Table(
   }
 
   /**
-    * Union two [[Table]]s with duplicate records removed.
+    * Minus of two [[Table]]s with duplicate records removed.
+    * Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not
+    * exist in the right table. Duplicate records in the left table are returned
+    * exactly once, i.e., duplicates are removed. Both tables must have identical field types.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.minus(right)
+    * }}}
+    */
+  def minus(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be " +
+        "subtracted.")
+    }
+    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = false)
+      .validate(tableEnv))
+  }
+
+  /**
+    * Minus of two [[Table]]s. Similar to an SQL EXCEPT ALL.
+    * Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
+    * the right table. A record that is present n times in the left table and m times
+    * in the right table is returned (n - m) times, i.e., as many duplicates as are present
+    * in the right table are removed. Both tables must have identical field types.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.minusAll(right)
+    * }}}
+    */
+  def minusAll(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be " +
+        "subtracted.")
+    }
+    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = true)
+      .validate(tableEnv))
+  }
+
+  /**
+    * Unions two [[Table]]s with duplicate records removed.
     * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
@@ -415,18 +463,15 @@ class Table(
     * }}}
     */
   def union(right: Table): Table = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new TableException(s"Union on stream tables is currently not supported.")
-    }
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, false).validate(tableEnv))
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, all = false).validate(tableEnv))
   }
 
   /**
-    * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
+    * Unions two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
     * must fully overlap.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
@@ -442,7 +487,53 @@ class Table(
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, true).validate(tableEnv))
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
+  }
+
+  /**
+    * Intersects two [[Table]]s with duplicate records removed. Intersect returns records that
+    * exist in both tables. If a record is present in one or both tables more than once, it is
+    * returned just once, i.e., the resulting table has no duplicate records. Similar to an
+    * SQL INTERSECT. The fields of the two intersect operations must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.intersect(right)
+    * }}}
+    */
+  def intersect(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException(
+        "Only tables from the same TableEnvironment can be intersected.")
+    }
+    new Table(tableEnv, Intersect(logicalPlan, right.logicalPlan, all = false).validate(tableEnv))
+  }
+
+  /**
+    * Intersects two [[Table]]s. IntersectAll returns records that exist in both tables.
+    * If a record is present in both tables more than once, it is returned as many times as it
+    * is present in both tables, i.e., the resulting table might have duplicate records. Similar
+    * to an SQL INTERSECT ALL. The fields of the two intersect operations must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.intersectAll(right)
+    * }}}
+    */
+  def intersectAll(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException(
+        "Only tables from the same TableEnvironment can be intersected.")
+    }
+    new Table(tableEnv, Intersect(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
   }
 
   /**
@@ -472,12 +563,49 @@ class Table(
     * Example:
     *
     * {{{
-    *   tab.orderBy("name DESC")
+    *   tab.orderBy("name.desc")
     * }}}
     */
   def orderBy(fields: String): Table = {
     val parsedFields = ExpressionParser.parseExpressionList(fields)
     orderBy(parsedFields: _*)
+  }
+
+  /**
+    * Limits a sorted result from an offset position.
+    * Similar to a SQL LIMIT clause. Limit is technically part of the Order By operator and
+    * thus must be preceded by it.
+    *
+    * Example:
+    *
+    * {{{
+    *   // returns unlimited number of records beginning with the 4th record
+    *   tab.orderBy('name.desc).limit(3)
+    * }}}
+    *
+    * @param offset number of records to skip
+    */
+  def limit(offset: Int): Table = {
+    new Table(tableEnv, Limit(offset = offset, child = logicalPlan).validate(tableEnv))
+  }
+
+  /**
+    * Limits a sorted result to a specified number of records from an offset position.
+    * Similar to a SQL LIMIT clause. Limit is technically part of the Order By operator and
+    * thus must be preceded by it.
+    *
+    * Example:
+    *
+    * {{{
+    *   // returns 5 records beginning with the 4th record
+    *   tab.orderBy('name.desc).limit(3, 5)
+    * }}}
+    *
+    * @param offset number of records to skip
+    * @param fetch number of records to be returned
+    */
+  def limit(offset: Int, fetch: Int): Table = {
+    new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -496,7 +624,7 @@ class Table(
     val rowType = getRelNode.getRowType
     val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
     val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
-      .map(f => TypeConverter.sqlTypeToTypeInfo(f.getType.getSqlTypeName)).toArray
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
 
     // configure the table sink
     val configuredSink = sink.configure(fieldNames, fieldTypes)

@@ -86,9 +86,10 @@ public class ChainedAllReduceDriver<IT> extends ChainedDriver<IT, IT> {
 	// --------------------------------------------------------------------------------------------
 	@Override
 	public void collect(IT record) {
+		numRecordsIn.inc();
 		try {
 			if (base == null) {
-				base = objectReuseEnabled ? record : serializer.copy(record);
+				base = serializer.copy(record);
 			} else {
 				base = objectReuseEnabled ? reducer.reduce(base, record) : serializer.copy(reducer.reduce(base, record));
 			}

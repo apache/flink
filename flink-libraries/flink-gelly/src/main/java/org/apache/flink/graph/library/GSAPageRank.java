@@ -29,6 +29,7 @@ import org.apache.flink.graph.gsa.GSAConfiguration;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
+import org.apache.flink.types.LongValue;
 
 /**
  * This is an implementation of a simple PageRank algorithm, using a gather-sum-apply iteration.
@@ -56,8 +57,7 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 
 	@Override
 	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> network) throws Exception {
-
-		DataSet<Tuple2<K, Long>> vertexOutDegrees = network.outDegrees();
+		DataSet<Tuple2<K, LongValue>> vertexOutDegrees = network.outDegrees();
 
 		Graph<K, Double, Double> networkWithWeights = network
 				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeights());
@@ -114,10 +114,10 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitWeights implements EdgeJoinFunction<Double, Long> {
+	private static final class InitWeights implements EdgeJoinFunction<Double, LongValue> {
 
-		public Double edgeJoin(Double edgeValue, Long inputValue) {
-			return edgeValue / (double) inputValue;
+		public Double edgeJoin(Double edgeValue, LongValue inputValue) {
+			return edgeValue / (double) inputValue.getValue();
 		}
 	}
 }

@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
+import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
@@ -39,7 +40,10 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests concerning the restoring of state from a checkpoint to the task executions.
@@ -81,17 +85,20 @@ public class CheckpointStateRestoreTest {
 
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				200000L,
-				200000L,
-				42,
-				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-				new ExecutionVertex[0],
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					200000L,
+					200000L,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+					new ExecutionVertex[0],
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -113,11 +120,11 @@ public class CheckpointStateRestoreTest {
 			coord.restoreLatestCheckpointedState(map, true, false);
 
 			// verify that each stateful vertex got the state
-			verify(statefulExec1, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
-			verify(statefulExec2, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
-			verify(statefulExec3, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
-			verify(statelessExec1, times(0)).setInitialState(Mockito.<SerializedValue<StateHandle<?>>>any(), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
-			verify(statelessExec2, times(0)).setInitialState(Mockito.<SerializedValue<StateHandle<?>>>any(), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
+			verify(statefulExec1, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any());
+			verify(statefulExec2, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any());
+			verify(statefulExec3, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any());
+			verify(statelessExec1, times(0)).setInitialState(Mockito.<SerializedValue<StateHandle<?>>>any(), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any());
+			verify(statelessExec2, times(0)).setInitialState(Mockito.<SerializedValue<StateHandle<?>>>any(), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -158,17 +165,20 @@ public class CheckpointStateRestoreTest {
 
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
-				200000L,
-				200000L,
-				42,
-				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-				new ExecutionVertex[0],
-				cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl),
-				RecoveryMode.STANDALONE);
+					jid,
+					200000L,
+					200000L,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+					new ExecutionVertex[0],
+					cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -206,15 +216,19 @@ public class CheckpointStateRestoreTest {
 	public void testNoCheckpointAvailable() {
 		try {
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-				new JobID(),
-				200000L,
-				200000L,
-				42,
-				new ExecutionVertex[] { mock(ExecutionVertex.class) },
-				new ExecutionVertex[] { mock(ExecutionVertex.class) },
-				new ExecutionVertex[0], cl,
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, cl), RecoveryMode.STANDALONE);
+					new JobID(),
+					200000L,
+					200000L,
+					0,
+					Integer.MAX_VALUE,
+					42,
+					new ExecutionVertex[] { mock(ExecutionVertex.class) },
+					new ExecutionVertex[] { mock(ExecutionVertex.class) },
+					new ExecutionVertex[0], cl,
+					new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(1, cl),
+					new HeapSavepointStore(),
+					new DisabledCheckpointStatsTracker());
 
 			try {
 				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);

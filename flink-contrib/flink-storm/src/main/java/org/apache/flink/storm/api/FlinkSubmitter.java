@@ -87,7 +87,7 @@ public class FlinkSubmitter {
 			throw new IllegalArgumentException("Storm conf is not valid. Must be json-serializable");
 		}
 
-		final Configuration flinkConfig = GlobalConfiguration.getConfiguration();
+		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
 		if (!stormConf.containsKey(Config.NIMBUS_HOST)) {
 			stormConf.put(Config.NIMBUS_HOST,
 					flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost"));

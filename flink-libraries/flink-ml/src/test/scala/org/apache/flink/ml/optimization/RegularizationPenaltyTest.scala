@@ -19,7 +19,6 @@
 package org.apache.flink.ml.optimization
 
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 

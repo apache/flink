@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.api;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -34,9 +34,9 @@ public class RestartStrategyTest {
 	 * strategy has been specified
 	 */
 	@Test
-	public void testAutomaticRestartingWhenCheckpointing() {
+	public void testAutomaticRestartingWhenCheckpointing() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.enableCheckpointing();
+		env.enableCheckpointing(500);
 
 		env.fromElements(1).print();
 
@@ -44,7 +44,7 @@ public class RestartStrategyTest {
 		JobGraph jobGraph = graph.getJobGraph();
 
 		RestartStrategies.RestartStrategyConfiguration restartStrategy =
-			ExecutionConfigTest.deserializeConfig(jobGraph.getSerializedExecutionConfig()).getRestartStrategy();
+			jobGraph.getSerializedExecutionConfig().deserializeValue(getClass().getClassLoader()).getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
@@ -56,9 +56,9 @@ public class RestartStrategyTest {
 	 * of execution retries is set to 0, restarting is deactivated
 	 */
 	@Test
-	public void testNoRestartingWhenCheckpointingAndExplicitExecutionRetriesZero() {
+	public void testNoRestartingWhenCheckpointingAndExplicitExecutionRetriesZero() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.enableCheckpointing();
+		env.enableCheckpointing(500);
 		env.setNumberOfExecutionRetries(0);
 
 		env.fromElements(1).print();
@@ -67,7 +67,7 @@ public class RestartStrategyTest {
 		JobGraph jobGraph = graph.getJobGraph();
 
 		RestartStrategies.RestartStrategyConfiguration restartStrategy =
-			ExecutionConfigTest.deserializeConfig(jobGraph.getSerializedExecutionConfig()).getRestartStrategy();
+			jobGraph.getSerializedExecutionConfig().deserializeValue(getClass().getClassLoader()).getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.NoRestartStrategyConfiguration);
@@ -78,9 +78,9 @@ public class RestartStrategyTest {
 	 * of execution retries is set to 42 and the delay to 1337, fixed delay restarting is used.
 	 */
 	@Test
-	public void testFixedRestartingWhenCheckpointingAndExplicitExecutionRetriesNonZero() {
+	public void testFixedRestartingWhenCheckpointingAndExplicitExecutionRetriesNonZero() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.enableCheckpointing();
+		env.enableCheckpointing(500);
 		env.setNumberOfExecutionRetries(42);
 		env.getConfig().setExecutionRetryDelay(1337);
 
@@ -90,11 +90,11 @@ public class RestartStrategyTest {
 		JobGraph jobGraph = graph.getJobGraph();
 
 		RestartStrategies.RestartStrategyConfiguration restartStrategy =
-			ExecutionConfigTest.deserializeConfig(jobGraph.getSerializedExecutionConfig()).getRestartStrategy();
+			jobGraph.getSerializedExecutionConfig().deserializeValue(getClass().getClassLoader()).getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
 		Assert.assertEquals(42, ((RestartStrategies.FixedDelayRestartStrategyConfiguration)restartStrategy).getRestartAttempts());
-		Assert.assertEquals(1337, ((RestartStrategies.FixedDelayRestartStrategyConfiguration)restartStrategy).getDelayBetweenAttempts());
+		Assert.assertEquals(1337, ((RestartStrategies.FixedDelayRestartStrategyConfiguration)restartStrategy).getDelayBetweenAttemptsInterval().toMilliseconds());
 	}
 }

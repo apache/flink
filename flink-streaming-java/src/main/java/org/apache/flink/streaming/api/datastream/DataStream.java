@@ -92,8 +92,7 @@ import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -777,8 +776,8 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Assigns timestamps to the elements in the data stream and periodically creates
-	 * watermarks to signal event time progress.
+	 * Assigns timestamps to the elements in the data stream and creates watermarks to
+	 * signal event time progress based on the elements themselves.
 	 *
 	 * <p>This method creates watermarks based purely on stream elements. For each element
 	 * that is handled via {@link AssignerWithPunctuatedWatermarks#extractTimestamp(Object, long)},

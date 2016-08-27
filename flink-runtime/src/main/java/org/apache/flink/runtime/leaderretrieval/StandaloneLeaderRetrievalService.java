@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Standalone implementation of the {@link LeaderRetrievalService}. The standalone implementation

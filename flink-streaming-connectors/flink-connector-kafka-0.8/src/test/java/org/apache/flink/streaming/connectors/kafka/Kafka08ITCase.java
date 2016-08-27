@@ -18,19 +18,22 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.curator.framework.CuratorFramework;
-
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
-import org.apache.flink.streaming.connectors.kafka.testutils.DiscardingSink;
 import org.apache.flink.streaming.connectors.kafka.testutils.JobManagerCommunicationUtils;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -153,8 +156,13 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 	}
 
 	@Test(timeout=60000)
-	public void testMetricsAndEndOfStream() throws Exception {
-		runMetricsAndEndOfStreamTest();
+	public void testEndOfStream() throws Exception {
+		runEndOfStreamTest();
+	}
+
+	@Test(timeout = 60000)
+	public void testMetrics() throws Throwable {
+		runMetricsTest();
 	}
 
 	@Test
@@ -359,5 +367,67 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		Assert.assertEquals(Long.valueOf(49L), o3);
 
 		curatorFramework.close();
+	}
+
+	@Test
+	public void testJsonTableSource() throws Exception {
+		String topic = UUID.randomUUID().toString();
+
+		// Names and types are determined in the actual test method of the
+		// base test class.
+		Kafka08JsonTableSource tableSource = new Kafka08JsonTableSource(
+				topic,
+				standardProps,
+				new String[] {
+						"long",
+						"string",
+						"boolean",
+						"double",
+						"missing-field"},
+				new TypeInformation<?>[] {
+						BasicTypeInfo.LONG_TYPE_INFO,
+						BasicTypeInfo.STRING_TYPE_INFO,
+						BasicTypeInfo.BOOLEAN_TYPE_INFO,
+						BasicTypeInfo.DOUBLE_TYPE_INFO,
+						BasicTypeInfo.LONG_TYPE_INFO });
+
+		// Don't fail on missing field, but set to null (default)
+		tableSource.setFailOnMissingField(false);
+
+		runJsonTableSource(topic, tableSource);
+	}
+
+	@Test
+	public void testJsonTableSourceWithFailOnMissingField() throws Exception {
+		String topic = UUID.randomUUID().toString();
+
+		// Names and types are determined in the actual test method of the
+		// base test class.
+		Kafka08JsonTableSource tableSource = new Kafka08JsonTableSource(
+				topic,
+				standardProps,
+				new String[] {
+						"long",
+						"string",
+						"boolean",
+						"double",
+						"missing-field"},
+				new TypeInformation<?>[] {
+						BasicTypeInfo.LONG_TYPE_INFO,
+						BasicTypeInfo.STRING_TYPE_INFO,
+						BasicTypeInfo.BOOLEAN_TYPE_INFO,
+						BasicTypeInfo.DOUBLE_TYPE_INFO,
+						BasicTypeInfo.LONG_TYPE_INFO });
+
+		// Don't fail on missing field, but set to null (default)
+		tableSource.setFailOnMissingField(true);
+
+		try {
+			runJsonTableSource(topic, tableSource);
+			fail("Did not throw expected Exception");
+		} catch (Exception e) {
+			Throwable rootCause = e.getCause().getCause().getCause();
+			assertTrue("Unexpected root cause", rootCause instanceof IllegalStateException);
+		}
 	}
 }

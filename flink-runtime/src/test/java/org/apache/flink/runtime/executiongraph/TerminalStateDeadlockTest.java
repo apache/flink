@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -35,12 +35,14 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.Arrays;
@@ -105,9 +107,6 @@ public class TerminalStateDeadlockTest {
 			final JobID jobId = resource.getJobID();
 			final JobVertexID vid1 = new JobVertexID();
 			final JobVertexID vid2 = new JobVertexID();
-
-			
-			final Configuration jobConfig = new Configuration();
 			
 			final List<JobVertex> vertices;
 			{
@@ -182,13 +181,13 @@ public class TerminalStateDeadlockTest {
 		
 		private volatile boolean done;
 
-		TestExecGraph(JobID jobId) {
+		TestExecGraph(JobID jobId) throws IOException {
 			super(
 				TestingUtils.defaultExecutionContext(),
 				jobId,
 				"test graph",
 				EMPTY_CONFIG,
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				TIMEOUT,
 				new FixedDelayRestartStrategy(1, 0));
 		}

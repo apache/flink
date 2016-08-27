@@ -118,7 +118,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
 			this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
 		{
-			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, sortingComparator, this.memory);
+			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, sortingComparator.duplicate(), this.memory);
 		} else {
 			this.sorter = new NormalizedKeySorter<IN>(this.serializer, sortingComparator.duplicate(), this.memory);
 		}
@@ -163,6 +163,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 
 	@Override
 	public void collect(IN record) {
+		this.numRecordsIn.inc();
 		// try writing to the sorter first
 		try {
 			if (this.sorter.write(record)) {

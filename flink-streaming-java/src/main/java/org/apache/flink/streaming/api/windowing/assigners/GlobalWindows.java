@@ -43,7 +43,7 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 	private GlobalWindows() {}
 
 	@Override
-	public Collection<GlobalWindow> assignWindows(Object element, long timestamp) {
+	public Collection<GlobalWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		return Collections.singletonList(GlobalWindow.get());
 	}
 
@@ -101,5 +101,10 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 	@Override
 	public TypeSerializer<GlobalWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new GlobalWindow.Serializer();
+	}
+
+	@Override
+	public boolean isEventTime() {
+		return false;
 	}
 }

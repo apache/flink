@@ -33,8 +33,8 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A task deployment descriptor contains all the information necessary to deploy a task on a task manager.
@@ -93,8 +93,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** The execution configuration (see {@link ExecutionConfig}) related to the specific job. */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	private long recoveryTimestamp;
-		
 	/**
 	 * Constructs a task deployment descriptor.
 	 */
@@ -116,8 +114,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			int targetSlotNumber,
-			SerializedValue<StateHandle<?>> operatorState,
-			long recoveryTimestamp) {
+			SerializedValue<StateHandle<?>> operatorState) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
@@ -142,7 +139,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.requiredClasspaths = checkNotNull(requiredClasspaths);
 		this.targetSlotNumber = targetSlotNumber;
 		this.operatorState = operatorState;
-		this.recoveryTimestamp = recoveryTimestamp;
 	}
 
 	public TaskDeploymentDescriptor(
@@ -182,8 +178,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			requiredJarFiles,
 			requiredClasspaths,
 			targetSlotNumber,
-			null,
-			-1);
+			null);
 	}
 
 	/**
@@ -323,9 +318,5 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public SerializedValue<StateHandle<?>> getOperatorState() {
 		return operatorState;
-	}
-	
-	public long getRecoveryTimestamp() {
-		return recoveryTimestamp;
 	}
 }

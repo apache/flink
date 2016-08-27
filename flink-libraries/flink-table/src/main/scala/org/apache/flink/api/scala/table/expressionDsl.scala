@@ -17,10 +17,15 @@
  */
 package org.apache.flink.api.scala.table
 
-import scala.language.implicitConversions
+import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.calcite.avatica.util.DateTimeUtils._
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
+import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions._
+
+import scala.language.implicitConversions
 
 /**
  * These are all the operations that can be used to construct an [[Expression]] AST for expression
@@ -30,7 +35,16 @@ import org.apache.flink.api.table.expressions._
  * [[org.apache.flink.api.table.expressions.ExpressionParser]].
  */
 trait ImplicitExpressionOperations {
-  def expr: Expression
+  private[flink] def expr: Expression
+
+  /**
+    * Enables literals on left side of binary expressions.
+    *
+    * e.g. 12.toExpr % 'a
+    *
+    * @return expression
+    */
+  def toExpr: Expression = expr
 
   def && (other: Expression) = And(expr, other)
   def || (other: Expression) = Or(expr, other)
@@ -69,16 +83,16 @@ trait ImplicitExpressionOperations {
   def desc = Desc(expr)
 
   /**
-    * Conditional operator that decides which of two other expressions should be evaluated
+    * Ternary conditional operator that decides which of two other expressions should be evaluated
     * based on a evaluated boolean condition.
     *
-    * e.g. (42 > 5).eval("A", "B") leads to "A"
+    * e.g. (42 > 5).?("A", "B") leads to "A"
     *
     * @param ifTrue expression to be evaluated if condition holds
     * @param ifFalse expression to be evaluated if condition does not hold
     */
-  def eval(ifTrue: Expression, ifFalse: Expression) = {
-    Eval(expr, ifTrue, ifFalse)
+  def ?(ifTrue: Expression, ifFalse: Expression) = {
+    If(expr, ifTrue, ifFalse)
   }
 
   // scalar functions
@@ -109,7 +123,7 @@ trait ImplicitExpressionOperations {
   def power(other: Expression) = Power(expr, other)
 
   /**
-    * Calculates the absolute value of given one.
+    * Calculates the absolute value of given value.
     */
   def abs() = Abs(expr)
 
@@ -123,15 +137,17 @@ trait ImplicitExpressionOperations {
     */
   def ceil() = Ceil(expr)
 
+  // String operations
+
   /**
-    * Creates a substring of the given string between the given indices.
+    * Creates a substring of the given string at given index for a given length.
     *
     * @param beginIndex first character of the substring (starting at 1, inclusive)
-    * @param endIndex last character of the substring (starting at 1, inclusive)
+    * @param length number of characters of the substring
     * @return substring
     */
-  def substring(beginIndex: Expression, endIndex: Expression) =
-    SubString(expr, beginIndex, endIndex)
+  def substring(beginIndex: Expression, length: Expression) =
+    SubString(expr, beginIndex, length)
 
   /**
     * Creates a substring of the given string beginning at the given index to the end.
@@ -155,11 +171,11 @@ trait ImplicitExpressionOperations {
       removeTrailing: Boolean = true,
       character: Expression = TrimConstants.TRIM_DEFAULT_CHAR) = {
     if (removeLeading && removeTrailing) {
-      Trim(TrimConstants.TRIM_BOTH, character, expr)
+      Trim(TrimMode.BOTH, character, expr)
     } else if (removeLeading) {
-      Trim(TrimConstants.TRIM_LEADING, character, expr)
+      Trim(TrimMode.LEADING, character, expr)
     } else if (removeTrailing) {
-      Trim(TrimConstants.TRIM_TRAILING, character, expr)
+      Trim(TrimMode.TRAILING, character, expr)
     } else {
       expr
     }
@@ -201,6 +217,95 @@ trait ImplicitExpressionOperations {
     * e.g. "A+" matches all Strings that consist of at least one A
     */
   def similar(pattern: Expression) = Similar(expr, pattern)
+
+  // Temporal operations
+
+  /**
+    * Parses a date String in the form "yy-mm-dd" to a SQL Date.
+    */
+  def toDate = Cast(expr, SqlTimeTypeInfo.DATE)
+
+  /**
+    * Parses a time String in the form "hh:mm:ss" to a SQL Time.
+    */
+  def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
+
+  /**
+    * Parses a timestamp String in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
+    */
+  def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
+
+  /**
+    * Extracts parts of a time point or time interval. Returns the part as a long value.
+    *
+    * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
+    */
+  def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
+
+  /**
+    * Rounds down a time point to the given unit.
+    *
+    * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
+    */
+  def floor(timeIntervalUnit: TimeIntervalUnit) = TemporalFloor(timeIntervalUnit, expr)
+
+  /**
+    * Rounds up a time point to the given unit.
+    *
+    * e.g. "12:44:31".toDate.ceil(MINUTE) leads to 12:45:00
+    */
+  def ceil(timeIntervalUnit: TimeIntervalUnit) = TemporalCeil(timeIntervalUnit, expr)
+
+  // Interval types
+
+  /**
+    * Creates an interval of the given number of years.
+    *
+    * @return interval of months
+    */
+  def year = toMonthInterval(expr, 12)
+
+  /**
+    * Creates an interval of the given number of months.
+    *
+    * @return interval of months
+    */
+  def month = toMonthInterval(expr, 1)
+
+  /**
+    * Creates an interval of the given number of days.
+    *
+    * @return interval of milliseconds
+    */
+  def day = toMilliInterval(expr, MILLIS_PER_DAY)
+
+    /**
+    * Creates an interval of the given number of hours.
+    *
+    * @return interval of milliseconds
+    */
+  def hour = toMilliInterval(expr, MILLIS_PER_HOUR)
+
+    /**
+    * Creates an interval of the given number of minutes.
+    *
+    * @return interval of milliseconds
+    */
+  def minute = toMilliInterval(expr, MILLIS_PER_MINUTE)
+
+    /**
+    * Creates an interval of the given number of seconds.
+    *
+    * @return interval of milliseconds
+    */
+  def second = toMilliInterval(expr, MILLIS_PER_SECOND)
+
+    /**
+    * Creates an interval of the given number of milliseconds.
+    *
+    * @return interval of milliseconds
+    */
+  def milli = toMilliInterval(expr, 1)
 }
 
 /**
@@ -212,12 +317,20 @@ trait ImplicitExpressionConversions {
     def expr = e
   }
 
-  implicit class SymbolExpression(s: Symbol) extends ImplicitExpressionOperations {
+  implicit class UnresolvedFieldExpression(s: Symbol) extends ImplicitExpressionOperations {
     def expr = UnresolvedFieldReference(s.name)
   }
 
   implicit class LiteralLongExpression(l: Long) extends ImplicitExpressionOperations {
     def expr = Literal(l)
+  }
+
+  implicit class LiteralByteExpression(b: Byte) extends ImplicitExpressionOperations {
+    def expr = Literal(b)
+  }
+
+  implicit class LiteralShortExpression(s: Short) extends ImplicitExpressionOperations {
+    def expr = Literal(s)
   }
 
   implicit class LiteralIntExpression(i: Int) extends ImplicitExpressionOperations {
@@ -240,11 +353,42 @@ trait ImplicitExpressionConversions {
     def expr = Literal(bool)
   }
 
+  implicit class LiteralJavaDecimalExpression(javaDecimal: java.math.BigDecimal)
+      extends ImplicitExpressionOperations {
+    def expr = Literal(javaDecimal)
+  }
+
+  implicit class LiteralScalaDecimalExpression(scalaDecimal: scala.math.BigDecimal)
+      extends ImplicitExpressionOperations {
+    def expr = Literal(scalaDecimal.bigDecimal)
+  }
+
+  implicit class LiteralSqlDateExpression(sqlDate: Date) extends ImplicitExpressionOperations {
+    def expr = Literal(sqlDate)
+  }
+
+  implicit class LiteralSqlTimeExpression(sqlTime: Time) extends ImplicitExpressionOperations {
+    def expr = Literal(sqlTime)
+  }
+
+  implicit class LiteralSqlTimestampExpression(sqlTimestamp: Timestamp)
+      extends ImplicitExpressionOperations {
+    def expr = Literal(sqlTimestamp)
+  }
+
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
+  implicit def byte2Literal(b: Byte): Expression = Literal(b)
+  implicit def short2Literal(s: Short): Expression = Literal(s)
   implicit def int2Literal(i: Int): Expression = Literal(i)
   implicit def long2Literal(l: Long): Expression = Literal(l)
   implicit def double2Literal(d: Double): Expression = Literal(d)
   implicit def float2Literal(d: Float): Expression = Literal(d)
   implicit def string2Literal(str: String): Expression = Literal(str)
   implicit def boolean2Literal(bool: Boolean): Expression = Literal(bool)
+  implicit def javaDec2Literal(javaDec: java.math.BigDecimal): Expression = Literal(javaDec)
+  implicit def scalaDec2Literal(scalaDec: scala.math.BigDecimal): Expression =
+    Literal(scalaDec.bigDecimal)
+  implicit def sqlDate2Literal(sqlDate: Date): Expression = Literal(sqlDate)
+  implicit def sqlTime2Literal(sqlTime: Time): Expression = Literal(sqlTime)
+  implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression = Literal(sqlTimestamp)
 }

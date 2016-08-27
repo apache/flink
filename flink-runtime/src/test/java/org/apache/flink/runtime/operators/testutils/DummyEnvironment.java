@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
@@ -34,6 +34,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
@@ -48,9 +50,17 @@ public class DummyEnvironment implements Environment {
 	private final ExecutionAttemptID executionId = new ExecutionAttemptID();
 	private final ExecutionConfig executionConfig = new ExecutionConfig();
 	private final TaskInfo taskInfo;
+	private final KvStateRegistry kvStateRegistry = new KvStateRegistry();
+	private final TaskKvStateRegistry taskKvStateRegistry;
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this.taskInfo = new TaskInfo(taskName, subTaskIndex, numSubTasks, 0);
+
+		this.taskKvStateRegistry = kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+	}
+
+	public KvStateRegistry getKvStateRegistry() {
+		return kvStateRegistry;
 	}
 
 	@Override
@@ -134,10 +144,20 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskKvStateRegistry getTaskKvStateRegistry() {
+		return taskKvStateRegistry;
+	}
+
+	@Override
 	public void acknowledgeCheckpoint(long checkpointId) {}
 
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {}
+
+	@Override
+	public void failExternally(Throwable cause) {
+		throw new UnsupportedOperationException("DummyEnvironment does not support external task failure.");
+	}
 
 	@Override
 	public ResultPartitionWriter getWriter(int index) {

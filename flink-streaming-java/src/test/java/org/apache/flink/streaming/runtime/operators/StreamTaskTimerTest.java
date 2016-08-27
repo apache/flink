@@ -27,9 +27,11 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
+import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -42,8 +44,61 @@ import static org.junit.Assert.*;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ResultPartitionWriter.class)
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 @SuppressWarnings("serial")
 public class StreamTaskTimerTest {
+
+	@Test
+	public void testCustomTimeServiceProvider() throws Throwable {
+		TestTimeServiceProvider tp = new TestTimeServiceProvider();
+
+		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
+		mapTask.setTimeService(tp);
+
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+			mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+
+		StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
+		streamConfig.setStreamOperator(mapOperator);
+
+		testHarness.invoke();
+
+		assertTrue(testHarness.getCurrentProcessingTime() == 0);
+
+		tp.setCurrentTime(11);
+		assertTrue(testHarness.getCurrentProcessingTime() == 11);
+
+		tp.setCurrentTime(15);
+		tp.setCurrentTime(16);
+		assertTrue(testHarness.getCurrentProcessingTime() == 16);
+		
+		// register 2 tasks
+		mapTask.registerTimer(30, new Triggerable() {
+			@Override
+			public void trigger(long timestamp) {
+
+			}
+		});
+
+		mapTask.registerTimer(40, new Triggerable() {
+			@Override
+			public void trigger(long timestamp) {
+
+			}
+		});
+
+		assertEquals(2, tp.getNoOfRegisteredTimers());
+
+		tp.setCurrentTime(35);
+		assertEquals(1, tp.getNoOfRegisteredTimers());
+
+		tp.setCurrentTime(40);
+		assertEquals(0, tp.getNoOfRegisteredTimers());
+
+		tp.shutdownService();
+	}
 
 	@Test
 	public void testOpenCloseAndTimestamps() throws Exception {
@@ -174,6 +229,8 @@ public class StreamTaskTimerTest {
 	
 	public static class DummyMapFunction<T> implements MapFunction<T, T> {
 		@Override
-		public T map(T value) { return value; }
+		public T map(T value) {
+			return value;
+		}
 	}
 }

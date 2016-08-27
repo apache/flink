@@ -36,7 +36,7 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A Channel represents the result produced by an operator and the data exchange

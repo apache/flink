@@ -84,7 +84,7 @@ public class TableSourceITCase extends TableProgramsTestBase {
 
 	public static class TestBatchTableSource implements BatchTableSource<Row> {
 
-		private TypeInformation[] fieldTypes = new TypeInformation<?>[] {
+		private TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.LONG_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO

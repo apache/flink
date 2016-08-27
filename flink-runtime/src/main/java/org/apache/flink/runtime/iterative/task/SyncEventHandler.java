@@ -25,8 +25,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.types.Value;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 public class SyncEventHandler implements EventListener<TaskEvent> {
 	

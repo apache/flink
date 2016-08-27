@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.math.BigDecimal
+
 abstract class AvgAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
 
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
@@ -56,13 +58,22 @@ abstract class AvgAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
       numeric.negate(maxVal),
       numeric.negate(minVal),
       null.asInstanceOf[T]
+    ),
+    Seq(
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T]
     )
   )
 
   override def expectedResults: Seq[T] = Seq(
     minVal,
     maxVal,
-    numeric.fromInt(0)
+    numeric.fromInt(0),
+    null.asInstanceOf[T]
   )
 }
 
@@ -112,4 +123,32 @@ class DoubleAvgAggregateTest extends AvgAggregateTestBase[Double] {
   override def maxVal = Float.MaxValue
 
   override def aggregator = new DoubleAvgAggregate()
+}
+
+class DecimalAvgAggregateTest extends AggregateTestBase[BigDecimal] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new BigDecimal("987654321000000"),
+      new BigDecimal("-0.000000000012345"),
+      null,
+      new BigDecimal("0.000000000012345"),
+      new BigDecimal("-987654321000000"),
+      null,
+      new BigDecimal("0")
+    ),
+    Seq(
+      null,
+      null,
+      null,
+      null
+    )
+  )
+
+  override def expectedResults: Seq[BigDecimal] = Seq(
+    BigDecimal.ZERO,
+    null
+  )
+
+  override def aggregator: Aggregate[BigDecimal] = new DecimalAvgAggregate()
 }

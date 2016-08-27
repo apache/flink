@@ -33,8 +33,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.broadcast.InitializationTypeConflictException;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.

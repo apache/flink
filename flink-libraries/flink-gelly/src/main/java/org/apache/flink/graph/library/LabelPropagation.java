@@ -25,9 +25,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
@@ -78,15 +78,38 @@ public class LabelPropagation<K, VV extends Comparable<VV>, EV>
 		return input
 			.mapEdges(new NullValueEdgeMapper<K, EV>())
 			.runScatterGatherIteration(
-				new UpdateVertexLabel<K, VV>(), new SendNewLabelToNeighbors<K, VV>(valueType), maxIterations)
+				new SendNewLabelToNeighbors<K, VV>(valueType), new UpdateVertexLabel<K, VV>(), maxIterations)
 			.getVertices();
+	}
+
+	/**
+	 * Sends the vertex label to all out-neighbors
+	 */
+	public static final class SendNewLabelToNeighbors<K, VV extends Comparable<VV>>
+		extends ScatterFunction<K, VV, VV, NullValue>
+		implements ResultTypeQueryable<VV> {
+
+		private final TypeInformation<VV> typeInformation;
+
+		public SendNewLabelToNeighbors(TypeInformation<VV> typeInformation) {
+			this.typeInformation = typeInformation;
+		}
+
+		public void sendMessages(Vertex<K, VV> vertex) {
+			sendMessageToAllNeighbors(vertex.getValue());
+		}
+
+		@Override
+		public TypeInformation<VV> getProducedType() {
+			return typeInformation;
+		}
 	}
 
 	/**
 	 * Function that updates the value of a vertex by adopting the most frequent
 	 * label among its in-neighbors
 	 */
-	public static final class UpdateVertexLabel<K, VV extends Comparable<VV>> extends VertexUpdateFunction<K, VV, VV> {
+	public static final class UpdateVertexLabel<K, VV extends Comparable<VV>> extends GatherFunction<K, VV, VV> {
 
 		public void updateVertex(Vertex<K, VV> vertex, MessageIterator<VV> inMessages) {
 			Map<VV, Long> labelsWithFrequencies = new HashMap<VV, Long>();
@@ -117,29 +140,6 @@ public class LabelPropagation<K, VV extends Comparable<VV>, EV>
 				}
 			}
 			setNewVertexValue(mostFrequentLabel);
-		}
-	}
-
-	/**
-	 * Sends the vertex label to all out-neighbors
-	 */
-	public static final class SendNewLabelToNeighbors<K, VV extends Comparable<VV>>
-		extends MessagingFunction<K, VV, VV, NullValue>
-		implements ResultTypeQueryable<VV> {
-
-		private final TypeInformation<VV> typeInformation;
-
-		public SendNewLabelToNeighbors(TypeInformation<VV> typeInformation) {
-			this.typeInformation = typeInformation;
-		}
-
-		public void sendMessages(Vertex<K, VV> vertex) {
-			sendMessageToAllNeighbors(vertex.getValue());
-		}
-
-		@Override
-		public TypeInformation<VV> getProducedType() {
-			return typeInformation;
 		}
 	}
 }

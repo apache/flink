@@ -189,7 +189,7 @@ public class PackagedProgram {
 		}
 		
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = extractContainedLibaries(jarFileUrl);
+		this.extractedTempLibraries = extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
 		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
 		
@@ -642,7 +642,7 @@ public class PackagedProgram {
 	 * @return The file names of the extracted temporary files.
 	 * @throws ProgramInvocationException Thrown, if the extraction process failed.
 	 */
-	private static List<File> extractContainedLibaries(URL jarFile) throws ProgramInvocationException {
+	public static List<File> extractContainedLibraries(URL jarFile) throws ProgramInvocationException {
 		
 		Random rnd = new Random();
 		
@@ -741,7 +741,7 @@ public class PackagedProgram {
 		}
 	}
 	
-	private static void deleteExtractedLibraries(List<File> tempLibraries) {
+	public static void deleteExtractedLibraries(List<File> tempLibraries) {
 		for (File f : tempLibraries) {
 			f.delete();
 		}

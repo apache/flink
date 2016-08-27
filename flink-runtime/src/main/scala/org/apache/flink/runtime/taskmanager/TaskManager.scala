@@ -38,8 +38,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.memory.{HeapMemorySegment, HybridMemorySegment, MemorySegmentFactory, MemoryType}
-import org.apache.flink.metrics.groups.TaskManagerMetricGroup
-import org.apache.flink.metrics.{MetricGroup, Gauge => FlinkGauge, MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.metrics.{MetricGroup, Gauge => FlinkGauge}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
@@ -65,6 +64,8 @@ import org.apache.flink.runtime.messages.StackTraceSampleMessages.{ResponseStack
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
+import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
@@ -72,7 +73,6 @@ import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{MathUtils, NetUtils}
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -189,6 +189,10 @@ class TaskManager(
        connectionInfo.getHostname(),
        new UnmodifiableConfiguration(config.configuration),
        config.tmpDirPaths)
+
+  private var scheduledTaskManagerRegistration: Option[Cancellable] = None
+  private var currentRegistrationRun: UUID = UUID.randomUUID()
+
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
@@ -265,9 +269,13 @@ class TaskManager(
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
     
+    // failsafe shutdown of the metrics registry
     try {
-      //enable this before merging
-      //metricsRegistry.shutdown()
+      val reg = metricsRegistry
+      metricsRegistry = null
+      if (reg != null) {
+        reg.shutdown()
+      }
     } catch {
       case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
     }
@@ -559,54 +567,60 @@ class TaskManager(
         jobManagerURL,
         timeout,
         deadline,
-        attempt) =>
+        attempt,
+        registrationRun) =>
 
-        if (isConnected) {
-          // this may be the case, if we queue another attempt and
-          // in the meantime, the registration is acknowledged
-          log.debug(
-            "TaskManager was triggered to register at JobManager, but is already registered")
-        } else if (deadline.exists(_.isOverdue())) {
-          // we failed to register in time. that means we should quit
-          log.error("Failed to register at the JobManager withing the defined maximum " +
-            "connect time. Shutting down ...")
+        if (registrationRun.equals(this.currentRegistrationRun)) {
+          if (isConnected) {
+            // this may be the case, if we queue another attempt and
+            // in the meantime, the registration is acknowledged
+            log.debug(
+              "TaskManager was triggered to register at JobManager, but is already registered")
+          } else if (deadline.exists(_.isOverdue())) {
+            // we failed to register in time. that means we should quit
+            log.error("Failed to register at the JobManager withing the defined maximum " +
+                        "connect time. Shutting down ...")
 
-          // terminate ourselves (hasta la vista)
-          self ! decorateMessage(PoisonPill)
-        } else {
-          if (!jobManagerAkkaURL.equals(Option(jobManagerURL))) {
-            throw new Exception("Invalid internal state: Trying to register at JobManager " +
-              s"$jobManagerURL even though the current JobManagerAkkaURL is set to " +
-              s"${jobManagerAkkaURL.getOrElse("")}")
+            // terminate ourselves (hasta la vista)
+            self ! decorateMessage(PoisonPill)
+          } else {
+            if (!jobManagerAkkaURL.equals(Option(jobManagerURL))) {
+              throw new Exception("Invalid internal state: Trying to register at JobManager " +
+                                    s"$jobManagerURL even though the current JobManagerAkkaURL " +
+                                    s"is set to ${jobManagerAkkaURL.getOrElse("")}")
+            }
+
+            log.info(s"Trying to register at JobManager $jobManagerURL " +
+                       s"(attempt $attempt, timeout: $timeout)")
+
+            val jobManager = context.actorSelection(jobManagerURL)
+
+            jobManager ! decorateMessage(
+              RegisterTaskManager(
+                resourceID,
+                connectionInfo,
+                resources,
+                numberOfSlots)
+            )
+
+            // the next timeout computes via exponential backoff with cap
+            val nextTimeout = (timeout * 2).min(config.maxRegistrationPause)
+
+            // schedule (with our timeout s delay) a check triggers a new registration
+            // attempt, if we are not registered by then
+            scheduledTaskManagerRegistration = Option(context.system.scheduler.scheduleOnce(
+              timeout,
+              self,
+              decorateMessage(TriggerTaskManagerRegistration(
+                jobManagerURL,
+                nextTimeout,
+                deadline,
+                attempt + 1,
+                registrationRun)
+              ))(context.dispatcher))
           }
-
-          log.info(s"Trying to register at JobManager $jobManagerURL " +
-            s"(attempt $attempt, timeout: $timeout)")
-
-          val jobManager = context.actorSelection(jobManagerURL)
-
-          jobManager ! decorateMessage(
-            RegisterTaskManager(
-              resourceID,
-              connectionInfo,
-              resources,
-              numberOfSlots)
-          )
-
-          // the next timeout computes via exponential backoff with cap
-          val nextTimeout = (timeout * 2).min(TaskManager.MAX_REGISTRATION_TIMEOUT)
-
-          // schedule (with our timeout s delay) a check triggers a new registration
-          // attempt, if we are not registered by then
-          context.system.scheduler.scheduleOnce(
-            timeout,
-            self,
-            decorateMessage(TriggerTaskManagerRegistration(
-              jobManagerURL,
-              nextTimeout,
-              deadline,
-              attempt + 1)
-            ))(context.dispatcher)
+        } else {
+          log.info(s"Discarding registration run with ID $registrationRun")
         }
 
       // successful registration. associate with the JobManager
@@ -664,20 +678,27 @@ class TaskManager(
 
           if(jobManagerAkkaURL.isDefined) {
             // try the registration again after some time
-            val delay: FiniteDuration = TaskManager.DELAY_AFTER_REFUSED_REGISTRATION
+            val delay: FiniteDuration = config.refusedRegistrationPause
             val deadline: Option[Deadline] = config.maxRegistrationDuration.map {
               timeout => timeout + delay fromNow
             }
 
-            context.system.scheduler.scheduleOnce(delay) {
-              self ! decorateMessage(
-                TriggerTaskManagerRegistration(
-                  jobManagerAkkaURL.get,
-                  TaskManager.INITIAL_REGISTRATION_TIMEOUT,
-                  deadline,
-                  1)
-              )
-            }(context.dispatcher)
+            // start a new registration run
+            currentRegistrationRun = UUID.randomUUID()
+
+            scheduledTaskManagerRegistration.foreach(_.cancel())
+
+            scheduledTaskManagerRegistration = Option(
+              context.system.scheduler.scheduleOnce(delay) {
+                self ! decorateMessage(
+                  TriggerTaskManagerRegistration(
+                    jobManagerAkkaURL.get,
+                    config.initialRegistrationPause,
+                    deadline,
+                    1,
+                    currentRegistrationRun)
+                )
+              }(context.dispatcher))
           }
         } else {
           // ignore RefuseRegistration messages which arrived after AcknowledgeRegistration
@@ -944,7 +965,7 @@ class TaskManager(
     taskManagerMetricGroup = 
       new TaskManagerMetricGroup(metricsRegistry, this.runtimeInfo.getHostname, id.toString)
     
-    TaskManager.instantiateStatusMetrics(taskManagerMetricGroup)
+    TaskManager.instantiateStatusMetrics(taskManagerMetricGroup, network)
     
     // watch job manager to detect when it dies
     context.watch(jobManager)
@@ -1089,11 +1110,7 @@ class TaskManager(
         jobName = tdd.getJobName
       }
       
-      val taskMetricGroup = taskManagerMetricGroup
-          .addTaskForJob(
-            tdd.getJobID, jobName,
-            tdd.getVertexID, tdd.getExecutionId, tdd.getTaskName,
-            tdd.getIndexInSubtaskGroup, tdd.getAttemptNumber)
+      val taskMetricGroup = taskManagerMetricGroup.addTaskForJob(tdd)
 
       val task = new Task(
         tdd,
@@ -1263,7 +1280,7 @@ class TaskManager(
       val accumulatorEvents =
         scala.collection.mutable.Buffer[AccumulatorSnapshot]()
 
-      runningTasks foreach {
+      runningTasks.asScala foreach {
         case (execID, task) =>
           val registry = task.getAccumulatorRegistry
           val accumulators = registry.getSnapshot
@@ -1359,12 +1376,18 @@ class TaskManager(
       // begin attempts to reconnect
       val deadline: Option[Deadline] = config.maxRegistrationDuration.map(_.fromNow)
 
+      // start a new registration run
+      currentRegistrationRun = UUID.randomUUID()
+
+      scheduledTaskManagerRegistration.foreach(_.cancel())
+
       self ! decorateMessage(
         TriggerTaskManagerRegistration(
           jobManagerAkkaURL.get,
-          TaskManager.INITIAL_REGISTRATION_TIMEOUT,
+          config.initialRegistrationPause,
           deadline,
-          1)
+          1,
+          currentRegistrationRun)
       )
     }
   }
@@ -1411,13 +1434,6 @@ object TaskManager {
   /** Time (milli seconds) after which the TaskManager will start logging failed
     * connection attempts */
   val STARTUP_CONNECT_LOG_SUPPRESS = 10000L
-
-  /** The initial time for registration of the TaskManager with the JobManager */
-  val INITIAL_REGISTRATION_TIMEOUT: FiniteDuration = 500 milliseconds
-  /** The maximum time for registration of the TaskManager with the JobManager */
-  val MAX_REGISTRATION_TIMEOUT: FiniteDuration = 30 seconds
-
-  val DELAY_AFTER_REFUSED_REGISTRATION: FiniteDuration = 10 seconds
 
   val HEARTBEAT_INTERVAL: FiniteDuration = 5000 milliseconds
 
@@ -1510,7 +1526,6 @@ object TaskManager {
     val conf: Configuration = try {
       LOG.info("Loading configuration from " + cliConfig.getConfigDir())
       GlobalConfiguration.loadConfiguration(cliConfig.getConfigDir())
-      GlobalConfiguration.getConfiguration()
     }
     catch {
       case e: Exception => throw new Exception("Could not load configuration", e)
@@ -1794,7 +1809,11 @@ object TaskManager {
     val executionContext = ExecutionContext.fromExecutor(new ForkJoinPool())
 
     // we start the network first, to make sure it can allocate its buffers first
-    val network = new NetworkEnvironment(executionContext, taskManagerConfig.timeout, netConfig)
+    val network = new NetworkEnvironment(
+      executionContext,
+      taskManagerConfig.timeout,
+      netConfig,
+      connectionInfo)
 
     // computing the amount of memory to use depends on how much memory is available
     // it strictly needs to happen AFTER the network stack has been initialized
@@ -2035,19 +2054,13 @@ object TaskManager {
     // initialize the memory segment factory accordingly
     memType match {
       case MemoryType.HEAP =>
-        if (!MemorySegmentFactory.isInitialized()) {
-          MemorySegmentFactory.initializeFactory(HeapMemorySegment.FACTORY)
-        }
-        else if (MemorySegmentFactory.getFactory() != HeapMemorySegment.FACTORY) {
+        if (!MemorySegmentFactory.initializeIfNotInitialized(HeapMemorySegment.FACTORY)) {
           throw new Exception("Memory type is set to heap memory, but memory segment " +
             "factory has been initialized for off-heap memory segments")
         }
 
       case MemoryType.OFF_HEAP =>
-        if (!MemorySegmentFactory.isInitialized()) {
-          MemorySegmentFactory.initializeFactory(HybridMemorySegment.FACTORY)
-        }
-        else if (MemorySegmentFactory.getFactory() != HybridMemorySegment.FACTORY) {
+        if (!MemorySegmentFactory.initializeIfNotInitialized(HybridMemorySegment.FACTORY)) {
           throw new Exception("Memory type is set to off-heap memory, but memory segment " +
             "factory has been initialized for heap memory segments")
         }
@@ -2078,11 +2091,26 @@ object TaskManager {
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
 
+    val queryServerPort =  configuration.getInteger(
+      ConfigConstants.QUERYABLE_STATE_SERVER_PORT,
+      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_PORT)
+
+    val queryServerNetworkThreads =  configuration.getInteger(
+      ConfigConstants.QUERYABLE_STATE_SERVER_NETWORK_THREADS,
+      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_NETWORK_THREADS)
+
+    val queryServerQueryThreads =  configuration.getInteger(
+      ConfigConstants.QUERYABLE_STATE_SERVER_QUERY_THREADS,
+      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_QUERY_THREADS)
+
     val networkConfig = NetworkEnvironmentConfiguration(
       numNetworkBuffers,
       pageSize,
       memType,
       ioMode,
+      queryServerPort,
+      queryServerNetworkThreads,
+      queryServerQueryThreads,
       nettyConfig)
 
     // ----> timeouts, library caching, profiling
@@ -2116,13 +2144,67 @@ object TaskManager {
         e)
     }
 
+    val initialRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The initial registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
+    val maxRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_MAX_REGISTARTION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The maximum registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
+    val refusedRegistrationPause = try {
+      val pause = Duration(configuration.getString(
+        ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE,
+        ConfigConstants.DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE
+      ))
+
+      if (pause.isFinite()) {
+        pause.asInstanceOf[FiniteDuration]
+      } else {
+        throw new IllegalArgumentException(s"The refused registration pause must be finite: $pause")
+      }
+    } catch {
+      case e: NumberFormatException => throw new IllegalArgumentException(
+        "Invalid format for parameter " + ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
+        e)
+    }
+
     val taskManagerConfig = TaskManagerConfiguration(
       tmpDirs,
       cleanupInterval,
       timeout,
       finiteRegistrationDuration,
       slots,
-      configuration)
+      configuration,
+      initialRegistrationPause,
+      maxRegistrationPause,
+      refusedRegistrationPause)
 
     (taskManagerConfig, networkConfig, connectionInfo, memType)
   }
@@ -2275,9 +2357,16 @@ object TaskManager {
     metricRegistry
   }
 
-  private def instantiateStatusMetrics(taskManagerMetricGroup: MetricGroup) : Unit = {
-    val jvm = taskManagerMetricGroup
+  private def instantiateStatusMetrics(
+      taskManagerMetricGroup: MetricGroup,
+      network: NetworkEnvironment)
+    : Unit = {
+    val status = taskManagerMetricGroup
       .addGroup("Status")
+
+    instantiateNetworkMetrics(status.addGroup("Network"), network)
+
+    val jvm = status
       .addGroup("JVM")
 
     instantiateClassLoaderMetrics(jvm.addGroup("ClassLoader"))
@@ -2287,14 +2376,25 @@ object TaskManager {
     instantiateCPUMetrics(jvm.addGroup("CPU"))
   }
 
+  private def instantiateNetworkMetrics(
+        metrics: MetricGroup,
+        network: NetworkEnvironment)
+    : Unit = {
+    metrics.gauge[Long, FlinkGauge[Long]]("TotalMemorySegments", new FlinkGauge[Long] {
+      override def getValue: Long = network.getNetworkBufferPool.getTotalNumberOfMemorySegments
+    })
+    metrics.gauge[Long, FlinkGauge[Long]]("AvailableMemorySegments", new FlinkGauge[Long] {
+      override def getValue: Long = network.getNetworkBufferPool.getNumberOfAvailableMemorySegments
+    })
+  }
+
   private def instantiateClassLoaderMetrics(metrics: MetricGroup) {
     val mxBean = ManagementFactory.getClassLoadingMXBean
 
-    metrics
-      .gauge("ClassesLoaded", new FlinkGauge[Long] {
+    metrics.gauge[Long, FlinkGauge[Long]]("ClassesLoaded", new FlinkGauge[Long] {
       override def getValue: Long = mxBean.getTotalLoadedClassCount
     })
-    metrics.gauge("ClassesUnloaded", new FlinkGauge[Long] {
+    metrics.gauge[Long, FlinkGauge[Long]]("ClassesUnloaded", new FlinkGauge[Long] {
       override def getValue: Long = mxBean.getUnloadedClassCount
     })
   }
@@ -2302,12 +2402,12 @@ object TaskManager {
   private def instantiateGarbageCollectorMetrics(metrics: MetricGroup) {
     val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
 
-    for (garbageCollector <- garbageCollectors) {
-      val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
-      gcGroup.gauge("Count", new FlinkGauge[Long] {
+    for (garbageCollector <- garbageCollectors.asScala) {
+      val gcGroup = metrics.addGroup(garbageCollector.getName)
+      gcGroup.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
         override def getValue: Long = garbageCollector.getCollectionCount
       })
-      gcGroup.gauge("Time", new FlinkGauge[Long] {
+      gcGroup.gauge[Long, FlinkGauge[Long]]("Time", new FlinkGauge[Long] {
         override def getValue: Long = garbageCollector.getCollectionTime
       })
     }
@@ -2316,67 +2416,66 @@ object TaskManager {
   private def instantiateMemoryMetrics(metrics: MetricGroup) {
     val mxBean = ManagementFactory.getMemoryMXBean
     val heap = metrics.addGroup("Heap")
-    heap.gauge("Used", new FlinkGauge[Long] {
+    heap.gauge[Long, FlinkGauge[Long]]("Used", new FlinkGauge[Long] {
       override def getValue: Long = mxBean.getHeapMemoryUsage.getUsed
     })
-    heap.gauge("Committed", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
-      })
-    heap.gauge("Max", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
-      })
+    heap.gauge[Long, FlinkGauge[Long]]("Committed", new FlinkGauge[Long] {
+      override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
+    })
+    heap.gauge[Long, FlinkGauge[Long]]("Max", new FlinkGauge[Long] {
+      override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
+    })
 
     val nonHeap = metrics.addGroup("NonHeap")
-    nonHeap.gauge("Used", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
-      })
-    nonHeap.gauge("Committed", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
-      })
-    nonHeap.gauge("Max", new FlinkGauge[Long] {
-        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
-      })
+    nonHeap.gauge[Long, FlinkGauge[Long]]("Used", new FlinkGauge[Long] {
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
+    })
+    nonHeap.gauge[Long, FlinkGauge[Long]]("Committed", new FlinkGauge[Long] {
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
+    })
+    nonHeap.gauge[Long, FlinkGauge[Long]]("Max", new FlinkGauge[Long] {
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
+    })
 
     val con = ManagementFactory.getPlatformMBeanServer;
 
     val directObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
 
     val direct = metrics.addGroup("Direct")
-    direct.gauge("Count", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "Count").asInstanceOf[Long]
-      })
-    direct.gauge("MemoryUsed", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
-      })
-    direct.gauge("TotalCapacity", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
-      })
+    direct.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "Count").asInstanceOf[Long]
+    })
+    direct.gauge[Long, FlinkGauge[Long]]("MemoryUsed", new FlinkGauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
+    })
+    direct.gauge[Long, FlinkGauge[Long]]("TotalCapacity", new FlinkGauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
+    })
 
-    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
+    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=mapped")
 
     val mapped = metrics.addGroup("Mapped")
-    mapped.gauge("Count", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
-      })
-    mapped.gauge("MemoryUsed", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
-      })
-    mapped.gauge("TotalCapacity", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
-      })
+    mapped.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
+    })
+    mapped.gauge[Long, FlinkGauge[Long]]("MemoryUsed", new FlinkGauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
+    })
+    mapped.gauge[Long, FlinkGauge[Long]]("TotalCapacity", new FlinkGauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
+    })
   }
 
   private def instantiateThreadMetrics(metrics: MetricGroup): Unit = {
     val mxBean = ManagementFactory.getThreadMXBean
 
-    metrics
-      .gauge("Count", new FlinkGauge[Int] {
+    metrics.gauge[Int, FlinkGauge[Int]]("Count", new FlinkGauge[Int] {
       override def getValue: Int = mxBean.getThreadCount
     })
   }
@@ -2386,11 +2485,10 @@ object TaskManager {
       val mxBean = ManagementFactory.getOperatingSystemMXBean
         .asInstanceOf[com.sun.management.OperatingSystemMXBean]
 
-      metrics
-        .gauge("Load", new FlinkGauge[Double] {
+      metrics.gauge[Double, FlinkGauge[Double]]("Load", new FlinkGauge[Double] {
           override def getValue: Double = mxBean.getProcessCpuLoad
         })
-      metrics.gauge("Time", new FlinkGauge[Long] {
+      metrics.gauge[Long, FlinkGauge[Long]]("Time", new FlinkGauge[Long] {
           override def getValue: Long = mxBean.getProcessCpuTime
         })
     }

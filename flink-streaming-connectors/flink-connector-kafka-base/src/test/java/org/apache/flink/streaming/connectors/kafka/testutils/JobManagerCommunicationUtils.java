@@ -86,7 +86,7 @@ public class JobManagerCommunicationUtils {
 		if (status == null) {
 			throw new Exception("Could not cancel job - no running jobs");	
 		}
-		else if (status.getJobState().isTerminalState()) {
+		else if (status.getJobState().isGloballyTerminalState()) {
 			throw new Exception("Could not cancel job - job is not running any more");
 		}
 		

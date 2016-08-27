@@ -114,22 +114,22 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		// (1) compute how much memory we subtract from the total memory, to get the Java memory
 
 		final float memoryCutoffRatio = config.getFloat(
-			ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO,
+			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO,
 			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF_RATIO);
 
 		final int minCutoff = config.getInteger(
-			ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN,
+			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN,
 			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF);
 
 		if (memoryCutoffRatio >= 1 || memoryCutoffRatio <= 0) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO + "' must be between 0 and 1. Value given="
+				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO + "' must be between 0 and 1. Value given="
 				+ memoryCutoffRatio);
 		}
 
 		if (minCutoff >= containerMemoryMB) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN + "'='" + minCutoff
+				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN + "'='" + minCutoff
 				+ "' is larger than the total container memory " + containerMemoryMB);
 		}
 
@@ -166,7 +166,7 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		
 		// (3) obtain the additional environment variables from the configuration
 		final HashMap<String, String> envVars = new HashMap<>();
-		final String prefix = ConfigConstants.CONTAINERED_TASK_MANAGER_ENV_PREFIX;
+		final String prefix = ConfigConstants.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
 		
 		for (String key : config.keySet()) {
 			if (key.startsWith(prefix) && key.length() > prefix.length()) {

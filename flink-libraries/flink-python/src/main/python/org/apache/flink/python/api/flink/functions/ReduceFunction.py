@@ -24,8 +24,8 @@ class ReduceFunction(Function.Function):
     def __init__(self):
         super(ReduceFunction, self).__init__()
 
-    def _configure(self, input_file, output_file, port, env, info):
-        super(ReduceFunction, self)._configure(input_file, output_file, port, env, info)
+    def _configure(self, input_file, output_file, port, env, info, subtask_index):
+        super(ReduceFunction, self)._configure(input_file, output_file, port, env, info, subtask_index)
         if len(info.key1) == 0:
             self._run = self._run_all_reduce
         else:

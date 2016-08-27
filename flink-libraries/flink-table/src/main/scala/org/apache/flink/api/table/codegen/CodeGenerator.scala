@@ -18,22 +18,25 @@
 
 package org.apache.flink.api.table.codegen
 
+import java.math.{BigDecimal => JBigDecimal}
+
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlLiteral, SqlOperator}
+import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.calls.ScalarFunctions
 import org.apache.flink.api.table.codegen.calls.ScalarOperators._
-import org.apache.flink.api.table.typeutils.{TypeConverter, RowTypeInfo}
-import TypeConverter.sqlTypeToTypeInfo
+import org.apache.flink.api.table.functions.UserDefinedFunction
+import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.typeutils.TypeCheckUtils._
+import org.apache.flink.api.table.{FlinkTypeFactory, TableConfig}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -332,12 +335,13 @@ class CodeGenerator(
     }
 
     val returnTypeTerm = boxedTypeTermForTypeInfo(returnType)
+    val boxedFieldExprs = fieldExprs.map(generateOutputFieldBoxing)
 
     // generate result expression
     returnType match {
       case ri: RowTypeInfo =>
         addReusableOutRecord(ri)
-        val resultSetters: String = fieldExprs.zipWithIndex map {
+        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             if (nullCheck) {
               s"""
@@ -362,7 +366,7 @@ class CodeGenerator(
 
       case pt: PojoTypeInfo[_] =>
         addReusableOutRecord(pt)
-        val resultSetters: String = fieldExprs.zip(resultFieldNames) map {
+        val resultSetters: String = boxedFieldExprs.zip(resultFieldNames) map {
           case (fieldExpr, fieldName) =>
             val accessor = getFieldAccessor(pt.getTypeClass, fieldName)
 
@@ -433,7 +437,7 @@ class CodeGenerator(
 
       case tup: TupleTypeInfo[_] =>
         addReusableOutRecord(tup)
-        val resultSetters: String = fieldExprs.zipWithIndex map {
+        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
           case (fieldExpr, i) =>
             val fieldName = "f" + i
             if (nullCheck) {
@@ -458,12 +462,12 @@ class CodeGenerator(
         GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
 
       case cc: CaseClassTypeInfo[_] =>
-        val fieldCodes: String = fieldExprs.map(_.code).mkString("\n")
-        val constructorParams: String = fieldExprs.map(_.resultTerm).mkString(", ")
+        val fieldCodes: String = boxedFieldExprs.map(_.code).mkString("\n")
+        val constructorParams: String = boxedFieldExprs.map(_.resultTerm).mkString(", ")
         val resultTerm = newName(outRecordTerm)
 
         val nullCheckCode = if (nullCheck) {
-        fieldExprs map { (fieldExpr) =>
+        boxedFieldExprs map { (fieldExpr) =>
           s"""
               |if (${fieldExpr.nullTerm}) {
               |  throw new NullPointerException("Null result cannot be stored in a Case Class.");
@@ -484,7 +488,7 @@ class CodeGenerator(
         GeneratedExpression(resultTerm, "false", resultCode, returnType)
 
       case a: AtomicType[_] =>
-        val fieldExpr = fieldExprs.head
+        val fieldExpr = boxedFieldExprs.head
         val nullCheckCode = if (nullCheck) {
           s"""
           |if (${fieldExpr.nullTerm}) {
@@ -519,7 +523,7 @@ class CodeGenerator(
       (input2.getOrElse(throw new CodeGenException("Invalid input access.")), input2Term)
     }
 
-    val index = if (input._1 == input1) {
+    val index = if (input._2 == input1Term) {
       inputRef.getIndex
     } else {
       inputRef.getIndex - input1.getArity
@@ -531,7 +535,7 @@ class CodeGenerator(
   override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = ???
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
-    val resultType = sqlTypeToTypeInfo(literal.getType.getSqlTypeName)
+    val resultType = FlinkTypeFactory.toTypeInfo(literal.getType)
     val value = literal.getValue3
     // null value with type
     if (value == null) {
@@ -539,69 +543,104 @@ class CodeGenerator(
     }
     // non-null values
     literal.getType.getSqlTypeName match {
+
       case BOOLEAN =>
         generateNonNullLiteral(resultType, literal.getValue3.toString)
+
       case TINYINT =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidByte) {
           generateNonNullLiteral(resultType, decimal.byteValue().toString)
         }
         else {
           throw new CodeGenException("Decimal can not be converted to byte.")
         }
+
       case SMALLINT =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidShort) {
           generateNonNullLiteral(resultType, decimal.shortValue().toString)
         }
         else {
           throw new CodeGenException("Decimal can not be converted to short.")
         }
+
       case INTEGER =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidInt) {
           generateNonNullLiteral(resultType, decimal.intValue().toString)
         }
         else {
           throw new CodeGenException("Decimal can not be converted to integer.")
         }
+
       case BIGINT =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidLong) {
-          generateNonNullLiteral(resultType, decimal.longValue().toString)
+          generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
         }
         else {
           throw new CodeGenException("Decimal can not be converted to long.")
         }
+
       case FLOAT =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
-        if (decimal.isValidFloat) {
-          generateNonNullLiteral(resultType, decimal.floatValue().toString + "f")
+        val floatValue = value.asInstanceOf[JBigDecimal].floatValue()
+        floatValue match {
+          case Float.NaN => generateNonNullLiteral(resultType, "java.lang.Float.NaN")
+          case Float.NegativeInfinity =>
+            generateNonNullLiteral(resultType, "java.lang.Float.NEGATIVE_INFINITY")
+          case Float.PositiveInfinity =>
+            generateNonNullLiteral(resultType, "java.lang.Float.POSITIVE_INFINITY")
+          case _ => generateNonNullLiteral(resultType, floatValue.toString + "f")
         }
-        else {
-          throw new CodeGenException("Decimal can not be converted to float.")
-        }
+
       case DOUBLE =>
-        val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
-        if (decimal.isValidDouble) {
-          generateNonNullLiteral(resultType, decimal.doubleValue().toString)
+        val doubleValue = value.asInstanceOf[JBigDecimal].doubleValue()
+        doubleValue match {
+          case Double.NaN => generateNonNullLiteral(resultType, "java.lang.Double.NaN")
+          case Double.NegativeInfinity =>
+            generateNonNullLiteral(resultType, "java.lang.Double.NEGATIVE_INFINITY")
+          case Double.PositiveInfinity =>
+            generateNonNullLiteral(resultType, "java.lang.Double.POSITIVE_INFINITY")
+          case _ => generateNonNullLiteral(resultType, doubleValue.toString + "d")
         }
-        else {
-          throw new CodeGenException("Decimal can not be converted to double.")
-        }
+      case DECIMAL =>
+        val decimalField = addReusableDecimal(value.asInstanceOf[JBigDecimal])
+        generateNonNullLiteral(resultType, decimalField)
+
       case VARCHAR | CHAR =>
         generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
-      case SYMBOL =>
 
-        val symbolOrdinal =
-        if (classOf[Enum[_]].isAssignableFrom(value.getClass) ) {
-          value.asInstanceOf[Enum[_]].ordinal()
+      case SYMBOL =>
+        generateSymbol(value.asInstanceOf[Enum[_]])
+
+      case DATE =>
+        generateNonNullLiteral(resultType, value.toString)
+
+      case TIME =>
+        generateNonNullLiteral(resultType, value.toString)
+
+      case TIMESTAMP =>
+        generateNonNullLiteral(resultType, value.toString + "L")
+
+      case INTERVAL_YEAR_MONTH =>
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
+        if (decimal.isValidInt) {
+          generateNonNullLiteral(resultType, decimal.intValue().toString)
         } else {
-          value.asInstanceOf[SqlLiteral.SqlSymbol].ordinal()
+          throw new CodeGenException("Decimal can not be converted to interval of months.")
         }
 
-        generateNonNullLiteral(resultType, symbolOrdinal.toString)
-      case _ => ??? // TODO more types
+      case INTERVAL_DAY_TIME =>
+        val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
+        if (decimal.isValidLong) {
+          generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
+        } else {
+          throw new CodeGenException("Decimal can not be converted to interval of milliseconds.")
+        }
+
+      case t@_ =>
+        throw new CodeGenException(s"Type not supported: $t")
     }
   }
 
@@ -615,7 +654,7 @@ class CodeGenerator(
 
   override def visitCall(call: RexCall): GeneratedExpression = {
     val operands = call.getOperands.map(_.accept(this))
-    val resultType = sqlTypeToTypeInfo(call.getType.getSqlTypeName)
+    val resultType = FlinkTypeFactory.toTypeInfo(call.getType)
 
     call.getOperator match {
       // arithmetic
@@ -626,11 +665,12 @@ class CodeGenerator(
         requireNumeric(right)
         generateArithmeticOperator("+", nullCheck, resultType, left, right)
 
-      case PLUS if isString(resultType) =>
+      case PLUS | DATETIME_PLUS if isTemporal(resultType) =>
         val left = operands.head
         val right = operands(1)
-        requireString(left)
-        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+        requireTemporal(left)
+        requireTemporal(right)
+        generateTemporalPlusMinus(plus = true, nullCheck, left, right)
 
       case MINUS if isNumeric(resultType) =>
         val left = operands.head
@@ -639,6 +679,13 @@ class CodeGenerator(
         requireNumeric(right)
         generateArithmeticOperator("-", nullCheck, resultType, left, right)
 
+      case MINUS if isTemporal(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireTemporal(left)
+        requireTemporal(right)
+        generateTemporalPlusMinus(plus = false, nullCheck, left, right)
+
       case MULTIPLY if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
@@ -646,7 +693,7 @@ class CodeGenerator(
         requireNumeric(right)
         generateArithmeticOperator("*", nullCheck, resultType, left, right)
 
-      case DIVIDE if isNumeric(resultType) =>
+      case DIVIDE | DIVIDE_INTEGER if isNumeric(resultType) =>
         val left = operands.head
         val right = operands(1)
         requireNumeric(left)
@@ -665,46 +712,58 @@ class CodeGenerator(
         requireNumeric(operand)
         generateUnaryArithmeticOperator("-", nullCheck, resultType, operand)
 
+      case UNARY_MINUS if isTimeInterval(resultType) =>
+        val operand = operands.head
+        requireTimeInterval(operand)
+        generateUnaryIntervalPlusMinus(plus = false, nullCheck, operand)
+
       case UNARY_PLUS if isNumeric(resultType) =>
         val operand = operands.head
         requireNumeric(operand)
         generateUnaryArithmeticOperator("+", nullCheck, resultType, operand)
 
+      case UNARY_PLUS if isTimeInterval(resultType) =>
+        val operand = operands.head
+        requireTimeInterval(operand)
+        generateUnaryIntervalPlusMinus(plus = true, nullCheck, operand)
+
       // comparison
       case EQUALS =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
         generateEquals(nullCheck, left, right)
 
       case NOT_EQUALS =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
         generateNotEquals(nullCheck, left, right)
 
       case GREATER_THAN =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison(">", nullCheck, left, right)
 
       case GREATER_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison(">=", nullCheck, left, right)
 
       case LESS_THAN =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison("<", nullCheck, left, right)
 
       case LESS_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
-        checkNumericOrString(left, right)
+        requireComparable(left)
+        requireComparable(right)
         generateComparison("<=", nullCheck, left, right)
 
       case IS_NULL =>
@@ -739,7 +798,7 @@ class CodeGenerator(
         generateIfElse(nullCheck, operands, resultType)
 
       // casting
-      case CAST =>
+      case CAST | REINTERPRET =>
         val operand = operands.head
         generateCast(nullCheck, operand, resultType)
 
@@ -755,10 +814,13 @@ class CodeGenerator(
         generateArithmeticOperator("+", nullCheck, resultType, left, right)
 
       // advanced scalar functions
-      case call: SqlOperator =>
-        val callGen = ScalarFunctions.getCallGenerator(call, operands.map(_.resultType))
+      case sqlOperator: SqlOperator =>
+        val callGen = ScalarFunctions.getCallGenerator(
+          sqlOperator,
+          operands.map(_.resultType),
+          resultType)
         callGen
-          .getOrElse(throw new CodeGenException(s"Unsupported call: $call"))
+          .getOrElse(throw new CodeGenException(s"Unsupported call: $sqlOperator"))
           .generate(this, operands)
 
       // unknown or invalid
@@ -775,14 +837,6 @@ class CodeGenerator(
   // generator helping methods
   // ----------------------------------------------------------------------------------------------
 
-  def checkNumericOrString(left: GeneratedExpression, right: GeneratedExpression): Unit = {
-    if (isNumeric(left)) {
-      requireNumeric(right)
-    } else if (isString(left)) {
-      requireString(right)
-    }
-  }
-
   private def generateInputAccess(
       inputType: TypeInformation[Any],
       inputTerm: String,
@@ -791,11 +845,11 @@ class CodeGenerator(
     // if input has been used before, we can reuse the code that
     // has already been generated
     val inputExpr = reusableInputUnboxingExprs.get((inputTerm, index)) match {
-      // input access and boxing has already been generated
+      // input access and unboxing has already been generated
       case Some(expr) =>
         expr
 
-      // generate input access and boxing if necessary
+      // generate input access and unboxing if necessary
       case None =>
         val expr = if (nullableInput) {
           generateNullableInputFieldAccess(inputType, inputTerm, index)
@@ -878,7 +932,7 @@ class CodeGenerator(
             }
             // Object
             else {
-              generateNullableLiteral(
+              generateInputFieldUnboxing(
                 fieldType,
                 s"($fieldTypeTerm) $inputTerm.${field.getName}")
             }
@@ -886,17 +940,17 @@ class CodeGenerator(
           case ObjectGenericFieldAccessor(fieldName) =>
             // Object
             val inputCode = s"($fieldTypeTerm) $inputTerm.$fieldName"
-            generateNullableLiteral(fieldType, inputCode)
+            generateInputFieldUnboxing(fieldType, inputCode)
 
           case ObjectMethodAccessor(methodName) =>
             // Object
             val inputCode = s"($fieldTypeTerm) $inputTerm.$methodName()"
-            generateNullableLiteral(fieldType, inputCode)
+            generateInputFieldUnboxing(fieldType, inputCode)
 
           case ProductAccessor(i) =>
             // Object
             val inputCode = s"($fieldTypeTerm) $inputTerm.productElement($i)"
-            generateNullableLiteral(fieldType, inputCode)
+            generateInputFieldUnboxing(fieldType, inputCode)
 
           case ObjectPrivateFieldAccessor(field) =>
             val fieldTerm = addReusablePrivateFieldAccess(ct.getTypeClass, field.getName)
@@ -907,58 +961,38 @@ class CodeGenerator(
             }
             // Object
             else {
-              generateNullableLiteral(fieldType, reflectiveAccessCode)
+              generateInputFieldUnboxing(fieldType, reflectiveAccessCode)
             }
         }
 
       case at: AtomicType[_] =>
         val fieldTypeTerm = boxedTypeTermForTypeInfo(at)
         val inputCode = s"($fieldTypeTerm) $inputTerm"
-        generateNullableLiteral(at, inputCode)
+        generateInputFieldUnboxing(at, inputCode)
 
       case _ =>
         throw new CodeGenException("Unsupported type for input field access.")
     }
   }
 
-  private def generateNullableLiteral(
-      literalType: TypeInformation[Any],
-      literalCode: String)
-    : GeneratedExpression = {
-    val tmpTerm = newName("tmp")
+  private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
-    val tmpTypeTerm = boxedTypeTermForTypeInfo(literalType)
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
-    val defaultValue = primitiveDefaultValue(literalType)
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
 
-    val wrappedCode = if (nullCheck && !isReference(literalType)) {
-      s"""
-        |$tmpTypeTerm $tmpTerm = $literalCode;
-        |boolean $nullTerm = $tmpTerm == null;
-        |$resultTypeTerm $resultTerm;
-        |if ($nullTerm) {
-        |  $resultTerm = $defaultValue;
-        |}
-        |else {
-        |  $resultTerm = $tmpTerm;
-        |}
+    if (nullCheck) {
+      val wrappedCode = s"""
+        |$resultTypeTerm $resultTerm = $defaultValue;
+        |boolean $nullTerm = true;
         |""".stripMargin
-    } else if (nullCheck) {
-      s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
-        |boolean $nullTerm = $literalCode == null;
-        |""".stripMargin
+      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
     } else {
-      s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
-        |""".stripMargin
+      throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
-
-    GeneratedExpression(resultTerm, nullTerm, wrappedCode, literalType)
   }
 
-  private def generateNonNullLiteral(
+  private[flink] def generateNonNullLiteral(
       literalType: TypeInformation[_],
       literalCode: String)
     : GeneratedExpression = {
@@ -980,20 +1014,107 @@ class CodeGenerator(
     GeneratedExpression(resultTerm, nullTerm, resultCode, literalType)
   }
 
-  private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
+  private[flink] def generateSymbol(enum: Enum[_]): GeneratedExpression = {
+    GeneratedExpression(
+      qualifyEnum(enum),
+      "false",
+      "",
+      new GenericTypeInfo(enum.getDeclaringClass))
+  }
+
+  /**
+    * Converts the external boxed format to an internal mostly primitive field representation.
+    * Wrapper types can autoboxed to their corresponding primitive type (Integer -> int). External
+    * objects are converted to their internal representation (Timestamp -> internal timestamp
+    * in long).
+    *
+    * @param fieldType type of field
+    * @param fieldTerm expression term of field to be unboxed
+    * @return internal unboxed field representation
+    */
+  private[flink] def generateInputFieldUnboxing(
+      fieldType: TypeInformation[_],
+      fieldTerm: String)
+    : GeneratedExpression = {
+    val tmpTerm = newName("tmp")
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
-    val defaultValue = primitiveDefaultValue(resultType)
+    val tmpTypeTerm = boxedTypeTermForTypeInfo(fieldType)
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
+    val defaultValue = primitiveDefaultValue(fieldType)
 
-    if (nullCheck) {
-      val wrappedCode = s"""
-        |$resultTypeTerm $resultTerm = $defaultValue;
-        |boolean $nullTerm = true;
-        |""".stripMargin
-      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
+    // explicit unboxing
+    val unboxedFieldCode = if (isTimePoint(fieldType)) {
+      timePointToInternalCode(fieldType, fieldTerm)
     } else {
-      throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
+      fieldTerm
+    }
+
+    val wrappedCode = if (nullCheck && !isReference(fieldType)) {
+      s"""
+        |$tmpTypeTerm $tmpTerm = $unboxedFieldCode;
+        |boolean $nullTerm = $tmpTerm == null;
+        |$resultTypeTerm $resultTerm;
+        |if ($nullTerm) {
+        |  $resultTerm = $defaultValue;
+        |}
+        |else {
+        |  $resultTerm = $tmpTerm;
+        |}
+        |""".stripMargin
+    } else if (nullCheck) {
+      s"""
+        |$resultTypeTerm $resultTerm = $unboxedFieldCode;
+        |boolean $nullTerm = $fieldTerm == null;
+        |""".stripMargin
+    } else {
+      s"""
+        |$resultTypeTerm $resultTerm = $unboxedFieldCode;
+        |""".stripMargin
+    }
+
+    GeneratedExpression(resultTerm, nullTerm, wrappedCode, fieldType)
+  }
+
+  /**
+    * Converts the internal mostly primitive field representation to an external boxed format.
+    * Primitive types can autoboxed to their corresponding object type (int -> Integer). Internal
+    * representations are converted to their external objects (internal timestamp
+    * in long -> Timestamp).
+    *
+    * @param expr expression to be boxed
+    * @return external boxed field representation
+    */
+  private[flink] def generateOutputFieldBoxing(expr: GeneratedExpression): GeneratedExpression = {
+    expr.resultType match {
+      // convert internal date/time/timestamp to java.sql.* objects
+      case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP =>
+        val resultTerm = newName("result")
+        val resultTypeTerm = boxedTypeTermForTypeInfo(expr.resultType)
+        val convMethod = internalToTimePointCode(expr.resultType, expr.resultTerm)
+
+        val resultCode = if (nullCheck) {
+          s"""
+            |${expr.code}
+            |$resultTypeTerm $resultTerm;
+            |if (${expr.nullTerm}) {
+            |  $resultTerm = null;
+            |}
+            |else {
+            |  $resultTerm = $convMethod;
+            |}
+            |""".stripMargin
+        } else {
+          s"""
+            |${expr.code}
+            |$resultTypeTerm $resultTerm = $convMethod;
+            |""".stripMargin
+        }
+
+        GeneratedExpression(resultTerm, expr.nullTerm, resultCode, expr.resultType)
+
+      // other types are autoboxed or need no boxing
+      case _ => expr
     }
   }
 
@@ -1001,6 +1122,13 @@ class CodeGenerator(
   // Reusable code snippets
   // ----------------------------------------------------------------------------------------------
 
+  /**
+    * Adds a reusable output record to the member area of the generated [[Function]].
+    * The passed [[TypeInformation]] defines the type class to be instantiated.
+    *
+    * @param ti type information of type class to be instantiated during runtime
+    * @return member variable term
+    */
   def addReusableOutRecord(ti: TypeInformation[_]): Unit = {
     val statement = ti match {
       case rt: RowTypeInfo =>
@@ -1017,6 +1145,15 @@ class CodeGenerator(
     reusableMemberStatements.add(statement)
   }
 
+  /**
+    * Adds a reusable [[java.lang.reflect.Field]] to the member area of the generated [[Function]].
+    * The field can be used for accessing POJO fields more efficiently during runtime, however,
+    * the field does not have to be public.
+    *
+    * @param clazz class of containing field
+    * @param fieldName name of field to be extracted and instantiated during runtime
+    * @return member variable term
+    */
   def addReusablePrivateFieldAccess(clazz: Class[_], fieldName: String): String = {
     val fieldTerm = s"field_${clazz.getCanonicalName.replace('.', '$')}_$fieldName"
     val fieldExtraction =
@@ -1036,4 +1173,54 @@ class CodeGenerator(
     fieldTerm
   }
 
+  /**
+    * Adds a reusable [[java.math.BigDecimal]] to the member area of the generated [[Function]].
+    *
+    * @param decimal decimal object to be instantiated during runtime
+    * @return member variable term
+    */
+  def addReusableDecimal(decimal: JBigDecimal): String = decimal match {
+    case JBigDecimal.ZERO => "java.math.BigDecimal.ZERO"
+    case JBigDecimal.ONE => "java.math.BigDecimal.ONE"
+    case JBigDecimal.TEN => "java.math.BigDecimal.TEN"
+    case _ =>
+      val fieldTerm = newName("decimal")
+      val fieldDecimal =
+        s"""
+          |transient java.math.BigDecimal $fieldTerm =
+          |    new java.math.BigDecimal("${decimal.toString}");
+          |""".stripMargin
+      reusableMemberStatements.add(fieldDecimal)
+      fieldTerm
+  }
+
+  /**
+    * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
+    * The [[UserDefinedFunction]] must have a default constructor, however, it does not have
+    * to be public.
+    *
+    * @param function [[UserDefinedFunction]] object to be instantiated during runtime
+    * @return member variable term
+    */
+  def addReusableFunction(function: UserDefinedFunction): String = {
+    val classQualifier = function.getClass.getCanonicalName
+    val fieldTerm = s"function_${classQualifier.replace('.', '$')}"
+
+    val fieldFunction =
+      s"""
+        |transient $classQualifier $fieldTerm = null;
+        |""".stripMargin
+    reusableMemberStatements.add(fieldFunction)
+
+    val constructorTerm = s"constructor_${classQualifier.replace('.', '$')}"
+    val constructorAccessibility =
+      s"""
+        |java.lang.reflect.Constructor $constructorTerm =
+        |  $classQualifier.class.getDeclaredConstructor();
+        |$constructorTerm.setAccessible(true);
+        |$fieldTerm = ($classQualifier) $constructorTerm.newInstance();
+       """.stripMargin
+    reusableInitStatements.add(constructorAccessibility)
+    fieldTerm
+  }
 }

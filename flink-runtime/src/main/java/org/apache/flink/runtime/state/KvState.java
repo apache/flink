@@ -52,6 +52,19 @@ public interface KvState<K, N, S extends State, SD extends StateDescriptor<S, ?>
 	void setCurrentNamespace(N namespace);
 
 	/**
+	 * Returns the serialized value for the given key and namespace.
+	 *
+	 * <p>If no value is associated with key and namespace, <code>null</code>
+	 * is returned.
+	 *
+	 * @param serializedKeyAndNamespace Serialized key and namespace
+	 * @return Serialized value or <code>null</code> if no value is associated
+	 * with the key and namespace.
+	 * @throws Exception Exceptions during serialization are forwarded
+	 */
+	byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception;
+
+	/**
 	 * Creates a snapshot of this state.
 	 * 
 	 * @param checkpointId The ID of the checkpoint for which the snapshot should be created.
@@ -67,4 +80,10 @@ public interface KvState<K, N, S extends State, SD extends StateDescriptor<S, ?>
 	 * Disposes the key/value state, releasing all occupied resources.
 	 */
 	void dispose();
+
+	/**
+	 * Returns the state descriptor from which the KvState instance was created.
+	 */
+	SD getStateDescriptor();
+
 }

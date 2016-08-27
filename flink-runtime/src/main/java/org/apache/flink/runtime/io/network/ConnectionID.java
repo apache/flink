@@ -24,8 +24,8 @@ import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link ConnectionID} identifies a connection to a remote task manager by the socket address and

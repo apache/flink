@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint.stats;
 
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -31,7 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A simple checkpoint stats tracker.
@@ -109,7 +111,8 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 
 	public SimpleCheckpointStatsTracker(
 			int historySize,
-			List<ExecutionJobVertex> tasksToWaitFor) {
+			List<ExecutionJobVertex> tasksToWaitFor,
+			MetricGroup metrics) {
 
 		checkArgument(historySize >= 0);
 		this.historySize = historySize;
@@ -124,6 +127,9 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		} else {
 			taskParallelism = Collections.emptyMap();
 		}
+
+		metrics.gauge("lastCheckpointSize", new CheckpointSizeGauge());
+		metrics.gauge("lastCheckpointDuration", new CheckpointDurationGauge());
 	}
 
 	@Override
@@ -409,6 +415,20 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		@Override
 		public long getAverageStateSize() {
 			return averageStateSize;
+		}
+	}
+
+	private class CheckpointSizeGauge implements Gauge<Long> {
+		@Override
+		public Long getValue() {
+			return latestCompletedCheckpoint == null ? -1 : latestCompletedCheckpoint.getStateSize();
+		}
+	}
+
+	private class CheckpointDurationGauge implements Gauge<Long> {
+		@Override
+		public Long getValue() {
+			return latestCompletedCheckpoint == null ? -1 : latestCompletedCheckpoint.getDuration();
 		}
 	}
 }

@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * An {@link Evictor} that keeps only a certain amount of elements.
+ * An {@link Evictor} that keeps up to a certain amount of elements.
  *
  * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.
  */

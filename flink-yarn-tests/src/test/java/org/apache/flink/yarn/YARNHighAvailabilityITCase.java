@@ -22,6 +22,7 @@ import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.testkit.JavaTestKit;
 import org.apache.curator.test.TestingServer;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -33,7 +34,6 @@ import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
@@ -45,7 +45,6 @@ import org.junit.rules.TemporaryFolder;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -79,7 +78,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	}
 
 	@AfterClass
-	public static void teardown() throws IOException {
+	public static void teardown() throws Exception {
 		if(zkServer != null) {
 			zkServer.stop();
 		}
@@ -97,35 +96,34 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	public void testMultipleAMKill() throws Exception {
 		final int numberKillingAttempts = numberApplicationAttempts - 1;
 
-		TestingFlinkYarnClient flinkYarnClient = new TestingFlinkYarnClient();
+		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor();
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setTaskManagerCount(1);
 		flinkYarnClient.setJobManagerMemory(768);
 		flinkYarnClient.setTaskManagerMemory(1024);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		flinkYarnClient.setShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
-		String confDirPath = System.getenv("FLINK_CONF_DIR");
+		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 
 		String fsStateHandlePath = tmp.getRoot().getPath();
 
-		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.getConfiguration());
+		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.loadConfiguration());
 		flinkYarnClient.setDynamicPropertiesEncoded("recovery.mode=zookeeper@@recovery.zookeeper.quorum=" +
 			zkServer.getConnectString() + "@@yarn.application-attempts=" + numberApplicationAttempts +
 			"@@" + ConfigConstants.STATE_BACKEND + "=FILESYSTEM" +
 			"@@" + FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY + "=" + fsStateHandlePath + "/checkpoints" +
-			"@@" + ConfigConstants.ZOOKEEPER_RECOVERY_PATH + "=" + fsStateHandlePath + "/recovery");
+			"@@" + ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH + "=" + fsStateHandlePath + "/recovery");
 		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));
 
-		AbstractFlinkYarnCluster yarnCluster = null;
+		ClusterClient yarnCluster = null;
 
 		final FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
 		try {
 			yarnCluster = flinkYarnClient.deploy();
-			yarnCluster.connectToCluster();
 			final Configuration config = yarnCluster.getFlinkConfiguration();
 
 			new JavaTestKit(actorSystem) {{
@@ -169,7 +167,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			}};
 		} finally {
 			if (yarnCluster != null) {
-				yarnCluster.shutdown(false);
+				yarnCluster.shutdown();
 			}
 		}
 	}

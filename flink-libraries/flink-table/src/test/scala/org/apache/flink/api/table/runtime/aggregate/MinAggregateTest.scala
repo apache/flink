@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.math.BigDecimal
+
 abstract class MinAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
 
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
@@ -38,10 +40,21 @@ abstract class MinAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
       numeric.fromInt(-20),
       numeric.fromInt(17),
       null.asInstanceOf[T]
+    ),
+    Seq(
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T]
     )
   )
 
-  override def expectedResults: Seq[T] = Seq(minVal)
+  override def expectedResults: Seq[T] = Seq(
+    minVal,
+    null.asInstanceOf[T]
+  )
 }
 
 class ByteMinAggregateTest extends MinAggregateTestBase[Byte] {
@@ -113,10 +126,52 @@ class BooleanMinAggregateTest extends AggregateTestBase[Boolean] {
       false,
       true,
       null.asInstanceOf[Boolean]
+    ),
+    Seq(
+      null.asInstanceOf[Boolean],
+      null.asInstanceOf[Boolean],
+      null.asInstanceOf[Boolean]
     )
   )
 
-  override def expectedResults: Seq[Boolean] = Seq(false, true, false)
+  override def expectedResults: Seq[Boolean] = Seq(
+    false,
+    true,
+    false,
+    null.asInstanceOf[Boolean]
+  )
 
   override def aggregator: Aggregate[Boolean] = new BooleanMinAggregate()
+}
+
+class DecimalMinAggregateTest extends AggregateTestBase[BigDecimal] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new BigDecimal("1"),
+      new BigDecimal("1000"),
+      new BigDecimal("-1"),
+      new BigDecimal("-999.998999"),
+      null,
+      new BigDecimal("0"),
+      new BigDecimal("-999.999"),
+      null,
+      new BigDecimal("999.999")
+    ),
+    Seq(
+      null,
+      null,
+      null,
+      null,
+      null
+    )
+  )
+
+  override def expectedResults: Seq[BigDecimal] = Seq(
+    new BigDecimal("-999.999"),
+    null
+  )
+
+  override def aggregator: Aggregate[BigDecimal] = new DecimalMinAggregate()
+
 }

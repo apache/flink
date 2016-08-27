@@ -19,10 +19,13 @@
 package org.apache.flink.streaming.scala.examples.windowing
 
 
+import java.beans.Transient
 import java.util.concurrent.TimeUnit
 
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
@@ -30,15 +33,13 @@ import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger
 
-import scala.Stream._
-import scala.math._
 import scala.language.postfixOps
 import scala.util.Random
 
 /**
  * An example of grouped stream windowing where different eviction and 
  * trigger policies can be used. A source fetches events from cars 
- * every 1 sec containing their id, their current speed (kmh),
+ * every 100 msec containing their id, their current speed (kmh),
  * overall elapsed distance (m) and a timestamp. The streaming
  * example triggers the top speed of each car every x meters elapsed 
  * for the last y seconds.
@@ -72,7 +73,32 @@ object TopSpeedWindowing {
       } else {
         println("Executing TopSpeedWindowing example with default inputs data set.")
         println("Use --input to specify file input.")
-        env.fromCollection(genCarStream())
+        env.addSource(new SourceFunction[CarEvent]() {
+
+          val speeds = Array.fill[Integer](numOfCars)(50)
+          val distances = Array.fill[Double](numOfCars)(0d)
+          @Transient lazy val rand = new Random()
+
+          var isRunning:Boolean = true
+
+          override def run(ctx: SourceContext[CarEvent]) = {
+            while (isRunning) {
+              Thread.sleep(100)
+
+              for (carId <- 0 until numOfCars) {
+                if (rand.nextBoolean) speeds(carId) = Math.min(100, speeds(carId) + 5)
+                else speeds(carId) = Math.max(0, speeds(carId) - 5)
+
+                distances(carId) += speeds(carId) / 3.6d
+                val record = CarEvent(carId, speeds(carId),
+                  distances(carId), System.currentTimeMillis)
+                ctx.collect(record)
+              }
+            }
+          }
+
+          override def cancel(): Unit = isRunning = false
+        })
       }
 
     val topSeed = cars
@@ -102,22 +128,6 @@ object TopSpeedWindowing {
   // *************************************************************************
   // USER FUNCTIONS
   // *************************************************************************
-
-  def genCarStream(): Stream[CarEvent] = {
-
-    def nextSpeed(carEvent : CarEvent) : CarEvent =
-    {
-      val next =
-        if (Random.nextBoolean) min(100, carEvent.speed + 5) else max(0, carEvent.speed - 5)
-      CarEvent(carEvent.carId, next, carEvent.distance + next/3.6d,System.currentTimeMillis)
-    }
-    def carStream(speeds : Stream[CarEvent]) : Stream[CarEvent] =
-    {
-      Thread.sleep(1000)
-      speeds.append(carStream(speeds.map(nextSpeed)))
-    }
-    carStream(range(0, numOfCars).map(CarEvent(_,50,0,System.currentTimeMillis())))
-  }
 
   def parseMap(line : String): (Int, Int, Double, Long) = {
     val record = line.substring(1, line.length - 1).split(",")

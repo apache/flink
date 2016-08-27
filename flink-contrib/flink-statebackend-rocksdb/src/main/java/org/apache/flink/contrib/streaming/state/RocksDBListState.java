@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
@@ -32,10 +31,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * {@link ListState} implementation that stores state in RocksDB.
@@ -49,14 +45,11 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of the values in the list state.
  */
 public class RocksDBListState<K, N, V>
-	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>>
+	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, V>
 	implements ListState<V> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<V> valueSerializer;
-
-	/** This holds the name of the state and can create an initial default value for the state. */
-	private final ListStateDescriptor<V> stateDesc;
 
 	/**
 	 * We disable writes to the write-ahead-log here. We can't have these in the base class
@@ -76,8 +69,7 @@ public class RocksDBListState<K, N, V>
 			ListStateDescriptor<V> stateDesc,
 			RocksDBStateBackend backend) {
 		
-		super(columnFamily, namespaceSerializer, backend);
-		this.stateDesc = requireNonNull(stateDesc);
+		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getSerializer();
 
 		writeOptions = new WriteOptions();
@@ -94,7 +86,7 @@ public class RocksDBListState<K, N, V>
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 
 			if (valueBytes == null) {
-				return Collections.emptyList();
+				return null;
 			}
 
 			ByteArrayInputStream bais = new ByteArrayInputStream(valueBytes);
@@ -130,5 +122,5 @@ public class RocksDBListState<K, N, V>
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
-}
 
+}

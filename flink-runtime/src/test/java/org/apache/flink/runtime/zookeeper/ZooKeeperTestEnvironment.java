@@ -58,7 +58,7 @@ public class ZooKeeperTestEnvironment {
 				zooKeeperServer = new TestingServer(true);
 				zooKeeperCluster = null;
 
-				conf.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY,
+				conf.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY,
 						zooKeeperServer.getConnectString());
 			}
 			else {
@@ -67,7 +67,7 @@ public class ZooKeeperTestEnvironment {
 
 				zooKeeperCluster.start();
 
-				conf.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY,
+				conf.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY,
 						zooKeeperCluster.getConnectString());
 			}
 
@@ -127,7 +127,7 @@ public class ZooKeeperTestEnvironment {
 	 */
 	public CuratorFramework createClient() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, getConnectString());
+		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, getConnectString());
 		return ZooKeeperUtils.startCuratorFramework(config);
 	}
 

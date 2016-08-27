@@ -22,7 +22,9 @@ import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.metrics.groups.IOMetricGroup;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -61,7 +63,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
  */
 @Internal
 public class StreamInputProcessor<IN> {
-	
+
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
@@ -74,12 +76,12 @@ public class StreamInputProcessor<IN> {
 
 	private boolean isFinished;
 
-	
-
 	private final long[] watermarks;
 	private long lastEmittedWatermark;
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
+
+	private Counter numRecordsIn;
 
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer,
@@ -97,7 +99,7 @@ public class StreamInputProcessor<IN> {
 			this.barrierHandler = new BarrierTracker(inputGate);
 		}
 		else {
-			throw new IllegalArgumentException("Unrecognized CheckpointingMode: " + checkpointMode);
+			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}
 		
 		if (checkpointListener != null) {
@@ -133,6 +135,9 @@ public class StreamInputProcessor<IN> {
 		if (isFinished) {
 			return false;
 		}
+		if (numRecordsIn == null) {
+			numRecordsIn = streamOperator.getMetricGroup().counter("numRecordsIn");
+		}
 
 		while (true) {
 			if (currentRecordDeserializer != null) {
@@ -166,6 +171,7 @@ public class StreamInputProcessor<IN> {
 						// now we can do the actual processing
 						StreamRecord<IN> record = recordOrWatermark.asRecord();
 						synchronized (lock) {
+							numRecordsIn.inc();
 							streamOperator.setKeyContextElement1(record);
 							streamOperator.processElement(record);
 						}
@@ -211,9 +217,12 @@ public class StreamInputProcessor<IN> {
 	 * @param metrics metric group
      */
 	public void setMetricGroup(IOMetricGroup metrics) {
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
-			deserializer.instantiateMetrics(metrics);
-		}
+		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return lastEmittedWatermark;
+			}
+		});
 	}
 	
 	public void cleanup() throws IOException {

@@ -43,11 +43,11 @@ extends AsmTestBase {
 
 		String expectedResult =
 			"(0,(2,2,0))\n" +
-			"(1,(3,2,1))\n" +
-			"(2,(3,1,2))\n" +
+			"(1,(3,0,3))\n" +
+			"(2,(3,2,1))\n" +
 			"(3,(4,2,2))\n" +
 			"(4,(1,0,1))\n" +
-			"(5,(1,0,1))";
+			"(5,(1,1,0))";
 
 		TestBaseUtils.compareResultAsText(vertexDegrees.collect(), expectedResult);
 	}
@@ -95,10 +95,10 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 	throws Exception {
-		ChecksumHashCode degreeChecksum = DataSetUtils.checksumHashCode(directedRMatGraph
+		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
 			.run(new VertexDegrees<LongValue, NullValue, NullValue>()));
 
-		assertEquals(902, degreeChecksum.getCount());
-		assertEquals(0x0000015384f40cb6L, degreeChecksum.getChecksum());
+		assertEquals(902, checksum.getCount());
+		assertEquals(0x000001a3305dd86aL, checksum.getChecksum());
 	}
 }

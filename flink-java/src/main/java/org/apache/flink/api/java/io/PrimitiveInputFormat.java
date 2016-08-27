@@ -46,12 +46,12 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 
 
 	public PrimitiveInputFormat(Path filePath, Class<OT> primitiveClass) {
-		super(filePath);
+		super(filePath, null);
 		this.primitiveClass = primitiveClass;
 	}
 
 	public PrimitiveInputFormat(Path filePath, String delimiter, Class<OT> primitiveClass) {
-		super(filePath);
+		super(filePath, null);
 		this.primitiveClass = primitiveClass;
 		this.setDelimiter(delimiter);
 	}
@@ -75,7 +75,7 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 		}
 
 		// Null character as delimiter is used because there's only 1 field to be parsed
-		if (parser.parseField(bytes, offset, numBytes + offset, new byte[]{'\0'}, reuse) >= 0) {
+		if (parser.resetErrorStateAndParse(bytes, offset, numBytes + offset, new byte[]{'\0'}, reuse) >= 0) {
 			return parser.getLastResult();
 		} else {
 			String s = new String(bytes, offset, numBytes);

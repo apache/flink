@@ -67,7 +67,7 @@ public class ReduceOnNeighborsWithExceptionITCase {
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
-			fail("Cluster shutdown caused an exception: " + t.getMessage());
+			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
 		}
 	}
 

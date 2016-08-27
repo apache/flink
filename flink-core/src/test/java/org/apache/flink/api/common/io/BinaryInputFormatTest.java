@@ -41,7 +41,8 @@ public class BinaryInputFormatTest {
 			return record;
 		}
 	}
-	
+
+
 	@Test
 	public void testCreateInputSplitsWithOneFile() throws IOException {
 		// create temporary file with 3 blocks
@@ -57,10 +58,11 @@ public class BinaryInputFormatTest {
 		fileOutputStream.close();
 
 		final Configuration config = new Configuration();
-		config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, blockSize);
-		
+		config.setLong("input.block_size", blockSize + 10);
+
 		final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
 		inputFormat.setFilePath(tempFile.toURI().toString());
+		inputFormat.setBlockSize(blockSize);
 		
 		inputFormat.configure(config);
 		

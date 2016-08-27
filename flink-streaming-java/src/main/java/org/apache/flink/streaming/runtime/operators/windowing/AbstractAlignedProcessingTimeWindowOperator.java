@@ -236,7 +236,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	private void computeWindow(long timestamp) throws Exception {
 		out.setAbsoluteTimestamp(timestamp);
 		panes.truncatePanes(numPanesPerWindow);
-		panes.evaluateWindow(out, new TimeWindow(timestamp, timestamp + windowSize), this);
+		panes.evaluateWindow(out, new TimeWindow(timestamp - windowSize, timestamp), this);
 	}
 
 	// ------------------------------------------------------------------------
@@ -261,8 +261,8 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-		super.restoreState(taskState, recoveryTimestamp);
+	public void restoreState(StreamTaskState taskState) throws Exception {
+		super.restoreState(taskState);
 
 		@SuppressWarnings("unchecked")
 		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();

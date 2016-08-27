@@ -282,4 +282,10 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		is.close();
 	}
 
+	@Test
+	public void testConcurrentMapIfQueryable() throws Exception {
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+		StateBackendTestBase.testConcurrentMapIfQueryable(backend);
+	}
+
 }

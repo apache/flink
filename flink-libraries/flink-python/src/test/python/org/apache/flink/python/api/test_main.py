@@ -25,43 +25,7 @@ from flink.functions.GroupReduceFunction import GroupReduceFunction
 from flink.plan.Constants import Order, WriteMode
 from flink.plan.Constants import INT, STRING
 import struct
-
-#Utilities
-class Id(MapFunction):
-    def map(self, value):
-        return value
-
-
-class Verify(MapPartitionFunction):
-    def __init__(self, expected, name):
-        super(Verify, self).__init__()
-        self.expected = expected
-        self.name = name
-
-    def map_partition(self, iterator, collector):
-        index = 0
-        for value in iterator:
-            if value != self.expected[index]:
-                raise Exception(self.name + " Test failed. Expected: " + str(self.expected[index]) + " Actual: " + str(value))
-            index += 1
-        #collector.collect(self.name + " successful!")
-
-
-class Verify2(MapPartitionFunction):
-    def __init__(self, expected, name):
-        super(Verify2, self).__init__()
-        self.expected = expected
-        self.name = name
-
-    def map_partition(self, iterator, collector):
-        for value in iterator:
-            if value in self.expected:
-                try:
-                    self.expected.remove(value)
-                except Exception:
-                    raise Exception(self.name + " failed! Actual value " + str(value) + "not contained in expected values: "+str(self.expected))
-        #collector.collect(self.name + " successful!")
-
+from utils import Id, Verify
 
 if __name__ == "__main__":
     env = get_environment()
@@ -78,9 +42,16 @@ if __name__ == "__main__":
 
     d6 = env.from_elements(1, 1, 12)
 
+    d7 = env.generate_sequence(0, 999)
+
     #Generate Sequence Source
-    d7 = env.generate_sequence(1, 5)\
-         .map(Id()).map_partition(Verify([1,2,3,4,5], "Sequence")).output()
+    d7.map(Id()).map_partition(Verify(range(1000), "Sequence")).output()
+
+    #Zip with Index
+    #check that IDs (first field of each element) are consecutive
+    d7.zip_with_index()\
+        .map(lambda x: x[0])\
+        .map_partition(Verify(range(1000), "ZipWithIndex")).output()
 
     #CSV Source/Sink
     csv_data = env.read_csv("src/test/python/org/apache/flink/python/api/data_csv", (INT, INT, STRING))

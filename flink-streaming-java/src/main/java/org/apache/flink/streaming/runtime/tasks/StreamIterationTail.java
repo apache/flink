@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -56,12 +57,26 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		
 		LOG.info("Iteration tail {} acquired feedback queue {}", getName(), brokerID);
 		
-		this.headOperator = new RecordPusher<>(dataChannel, iterationWaitTime);
+		this.headOperator = new RecordPusher<>();
+		this.headOperator.setup(this, getConfiguration(), new IterationTailOutput<>(dataChannel, iterationWaitTime));
 	}
 
 	private static class RecordPusher<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
 		
 		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void processElement(StreamRecord<IN> record) throws Exception {
+			output.collect(record);
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) {
+			// ignore
+		}
+	}
+
+	private static class IterationTailOutput<IN> implements Output<StreamRecord<IN>> {
 
 		@SuppressWarnings("NonSerializableFieldInSerializableClass")
 		private final BlockingQueue<StreamRecord<IN>> dataChannel;
@@ -70,25 +85,32 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		
 		private final boolean shouldWait;
 
-		RecordPusher(BlockingQueue<StreamRecord<IN>> dataChannel, long iterationWaitTime) {
+		IterationTailOutput(BlockingQueue<StreamRecord<IN>> dataChannel, long iterationWaitTime) {
 			this.dataChannel = dataChannel;
 			this.iterationWaitTime = iterationWaitTime;
 			this.shouldWait =  iterationWaitTime > 0;
 		}
 
 		@Override
-		public void processElement(StreamRecord<IN> record) throws Exception {
-			if (shouldWait) {
-				dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
-			}
-			else {
-				dataChannel.put(record);
+		public void emitWatermark(Watermark mark) {
+		}
+
+		@Override
+		public void collect(StreamRecord<IN> record) {
+			try {
+				if (shouldWait) {
+					dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
+				}
+				else {
+					dataChannel.put(record);
+				}
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
 			}
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) {
-			// ignore
+		public void close() {
 		}
 	}
 }
