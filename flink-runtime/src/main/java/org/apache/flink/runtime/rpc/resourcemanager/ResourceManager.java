@@ -20,24 +20,26 @@ package org.apache.flink.runtime.rpc.resourcemanager;
 
 import akka.dispatch.Mapper;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.rpc.taskexecutor.TaskExecutorRegistrationSuccess;
-import org.apache.flink.util.Preconditions;
 
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
 import scala.concurrent.Future;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * ResourceManager implementation. The resource manager is responsible for resource de-/allocation
@@ -50,14 +52,38 @@ import java.util.concurrent.ExecutorService;
  * </ul>
  */
 public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
-	private final ExecutionContext executionContext;
 	private final Map<JobMasterGateway, InstanceID> jobMasterGateways;
+	private final HighAvailabilityServices highAvailabilityServices;
+	private LeaderElectionService leaderElectionService = null;
+	private UUID leaderSessionID = null;
 
-	public ResourceManager(RpcService rpcService, ExecutorService executorService) {
+	public ResourceManager(RpcService rpcService, HighAvailabilityServices highAvailabilityServices) {
 		super(rpcService);
-		this.executionContext = ExecutionContext$.MODULE$.fromExecutor(
-			Preconditions.checkNotNull(executorService));
+		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
 		this.jobMasterGateways = new HashMap<>();
+	}
+
+	@Override
+	public void start() {
+		// start a leader
+		try {
+			super.start();
+			leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
+			leaderElectionService.start(new ResourceManagerLeaderContender());
+		} catch (Throwable e) {
+			log.error("A fatal error happened when starting the ResourceManager", e);
+			throw new RuntimeException("A fatal error happened when starting the ResourceManager", e);
+		}
+	}
+
+	/**
+	 * Gets the leader session id of current resourceManager.
+	 *
+	 * @return return the leaderSessionId of current resourceManager, this returns null until the current resourceManager is granted leadership.
+	 */
+	@VisibleForTesting
+	UUID getLeaderSessionID() {
+		return leaderSessionID;
 	}
 
 	/**
@@ -115,5 +141,79 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 			ResourceID resourceID) {
 
 		return new TaskExecutorRegistrationSuccess(new InstanceID(), 5000);
+	}
+
+	/**
+	 * Callback method when current resourceManager is granted leadership
+	 *
+	 * @param newLeaderSessionID unique leadershipID
+	 */
+	void handleGrantLeadership(final UUID newLeaderSessionID) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.info("ResourceManager {} was granted leadership with leader session ID {}", getAddress(), newLeaderSessionID);
+				leaderSessionID = newLeaderSessionID;
+				// confirming the leader session ID might be blocking,
+				leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
+			}
+		});
+	}
+
+	/**
+	 * Callback method when current resourceManager lose leadership.
+	 */
+	void handleRevokeLeadership() {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.info("ResourceManager {} was revoked leadership.", getAddress());
+				jobMasterGateways.clear();
+				leaderSessionID = null;
+			}
+		});
+	}
+
+	/**
+	 * Callback method when an error happened to current resourceManager on leader election
+	 * @param e
+	 */
+	void onLeaderElectionError(final Throwable e) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.error("ResourceManager received an error from the LeaderElectionService.", e);
+				// terminate ResourceManager in case of an error
+				shutDown();
+			}
+		});
+	}
+
+	private class ResourceManagerLeaderContender implements LeaderContender {
+
+		@Override
+		public void grantLeadership(UUID leaderSessionID) {
+			handleGrantLeadership(leaderSessionID);
+		}
+
+		@Override
+		public void revokeLeadership() {
+			handleRevokeLeadership();
+		}
+
+		@Override
+		public String getAddress() {
+			return getAddress();
+		}
+
+		/**
+		 * Handles error occurring in the leader election service
+		 *
+		 * @param exception Exception being thrown in the leader election service
+		 */
+		@Override
+		public void handleError(Exception exception) {
+			onLeaderElectionError(exception);
+		}
 	}
 }
