@@ -37,7 +37,7 @@ server.connection({ port: 3000 });
 remotes.forEach(function (remote) {
   server.route([
     {
-      method: 'GET',
+      method: ['GET', 'POST'],
       path: '/' + remote.path + '/{params*}',
       handler: {
         proxy: {
