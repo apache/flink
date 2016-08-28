@@ -366,37 +366,36 @@ public class KinesisDataFetcher<T> {
 			// -- NOTE: Potential race condition between newShardsDueToResharding and numberOfActiveShards --
 			// Since numberOfActiveShards is updated by parallel shard consuming threads in updateState(), there exists
 			// a race condition with the currently queried newShardsDueToResharding. Therefore, numberOfActiveShards
-			// may not correctly reflect the discover result in the below synchronized block. This may lead to incorrect
+			// may not correctly reflect the discover result in the below case determination. This may lead to incorrect
 			// case determination on the current discovery attempt, but can still be correctly handled on future attempts.
 			//
-			// Although this can be resolved by also wrapping the current shard discovery attempt within the below
-			// synchronized block, there will be considerable throughput performance regression as shard discovery is a
-			// remote call to AWS. Therefore, since the case determination is a temporary workaround for FLINK-4341, the
-			// race condition is tolerable as we can still eventually handle max value watermark emitting / deliberately
-			// failing on successive discovery attempts.
+			// Although this can be resolved by wrapping the current shard discovery attempt with the below
+			// case determination within a synchronized block on the checkpoint lock for atomicity, there will be
+			// considerable throughput performance regression as shard discovery is a remote call to AWS. Therefore,
+			// since the case determination is a temporary workaround for FLINK-4341, the race condition is tolerable as
+			// we can still eventually handle max value watermark emitting / deliberately failing on successive
+			// discovery attempts.
 
-			synchronized (checkpointLock) {
-				if (newShardsDueToResharding.size() == 0 && this.numberOfActiveShards.get() == 0 && !emittedMaxValueWatermark) {
-					// FLINK-4341 workaround case (a) - please see the above for details on this case
-						LOG.info("Subtask {} has completed reading all shards; emitting max value watermark ...",
-							indexOfThisConsumerSubtask);
-					sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
-					emittedMaxValueWatermark = true;
-				} else if (newShardsDueToResharding.size() > 0 && emittedMaxValueWatermark) {
-					// FLINK-4341 workaround case (b) - please see the above for details on this case
-					//
-					// Note that in the case where on resharding this subtask ceased to read all of it's previous shards
-					// but new shards is also to be subscribed by this subtask immediately after, emittedMaxValueWatermark
-					// will be false; this allows the fetcher to continue reading the new shards without failing on such cases.
-					// However, due to the race condition mentioned above, we might still fall into case (a) first, and
-					// then (b) on the next discovery attempt. Although the failure is ideally unnecessary, max value
-					// watermark emitting still remains to be correct.
+			if (newShardsDueToResharding.size() == 0 && this.numberOfActiveShards.get() == 0 && !emittedMaxValueWatermark) {
+				// FLINK-4341 workaround case (a) - please see the above for details on this case
+				LOG.info("Subtask {} has completed reading all shards; emitting max value watermark ...",
+					indexOfThisConsumerSubtask);
+				sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
+				emittedMaxValueWatermark = true;
+			} else if (newShardsDueToResharding.size() > 0 && emittedMaxValueWatermark) {
+				// FLINK-4341 workaround case (b) - please see the above for details on this case
+				//
+				// Note that in the case where on resharding this subtask ceased to read all of it's previous shards
+				// but new shards is also to be subscribed by this subtask immediately after, emittedMaxValueWatermark
+				// will be false; this allows the fetcher to continue reading the new shards without failing on such cases.
+				// However, due to the race condition mentioned above, we might still fall into case (a) first, and
+				// then (b) on the next discovery attempt. Although the failure is ideally unnecessary, max value
+				// watermark emitting still remains to be correct.
 
-					LOG.warn("Subtask {} has discovered {} new shards to subscribe, but is failing hard to avoid messing" +
-							" up watermarks; the new shards will be subscribed by this subtask after restore ...",
-						indexOfThisConsumerSubtask, newShardsDueToResharding.size());
-					throw new RuntimeException("Deliberate failure to avoid messing up watermarks");
-				}
+				LOG.warn("Subtask {} has discovered {} new shards to subscribe, but is failing hard to avoid messing" +
+						" up watermarks; the new shards will be subscribed by this subtask after restore ...",
+					indexOfThisConsumerSubtask, newShardsDueToResharding.size());
+				throw new RuntimeException("Deliberate failure to avoid messing up watermarks");
 			}
 
 			for (KinesisStreamShard shard : newShardsDueToResharding) {
