@@ -108,10 +108,10 @@ to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from
 Other optional configuration keys for the consumer can be found in `ConsumerConfigConstants`.
 
 **NOTE:** Currently, resharding can not be handled transparently (i.e., without failing and restarting jobs) if there are idle consumer
-subtasks, which occur when the total number of shards is lower than the configured consumer parallelism. The new shards
-due to resharding will still be picked up by the Kinesis consumer after the job automatically restores. This is a temporary
-limitation that will be resolved in future versions. Please see [FLINK-4341](https://issues.apache.org/jira/browse/FLINK-4341)
-for more detail.
+subtasks, which occur when the total number of shards is lower than the configured consumer parallelism. The job must be
+configured to enable checkpointing, so that the new shards due to resharding can be correctly picked up and consumed by the
+Kinesis consumer after the job is restored. This is a temporary limitation that will be resolved in future versions.
+Please see [FLINK-4341](https://issues.apache.org/jira/browse/FLINK-4341) for more detail.
 
 #### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
 
