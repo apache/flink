@@ -18,13 +18,13 @@
 
 angular.module('flinkApp')
 
-.service 'JobManagerConfigService', ($http, flinkConfig, $q) ->
+.service 'JobManagerConfigService', ($http, utils, $q) ->
   config = {}
 
   @loadConfig = ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "jobmanager/config")
+    $http.get(utils.jobServerUrl("jobmanager/config"))
     .success (data, status, headers, config) ->
       config = data
       deferred.resolve(data)
@@ -39,7 +39,7 @@ angular.module('flinkApp')
   @loadLogs = ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "jobmanager/log")
+    $http.get(utils.jobServerUrl("jobmanager/log"))
     .success (data, status, headers, config) ->
       logs = data
       deferred.resolve(data)
@@ -54,7 +54,7 @@ angular.module('flinkApp')
   @loadStdout = ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "jobmanager/stdout")
+    $http.get(utils.jobServerUrl("jobmanager/stdout"))
     .success (data, status, headers, config) ->
       stdout = data
       deferred.resolve(data)

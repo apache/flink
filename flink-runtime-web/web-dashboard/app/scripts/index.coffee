@@ -34,6 +34,11 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
   "refresh-interval": 10000
 }
 
+.factory 'utils', (flinkConfig) ->
+  @.jobServerUrl = (path) -> flinkConfig.jobServer + path
+
+  @
+
 # --------------------------------------
 
 .run (JobsService, MainService, flinkConfig, $interval) ->

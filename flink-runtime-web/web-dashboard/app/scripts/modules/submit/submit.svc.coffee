@@ -18,12 +18,12 @@
 
 angular.module('flinkApp')
 
-.service 'JobSubmitService', ($http, flinkConfig, $q) ->
+.service 'JobSubmitService', ($http, utils, $q) ->
 
   @loadJarList = () ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "jars/")
+    $http.get(utils.jobServerUrl("jars/"))
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 
@@ -32,7 +32,7 @@ angular.module('flinkApp')
   @deleteJar = (id) ->
     deferred = $q.defer()
 
-    $http.delete(flinkConfig.jobServer + "jars/" + encodeURIComponent(id))
+    $http.delete(utils.jobServerUrl("jars/" + encodeURIComponent(id)))
     .success (data, status, headers, config) ->
        deferred.resolve(data)
 
@@ -41,7 +41,7 @@ angular.module('flinkApp')
   @getPlan = (id, args) ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "jars/" + encodeURIComponent(id) + "/plan", {params: args})
+    $http.get(utils.jbobServerUrl("jars/" + encodeURIComponent(id) + "/plan", {params: args}))
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 
@@ -50,7 +50,7 @@ angular.module('flinkApp')
   @runJob = (id, args) ->
     deferred = $q.defer()
 
-    $http.post(flinkConfig.jobServer + "jars/" + encodeURIComponent(id) + "/run", {}, {params: args})
+    $http.post(utils.jbobServerUrl("jars/" + encodeURIComponent(id) + "/run"), {}, {params: args})
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 

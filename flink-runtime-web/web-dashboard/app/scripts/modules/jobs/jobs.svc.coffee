@@ -18,7 +18,7 @@
 
 angular.module('flinkApp')
 
-.service 'JobsService', ($http, flinkConfig, $log, amMoment, $q, $timeout) ->
+.service 'JobsService', ($http, utils, $log, amMoment, $q, $timeout) ->
   currentJob = null
   currentPlan = null
 
@@ -86,7 +86,7 @@ angular.module('flinkApp')
   @listJobs = ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.jobServer + "joboverview"
+    $http.get utils.jobServerUrl("joboverview")
     .success (data, status, headers, config) =>
       angular.forEach data, (list, listKey) =>
         switch listKey
@@ -110,12 +110,12 @@ angular.module('flinkApp')
     currentJob = null
     deferreds.job = $q.defer()
 
-    $http.get flinkConfig.jobServer + "jobs/" + jobid
+    $http.get utils.jobServerUrl("jobs/" + jobid)
     .success (data, status, headers, config) =>
       @setEndTimes(data.vertices)
       @processVertices(data)
 
-      $http.get flinkConfig.jobServer + "jobs/" + jobid + "/config"
+      $http.get utils.jobServerUrl("jobs/" + jobid + "/config")
       .success (jobConfig) ->
         data = angular.extend(data, jobConfig)
 
@@ -157,7 +157,7 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       vertex = @seekVertex(vertexid)
 
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes")
       .success (data) =>
         # TODO: change to subtasktimes
         vertex.subtasks = data.subtasks
@@ -172,7 +172,7 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       # vertex = @seekVertex(vertexid)
 
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/vertices/" + vertexid)
       .success (data) ->
         subtasks = data.subtasks
 
@@ -186,7 +186,7 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       # vertex = @seekVertex(vertexid)
 
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/taskmanagers"
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/vertices/" + vertexid + "/taskmanagers")
       .success (data) ->
         taskmanagers = data.taskmanagers
 
@@ -200,11 +200,11 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       # vertex = @seekVertex(vertexid)
       console.log(currentJob.jid)
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators")
       .success (data) ->
         accumulators = data['user-accumulators']
 
-        $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators"
+        $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators")
         .success (data) ->
           subtaskAccumulators = data.subtasks
 
@@ -217,7 +217,7 @@ angular.module('flinkApp')
     deferred = $q.defer()
 
     deferreds.job.promise.then (data) =>
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/checkpoints/config"
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/checkpoints/config")
       .success (data) ->
         if (angular.equals({}, data))
           deferred.resolve(null)
@@ -231,7 +231,7 @@ angular.module('flinkApp')
     deferred = $q.defer()
 
     deferreds.job.promise.then (data) =>
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/checkpoints"
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/checkpoints")
       .success (data, status, headers, config) =>
         if (angular.equals({}, data))
           deferred.resolve(null)
@@ -245,7 +245,7 @@ angular.module('flinkApp')
     deferred = $q.defer()
 
     deferreds.job.promise.then (data) =>
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/checkpoints/details/" + checkpointid
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/checkpoints/details/" + checkpointid)
       .success (data) ->
         # If no data available, we are done.
         if (angular.equals({}, data))
@@ -260,7 +260,7 @@ angular.module('flinkApp')
     deferred = $q.defer()
 
     deferreds.job.promise.then (data) =>
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/checkpoints/details/" + checkpointid + "/subtasks/" + vertexid
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/checkpoints/details/" + checkpointid + "/subtasks/" + vertexid)
       .success (data) ->
         # If no data available, we are done.
         if (angular.equals({}, data))
@@ -274,7 +274,7 @@ angular.module('flinkApp')
   @getOperatorBackPressure = (vertexid) ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/backpressure"
+    $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/vertices/" + vertexid + "/backpressure")
     .success (data) =>
       deferred.resolve(data)
 
@@ -293,7 +293,7 @@ angular.module('flinkApp')
 
     deferreds.job.promise.then (data) =>
 
-      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/exceptions"
+      $http.get utils.jobServerUrl("jobs/" + currentJob.jid + "/exceptions")
       .success (exceptions) ->
         currentJob.exceptions = exceptions
 
@@ -304,11 +304,11 @@ angular.module('flinkApp')
   @cancelJob = (jobid) ->
     # uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
     # proper "DELETE jobs/<jobid>/"
-    $http.get flinkConfig.jobServer + "jobs/" + jobid + "/yarn-cancel"
+    $http.get utils.jobServerUrl("jobs/" + jobid + "/yarn-cancel")
 
   @stopJob = (jobid) ->
     # uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
     # proper "DELETE jobs/<jobid>/"
-    $http.get "jobs/" + jobid + "/yarn-stop"
+    $http.get utils.jobServerUrl("jobs/" + jobid + "/yarn-stop")
 
   @

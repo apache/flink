@@ -18,13 +18,13 @@
 
 angular.module('flinkApp')
 
-.service 'OverviewService', ($http, flinkConfig, $q) ->
+.service 'OverviewService', ($http, utils, $q) ->
   overview = {}
 
   @loadOverview = ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "overview")
+    $http.get(utils.jobServerUrl("overview"))
     .success (data, status, headers, config) ->
       overview = data
       deferred.resolve(data)

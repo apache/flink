@@ -18,11 +18,11 @@
 
 angular.module('flinkApp')
 
-.service 'MainService', ($http, flinkConfig, $q) ->
+.service 'MainService', ($http, utils, $q) ->
   @loadConfig = ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.jobServer + "config"
+    $http.get utils.jobServerUrl("config")
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 

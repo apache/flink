@@ -18,7 +18,7 @@
 
 angular.module('flinkApp')
 
-.controller 'JobSubmitController', ($scope, JobSubmitService, $interval, flinkConfig, $state, $location) ->
+.controller 'JobSubmitController', ($scope, JobSubmitService, $interval, flinkConfig, utils, $state, $location) ->
   $scope.yarn = $location.absUrl().indexOf("/proxy/application_") != -1
   $scope.loadList = () ->
     JobSubmitService.loadJarList().then (data) ->
@@ -167,7 +167,7 @@ angular.module('flinkApp')
             $scope.uploader['success'] = null
           else
             $scope.uploader['success'] = "Uploaded!"
-      xhr.open("POST", flinkConfig.jobServer + "jars/upload")
+      xhr.open("POST", utils.jobServerUrl("jars/upload"))
       xhr.send(formdata)
     else
       console.log("Unexpected Error. This should not happen")

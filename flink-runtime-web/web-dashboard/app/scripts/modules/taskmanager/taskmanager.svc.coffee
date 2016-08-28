@@ -18,11 +18,11 @@
 
 angular.module('flinkApp')
 
-.service 'TaskManagersService', ($http, flinkConfig, $q) ->
+.service 'TaskManagersService', ($http, utils, $q) ->
   @loadManagers = () ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "taskmanagers")
+    $http.get(utils.jobServerUrl("taskmanagers"))
     .success (data, status, headers, config) ->
       deferred.resolve(data['taskmanagers'])
 
@@ -34,7 +34,7 @@ angular.module('flinkApp')
   @loadMetrics = (taskmanagerid) ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid)
+    $http.get(utils.jobServerUrl("taskmanagers/" + taskmanagerid))
     .success (data, status, headers, config) ->
       deferred.resolve(data['taskmanagers'])
 
@@ -43,7 +43,7 @@ angular.module('flinkApp')
   @loadLogs = (taskmanagerid) ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid + "/log")
+    $http.get(utils.jobServerUrl("taskmanagers/" + taskmanagerid + "/log"))
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 
@@ -52,7 +52,7 @@ angular.module('flinkApp')
   @loadStdout = (taskmanagerid) ->
     deferred = $q.defer()
 
-    $http.get(flinkConfig.jobServer + "taskmanagers/" + taskmanagerid + "/stdout")
+    $http.get(utils.jobServerUrl("taskmanagers/" + taskmanagerid + "/stdout"))
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 
