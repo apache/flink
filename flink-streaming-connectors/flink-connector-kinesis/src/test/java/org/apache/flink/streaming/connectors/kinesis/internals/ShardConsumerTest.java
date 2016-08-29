@@ -79,4 +79,44 @@ public class ShardConsumerTest {
 			SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()));
 	}
 
+	@Test
+	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithUnexpectedExpiredIterator() {
+		KinesisStreamShard fakeToBeConsumedShard = new KinesisStreamShard(
+			"fakeStream",
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(0))
+				.withHashKeyRange(
+					new HashKeyRange()
+						.withStartingHashKey("0")
+						.withEndingHashKey(new BigInteger(StringUtils.repeat("FF", 16), 16).toString())));
+
+		LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest = new LinkedList<>();
+		subscribedShardsStateUnderTest.add(
+			new KinesisStreamShardState(fakeToBeConsumedShard, new SequenceNumber("fakeStartingState")));
+
+		TestableKinesisDataFetcher fetcher =
+			new TestableKinesisDataFetcher(
+				Collections.singletonList("fakeStream"),
+				new Properties(),
+				10,
+				2,
+				new AtomicReference<Throwable>(),
+				subscribedShardsStateUnderTest,
+				KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(Collections.singletonList("fakeStream")),
+				Mockito.mock(KinesisProxyInterface.class));
+
+		new ShardConsumer<>(
+			fetcher,
+			0,
+			subscribedShardsStateUnderTest.get(0).getKinesisStreamShard(),
+			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
+			// Get a total of 1000 records with 9 getRecords() calls,
+			// and the 7th getRecords() call will encounter an unexpected expired shard iterator
+			FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(1000, 9, 7)).run();
+
+		assertTrue(fetcher.getNumOfElementsCollected() == 1000);
+		assertTrue(subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum().equals(
+			SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()));
+	}
+
 }
