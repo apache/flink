@@ -31,6 +31,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 
 import org.slf4j.Logger;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -55,9 +56,12 @@ public class TaskExecutorToResourceManagerConnection {
 
 	private final String resourceManagerAddress;
 
+	/** Execution context to be used to execute the on complete action of the ResourceManagerRegistration */
+	private final ExecutionContext executionContext;
+
 	private TaskExecutorToResourceManagerConnection.ResourceManagerRegistration pendingRegistration;
 
-	private ResourceManagerGateway registeredResourceManager;
+	private volatile ResourceManagerGateway registeredResourceManager;
 
 	private InstanceID registrationId;
 
@@ -66,15 +70,17 @@ public class TaskExecutorToResourceManagerConnection {
 
 
 	public TaskExecutorToResourceManagerConnection(
-			Logger log,
-			TaskExecutor taskExecutor,
-			String resourceManagerAddress,
-			UUID resourceManagerLeaderId) {
+		Logger log,
+		TaskExecutor taskExecutor,
+		String resourceManagerAddress,
+		UUID resourceManagerLeaderId,
+		ExecutionContext executionContext) {
 
 		this.log = checkNotNull(log);
 		this.taskExecutor = checkNotNull(taskExecutor);
 		this.resourceManagerAddress = checkNotNull(resourceManagerAddress);
 		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
+		this.executionContext = checkNotNull(executionContext);
 	}
 
 	// ------------------------------------------------------------------------
@@ -93,22 +99,22 @@ public class TaskExecutorToResourceManagerConnection {
 		pendingRegistration.startRegistration();
 
 		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = pendingRegistration.getFuture();
-		
+
 		future.onSuccess(new OnSuccess<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>>() {
 			@Override
 			public void onSuccess(Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess> result) {
-				registeredResourceManager = result.f0;
 				registrationId = result.f1.getRegistrationId();
+				registeredResourceManager = result.f0;
 			}
-		}, taskExecutor.getMainThreadExecutionContext());
+		}, executionContext);
 		
 		// this future should only ever fail if there is a bug, not if the registration is declined
 		future.onFailure(new OnFailure() {
 			@Override
 			public void onFailure(Throwable failure) {
-				taskExecutor.onFatalError(failure);
+				taskExecutor.onFatalErrorAsync(failure);
 			}
-		}, taskExecutor.getMainThreadExecutionContext());
+		}, executionContext);
 	}
 
 	public void close() {
