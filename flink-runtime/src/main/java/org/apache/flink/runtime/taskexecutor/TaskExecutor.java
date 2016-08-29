@@ -176,7 +176,12 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		if (newLeaderAddress != null) {
 			log.info("Attempting to register at ResourceManager {}", newLeaderAddress);
 			resourceManagerConnection =
-				new TaskExecutorToResourceManagerConnection(log, this, newLeaderAddress, newLeaderId);
+				new TaskExecutorToResourceManagerConnection(
+					log,
+					this,
+					newLeaderAddress,
+					newLeaderId,
+					getMainThreadExecutionContext());
 			resourceManagerConnection.start();
 		}
 	}
