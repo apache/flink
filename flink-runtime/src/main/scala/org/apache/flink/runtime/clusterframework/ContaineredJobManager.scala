@@ -22,7 +22,7 @@ import java.util.concurrent.ExecutorService
 
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
-import org.apache.flink.configuration.{Configuration => FlinkConfiguration}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.clusterframework.messages._
@@ -57,7 +57,7 @@ import scala.language.postfixOps
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
 abstract class ContaineredJobManager(
-    flinkConfiguration: FlinkConfiguration,
+    flinkConfiguration: Configuration,
     executorService: ExecutorService,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,

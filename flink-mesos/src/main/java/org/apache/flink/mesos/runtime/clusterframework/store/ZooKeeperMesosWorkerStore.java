@@ -292,7 +292,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 			ZooKeeperUtils.createFileSystemStateStorage(configuration, "mesosWorkerStore");
 
 		String zooKeeperMesosWorkerStorePath = configuration.getString(
-			ConfigConstants.ZOOKEEPER_MESOS_WORKERS_PATH,
+			ConfigConstants.HA_ZOOKEEPER_MESOS_WORKERS_PATH,
 			ConfigConstants.DEFAULT_ZOOKEEPER_MESOS_WORKERS_PATH
 		);
 
