@@ -161,7 +161,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 *
 	 * @return Main thread execution context
 	 */
-	public ExecutionContext getMainThreadExecutionContext() {
+	protected ExecutionContext getMainThreadExecutionContext() {
 		return mainThreadExecutionContext;
 	}
 
@@ -184,7 +184,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 *
 	 * @param runnable Runnable to be executed in the main thread of the underlying RPC endpoint
 	 */
-	public void runAsync(Runnable runnable) {
+	protected void runAsync(Runnable runnable) {
 		((MainThreadExecutor) self).runAsync(runnable);
 	}
 
@@ -195,7 +195,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @param runnable Runnable to be executed
 	 * @param delay    The delay after which the runnable will be executed
 	 */
-	public void scheduleRunAsync(Runnable runnable, long delay, TimeUnit unit) {
+	protected void scheduleRunAsync(Runnable runnable, long delay, TimeUnit unit) {
 		((MainThreadExecutor) self).scheduleRunAsync(runnable, unit.toMillis(delay));
 	}
 
@@ -209,7 +209,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @param <V> Return type of the callable
 	 * @return Future for the result of the callable.
 	 */
-	public <V> Future<V> callAsync(Callable<V> callable, Timeout timeout) {
+	protected <V> Future<V> callAsync(Callable<V> callable, Timeout timeout) {
 		return ((MainThreadExecutor) self).callAsync(callable, timeout);
 	}
 
