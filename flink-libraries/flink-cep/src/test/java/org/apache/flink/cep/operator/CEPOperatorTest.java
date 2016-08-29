@@ -136,6 +136,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		// simulate snapshot/restore with some elements in internal sorting queue
 		StreamStateHandle snapshot = harness.snapshot(0, 0);
+		harness.close();
 
 		harness = new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
@@ -157,6 +158,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		// simulate snapshot/restore with empty element queue but NFA state
 		StreamStateHandle snapshot2 = harness.snapshot(1, 1);
+		harness.close();
 
 		harness = new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
@@ -227,6 +229,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		// simulate snapshot/restore with some elements in internal sorting queue
 		StreamStateHandle snapshot = harness.snapshot(0, 0);
+		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
@@ -252,6 +255,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		// simulate snapshot/restore with empty element queue but NFA state
 		StreamStateHandle snapshot2 = harness.snapshot(1, 1);
+		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
@@ -334,6 +338,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		// simulate snapshot/restore with some elements in internal sorting queue
 		StreamStateHandle snapshot = harness.snapshot(0, 0);
+		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
@@ -364,6 +369,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		// simulate snapshot/restore with empty element queue but NFA state
 		StreamStateHandle snapshot2 = harness.snapshot(1, 1);
+		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(

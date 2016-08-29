@@ -614,7 +614,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	private boolean performCheckpoint(final long checkpointId, final long timestamp) throws Exception {
 		LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
-		
 		synchronized (lock) {
 			if (isRunning) {
 
@@ -677,7 +676,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				synchronized (cancelables) {
 					cancelables.add(asyncCheckpointRunnable);
 				}
-
 				asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
 				return true;
 			} else {
@@ -685,7 +683,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			}
 		}
 	}
-	
+
+	public ExecutorService getAsyncOperationsThreadPool() {
+		return asyncOperationsThreadPool;
+	}
+
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		synchronized (lock) {

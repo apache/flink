@@ -1669,7 +1669,6 @@ public class CheckpointCoordinatorTest {
 				200000,
 				0L,
 				1, // max one checkpoint at a time => should not affect savepoints
-				42,
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
@@ -1721,7 +1720,6 @@ public class CheckpointCoordinatorTest {
 				200000,
 				100000000L, // very long min delay => should not affect savepoints
 				1,
-				42,
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
@@ -1742,22 +1740,6 @@ public class CheckpointCoordinatorTest {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
-		return mockExecutionVertex(attemptID, ExecutionState.RUNNING);
-	}
-
-	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID, 
-														ExecutionState state, ExecutionState ... successiveStates) {
-		final Execution exec = mock(Execution.class);
-		when(exec.getAttemptId()).thenReturn(attemptID);
-		when(exec.getState()).thenReturn(state, successiveStates);
-
-		ExecutionVertex vertex = mock(ExecutionVertex.class);
-		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
-		when(vertex.getCurrentExecutionAttempt()).thenReturn(exec);
-
-		return vertex;
-	}
 /**
 	 * Tests that the checkpointed partitioned and non-partitioned state is assigned properly to
 	 * the {@link Execution} upon recovery.

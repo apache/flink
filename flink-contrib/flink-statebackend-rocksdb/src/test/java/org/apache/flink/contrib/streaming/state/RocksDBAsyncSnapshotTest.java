@@ -69,6 +69,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
@@ -173,9 +175,9 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
-
 		task.triggerCheckpoint(42, 17);
+
+		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
 		// now we allow the checkpoint
 		delayCheckpointLatch.trigger();
@@ -184,7 +186,13 @@ public class RocksDBAsyncSnapshotTest {
 		ensureCheckpointLatch.await();
 
 		testHarness.endInput();
+
+		ExecutorService threadPool = task.getAsyncOperationsThreadPool();
+		threadPool.shutdown();
+		Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+
 		testHarness.waitForTaskCompletion();
+		task.checkTimerException();
 	}
 
 	/**
@@ -198,9 +206,6 @@ public class RocksDBAsyncSnapshotTest {
 		PowerMockito.stub(PowerMockito.method(FileSystem.class, "get", URI.class, Configuration.class)).toReturn(localFS);
 
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
-
-		//ensure that the async threads complete before invoke method of the tasks returns.
-		task.setThreadPoolTerminationTimeout(Long.MAX_VALUE);
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -232,6 +237,9 @@ public class RocksDBAsyncSnapshotTest {
 				new MockInputSplitProvider(),
 				testHarness.bufferSize);
 
+		BlockingStreamMemoryStateBackend.waitFirstWriteLatch = new OneShotLatch();
+		BlockingStreamMemoryStateBackend.unblockCancelLatch = new OneShotLatch();
+
 		testHarness.invoke(mockEnv);
 
 		// wait for the task to be running
@@ -241,36 +249,40 @@ public class RocksDBAsyncSnapshotTest {
 				while (!field.getBoolean(task)) {
 					Thread.sleep(10);
 				}
-
 			}
 		}
 
-		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
-
 		task.triggerCheckpoint(42, 17);
-
+		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		BlockingStreamMemoryStateBackend.waitFirstWriteLatch.await();
 		task.cancel();
-
 		BlockingStreamMemoryStateBackend.unblockCancelLatch.trigger();
-
 		testHarness.endInput();
 		try {
+
+			ExecutorService threadPool = task.getAsyncOperationsThreadPool();
+			threadPool.shutdown();
+			Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 			testHarness.waitForTaskCompletion();
+			task.checkTimerException();
+
 			Assert.fail("Operation completed. Cancel failed.");
 		} catch (Exception expected) {
-			// we expect the exception from canceling snapshots
-			Throwable cause = expected.getCause();
-			if(cause instanceof AsynchronousException) {
-				AsynchronousException asynchronousException = (AsynchronousException) cause;
-				cause = asynchronousException.getCause();
-				Assert.assertTrue("Unexpected Exception: " + cause,
-						cause instanceof CancellationException //future canceled
-						|| cause instanceof InterruptedException); //thread interrupted
+			AsynchronousException asynchronousException = null;
 
+			if (expected instanceof AsynchronousException) {
+				asynchronousException = (AsynchronousException) expected;
+			} else if (expected.getCause() instanceof AsynchronousException) {
+				asynchronousException = (AsynchronousException) expected.getCause();
 			} else {
-				Assert.fail();
+				Assert.fail("Unexpected exception: " + expected);
 			}
+
+			// we expect the exception from canceling snapshots
+			Throwable innerCause = asynchronousException.getCause();
+			Assert.assertTrue("Unexpected inner cause: " + innerCause,
+					innerCause instanceof CancellationException //future canceled
+							|| innerCause instanceof InterruptedException); //thread interrupted
 		}
 	}
 
@@ -301,11 +313,11 @@ public class RocksDBAsyncSnapshotTest {
 	 */
 	static class BlockingStreamMemoryStateBackend extends MemoryStateBackend {
 
-		public static OneShotLatch waitFirstWriteLatch = new OneShotLatch();
+		public static volatile OneShotLatch waitFirstWriteLatch = null;
 
-		public static OneShotLatch unblockCancelLatch = new OneShotLatch();
+		public static volatile OneShotLatch unblockCancelLatch = null;
 
-		volatile boolean closed = false;
+		private volatile boolean closed = false;
 
 		@Override
 		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {

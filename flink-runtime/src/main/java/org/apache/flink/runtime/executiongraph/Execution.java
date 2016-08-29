@@ -387,8 +387,8 @@ public class Execution {
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
 				attemptId,
 				slot,
-					chainedStateHandle,
-					keyGroupsStateHandles,
+				chainedStateHandle,
+				keyGroupsStateHandles,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs
