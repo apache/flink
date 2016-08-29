@@ -155,6 +155,21 @@ public final class MathUtils {
 		}
 	}
 
+	/**
+	 * Round the given number to the next power of two
+	 * @param x number to round
+	 * @return x rounded up to the next power of two
+	 */
+	public static int roundUpToPowerOfTwo(int x) {
+		x = x - 1;
+		x |= x >> 1;
+		x |= x >> 2;
+		x |= x >> 4;
+		x |= x >> 8;
+		x |= x >> 16;
+		return x + 1;
+	}
+
 	// ============================================================================================
 	
 	/**

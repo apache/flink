@@ -18,16 +18,14 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Partitioner selects the target channel based on the key group index. The key group
- * index is derived from the key of the elements using the {@link KeyGroupAssigner}.
+ * Partitioner selects the target channel based on the key group index.
  *
  * @param <T> Type of the elements in the Stream being partitioned
  */
@@ -39,15 +37,16 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 
 	private final KeySelector<T, K> keySelector;
 
-	private final KeyGroupAssigner<K> keyGroupAssigner;
+	private int maxParallelism;
 
-	public KeyGroupStreamPartitioner(KeySelector<T, K> keySelector, KeyGroupAssigner<K> keyGroupAssigner) {
+	public KeyGroupStreamPartitioner(KeySelector<T, K> keySelector, int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "Number of key-groups must be > 0!");
 		this.keySelector = Preconditions.checkNotNull(keySelector);
-		this.keyGroupAssigner = Preconditions.checkNotNull(keyGroupAssigner);
+		this.maxParallelism = maxParallelism;
 	}
 
-	public KeyGroupAssigner<K> getKeyGroupAssigner() {
-		return keyGroupAssigner;
+	public int getMaxParallelism() {
+		return maxParallelism;
 	}
 
 	@Override
@@ -61,10 +60,7 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
 		}
-		returnArray[0] = KeyGroupRange.computeOperatorIndexForKeyGroup(
-				keyGroupAssigner.getNumberKeyGroups(),
-				numberOfOutputChannels,
-				keyGroupAssigner.getKeyGroupIndex(key));
+		returnArray[0] = KeyGroupRangeAssignment.assignKeyToParallelOperator(key, maxParallelism, numberOfOutputChannels);
 		return returnArray;
 	}
 
@@ -80,6 +76,6 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 
 	@Override
 	public void configure(int maxParallelism) {
-		keyGroupAssigner.setup(maxParallelism);
+		this.maxParallelism = maxParallelism;
 	}
 }

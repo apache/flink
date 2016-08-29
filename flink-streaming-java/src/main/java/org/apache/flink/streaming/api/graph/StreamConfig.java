@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
@@ -76,8 +75,7 @@ public class StreamConfig implements Serializable {
 	private static final String STATE_BACKEND = "statebackend";
 	private static final String STATE_PARTITIONER = "statePartitioner";
 
-	/** key for the {@link KeyGroupAssigner} for key to key group index mappings */
-	private static final String KEY_GROUP_ASSIGNER = "keyGroupAssigner";
+	private static final String NUMBER_OF_KEY_GROUPS = "numberOfKeyGroups";
 
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
 	
@@ -445,28 +443,26 @@ public class StreamConfig implements Serializable {
 	}
 
 	/**
-	 * Sets the {@link KeyGroupAssigner} to be used for the current {@link StreamOperator}.
+	 * Sets the number of key-groups to be used for the current {@link StreamOperator}.
 	 *
-	 * @param keyGroupAssigner Key group assigner to be used
+	 * @param numberOfKeyGroups Number of key-groups to be used
 	 */
-	public void setKeyGroupAssigner(KeyGroupAssigner<?> keyGroupAssigner) {
+	public void setNumberOfKeyGroups(int numberOfKeyGroups) {
 		try {
-			InstantiationUtil.writeObjectToConfig(keyGroupAssigner, this.config, KEY_GROUP_ASSIGNER);
+			InstantiationUtil.writeObjectToConfig(numberOfKeyGroups, this.config, NUMBER_OF_KEY_GROUPS);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not serialize virtual state partitioner.", e);
 		}
 	}
 
 	/**
-	 * Gets the {@link KeyGroupAssigner} for the {@link StreamOperator}.
+	 * Gets the number of key-groups for the {@link StreamOperator}.
 	 *
-	 * @param classLoader Classloader to be used for the deserialization
-	 * @param <K> Type of the keys to be assigned to key groups
-	 * @return Key group assigner
+	 * @return the number of key-groups
 	 */
-	public <K> KeyGroupAssigner<K> getKeyGroupAssigner(ClassLoader classLoader) {
+	public Integer getNumberOfKeyGroups(ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, KEY_GROUP_ASSIGNER, classLoader);
+			return InstantiationUtil.readObjectFromConfig(this.config, NUMBER_OF_KEY_GROUPS, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate virtual state partitioner.", e);
 		}

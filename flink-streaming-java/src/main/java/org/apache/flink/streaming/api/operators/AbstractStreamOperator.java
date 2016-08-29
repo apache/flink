@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -133,14 +134,14 @@ public abstract class AbstractStreamOperator<OUT>
 			if (null != keySerializer) {
 				ExecutionConfig execConf = container.getEnvironment().getExecutionConfig();;
 
-				KeyGroupRange subTaskKeyGroupRange = KeyGroupRange.computeKeyGroupRangeForOperatorIndex(
+				KeyGroupRange subTaskKeyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
 						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
 						container.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks(),
 						container.getIndexInSubtaskGroup());
 
 				keyedStateBackend = container.createKeyedStateBackend(
 						keySerializer,
-						container.getConfiguration().getKeyGroupAssigner(getUserCodeClassloader()),
+						container.getConfiguration().getNumberOfKeyGroups(getUserCodeClassloader()),
 						subTaskKeyGroupRange);
 			}
 		} catch (Exception e) {

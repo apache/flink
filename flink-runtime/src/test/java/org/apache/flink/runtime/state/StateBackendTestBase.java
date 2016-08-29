@@ -26,7 +26,6 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -41,7 +40,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -56,7 +54,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -90,14 +87,14 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	protected <K> KeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer, Environment env) throws Exception {
 		return createKeyedBackend(
 				keySerializer,
-				new HashKeyGroupAssigner<K>(10),
+				10,
 				new KeyGroupRange(0, 9),
 				env);
 	}
 
 	protected <K> KeyedStateBackend<K> createKeyedBackend(
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			Environment env) throws Exception {
 		return getStateBackend().createKeyedStateBackend(
@@ -105,7 +102,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				new JobID(),
 				"test_op",
 				keySerializer,
-				keyGroupAssigner,
+				numberOfKeyGroups,
 				keyGroupRange,
 				env.getTaskKvStateRegistry());
 	}
@@ -120,7 +117,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			Environment env) throws Exception {
 		return restoreKeyedBackend(
 				keySerializer,
-				new HashKeyGroupAssigner<K>(10),
+				10,
 				new KeyGroupRange(0, 9),
 				Collections.singletonList(state),
 				env);
@@ -128,7 +125,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 	protected <K> KeyedStateBackend<K> restoreKeyedBackend(
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> state,
 			Environment env) throws Exception {
@@ -137,7 +134,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				new JobID(),
 				"test_op",
 				keySerializer,
-				keyGroupAssigner,
+				numberOfKeyGroups,
 				keyGroupRange,
 				state,
 				env.getTaskKvStateRegistry());
@@ -243,7 +240,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 		KeyedStateBackend<Integer> backend = createKeyedBackend(
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				1,
 				new KeyGroupRange(0, 0),
 				new DummyEnvironment("test_op", 1, 0));
 
@@ -277,7 +274,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		backend.close();
 		backend = restoreKeyedBackend(
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				1,
 				new KeyGroupRange(0, 0),
 				Collections.singletonList(snapshot1),
 				new DummyEnvironment("test_op", 1, 0));
@@ -675,12 +672,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		final int MAX_PARALLELISM = 10;
 
 		CheckpointStreamFactory streamFactory = createStreamFactory();
-
-		HashKeyGroupAssigner<Integer> keyGroupAssigner = new HashKeyGroupAssigner<>(10);
-
 		KeyedStateBackend<Integer> backend = createKeyedBackend(
 				IntSerializer.INSTANCE,
-				keyGroupAssigner,
+				MAX_PARALLELISM,
 				new KeyGroupRange(0, MAX_PARALLELISM - 1),
 				new DummyEnvironment("test", 1, 0));
 
@@ -695,12 +689,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		Random rand = new Random(0);
 
 		// for each key, determine into which half of the key-group space they fall
-		int firstKeyHalf = keyGroupAssigner.getKeyGroupIndex(keyInFirstHalf) * 2 / MAX_PARALLELISM;
-		int secondKeyHalf = keyGroupAssigner.getKeyGroupIndex(keyInSecondHalf) * 2 / MAX_PARALLELISM;
+		int firstKeyHalf = KeyGroupRangeAssignment.assignKeyToParallelOperator(keyInFirstHalf, MAX_PARALLELISM, 2);
+		int secondKeyHalf = KeyGroupRangeAssignment.assignKeyToParallelOperator(keyInFirstHalf, MAX_PARALLELISM, 2);
 
 		while (firstKeyHalf == secondKeyHalf) {
 			keyInSecondHalf = rand.nextInt();
-			secondKeyHalf = keyGroupAssigner.getKeyGroupIndex(keyInSecondHalf) * 2 / MAX_PARALLELISM;
+			secondKeyHalf = KeyGroupRangeAssignment.assignKeyToParallelOperator(keyInSecondHalf, MAX_PARALLELISM, 2);
 		}
 
 		backend.setCurrentKey(keyInFirstHalf);
@@ -714,18 +708,18 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 		List<KeyGroupsStateHandle> firstHalfKeyGroupStates = CheckpointCoordinator.getKeyGroupsStateHandles(
 				Collections.singletonList(snapshot),
-				new KeyGroupRange(0, 4));
+				KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(MAX_PARALLELISM, 2, 0));
 
 		List<KeyGroupsStateHandle> secondHalfKeyGroupStates = CheckpointCoordinator.getKeyGroupsStateHandles(
 				Collections.singletonList(snapshot),
-				new KeyGroupRange(5, 9));
+				KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(MAX_PARALLELISM, 2, 1));
 
 		backend.close();
 
 		// backend for the first half of the key group range
 		KeyedStateBackend<Integer> firstHalfBackend = restoreKeyedBackend(
 				IntSerializer.INSTANCE,
-				keyGroupAssigner,
+				MAX_PARALLELISM,
 				new KeyGroupRange(0, 4),
 				firstHalfKeyGroupStates,
 				new DummyEnvironment("test", 1, 0));
@@ -733,7 +727,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		// backend for the second half of the key group range
 		KeyedStateBackend<Integer> secondHalfBackend = restoreKeyedBackend(
 				IntSerializer.INSTANCE,
-				keyGroupAssigner,
+				MAX_PARALLELISM,
 				new KeyGroupRange(5, 9),
 				secondHalfKeyGroupStates,
 				new DummyEnvironment("test", 1, 0));
@@ -978,9 +972,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	 */
 	@SuppressWarnings("unchecked")
 	protected void testConcurrentMapIfQueryable() throws Exception {
+		final int numberOfKeyGroups = 1;
 		KeyedStateBackend<Integer> backend = createKeyedBackend(
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				numberOfKeyGroups,
 				new KeyGroupRange(0, 0),
 				new DummyEnvironment("test_op", 1, 0));
 
@@ -1005,7 +1000,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.setCurrentKey(1);
 			state.update(121818273);
 
-			int keyGroupIndex = new HashKeyGroupAssigner<>(1).getKeyGroupIndex(1);
+			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
 			StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
 			assertNotNull("State not set", stateTable.get(keyGroupIndex));
 			assertTrue(stateTable.get(keyGroupIndex) instanceof ConcurrentHashMap);
@@ -1031,7 +1026,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			int keyGroupIndex = new HashKeyGroupAssigner<>(1).getKeyGroupIndex(1);
+			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
 			StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
 			assertNotNull("State not set", stateTable.get(keyGroupIndex));
 			assertTrue(stateTable.get(keyGroupIndex) instanceof ConcurrentHashMap);
@@ -1062,7 +1057,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			int keyGroupIndex = new HashKeyGroupAssigner<>(1).getKeyGroupIndex(1);
+			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
 			StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
 			assertNotNull("State not set", stateTable.get(keyGroupIndex));
 			assertTrue(stateTable.get(keyGroupIndex) instanceof ConcurrentHashMap);
@@ -1093,7 +1088,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			int keyGroupIndex = new HashKeyGroupAssigner<>(1).getKeyGroupIndex(1);
+			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
 			StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
 			assertNotNull("State not set", stateTable.get(keyGroupIndex));
 			assertTrue(stateTable.get(keyGroupIndex) instanceof ConcurrentHashMap);

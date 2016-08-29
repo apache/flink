@@ -32,7 +32,6 @@ import org.apache.flink.runtime.query.netty.KvStateClient;
 import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.query.netty.UnknownKvStateID;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -232,6 +231,7 @@ public class QueryableStateClientTest {
 		// Config
 		int numServers = 2;
 		int numKeys = 1024;
+		int numKeyGroups = 1;
 
 		JobID jobId = new JobID();
 		JobVertexID jobVertexId = new JobVertexID();
@@ -250,7 +250,7 @@ public class QueryableStateClientTest {
 				new JobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				numKeyGroups,
 				new KeyGroupRange(0, 0),
 				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
 

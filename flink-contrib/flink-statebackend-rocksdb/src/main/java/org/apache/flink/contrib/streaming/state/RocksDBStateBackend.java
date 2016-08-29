@@ -18,7 +18,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.state.StateBackend;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
@@ -230,7 +229,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry) throws Exception {
 
@@ -246,7 +245,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				getColumnOptions(),
 				kvStateRegistry,
 				keySerializer,
-				keyGroupAssigner,
+				numberOfKeyGroups,
 				keyGroupRange);
 	}
 
@@ -254,7 +253,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	public <K> KeyedStateBackend<K> restoreKeyedStateBackend(Environment env, JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoredState,
 			TaskKvStateRegistry kvStateRegistry) throws Exception {
@@ -270,7 +269,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				getColumnOptions(),
 				kvStateRegistry,
 				keySerializer,
-				keyGroupAssigner,
+				numberOfKeyGroups,
 				keyGroupRange,
 				restoredState);
 	}

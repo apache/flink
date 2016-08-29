@@ -21,7 +21,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -131,11 +130,11 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 			ColumnFamilyOptions columnFamilyOptions,
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange
 	) throws Exception {
 
-		super(kvStateRegistry, keySerializer, keyGroupAssigner, keyGroupRange);
+		super(kvStateRegistry, keySerializer, numberOfKeyGroups, keyGroupRange);
 
 		this.operatorIdentifier = operatorIdentifier;
 		this.jobId = jobId;
@@ -183,7 +182,7 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 			ColumnFamilyOptions columnFamilyOptions,
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoreState
 	) throws Exception {
@@ -195,7 +194,7 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 			columnFamilyOptions,
 			kvStateRegistry,
 			keySerializer,
-			keyGroupAssigner,
+			numberOfKeyGroups,
 			keyGroupRange);
 
 		LOG.info("Initializing RocksDB keyed state backend from snapshot.");

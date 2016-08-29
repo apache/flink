@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MergingState;
@@ -69,8 +68,8 @@ public abstract class KeyedStateBackend<K> {
 	@SuppressWarnings("rawtypes")
 	private KvState lastState;
 
-	/** KeyGroupAssigner which determines the key group for each keys */
-	protected final KeyGroupAssigner<K> keyGroupAssigner;
+	/** The number of key-groups aka max parallelism */
+	protected final int numberOfKeyGroups;
 
 	/** Range of key-groups for which this backend is responsible */
 	protected final KeyGroupRange keyGroupRange;
@@ -81,12 +80,12 @@ public abstract class KeyedStateBackend<K> {
 	public KeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange) {
 
 		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
-		this.keyGroupAssigner = Preconditions.checkNotNull(keyGroupAssigner);
+		this.numberOfKeyGroups = Preconditions.checkNotNull(numberOfKeyGroups);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 	}
 
@@ -157,7 +156,7 @@ public abstract class KeyedStateBackend<K> {
 	 */
 	public void setCurrentKey(K newKey) {
 		this.currentKey = newKey;
-		this.currentKeyGroup = keyGroupAssigner.getKeyGroupIndex(newKey);
+		this.currentKeyGroup = KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups);
 	}
 
 	/**
@@ -179,11 +178,7 @@ public abstract class KeyedStateBackend<K> {
 	}
 
 	public int getNumberOfKeyGroups() {
-		return keyGroupAssigner.getNumberKeyGroups();
-	}
-
-	public KeyGroupAssigner<K> getKeyGroupAssigner() {
-		return keyGroupAssigner;
+		return numberOfKeyGroups;
 	}
 
 	/**

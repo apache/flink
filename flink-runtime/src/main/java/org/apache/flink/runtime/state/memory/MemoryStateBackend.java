@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -80,14 +79,14 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	public <K> KeyedStateBackend<K> createKeyedStateBackend(
 			Environment env, JobID jobID,
 			String operatorIdentifier, TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry) throws IOException {
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
-				keyGroupAssigner,
+				numberOfKeyGroups,
 				keyGroupRange);
 	}
 
@@ -96,7 +95,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 			Environment env, JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoredState,
 			TaskKvStateRegistry kvStateRegistry) throws Exception {
@@ -104,7 +103,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
-				keyGroupAssigner,
+				numberOfKeyGroups,
 				keyGroupRange,
 				restoredState);
 	}

@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
@@ -130,7 +131,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 				backend.getKeySerializer(),
 				namespaceSerializer);
 
-		int keyGroup = backend.getKeyGroupAssigner().getKeyGroupIndex(des.f0);
+		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(des.f0, backend.getNumberOfKeyGroups());
 		writeKeyWithGroupAndNamespace(keyGroup, des.f0, des.f1);
 		return backend.db.get(columnFamily, keySerializationStream.toByteArray());
 

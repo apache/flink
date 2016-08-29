@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
 
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
@@ -93,7 +92,7 @@ public class RocksDBStateBackendConfigTest {
 				env.getJobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				1,
 				new KeyGroupRange(0, 0),
 				env.getTaskKvStateRegistry());
 
@@ -147,7 +146,7 @@ public class RocksDBStateBackendConfigTest {
 				env.getJobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				1,
 				new KeyGroupRange(0, 0),
 				env.getTaskKvStateRegistry());
 
@@ -182,7 +181,7 @@ public class RocksDBStateBackendConfigTest {
 						env.getJobID(),
 						"foobar",
 						IntSerializer.INSTANCE,
-						new HashKeyGroupAssigner<Integer>(1),
+						1,
 						new KeyGroupRange(0, 0),
 						new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()));
 			}
@@ -224,7 +223,7 @@ public class RocksDBStateBackendConfigTest {
 						env.getJobID(),
 						"foobar",
 						IntSerializer.INSTANCE,
-						new HashKeyGroupAssigner<Integer>(1),
+						1,
 						new KeyGroupRange(0, 0),
 						new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()));
 			}

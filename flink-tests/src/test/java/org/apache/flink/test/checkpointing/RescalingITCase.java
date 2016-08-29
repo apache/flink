@@ -34,8 +34,7 @@ import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
-import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -141,12 +140,10 @@ public class RescalingITCase extends TestLogger {
 
 			Set<Tuple2<Integer, Integer>> expectedResult = new HashSet<>();
 
-			HashKeyGroupAssigner<Integer> keyGroupAssigner = new HashKeyGroupAssigner<>(maxParallelism);
-
 			for (int key = 0; key < numberKeys; key++) {
-				int keyGroupIndex = keyGroupAssigner.getKeyGroupIndex(key);
+				int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism);
 
-				expectedResult.add(Tuple2.of(KeyGroupRange.computeOperatorIndexForKeyGroup(maxParallelism, parallelism, keyGroupIndex), numberElements * key));
+				expectedResult.add(Tuple2.of(KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(maxParallelism, parallelism, keyGroupIndex), numberElements * key));
 			}
 
 			assertEquals(expectedResult, actualResult);
@@ -185,11 +182,9 @@ public class RescalingITCase extends TestLogger {
 
 			Set<Tuple2<Integer, Integer>> expectedResult2 = new HashSet<>();
 
-			HashKeyGroupAssigner<Integer> keyGroupAssigner2 = new HashKeyGroupAssigner<>(maxParallelism);
-
 			for (int key = 0; key < numberKeys; key++) {
-				int keyGroupIndex = keyGroupAssigner2.getKeyGroupIndex(key);
-				expectedResult2.add(Tuple2.of(KeyGroupRange.computeOperatorIndexForKeyGroup(maxParallelism, parallelism2, keyGroupIndex), key * (numberElements + numberElements2)));
+				int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism);
+				expectedResult2.add(Tuple2.of(KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(maxParallelism, parallelism2, keyGroupIndex), key * (numberElements + numberElements2)));
 			}
 
 			assertEquals(expectedResult2, actualResult2);
@@ -347,12 +342,10 @@ public class RescalingITCase extends TestLogger {
 
 			Set<Tuple2<Integer, Integer>> expectedResult = new HashSet<>();
 
-			HashKeyGroupAssigner<Integer> keyGroupAssigner = new HashKeyGroupAssigner<>(maxParallelism);
-
 			for (int key = 0; key < numberKeys; key++) {
-				int keyGroupIndex = keyGroupAssigner.getKeyGroupIndex(key);
+				int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism);
 
-				expectedResult.add(Tuple2.of(KeyGroupRange.computeOperatorIndexForKeyGroup(maxParallelism, parallelism, keyGroupIndex) , numberElements * key));
+				expectedResult.add(Tuple2.of(KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(maxParallelism, parallelism, keyGroupIndex) , numberElements * key));
 			}
 
 			assertEquals(expectedResult, actualResult);
@@ -398,11 +391,9 @@ public class RescalingITCase extends TestLogger {
 
 			Set<Tuple2<Integer, Integer>> expectedResult2 = new HashSet<>();
 
-			HashKeyGroupAssigner<Integer> keyGroupAssigner2 = new HashKeyGroupAssigner<>(maxParallelism);
-
 			for (int key = 0; key < numberKeys; key++) {
-				int keyGroupIndex = keyGroupAssigner2.getKeyGroupIndex(key);
-				expectedResult2.add(Tuple2.of(KeyGroupRange.computeOperatorIndexForKeyGroup(maxParallelism, parallelism2, keyGroupIndex), key * (numberElements + numberElements2)));
+				int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism);
+				expectedResult2.add(Tuple2.of(KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(maxParallelism, parallelism2, keyGroupIndex), key * (numberElements + numberElements2)));
 			}
 
 			assertEquals(expectedResult2, actualResult2);

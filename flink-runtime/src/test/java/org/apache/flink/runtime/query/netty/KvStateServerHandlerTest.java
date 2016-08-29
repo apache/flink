@@ -39,7 +39,6 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestResult;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KvState;
@@ -89,6 +88,7 @@ public class KvStateServerHandlerTest {
 		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
 		desc.setQueryable("vanilla");
 
+		int numKeyGroups =1;
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
@@ -97,7 +97,7 @@ public class KvStateServerHandlerTest {
 				new JobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				numKeyGroups,
 				new KeyGroupRange(0, 0),
 				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
 
@@ -200,6 +200,7 @@ public class KvStateServerHandlerTest {
 		KvStateServerHandler handler = new KvStateServerHandler(registry, TEST_THREAD_POOL, stats);
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
+		int numKeyGroups = 1;
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
@@ -208,7 +209,7 @@ public class KvStateServerHandlerTest {
 				new JobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				numKeyGroups,
 				new KeyGroupRange(0, 0),
 				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
 
@@ -346,6 +347,7 @@ public class KvStateServerHandlerTest {
 		KvStateServerHandler handler = new KvStateServerHandler(registry, closedExecutor, stats);
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
+		int numKeyGroups = 1;
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
@@ -354,7 +356,7 @@ public class KvStateServerHandlerTest {
 				new JobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				numKeyGroups,
 				new KeyGroupRange(0, 0),
 				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
 
@@ -484,6 +486,7 @@ public class KvStateServerHandlerTest {
 		KvStateServerHandler handler = new KvStateServerHandler(registry, TEST_THREAD_POOL, stats);
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
+		int numKeyGroups = 1;
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
@@ -492,7 +495,7 @@ public class KvStateServerHandlerTest {
 				new JobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				numKeyGroups,
 				new KeyGroupRange(0, 0),
 				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
 
@@ -579,6 +582,7 @@ public class KvStateServerHandlerTest {
 		KvStateServerHandler handler = new KvStateServerHandler(registry, TEST_THREAD_POOL, stats);
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
+		int numKeyGroups = 1;
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
@@ -587,7 +591,7 @@ public class KvStateServerHandlerTest {
 				new JobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				numKeyGroups,
 				new KeyGroupRange(0, 0),
 				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
 
