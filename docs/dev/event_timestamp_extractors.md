@@ -90,7 +90,7 @@ DataStream<MyEvent> withTimestampsAndWatermarks =
     stream.assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor<MyEvent>(Time.seconds(10)) {
 
         @Override
-        public long extractAscendingTimestamp(MyEvent element) {
+        public long extractTimestamp(MyEvent element) {
             return element.getCreationTime();
         }
 });
