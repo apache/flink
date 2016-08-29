@@ -50,7 +50,7 @@ import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
-import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceConnectionInfo, InstanceID}
+import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool
@@ -127,7 +127,7 @@ import scala.util.{Failure, Success}
 class TaskManager(
     protected val config: TaskManagerConfiguration,
     protected val resourceID: ResourceID,
-    protected val connectionInfo: InstanceConnectionInfo,
+    protected val location: TaskManagerLocation,
     protected val memoryManager: MemoryManager,
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
@@ -189,7 +189,7 @@ class TaskManager(
   var leaderSessionID: Option[UUID] = None
 
   private val runtimeInfo = new TaskManagerRuntimeInfo(
-       connectionInfo.getHostname(),
+       location.getHostname(),
        new UnmodifiableConfiguration(config.configuration),
        config.tmpDirPaths)
 
@@ -209,7 +209,7 @@ class TaskManager(
    */
   override def preStart(): Unit = {
     log.info(s"Starting TaskManager actor at ${self.path.toSerializationFormat}.")
-    log.info(s"TaskManager data connection information: $connectionInfo")
+    log.info(s"TaskManager data connection information: $location")
     log.info(s"TaskManager has $numberOfSlots task slot(s).")
 
     // log the initial memory utilization
@@ -601,7 +601,7 @@ class TaskManager(
             jobManager ! decorateMessage(
               RegisterTaskManager(
                 resourceID,
-                connectionInfo,
+                location,
                 resources,
                 numberOfSlots)
             )
@@ -1884,7 +1884,8 @@ object TaskManager {
 
     network.start()
 
-    val connectionInfo = new InstanceConnectionInfo(
+    val taskManagerLocation = new TaskManagerLocation(
+      resourceID,
       taskManagerAddress.getAddress(),
       network.getConnectionManager().getDataPort())
 
@@ -1994,7 +1995,7 @@ object TaskManager {
       taskManagerClass,
       taskManagerConfig,
       resourceID,
-      connectionInfo,
+      taskManagerLocation,
       memoryManager,
       ioManager,
       network,
