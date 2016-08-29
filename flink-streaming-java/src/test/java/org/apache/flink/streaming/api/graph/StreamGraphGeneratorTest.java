@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -371,8 +372,8 @@ public class StreamGraphGeneratorTest {
 		StreamNode keyedResult3Node = graph.getStreamNode(keyedResult3.getId());
 		StreamNode keyedResult4Node = graph.getStreamNode(keyedResult4.getId());
 
-		assertEquals(globalParallelism, keyedResult1Node.getMaxParallelism());
-		assertEquals(mapParallelism, keyedResult2Node.getMaxParallelism());
+		assertEquals(KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM, keyedResult1Node.getMaxParallelism());
+		assertEquals(KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM, keyedResult2Node.getMaxParallelism());
 		assertEquals(maxParallelism, keyedResult3Node.getMaxParallelism());
 		assertEquals(maxParallelism, keyedResult4Node.getMaxParallelism());
 	}

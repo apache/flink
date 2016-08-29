@@ -1148,20 +1148,20 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	
 	@Test
 	public void testEmptyStateCheckpointing() {
+
 		try {
-			DummyEnvironment env = new DummyEnvironment("test", 1, 0);
-			backend.initializeForJob(env, "test_op", IntSerializer.INSTANCE);
+			CheckpointStreamFactory streamFactory = createStreamFactory();
+			KeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot = backend
-					.snapshotPartitionedState(682375462379L, 1);
-			
+			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
+
+			// draw a snapshot
+			KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462379L, 1, streamFactory));
 			assertNull(snapshot);
-			backend.dispose();
+			backend.close();
 
-			// Make sure we can restore from empty state
-			backend.initializeForJob(env, "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot);
-			backend.dispose();
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+			backend.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
