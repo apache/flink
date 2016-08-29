@@ -55,7 +55,7 @@ public class TaskExecutorToResourceManagerConnection {
 
 	private final String resourceManagerAddress;
 
-	private ResourceManagerRegistration pendingRegistration;
+	private TaskExecutorToResourceManagerConnection.ResourceManagerRegistration pendingRegistration;
 
 	private ResourceManagerGateway registeredResourceManager;
 
@@ -86,13 +86,13 @@ public class TaskExecutorToResourceManagerConnection {
 		checkState(!closed, "The connection is already closed");
 		checkState(!isRegistered() && pendingRegistration == null, "The connection is already started");
 
-		ResourceManagerRegistration registration = new ResourceManagerRegistration(
+		pendingRegistration = new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
 				log, taskExecutor.getRpcService(),
 				resourceManagerAddress, resourceManagerLeaderId,
 				taskExecutor.getAddress(), taskExecutor.getResourceID());
-		registration.startRegistration();
+		pendingRegistration.startRegistration();
 
-		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = registration.getFuture();
+		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = pendingRegistration.getFuture();
 		
 		future.onSuccess(new OnSuccess<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>>() {
 			@Override
@@ -167,14 +167,14 @@ public class TaskExecutorToResourceManagerConnection {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	static class ResourceManagerRegistration
+	private static class ResourceManagerRegistration
 			extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 		private final String taskExecutorAddress;
 		
 		private final ResourceID resourceID;
 
-		public ResourceManagerRegistration(
+		ResourceManagerRegistration(
 				Logger log,
 				RpcService rpcService,
 				String targetAddress,
