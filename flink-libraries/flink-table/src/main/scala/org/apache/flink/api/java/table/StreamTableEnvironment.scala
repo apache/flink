@@ -57,7 +57,7 @@ class StreamTableEnvironment(
   def fromDataStream[T](dataStream: DataStream[T]): Table = {
 
     val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream, false)
+    registerDataStreamInternal(name, dataStream)
     ingest(name)
   }
 
@@ -82,7 +82,7 @@ class StreamTableEnvironment(
       .toArray
 
     val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream, exprs, false)
+    registerDataStreamInternal(name, dataStream, exprs)
     ingest(name)
   }
 
@@ -101,7 +101,7 @@ class StreamTableEnvironment(
   def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
 
     checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream, true)
+    registerDataStreamInternal(name, dataStream)
   }
 
   /**
@@ -127,7 +127,7 @@ class StreamTableEnvironment(
       .toArray
 
     checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream, exprs, true)
+    registerDataStreamInternal(name, dataStream, exprs)
   }
 
   /**

@@ -114,8 +114,6 @@ object FlinkRuleSets {
   */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
 
-      RemoveDeltaRule.INSTANCE,
-
       // convert a logical table scan to a relational expression
       TableScanRule.INSTANCE,
       EnumerableToLogicalTableScan.INSTANCE,

@@ -229,7 +229,7 @@ class ExpressionReductionTest {
   def testReduceCalcExpressionForStreamSQL(): Unit = {
     val tEnv = mockStreamTableEnvironment()
 
-    val sqlQuery = "SELECT STREAM " +
+    val sqlQuery = "SELECT " +
       "(3+4)+a, " +
       "b+(1+2), " +
       "CASE 11 WHEN 1 THEN 'a' ELSE 'b' END, " +
@@ -269,7 +269,7 @@ class ExpressionReductionTest {
   def testReduceProjectExpressionForStreamSQL(): Unit = {
     val tEnv = mockStreamTableEnvironment()
 
-    val sqlQuery = "SELECT STREAM " +
+    val sqlQuery = "SELECT " +
       "(3+4)+a, " +
       "b+(1+2), " +
       "CASE 11 WHEN 1 THEN 'a' ELSE 'b' END, " +
@@ -289,8 +289,8 @@ class ExpressionReductionTest {
 
     val optimized = tEnv.optimize(table.getRelNode)
     val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains("+(7, a) AS EXPR$0"))
-    assertTrue(optimizedString.contains("+(b, 3) AS EXPR$1"))
+    assertTrue(optimizedString.contains("+(7, _1) AS EXPR$0"))
+    assertTrue(optimizedString.contains("+(_2, 3) AS EXPR$1"))
     assertTrue(optimizedString.contains("'b' AS EXPR$2"))
     assertTrue(optimizedString.contains("'STRING' AS EXPR$3"))
     assertTrue(optimizedString.contains("'teststring' AS EXPR$4"))
@@ -308,7 +308,7 @@ class ExpressionReductionTest {
   def testReduceFilterExpressionForStreamSQL(): Unit = {
     val tEnv = mockStreamTableEnvironment()
 
-    val sqlQuery = "SELECT STREAM " +
+    val sqlQuery = "SELECT " +
       "*" +
       "FROM MyTable WHERE a>(1+7)"
 
