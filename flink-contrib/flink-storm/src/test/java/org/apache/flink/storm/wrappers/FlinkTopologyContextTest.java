@@ -17,13 +17,13 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.generated.Bolt;
-import backtype.storm.generated.SpoutSpec;
-import backtype.storm.generated.StateSpoutSpec;
-import backtype.storm.generated.StormTopology;
-import backtype.storm.metric.api.ICombiner;
-import backtype.storm.metric.api.IMetric;
-import backtype.storm.metric.api.IReducer;
+import org.apache.storm.generated.Bolt;
+import org.apache.storm.generated.SpoutSpec;
+import org.apache.storm.generated.StateSpoutSpec;
+import org.apache.storm.generated.StormTopology;
+import org.apache.storm.metric.api.ICombiner;
+import org.apache.storm.metric.api.IMetric;
+import org.apache.storm.metric.api.IReducer;
 import org.apache.flink.storm.util.AbstractTest;
 import org.junit.Test;
 

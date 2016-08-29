@@ -17,7 +17,7 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.spout.ISpoutOutputCollector;
+import org.apache.storm.spout.ISpoutOutputCollector;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
@@ -77,6 +77,11 @@ class SpoutCollector<OUT> extends AbstractStormCollector<OUT> implements ISpoutO
 	@Override
 	public void emitDirect(final int taskId, final String streamId, final List<Object> tuple, final Object messageId) {
 		throw new UnsupportedOperationException("Direct emit is not supported by Flink");
+	}
+
+	@Override
+	public long getPendingCount() {
+		return 0;
 	}
 
 }

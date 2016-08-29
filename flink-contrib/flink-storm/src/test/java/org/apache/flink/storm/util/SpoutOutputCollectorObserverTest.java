@@ -17,14 +17,15 @@
  */
 package org.apache.flink.storm.util;
 
-import backtype.storm.spout.SpoutOutputCollector;
+import org.apache.storm.spout.SpoutOutputCollector;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import static org.mockito.Mockito.mock;
 
-public class SpoutOutputCollectorObserverTest {
+public class  
+ SpoutOutputCollectorObserverTest {
 
 	@Test
 	public void testFlag() {
