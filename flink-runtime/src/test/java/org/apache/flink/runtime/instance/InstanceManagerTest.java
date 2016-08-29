@@ -18,13 +18,18 @@
 
 package org.apache.flink.runtime.instance;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import akka.actor.ActorSystem;
+import akka.testkit.JavaTestKit;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.net.InetAddress;
 import java.util.Collection;
@@ -33,16 +38,10 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
 
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
-
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link org.apache.flink.runtime.instance.InstanceManager}.
@@ -76,13 +75,13 @@ public class InstanceManagerTest{
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 
 			// register three instances
-			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, dataPort);
-			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, dataPort + 15);
-			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, dataPort + 30);
-
 			ResourceID resID1 = ResourceID.generate();
 			ResourceID resID2 = ResourceID.generate();
 			ResourceID resID3 = ResourceID.generate();
+			
+			TaskManagerLocation ici1 = new TaskManagerLocation(resID1, address, dataPort);
+			TaskManagerLocation ici2 = new TaskManagerLocation(resID2, address, dataPort + 15);
+			TaskManagerLocation ici3 = new TaskManagerLocation(resID3, address, dataPort + 30);
 
 			final JavaTestKit probe1 = new JavaTestKit(system);
 			final JavaTestKit probe2 = new JavaTestKit(system);
@@ -99,16 +98,16 @@ public class InstanceManagerTest{
 			assertEquals(8, cm.getTotalNumberOfSlots());
 
 			Collection<Instance> instances = cm.getAllRegisteredInstances();
-			Set<InstanceConnectionInfo> instanceConnectionInfos = new
-					HashSet<InstanceConnectionInfo>();
+			Set<TaskManagerLocation> taskManagerLocations = new
+					HashSet<TaskManagerLocation>();
 
 			for(Instance instance: instances){
-				instanceConnectionInfos.add(instance.getInstanceConnectionInfo());
+				taskManagerLocations.add(instance.getInstanceConnectionInfo());
 			}
 
-			assertTrue(instanceConnectionInfos.contains(ici1));
-			assertTrue(instanceConnectionInfos.contains(ici2));
-			assertTrue(instanceConnectionInfos.contains(ici3));
+			assertTrue(taskManagerLocations.contains(ici1));
+			assertTrue(taskManagerLocations.contains(ici2));
+			assertTrue(taskManagerLocations.contains(ici3));
 
 			cm.shutdown();
 		}
@@ -131,7 +130,7 @@ public class InstanceManagerTest{
 
 			HardwareDescription resources = HardwareDescription.extractFromSystem(4096);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo ici = new InstanceConnectionInfo(address, dataPort);
+			TaskManagerLocation ici = new TaskManagerLocation(resID1, address, dataPort);
 
 			JavaTestKit probe = new JavaTestKit(system);
 			cm.registerTaskManager(probe.getRef(), resID1,
@@ -141,13 +140,12 @@ public class InstanceManagerTest{
 			assertEquals(1, cm.getTotalNumberOfSlots());
 
 			try {
-				cm.registerTaskManager(probe.getRef(), resID2,
-					ici, resources, 1, leaderSessionID);
+				cm.registerTaskManager(probe.getRef(), resID2, ici, resources, 1, leaderSessionID);
 			} catch (Exception e) {
 				// good
 			}
 
-			// check for correct number of registerede instances
+			// check for correct number of registered instances
 			assertEquals(1, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(1, cm.getTotalNumberOfSlots());
 
@@ -176,9 +174,9 @@ public class InstanceManagerTest{
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 
 			// register three instances
-			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, dataPort);
-			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, dataPort + 1);
-			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, dataPort + 2);
+			TaskManagerLocation ici1 = new TaskManagerLocation(resID1, address, dataPort);
+			TaskManagerLocation ici2 = new TaskManagerLocation(resID2, address, dataPort + 1);
+			TaskManagerLocation ici3 = new TaskManagerLocation(resID3, address, dataPort + 2);
 
 			JavaTestKit probe1 = new JavaTestKit(system);
 			JavaTestKit probe2 = new JavaTestKit(system);
@@ -240,7 +238,7 @@ public class InstanceManagerTest{
 				ResourceID resID = ResourceID.generate();
 				HardwareDescription resources = HardwareDescription.extractFromSystem(4096);
 				InetAddress address = InetAddress.getByName("127.0.0.1");
-				InstanceConnectionInfo ici = new InstanceConnectionInfo(address, 20000);
+				TaskManagerLocation ici = new TaskManagerLocation(resID, address, 20000);
 
 				JavaTestKit probe = new JavaTestKit(system);
 				cm.registerTaskManager(probe.getRef(), resID,
