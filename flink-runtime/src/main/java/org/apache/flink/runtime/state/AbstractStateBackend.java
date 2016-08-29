@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -53,7 +52,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry) throws Exception;
 
@@ -66,7 +65,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoredState,
 			TaskKvStateRegistry kvStateRegistry) throws Exception;

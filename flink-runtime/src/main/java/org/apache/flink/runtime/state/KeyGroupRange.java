@@ -175,46 +175,4 @@ public class KeyGroupRange implements Iterable<Integer>, Serializable {
 		return startKeyGroup <= endKeyGroup ? new KeyGroupRange(startKeyGroup, endKeyGroup) : EMPTY_KEY_GROUP;
 	}
 
-	/**
-	 * Computes the range of key-groups that are assigned to a given operator under the given parallelism and maximum
-	 * parallelism.
-	 *
-	 * IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this method. If we ever want
-	 * to go beyond this boundary, this method must perform arithmetic on long values.
-	 *
-	 * @param maxParallelism Maximal parallelism that the job was initially created with.
-	 * @param parallelism    The current parallelism under which the job runs. Must be <= maxParallelism.
-	 * @param operatorIndex  Id of a key-group. 0 <= keyGroupID < maxParallelism.
-	 * @return
-	 */
-	public static KeyGroupRange computeKeyGroupRangeForOperatorIndex(
-			int maxParallelism,
-			int parallelism,
-			int operatorIndex) {
-		Preconditions.checkArgument(parallelism > 0, "Parallelism must not be smaller than zero.");
-		Preconditions.checkArgument(maxParallelism >= parallelism, "Maximum parallelism must not be smaller than parallelism.");
-		Preconditions.checkArgument(maxParallelism <= Short.MAX_VALUE, "Maximum parallelism must be smaller than Short.MAX_VALUE.");
-
-		int start = operatorIndex == 0 ? 0 : ((operatorIndex * maxParallelism - 1) / parallelism) + 1;
-		int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
-		return new KeyGroupRange(start, end);
-	}
-
-	/**
-	 * Computes the index of the operator to which a key-group belongs under the given parallelism and maximum
-	 * parallelism.
-	 *
-	 * IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this method. If we ever want
-	 * to go beyond this boundary, this method must perform arithmetic on long values.
-	 *
-	 * @param maxParallelism Maximal parallelism that the job was initially created with.
-	 *                       0 < parallelism <= maxParallelism <= Short.MAX_VALUE must hold.
-	 * @param parallelism    The current parallelism under which the job runs. Must be <= maxParallelism.
-	 * @param keyGroupId     Id of a key-group. 0 <= keyGroupID < maxParallelism.
-	 * @return The index of the operator to which elements from the given key-group should be routed under the given
-	 * parallelism and maxParallelism.
-	 */
-	public static final int computeOperatorIndexForKeyGroup(int maxParallelism, int parallelism, int keyGroupId) {
-		return keyGroupId * parallelism / maxParallelism;
-	}
 }

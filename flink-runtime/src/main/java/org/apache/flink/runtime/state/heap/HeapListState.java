@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.util.Preconditions;
 
@@ -119,7 +120,7 @@ public class HeapListState<K, N, V>
 		Preconditions.checkState(key != null, "No key given.");
 
 		Map<N, Map<K, ArrayList<V>>> namespaceMap =
-				stateTable.get(backend.getKeyGroupAssigner().getKeyGroupIndex(key));
+				stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
 
 		if (namespaceMap == null) {
 			return null;

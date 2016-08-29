@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -111,8 +111,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			new PartitionTransformation<>(
 				dataStream.getTransformation(),
 				new KeyGroupStreamPartitioner<>(
-					keySelector,
-					new HashKeyGroupAssigner<KEY>())));
+					keySelector, KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM)));
 		this.keySelector = keySelector;
 		this.keyType = keyType;
 	}

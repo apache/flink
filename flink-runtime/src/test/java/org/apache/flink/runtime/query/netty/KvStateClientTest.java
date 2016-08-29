@@ -42,7 +42,6 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequest;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KvState;
@@ -533,6 +532,8 @@ public class KvStateClientTest {
 
 		final int batchSize = 16;
 
+		final int numKeyGroups = 1;
+
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		KvStateRegistry dummyRegistry = new KvStateRegistry();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
@@ -542,7 +543,7 @@ public class KvStateClientTest {
 				new JobID(),
 				"test_op",
 				IntSerializer.INSTANCE,
-				new HashKeyGroupAssigner<Integer>(1),
+				numKeyGroups,
 				new KeyGroupRange(0, 0),
 				dummyRegistry.createTaskRegistry(new JobID(), new JobVertexID()));
 

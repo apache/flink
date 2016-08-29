@@ -24,9 +24,9 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
@@ -138,7 +138,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 		Preconditions.checkState(key != null, "No key given.");
 
 		Map<N, Map<K, SV>> namespaceMap =
-				stateTable.get(backend.getKeyGroupAssigner().getKeyGroupIndex(key));
+				stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
 
 		if (namespaceMap == null) {
 			return null;

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -76,20 +75,20 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 	public HeapKeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange) {
 
-		super(kvStateRegistry, keySerializer, keyGroupAssigner, keyGroupRange);
+		super(kvStateRegistry, keySerializer, numberOfKeyGroups, keyGroupRange);
 
 		LOG.info("Initializing heap keyed state backend with stream factory.");
 	}
 
 	public HeapKeyedStateBackend(TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoredState) throws Exception {
-		super(kvStateRegistry, keySerializer, keyGroupAssigner, keyGroupRange);
+		super(kvStateRegistry, keySerializer, numberOfKeyGroups, keyGroupRange);
 
 		LOG.info("Initializing heap keyed state backend from snapshot.");
 

@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -762,7 +761,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	public <K> KeyedStateBackend<K> createKeyedStateBackend(
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange) throws Exception {
 
 		if (keyedStateBackend != null) {
@@ -779,7 +778,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					getEnvironment().getJobID(),
 					operatorIdentifier,
 					keySerializer,
-					keyGroupAssigner,
+					numberOfKeyGroups,
 					keyGroupRange,
 					lazyRestoreKeyGroupStates,
 					getEnvironment().getTaskKvStateRegistry());
@@ -791,7 +790,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					getEnvironment().getJobID(),
 					operatorIdentifier,
 					keySerializer,
-					keyGroupAssigner,
+					numberOfKeyGroups,
 					keyGroupRange,
 					getEnvironment().getTaskKvStateRegistry());
 		}
