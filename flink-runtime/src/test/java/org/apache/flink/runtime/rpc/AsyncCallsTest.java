@@ -16,18 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka;
+package org.apache.flink.runtime.rpc;
 
 import akka.actor.ActorSystem;
 import akka.util.Timeout;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcMethod;
-import org.apache.flink.runtime.rpc.RpcService;
 
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -51,7 +48,7 @@ public class AsyncCallsTest extends TestLogger {
 
 	private static ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 
-	private static AkkaRpcService akkaRpcService = 
+	private static AkkaRpcService akkaRpcService =
 			new AkkaRpcService(actorSystem, new Timeout(10000, TimeUnit.MILLISECONDS));
 
 	@AfterClass
@@ -173,7 +170,7 @@ public class AsyncCallsTest extends TestLogger {
 	//  test RPC endpoint
 	// ------------------------------------------------------------------------
 	
-	interface TestGateway extends RpcGateway {
+	public interface TestGateway extends RpcGateway {
 
 		void someCall();
 
