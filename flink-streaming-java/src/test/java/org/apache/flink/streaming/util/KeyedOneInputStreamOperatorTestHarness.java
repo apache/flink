@@ -113,6 +113,10 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 					final int numberOfKeyGroups = (Integer) invocationOnMock.getArguments()[1];
 					final KeyGroupRange keyGroupRange = (KeyGroupRange) invocationOnMock.getArguments()[2];
 
+					if(keyedStateBackend != null) {
+						keyedStateBackend.close();
+					}
+
 					if (restoredKeyedState == null) {
 						keyedStateBackend = stateBackend.createKeyedStateBackend(
 								mockTask.getEnvironment(),
@@ -195,5 +199,8 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	 */
 	public void close() throws Exception {
 		super.close();
+		if(keyedStateBackend != null) {
+			keyedStateBackend.close();
+		}
 	}
 }
