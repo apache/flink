@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.taskexecutor;
+package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.registration.RegistrationResponse;

@@ -16,10 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.resourcemanager;
+package org.apache.flink.runtime.resourcemanager;
+
+import org.apache.flink.runtime.instance.InstanceID;
 
 import java.io.Serializable;
 
-public class SlotRequest implements Serializable{
-	private static final long serialVersionUID = -6586877187990445986L;
+public class RegistrationResponse implements Serializable {
+	private static final long serialVersionUID = -2379003255993119993L;
+
+	private final boolean isSuccess;
+	private final InstanceID instanceID;
+
+	public RegistrationResponse(boolean isSuccess, InstanceID instanceID) {
+		this.isSuccess = isSuccess;
+		this.instanceID = instanceID;
+	}
+
+	public boolean isSuccess() {
+		return isSuccess;
+	}
+
+	public InstanceID getInstanceID() {
+		return instanceID;
+	}
 }

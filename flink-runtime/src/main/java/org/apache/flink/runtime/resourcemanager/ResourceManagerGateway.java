@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.resourcemanager;
+package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.rpc.jobmaster.JobMaster;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
