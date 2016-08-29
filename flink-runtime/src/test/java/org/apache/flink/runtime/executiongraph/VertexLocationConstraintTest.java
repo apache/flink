@@ -32,7 +32,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -443,10 +443,10 @@ public class VertexLocationConstraintTest {
 	public static Instance getInstance(byte[] ipAddress, int dataPort, String hostname) throws Exception {
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		
-		InstanceConnectionInfo connection = mock(InstanceConnectionInfo.class);
+		TaskManagerLocation connection = mock(TaskManagerLocation.class);
 		when(connection.address()).thenReturn(InetAddress.getByAddress(ipAddress));
 		when(connection.dataPort()).thenReturn(dataPort);
-		when(connection.getInetAdress()).thenReturn(InetAddress.getByAddress(ipAddress).toString());
+		when(connection.addressString()).thenReturn(InetAddress.getByAddress(ipAddress).toString());
 		when(connection.getHostname()).thenReturn(hostname);
 		when(connection.getFQDNHostname()).thenReturn(hostname);
 		

@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.taskmanager;
 
-import java.io.IOException;
-import java.io.Serializable;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.StringUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class encapsulates the connection information of a TaskManager.
@@ -37,33 +37,32 @@ import org.slf4j.LoggerFactory;
  * for data exchange. This class also contains utilities to work with the
  * TaskManager's host name, which is used to localize work assignments.
  */
-public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo>, Serializable {
+public class TaskManagerLocation implements Comparable<TaskManagerLocation>, java.io.Serializable {
 
 	private static final long serialVersionUID = -8254407801276350716L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerLocation.class);
+
+	// ------------------------------------------------------------------------
+
+	/** The ID of the resource in which the TaskManager is started. This can be for example
+	 * the YARN container ID, Mesos container ID, or any other unique identifier. */
+	private final ResourceID resourceID;
+
+	/** The network address that the TaskManager binds its sockets to */
+	private final InetAddress inetAddress;
+
+	/** The fully qualified host name of the TaskManager */
+	private final String fqdnHostName;
+
+	/** The pure hostname, derived from the fully qualified host name. */
+	private final String hostName;
 	
-	private static final Logger LOG = LoggerFactory.getLogger(InstanceConnectionInfo.class);
-	
+	/** The port that the TaskManager receive data transport connection requests at */
+	private final int dataPort;
 
-	/**
-	 * The network address the instance's task manager binds its sockets to.
-	 */
-	private InetAddress inetAddress;
-
-	/**
-	 * The port the instance's task manager expects to receive transfer envelopes on.
-	 */
-	private int dataPort;
-
-	/**
-	 * The fully qualified host name of the instance.
-	 */
-	private String fqdnHostName;
-	
-	/**
-	 * The hostname, derived from the fully qualified host name.
-	 */
-	private String hostName;
-
+	/** The toString representation, eagerly constructed and cached to avoid repeated string building */  
+	private final String stringRepresentation;
 
 	/**
 	 * Constructs a new instance connection info object. The constructor will attempt to retrieve the instance's
@@ -74,29 +73,26 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @param dataPort
 	 *        the port instance's task manager expects to receive transfer envelopes on
 	 */
-	public InstanceConnectionInfo(InetAddress inetAddress, int dataPort) {
-		if (inetAddress == null) {
-			throw new IllegalArgumentException("Argument inetAddress must not be null");
-		}
-
+	public TaskManagerLocation(ResourceID resourceID, InetAddress inetAddress, int dataPort) {
 		// -1 indicates a local instance connection info
-		if (dataPort != -1 && dataPort <= 0) {
-			throw new IllegalArgumentException("Argument dataPort must be greater than zero");
-		}
+		checkArgument(dataPort > 0 || dataPort == -1, "dataPort must be > 0, or -1 (local)");
 
+		this.resourceID = checkNotNull(resourceID);
+		this.inetAddress = checkNotNull(inetAddress);
 		this.dataPort = dataPort;
-		this.inetAddress = inetAddress;
-		
+
 		// get FQDN hostname on this TaskManager.
+		String fqdnHostName;
 		try {
-			this.fqdnHostName = this.inetAddress.getCanonicalHostName();
+			fqdnHostName = this.inetAddress.getCanonicalHostName();
 		}
 		catch (Throwable t) {
 			LOG.warn("Unable to determine the canonical hostname. Input split assignment (such as " +
 					"for HDFS files) may be non-local when the canonical hostname is missing.");
 			LOG.debug("getCanonicalHostName() Exception:", t);
-			this.fqdnHostName = this.inetAddress.getHostAddress();
+			fqdnHostName = this.inetAddress.getHostAddress();
 		}
+		this.fqdnHostName = fqdnHostName;
 
 		if (this.fqdnHostName.equals(this.inetAddress.getHostAddress())) {
 			// this happens when the name lookup fails, either due to an exception,
@@ -110,13 +106,30 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		else {
 			this.hostName = NetUtils.getHostnameFromFQDN(this.fqdnHostName);
 		}
+
+		this.stringRepresentation = String.format(
+				"TaskManager (%s) @ %s (dataPort=%d)", resourceID, fqdnHostName, dataPort);
 	}
 
-	/**
-	 * Constructs an empty object.
-	 */
-	public InstanceConnectionInfo() {}
+	// ------------------------------------------------------------------------
+	//  Getters
+	// ------------------------------------------------------------------------
 
+	/**
+	 * Gets the ID of the resource in which the TaskManager is started. The format of this depends
+	 * on how the TaskManager is started:
+	 * <ul>
+	 *     <li>If the TaskManager is started via YARN, this is the YARN container ID.</li>
+	 *     <li>If the TaskManager is started via Mesos, this is the Mesos container ID.</li>
+	 *     <li>If the TaskManager is started in standalone mode, or via a MiniCluster, this is a random ID.</li>
+	 *     <li>Other deployment modes can set the resource ID in other ways.</li>
+	 * </ul>
+	 * 
+	 * @return The ID of the resource in which the TaskManager is started
+	 */
+	public ResourceID getResourceID() {
+		return resourceID;
+	}
 
 	/**
 	 * Returns the port instance's task manager expects to receive transfer envelopes on.
@@ -124,7 +137,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the port instance's task manager expects to receive transfer envelopes on
 	 */
 	public int dataPort() {
-		return this.dataPort;
+		return dataPort;
 	}
 
 	/**
@@ -133,7 +146,16 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the network address the instance's task manager binds its sockets to
 	 */
 	public InetAddress address() {
-		return this.inetAddress;
+		return inetAddress;
+	}
+
+	/**
+	 * Gets the IP address where the TaskManager operates.
+	 *
+	 * @return The IP address.
+	 */
+	public String addressString() {
+		return inetAddress.toString();
 	}
 
 	/**
@@ -143,7 +165,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return The fully-qualified domain name of the TaskManager.
 	 */
 	public String getFQDNHostname() {
-		return this.fqdnHostName;
+		return fqdnHostName;
 	}
 
 	/**
@@ -163,82 +185,50 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		return hostName;
 	}
 
-	/**
-	 * Gets the IP address where the TaskManager operates.
-	 *
-	 * @return The IP address.
-	 */
-	public String getInetAdress() {
-		return this.inetAddress.toString();
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Serialization
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-
-		final int addr_length = in.readInt();
-		byte[] address = new byte[addr_length];
-		in.readFully(address);
-		
-		this.dataPort = in.readInt();
-		
-		this.fqdnHostName = StringUtils.readNullableString(in);
-		this.hostName = StringUtils.readNullableString(in);
-
-		try {
-			this.inetAddress = InetAddress.getByAddress(address);
-		} catch (UnknownHostException e) {
-			throw new IOException("This lookup should never fail.", e);
-		}
-	}
-
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-		out.writeInt(this.inetAddress.getAddress().length);
-		out.write(this.inetAddress.getAddress());
-		
-		out.writeInt(this.dataPort);
-		
-		StringUtils.writeNullableString(fqdnHostName, out);
-		StringUtils.writeNullableString(hostName, out);
-	}
-
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-		return getFQDNHostname() + " (dataPort=" + dataPort + ")";
+		return stringRepresentation;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof InstanceConnectionInfo) {
-			InstanceConnectionInfo other = (InstanceConnectionInfo) obj;
-			return this.dataPort == other.dataPort &&
-					this.inetAddress.equals(other.inetAddress);
-		} else {
+		if (obj == this) {
+			return true;
+		}
+		else if (obj != null && obj.getClass() == TaskManagerLocation.class) {
+			TaskManagerLocation that = (TaskManagerLocation) obj;
+			return this.resourceID.equals(that.resourceID) &&
+					this.inetAddress.equals(that.inetAddress) &&
+					this.dataPort == that.dataPort;
+		}
+		else {
 			return false;
 		}
 	}
 
 	@Override
 	public int hashCode() {
-		return this.inetAddress.hashCode() +
-				17*dataPort;
+		return resourceID.hashCode() + 
+				17 * inetAddress.hashCode() +
+				129 * dataPort;
 	}
 
 	@Override
-	public int compareTo(InstanceConnectionInfo o) {
+	public int compareTo(@Nonnull TaskManagerLocation o) {
 		// decide based on address first
+		int resourceIdCmp = this.resourceID.getResourceIdString().compareTo(o.resourceID.getResourceIdString());
+		if (resourceIdCmp != 0) {
+			return resourceIdCmp;
+		}
+
+		// decide based on ip address next
 		byte[] thisAddress = this.inetAddress.getAddress();
 		byte[] otherAddress = o.inetAddress.getAddress();
-		
+
 		if (thisAddress.length < otherAddress.length) {
 			return -1;
 		} else if (thisAddress.length > otherAddress.length) {
@@ -254,7 +244,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 				}
 			}
 		}
-		
+
 		// addresses are identical, decide based on ports.
 		if (this.dataPort < o.dataPort) {
 			return -1;

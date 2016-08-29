@@ -31,7 +31,7 @@ import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -133,7 +133,7 @@ public class Execution {
 
 	private volatile Throwable failureCause;          // once assigned, never changes
 
-	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
+	private volatile TaskManagerLocation assignedResourceLocation; // for the archived execution
 
 	private ChainedStateHandle<StreamStateHandle> chainedStateHandle;
 
@@ -147,7 +147,7 @@ public class Execution {
 	
 	/* Lock for updating the accumulators atomically. Prevents final accumulators to be overwritten
 	* by partial accumulators on a late heartbeat*/
-	private final SerializableObject accumulatorLock = new SerializableObject();
+	private final Object accumulatorLock = new Object();
 
 	/* Continuously updated map of user-defined accumulators */
 	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
@@ -202,7 +202,7 @@ public class Execution {
 		return assignedResource;
 	}
 
-	public InstanceConnectionInfo getAssignedResourceLocation() {
+	public TaskManagerLocation getAssignedResourceLocation() {
 		return assignedResourceLocation;
 	}
 

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.deployment;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -44,7 +44,7 @@ public class PartialInputChannelDeploymentDescriptor {
 	private final ResultPartitionID partitionID;
 
 	/** The partition connection info. */
-	private final InstanceConnectionInfo partitionConnectionInfo;
+	private final TaskManagerLocation partitionConnectionInfo;
 
 	/** The partition connection index. */
 	private final int partitionConnectionIndex;
@@ -52,7 +52,7 @@ public class PartialInputChannelDeploymentDescriptor {
 	public PartialInputChannelDeploymentDescriptor(
 			IntermediateDataSetID resultId,
 			ResultPartitionID partitionID,
-			InstanceConnectionInfo partitionConnectionInfo,
+			TaskManagerLocation partitionConnectionInfo,
 			int partitionConnectionIndex) {
 
 		this.resultId = checkNotNull(resultId);
@@ -71,7 +71,7 @@ public class PartialInputChannelDeploymentDescriptor {
 
 		checkNotNull(consumerExecution, "Consumer execution null");
 
-		InstanceConnectionInfo consumerConnectionInfo = consumerExecution.getAssignedResourceLocation();
+		TaskManagerLocation consumerConnectionInfo = consumerExecution.getAssignedResourceLocation();
 
 		checkNotNull(consumerConnectionInfo, "Consumer connection info null");
 
@@ -107,7 +107,7 @@ public class PartialInputChannelDeploymentDescriptor {
 		final IntermediateResult result = partition.getIntermediateResult();
 
 		final IntermediateDataSetID resultId = result.getId();
-		final InstanceConnectionInfo partitionConnectionInfo = producer.getAssignedResourceLocation();
+		final TaskManagerLocation partitionConnectionInfo = producer.getAssignedResourceLocation();
 		final int partitionConnectionIndex = result.getConnectionIndex();
 
 		return new PartialInputChannelDeploymentDescriptor(

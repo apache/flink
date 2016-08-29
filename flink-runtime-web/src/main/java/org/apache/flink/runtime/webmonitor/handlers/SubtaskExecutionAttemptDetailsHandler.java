@@ -25,7 +25,7 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.io.StringWriter;
@@ -45,7 +45,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 		final ExecutionState status = execAttempt.getState();
 		final long now = System.currentTimeMillis();
 
-		InstanceConnectionInfo location = execAttempt.getAssignedResourceLocation();
+		TaskManagerLocation location = execAttempt.getAssignedResourceLocation();
 		String locationString = location == null ? "(unassigned)" : location.getHostname();
 
 		long startTime = execAttempt.getStateTimestamp(ExecutionState.DEPLOYING);
