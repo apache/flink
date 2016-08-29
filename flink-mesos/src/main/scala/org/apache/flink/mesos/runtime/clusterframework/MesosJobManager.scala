@@ -16,29 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn
+package org.apache.flink.mesos.runtime.clusterframework
 
-import java.util.concurrent.{ExecutorService, TimeUnit}
+import java.util.concurrent.ExecutorService
 
 import akka.actor.ActorRef
-import org.apache.flink.configuration.{ConfigConstants, Configuration => FlinkConfiguration}
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.configuration.{Configuration => FlinkConfiguration}
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.ContaineredJobManager
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.instance.InstanceManager
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
-import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
-
-/** JobManager actor for execution on Yarn. It enriches the [[JobManager]] with additional messages
-  * to start/administer/stop the Yarn session.
+/** JobManager actor for execution on Mesos. .
   *
   * @param flinkConfiguration Configuration object for the actor
   * @param executorService Execution context which is used to execute concurrent tasks in the
@@ -52,21 +49,20 @@ import scala.language.postfixOps
   * @param timeout Timeout for futures
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
-class YarnJobManager(
-    flinkConfiguration: FlinkConfiguration,
-    executorService: ExecutorService,
-    instanceManager: InstanceManager,
-    scheduler: FlinkScheduler,
-    libraryCacheManager: BlobLibraryCacheManager,
-    archive: ActorRef,
-    restartStrategyFactory: RestartStrategyFactory,
-    timeout: FiniteDuration,
-    leaderElectionService: LeaderElectionService,
-    submittedJobGraphs : SubmittedJobGraphStore,
-    checkpointRecoveryFactory : CheckpointRecoveryFactory,
-    savepointStore: SavepointStore,
-    jobRecoveryTimeout: FiniteDuration,
-    metricsRegistry: Option[MetricRegistry])
+class MesosJobManager(flinkConfiguration: FlinkConfiguration,
+                      executorService: ExecutorService,
+                      instanceManager: InstanceManager,
+                      scheduler: FlinkScheduler,
+                      libraryCacheManager: BlobLibraryCacheManager,
+                      archive: ActorRef,
+                      restartStrategyFactory: RestartStrategyFactory,
+                      timeout: FiniteDuration,
+                      leaderElectionService: LeaderElectionService,
+                      submittedJobGraphs : SubmittedJobGraphStore,
+                      checkpointRecoveryFactory : CheckpointRecoveryFactory,
+                      savepointStore: SavepointStore,
+                      jobRecoveryTimeout: FiniteDuration,
+                      metricsRegistry: Option[FlinkMetricRegistry])
   extends ContaineredJobManager(
     flinkConfiguration,
     executorService,
@@ -83,11 +79,6 @@ class YarnJobManager(
     jobRecoveryTimeout,
     metricsRegistry) {
 
-  val DEFAULT_YARN_HEARTBEAT_DELAY: FiniteDuration = 5 seconds
-  val YARN_HEARTBEAT_DELAY: FiniteDuration =
-    FiniteDuration(
-      flinkConfiguration.getInteger(ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, 5),
-      TimeUnit.SECONDS)
+  val jobPollingInterval: FiniteDuration = 5 seconds
 
-  override val jobPollingInterval = YARN_HEARTBEAT_DELAY
 }
