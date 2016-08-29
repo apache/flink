@@ -32,7 +32,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -110,7 +110,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 		Instance instance = mock(Instance.class);
 
-		InstanceConnectionInfo instanceConnectionInfo = mock(InstanceConnectionInfo.class);
+		TaskManagerLocation taskManagerLocation = mock(TaskManagerLocation.class);
 
 		Slot rootSlot = mock(Slot.class);
 
@@ -123,9 +123,9 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 		when(scheduler.scheduleImmediately(Matchers.any(ScheduledUnit.class))).thenReturn(simpleSlot);
 
-		when(instance.getInstanceConnectionInfo()).thenReturn(instanceConnectionInfo);
+		when(instance.getInstanceConnectionInfo()).thenReturn(taskManagerLocation);
 		when(instance.getActorGateway()).thenReturn(actorGateway);
-		when(instanceConnectionInfo.getHostname()).thenReturn("localhost");
+		when(taskManagerLocation.getHostname()).thenReturn("localhost");
 
 		when(rootSlot.getSlotNumber()).thenReturn(0);
 

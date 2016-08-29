@@ -28,6 +28,7 @@ import java.util.Set;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,7 @@ public class Instance {
 	private final ActorGateway actorGateway;
 
 	/** The instance connection information for the data transfer. */
-	private final InstanceConnectionInfo connectionInfo;
+	private final TaskManagerLocation connectionInfo;
 
 	/** A description of the resources of the task manager */
 	private final HardwareDescription resources;
@@ -92,7 +93,7 @@ public class Instance {
 	 */
 	public Instance(
 			ActorGateway actorGateway,
-			InstanceConnectionInfo connectionInfo,
+			TaskManagerLocation connectionInfo,
 			ResourceID resourceId,
 			InstanceID id,
 			HardwareDescription resources,
@@ -350,7 +351,7 @@ public class Instance {
 		return actorGateway;
 	}
 
-	public InstanceConnectionInfo getInstanceConnectionInfo() {
+	public TaskManagerLocation getInstanceConnectionInfo() {
 		return connectionInfo;
 	}
 

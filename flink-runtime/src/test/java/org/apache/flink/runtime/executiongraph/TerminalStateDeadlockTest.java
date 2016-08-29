@@ -27,7 +27,7 @@ import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -79,12 +79,13 @@ public class TerminalStateDeadlockTest {
 			this.execGraphSchedulerField.setAccessible(true);
 			
 			// the dummy resource
+			ResourceID resourceId = ResourceID.generate();
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo ci = new InstanceConnectionInfo(address, 12345);
+			TaskManagerLocation ci = new TaskManagerLocation(resourceId, address, 12345);
 				
 			HardwareDescription resources = new HardwareDescription(4, 4000000, 3000000, 2000000);
 			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci,
-				ResourceID.generate(), new InstanceID(), resources, 4);
+				resourceId, new InstanceID(), resources, 4);
 
 			this.resource = instance.allocateSimpleSlot(new JobID());
 		}

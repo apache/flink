@@ -29,6 +29,7 @@ import java.util.UUID;
 
 import akka.actor.ActorRef;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,7 +148,7 @@ public class InstanceManager {
 	public InstanceID registerTaskManager(
 			ActorRef taskManager,
 			ResourceID resourceID,
-			InstanceConnectionInfo connectionInfo,
+			TaskManagerLocation connectionInfo,
 			HardwareDescription resources,
 			int numberOfSlots,
 			UUID leaderSessionID){
