@@ -112,7 +112,7 @@ object FlinkRuleSets {
   */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
 
-      RemoveDeltaRule.INSTANCE,
+      TableScanRule.INSTANCE,
       EnumerableToLogicalTableScan.INSTANCE,
 
       // calc rules

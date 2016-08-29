@@ -72,7 +72,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
 
     tEnv.registerTableSource("MyTestTable", new TestStreamTableSource(33))
     tEnv.sql(
-      "SELECT STREAM amount * id, name FROM MyTestTable WHERE amount < 4")
+      "SELECT amount * id, name FROM MyTestTable WHERE amount < 4")
       .toDataStream[Row]
       .addSink(new StreamITCase.StringSink)
 
@@ -128,7 +128,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
 
     tEnv.registerTableSource("csvTable", csvTable)
     tEnv.sql(
-      "SELECT STREAM last, score, id FROM csvTable WHERE id < 4 ")
+      "SELECT last, score, id FROM csvTable WHERE id < 4 ")
       .toDataStream[Row]
       .addSink(new StreamITCase.StringSink)
 

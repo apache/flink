@@ -46,7 +46,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		Table in = tableEnv.fromDataStream(ds, "a,b,c");
 		tableEnv.registerTable("MyTable", in);
 
-		String sqlQuery = "SELECT STREAM * FROM MyTable";
+		String sqlQuery = "SELECT * FROM MyTable";
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
@@ -70,7 +70,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds = StreamTestData.get5TupleDataStream(env);
 		tableEnv.registerDataStream("MyTable", ds, "a, b, c, d, e");
 
-		String sqlQuery = "SELECT STREAM a, b, e FROM MyTable WHERE c < 4";
+		String sqlQuery = "SELECT a, b, e FROM MyTable WHERE c < 4";
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
@@ -99,9 +99,9 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds2 = StreamTestData.get5TupleDataStream(env);
 		tableEnv.registerDataStream("T2", ds2, "a, b, d, c, e");
 
-		String sqlQuery = "SELECT STREAM * FROM T1 " +
+		String sqlQuery = "SELECT * FROM T1 " +
 							"UNION ALL " +
-							"(SELECT STREAM a, b, c FROM T2 WHERE a	< 3)";
+							"(SELECT a, b, c FROM T2 WHERE a	< 3)";
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
