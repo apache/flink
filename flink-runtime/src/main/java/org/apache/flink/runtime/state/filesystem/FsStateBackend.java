@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -181,13 +180,13 @@ public class FsStateBackend extends AbstractStateBackend {
 			JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry) throws Exception {
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
-				keyGroupAssigner,
+				numberOfKeyGroups,
 				keyGroupRange);
 	}
 
@@ -197,14 +196,14 @@ public class FsStateBackend extends AbstractStateBackend {
 			JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
-			KeyGroupAssigner<K> keyGroupAssigner,
+			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoredState,
 			TaskKvStateRegistry kvStateRegistry) throws Exception {
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
-				keyGroupAssigner,
+				numberOfKeyGroups,
 				keyGroupRange,
 				restoredState);
 	}

@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 import org.junit.Before;
@@ -48,7 +47,7 @@ public class KeyGroupStreamPartitionerTest extends TestLogger {
 				return value.getField(0);
 			}
 		},
-		new HashKeyGroupAssigner<String>(1024));
+		1024);
 	}
 
 	@Test

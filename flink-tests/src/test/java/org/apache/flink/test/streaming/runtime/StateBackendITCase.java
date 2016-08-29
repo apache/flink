@@ -21,7 +21,6 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -104,7 +103,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				JobID jobID,
 				String operatorIdentifier,
 				TypeSerializer<K> keySerializer,
-				KeyGroupAssigner<K> keyGroupAssigner,
+				int numberOfKeyGroups,
 				KeyGroupRange keyGroupRange,
 				TaskKvStateRegistry kvStateRegistry) throws Exception {
 			throw new SuccessException();
@@ -115,7 +114,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				JobID jobID,
 				String operatorIdentifier,
 				TypeSerializer<K> keySerializer,
-				KeyGroupAssigner<K> keyGroupAssigner,
+				int numberOfKeyGroups,
 				KeyGroupRange keyGroupRange,
 				List<KeyGroupsStateHandle> restoredState,
 				TaskKvStateRegistry kvStateRegistry) throws Exception {

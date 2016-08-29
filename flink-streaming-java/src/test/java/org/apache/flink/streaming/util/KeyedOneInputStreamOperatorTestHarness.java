@@ -19,14 +19,12 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -70,7 +68,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		ClosureCleaner.clean(keySelector, false);
 		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setKeyGroupAssigner(new HashKeyGroupAssigner<K>(MAX_PARALLELISM));
+		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
 	}
@@ -84,7 +82,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		ClosureCleaner.clean(keySelector, false);
 		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setKeyGroupAssigner(new HashKeyGroupAssigner<K>(MAX_PARALLELISM));
+		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
 	}
@@ -99,7 +97,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		ClosureCleaner.clean(keySelector, false);
 		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setKeyGroupAssigner(new HashKeyGroupAssigner<K>(MAX_PARALLELISM));
+		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
 	}
@@ -112,7 +110,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 				public KeyedStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
 
 					final TypeSerializer keySerializer = (TypeSerializer) invocationOnMock.getArguments()[0];
-					final KeyGroupAssigner keyGroupAssigner = (KeyGroupAssigner) invocationOnMock.getArguments()[1];
+					final int numberOfKeyGroups = (Integer) invocationOnMock.getArguments()[1];
 					final KeyGroupRange keyGroupRange = (KeyGroupRange) invocationOnMock.getArguments()[2];
 
 					if (restoredKeyedState == null) {
@@ -121,7 +119,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 								new JobID(),
 								"test_op",
 								keySerializer,
-								keyGroupAssigner,
+								numberOfKeyGroups,
 								keyGroupRange,
 								mockTask.getEnvironment().getTaskKvStateRegistry());
 						return keyedStateBackend;
@@ -131,7 +129,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 								new JobID(),
 								"test_op",
 								keySerializer,
-								keyGroupAssigner,
+								numberOfKeyGroups,
 								keyGroupRange,
 								Collections.singletonList(restoredKeyedState),
 								mockTask.getEnvironment().getTaskKvStateRegistry());
@@ -139,7 +137,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 						return keyedStateBackend;
 					}
 				}
-			}).when(mockTask).createKeyedStateBackend(any(TypeSerializer.class), any(KeyGroupAssigner.class), any(KeyGroupRange.class));
+			}).when(mockTask).createKeyedStateBackend(any(TypeSerializer.class), anyInt(), any(KeyGroupRange.class));
 		} catch (Exception e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}

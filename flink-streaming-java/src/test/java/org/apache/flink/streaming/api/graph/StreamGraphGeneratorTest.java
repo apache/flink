@@ -19,11 +19,9 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -270,10 +268,6 @@ public class StreamGraphGeneratorTest {
 		StreamNode keyedResultNode = graph.getStreamNode(keyedResult.getId());
 
 		StreamPartitioner<?> streamPartitioner = keyedResultNode.getInEdges().get(0).getPartitioner();
-
-		HashKeyGroupAssigner<?> hashKeyGroupAssigner = extractHashKeyGroupAssigner(streamPartitioner);
-
-		assertEquals(maxParallelism, hashKeyGroupAssigner.getNumberKeyGroups());
 	}
 
 	/**
@@ -384,7 +378,7 @@ public class StreamGraphGeneratorTest {
 	}
 
 	/**
-	 * Tests that the max parallelism and the key group partitioner is properly set for connected
+	 * Tests that the max parallelism is properly set for connected
 	 * streams.
 	 */
 	@Test
@@ -423,24 +417,6 @@ public class StreamGraphGeneratorTest {
 
 		StreamPartitioner<?> streamPartitioner1 = keyedResultNode.getInEdges().get(0).getPartitioner();
 		StreamPartitioner<?> streamPartitioner2 = keyedResultNode.getInEdges().get(1).getPartitioner();
-
-		HashKeyGroupAssigner<?> hashKeyGroupAssigner1 = extractHashKeyGroupAssigner(streamPartitioner1);
-		assertEquals(maxParallelism, hashKeyGroupAssigner1.getNumberKeyGroups());
-
-		HashKeyGroupAssigner<?> hashKeyGroupAssigner2 = extractHashKeyGroupAssigner(streamPartitioner2);
-		assertEquals(maxParallelism, hashKeyGroupAssigner2.getNumberKeyGroups());
-	}
-
-	private HashKeyGroupAssigner<?> extractHashKeyGroupAssigner(StreamPartitioner<?> streamPartitioner) {
-		assertTrue(streamPartitioner instanceof KeyGroupStreamPartitioner);
-
-		KeyGroupStreamPartitioner<?, ?> keyGroupStreamPartitioner = (KeyGroupStreamPartitioner<?, ?>) streamPartitioner;
-
-		KeyGroupAssigner<?> keyGroupAssigner = keyGroupStreamPartitioner.getKeyGroupAssigner();
-
-		assertTrue(keyGroupAssigner instanceof HashKeyGroupAssigner);
-
-		return (HashKeyGroupAssigner<?>) keyGroupAssigner;
 	}
 
 	private static class OutputTypeConfigurableOperationWithTwoInputs

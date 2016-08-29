@@ -81,6 +81,37 @@ public class MathUtilTest {
 	}
 
 	@Test
+	public void testRoundUpToPowerOf2() {
+		assertEquals(0, MathUtils.roundUpToPowerOfTwo(0));
+		assertEquals(1, MathUtils.roundUpToPowerOfTwo(1));
+		assertEquals(2, MathUtils.roundUpToPowerOfTwo(2));
+		assertEquals(4, MathUtils.roundUpToPowerOfTwo(3));
+		assertEquals(4, MathUtils.roundUpToPowerOfTwo(4));
+		assertEquals(8, MathUtils.roundUpToPowerOfTwo(5));
+		assertEquals(8, MathUtils.roundUpToPowerOfTwo(6));
+		assertEquals(8, MathUtils.roundUpToPowerOfTwo(7));
+		assertEquals(8, MathUtils.roundUpToPowerOfTwo(8));
+		assertEquals(16, MathUtils.roundUpToPowerOfTwo(9));
+		assertEquals(16, MathUtils.roundUpToPowerOfTwo(15));
+		assertEquals(16, MathUtils.roundUpToPowerOfTwo(16));
+		assertEquals(32, MathUtils.roundUpToPowerOfTwo(17));
+		assertEquals(32, MathUtils.roundUpToPowerOfTwo(31));
+		assertEquals(32, MathUtils.roundUpToPowerOfTwo(32));
+		assertEquals(64, MathUtils.roundUpToPowerOfTwo(33));
+		assertEquals(64, MathUtils.roundUpToPowerOfTwo(42));
+		assertEquals(64, MathUtils.roundUpToPowerOfTwo(63));
+		assertEquals(64, MathUtils.roundUpToPowerOfTwo(64));
+		assertEquals(128, MathUtils.roundUpToPowerOfTwo(125));
+		assertEquals(32768, MathUtils.roundUpToPowerOfTwo(25654));
+		assertEquals(67108864, MathUtils.roundUpToPowerOfTwo(34366363));
+		assertEquals(67108864, MathUtils.roundUpToPowerOfTwo(67108863));
+		assertEquals(67108864, MathUtils.roundUpToPowerOfTwo(67108864));
+		assertEquals(0x40000000, MathUtils.roundUpToPowerOfTwo(0x3FFFFFFE));
+		assertEquals(0x40000000, MathUtils.roundUpToPowerOfTwo(0x3FFFFFFF));
+		assertEquals(0x40000000, MathUtils.roundUpToPowerOfTwo(0x40000000));
+	}
+
+	@Test
 	public void testPowerOfTwo() {
 		assertTrue(MathUtils.isPowerOf2(1));
 		assertTrue(MathUtils.isPowerOf2(2));
