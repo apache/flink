@@ -61,16 +61,15 @@ case class BlockMapper( //original matrix size
     */
   def getBlockIdByCoordinates(i: MatrixRowIndex, j: MatrixColIndex): Int = {
 
-    if (i < 0 || j < 0 || i >= numRows || j >= numCols) {
-      throw new IllegalArgumentException(s"Invalid coordinates ($i,$j).")
-    } else {
+    require (i < 0 || j < 0 || i >= numRows || j >= numCols,s"Invalid coordinates ($i,$j).")
+
       val mappedRow = i / rowsPerBlock
       val mappedColumn = j / colsPerBlock
       val res = mappedRow * numBlockCols + mappedColumn
 
       assert(res <= numBlocks)
       res
-    }
+
   }
 
   /**
@@ -79,15 +78,13 @@ case class BlockMapper( //original matrix size
     * @return
     */
   def getBlockMappedCoordinates(blockId: Int): (Int, Int) = {
-    if (blockId < 0 || blockId > numBlockCols * numBlockRows) {
-      throw new IllegalArgumentException(
+    require(blockId < 0 || blockId > numBlockCols * numBlockRows,
           s"BlockId numeration starts from 0. $blockId is not a valid Id"
       )
-    } else {
       val i = blockId / numBlockCols
       val j = blockId % numBlockCols
       (i, j)
-    }
+
   }
 
   /**
@@ -98,10 +95,9 @@ case class BlockMapper( //original matrix size
     */
   def getBlockIdByMappedCoord(i: Int, j: Int): Int = {
 
-    if (i < 0 || j < 0 || i >= numBlockRows || j >= numBlockCols) {
-      throw new IllegalArgumentException(s"Invalid coordinates ($i,$j).")
-    } else {
-      i * numBlockCols + j
-    }
+    require(0 <= i && i < numRows && 0 <= j && j < numCols,
+            s"Invalid coordinates ($i, $j).")
+
+    i * numBlockCols + j
   }
 }

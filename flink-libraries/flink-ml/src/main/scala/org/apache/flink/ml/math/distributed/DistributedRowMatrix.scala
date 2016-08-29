@@ -224,15 +224,12 @@ class RowSplitter(blockMapper: BlockMapper)
 
   def sliceVector(v: Vector): List[(Int, Vector)] = {
 
-    def getSliceByColIndex(index: Int): Int =
-      index / blockMapper.colsPerBlock
-
     val (vectorIndices, vectorValues) =
       v.iterator.filter(_._2 != 0).toList.unzip
     require(vectorIndices.size == vectorValues.size)
 
     val cellsToSlice = for (i <- vectorIndices.indices) yield
-      (getSliceByColIndex(vectorIndices(i)),
+      (vectorIndices(i) / blockMapper.colsPerBlock,
        vectorIndices(i) % blockMapper.colsPerBlock,
        vectorValues(i))
 

@@ -19,7 +19,6 @@
 package org.apache.flink.ml.math.distributed
 
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTypeInformation, _}
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.SparseVector
@@ -45,13 +44,13 @@ class BlockMatrix(
   val numCols = blockMapper.numCols
   val numRows = blockMapper.numRows
 
-  val getBlockCols = blockMapper.numBlockCols
-  val getBlockRows = blockMapper.numBlockRows
+  val numBlockCols = blockMapper.numBlockCols
+  val numBlockRows = blockMapper.numBlockRows
 
-  val getRowsPerBlock = blockMapper.rowsPerBlock
-  val getColsPerBlock = blockMapper.colsPerBlock
+  val numRowsPerBlock = blockMapper.rowsPerBlock
+  val numColsPerBlock = blockMapper.colsPerBlock
 
-  val getNumBlocks = blockMapper.numBlocks
+  val numNumBlocks = blockMapper.numBlocks
 
   /**
     * Compares the format of two block matrices
@@ -59,8 +58,8 @@ class BlockMatrix(
     */
   def hasSameFormat(other: BlockMatrix): Boolean =
     this.numRows == other.numRows && this.numCols == other.numCols &&
-    this.getRowsPerBlock == other.getRowsPerBlock &&
-    this.getColsPerBlock == other.getColsPerBlock
+    this.numRowsPerBlock == other.numRowsPerBlock &&
+    this.numColsPerBlock == other.numColsPerBlock
 
   /**
     * Perform an operation on pairs of block. Pairs are formed taking
@@ -70,7 +69,8 @@ class BlockMatrix(
     */
   def blockPairOperation(
       fun: (Block, Block) => Block, other: BlockMatrix): BlockMatrix = {
-    require(hasSameFormat(other))
+    require(hasSameFormat(other),
+                   "Two Block-Matrices must have the same block format to perform this operation")
 
     /*Full outer join on blocks. The full outer join is required because of
     the sparse nature of the matrix.
@@ -83,13 +83,13 @@ class BlockMatrix(
             val (id1, block1) = Option(left) match {
               case Some((id, block)) => (id, block)
               case None =>
-                (right._1, Block.zero(right._2.getRows, right._2.getCols))
+                (right._1, Block.zero(right._2.numRows, right._2.numCols))
             }
 
             val (id2, block2) = Option(right) match {
               case Some((id, block)) => (id, block)
               case None =>
-                (left._1, Block.zero(left._2.getRows, left._2.getCols))
+                (left._1, Block.zero(left._2.numRows, left._2.numCols))
             }
 
             require(id1 == id2)
@@ -148,9 +148,9 @@ class BlockMatrix(
      */
 
     //Checking that the two matrices are compatible for multiplication.
-    require(this.getBlockCols == other.getBlockRows)
-    require(this.getColsPerBlock == other.getColsPerBlock)
-    require(this.getRowsPerBlock == other.getRowsPerBlock)
+    require(this.numBlockCols == other.numBlockRows)
+    require(this.numColsPerBlock == other.numColsPerBlock)
+    require(this.numRowsPerBlock == other.numRowsPerBlock)
 
     /*BlockID is converted to mapped coordinates that will be required to
       group blocks together.*/
@@ -223,12 +223,13 @@ private class ToRowMatrixReducer(blockMapper: BlockMapper)
 
     val blockGroup = values.toList
 
-    require(blockGroup.nonEmpty)
+    require(blockGroup.nonEmpty, "A block group cannot be empty")
 
     val groupRow = blockGroup.head._1
 
     //all blocks must have the same row
-    require(blockGroup.forall(block => block._1 == groupRow))
+    require(blockGroup.forall(block => block._1 == groupRow),
+                          "All blocks must have the same row number")
 
     //map every block to its mapped column
     val groupElements = blockGroup

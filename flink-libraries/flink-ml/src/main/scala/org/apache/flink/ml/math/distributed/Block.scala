@@ -18,28 +18,23 @@
 
 package org.apache.flink.ml.math.distributed
 
-import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.{Matrix => FlinkMatrix, SparseMatrix}
 
-class Block() {
-
-  var blockData: FlinkMatrix = null
-
-  def setBlockData(flinkMatrix: FlinkMatrix) = blockData = flinkMatrix
+class Block(val blockData: FlinkMatrix) {
 
   def getBlockData = blockData
 
   def toBreeze = blockData.asBreeze
 
-  def getCols = blockData.numCols
+  def numCols = blockData.numCols
 
-  def getRows = blockData.numRows
+  def numRows = blockData.numRows
 
   //TODO: evaluate efficiency of conversion to and from Breeze
   def multiply(other: Block) = {
 
-    require(this.getCols == other.getRows)
+    require(this.numCols == other.numRows)
 
     Block((blockData.asBreeze * other.toBreeze).fromBreeze)
   }
@@ -59,15 +54,13 @@ class Block() {
 object Block {
 
   def apply(data: FlinkMatrix) = {
-    val b = new Block()
-    b.setBlockData(data)
-    b
+     new Block(data)
+
   }
 
   def zero(rows: Int, cols: Int) = {
-    val b = new Block()
+
     val zeros = SparseMatrix.fromCOO(rows, cols, List((0, 0, 0.0)))
-    b.setBlockData(zeros)
-    b
+    new Block(zeros)
   }
 }

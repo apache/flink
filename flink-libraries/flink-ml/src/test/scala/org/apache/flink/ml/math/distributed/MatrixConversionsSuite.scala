@@ -97,7 +97,7 @@ class MatrixConversionsSuite
 
     dataMap(3).getBlockData(2, 10) shouldBe 42.0
 
-    dataMap(blockMatrix2.getNumBlocks - 1).getBlockData(0, 19) shouldBe 123.0
+    dataMap(blockMatrix2.numNumBlocks - 1).getBlockData(0, 19) shouldBe 123.0
 
     d2.numCols shouldBe blockMatrix2.numCols
     d2.numRows shouldBe blockMatrix2.numRows
