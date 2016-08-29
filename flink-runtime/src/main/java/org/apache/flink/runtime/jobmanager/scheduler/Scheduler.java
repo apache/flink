@@ -37,6 +37,8 @@ import akka.dispatch.Futures;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.instance.SharedSlot;
@@ -62,7 +64,7 @@ import scala.concurrent.ExecutionContext;
  *         fulfilled as soon as a slot becomes available.</li>
  * </ul>
  */
-public class Scheduler implements InstanceListener, SlotAvailabilityListener {
+public class Scheduler implements SlotProvider, InstanceListener, SlotAvailabilityListener {
 
 	/** Scheduler-wide logger */
 	private static final Logger LOG = LoggerFactory.getLogger(Scheduler.class);
@@ -124,21 +126,14 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Scheduling
+	//  Slot Provider
 	// ------------------------------------------------------------------------
-	
-	public SimpleSlot scheduleImmediately(ScheduledUnit task) throws NoResourceAvailableException {
-		Object ret = scheduleTask(task, false);
-		if (ret instanceof SimpleSlot) {
-			return (SimpleSlot) ret;
-		}
-		else {
-			throw new RuntimeException();
-		}
-	}
-	
-	public SlotAllocationFuture scheduleQueued(ScheduledUnit task) throws NoResourceAvailableException {
-		Object ret = scheduleTask(task, true);
+
+	@Override
+	public SlotAllocationFuture allocateSlot(ScheduledUnit task, boolean allowQueued)
+		throws NoResourceAvailableException
+	{
+		Object ret = scheduleTask(task, allowQueued);
 		if (ret instanceof SimpleSlot) {
 			return new SlotAllocationFuture((SimpleSlot) ret);
 		}
@@ -149,7 +144,19 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			throw new RuntimeException();
 		}
 	}
-	
+
+	@Override
+	public Map<String, List<Instance>> getInstancesByHost() {
+		synchronized (globalLock) {
+			HashMap<String, List<Instance>> copy = new HashMap<String, List<Instance>>();
+
+			for (Map.Entry<String, Set<Instance>> entry : allInstancesByHost.entrySet()) {
+				copy.put(entry.getKey(), new ArrayList<Instance>(entry.getValue()));
+			}
+			return copy;
+		}
+	}
+
 	/**
 	 * Returns either a {@link org.apache.flink.runtime.instance.SimpleSlot}, or a {@link SlotAllocationFuture}.
 	 */
@@ -340,7 +347,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 * @param vertex The task to run. 
 	 * @return The instance to run the vertex on, it {@code null}, if no instance is available.
 	 */
-	protected SimpleSlot getFreeSlotForTask(ExecutionVertex vertex,
+	private SimpleSlot getFreeSlotForTask(ExecutionVertex vertex,
 											Iterable<Instance> requestedLocations,
 											boolean localOnly) {
 		// we need potentially to loop multiple times, because there may be false positives
@@ -395,7 +402,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 * 
 	 * @return A sub-slot for the given vertex, or {@code null}, if no slot is available.
 	 */
-	protected SimpleSlot getNewSlotForSharingGroup(ExecutionVertex vertex,
+	private SimpleSlot getNewSlotForSharingGroup(ExecutionVertex vertex,
 													Iterable<Instance> requestedLocations,
 													SlotSharingGroupAssignment groupAssignment,
 													CoLocationConstraint constraint,
@@ -502,7 +509,43 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			return new ImmutablePair<Instance, Locality>(instanceToUse, Locality.UNCONSTRAINED);
 		}
 	}
-	
+
+	private void updateLocalityCounters(SimpleSlot slot, ExecutionVertex vertex) {
+		Locality locality = slot.getLocality();
+
+		switch (locality) {
+			case UNCONSTRAINED:
+				this.unconstrainedAssignments++;
+				break;
+			case LOCAL:
+				this.localizedAssignments++;
+				break;
+			case NON_LOCAL:
+				this.nonLocalizedAssignments++;
+				break;
+			default:
+				throw new RuntimeException(locality.name());
+		}
+
+		if (LOG.isDebugEnabled()) {
+			switch (locality) {
+				case UNCONSTRAINED:
+					LOG.debug("Unconstrained assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
+					break;
+				case LOCAL:
+					LOG.debug("Local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
+					break;
+				case NON_LOCAL:
+					LOG.debug("Non-local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
+					break;
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Slot Availability
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void newSlotAvailable(final Instance instance) {
 		
@@ -571,38 +614,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			}
 			else {
 				this.instancesWithAvailableResources.add(instance);
-			}
-		}
-	}
-	
-	private void updateLocalityCounters(SimpleSlot slot, ExecutionVertex vertex) {
-		Locality locality = slot.getLocality();
-
-		switch (locality) {
-		case UNCONSTRAINED:
-			this.unconstrainedAssignments++;
-			break;
-		case LOCAL:
-			this.localizedAssignments++;
-			break;
-		case NON_LOCAL:
-			this.nonLocalizedAssignments++;
-			break;
-		default:
-			throw new RuntimeException(locality.name());
-		}
-		
-		if (LOG.isDebugEnabled()) {
-			switch (locality) {
-				case UNCONSTRAINED:
-					LOG.debug("Unconstrained assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
-					break;
-				case LOCAL:
-					LOG.debug("Local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
-					break;
-				case NON_LOCAL:
-					LOG.debug("Non-local assignment: " + vertex.getTaskNameWithSubtaskIndex() + " --> " + slot);
-					break;
 			}
 		}
 	}
@@ -731,7 +742,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		return count;
 	}
 
-	public int getNumberOfAvailableInstances() {
+	@VisibleForTesting
+	int getNumberOfAvailableInstances() {
 		int numberAvailableInstances = 0;
 		synchronized (this.globalLock) {
 			for (Instance instance: allInstances ){
@@ -743,35 +755,28 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 
 		return numberAvailableInstances;
 	}
-	
-	public int getNumberOfInstancesWithAvailableSlots() {
+
+	@VisibleForTesting
+	int getNumberOfInstancesWithAvailableSlots() {
 		synchronized (globalLock) {
 			processNewlyAvailableInstances();
 
 			return instancesWithAvailableResources.size();
 		}
 	}
-	
-	public Map<String, List<Instance>> getInstancesByHost() {
-		synchronized (globalLock) {
-			HashMap<String, List<Instance>> copy = new HashMap<String, List<Instance>>();
-			
-			for (Map.Entry<String, Set<Instance>> entry : allInstancesByHost.entrySet()) {
-				copy.put(entry.getKey(), new ArrayList<Instance>(entry.getValue()));
-			}
-			return copy;
-		}
-	}
-	
-	public int getNumberOfUnconstrainedAssignments() {
+
+	@VisibleForTesting
+	int getNumberOfUnconstrainedAssignments() {
 		return unconstrainedAssignments;
 	}
-	
-	public int getNumberOfLocalizedAssignments() {
+
+	@VisibleForTesting
+	int getNumberOfLocalizedAssignments() {
 		return localizedAssignments;
 	}
-	
-	public int getNumberOfNonLocalizedAssignments() {
+
+
+	int getNumberOfNonLocalizedAssignments() {
 		return nonLocalizedAssignments;
 	}
 	

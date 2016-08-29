@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -66,6 +67,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -121,7 +123,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		when(simpleSlot.setExecutedVertex(Matchers.any(Execution.class))).thenReturn(true);
 		when(simpleSlot.getRoot()).thenReturn(rootSlot);
 
-		when(scheduler.scheduleImmediately(Matchers.any(ScheduledUnit.class))).thenReturn(simpleSlot);
+		when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean()))
+			.thenReturn(new SlotAllocationFuture(simpleSlot));
 
 		when(instance.getInstanceConnectionInfo()).thenReturn(instanceConnectionInfo);
 		when(instance.getActorGateway()).thenReturn(actorGateway);
