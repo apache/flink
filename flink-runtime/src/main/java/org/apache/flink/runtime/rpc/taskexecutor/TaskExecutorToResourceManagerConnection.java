@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
 
 import org.slf4j.Logger;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -57,7 +58,7 @@ public class TaskExecutorToResourceManagerConnection {
 
 	private ResourceManagerRegistration pendingRegistration;
 
-	private ResourceManagerGateway registeredResourceManager;
+	private volatile ResourceManagerGateway registeredResourceManager;
 
 	private InstanceID registrationId;
 
@@ -93,22 +94,24 @@ public class TaskExecutorToResourceManagerConnection {
 		registration.startRegistration();
 
 		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = registration.getFuture();
+
+		ExecutionContext executionContext = taskExecutor.getRpcService().getExecutionContext();
 		
 		future.onSuccess(new OnSuccess<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>>() {
 			@Override
 			public void onSuccess(Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess> result) {
-				registeredResourceManager = result.f0;
 				registrationId = result.f1.getRegistrationId();
+				registeredResourceManager = result.f0;
 			}
-		}, taskExecutor.getMainThreadExecutionContext());
+		}, executionContext);
 		
 		// this future should only ever fail if there is a bug, not if the registration is declined
 		future.onFailure(new OnFailure() {
 			@Override
 			public void onFailure(Throwable failure) {
-				taskExecutor.onFatalError(failure);
+				taskExecutor.onFatalErrorAsync(failure);
 			}
-		}, taskExecutor.getMainThreadExecutionContext());
+		}, executionContext);
 	}
 
 	public void close() {
