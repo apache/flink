@@ -41,7 +41,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 
-/** JobManager actor for execution on Yarn or Mesos. It enriches the [[JobManager]] with additional messages
+/** JobManager actor for execution on Yarn or Mesos.
+  * It enriches the [[JobManager]] with additional messages
   * to start/administer/stop the session.
   *
   * @param flinkConfiguration Configuration object for the actor
