@@ -40,7 +40,7 @@ import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.plan.schema.{RelTable, TransStreamTable}
+import org.apache.flink.api.table.plan.schema.RelTable
 import org.apache.flink.api.table.sinks.TableSink
 import org.apache.flink.api.table.validate.FunctionCatalog
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
@@ -130,16 +130,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     checkValidTableName(name)
-
-    table.tableEnv match {
-      case e: BatchTableEnvironment =>
-        val tableTable = new RelTable(table.getRelNode)
-        registerTableInternal(name, tableTable)
-      case e: StreamTableEnvironment =>
-        val sTableTable = new TransStreamTable(table.getRelNode, true)
-        tables.add(name, sTableTable)
-    }
-
+    val tableTable = new RelTable(table.getRelNode)
+    registerTableInternal(name, tableTable)
   }
 
   /**
