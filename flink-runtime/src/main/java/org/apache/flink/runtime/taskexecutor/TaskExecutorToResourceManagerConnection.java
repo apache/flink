@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.taskexecutor;
+package org.apache.flink.runtime.taskexecutor;
 
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
@@ -27,7 +27,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.registration.RetryingRegistration;
-import org.apache.flink.runtime.rpc.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 
 import org.slf4j.Logger;
 

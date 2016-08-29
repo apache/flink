@@ -16,20 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.taskexecutor;
+package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
-
-import java.util.UUID;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import scala.concurrent.Future;
 
 /**
- * {@link TaskExecutor} RPC gateway interface
+ * {@link JobMaster} rpc gateway interface
  */
-public interface TaskExecutorGateway extends RpcGateway {
+public interface JobMasterGateway extends RpcGateway {
 
-	// ------------------------------------------------------------------------
-	//  ResourceManager handlers
-	// ------------------------------------------------------------------------
+	/**
+	 * Updates the task execution state for a given task.
+	 *
+	 * @param taskExecutionState New task execution state for a given task
+	 * @return Future acknowledge of the task execution state update
+	 */
+	Future<Acknowledge> updateTaskExecutionState(TaskExecutionState taskExecutionState);
 
-	void notifyOfNewResourceManagerLeader(String address, UUID resourceManagerLeaderId);
+	/**
+	 * Triggers the registration of the job master at the resource manager.
+	 *
+	 * @param address Address of the resource manager
+	 */
+	void registerAtResourceManager(final String address);
 }

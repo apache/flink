@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.resourcemanager;
+package org.apache.flink.runtime.resourcemanager;
 
 import java.io.Serializable;
 
