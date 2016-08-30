@@ -224,6 +224,10 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
+		 * 
+		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
+		 * Due to binary backwards compatibility, this cannot be altered. Use the {@link #with(CoGroupFunction)}
+		 * method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function) {
 
@@ -244,12 +248,13 @@ public class CoGroupedStreams<T1, T2> {
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
 		 *
-		 * <p>
-		 *     Note: This is a temporary workaround while the {@link #apply(CoGroupFunction)} method has the wrong return type.
-		 * </p>
-		 * @deprecated This method will be replaced by {@link #apply(CoGroupFunction)} in Flink 2.0.
-		 * So use the {@link #apply(CoGroupFunction)} in the future.
-         */
+		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(CoGroupFunction)}
+		 * method has the wrong return type and hence does not allow one to set an operator-specific
+		 * parallelism
+		 * 
+		 * @deprecated This method will be removed once the {@link #apply(CoGroupFunction)} method is fixed
+		 *             in the next major version of Flink (2.0).
+		 */
 		@PublicEvolving
 		@Deprecated
 		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function) {
@@ -259,6 +264,10 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
+		 * 
+		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
+		 * Due to binary backwards compatibility, this cannot be altered. Use the
+		 * {@link #with(CoGroupFunction, TypeInformation)} method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
@@ -297,11 +306,12 @@ public class CoGroupedStreams<T1, T2> {
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
 		 *
-		 * <p>
-		 *     Note: This is a temporary workaround while the {@link #apply(CoGroupFunction, TypeInformation)} method has the wrong return type.
-		 * </p>
-		 * @deprecated This method will be replaced by {@link #apply(CoGroupFunction, TypeInformation)} in Flink 2.0.
-		 * So use the {@link #apply(CoGroupFunction, TypeInformation)} in the future.
+		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(CoGroupFunction, TypeInformation)}
+		 * method has the wrong return type and hence does not allow one to set an operator-specific
+		 * parallelism
+		 *
+		 * @deprecated This method will be removed once the {@link #apply(CoGroupFunction, TypeInformation)}
+		 *             method is fixed in the next major version of Flink (2.0).
 		 */
 		@PublicEvolving
 		@Deprecated
