@@ -402,3 +402,75 @@ trait ImplicitExpressionConversions {
   implicit def sqlTime2Literal(sqlTime: Time): Expression = Literal(sqlTime)
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression = Literal(sqlTimestamp)
 }
+
+// ------------------------------------------------------------------------------------------------
+// Expressions with no parameters
+// ------------------------------------------------------------------------------------------------
+
+/**
+  * Returns the current SQL date in UTC time zone.
+  */
+object currentDate {
+
+  /**
+    * Returns the current SQL date in UTC time zone.
+    */
+  def apply(): Expression = {
+    CurrentDate()
+  }
+}
+
+/**
+  * Returns the current SQL time in UTC time zone.
+  */
+object currentTime {
+
+  /**
+    * Returns the current SQL time in UTC time zone.
+    */
+  def apply(): Expression = {
+    CurrentTime()
+  }
+}
+
+/**
+  * Returns the current SQL timestamp in UTC time zone.
+  */
+object currentTimestamp {
+
+  /**
+    * Returns the current SQL timestamp in UTC time zone.
+    */
+  def apply(): Expression = {
+    CurrentTimestamp()
+  }
+}
+
+/**
+  * Returns the current SQL time in local time zone.
+  */
+object localTime {
+
+  /**
+    * Returns the current SQL time in local time zone.
+    */
+  def apply(): Expression = {
+    LocalTime()
+  }
+}
+
+/**
+  * Returns the current SQL timestamp in local time zone.
+  */
+object localTimestamp {
+
+  /**
+    * Returns the current SQL timestamp in local time zone.
+    */
+  def apply(): Expression = {
+    LocalTimestamp()
+  }
+}
+
+
+

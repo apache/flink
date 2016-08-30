@@ -20,6 +20,7 @@ package org.apache.flink.api.table.codegen
 
 import java.math.{BigDecimal => JBigDecimal}
 
+import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -106,6 +107,10 @@ class CodeGenerator(
   // we use a LinkedHashSet to keep the insertion order
   private val reusableInitStatements = mutable.LinkedHashSet[String]()
 
+  // set of statements that will be added only once per record
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
+
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
   private val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
@@ -123,6 +128,13 @@ class CodeGenerator(
     */
   def reuseInitCode(): String = {
     reusableInitStatements.mkString("", "\n", "\n")
+  }
+
+  /**
+    * @return code block of statements that need to be placed in the SAM of the Function
+    */
+  def reusePerRecordCode(): String = {
+    reusablePerRecordStatements.mkString("", "\n", "\n")
   }
 
   /**
@@ -234,6 +246,7 @@ class CodeGenerator(
         @Override
         public ${samHeader._1} throws Exception {
           ${samHeader._2.mkString("\n")}
+          ${reusePerRecordCode()}
           ${reuseInputUnboxingCode()}
           $bodyCode
         }
@@ -1241,6 +1254,95 @@ class CodeGenerator(
         |$fieldTerm = ($classQualifier) $constructorTerm.newInstance();
        """.stripMargin
     reusableInitStatements.add(constructorAccessibility)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable timestamp to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableTimestamp(): String = {
+    val fieldTerm = s"timestamp"
+
+    val field =
+      s"""
+        |final long $fieldTerm = java.lang.System.currentTimeMillis();
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+    /**
+    * Adds a reusable local timestamp to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableLocalTimestamp(): String = {
+    val fieldTerm = s"localtimestamp"
+
+    val timestamp = addReusableTimestamp()
+
+    val field =
+      s"""
+        |final long $fieldTerm = $timestamp + java.util.TimeZone.getDefault().getOffset(timestamp);
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable time to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableTime(): String = {
+    val fieldTerm = s"time"
+
+    val timestamp = addReusableTimestamp()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
+    val field =
+      s"""
+        |final int $fieldTerm = (int) ($timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |if (time < 0) {
+        |  time += ${DateTimeUtils.MILLIS_PER_DAY};
+        |}
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable local time to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableLocalTime(): String = {
+    val fieldTerm = s"localtime"
+
+    val localtimestamp = addReusableLocalTimestamp()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
+    val field =
+      s"""
+        |final int $fieldTerm = (int) ($localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+
+  /**
+    * Adds a reusable date to the beginning of the SAM of the generated [[Function]].
+    */
+  def addReusableDate(): String = {
+    val fieldTerm = s"date"
+
+    val timestamp = addReusableTimestamp()
+    val time = addReusableTime()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.currentDate()
+    val field =
+      s"""
+        |final int $fieldTerm = (int) ($timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
+        |if ($time < 0) {
+        |  $fieldTerm -= 1;
+        |}
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
     fieldTerm
   }
 }
