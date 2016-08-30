@@ -18,10 +18,10 @@
 
 package org.apache.flink.mesos.runtime.clusterframework.store;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.mesos.Protos;
 import scala.Option;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +62,9 @@ public class StandaloneMesosWorkerStore implements MesosWorkerStore {
 
 	@Override
 	public List<Worker> recoverWorkers() throws Exception {
-		return ImmutableList.copyOf(storedWorkers.values());
+		List<Worker> workers = new ArrayList<>(storedWorkers.size());
+		workers.addAll(storedWorkers.values());
+		return workers;
 	}
 
 	@Override
