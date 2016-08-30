@@ -32,6 +32,7 @@ import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees
 import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
@@ -59,7 +60,24 @@ public class LocalClusteringCoefficient<K extends Comparable<K> & CopyableValue<
 extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 	// Optional configuration
+	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(true, true);
+
 	private int littleParallelism = PARALLELISM_DEFAULT;
+
+	/**
+	 * By default the vertex set is checked for zero degree vertices. When this
+	 * flag is disabled only clustering coefficient scores for vertices with
+	 * a degree of a least one will be produced.
+	 *
+	 * @param includeZeroDegreeVertices whether to output scores for vertices
+	 *                                  with a degree of zero
+	 * @return this
+	 */
+	public LocalClusteringCoefficient<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
+		this.includeZeroDegreeVertices.set(includeZeroDegreeVertices);
+
+		return this;
+	}
 
 	/**
 	 * Override the parallelism of operators processing small amounts of data.
@@ -89,6 +107,16 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		LocalClusteringCoefficient rhs = (LocalClusteringCoefficient) other;
+
+		// verify that configurations can be merged
+
+		if (includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices)) {
+			return false;
+		}
+
+		// merge configurations
+
+		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
 
 		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
 
@@ -128,8 +156,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 		// u, deg(u)
 		DataSet<Vertex<K, Degrees>> vertexDegree = input
 			.run(new VertexDegrees<K, VV, EV>()
-				.setParallelism(littleParallelism)
-				.setIncludeZeroDegreeVertices(true));
+				.setIncludeZeroDegreeVertices(includeZeroDegreeVertices.get())
+				.setParallelism(littleParallelism));
 
 		// u, deg(u), triangle count
 		return vertexDegree

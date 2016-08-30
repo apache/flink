@@ -47,6 +47,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,7 +58,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
-import static org.apache.flink.configuration.ConfigConstants.ZOOKEEPER_NAMESPACE_KEY;
+import static org.apache.flink.configuration.ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY;
 
 /**
  * Class handling the command line interface to the YARN session.
@@ -253,15 +256,23 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		Path localJarPath;
 		if (cmd.hasOption(FLINK_JAR.getOpt())) {
 			String userPath = cmd.getOptionValue(FLINK_JAR.getOpt());
-			if(!userPath.startsWith("file://")) {
+			if (!userPath.startsWith("file://")) {
 				userPath = "file://" + userPath;
 			}
 			localJarPath = new Path(userPath);
 		} else {
 			LOG.info("No path for the flink jar passed. Using the location of "
 				+ yarnClusterDescriptor.getClass() + " to locate the jar");
-			localJarPath = new Path("file://" +
-				yarnClusterDescriptor.getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
+			String encodedJarPath =
+				yarnClusterDescriptor.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+			try {
+				// we have to decode the url encoded parts of the path
+				String decodedPath = URLDecoder.decode(encodedJarPath, Charset.defaultCharset().name());
+				localJarPath = new Path(new File(decodedPath).toURI());
+			} catch (UnsupportedEncodingException e) {
+				throw new RuntimeException("Couldn't decode the encoded Flink dist jar path: " + encodedJarPath +
+					" Please supply a path manually via the -" + FLINK_JAR.getOpt() + " option.");
+			}
 		}
 
 		yarnClusterDescriptor.setLocalJarPath(localJarPath);
@@ -492,8 +503,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		if(null != applicationID) {
 			String zkNamespace = cmdLine.hasOption(ZOOKEEPER_NAMESPACE.getOpt()) ?
 					cmdLine.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt())
-					: config.getString(ZOOKEEPER_NAMESPACE_KEY, applicationID);
-			config.setString(ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+					: config.getString(HA_ZOOKEEPER_NAMESPACE_KEY, applicationID);
+			config.setString(HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
 
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
 			yarnDescriptor.setFlinkConfiguration(config);

@@ -29,7 +29,7 @@ bin=`cd "$bin"; pwd`
 
 # Start the JobManager instance(s)
 shopt -s nocasematch
-if [[ $RECOVERY_MODE == "zookeeper" ]]; then
+if [[ $HIGH_AVAILABILITY == "zookeeper" ]]; then
     # HA Mode
     readMasters
 
@@ -58,6 +58,6 @@ if [[ $? -ne 0 ]]; then
         ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start &"
     done
 else
-    PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
+    PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND="${FLINK_SSH_OPTS}" pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
         "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start"
 fi

@@ -286,7 +286,6 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 		JobInfo expectedJobInfo = expected.getJobInfo();
 		JobInfo actualJobInfo = actual.getJobInfo();
 
-		assertEquals(expectedJobInfo.listeningBehaviour(), actualJobInfo.listeningBehaviour());
-		assertEquals(expectedJobInfo.start(), actualJobInfo.start());
+		assertEquals(expectedJobInfo, actualJobInfo);
 	}
 }

@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -48,6 +47,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobListeningContext;
+import org.apache.flink.runtime.client.JobRetrievalException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -57,6 +58,7 @@ import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.ConnectionUtils;
+import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -232,27 +234,16 @@ public abstract class ClusterClient {
 	}
 
 	/**
-	 * Gets the current JobManager address from the Flink configuration (may change in case of a HA setup).
-	 * @return The address (host and port) of the leading JobManager when it was last retrieved (may be outdated)
-	 */
-	public InetSocketAddress getJobManagerAddressFromConfig() {
-		try {
-			String hostName = flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-			int port = flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
-			return new InetSocketAddress(hostName, port);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to retrieve JobManager address", e);
-		}
-	}
-
-	/**
 	 * Gets the current JobManager address (may change in case of a HA setup).
 	 * @return The address (host and port) of the leading JobManager
 	 */
 	public InetSocketAddress getJobManagerAddress() {
 		try {
-			final ActorRef jmActor = getJobManagerGateway().actor();
-			return AkkaUtils.getInetSockeAddressFromAkkaURL(jmActor.path().toSerializationFormat());
+			LeaderConnectionInfo leaderConnectionInfo =
+				LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+					LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig), timeout);
+
+			return AkkaUtils.getInetSockeAddressFromAkkaURL(leaderConnectionInfo.getAddress());
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to retrieve JobManager address", e);
 		}
@@ -440,6 +431,39 @@ public abstract class ClusterClient {
 	}
 
 	/**
+	 * Reattaches to a running from from the supplied job id
+	 * @param jobID The job id of the job to attach to
+	 * @return The JobExecutionResult for the jobID
+	 * @throws JobExecutionException if an error occurs during monitoring the job execution
+	 */
+	public JobExecutionResult retrieveJob(JobID jobID) throws JobExecutionException {
+		final LeaderRetrievalService leaderRetrievalService;
+		try {
+			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
+		} catch (Exception e) {
+			throw new JobRetrievalException(jobID, "Could not create the leader retrieval service", e);
+		}
+
+		ActorGateway jobManagerGateway;
+		try {
+			jobManagerGateway = getJobManagerGateway();
+		} catch (Exception e) {
+			throw new JobRetrievalException(jobID, "Could not retrieve the JobManager Gateway");
+		}
+
+		final JobListeningContext listeningContext = JobClient.attachToRunningJob(
+				jobID,
+				jobManagerGateway,
+				flinkConfig,
+				actorSystemLoader.get(),
+				leaderRetrievalService,
+				timeout,
+				printStatusDuringExecution);
+
+		return JobClient.awaitJobResult(listeningContext);
+	}
+
+	/**
 	 * Cancels a job identified by the job id.
 	 * @param jobId the job id
 	 * @throws Exception In case an error occurred.
@@ -457,11 +481,11 @@ public abstract class ClusterClient {
 		final Object result = Await.result(response, timeout);
 
 		if (result instanceof JobManagerMessages.CancellationSuccess) {
-			LOG.info("Job cancellation with ID " + jobId + " succeeded.");
+			logAndSysout("Job cancellation with ID " + jobId + " succeeded.");
 		} else if (result instanceof JobManagerMessages.CancellationFailure) {
 			final Throwable t = ((JobManagerMessages.CancellationFailure) result).cause();
-			LOG.info("Job cancellation with ID " + jobId + " failed.", t);
-			throw new Exception("Failed to cancel the job because of \n" + t.getMessage());
+			logAndSysout("Job cancellation with ID " + jobId + " failed because of " + t.getMessage());
+			throw new Exception("Failed to cancel the job with id " + jobId, t);
 		} else {
 			throw new Exception("Unknown message received while cancelling: " + result.getClass().getName());
 		}

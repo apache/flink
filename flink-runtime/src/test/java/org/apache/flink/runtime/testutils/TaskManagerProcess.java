@@ -96,7 +96,7 @@ public class TaskManagerProcess extends TestJvmProcess {
 
 		/**
 		 * All arguments are parsed to a {@link Configuration} and passed to the Taskmanager,
-		 * for instance: <code>--recovery.mode ZOOKEEPER --recovery.zookeeper.quorum "xyz:123:456"</code>.
+		 * for instance: <code>--high-availability ZOOKEEPER --high-availability.zookeeper.quorum "xyz:123:456"</code>.
 		 */
 		public static void main(String[] args) throws Exception {
 			try {

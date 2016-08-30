@@ -23,7 +23,8 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
@@ -31,8 +32,6 @@ import org.rocksdb.WriteOptions;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * {@link ValueState} implementation that stores state in RocksDB.
@@ -42,14 +41,11 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBValueState<K, N, V>
-	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>>
+	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>, V>
 	implements ValueState<V> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<V> valueSerializer;
-
-	/** This holds the name of the state and can create an initial default value for the state. */
-	private final ValueStateDescriptor<V> stateDesc;
 
 	/**
 	 * We disable writes to the write-ahead-log here. We can't have these in the base class
@@ -69,8 +65,7 @@ public class RocksDBValueState<K, N, V>
 			ValueStateDescriptor<V> stateDesc,
 			RocksDBStateBackend backend) {
 
-		super(columnFamily, namespaceSerializer, backend);
-		this.stateDesc = requireNonNull(stateDesc);
+		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getSerializer();
 
 		writeOptions = new WriteOptions();
@@ -112,5 +107,19 @@ public class RocksDBValueState<K, N, V>
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
-}
 
+	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		// Serialized key and namespace is expected to be of the same format
+		// as writeKeyAndNamespace()
+		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
+
+		byte[] value = backend.db.get(columnFamily, serializedKeyAndNamespace);
+
+		if (value != null) {
+			return value;
+		} else {
+			return KvStateRequestSerializer.serializeValue(stateDesc.getDefaultValue(), stateDesc.getSerializer());
+		}
+	}
+}

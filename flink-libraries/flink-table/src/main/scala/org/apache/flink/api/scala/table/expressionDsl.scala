@@ -17,12 +17,15 @@
  */
 package org.apache.flink.api.scala.table
 
-import java.sql.{Timestamp, Time, Date}
+import java.sql.{Date, Time, Timestamp}
+
+import org.apache.calcite.avatica.util.DateTimeUtils._
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
+import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.api.table.expressions._
 
 import scala.language.implicitConversions
-
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.table.expressions._
 
 /**
  * These are all the operations that can be used to construct an [[Expression]] AST for expression
@@ -166,11 +169,11 @@ trait ImplicitExpressionOperations {
       removeTrailing: Boolean = true,
       character: Expression = TrimConstants.TRIM_DEFAULT_CHAR) = {
     if (removeLeading && removeTrailing) {
-      Trim(TrimConstants.TRIM_BOTH, character, expr)
+      Trim(TrimMode.BOTH, character, expr)
     } else if (removeLeading) {
-      Trim(TrimConstants.TRIM_LEADING, character, expr)
+      Trim(TrimMode.LEADING, character, expr)
     } else if (removeTrailing) {
-      Trim(TrimConstants.TRIM_TRAILING, character, expr)
+      Trim(TrimMode.TRAILING, character, expr)
     } else {
       expr
     }
@@ -227,6 +230,64 @@ trait ImplicitExpressionOperations {
     * Parses a timestamp String in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
     */
   def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
+
+  /**
+    * Extracts parts of a time point or time interval. Returns the part as a long value.
+    *
+    * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
+    */
+  def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
+
+  // interval types
+
+  /**
+    * Creates an interval of the given number of years.
+    *
+    * @return interval of months
+    */
+  def year = toMonthInterval(expr, 12)
+
+  /**
+    * Creates an interval of the given number of months.
+    *
+    * @return interval of months
+    */
+  def month = toMonthInterval(expr, 1)
+
+  /**
+    * Creates an interval of the given number of days.
+    *
+    * @return interval of milliseconds
+    */
+  def day = toMilliInterval(expr, MILLIS_PER_DAY)
+
+    /**
+    * Creates an interval of the given number of hours.
+    *
+    * @return interval of milliseconds
+    */
+  def hour = toMilliInterval(expr, MILLIS_PER_HOUR)
+
+    /**
+    * Creates an interval of the given number of minutes.
+    *
+    * @return interval of milliseconds
+    */
+  def minute = toMilliInterval(expr, MILLIS_PER_MINUTE)
+
+    /**
+    * Creates an interval of the given number of seconds.
+    *
+    * @return interval of milliseconds
+    */
+  def second = toMilliInterval(expr, MILLIS_PER_SECOND)
+
+    /**
+    * Creates an interval of the given number of milliseconds.
+    *
+    * @return interval of milliseconds
+    */
+  def milli = toMilliInterval(expr, 1)
 }
 
 /**
@@ -238,7 +299,7 @@ trait ImplicitExpressionConversions {
     def expr = e
   }
 
-  implicit class SymbolExpression(s: Symbol) extends ImplicitExpressionOperations {
+  implicit class UnresolvedFieldExpression(s: Symbol) extends ImplicitExpressionOperations {
     def expr = UnresolvedFieldReference(s.name)
   }
 

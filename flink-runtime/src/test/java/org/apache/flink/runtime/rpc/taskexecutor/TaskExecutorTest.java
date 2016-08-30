@@ -53,11 +53,10 @@ public class TaskExecutorTest extends TestLogger {
 			TaskExecutor taskManager = TaskExecutor.startTaskManagerComponentsAndActor(
 				new Configuration(), resourceID, rpc, "localhost", haServices, true);
 			String taskManagerAddress = taskManager.getAddress();
-
 			taskManager.start();
 
 			verify(rmGateway, timeout(5000)).registerTaskExecutor(
-					any(UUID.class), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
+				any(UUID.class), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
 		}
 		finally {
 			rpc.stopService();
@@ -98,7 +97,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address1, leaderId1);
 
 			verify(rmGateway1, timeout(5000)).registerTaskExecutor(
-					eq(leaderId1), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
+				eq(leaderId1), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// cancel the leader 
@@ -108,7 +107,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address2, leaderId2);
 
 			verify(rmGateway2, timeout(5000)).registerTaskExecutor(
-					eq(leaderId2), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
+				eq(leaderId2), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 		}
 		finally {

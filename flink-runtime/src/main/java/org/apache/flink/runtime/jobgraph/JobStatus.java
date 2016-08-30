@@ -55,7 +55,7 @@ public enum JobStatus {
 	
 	// --------------------------------------------------------------------------------------------
 
-	enum TerminalState {
+	private enum TerminalState {
 		NON_TERMINAL,
 		LOCALLY,
 		GLOBALLY

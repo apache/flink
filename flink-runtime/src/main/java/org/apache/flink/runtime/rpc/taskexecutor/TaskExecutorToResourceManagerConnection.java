@@ -55,7 +55,7 @@ public class TaskExecutorToResourceManagerConnection {
 
 	private final String resourceManagerAddress;
 
-	private ResourceManagerRegistration pendingRegistration;
+	private TaskExecutorToResourceManagerConnection.ResourceManagerRegistration pendingRegistration;
 
 	private ResourceManagerGateway registeredResourceManager;
 
@@ -66,10 +66,10 @@ public class TaskExecutorToResourceManagerConnection {
 
 
 	public TaskExecutorToResourceManagerConnection(
-			Logger log,
-			TaskExecutor taskExecutor,
-			String resourceManagerAddress,
-			UUID resourceManagerLeaderId) {
+		Logger log,
+		TaskExecutor taskExecutor,
+		String resourceManagerAddress,
+		UUID resourceManagerLeaderId) {
 
 		this.log = checkNotNull(log);
 		this.taskExecutor = checkNotNull(taskExecutor);
@@ -86,14 +86,14 @@ public class TaskExecutorToResourceManagerConnection {
 		checkState(!closed, "The connection is already closed");
 		checkState(!isRegistered() && pendingRegistration == null, "The connection is already started");
 
-		ResourceManagerRegistration registration = new ResourceManagerRegistration(
-				log, taskExecutor.getRpcService(),
-				resourceManagerAddress, resourceManagerLeaderId,
-				taskExecutor.getAddress(), taskExecutor.getResourceID());
-		registration.startRegistration();
+		pendingRegistration = new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
+			log, taskExecutor.getRpcService(),
+			resourceManagerAddress, resourceManagerLeaderId,
+			taskExecutor.getAddress(), taskExecutor.getResourceID());
+		pendingRegistration.startRegistration();
 
-		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = registration.getFuture();
-		
+		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = pendingRegistration.getFuture();
+
 		future.onSuccess(new OnSuccess<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>>() {
 			@Override
 			public void onSuccess(Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess> result) {
@@ -101,7 +101,7 @@ public class TaskExecutorToResourceManagerConnection {
 				registrationId = result.f1.getRegistrationId();
 			}
 		}, taskExecutor.getMainThreadExecutionContext());
-		
+
 		// this future should only ever fail if there is a bug, not if the registration is declined
 		future.onFailure(new OnFailure() {
 			@Override
@@ -160,27 +160,27 @@ public class TaskExecutorToResourceManagerConnection {
 	@Override
 	public String toString() {
 		return String.format("Connection to ResourceManager %s (leaderId=%s)",
-				resourceManagerAddress, resourceManagerLeaderId); 
+			resourceManagerAddress, resourceManagerLeaderId);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	static class ResourceManagerRegistration
-			extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+	private static class ResourceManagerRegistration
+		extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 		private final String taskExecutorAddress;
-		
+
 		private final ResourceID resourceID;
 
-		public ResourceManagerRegistration(
-				Logger log,
-				RpcService rpcService,
-				String targetAddress,
-				UUID leaderId,
-				String taskExecutorAddress,
-				ResourceID resourceID) {
+		ResourceManagerRegistration(
+			Logger log,
+			RpcService rpcService,
+			String targetAddress,
+			UUID leaderId,
+			String taskExecutorAddress,
+			ResourceID resourceID) {
 
 			super(log, rpcService, "ResourceManager", ResourceManagerGateway.class, targetAddress, leaderId);
 			this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
@@ -189,7 +189,7 @@ public class TaskExecutorToResourceManagerConnection {
 
 		@Override
 		protected Future<RegistrationResponse> invokeRegistration(
-				ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
+			ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
 
 			FiniteDuration timeout = new FiniteDuration(timeoutMillis, TimeUnit.MILLISECONDS);
 			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, timeout);

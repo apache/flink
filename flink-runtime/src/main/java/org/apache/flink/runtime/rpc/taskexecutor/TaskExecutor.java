@@ -83,7 +83,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutor.class);
 
-	/** The unique resource ID of this TaskManager */
+	/** The unique resource ID of this TaskExecutor */
 	private final ResourceID resourceID;
 
 	/** The access to the leader election and metadata storage services */
@@ -105,6 +105,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	private final int numberOfSlots;
 
 	// --------- resource manager --------
+
 	private TaskExecutorToResourceManagerConnection resourceManagerConnection;
 
 	// ------------------------------------------------------------------------
@@ -157,7 +158,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				// the resource manager switched to a new leader
 				log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
 					resourceManagerConnection.getResourceManagerAddress(), newLeaderAddress);
-			} else {
+			}
+			else {
 				// address null means that the current leader is lost without a new leader being there, yet
 				log.info("Current ResourceManager {} lost leader status. Waiting for new ResourceManager leader.",
 					resourceManagerConnection.getResourceManagerAddress());
@@ -376,7 +378,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		final NetworkEnvironment network = new NetworkEnvironment(
 			executionContext,
 			taskExecutorConfig.getTimeout(),
-			taskExecutorConfig.getNetworkConfig());
+			taskExecutorConfig.getNetworkConfig(),
+			taskExecutorConfig.getConnectionInfo());
 
 		// computing the amount of memory to use depends on how much memory is available
 		// it strictly needs to happen AFTER the network stack has been initialized
@@ -546,16 +549,12 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		// initialize the memory segment factory accordingly
 		if (memType == MemoryType.HEAP) {
-			if (!MemorySegmentFactory.isInitialized()) {
-				MemorySegmentFactory.initializeFactory(HeapMemorySegment.FACTORY);
-			} else if (MemorySegmentFactory.getFactory() != HeapMemorySegment.FACTORY) {
+			if (!MemorySegmentFactory.initializeIfNotInitialized(HeapMemorySegment.FACTORY)) {
 				throw new Exception("Memory type is set to heap memory, but memory segment " +
 					"factory has been initialized for off-heap memory segments");
 			}
 		} else {
-			if (!MemorySegmentFactory.isInitialized()) {
-				MemorySegmentFactory.initializeFactory(HybridMemorySegment.FACTORY);
-			} else if (MemorySegmentFactory.getFactory() != HybridMemorySegment.FACTORY) {
+			if (!MemorySegmentFactory.initializeIfNotInitialized(HybridMemorySegment.FACTORY)) {
 				throw new Exception("Memory type is set to off-heap memory, but memory segment " +
 					"factory has been initialized for heap memory segments");
 			}
@@ -584,11 +583,26 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			ioMode = IOManager.IOMode.SYNC;
 		}
 
+		final int queryServerPort =  configuration.getInteger(
+			ConfigConstants.QUERYABLE_STATE_SERVER_PORT,
+			ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_PORT);
+
+		final int queryServerNetworkThreads =  configuration.getInteger(
+			ConfigConstants.QUERYABLE_STATE_SERVER_NETWORK_THREADS,
+			ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_NETWORK_THREADS);
+
+		final int queryServerQueryThreads =  configuration.getInteger(
+			ConfigConstants.QUERYABLE_STATE_SERVER_QUERY_THREADS,
+			ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_QUERY_THREADS);
+
 		final NetworkEnvironmentConfiguration networkConfig = new NetworkEnvironmentConfiguration(
 			numNetworkBuffers,
 			pageSize,
 			memType,
 			ioMode,
+			queryServerPort,
+			queryServerNetworkThreads,
+			queryServerQueryThreads,
 			localTaskManagerCommunication ? Option.<NettyConfig>empty() : new Some<>(nettyConfig),
 			new Tuple2<>(500, 3000));
 

@@ -22,6 +22,7 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.accumulators.LongMaximum;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.configuration.Configuration;
@@ -35,12 +36,17 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
+import java.text.NumberFormat;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
- * Compute the number of vertices, number of edges, and number of triplets in
- * an undirected graph.
+ * Compute the following vertex metrics in an undirected graph:
+ *  - number of vertices
+ *  - number of edges
+ *  - number of triplets
+ *  - maximum degree
+ *  - maximum number of triplets
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -125,8 +131,10 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		long vertexCount = res.getAccumulatorResult(id + "-0");
 		long edgeCount = res.getAccumulatorResult(id + "-1");
 		long tripletCount = res.getAccumulatorResult(id + "-2");
+		long maximumDegree = res.getAccumulatorResult(id + "-3");
+		long maximumTriplets = res.getAccumulatorResult(id + "-4");
 
-		return new Result(vertexCount, edgeCount / 2, tripletCount);
+		return new Result(vertexCount, edgeCount / 2, tripletCount, maximumDegree, maximumTriplets);
 	}
 
 	/**
@@ -141,13 +149,15 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		private long vertexCount;
 		private long edgeCount;
 		private long tripletCount;
+		private long maximumDegree;
+		private long maximumTriplets;
 
 		/**
 		 * This helper class collects vertex metrics by scanning over and
 		 * discarding elements from the given DataSet.
 		 *
 		 * The unique id is required because Flink's accumulator namespace is
-		 * among all operators.
+		 * shared among all operators.
 		 *
 		 * @param id unique string used for accumulator names
 		 */
@@ -164,10 +174,13 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		@Override
 		public void writeRecord(Vertex<T, LongValue> record) throws IOException {
 			long degree = record.f1.getValue();
+			long triplets = degree * (degree - 1) / 2;
 
 			vertexCount++;
 			edgeCount += degree;
-			tripletCount += degree * (degree - 1) / 2;
+			tripletCount += triplets;
+			maximumDegree = Math.max(maximumDegree, degree);
+			maximumTriplets = Math.max(maximumTriplets, triplets);
 		}
 
 		@Override
@@ -175,6 +188,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			getRuntimeContext().addAccumulator(id + "-0", new LongCounter(vertexCount));
 			getRuntimeContext().addAccumulator(id + "-1", new LongCounter(edgeCount));
 			getRuntimeContext().addAccumulator(id + "-2", new LongCounter(tripletCount));
+			getRuntimeContext().addAccumulator(id + "-3", new LongMaximum(maximumDegree));
+			getRuntimeContext().addAccumulator(id + "-4", new LongMaximum(maximumTriplets));
 		}
 	}
 
@@ -185,11 +200,15 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		private long vertexCount;
 		private long edgeCount;
 		private long tripletCount;
+		private long maximumDegree;
+		private long maximumTriplets;
 
-		public Result(long vertexCount, long edgeCount, long tripletCount) {
+		public Result(long vertexCount, long edgeCount, long tripletCount, long maximumDegree, long maximumTriplets) {
 			this.vertexCount = vertexCount;
 			this.edgeCount = edgeCount;
 			this.tripletCount = tripletCount;
+			this.maximumDegree = maximumDegree;
+			this.maximumTriplets = maximumTriplets;
 		}
 
 		/**
@@ -219,11 +238,33 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			return tripletCount;
 		}
 
+		/**
+		 * Get the maximum degree.
+		 *
+		 * @return maximum degree
+		 */
+		public long getMaximumDegree() {
+			return maximumDegree;
+		}
+
+		/**
+		 * Get the maximum triplets.
+		 *
+		 * @return maximum triplets
+		 */
+		public long getMaximumTriplets() {
+			return maximumTriplets;
+		}
+
 		@Override
 		public String toString() {
-			return "vertex count: " + vertexCount
-					+ ", edge count:" + edgeCount
-					+ ", triplet count: " + tripletCount;
+			NumberFormat nf = NumberFormat.getInstance();
+
+			return "vertex count: " + nf.format(vertexCount)
+				+ "; edge count: " + nf.format(edgeCount)
+				+ "; triplet count: " + nf.format(tripletCount)
+				+ "; maximum degree: " + nf.format(maximumDegree)
+				+ "; maximum triplets: " + nf.format(maximumTriplets);
 		}
 
 		@Override
@@ -232,6 +273,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 				.append(vertexCount)
 				.append(edgeCount)
 				.append(tripletCount)
+				.append(maximumDegree)
+				.append(maximumTriplets)
 				.hashCode();
 		}
 
@@ -247,6 +290,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 				.append(vertexCount, rhs.vertexCount)
 				.append(edgeCount, rhs.edgeCount)
 				.append(tripletCount, rhs.tripletCount)
+				.append(maximumDegree, rhs.maximumDegree)
+				.append(maximumTriplets, rhs.maximumTriplets)
 				.isEquals();
 		}
 	}

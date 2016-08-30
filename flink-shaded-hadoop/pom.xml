@@ -35,8 +35,17 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>${shading-artifact-module.name}</module>
+		<module>${shading-artifact.name}</module>
 	</modules>
+
+	<dependencies>
+		<!-- Flink already includes JSR 305. Setting this to provided excludes it from the dependencies-->
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>jsr305</artifactId>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
 
 	<profiles>
 		<profile>
@@ -161,14 +170,6 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
 			</plugin>
 
 		</plugins>

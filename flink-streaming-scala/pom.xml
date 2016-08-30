@@ -215,13 +215,14 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Exclude generated classes from api compatibility checks -->
+			<!-- activate API compatibility checks -->
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
 					<parameter>
 						<excludes>
+							<!-- Exclude generated classes from api compatibility checks -->
 							<exclude>*\$\$anon\$*</exclude>
 						</excludes>
 					</parameter>

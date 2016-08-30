@@ -302,7 +302,7 @@ public class AllWindowedStream<T, W extends Window> {
 					allowedLateness);
 		}
 
-		return input.transform(opName, resultType, operator).setParallelism(1);
+		return input.transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	/**
@@ -391,7 +391,7 @@ public class AllWindowedStream<T, W extends Window> {
 					allowedLateness);
 		}
 
-		return input.transform(opName, resultType, operator).setParallelism(1);
+		return input.transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	/**
@@ -486,7 +486,7 @@ public class AllWindowedStream<T, W extends Window> {
 					allowedLateness);
 		}
 
-		return input.transform(opName, resultType, operator).setParallelism(1);
+		return input.transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	// ------------------------------------------------------------------------

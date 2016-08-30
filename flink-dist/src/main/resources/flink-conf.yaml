@@ -131,18 +131,14 @@ jobmanager.web.port: 8081
 
 
 #==============================================================================
-# Master High Availability (required configuration)
+# High Availability
 #==============================================================================
 
-# The list of ZooKepper quorum peers that coordinate the high-availability
+# The list of ZooKeeper quorum peers that coordinate the high-availability
 # setup. This must be a list of the form:
-# "host1:clientPort,host2[:clientPort],..." (default clientPort: 2181)
 #
-# recovery.mode: zookeeper
+# "host1:clientPort,host2:clientPort,..." (default clientPort: 2181)
 #
-# recovery.zookeeper.quorum: localhost:2181,...
-#
-# Note: You need to set the state backend to 'filesystem' and the checkpoint
-# directory (see above) before configuring the storageDir.
-#
-# recovery.zookeeper.storageDir: hdfs:///recovery
+# high-availability: zookeeper
+# high-availability.zookeeper.quorum: localhost:2181
+# high-availability.zookeeper.storageDir: hdfs:///flink/ha/

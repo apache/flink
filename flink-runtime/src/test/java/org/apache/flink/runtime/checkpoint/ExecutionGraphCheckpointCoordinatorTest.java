@@ -27,26 +27,21 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointCoordinator;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.junit.AfterClass;
 import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Collections;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -58,28 +53,6 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 	@AfterClass
 	public static void teardown() {
 		JavaTestKit.shutdownActorSystem(system);
-	}
-	
-	@Test
-	public void testCheckpointAndSavepointCoordinatorShareCheckpointIDCounter() throws Exception {
-		ExecutionGraph executionGraph = createExecutionGraphAndEnableCheckpointing(
-				new StandaloneCheckpointIDCounter(),
-				new StandaloneCompletedCheckpointStore(1, ClassLoader.getSystemClassLoader()));
-
-		CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
-		SavepointCoordinator savepointCoordinator = executionGraph.getSavepointCoordinator();
-
-		// Both the checkpoint and savepoint coordinator need to operate
-		// with the same checkpoint ID counter.
-		Field counterField = CheckpointCoordinator.class.getDeclaredField("checkpointIdCounter");
-
-		CheckpointIDCounter counterCheckpointCoordinator = (CheckpointIDCounter) counterField
-				.get(checkpointCoordinator);
-
-		CheckpointIDCounter counterSavepointCoordinator = (CheckpointIDCounter) counterField
-				.get(savepointCoordinator);
-
-		assertEquals(counterCheckpointCoordinator, counterSavepointCoordinator);
 	}
 
 	/**
@@ -94,8 +67,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
 		graph.fail(new Exception("Test Exception"));
 
-		// Two times, because shared with savepoint coordinator
-		verify(counter, times(2)).shutdown();
+		verify(counter, times(1)).shutdown();
 		verify(store, times(1)).shutdown();
 	}
 
@@ -115,8 +87,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 		verify(counter, times(0)).shutdown();
 		verify(store, times(0)).shutdown();
 
-		// Two times, because shared with savepoint coordinator
-		verify(counter, times(2)).suspend();
+		verify(counter, times(1)).suspend();
 		verify(store, times(1)).suspend();
 	}
 
@@ -145,11 +116,8 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				Collections.<ExecutionJobVertex>emptyList(),
 				Collections.<ExecutionJobVertex>emptyList(),
 				Collections.<ExecutionJobVertex>emptyList(),
-				system,
-				UUID.randomUUID(),
 				counter,
 				store,
-				RecoveryMode.STANDALONE,
 				new HeapSavepointStore(),
 				new DisabledCheckpointStatsTracker());
 

@@ -68,13 +68,13 @@ public abstract class ScopeFormat {
 	//  Scope Variables
 	// ------------------------------------------------------------------------
 
-	public static final String SCOPE_ACTOR_HOST = asVariable("host");
+	public static final String SCOPE_HOST = asVariable("host");
 
 	// ----- Job Manager ----
 
 	/** The default scope format of the JobManager component: {@code "<host>.jobmanager"} */
 	public static final String DEFAULT_SCOPE_JOBMANAGER_COMPONENT =
-		concat(SCOPE_ACTOR_HOST, "jobmanager");
+		concat(SCOPE_HOST, "jobmanager");
 
 	/** The default scope format of JobManager metrics: {@code "<host>.jobmanager"} */
 	public static final String DEFAULT_SCOPE_JOBMANAGER_GROUP = DEFAULT_SCOPE_JOBMANAGER_COMPONENT;
@@ -85,7 +85,7 @@ public abstract class ScopeFormat {
 
 	/** The default scope format of the TaskManager component: {@code "<host>.taskmanager.<tm_id>"} */
 	public static final String DEFAULT_SCOPE_TASKMANAGER_COMPONENT =
-			concat(SCOPE_ACTOR_HOST, "taskmanager", SCOPE_TASKMANAGER_ID);
+			concat(SCOPE_HOST, "taskmanager", SCOPE_TASKMANAGER_ID);
 
 	/** The default scope format of TaskManager metrics: {@code "<host>.taskmanager.<tm_id>"} */
 	public static final String DEFAULT_SCOPE_TASKMANAGER_GROUP = DEFAULT_SCOPE_TASKMANAGER_COMPONENT;

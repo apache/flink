@@ -22,14 +22,14 @@ from flink.functions.CrossFunction import CrossFunction
 from flink.functions.JoinFunction import JoinFunction
 from flink.functions.CoGroupFunction import CoGroupFunction
 from flink.functions.Aggregation import Max, Min, Sum
-from utils import Verify, Verify2
+from utils import Verify, Verify2, Id
 
 if __name__ == "__main__":
     env = get_environment()
 
     d1 = env.from_elements(1, 6, 12)
 
-    d2 = env.from_elements((1, 0.5, "hello", True), (2, 0.4, "world", False))
+    d2 = env.from_elements((1, 0.5, "hello", True), (2, 0.4, "world", False)).map(Id()).map(Id())  # force map chaining
 
     d3 = env.from_elements(("hello",), ("world",))
 

@@ -77,6 +77,13 @@ under the License.
 
 	<build>
 		<plugins>
+
+			<!-- activate API compatibility checks -->
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+			</plugin>
+
 			<!-- Because flink-scala and flink-avro uses it in tests -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

@@ -22,6 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -30,6 +34,8 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
+import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
@@ -51,6 +57,8 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+
+import java.util.UUID;
 
 /**
  * A {@code KeyedStream} represents a {@link DataStream} on which operator state is
@@ -515,4 +523,117 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				clean(aggregate), getType().createSerializer(getExecutionConfig()));
 		return transform("Keyed Aggregation", getType(), operator);
 	}
+
+	/**
+	 * Publishes the keyed stream as queryable ValueState instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
+		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
+				UUID.randomUUID().toString(),
+				getType(),
+				null);
+
+		return asQueryableState(queryableStateName, valueStateDescriptor);
+	}
+
+	/**
+	 * Publishes the keyed stream as a queryable ValueState instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @param stateDescriptor State descriptor to create state instance from
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public QueryableStateStream<KEY, T> asQueryableState(
+			String queryableStateName,
+			ValueStateDescriptor<T> stateDescriptor) {
+
+		transform("Queryable state: " + queryableStateName,
+				getType(),
+				new QueryableValueStateOperator<>(queryableStateName, stateDescriptor));
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		return new QueryableStateStream<>(
+				queryableStateName,
+				stateDescriptor.getSerializer(),
+				getKeyType().createSerializer(getExecutionConfig()));
+	}
+
+	/**
+	 * Publishes the keyed stream as a queryable ListStance instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @param stateDescriptor State descriptor to create state instance from
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public QueryableStateStream<KEY, T> asQueryableState(
+			String queryableStateName,
+			ListStateDescriptor<T> stateDescriptor) {
+
+		transform("Queryable state: " + queryableStateName,
+				getType(),
+				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		return new QueryableStateStream<>(
+				queryableStateName,
+				getType().createSerializer(getExecutionConfig()),
+				getKeyType().createSerializer(getExecutionConfig()));
+	}
+
+	/**
+	 * Publishes the keyed stream as a queryable FoldingState instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @param stateDescriptor State descriptor to create state instance from
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public <ACC> QueryableStateStream<KEY, ACC> asQueryableState(
+			String queryableStateName,
+			FoldingStateDescriptor<T, ACC> stateDescriptor) {
+
+		transform("Queryable state: " + queryableStateName,
+				getType(),
+				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		return new QueryableStateStream<>(
+				queryableStateName,
+				stateDescriptor.getSerializer(),
+				getKeyType().createSerializer(getExecutionConfig()));
+	}
+
+	/**
+	 * Publishes the keyed stream as a queryable ReducingState instance.
+	 *
+	 * @param queryableStateName Name under which to the publish the queryable state instance
+	 * @param stateDescriptor State descriptor to create state instance from
+	 * @return Queryable state instance
+	 */
+	@PublicEvolving
+	public QueryableStateStream<KEY, T> asQueryableState(
+			String queryableStateName,
+			ReducingStateDescriptor<T> stateDescriptor) {
+
+		transform("Queryable state: " + queryableStateName,
+				getType(),
+				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		return new QueryableStateStream<>(
+				queryableStateName,
+				stateDescriptor.getSerializer(),
+				getKeyType().createSerializer(getExecutionConfig()));
+	}
+
 }
