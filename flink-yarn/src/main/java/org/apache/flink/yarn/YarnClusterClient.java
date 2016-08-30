@@ -19,8 +19,6 @@ package org.apache.flink.yarn;
 
 import akka.actor.ActorRef;
 
-import static akka.pattern.Patterns.ask;
-
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
@@ -30,8 +28,10 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
+import org.apache.flink.runtime.clusterframework.messages.ShutdownClusterAfterJob;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -48,9 +48,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.None$;
 import scala.Option;
-import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -83,7 +81,6 @@ public class YarnClusterClient extends ClusterClient {
 	private final AbstractYarnClusterDescriptor clusterDescriptor;
 	private final LazApplicationClientLoader applicationClient;
 	private final FiniteDuration akkaDuration;
-	private final Timeout akkaTimeout;
 	private final ApplicationReport appReport;
 	private final ApplicationId appId;
 	private final String trackingURL;
@@ -116,7 +113,6 @@ public class YarnClusterClient extends ClusterClient {
 		super(flinkConfig);
 
 		this.akkaDuration = AkkaUtils.getTimeout(flinkConfig);
-		this.akkaTimeout = Timeout.durationToTimeout(akkaDuration);
 		this.clusterDescriptor = clusterDescriptor;
 		this.yarnClient = yarnClient;
 		this.hadoopConfig = yarnClient.getConfig();
@@ -175,12 +171,12 @@ public class YarnClusterClient extends ClusterClient {
 	 */
 	private void stopAfterJob(JobID jobID) {
 		Preconditions.checkNotNull(jobID, "The job id must not be null");
-		Future<Object> messageReceived =
-			ask(
-				applicationClient.get(),
-				new YarnMessages.LocalStopAMAfterJob(jobID), akkaTimeout);
 		try {
-			Await.result(messageReceived, akkaDuration);
+			Future<Object> replyFuture =
+				getJobManagerGateway().ask(
+					new ShutdownClusterAfterJob(jobID),
+					akkaDuration);
+			Await.ready(replyFuture, akkaDuration);
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to tell application master to stop once the specified job has been finised", e);
 		}
@@ -230,29 +226,20 @@ public class YarnClusterClient extends ClusterClient {
 	@Override
 	public GetClusterStatusResponse getClusterStatus() {
 		if(!isConnected) {
-			throw new IllegalStateException("The cluster is not connected to the ApplicationMaster.");
+			throw new IllegalStateException("The cluster is not connected to the cluster.");
 		}
 		if(hasBeenShutdown()) {
-			return null;
+			throw new IllegalStateException("The cluster has already been shutdown.");
 		}
 
-		Future<Object> clusterStatusOption =
-			ask(
-				applicationClient.get(),
-				YarnMessages.getLocalGetyarnClusterStatus(),
-				akkaTimeout);
-		Object clusterStatus;
 		try {
-			clusterStatus = Await.result(clusterStatusOption, akkaDuration);
+			final Future<Object> clusterStatusOption =
+				getJobManagerGateway().ask(
+					GetClusterStatus.getInstance(),
+					akkaDuration);
+			return (GetClusterStatusResponse) Await.result(clusterStatusOption, akkaDuration);
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to get ClusterClient status from Application Client", e);
-		}
-		if(clusterStatus instanceof None$) {
-			throw new RuntimeException("Unable to get ClusterClient status from Application Client");
-		} else if(clusterStatus instanceof Some) {
-			return (GetClusterStatusResponse) (((Some) clusterStatus).get());
-		} else {
-			throw new RuntimeException("Unexpected type: " + clusterStatus.getClass().getCanonicalName());
 		}
 	}
 
