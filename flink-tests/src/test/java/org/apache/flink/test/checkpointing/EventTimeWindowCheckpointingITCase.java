@@ -196,7 +196,16 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	}
 
 	@Test
-	public void testTumblingTimeWindowWithKVState() {
+	public void testTumblingTimeWindowWithKVStateMinMaxParallelism() {
+		doTestTumblingTimeWindowWithKVState(PARALLELISM);
+	}
+
+	@Test
+	public void testTumblingTimeWindowWithKVStateMaxMaxParallelism() {
+		doTestTumblingTimeWindowWithKVState(1 << 15);
+	}
+
+	public void doTestTumblingTimeWindowWithKVState(int maxParallelism) {
 		final int NUM_ELEMENTS_PER_KEY = 3000;
 		final int WINDOW_SIZE = 100;
 		final int NUM_KEYS = 100;
@@ -207,6 +216,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARALLELISM);
+			env.setMaxParallelism(maxParallelism);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
