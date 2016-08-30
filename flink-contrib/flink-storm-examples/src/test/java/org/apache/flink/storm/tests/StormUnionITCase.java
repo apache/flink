@@ -17,8 +17,8 @@
  */
 package org.apache.flink.storm.tests;
 
-import backtype.storm.Config;
-import backtype.storm.topology.TopologyBuilder;
+import org.apache.storm.Config;
+import org.apache.storm.topology.TopologyBuilder;
 
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;

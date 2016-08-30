@@ -17,7 +17,7 @@
  */
 package org.apache.flink.storm.split;
 
-import backtype.storm.topology.TopologyBuilder;
+import org.apache.storm.topology.TopologyBuilder;
 import org.apache.flink.storm.split.operators.RandomSpout;
 import org.apache.flink.storm.split.operators.VerifyAndEnrichBolt;
 import org.apache.flink.storm.util.BoltFileSink;

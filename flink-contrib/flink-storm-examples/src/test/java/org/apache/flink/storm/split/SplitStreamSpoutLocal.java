@@ -16,8 +16,8 @@
  */
 package org.apache.flink.storm.split;
 
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.utils.Utils;
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.utils.Utils;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 

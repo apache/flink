@@ -17,19 +17,19 @@
 
 package org.apache.flink.storm.exclamation;
 
-import backtype.storm.Config;
-import backtype.storm.topology.TopologyBuilder;
+import org.apache.storm.Config;
+import org.apache.storm.topology.TopologyBuilder;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.exclamation.operators.ExclamationBolt;
 
 /**
  * Implements the "Exclamation" program that attaches five exclamation mark to every line of a text files in a streaming
- * fashion. The program is constructed as a regular {@link backtype.storm.generated.StormTopology} and submitted to
- * Flink for execution in the same way as to a Storm {@link backtype.storm.LocalCluster}.
+ * fashion. The program is constructed as a regular {@link org.apache.storm.generated.StormTopology} and submitted to
+ * Flink for execution in the same way as to a Storm {@link org.apache.storm.LocalCluster}.
  * <p>
  * This example shows how to run program directly within Java, thus it cannot be used to submit a
- * {@link backtype.storm.generated.StormTopology} via Flink command line clients (ie, bin/flink).
+ * {@link org.apache.storm.generated.StormTopology} via Flink command line clients (ie, bin/flink).
  * <p>
  * The input is a plain text file with lines separated by newline characters.
  * <p>
