@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc.taskexecutor;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.NonHaServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -49,9 +50,9 @@ public class TaskExecutorTest extends TestLogger {
 			rpc.registerGateway(resourceManagerAddress, rmGateway);
 
 			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
-			TaskExecutor taskManager = new TaskExecutor(rpc, haServices, resourceID);
+			TaskExecutor taskManager = TaskExecutor.startTaskManagerComponentsAndActor(
+				new Configuration(), resourceID, rpc, "localhost", haServices, true);
 			String taskManagerAddress = taskManager.getAddress();
-
 			taskManager.start();
 
 			verify(rmGateway, timeout(5000)).registerTaskExecutor(
@@ -84,7 +85,8 @@ public class TaskExecutorTest extends TestLogger {
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setResourceManagerLeaderRetriever(testLeaderService);
 
-			TaskExecutor taskManager = new TaskExecutor(rpc, haServices, resourceID);
+			TaskExecutor taskManager = TaskExecutor.startTaskManagerComponentsAndActor(
+				new Configuration(), resourceID, rpc, "localhost", haServices, true);
 			String taskManagerAddress = taskManager.getAddress();
 			taskManager.start();
 
