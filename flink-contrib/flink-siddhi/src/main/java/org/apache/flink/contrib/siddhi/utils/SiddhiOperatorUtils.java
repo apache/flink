@@ -34,12 +34,12 @@ import java.util.Map;
  */
 public class SiddhiOperatorUtils {
 	@SuppressWarnings("unchecked")
-	public static <OUT> DataStream<OUT> createDataStream(SiddhiOperatorContext context, SiddhiStream environment){
-		if(context.getInputStreams().size() == 0){
+	public static <OUT> DataStream<OUT> createDataStream(SiddhiOperatorContext context, SiddhiStream environment) {
+		if (context.getInputStreams().size() == 0) {
 			throw new IllegalArgumentException("Non input streams was connected");
-		} else if(context.getInputStreams().size() == 1){
+		} else if (context.getInputStreams().size() == 1) {
 			Map.Entry<String, DataStream<?>> entry = environment.getInputStreams().entrySet().iterator().next();
-			return entry.getValue().transform(context.getName(),context.getOutputStreamType(),new SingleStreamSiddhiOperator(entry.getKey(),context));
+			return entry.getValue().transform(context.getName(), context.getOutputStreamType(), new SingleStreamSiddhiOperator(entry.getKey(), context));
 		} else {
 			List<DataStream<Tuple2<String, Object>>> wrappedDataStreams = new ArrayList<>();
 			for (Map.Entry<String, DataStream<?>> entry : environment.getInputStreams().entrySet()) {
@@ -47,16 +47,16 @@ public class SiddhiOperatorUtils {
 			}
 			// TODO: Is union correct for our case? Should use broadcast instead.
 			DataStream<Tuple2<String, Object>> unionStream = wrappedDataStreams.get(0)
-				.union((DataStream<Tuple2<String, Object>>[]) wrappedDataStreams.subList(1,wrappedDataStreams.size()-1).toArray());
-			return unionStream.transform(context.getName(), context.getOutputStreamType(),new StreamSiddhiOperator<Object, OUT>(context));
+				.union((DataStream<Tuple2<String, Object>>[]) wrappedDataStreams.subList(1, wrappedDataStreams.size() - 1).toArray());
+			return unionStream.transform(context.getName(), context.getOutputStreamType(), new StreamSiddhiOperator<Object, OUT>(context));
 		}
 	}
 
-	private static <T> DataStream<Tuple2<String,Object>> wrap(final String streamId, DataStream<T> dataStream){
-		return dataStream.map(new MapFunction<T, Tuple2<String,Object>>() {
+	private static <T> DataStream<Tuple2<String, Object>> wrap(final String streamId, DataStream<T> dataStream) {
+		return dataStream.map(new MapFunction<T, Tuple2<String, Object>>() {
 			@Override
 			public Tuple2<String, Object> map(T value) throws Exception {
-				return Tuple2.of(streamId,(Object) value);
+				return Tuple2.of(streamId, (Object) value);
 			}
 		});
 	}

@@ -24,7 +24,7 @@ import org.apache.flink.contrib.siddhi.schema.StreamSchema;
  * Wrap input event in generic type of <code>IN</code> as Tuple2<String,IN>
  */
 
-public class StreamSiddhiOperator<IN,OUT> extends AbstractSiddhiOperator<Tuple2<String,IN>,OUT> {
+public class StreamSiddhiOperator<IN, OUT> extends AbstractSiddhiOperator<Tuple2<String, IN>, OUT> {
 
 	public StreamSiddhiOperator(SiddhiOperatorContext siddhiPlan) {
 		super(siddhiPlan);
@@ -32,7 +32,7 @@ public class StreamSiddhiOperator<IN,OUT> extends AbstractSiddhiOperator<Tuple2<
 
 	@Override
 	protected void processEvent(String streamId, StreamSchema<Tuple2<String, IN>> schema, Tuple2<String, IN> value, long timestamp) throws InterruptedException {
-		send(value.f0, getSiddhiContext().getInputStreamSchema(value.f0).getStreamSerializer().getRow(value.f1),timestamp);
+		send(value.f0, getSiddhiContext().getInputStreamSchema(value.f0).getStreamSerializer().getRow(value.f1), timestamp);
 	}
 
 	@Override

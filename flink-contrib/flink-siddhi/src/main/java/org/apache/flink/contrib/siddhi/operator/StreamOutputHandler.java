@@ -19,9 +19,8 @@ package org.apache.flink.contrib.siddhi.operator;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.contrib.siddhi.utils.TupleUtils;
 import org.apache.flink.streaming.api.operators.Output;
@@ -30,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
-import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.siddhi.query.api.definition.AbstractDefinition;
 
 import java.util.HashMap;
@@ -52,44 +50,45 @@ public class StreamOutputHandler<R> extends StreamCallback {
 		this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 	}
 
-	@Override @SuppressWarnings("unchecked")
+	@Override
+	@SuppressWarnings("unchecked")
 	public void receive(Event[] events) {
-		for(Event event:events){
-			if(typeInfo == null || typeInfo.getTypeClass().equals(Map.class)){
+		for (Event event : events) {
+			if (typeInfo == null || typeInfo.getTypeClass().equals(Map.class)) {
 				StreamRecord<R> record = new StreamRecord<>((R) toMap(event));
 				record.setTimestamp(event.getTimestamp());
 				output.collect(record);
-			} else if(typeInfo.isTupleType()){
+			} else if (typeInfo.isTupleType()) {
 				StreamRecord<R> record = new StreamRecord<>((R) toTuple(event));
 				record.setTimestamp(event.getTimestamp());
 				output.collect(record);
-			} else if (typeInfo instanceof PojoTypeInfo){
+			} else if (typeInfo instanceof PojoTypeInfo) {
 				R obj;
 				try {
 					obj = objectMapper.convertValue(toMap(event), typeInfo.getTypeClass());
-				} catch (IllegalArgumentException ex){
-					LOGGER.error("Failed to map event: "+event+" into type: "+typeInfo,ex);
+				} catch (IllegalArgumentException ex) {
+					LOGGER.error("Failed to map event: " + event + " into type: " + typeInfo, ex);
 					throw ex;
 				}
 				StreamRecord<R> record = new StreamRecord<>(obj);
 				record.setTimestamp(event.getTimestamp());
 				output.collect(record);
 			} else {
-				throw new IllegalArgumentException("Unable to format "+event+" as type "+typeInfo);
+				throw new IllegalArgumentException("Unable to format " + event + " as type " + typeInfo);
 			}
 		}
 		output.collect(new StreamRecord<R>(null));
 	}
 
-	private Map<String,Object> toMap(Event event){
-		Map<String,Object> map = new HashMap<>();
-		for(int i=0;i< definition.getAttributeNameArray().length;i++){
-			map.put(definition.getAttributeNameArray()[i],event.getData(i));
+	private Map<String, Object> toMap(Event event) {
+		Map<String, Object> map = new HashMap<>();
+		for (int i = 0; i < definition.getAttributeNameArray().length; i++) {
+			map.put(definition.getAttributeNameArray()[i], event.getData(i));
 		}
 		return map;
 	}
 
-	private Tuple toTuple(Event event){
+	private Tuple toTuple(Event event) {
 		return TupleUtils.newTuple(event.getData());
 	}
 }

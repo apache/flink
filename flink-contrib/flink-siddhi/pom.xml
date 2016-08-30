@@ -42,8 +42,12 @@ under the License.
 		<repository>
 			<id>siddhi cep engine</id>
 			<url>http://maven.wso2.org/nexus/content/groups/wso2-public</url>
-			<releases><enabled>true</enabled></releases>
-			<snapshots><enabled>false</enabled></snapshots>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
 		</repository>
 	</repositories>
 
@@ -90,11 +94,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala_2.10</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_2.10</artifactId>
-			<version>1.2-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 </project>

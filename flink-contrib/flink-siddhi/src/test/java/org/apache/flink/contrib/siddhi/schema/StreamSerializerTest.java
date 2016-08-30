@@ -26,15 +26,15 @@ public class StreamSerializerTest {
 	private final static long CURRENT = System.currentTimeMillis();
 
 	@Test
-	public void testSimplePojoRead(){
+	public void testSimplePojoRead() {
 		Event event = new Event();
 		event.setId(1);
 		event.setName("test");
 		event.setPrice(56.7);
 		event.setTimestamp(CURRENT);
 
-		StreamSchema<Event> schema  = new StreamSchema<>(TypeExtractor.createTypeInfo(Event.class),"id","name","price","timestamp");
+		StreamSchema<Event> schema = new StreamSchema<>(TypeExtractor.createTypeInfo(Event.class), "id", "name", "price", "timestamp");
 		StreamSerializer<Event> reader = new StreamSerializer<>(schema);
-		Assert.assertArrayEquals(new Object[]{1,"test",56.7,CURRENT},reader.getRow(event));
+		Assert.assertArrayEquals(new Object[]{1, "test", 56.7, CURRENT}, reader.getRow(event));
 	}
 }

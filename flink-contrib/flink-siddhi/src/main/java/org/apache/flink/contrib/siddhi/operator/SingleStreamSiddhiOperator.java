@@ -24,7 +24,7 @@ import org.wso2.siddhi.core.stream.input.InputHandler;
 /**
  * Pass through event for single stream siddhi query in consideration of higher performance.
  */
-public class SingleStreamSiddhiOperator<IN,OUT> extends AbstractSiddhiOperator<IN,OUT> {
+public class SingleStreamSiddhiOperator<IN, OUT> extends AbstractSiddhiOperator<IN, OUT> {
 	private final String inputStreamId;
 	private final StreamSerializer<IN> inStreamSerializer;
 
@@ -53,7 +53,7 @@ public class SingleStreamSiddhiOperator<IN,OUT> extends AbstractSiddhiOperator<I
 	@Override
 	protected void processEvent(String streamId, StreamSchema<IN> schema, IN value, long timestamp) throws Exception {
 		Object[] row = this.inStreamSerializer.getRow(value);
-		inputHandler.send(timestamp,row);
+		inputHandler.send(timestamp, row);
 	}
 
 	@Override

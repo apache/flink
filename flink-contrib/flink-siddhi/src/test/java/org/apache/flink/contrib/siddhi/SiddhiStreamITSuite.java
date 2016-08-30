@@ -54,9 +54,9 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 		);
 
 		DataStream<Event> output = SiddhiStream
-			.inject("inputStream",input,"id","name","price")
+			.inject("inputStream", input, "id", "name", "price")
 			.apply("from inputStream insert into  outputStream")
-			.returns("outputStream",Event.class);
+			.returns("outputStream", Event.class);
 		String path = tempFolder.newFile().toURI().toString();
 		output.writeAsText(path);
 		env.execute();
@@ -77,8 +77,8 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 			Event.of(5, "middle", 5.0)
 		);
 
-		DataStream<Map<String,Object>> output = SiddhiStream
-			.inject("inputStream",input,"id","name","price")
+		DataStream<Map<String, Object>> output = SiddhiStream
+			.inject("inputStream", input, "id", "name", "price")
 			.apply("from inputStream insert into  outputStream")
 			.returns("outputStream");
 		output.print();
@@ -93,8 +93,8 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 		env.setBufferTimeout(5000);
 		DataStream<Event> input = env.addSource(new EventSource(5));
 
-		DataStream<Map<String,Object>> output = SiddhiStream
-			.inject("inputStream",input,"id","name","price")
+		DataStream<Map<String, Object>> output = SiddhiStream
+			.inject("inputStream", input, "id", "name", "price")
 			.apply("from inputStream insert into  outputStream")
 			.returns("outputStream");
 
@@ -103,7 +103,7 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
-		assertEquals(5,getLineCount(resultPath));
+		assertEquals(5, getLineCount(resultPath));
 	}
 
 	@Test
@@ -113,23 +113,23 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 		DataStream<Event> input = env.addSource(new EventSource(5));
 
 		SiddhiStream siddhiStream = SiddhiStream.newSiddhiStream(env);
-		siddhiStream.register("inputStream",input,"id","name","price");
+		siddhiStream.register("inputStream", input, "id", "name", "price");
 
 		DataStream<Event> output = siddhiStream
 			.apply("from inputStream insert into  outputStream")
-			.returns("outputStream",Event.class);
+			.returns("outputStream", Event.class);
 
 		output.printToErr();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
-		assertEquals(5,getLineCount(resultPath));
+		assertEquals(5, getLineCount(resultPath));
 	}
 
 	public static int getLineCount(String resPath) throws IOException {
 		List<String> result = new LinkedList<>();
-		readAllResultLines(result,resPath);
+		readAllResultLines(result, resPath);
 		return result.size();
 	}
 }

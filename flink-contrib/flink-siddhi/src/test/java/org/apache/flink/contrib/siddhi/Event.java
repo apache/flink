@@ -45,7 +45,7 @@ public class Event {
 
 	@Override
 	public String toString() {
-		return "Event(" + id + ", " + name + ", " + price +", "+timestamp+ ")";
+		return "Event(" + id + ", " + name + ", " + price + ", " + timestamp + ")";
 	}
 
 	@Override
@@ -59,7 +59,7 @@ public class Event {
 		}
 	}
 
-	public static Event of(int id, String name, double price){
+	public static Event of(int id, String name, double price) {
 		Event event = new Event();
 		event.setId(id);
 		event.setName(name);

@@ -25,26 +25,27 @@ public class EventSource implements SourceFunction<Event> {
 	private final int count;
 	private final Random random;
 
-	private volatile boolean isRunning  = true;
+	private volatile boolean isRunning = true;
 	private volatile int number = 0;
 
-	public EventSource(int count){
+	public EventSource(int count) {
 		this.count = count;
 		this.random = new Random();
 	}
 
-	public EventSource(){
+	public EventSource() {
 		this(Integer.MAX_VALUE);
 	}
 
 	@Override
 	public void run(SourceContext<Event> ctx) throws Exception {
-		while (isRunning){
+		while (isRunning) {
 			Thread.sleep(500);
 			ctx.collect(Event.of(number, "test_event", random.nextDouble()));
-			number ++;
-			if(number>=this.count)
+			number++;
+			if (number >= this.count) {
 				cancel();
+			}
 		}
 	}
 

@@ -27,47 +27,47 @@ import java.lang.reflect.Field;
 public class StreamSerializer<T> implements Serializable {
 	private final StreamSchema<T> schema;
 
-	public StreamSerializer(StreamSchema<T> schema){
+	public StreamSerializer(StreamSchema<T> schema) {
 		this.schema = schema;
 	}
 
-	public Object[] getRow(T input){
+	public Object[] getRow(T input) {
 		Preconditions.checkArgument(input.getClass() == schema.getTypeInfo().getTypeClass()
-			,"Invalid input type: "+input+", expected: "+schema.getTypeInfo());
+			, "Invalid input type: " + input + ", expected: " + schema.getTypeInfo());
 
 		Object[] data;
-		if(schema.isAtomicType()){
+		if (schema.isAtomicType()) {
 			data = new Object[]{input};
-		} else if(schema.isTupleType()){
+		} else if (schema.isTupleType()) {
 			Tuple tuple = (Tuple) input;
 			data = new Object[schema.getFieldIndexes().length];
-			for(int i=0;i<schema.getFieldIndexes().length;i++){
+			for (int i = 0; i < schema.getFieldIndexes().length; i++) {
 				data[i] = tuple.getField(schema.getFieldIndexes()[i]);
 			}
-		} else if(schema.isPojoType() || schema.isCaseClassType()){
+		} else if (schema.isPojoType() || schema.isCaseClassType()) {
 			data = new Object[schema.getFieldIndexes().length];
-			for(int i=0;i<schema.getFieldNames().length;i++){
-				data[i] = getFieldValue(schema.getFieldNames()[i],input);
+			for (int i = 0; i < schema.getFieldNames().length; i++) {
+				data[i] = getFieldValue(schema.getFieldNames()[i], input);
 			}
 		} else {
-			throw new IllegalArgumentException("Failed to get field values from "+schema.getTypeInfo());
+			throw new IllegalArgumentException("Failed to get field values from " + schema.getTypeInfo());
 		}
 		return data;
 	}
 
-	private Object getFieldValue(String fieldName,T input){
+	private Object getFieldValue(String fieldName, T input) {
 		// TODO: Cache Field Accessor
-		Field field = TypeExtractor.getDeclaredField(schema.getTypeInfo().getTypeClass(),fieldName);
-		if(field == null) {
+		Field field = TypeExtractor.getDeclaredField(schema.getTypeInfo().getTypeClass(), fieldName);
+		if (field == null) {
 			throw new IllegalArgumentException(fieldName + " is not found in " + schema.getTypeInfo());
 		}
-		if(!field.isAccessible()) {
+		if (!field.isAccessible()) {
 			field.setAccessible(true);
 		}
 		try {
 			return field.get(input);
 		} catch (IllegalAccessException e) {
-			throw new IllegalStateException(e.getMessage(),e);
+			throw new IllegalStateException(e.getMessage(), e);
 		}
 	}
 }

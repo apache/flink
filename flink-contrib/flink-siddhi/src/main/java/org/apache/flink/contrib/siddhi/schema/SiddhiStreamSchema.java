@@ -17,10 +17,9 @@
 
 package org.apache.flink.contrib.siddhi.schema;
 
-import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.util.Preconditions;
 import org.wso2.siddhi.query.api.definition.Attribute;
 import org.wso2.siddhi.query.api.definition.StreamDefinition;
 
@@ -30,55 +29,55 @@ import java.util.List;
 import java.util.Map;
 
 public class SiddhiStreamSchema<T> extends StreamSchema<T> {
-	private static final String DEFINE_STREAM_TEMPLATE =  "define stream %s (%s);";
+	private static final String DEFINE_STREAM_TEMPLATE = "define stream %s (%s);";
 
-	public SiddhiStreamSchema(TypeInformation<T> typeInfo, String ... fieldNames){
-		super(typeInfo,fieldNames);
+	public SiddhiStreamSchema(TypeInformation<T> typeInfo, String... fieldNames) {
+		super(typeInfo, fieldNames);
 	}
 
 	public SiddhiStreamSchema(TypeInformation<T> typeInfo, int[] fieldIndexes, String[] fieldNames) {
 		super(typeInfo, fieldIndexes, fieldNames);
 	}
 
-	public StreamDefinition getStreamDefinition(String streamId){
+	public StreamDefinition getStreamDefinition(String streamId) {
 		StreamDefinition streamDefinition = StreamDefinition.id(streamId);
-		for(int i=0;i<getFieldNames().length;i++){
-			streamDefinition.attribute(getFieldNames()[i],getAttributeType(getFieldTypes()[i]));
+		for (int i = 0; i < getFieldNames().length; i++) {
+			streamDefinition.attribute(getFieldNames()[i], getAttributeType(getFieldTypes()[i]));
 		}
 		return streamDefinition;
 	}
 
-	public String getStreamDefinitionExpression(StreamDefinition streamDefinition){
+	public String getStreamDefinitionExpression(StreamDefinition streamDefinition) {
 		List<String> columns = new ArrayList<>();
-		Preconditions.checkNotNull(streamDefinition,"StreamDefinition is null");
-		for(Attribute attribute:streamDefinition.getAttributeList()){
-			columns.add(String.format("%s %s",attribute.getName(),attribute.getType().toString().toLowerCase()));
+		Preconditions.checkNotNull(streamDefinition, "StreamDefinition is null");
+		for (Attribute attribute : streamDefinition.getAttributeList()) {
+			columns.add(String.format("%s %s", attribute.getName(), attribute.getType().toString().toLowerCase()));
 		}
-		return String.format(DEFINE_STREAM_TEMPLATE, streamDefinition.getId(), StringUtils.join(columns,","));
+		return String.format(DEFINE_STREAM_TEMPLATE, streamDefinition.getId(), StringUtils.join(columns, ","));
 	}
 
-	public String getStreamDefinitionExpression(String streamId){
+	public String getStreamDefinitionExpression(String streamId) {
 		StreamDefinition streamDefinition = getStreamDefinition(streamId);
 		List<String> columns = new ArrayList<>();
-		Preconditions.checkNotNull(streamDefinition,"StreamDefinition is null");
-		for(Attribute attribute:streamDefinition.getAttributeList()){
-			columns.add(String.format("%s %s",attribute.getName(),attribute.getType().toString().toLowerCase()));
+		Preconditions.checkNotNull(streamDefinition, "StreamDefinition is null");
+		for (Attribute attribute : streamDefinition.getAttributeList()) {
+			columns.add(String.format("%s %s", attribute.getName(), attribute.getType().toString().toLowerCase()));
 		}
-		return String.format(DEFINE_STREAM_TEMPLATE, streamDefinition.getId(), StringUtils.join(columns,","));
+		return String.format(DEFINE_STREAM_TEMPLATE, streamDefinition.getId(), StringUtils.join(columns, ","));
 	}
 
 	/**
 	 * TODO: Decouple attribute type mapping to external class
-     */
-	private static  <F> Attribute.Type getAttributeType(TypeInformation<F> fieldType){
-		if(SIDDHI_TYPE_MAPPING.containsKey(fieldType.getTypeClass())){
+	 */
+	private static <F> Attribute.Type getAttributeType(TypeInformation<F> fieldType) {
+		if (SIDDHI_TYPE_MAPPING.containsKey(fieldType.getTypeClass())) {
 			return SIDDHI_TYPE_MAPPING.get(fieldType.getTypeClass());
 		} else {
 			return Attribute.Type.OBJECT;
 		}
 	}
 
-	private final static Map<Class<?>,Attribute.Type> SIDDHI_TYPE_MAPPING = new HashMap<>();
+	private final static Map<Class<?>, Attribute.Type> SIDDHI_TYPE_MAPPING = new HashMap<>();
 
 	static {
 		SIDDHI_TYPE_MAPPING.put(String.class, Attribute.Type.STRING);

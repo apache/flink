@@ -32,7 +32,7 @@ import java.util.Map;
  * SiddhiCEP Operator Context
  */
 public class SiddhiOperatorContext implements Serializable {
-	private Map<String,SiddhiStreamSchema<?>> inputStreamSchemas;
+	private Map<String, SiddhiStreamSchema<?>> inputStreamSchemas;
 	private String outputStreamId;
 	private TypeInformation outputStreamType;
 	private TimeCharacteristic timeCharacteristic;
@@ -44,8 +44,8 @@ public class SiddhiOperatorContext implements Serializable {
 		inputStreamSchemas = new HashMap<>();
 	}
 
-	public String getName(){
-		if(this.name == null) {
+	public String getName() {
+		if (this.name == null) {
 			if (executionExpression.length() > 50) {
 				return "Siddhi: " + executionExpression.substring(0, 50) + " ...";
 			} else {
@@ -56,10 +56,10 @@ public class SiddhiOperatorContext implements Serializable {
 		}
 	}
 
-	public List<String> getInputStreams(){
+	public List<String> getInputStreams() {
 		Object[] keys = this.inputStreamSchemas.keySet().toArray();
 		List<String> result = new ArrayList<>(keys.length);
-		for(Object key:keys){
+		for (Object key : keys) {
 			result.add((String) key);
 		}
 		return result;
@@ -71,10 +71,10 @@ public class SiddhiOperatorContext implements Serializable {
 
 	/**
 	 * Stream definition + execution expression
-     */
-	public String getFinalExecutionExpression(){
+	 */
+	public String getFinalExecutionExpression() {
 		StringBuilder sb = new StringBuilder();
-		for(Map.Entry<String,SiddhiStreamSchema<?>> entry:inputStreamSchemas.entrySet()){
+		for (Map.Entry<String, SiddhiStreamSchema<?>> entry : inputStreamSchemas.entrySet()) {
 			sb.append(entry.getValue().getStreamDefinitionExpression(entry.getKey()));
 		}
 		sb.append(this.getExecutionExpression());
@@ -85,14 +85,14 @@ public class SiddhiOperatorContext implements Serializable {
 		return outputStreamType;
 	}
 
-	public String getOutputStreamId(){
+	public String getOutputStreamId() {
 		return outputStreamId;
 	}
 
 	@SuppressWarnings("unchecked")
 	public <IN> StreamSchema<IN> getInputStreamSchema(String inputStreamId) {
-		if(!inputStreamSchemas.containsKey(inputStreamId)){
-			throw new IllegalArgumentException("Input stream: "+inputStreamId+" is not found");
+		if (!inputStreamSchemas.containsKey(inputStreamId)) {
+			throw new IllegalArgumentException("Input stream: " + inputStreamId + " is not found");
 		}
 		return (StreamSchema<IN>) inputStreamSchemas.get(inputStreamId);
 	}

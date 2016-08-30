@@ -39,94 +39,92 @@ public class StreamSchema<T> implements Serializable {
 	private final StreamSerializer<T> streamSerializer;
 	private TypeSerializer<T> typeSerializer;
 
-	public StreamSchema(TypeInformation<T> typeInfo, String ... fieldNames){
-		Preconditions.checkNotNull(fieldNames,"Field name is required");
+	public StreamSchema(TypeInformation<T> typeInfo, String... fieldNames) {
+		Preconditions.checkNotNull(fieldNames, "Field name is required");
 		this.typeInfo = typeInfo;
 		this.fieldNames = fieldNames;
-		this.fieldIndexes = getFieldIndexes(typeInfo,fieldNames);
-		this.fieldTypes = getFieldTypes(typeInfo,fieldIndexes,fieldNames);
+		this.fieldIndexes = getFieldIndexes(typeInfo, fieldNames);
+		this.fieldTypes = getFieldTypes(typeInfo, fieldIndexes, fieldNames);
 		this.streamSerializer = new StreamSerializer<>(this);
 	}
 
-	public StreamSchema(TypeInformation<T> typeInfo, int[] fieldIndexes, String[] fieldNames){
+	public StreamSchema(TypeInformation<T> typeInfo, int[] fieldIndexes, String[] fieldNames) {
 		this.typeInfo = typeInfo;
 		this.fieldIndexes = fieldIndexes;
 		this.fieldNames = fieldNames;
-		this.fieldTypes = getFieldTypes(typeInfo,fieldIndexes,fieldNames);
+		this.fieldTypes = getFieldTypes(typeInfo, fieldIndexes, fieldNames);
 		this.streamSerializer = new StreamSerializer<>(this);
 	}
 
-	public boolean isAtomicType(){
+	public boolean isAtomicType() {
 		return typeInfo instanceof AtomicType;
 	}
 
-	public boolean isTupleType(){
+	public boolean isTupleType() {
 		return typeInfo instanceof TupleTypeInfo;
 	}
 
-	public boolean isPojoType(){
+	public boolean isPojoType() {
 		return typeInfo instanceof PojoTypeInfo;
 	}
 
-	public boolean isCaseClassType(){
+	public boolean isCaseClassType() {
 		return typeInfo instanceof CaseClassTypeInfo;
 	}
 
-	public boolean isCompositeType(){
+	public boolean isCompositeType() {
 		return typeInfo instanceof CompositeType;
 	}
 
-	private  <E>  int[] getFieldIndexes(TypeInformation<E> typeInfo,String ... fieldNames){
+	private <E> int[] getFieldIndexes(TypeInformation<E> typeInfo, String... fieldNames) {
 		int[] result;
-		if(isAtomicType()){
+		if (isAtomicType()) {
 			result = new int[]{0};
-		} else if(isTupleType()){
-			 result = new int[fieldNames.length];
-			for(int i=0;i<fieldNames.length;i++){
+		} else if (isTupleType()) {
+			result = new int[fieldNames.length];
+			for (int i = 0; i < fieldNames.length; i++) {
 				result[i] = i;
 			}
-		} else if(isPojoType()){
+		} else if (isPojoType()) {
 			result = new int[fieldNames.length];
-			for(int i=0;i<fieldNames.length;i++){
+			for (int i = 0; i < fieldNames.length; i++) {
 				int index = ((PojoTypeInfo) typeInfo).getFieldIndex(fieldNames[i]);
-				if(index <0){
-					throw new IllegalArgumentException(fieldNames[i]+" is not a field of type "+typeInfo);
+				if (index < 0) {
+					throw new IllegalArgumentException(fieldNames[i] + " is not a field of type " + typeInfo);
 				}
 				result[i] = index;
 			}
-		}
-		else if(isCaseClassType()){
+		} else if (isCaseClassType()) {
 			result = new int[fieldNames.length];
-			for(int i=0;i<fieldNames.length;i++){
-				int index= ((CaseClassTypeInfo) typeInfo).getFieldIndex(fieldNames[i]);
-				if(index <0){
-					throw new IllegalArgumentException(fieldNames[i]+" is not a field of type "+typeInfo);
+			for (int i = 0; i < fieldNames.length; i++) {
+				int index = ((CaseClassTypeInfo) typeInfo).getFieldIndex(fieldNames[i]);
+				if (index < 0) {
+					throw new IllegalArgumentException(fieldNames[i] + " is not a field of type " + typeInfo);
 				}
 				result[i] = index;
 			}
-		}
-		else {
-			throw new IllegalArgumentException("Failed to get field index from "+typeInfo);
+		} else {
+			throw new IllegalArgumentException("Failed to get field index from " + typeInfo);
 		}
 		return result;
 	}
 
 
-	private <E> TypeInformation[] getFieldTypes(TypeInformation<E> typeInfo,int[] fieldIndexes,String[] fieldNames){
+	private <E> TypeInformation[] getFieldTypes(TypeInformation<E> typeInfo, int[] fieldIndexes, String[] fieldNames) {
 		TypeInformation[] fieldTypes;
-		if(isCompositeType()){
+		if (isCompositeType()) {
 			CompositeType cType = (CompositeType) typeInfo;
-			if(fieldNames.length != cType.getArity()){
+			if (fieldNames.length != cType.getArity()) {
 //				throw new IllegalArgumentException("Arity of type (" + cType.getFieldNames().length+ ") " +
 //					"not equal to number of field names " + fieldNames.length + ".");
-				LOGGER.warn("Arity of type (" + cType.getFieldNames().length+ ") " +
+				LOGGER.warn("Arity of type (" + cType.getFieldNames().length + ") " +
 					"not equal to number of field names " + fieldNames.length + ".");
 			}
 			fieldTypes = new TypeInformation[fieldIndexes.length];
-			for(int i=0;i<fieldIndexes.length;i++){
+			for (int i = 0; i < fieldIndexes.length; i++) {
 				fieldTypes[i] = cType.getTypeAt(fieldIndexes[i]);
 			}
-		} else if (isAtomicType()){
+		} else if (isAtomicType()) {
 			if (fieldIndexes.length != 1 || fieldIndexes[0] != 0) {
 				throw new IllegalArgumentException(
 					"Non-composite input type may have only a single field and its index must be 0.");
@@ -152,7 +150,7 @@ public class StreamSchema<T> implements Serializable {
 		return fieldNames;
 	}
 
-	public TypeInformation[] getFieldTypes(){
+	public TypeInformation[] getFieldTypes() {
 		return fieldTypes;
 	}
 

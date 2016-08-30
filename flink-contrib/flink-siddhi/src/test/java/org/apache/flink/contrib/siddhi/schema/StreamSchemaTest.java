@@ -21,26 +21,27 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.contrib.siddhi.Event;
-
-import static org.junit.Assert.*;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * TODO: Add more unit test for other type info
  */
 public class StreamSchemaTest {
 	@Test
-	public void testStreamSchemaWithPojo(){
+	public void testStreamSchemaWithPojo() {
 		TypeInformation<Event> typeInfo = TypeExtractor.createTypeInfo(Event.class);
-		assertTrue("Type information should be PojoTypeInfo",typeInfo instanceof PojoTypeInfo);
+		assertTrue("Type information should be PojoTypeInfo", typeInfo instanceof PojoTypeInfo);
 		StreamSchema<Event> schema = new StreamSchema<>(typeInfo, "id", "timestamp", "name", "price");
-		assertEquals(4,schema.getFieldIndexes().length);
+		assertEquals(4, schema.getFieldIndexes().length);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testStreamSchemaWithPojoAndUnknownField(){
+	public void testStreamSchemaWithPojoAndUnknownField() {
 		TypeInformation<Event> typeInfo = TypeExtractor.createTypeInfo(Event.class);
-		new StreamSchema<>(typeInfo, "id", "timestamp", "name", "price","unknown");
+		new StreamSchema<>(typeInfo, "id", "timestamp", "name", "price", "unknown");
 	}
 
 }
