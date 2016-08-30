@@ -16,31 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.util;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.flink.util.OperatingSystem;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Convenience class to extract hardware specifics of the computer executing this class
+ * Convenience class to extract hardware specifics of the computer executing the running JVM.
  */
 public class Hardware {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Hardware.class);
-	
+
 	private static final String LINUX_MEMORY_INFO_PATH = "/proc/meminfo";
 
 	private static final Pattern LINUX_MEMORY_REGEX = Pattern.compile("^MemTotal:\\s*(\\d+)\\s+kB$");
-	
 
+	// ------------------------------------------------------------------------
 	
 	/**
 	 * Gets the number of CPU cores (hardware contexts) that the JVM has access to.
@@ -50,31 +55,53 @@ public class Hardware {
 	public static int getNumberCPUCores() {
 		return Runtime.getRuntime().availableProcessors();
 	}
-	
+
 	/**
 	 * Returns the size of the physical memory in bytes.
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
-	 *         the size could not be determined
+	 * @return the size of the physical memory in bytes or {@code -1}, if
+	 *         the size could not be determined.
 	 */
 	public static long getSizeOfPhysicalMemory() {
+		// first try if the JVM can directly tell us what the system memory is
+		// this works only on Oracle JVMs
+		try {
+			Class<?> clazz = Class.forName("com.sun.management.OperatingSystemMXBean");
+			Method method = clazz.getMethod("getTotalPhysicalMemorySize");
+			OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
+
+			// someone may install different beans, so we need to check whether the bean
+			// is in fact the sun management bean
+			if (clazz.isInstance(operatingSystemMXBean)) {
+				return (Long) method.invoke(operatingSystemMXBean);
+			}
+		}
+		catch (ClassNotFoundException e) {
+			// this happens on non-Oracle JVMs, do nothing and use the alternative code paths
+		}
+		catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+			LOG.warn("Access to physical memory size: " +
+					"com.sun.management.OperatingSystemMXBean incompatibly changed.", e);
+		}
+
+		// we now try the OS specific access paths
 		switch (OperatingSystem.getCurrentOperatingSystem()) {
 			case LINUX:
 				return getSizeOfPhysicalMemoryForLinux();
-				
+
 			case WINDOWS:
 				return getSizeOfPhysicalMemoryForWindows();
-				
+
 			case MAC_OS:
 				return getSizeOfPhysicalMemoryForMac();
-				
+
 			case FREE_BSD:
 				return getSizeOfPhysicalMemoryForFreeBSD();
-				
+
 			case UNKNOWN:
 				LOG.error("Cannot determine size of physical memory for unknown operating system");
 				return -1;
-				
+
 			default:
 				LOG.error("Unrecognized OS: " + OperatingSystem.getCurrentOperatingSystem());
 				return -1;
@@ -85,7 +112,7 @@ public class Hardware {
 	 * Returns the size of the physical memory in bytes on a Linux-based
 	 * operating system.
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
+	 * @return the size of the physical memory in bytes or {@code -1}, if
 	 *         the size could not be determined
 	 */
 	private static long getSizeOfPhysicalMemoryForLinux() {
@@ -99,15 +126,17 @@ public class Hardware {
 				}
 			}
 			// expected line did not come
-			LOG.error("Cannot determine the size of the physical memory for Linux host (using '/proc/meminfo'). Unexpected format.");
+			LOG.error("Cannot determine the size of the physical memory for Linux host (using '/proc/meminfo'). " +
+					"Unexpected format.");
 			return -1;
 		}
 		catch (NumberFormatException e) {
-			LOG.error("Cannot determine the size of the physical memory for Linux host (using '/proc/meminfo'). Unexpected format.");
+			LOG.error("Cannot determine the size of the physical memory for Linux host (using '/proc/meminfo'). " +
+					"Unexpected format.");
 			return -1;
 		}
 		catch (Throwable t) {
-			LOG.error("Cannot determine the size of the physical memory for Linux host (using '/proc/meminfo'): " + t.getMessage(), t);
+			LOG.error("Cannot determine the size of the physical memory for Linux host (using '/proc/meminfo') ", t);
 			return -1;
 		}
 	}
@@ -116,21 +145,17 @@ public class Hardware {
 	 * Returns the size of the physical memory in bytes on a Mac OS-based
 	 * operating system
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
+	 * @return the size of the physical memory in bytes or {@code -1}, if
 	 *         the size could not be determined
 	 */
 	private static long getSizeOfPhysicalMemoryForMac() {
-
 		BufferedReader bi = null;
-
 		try {
 			Process proc = Runtime.getRuntime().exec("sysctl hw.memsize");
 
-			bi = new BufferedReader(
-					new InputStreamReader(proc.getInputStream()));
+			bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
 			String line;
-
 			while ((line = bi.readLine()) != null) {
 				if (line.startsWith("hw.memsize")) {
 					long memsize = Long.parseLong(line.split(":")[1].trim());
@@ -141,7 +166,7 @@ public class Hardware {
 			}
 
 		} catch (Throwable t) {
-			LOG.error("Cannot determine physical memory of machine for MacOS host: " + t.getMessage(), t);
+			LOG.error("Cannot determine physical memory of machine for MacOS host", t);
 			return -1;
 		} finally {
 			if (bi != null) {
@@ -156,7 +181,7 @@ public class Hardware {
 	/**
 	 * Returns the size of the physical memory in bytes on FreeBSD.
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
+	 * @return the size of the physical memory in bytes or {@code -1}, if
 	 *         the size could not be determined
 	 */
 	private static long getSizeOfPhysicalMemoryForFreeBSD() {
@@ -167,7 +192,6 @@ public class Hardware {
 			bi = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
 			String line;
-
 			while ((line = bi.readLine()) != null) {
 				if (line.startsWith("hw.physmem")) {
 					long memsize = Long.parseLong(line.split(":")[1].trim());
@@ -177,11 +201,13 @@ public class Hardware {
 				}
 			}
 			
-			LOG.error("Cannot determine the size of the physical memory for FreeBSD host (using 'sysctl hw.physmem').");
+			LOG.error("Cannot determine the size of the physical memory for FreeBSD host " +
+					"(using 'sysctl hw.physmem').");
 			return -1;
 		}
 		catch (Throwable t) {
-			LOG.error("Cannot determine the size of the physical memory for FreeBSD host (using 'sysctl hw.physmem'): " + t.getMessage(), t);
+			LOG.error("Cannot determine the size of the physical memory for FreeBSD host " +
+					"(using 'sysctl hw.physmem')", t);
 			return -1;
 		}
 		finally {
@@ -196,7 +222,7 @@ public class Hardware {
 	/**
 	 * Returns the size of the physical memory in bytes on Windows.
 	 * 
-	 * @return the size of the physical memory in bytes or <code>-1</code> if
+	 * @return the size of the physical memory in bytes or {@code -1}, if
 	 *         the size could not be determined
 	 */
 	private static long getSizeOfPhysicalMemoryForWindows() {
@@ -227,7 +253,8 @@ public class Hardware {
 			return sizeOfPhyiscalMemory;
 		}
 		catch (Throwable t) {
-			LOG.error("Cannot determine the size of the physical memory for Windows host (using 'wmic memorychip'): " + t.getMessage(), t);
+			LOG.error("Cannot determine the size of the physical memory for Windows host " +
+					"(using 'wmic memorychip')", t);
 			return -1L;
 		}
 		finally {
@@ -238,8 +265,8 @@ public class Hardware {
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private Hardware() {}
 }

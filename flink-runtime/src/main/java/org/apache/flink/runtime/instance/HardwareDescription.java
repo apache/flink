@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.util.Hardware;
+
 import java.io.Serializable;
 
 /**
