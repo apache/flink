@@ -25,12 +25,12 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -49,7 +49,6 @@ import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -371,7 +370,7 @@ public class Execution {
 				throw new JobException("Could not assign the ExecutionVertex to the slot " + slot);
 			}
 			this.assignedResource = slot;
-			this.assignedResourceLocation = slot.getInstance().getInstanceConnectionInfo();
+			this.assignedResourceLocation = slot.getTaskManagerLocation();
 
 			// race double check, did we fail/cancel and do we need to release the slot?
 			if (this.state != DEPLOYING) {
@@ -381,7 +380,7 @@ public class Execution {
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
-						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
+						attemptNumber, assignedResourceLocation.getHostname()));
 			}
 
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
@@ -393,9 +392,8 @@ public class Execution {
 
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
-
-			final Instance instance = slot.getInstance();
-			final ActorGateway gateway = instance.getActorGateway();
+			
+			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
 			final Future<Object> deployAction = gateway.ask(new SubmitTask(deployment), timeout);
 
@@ -408,7 +406,7 @@ public class Execution {
 							String taskname = deployment.getTaskInfo().getTaskNameWithSubtasks() + " (" + attemptId + ')';
 
 							markFailed(new Exception(
-									"Cannot deploy task " + taskname + " - TaskManager (" + instance
+									"Cannot deploy task " + taskname + " - TaskManager (" + assignedResourceLocation
 									+ ") not responding after a timeout of " + timeout, failure));
 						}
 						else {
@@ -437,7 +435,7 @@ public class Execution {
 		final SimpleSlot slot = this.assignedResource;
 
 		if (slot != null) {
-			final ActorGateway gateway = slot.getInstance().getActorGateway();
+			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
 			Future<Object> stopResult = gateway.retry(
 				new StopTask(attemptId),
@@ -590,24 +588,25 @@ public class Execution {
 						continue;
 					}
 
-					final Instance consumerInstance = consumerSlot.getInstance();
+					final TaskManagerLocation partitionTaskManagerLocation = partition.getProducer()
+							.getCurrentAssignedResource().getTaskManagerLocation();
+					final ResourceID partitionTaskManager = partitionTaskManagerLocation.getResourceID();
+					
+					final ResourceID consumerTaskManager = consumerSlot.getTaskManagerID();
 
-					final ResultPartitionID partitionId = new ResultPartitionID(
-							partition.getPartitionId(), attemptId);
-
-					final Instance partitionInstance = partition.getProducer()
-							.getCurrentAssignedResource().getInstance();
+					final ResultPartitionID partitionId = new ResultPartitionID(partition.getPartitionId(), attemptId);
+					
 
 					final ResultPartitionLocation partitionLocation;
 
-					if (consumerInstance.equals(partitionInstance)) {
+					if (consumerTaskManager.equals(partitionTaskManager)) {
 						// Consuming task is deployed to the same instance as the partition => local
 						partitionLocation = ResultPartitionLocation.createLocal();
 					}
 					else {
 						// Different instances => remote
 						final ConnectionID connectionId = new ConnectionID(
-								partitionInstance.getInstanceConnectionInfo(),
+								partitionTaskManagerLocation,
 								partition.getIntermediateResult().getConnectionIndex());
 
 						partitionLocation = ResultPartitionLocation.createRemote(connectionId);
@@ -916,7 +915,7 @@ public class Execution {
 
 		if (slot != null) {
 
-			final ActorGateway gateway = slot.getInstance().getActorGateway();
+			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
 			Future<Object> cancelResult = gateway.retry(
 				new CancelTask(attemptId),
@@ -946,14 +945,10 @@ public class Execution {
 		final SimpleSlot slot = this.assignedResource;
 
 		if (slot != null) {
-			final Instance instance = slot.getInstance();
+			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
-			if (instance.isAlive()) {
-				final ActorGateway gateway = instance.getActorGateway();
-
-				// TODO For some tests this could be a problem when querying too early if all resources were released
-				gateway.tell(new FailIntermediateResultPartitions(attemptId));
-			}
+			// TODO For some tests this could be a problem when querying too early if all resources were released
+			gateway.tell(new FailIntermediateResultPartitions(attemptId));
 		}
 	}
 
@@ -968,15 +963,15 @@ public class Execution {
 			final UpdatePartitionInfo updatePartitionInfo) {
 
 		if (consumerSlot != null) {
-			final Instance instance = consumerSlot.getInstance();
-			final ActorGateway gateway = instance.getActorGateway();
+			final ActorGateway gateway = consumerSlot.getTaskManagerActorGateway();
+			final TaskManagerLocation taskManagerLocation = consumerSlot.getTaskManagerLocation();
 
 			Future<Object> futureUpdate = gateway.ask(updatePartitionInfo, timeout);
 
 			futureUpdate.onFailure(new OnFailure() {
 				@Override
 				public void onFailure(Throwable failure) throws Throwable {
-					fail(new IllegalStateException("Update task on instance " + instance +
+					fail(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
 							" failed due to:", failure));
 				}
 			}, executionContext);

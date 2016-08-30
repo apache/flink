@@ -24,20 +24,24 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mockito;
+
 import scala.Option;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * It cases which test the interaction of the resource manager with job manager and task managers.
@@ -79,12 +83,13 @@ public class ResourceManagerITCase extends TestLogger {
 
 			ResourceID resourceID = ResourceID.generate();
 
+			TaskManagerLocation location = mock(TaskManagerLocation.class);
+			when(location.getResourceID()).thenReturn(resourceID);
+
+			HardwareDescription resourceProfile = HardwareDescription.extractFromSystem(1_000_000);
+
 			jobManager.tell(
-				new RegistrationMessages.RegisterTaskManager(
-					resourceID,
-					Mockito.mock(TaskManagerLocation.class),
-					null,
-					1),
+				new RegistrationMessages.RegisterTaskManager(resourceID, location, resourceProfile, 1),
 				me);
 
 			expectMsgClass(RegistrationMessages.AcknowledgeRegistration.class);
