@@ -66,10 +66,10 @@ public class TaskExecutorToResourceManagerConnection {
 
 
 	public TaskExecutorToResourceManagerConnection(
-		Logger log,
-		TaskExecutor taskExecutor,
-		String resourceManagerAddress,
-		UUID resourceManagerLeaderId) {
+			Logger log,
+			TaskExecutor taskExecutor,
+			String resourceManagerAddress,
+			UUID resourceManagerLeaderId) {
 
 		this.log = checkNotNull(log);
 		this.taskExecutor = checkNotNull(taskExecutor);
@@ -87,9 +87,9 @@ public class TaskExecutorToResourceManagerConnection {
 		checkState(!isRegistered() && pendingRegistration == null, "The connection is already started");
 
 		pendingRegistration = new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
-			log, taskExecutor.getRpcService(),
-			resourceManagerAddress, resourceManagerLeaderId,
-			taskExecutor.getAddress(), taskExecutor.getResourceID());
+				log, taskExecutor.getRpcService(),
+				resourceManagerAddress, resourceManagerLeaderId,
+				taskExecutor.getAddress(), taskExecutor.getResourceID());
 		pendingRegistration.startRegistration();
 
 		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = pendingRegistration.getFuture();
@@ -160,7 +160,7 @@ public class TaskExecutorToResourceManagerConnection {
 	@Override
 	public String toString() {
 		return String.format("Connection to ResourceManager %s (leaderId=%s)",
-			resourceManagerAddress, resourceManagerLeaderId);
+				resourceManagerAddress, resourceManagerLeaderId);
 	}
 
 	// ------------------------------------------------------------------------
@@ -168,19 +168,19 @@ public class TaskExecutorToResourceManagerConnection {
 	// ------------------------------------------------------------------------
 
 	private static class ResourceManagerRegistration
-		extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+			extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 		private final String taskExecutorAddress;
 
 		private final ResourceID resourceID;
 
 		ResourceManagerRegistration(
-			Logger log,
-			RpcService rpcService,
-			String targetAddress,
-			UUID leaderId,
-			String taskExecutorAddress,
-			ResourceID resourceID) {
+				Logger log,
+				RpcService rpcService,
+				String targetAddress,
+				UUID leaderId,
+				String taskExecutorAddress,
+				ResourceID resourceID) {
 
 			super(log, rpcService, "ResourceManager", ResourceManagerGateway.class, targetAddress, leaderId);
 			this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
@@ -189,7 +189,7 @@ public class TaskExecutorToResourceManagerConnection {
 
 		@Override
 		protected Future<RegistrationResponse> invokeRegistration(
-			ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
+				ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
 
 			FiniteDuration timeout = new FiniteDuration(timeoutMillis, TimeUnit.MILLISECONDS);
 			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, timeout);
