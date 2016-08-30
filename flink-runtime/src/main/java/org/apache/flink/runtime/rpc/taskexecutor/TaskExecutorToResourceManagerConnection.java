@@ -93,7 +93,7 @@ public class TaskExecutorToResourceManagerConnection {
 		pendingRegistration.startRegistration();
 
 		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = pendingRegistration.getFuture();
-		
+
 		future.onSuccess(new OnSuccess<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>>() {
 			@Override
 			public void onSuccess(Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess> result) {
@@ -101,7 +101,7 @@ public class TaskExecutorToResourceManagerConnection {
 				registrationId = result.f1.getRegistrationId();
 			}
 		}, taskExecutor.getMainThreadExecutionContext());
-		
+
 		// this future should only ever fail if there is a bug, not if the registration is declined
 		future.onFailure(new OnFailure() {
 			@Override
@@ -160,7 +160,7 @@ public class TaskExecutorToResourceManagerConnection {
 	@Override
 	public String toString() {
 		return String.format("Connection to ResourceManager %s (leaderId=%s)",
-				resourceManagerAddress, resourceManagerLeaderId); 
+				resourceManagerAddress, resourceManagerLeaderId);
 	}
 
 	// ------------------------------------------------------------------------
@@ -171,7 +171,7 @@ public class TaskExecutorToResourceManagerConnection {
 			extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 		private final String taskExecutorAddress;
-		
+
 		private final ResourceID resourceID;
 
 		ResourceManagerRegistration(

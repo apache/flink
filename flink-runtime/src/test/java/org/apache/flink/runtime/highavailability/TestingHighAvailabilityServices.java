@@ -44,7 +44,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	public void setJobMasterLeaderElectionService(LeaderElectionService leaderElectionService) {
 		this.jobMasterLeaderElectionService = leaderElectionService;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  HA Services Methods
 	// ------------------------------------------------------------------------
