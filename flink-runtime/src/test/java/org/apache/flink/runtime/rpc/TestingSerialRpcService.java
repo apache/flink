@@ -22,8 +22,8 @@ import akka.dispatch.ExecutionContexts;
 import akka.dispatch.Futures;
 import akka.util.Timeout;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.Preconditions;
-import org.apache.log4j.Logger;
 import scala.concurrent.Await;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
@@ -34,58 +34,33 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.BitSet;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class TestingSerialRpcService implements RpcService {
-	private final ScheduledExecutorService executorService;
+/**
+ * An RPC Service implementation for testing. This RPC service directly executes all asynchronous calls one by one in the main thread.
+ */
+public class TestingSerialRpcService extends TestingRpcService {
+
+	private final DirectExecutorService executorService;
 	private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
 
 	public TestingSerialRpcService() {
-		executorService = Executors.newSingleThreadScheduledExecutor();
+		executorService = new DirectExecutorService();
 		this.registeredConnections = new ConcurrentHashMap<>();
 	}
 
-	// ------------------------------------------------------------------------
-	// connections
-	// ------------------------------------------------------------------------
-
-	public void registerGateway(String address, RpcGateway gateway) {
-		checkNotNull(address);
-		checkNotNull(gateway);
-
-		if (registeredConnections.putIfAbsent(address, gateway) != null) {
-			throw new IllegalStateException("a gateway is already registered under " + address);
-		}
-	}
-
 	@Override
-	public <C extends RpcGateway> Future<C> connect(String address, Class<C> clazz) {
-		RpcGateway gateway = registeredConnections.get(address);
-
-		if (gateway != null) {
-			if (clazz.isAssignableFrom(gateway.getClass())) {
-				@SuppressWarnings("unchecked")
-				C typedGateway = (C) gateway;
-				return Futures.successful(typedGateway);
-			} else {
-				return Futures.failed(
-					new Exception("Gateway registered under " + address + " is not of type " + clazz));
-			}
-		} else {
-			return Futures.failed(new Exception("No gateway registered under that name"));
+	public void scheduleRunnable(final Runnable runnable, final long delay, final TimeUnit unit) {
+		try {
+			unit.sleep(delay);
+			runnable.run();
+		} catch (Throwable e) {
+			throw new RuntimeException(e);
 		}
-	}
-
-	@Override
-	public void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
-		executorService.schedule(runnable, delay, unit);
 	}
 
 	@Override
@@ -100,14 +75,15 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
-	public <C extends RpcGateway> void stopServer(C selfGateway) {
+	public void stopServer(RpcGateway selfGateway) {
 
 	}
 
 	@Override
 	public <C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint) {
-		InvocationHandler akkaInvocationHandler = new TestingSerialInvocationHandler(rpcEndpoint, executorService);
+		final String address = UUID.randomUUID().toString();
 
+		InvocationHandler akkaInvocationHandler = new TestingSerialInvocationHandler(address, rpcEndpoint);
 		ClassLoader classLoader = getClass().getClassLoader();
 
 		@SuppressWarnings("unchecked")
@@ -123,21 +99,23 @@ public class TestingSerialRpcService implements RpcService {
 		return self;
 	}
 
-	static class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutor, StartStoppable {
-		private static final Logger LOG = Logger.getLogger(TestingSerialInvocationHandler.class);
+	private static class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutor, StartStoppable {
 
 		private final T rpcEndpoint;
-		private final ScheduledExecutorService executorService;
+
+		/** default timeout for asks */
 		private final Timeout timeout;
 
-		public TestingSerialInvocationHandler(T rpcEndpoint, ScheduledExecutorService executorService) {
-			this(rpcEndpoint, executorService, new Timeout(new FiniteDuration(10, TimeUnit.SECONDS)));
+		private final String address;
+
+		private TestingSerialInvocationHandler(String address, T rpcEndpoint) {
+			this(address, rpcEndpoint, new Timeout(new FiniteDuration(10, TimeUnit.SECONDS)));
 		}
 
-		public TestingSerialInvocationHandler(T rpcEndpoint, ScheduledExecutorService executorService, Timeout timeout) {
+		private TestingSerialInvocationHandler(String address, T rpcEndpoint, Timeout timeout) {
 			this.rpcEndpoint = rpcEndpoint;
-			this.executorService = executorService;
 			this.timeout = timeout;
+			this.address = address;
 		}
 
 		@Override
@@ -160,13 +138,11 @@ public class TestingSerialRpcService implements RpcService {
 
 				Class<?> returnType = method.getReturnType();
 
-				if (returnType.equals(Void.TYPE)) {
-					return handleRpcInvocationSync(methodName, filteredArguments.f0, filteredArguments.f1, futureTimeout);
-				} else if (returnType.equals(Future.class)) {
+				if (returnType.equals(Future.class)) {
 					try {
 						Object result = handleRpcInvocationSync(methodName, filteredArguments.f0, filteredArguments.f1, futureTimeout);
 						return Futures.successful(result);
-					} catch(Throwable e) {
+					} catch (Throwable e) {
 						return Futures.failed(e);
 					}
 				} else {
@@ -179,55 +155,45 @@ public class TestingSerialRpcService implements RpcService {
 		 * Handle rpc invocations by looking up the rpc method on the rpc endpoint and calling this
 		 * method with the provided method arguments. If the method has a return value, it is returned
 		 * to the sender of the call.
-		 *
 		 */
 		private Object handleRpcInvocationSync(final String methodName,
 			final Class<?>[] parameterTypes,
 			final Object[] args,
 			final Timeout futureTimeout) throws Exception {
 			final Method rpcMethod = lookupRpcMethod(methodName, parameterTypes);
-			ScheduledFuture<Object> scheduleFuture = executorService.schedule(new Callable<Object>() {
-				@Override
-				public Object call() {
-					try {
-						return rpcMethod.invoke(rpcEndpoint, args);
-					} catch(Throwable e) {
-						throw new RuntimeException(e);
-					}
-				}
-			}, 0, TimeUnit.MILLISECONDS);
+			Object result = rpcMethod.invoke(rpcEndpoint, args);
 
-			Class<?> returnType = rpcMethod.getReturnType();
-			if(returnType.equals(Void.TYPE)) {
-				scheduleFuture.get(futureTimeout.duration().toMillis(), TimeUnit.MILLISECONDS);
-				return null;
-			} else if(returnType.equals(Future.class)){
-				Future<?> futureResult = (Future<?>)scheduleFuture.get();
-				return Await.result(futureResult, futureTimeout.duration());
+			if (result != null && result instanceof Future) {
+				Future<?> future = (Future<?>) result;
+				return Await.result(future, futureTimeout.duration());
 			} else {
-				return scheduleFuture.get(futureTimeout.duration().toMillis(), TimeUnit.MILLISECONDS);
+				return result;
 			}
 		}
 
 		@Override
 		public void runAsync(Runnable runnable) {
-			executorService.execute(runnable);
+			runnable.run();
 		}
 
 		@Override
 		public <V> Future<V> callAsync(Callable<V> callable, Timeout callTimeout) {
-			ScheduledFuture<V> future =  executorService.schedule(callable, 0, TimeUnit.MILLISECONDS);
-			try{
-				V result = future.get(callTimeout.duration().toMillis(), TimeUnit.MILLISECONDS);
-				return Futures.successful(result);
-			} catch(Throwable e) {
+			try {
+				TimeUnit.MILLISECONDS.sleep(callTimeout.duration().toMillis());
+				return Futures.successful(callable.call());
+			} catch (Throwable e) {
 				return Futures.failed(e);
 			}
 		}
 
 		@Override
-		public void scheduleRunAsync(Runnable runnable, long delay) {
-			executorService.schedule(runnable, delay, TimeUnit.MILLISECONDS);
+		public void scheduleRunAsync(final Runnable runnable, final long delay) {
+			try {
+				TimeUnit.MILLISECONDS.sleep(delay);
+				runnable.run();
+			} catch (Throwable e) {
+				throw new RuntimeException(e);
+			}
 		}
 
 		@Override
@@ -242,19 +208,20 @@ public class TestingSerialRpcService implements RpcService {
 
 		@Override
 		public String getAddress() {
-			return null;
+			return address;
 		}
 
 		/**
 		 * Look up the rpc method on the given {@link RpcEndpoint} instance.
 		 *
-		 * @param methodName Name of the method
+		 * @param methodName     Name of the method
 		 * @param parameterTypes Parameter types of the method
 		 * @return Method of the rpc endpoint
 		 * @throws NoSuchMethodException Thrown if the method with the given name and parameter types
-		 * 									cannot be found at the rpc endpoint
+		 *                               cannot be found at the rpc endpoint
 		 */
-		private Method lookupRpcMethod(final String methodName, final Class<?>[] parameterTypes) throws NoSuchMethodException {
+		private Method lookupRpcMethod(final String methodName,
+			final Class<?>[] parameterTypes) throws NoSuchMethodException {
 			return rpcEndpoint.getClass().getMethod(methodName, parameterTypes);
 		}
 
@@ -268,12 +235,13 @@ public class TestingSerialRpcService implements RpcService {
 		 * timeout is returned.
 		 *
 		 * @param parameterAnnotations Parameter annotations
-		 * @param args Array of arguments
-		 * @param defaultTimeout Default timeout to return if no {@link RpcTimeout} annotated parameter
-		 *                       has been found
+		 * @param args                 Array of arguments
+		 * @param defaultTimeout       Default timeout to return if no {@link RpcTimeout} annotated parameter
+		 *                             has been found
 		 * @return Timeout extracted from the array of arguments or the default timeout
 		 */
-		private static Timeout extractRpcTimeout(Annotation[][] parameterAnnotations, Object[] args, Timeout defaultTimeout) {
+		private static Timeout extractRpcTimeout(Annotation[][] parameterAnnotations, Object[] args,
+			Timeout defaultTimeout) {
 			if (args != null) {
 				Preconditions.checkArgument(parameterAnnotations.length == args.length);
 
@@ -297,9 +265,9 @@ public class TestingSerialRpcService implements RpcService {
 		 * Removes all {@link RpcTimeout} annotated parameters from the parameter type and argument
 		 * list.
 		 *
-		 * @param parameterTypes Array of parameter types
+		 * @param parameterTypes       Array of parameter types
 		 * @param parameterAnnotations Array of parameter annotations
-		 * @param args Arary of arguments
+		 * @param args                 Arary of arguments
 		 * @return Tuple of filtered parameter types and arguments which no longer contain the
 		 * {@link RpcTimeout} annotated parameter types and arguments
 		 */
@@ -345,7 +313,6 @@ public class TestingSerialRpcService implements RpcService {
 					}
 				}
 			}
-
 			return Tuple2.of(filteredParameterTypes, filteredArgs);
 		}
 

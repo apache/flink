@@ -18,20 +18,26 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
+import akka.dispatch.ExecutionContexts;
 import akka.util.Timeout;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.rpc.TestingSerialRpcService;
+import org.apache.flink.runtime.util.DirectExecutorService;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import scala.concurrent.Await;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,7 +49,7 @@ public class ResourceManagerHATest {
 
 	@Before
 	public void setup() throws Exception {
-		rpcService = new TestingRpcService();
+		rpcService = new TestingSerialRpcService();
 	}
 
 	@After
@@ -64,23 +70,10 @@ public class ResourceManagerHATest {
 		final UUID leaderId = UUID.randomUUID();
 		leaderElectionService.isLeader(leaderId);
 		// after grant leadership, resourceManager's leaderId has value
-		Assert.assertEquals(getLatestLeaderId(resourceManager), leaderId);
+		Assert.assertEquals(leaderId, resourceManager.getLeaderSessionID());
 		// then revoke leadership, resourceManager's leaderId is null again
 		leaderElectionService.notLeader();
-		Assert.assertNull(getLatestLeaderId(resourceManager));
-	}
-
-
-	private UUID getLatestLeaderId(final ResourceManager resourceManager) throws Exception {
-		Timeout timeout = new Timeout(200, TimeUnit.MILLISECONDS);
-		Future<UUID> actualLeaderIdFuture = resourceManager.callAsync(new Callable<UUID>() {
-			@Override
-			public UUID call() throws Exception {
-				return resourceManager.getLeaderSessionID();
-			}
-		}, timeout);
-		UUID actualValue = Await.result(actualLeaderIdFuture, timeout.duration());
-		return actualValue;
+		Assert.assertNull(resourceManager.getLeaderSessionID());
 	}
 
 }
