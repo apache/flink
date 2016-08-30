@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.util;
 
 import static org.junit.Assert.*;
 
@@ -34,7 +34,7 @@ public class HardwareTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testPhysicalMemory() {
 		try {
