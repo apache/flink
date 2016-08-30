@@ -117,7 +117,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		ActorGateway actorGateway = mock(ActorGateway.class);
 
 		when(simpleSlot.isAlive()).thenReturn(true);
-		when(simpleSlot.getInstance()).thenReturn(instance);
+		when(simpleSlot.getTaskManagerID()).thenReturn(instance.getResourceId());
+		when(simpleSlot.getTaskManagerLocation()).thenReturn(instance.getInstanceConnectionInfo());
 		when(simpleSlot.setExecutedVertex(Matchers.any(Execution.class))).thenReturn(true);
 		when(simpleSlot.getRoot()).thenReturn(rootSlot);
 
@@ -152,6 +153,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 		assertNotNull(metric);
 		assertTrue(metric instanceof Gauge);
 
+		@SuppressWarnings("unchecked")
 		Gauge<Long> restartingTime = (Gauge<Long>) metric;
 
 		// check that the restarting time is 0 since it's the initial start

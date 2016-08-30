@@ -27,7 +27,6 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -98,7 +97,7 @@ public class ExecutionVertex {
 
 	private volatile Execution currentExecution;	// this field must never be null
 
-	private volatile List<Instance> locationConstraintInstances;
+	private volatile List<TaskManagerLocation> locationConstraintInstances;
 
 	private volatile boolean scheduleLocalOnly;
 
@@ -352,7 +351,7 @@ public class ExecutionVertex {
 		}
 	}
 
-	public void setLocationConstraintHosts(List<Instance> instances) {
+	public void setLocationConstraintHosts(List<TaskManagerLocation> instances) {
 		this.locationConstraintInstances = instances;
 	}
 
@@ -376,9 +375,9 @@ public class ExecutionVertex {
 	 *
 	 * @return The preferred locations for this vertex execution, or null, if there is no preference.
 	 */
-	public Iterable<Instance> getPreferredLocations() {
+	public Iterable<TaskManagerLocation> getPreferredLocations() {
 		// if we have hard location constraints, use those
-		List<Instance> constraintInstances = this.locationConstraintInstances;
+		List<TaskManagerLocation> constraintInstances = this.locationConstraintInstances;
 		if (constraintInstances != null && !constraintInstances.isEmpty()) {
 			return constraintInstances;
 		}
@@ -388,8 +387,8 @@ public class ExecutionVertex {
 			return Collections.emptySet();
 		}
 		else {
-			Set<Instance> locations = new HashSet<Instance>();
-			Set<Instance> inputLocations = new HashSet<Instance>();
+			Set<TaskManagerLocation> locations = new HashSet<>();
+			Set<TaskManagerLocation> inputLocations = new HashSet<>();
 
 			// go over all inputs
 			for (int i = 0; i < inputEdges.length; i++) {
@@ -402,7 +401,7 @@ public class ExecutionVertex {
 						SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
 						if (sourceSlot != null) {
 							// add input location
-							inputLocations.add(sourceSlot.getInstance());
+							inputLocations.add(sourceSlot.getTaskManagerLocation());
 							// inputs which have too many distinct sources are not considered
 							if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
 								inputLocations.clear();
@@ -495,7 +494,7 @@ public class ExecutionVertex {
 
 			// send only if we actually have a target
 			if (slot != null) {
-				ActorGateway gateway = slot.getInstance().getActorGateway();
+				ActorGateway gateway = slot.getTaskManagerActorGateway();
 				if (gateway != null) {
 					if (sender == null) {
 						gateway.tell(message);

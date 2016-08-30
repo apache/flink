@@ -23,9 +23,11 @@ import static org.mockito.Mockito.when;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -82,8 +84,21 @@ public class SchedulerTestUtils {
 		
 		return execution;
 	}
+
+	public static Execution getTestVertex(Instance... preferredInstances) {
+		List<TaskManagerLocation> locations = new ArrayList<>(preferredInstances.length);
+		for (Instance i : preferredInstances) {
+			locations.add(i.getInstanceConnectionInfo());
+		}
+		return getTestVertex(locations);
+	}
+
+	public static Execution getTestVertex(TaskManagerLocation... preferredLocations) {
+		return getTestVertex(Arrays.asList(preferredLocations));
+	}
 	
-	public static Execution getTestVertex(Iterable<Instance> preferredLocations) {
+	
+	public static Execution getTestVertex(Iterable<TaskManagerLocation> preferredLocations) {
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		
 		when(vertex.getPreferredLocations()).thenReturn(preferredLocations);
@@ -113,10 +128,12 @@ public class SchedulerTestUtils {
 		
 		return execution;
 	}
-	
-	public static Execution getTestVertexWithLocation(JobVertexID jid, int taskIndex, int numTasks, Instance... locations) {
+
+	public static Execution getTestVertexWithLocation(
+			JobVertexID jid, int taskIndex, int numTasks, TaskManagerLocation... locations) {
+
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
-		
+
 		when(vertex.getPreferredLocations()).thenReturn(Arrays.asList(locations));
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.getJobvertexId()).thenReturn(jid);
@@ -124,10 +141,10 @@ public class SchedulerTestUtils {
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(numTasks);
 		when(vertex.getMaxParallelism()).thenReturn(numTasks);
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
-		
+
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
-		
+
 		return execution;
 	}
 	

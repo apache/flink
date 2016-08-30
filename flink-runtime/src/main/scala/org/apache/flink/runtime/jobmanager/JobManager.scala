@@ -650,7 +650,7 @@ class JobManager(
             val taskId = execution.getVertex.getParallelSubtaskIndex
 
             val host = if (slot != null) {
-              slot.getInstance().getInstanceConnectionInfo.getHostname
+              slot.getTaskManagerLocation().getHostname()
             } else {
               null
             }

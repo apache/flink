@@ -92,8 +92,8 @@ public class VertexLocationConstraintTest {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
 			ExecutionVertex[] vertices = ejv.getTaskVertices();
 			
-			vertices[0].setLocationConstraintHosts(Arrays.asList(instance1, instance2));
-			vertices[1].setLocationConstraintHosts(Collections.singletonList(instance3));
+			vertices[0].setLocationConstraintHosts(Arrays.asList(instance1.getInstanceConnectionInfo(), instance2.getInstanceConnectionInfo()));
+			vertices[1].setLocationConstraintHosts(Collections.singletonList(instance3.getInstanceConnectionInfo()));
 			
 			vertices[0].setScheduleLocalOnly(true);
 			vertices[1].setScheduleLocalOnly(true);
@@ -106,14 +106,14 @@ public class VertexLocationConstraintTest {
 			assertNotNull(slot1);
 			assertNotNull(slot2);
 			
-			Instance target1 = slot1.getInstance();
-			Instance target2 = slot2.getInstance();
+			ResourceID target1 = slot1.getTaskManagerID();
+			ResourceID target2 = slot2.getTaskManagerID();
 			
 			assertNotNull(target1);
 			assertNotNull(target2);
 			
-			assertTrue(target1 == instance1 || target1 == instance2);
-			assertTrue(target2 == instance3);
+			assertTrue(target1 == instance1.getResourceId() || target1 == instance2.getResourceId());
+			assertEquals(target2, instance3.getResourceId());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -165,8 +165,8 @@ public class VertexLocationConstraintTest {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
 			ExecutionVertex[] vertices = ejv.getTaskVertices();
 			
-			vertices[0].setLocationConstraintHosts(Collections.singletonList(instance3));
-			vertices[1].setLocationConstraintHosts(Arrays.asList(instance1, instance2));
+			vertices[0].setLocationConstraintHosts(Collections.singletonList(instance3.getInstanceConnectionInfo()));
+			vertices[1].setLocationConstraintHosts(Arrays.asList(instance1.getInstanceConnectionInfo(), instance2.getInstanceConnectionInfo()));
 			
 			vertices[0].setScheduleLocalOnly(true);
 			vertices[1].setScheduleLocalOnly(true);
@@ -179,14 +179,11 @@ public class VertexLocationConstraintTest {
 			assertNotNull(slot1);
 			assertNotNull(slot2);
 			
-			Instance target1 = slot1.getInstance();
-			Instance target2 = slot2.getInstance();
+			ResourceID target1 = slot1.getTaskManagerID();
+			ResourceID target2 = slot2.getTaskManagerID();
 			
-			assertNotNull(target1);
-			assertNotNull(target2);
-			
-			assertTrue(target1 == instance3);
-			assertTrue(target2 == instance1 || target2 == instance2);
+			assertTrue(target1 == instance3.getResourceId());
+			assertTrue(target2 == instance1.getResourceId() || target2 == instance2.getResourceId());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -242,8 +239,8 @@ public class VertexLocationConstraintTest {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
 			ExecutionVertex[] vertices = ejv.getTaskVertices();
 			
-			vertices[0].setLocationConstraintHosts(Arrays.asList(instance1, instance2));
-			vertices[1].setLocationConstraintHosts(Collections.singletonList(instance3));
+			vertices[0].setLocationConstraintHosts(Arrays.asList(instance1.getInstanceConnectionInfo(), instance2.getInstanceConnectionInfo()));
+			vertices[1].setLocationConstraintHosts(Collections.singletonList(instance3.getInstanceConnectionInfo()));
 			
 			vertices[0].setScheduleLocalOnly(true);
 			vertices[1].setScheduleLocalOnly(true);
@@ -255,15 +252,12 @@ public class VertexLocationConstraintTest {
 			
 			assertNotNull(slot1);
 			assertNotNull(slot2);
-			
-			Instance target1 = slot1.getInstance();
-			Instance target2 = slot2.getInstance();
-			
-			assertNotNull(target1);
-			assertNotNull(target2);
-			
-			assertTrue(target1 == instance1 || target1 == instance2);
-			assertTrue(target2 == instance3);
+
+			ResourceID target1 = slot1.getTaskManagerID();
+			ResourceID target2 = slot2.getTaskManagerID();
+
+			assertTrue(target1 == instance1.getResourceId() || target1 == instance2.getResourceId());
+			assertTrue(target2 == instance3.getResourceId());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -310,7 +304,7 @@ public class VertexLocationConstraintTest {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
 			ExecutionVertex[] vertices = ejv.getTaskVertices();
 			
-			vertices[0].setLocationConstraintHosts(Collections.singletonList(instance2));
+			vertices[0].setLocationConstraintHosts(Collections.singletonList(instance2.getInstanceConnectionInfo()));
 			vertices[0].setScheduleLocalOnly(true);
 			
 			try {
@@ -380,7 +374,7 @@ public class VertexLocationConstraintTest {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
 			ExecutionVertex[] vertices = ejv.getTaskVertices();
 			
-			vertices[0].setLocationConstraintHosts(Collections.singletonList(instance2));
+			vertices[0].setLocationConstraintHosts(Collections.singletonList(instance2.getInstanceConnectionInfo()));
 			vertices[0].setScheduleLocalOnly(true);
 			
 			try {
@@ -420,7 +414,7 @@ public class VertexLocationConstraintTest {
 			ExecutionVertex ev = eg.getAllVertices().get(vertex.getID()).getTaskVertices()[0];
 			
 			Instance instance = ExecutionGraphTestUtils.getInstance(DummyActorGateway.INSTANCE);
-			ev.setLocationConstraintHosts(Collections.singletonList(instance));
+			ev.setLocationConstraintHosts(Collections.singletonList(instance.getInstanceConnectionInfo()));
 			
 			assertNotNull(ev.getPreferredLocations());
 			assertEquals(instance, ev.getPreferredLocations().iterator().next());
