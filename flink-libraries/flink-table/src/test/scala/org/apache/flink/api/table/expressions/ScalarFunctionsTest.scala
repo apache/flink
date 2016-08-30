@@ -702,6 +702,51 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "1996-11-01")
   }
 
+  @Test
+  def testCurrentTimePoint(): Unit = {
+
+    // current time points are non-deterministic
+    // we just test the format of the output
+    // manual test can be found in NonDeterministicTests
+
+    testAllApis(
+      currentDate().cast(Types.STRING).charLength(),
+      "currentDate().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR))",
+      "10")
+
+    testAllApis(
+      currentTime().cast(Types.STRING).charLength(),
+      "currentTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR))",
+      "8")
+
+    testAllApis(
+      currentTimestamp().cast(Types.STRING).charLength(),
+      "currentTimestamp().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR))",
+      "23")
+
+    testAllApis(
+      localTimestamp().cast(Types.STRING).charLength(),
+      "localTimestamp().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR))",
+      "23")
+
+    testAllApis(
+      localTime().cast(Types.STRING).charLength(),
+      "localTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR))",
+      "8")
+
+    // comparisons are deterministic
+    testAllApis(
+      localTimestamp() === localTimestamp(),
+      "localTimestamp() === localTimestamp()",
+      "LOCALTIMESTAMP = LOCALTIMESTAMP",
+      "true")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {

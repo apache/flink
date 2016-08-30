@@ -20,6 +20,7 @@ package org.apache.flink.api.table.codegen
 
 import java.math.{BigDecimal => JBigDecimal}
 
+import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -1221,6 +1222,109 @@ class CodeGenerator(
         |$fieldTerm = ($classQualifier) $constructorTerm.newInstance();
        """.stripMargin
     reusableInitStatements.add(constructorAccessibility)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable timestamp to the member area of the generated [[Function]].
+    */
+  def addReusableTimestamp(): String = {
+    val fieldTerm = s"timestamp"
+
+    val field =
+      s"""
+        |transient long $fieldTerm = java.lang.System.currentTimeMillis();
+        |""".stripMargin
+    reusableMemberStatements.add(field)
+    fieldTerm
+  }
+
+    /**
+    * Adds a reusable local timestamp to the member area of the generated [[Function]].
+    */
+  def addReusableLocalTimestamp(): String = {
+    val fieldTerm = s"localtimestamp"
+
+    addReusableTimestamp()
+
+    val field =
+      s"""
+        |transient long $fieldTerm =
+        |  timestamp + java.util.TimeZone.getDefault().getOffset(timestamp);
+        |""".stripMargin
+    reusableMemberStatements.add(field)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable time to the member area of the generated [[Function]].
+    */
+  def addReusableTime(): String = {
+    val fieldTerm = s"time"
+
+    addReusableTimestamp()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
+    val field =
+      s"""
+        |transient int $fieldTerm =
+        |  (int) (timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val fieldInit =
+      s"""
+        |if (time < 0) {
+        |  time += ${DateTimeUtils.MILLIS_PER_DAY};
+        |}
+        |""".stripMargin
+    reusableInitStatements.add(fieldInit)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable local time to the member area of the generated [[Function]].
+    */
+  def addReusableLocalTime(): String = {
+    val fieldTerm = s"localtime"
+
+    addReusableLocalTimestamp()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
+    val field =
+      s"""
+        |transient int $fieldTerm =
+        |  (int) (localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |""".stripMargin
+    reusableMemberStatements.add(field)
+    fieldTerm
+  }
+
+
+  /**
+    * Adds a reusable date to the member area of the generated [[Function]].
+    */
+  def addReusableDate(): String = {
+    val fieldTerm = s"date"
+
+    addReusableTimestamp()
+    addReusableTime()
+
+    // adopted from org.apache.calcite.runtime.SqlFunctions.currentDate()
+    val field =
+      s"""
+        |transient int $fieldTerm =
+        |  (int) (timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
+        |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val fieldInit =
+      s"""
+        |if (time < 0) {
+        |  date -= 1;
+        |}
+        |""".stripMargin
+    reusableInitStatements.add(fieldInit)
     fieldTerm
   }
 }
