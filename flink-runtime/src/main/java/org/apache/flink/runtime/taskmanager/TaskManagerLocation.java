@@ -107,7 +107,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 		}
 
 		this.stringRepresentation = String.format(
-				"TaskManager (%s) @ %s (dataPort=%d)", resourceID, fqdnHostName, dataPort);
+				"%s @ %s (dataPort=%d)", resourceID, fqdnHostName, dataPort);
 	}
 
 	// ------------------------------------------------------------------------

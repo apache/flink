@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.areAllDistinct;
-import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
-import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertexWithLocation;
-import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.sleepUninterruptibly;
-import static org.junit.Assert.*;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+
+import org.junit.Test;
 
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -31,11 +32,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.junit.Test;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.areAllDistinct;
+import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
+import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
+import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertexWithLocation;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.sleepUninterruptibly;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the scheduler when scheduling tasks in slot sharing groups.
@@ -102,10 +108,10 @@ public class SchedulerSlotSharingTest {
 			
 			// make sure we have two slots on the first instance, and two on the second
 			int c = 0;
-			c += (s5.getInstance() == i1) ? 1 : -1;
-			c += (s6.getInstance() == i1) ? 1 : -1;
-			c += (s7.getInstance() == i1) ? 1 : -1;
-			c += (s8.getInstance() == i1) ? 1 : -1;
+			c += (s5.getTaskManagerID().equals(i1.getResourceId())) ? 1 : -1;
+			c += (s6.getTaskManagerID().equals(i1.getResourceId())) ? 1 : -1;
+			c += (s7.getTaskManagerID().equals(i1.getResourceId())) ? 1 : -1;
+			c += (s8.getTaskManagerID().equals(i1.getResourceId())) ? 1 : -1;
 			assertEquals(0, c);
 			
 			// release all
@@ -625,20 +631,23 @@ public class SchedulerSlotSharingTest {
 		try {
 			JobVertexID jid1 = new JobVertexID();
 			JobVertexID jid2 = new JobVertexID();
-			
+
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
-			
+
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
-			
+
+			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
+			TaskManagerLocation loc2 = i2.getInstanceConnectionInfo();
+
 			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
 			scheduler.newInstanceAvailable(i2);
 			
 			
 			// schedule one to each instance
-			SimpleSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup));
-			SimpleSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i2), sharingGroup));
+			SimpleSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup));
+			SimpleSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup));
 			assertNotNull(s1);
 			assertNotNull(s2);
 			
@@ -647,8 +656,8 @@ public class SchedulerSlotSharingTest {
 			assertEquals(1, i2.getNumberOfAvailableSlots());
 			
 			// schedule one from the other group to each instance
-			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, i1), sharingGroup));
-			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, i2), sharingGroup));
+			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc1), sharingGroup));
+			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc2), sharingGroup));
 			assertNotNull(s3);
 			assertNotNull(s4);
 			
@@ -675,20 +684,23 @@ public class SchedulerSlotSharingTest {
 		try {
 			JobVertexID jid1 = new JobVertexID();
 			JobVertexID jid2 = new JobVertexID();
-			
+
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
-			
+
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
-			
+
+			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
+			TaskManagerLocation loc2 = i2.getInstanceConnectionInfo();
+
 			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
 			scheduler.newInstanceAvailable(i2);
 			
 			
 			// schedule one to each instance
-			SimpleSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup));
-			SimpleSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i1), sharingGroup));
+			SimpleSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup));
+			SimpleSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc1), sharingGroup));
 			assertNotNull(s1);
 			assertNotNull(s2);
 			
@@ -697,8 +709,8 @@ public class SchedulerSlotSharingTest {
 			assertEquals(2, i2.getNumberOfAvailableSlots());
 			
 			// schedule one from the other group to each instance
-			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, i2), sharingGroup));
-			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, i2), sharingGroup));
+			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc2), sharingGroup));
+			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc2), sharingGroup));
 			assertNotNull(s3);
 			assertNotNull(s4);
 			
@@ -725,25 +737,27 @@ public class SchedulerSlotSharingTest {
 		try {
 			JobVertexID jid1 = new JobVertexID();
 			JobVertexID jid2 = new JobVertexID();
-			
+
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
-			
+
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
-			
+
+			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
+
 			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
 			scheduler.newInstanceAvailable(i2);
 			
 			// schedule until the one instance is full
-			SimpleSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup));
-			SimpleSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i1), sharingGroup));
-			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 4, i1), sharingGroup));
-			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 4, i1), sharingGroup));
+			SimpleSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup));
+			SimpleSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc1), sharingGroup));
+			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 4, loc1), sharingGroup));
+			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 4, loc1), sharingGroup));
 
 			// schedule two more with preference of same instance --> need to go to other instance
-			SimpleSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 3, 4, i1), sharingGroup));
-			SimpleSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 4, 4, i1), sharingGroup));
+			SimpleSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 3, 4, loc1), sharingGroup));
+			SimpleSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 4, 4, loc1), sharingGroup));
 			
 			assertNotNull(s1);
 			assertNotNull(s2);
@@ -757,12 +771,12 @@ public class SchedulerSlotSharingTest {
 			assertEquals(0, i1.getNumberOfAvailableSlots());
 			assertEquals(0, i2.getNumberOfAvailableSlots());
 			
-			assertEquals(i1, s1.getInstance());
-			assertEquals(i1, s2.getInstance());
-			assertEquals(i1, s3.getInstance());
-			assertEquals(i1, s4.getInstance());
-			assertEquals(i2, s5.getInstance());
-			assertEquals(i2, s6.getInstance());
+			assertEquals(i1.getResourceId(), s1.getTaskManagerID());
+			assertEquals(i1.getResourceId(), s2.getTaskManagerID());
+			assertEquals(i1.getResourceId(), s3.getTaskManagerID());
+			assertEquals(i1.getResourceId(), s4.getTaskManagerID());
+			assertEquals(i2.getResourceId(), s5.getTaskManagerID());
+			assertEquals(i2.getResourceId(), s6.getTaskManagerID());
 			
 			// check the scheduler's bookkeeping
 			assertEquals(4, scheduler.getNumberOfLocalizedAssignments());

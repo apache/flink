@@ -28,15 +28,20 @@ import java.util.Set;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
+import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * An instance represents a {@link org.apache.flink.runtime.taskmanager.TaskManager}
  * registered at a JobManager and ready to receive work.
  */
-public class Instance {
+public class Instance implements SlotOwner {
 
 	private final static Logger LOG = LoggerFactory.getLogger(Instance.class);
 
@@ -241,7 +246,7 @@ public class Instance {
 				return null;
 			}
 			else {
-				SimpleSlot slot = new SimpleSlot(jobID, this, nextSlot);
+				SimpleSlot slot = new SimpleSlot(jobID, this, connectionInfo, nextSlot, actorGateway);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -278,7 +283,8 @@ public class Instance {
 				return null;
 			}
 			else {
-				SharedSlot slot = new SharedSlot(jobID, this, nextSlot, sharingGroupAssignment);
+				SharedSlot slot = new SharedSlot(
+						jobID, this, connectionInfo, nextSlot, actorGateway, sharingGroupAssignment);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -295,13 +301,11 @@ public class Instance {
 	 * @param slot The slot to return.
 	 * @return True, if the slot was returned, false if not.
 	 */
+	@Override
 	public boolean returnAllocatedSlot(Slot slot) {
-		if (slot == null || slot.getInstance() != this) {
-			throw new IllegalArgumentException("Slot is null or belongs to the wrong TaskManager.");
-		}
-		if (slot.isAlive()) {
-			throw new IllegalArgumentException("Slot is still alive");
-		}
+		checkNotNull(slot);
+		checkArgument(!slot.isAlive(), "slot is still alive");
+		checkArgument(slot.getOwner() == this, "slot belongs to the wrong TaskManager.");
 
 		if (slot.markReleased()) {
 			LOG.debug("Return allocated slot {}.", slot);
