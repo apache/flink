@@ -243,6 +243,22 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
+		 *
+		 * <p>
+		 *     Note: This is a temporary workaround while the {@link #apply(CoGroupFunction)} method has the wrong return type.
+		 * </p>
+		 * @deprecated This method will be replaced by {@link #apply(CoGroupFunction)} in Flink 2.0.
+		 * So use the {@link #apply(CoGroupFunction)} in the future.
+         */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function) {
+			return (SingleOutputStreamOperator<T>) apply(function);
+		}
+
+		/**
+		 * Completes the co-group operation with the user function that is executed
+		 * for windowed groups.
 		 */
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
@@ -253,9 +269,11 @@ public class CoGroupedStreams<T1, T2> {
 			
 			DataStream<TaggedUnion<T1, T2>> taggedInput1 = input1
 					.map(new Input1Tagger<T1, T2>())
+					.setParallelism(input1.getParallelism())
 					.returns(unionType);
 			DataStream<TaggedUnion<T1, T2>> taggedInput2 = input2
 					.map(new Input2Tagger<T1, T2>())
+					.setParallelism(input2.getParallelism())
 					.returns(unionType);
 
 			DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);
@@ -273,6 +291,22 @@ public class CoGroupedStreams<T1, T2> {
 			}
 
 			return windowOp.apply(new CoGroupWindowFunction<T1, T2, T, KEY, W>(function), resultType);
+		}
+
+		/**
+		 * Completes the co-group operation with the user function that is executed
+		 * for windowed groups.
+		 *
+		 * <p>
+		 *     Note: This is a temporary workaround while the {@link #apply(CoGroupFunction, TypeInformation)} method has the wrong return type.
+		 * </p>
+		 * @deprecated This method will be replaced by {@link #apply(CoGroupFunction, TypeInformation)} in Flink 2.0.
+		 * So use the {@link #apply(CoGroupFunction, TypeInformation)} in the future.
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+			return (SingleOutputStreamOperator<T>) apply(function, resultType);
 		}
 	}
 
