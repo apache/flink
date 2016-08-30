@@ -17,7 +17,6 @@
 
 package org.apache.flink.contrib.siddhi.schema;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.Preconditions;

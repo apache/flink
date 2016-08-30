@@ -15,4 +15,14 @@
  * limitations under the License.
  */
 
+/**
+ * TODO
+ *
+ * 1) Support Multiple input streams
+ * 2) More data type support (Tuple/PrimitiveType/Array)
+ * 2) Support keyedStream
+ * 3) Test complex siddhi query cases
+ * 4) Sorting buffer state persistence
+ * 5) Object reusing
+ */
 package org.apache.flink.contrib.siddhi;

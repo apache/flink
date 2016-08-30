@@ -17,7 +17,6 @@
 
 package org.apache.flink.contrib.siddhi.operator;
 
-import org.apache.flink.contrib.siddhi.schema.SiddhiStreamSchema;
 import org.apache.flink.contrib.siddhi.schema.StreamSchema;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -31,6 +30,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wso2.siddhi.core.ExecutionPlanRuntime;
@@ -47,7 +47,7 @@ public abstract class AbstractSiddhiOperator<IN,OUT> extends AbstractStreamOpera
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSiddhiOperator.class);
 	protected static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
 
-	private final SiddhiExecutionPlan<OUT> siddhiPlan;
+	private final SiddhiOperatorContext siddhiContext;
 	private final String executionExpression;
 	private final boolean isProcessingTime;
 
@@ -59,19 +59,19 @@ public abstract class AbstractSiddhiOperator<IN,OUT> extends AbstractStreamOpera
 	private transient PriorityQueue<StreamRecord<IN>> priorityQueue;
 
 	/**
-	 * @param siddhiPlan Siddhi CEP  Execution Plan
+	 * @param siddhiContext Siddhi CEP  Execution Plan
      */
-	public AbstractSiddhiOperator(SiddhiExecutionPlan<OUT> siddhiPlan){
-		this.siddhiPlan = siddhiPlan;
-		this.executionExpression = siddhiPlan.getFinalExecutionExpression();
-		this.isProcessingTime = this.siddhiPlan.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+	public AbstractSiddhiOperator(SiddhiOperatorContext siddhiContext){
+		this.siddhiContext = siddhiContext;
+		this.executionExpression = siddhiContext.getFinalExecutionExpression();
+		this.isProcessingTime = this.siddhiContext.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 		validate(executionExpression);
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		String streamId = getStreamId(element.getValue());
-		StreamSchema<IN> schema = siddhiPlan.getInputStreamSchema(streamId);
+		StreamSchema<IN> schema = siddhiContext.getInputStreamSchema(streamId);
 
 		if (isProcessingTime) {
 			processEvent(streamId,schema,element.getValue(),System.currentTimeMillis());
@@ -95,7 +95,7 @@ public abstract class AbstractSiddhiOperator<IN,OUT> extends AbstractStreamOpera
 		while(!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
 			StreamRecord<IN> streamRecord = priorityQueue.poll();
 			String streamId = getStreamId(streamRecord.getValue());
-			StreamSchema<IN> schema = siddhiPlan.getInputStreamSchema(streamId);
+			StreamSchema<IN> schema = siddhiContext.getInputStreamSchema(streamId);
 			processEvent(streamId,schema,streamRecord.getValue(),streamRecord.getTimestamp());
 		}
 		output.emitWatermark(mark);
@@ -115,8 +115,8 @@ public abstract class AbstractSiddhiOperator<IN,OUT> extends AbstractStreamOpera
 		return inputStreamHandlers.get(streamId);
 	}
 
-	protected SiddhiExecutionPlan<OUT> getSiddhiPlan(){
-		return this.siddhiPlan;
+	protected SiddhiOperatorContext getSiddhiContext(){
+		return this.siddhiContext;
 	}
 
 	@Override
@@ -168,13 +168,8 @@ public abstract class AbstractSiddhiOperator<IN,OUT> extends AbstractStreamOpera
 	}
 
 	protected void shutdownSiddhiRuntime(){
-		if(this.siddhiRuntime!=null){
+		if(this.siddhiRuntime != null){
 			this.siddhiRuntime.shutdown();
-//			try {
-//				Thread.sleep(5000);
-//			} catch (InterruptedException e) {
-//				//
-//			}
 			LOGGER.info("Siddhi runtime {} shutdown",this.siddhiRuntime.getName());
 			this.siddhiRuntime = null;
 			this.siddhiManager.shutdown();
@@ -186,10 +181,10 @@ public abstract class AbstractSiddhiOperator<IN,OUT> extends AbstractStreamOpera
 	}
 
 	private void registerInputAndOutput(ExecutionPlanRuntime runtime) {
-		AbstractDefinition definition = this.siddhiRuntime.getStreamDefinitionMap().get(this.siddhiPlan.getOutputStreamId());
-		runtime.addCallback(this.siddhiPlan.getOutputStreamId(), new StreamOutputHandler<>(this.siddhiPlan.getOutputStreamType(),definition,this.output));
+		AbstractDefinition definition = this.siddhiRuntime.getStreamDefinitionMap().get(this.siddhiContext.getOutputStreamId());
+		runtime.addCallback(this.siddhiContext.getOutputStreamId(), new StreamOutputHandler<>(this.siddhiContext.getOutputStreamType(),definition,this.output));
 		inputStreamHandlers = new HashMap<>();
-		for (String inputStreamId:this.siddhiPlan.getInputStreams()){
+		for (String inputStreamId:this.siddhiContext.getInputStreams()){
 			inputStreamHandlers.put(inputStreamId,runtime.getInputHandler(inputStreamId));
 		}
 	}

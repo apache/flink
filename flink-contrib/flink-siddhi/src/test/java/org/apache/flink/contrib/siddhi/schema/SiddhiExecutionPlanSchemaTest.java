@@ -29,7 +29,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class SiddhiStreamSchemaTest {
+public class SiddhiExecutionPlanSchemaTest {
 	@Test
 	public void testStreamSchemaWithPojo(){
 		TypeInformation<Event> typeInfo = TypeExtractor.createTypeInfo(Event.class);

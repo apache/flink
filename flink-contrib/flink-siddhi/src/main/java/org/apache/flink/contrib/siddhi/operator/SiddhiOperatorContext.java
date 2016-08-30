@@ -17,7 +17,6 @@
 
 package org.apache.flink.contrib.siddhi.operator;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.contrib.siddhi.schema.SiddhiStreamSchema;
 import org.apache.flink.contrib.siddhi.schema.StreamSchema;
@@ -30,22 +29,31 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * SiddhiCEP Execution Plan Metadata
+ * SiddhiCEP Operator Context
  */
-public class SiddhiExecutionPlan<OUT> implements Serializable {
-	final Map<String,SiddhiStreamSchema<?>> inputStreamSchemas;
+public class SiddhiOperatorContext implements Serializable {
+	private Map<String,SiddhiStreamSchema<?>> inputStreamSchemas;
 	private String outputStreamId;
-	private TypeInformation<OUT> outputStreamType;
+	private TypeInformation outputStreamType;
 	private TimeCharacteristic timeCharacteristic;
+	private String name;
 
-	String executionExpression;
+	private String executionExpression;
 
-	public SiddhiExecutionPlan() {
+	public SiddhiOperatorContext() {
 		inputStreamSchemas = new HashMap<>();
 	}
 
-	public Map<String,SiddhiStreamSchema<?>> getInputStreamSchemas(){
-		return this.inputStreamSchemas;
+	public String getName(){
+		if(this.name == null) {
+			if (executionExpression.length() > 50) {
+				return "Siddhi: " + executionExpression.substring(0, 50) + " ...";
+			} else {
+				return "Siddhi: " + executionExpression;
+			}
+		} else {
+			return this.name;
+		}
 	}
 
 	public List<String> getInputStreams(){
@@ -73,7 +81,7 @@ public class SiddhiExecutionPlan<OUT> implements Serializable {
 		return sb.toString();
 	}
 
-	public TypeInformation<OUT> getOutputStreamType() {
+	public TypeInformation getOutputStreamType() {
 		return outputStreamType;
 	}
 
@@ -93,7 +101,7 @@ public class SiddhiExecutionPlan<OUT> implements Serializable {
 		this.outputStreamId = outputStreamId;
 	}
 
-	public void setOutputStreamType(TypeInformation<OUT> outputStreamType) {
+	public void setOutputStreamType(TypeInformation outputStreamType) {
 		this.outputStreamType = outputStreamType;
 	}
 
@@ -103,5 +111,21 @@ public class SiddhiExecutionPlan<OUT> implements Serializable {
 
 	public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
 		this.timeCharacteristic = timeCharacteristic;
+	}
+
+	public void setExecutionExpression(String executionExpression) {
+		this.executionExpression = executionExpression;
+	}
+
+	public Map<String, SiddhiStreamSchema<?>> getInputStreamSchemas() {
+		return inputStreamSchemas;
+	}
+
+	public void setInputStreamSchemas(Map<String, SiddhiStreamSchema<?>> inputStreamSchemas) {
+		this.inputStreamSchemas = inputStreamSchemas;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 }

@@ -31,7 +31,7 @@ public class SingleStreamSiddhiOperator<IN,OUT> extends AbstractSiddhiOperator<I
 	private transient InputHandler inputHandler;
 
 	@SuppressWarnings("unchecked")
-	public SingleStreamSiddhiOperator(String streamId, SiddhiExecutionPlan siddhiPlan) {
+	public SingleStreamSiddhiOperator(String streamId, SiddhiOperatorContext siddhiPlan) {
 		super(siddhiPlan);
 		assert siddhiPlan.getInputStreams().size() == 1;
 		this.inputStreamId = streamId;

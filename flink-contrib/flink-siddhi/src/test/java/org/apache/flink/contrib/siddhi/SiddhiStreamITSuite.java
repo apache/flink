@@ -24,16 +24,19 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.junit.Rule;
 import org.junit.Test;
-import static org.junit.Assert.*;
-
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * flink-siddhi integration test suites
  */
-public class SiddhiITCase extends StreamingMultipleProgramsTestBase {
+public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -41,7 +44,6 @@ public class SiddhiITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testSimpleAcceptPOJOAndReturnPojo() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
 		DataStream<Event> input = env.fromElements(
 			Event.of(1, "start", 1.0),
 			Event.of(2, "middle", 2.0),
@@ -51,11 +53,12 @@ public class SiddhiITCase extends StreamingMultipleProgramsTestBase {
 			Event.of(6, "end", 6.0)
 		);
 
-		DataStream<Event> output = SiddhiEnvironment
-			.connect("inputStream",input,"id","name","price")
-			.sql("from inputStream insert into  outputStream")
+		DataStream<Event> output = SiddhiStream
+			.inject("inputStream",input,"id","name","price")
+			.apply("from inputStream insert into  outputStream")
 			.returns("outputStream",Event.class);
-		output.print();
+		String path = tempFolder.newFile().toURI().toString();
+		output.writeAsText(path);
 		env.execute();
 	}
 
@@ -74,9 +77,9 @@ public class SiddhiITCase extends StreamingMultipleProgramsTestBase {
 			Event.of(5, "middle", 5.0)
 		);
 
-		DataStream<Map<String,Object>> output = SiddhiEnvironment
-			.connect("inputStream",input,"id","name","price")
-			.sql("from inputStream insert into  outputStream")
+		DataStream<Map<String,Object>> output = SiddhiStream
+			.inject("inputStream",input,"id","name","price")
+			.apply("from inputStream insert into  outputStream")
 			.returns("outputStream");
 		output.print();
 		env.execute();
@@ -90,9 +93,9 @@ public class SiddhiITCase extends StreamingMultipleProgramsTestBase {
 		env.setBufferTimeout(5000);
 		DataStream<Event> input = env.addSource(new EventSource(5));
 
-		DataStream<Map<String,Object>> output = SiddhiEnvironment
-			.connect("inputStream",input,"id","name","price")
-			.sql("from inputStream insert into  outputStream")
+		DataStream<Map<String,Object>> output = SiddhiStream
+			.inject("inputStream",input,"id","name","price")
+			.apply("from inputStream insert into  outputStream")
 			.returns("outputStream");
 
 		output.printToErr();
@@ -100,20 +103,20 @@ public class SiddhiITCase extends StreamingMultipleProgramsTestBase {
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
-		assertEquals(5,getResultReader(resultPath)[0].lines().toArray().length);
+		assertEquals(5,getLineCount(resultPath));
 	}
 
 	@Test
 	public void testUnboundedPOJOSourceAndReturnPOJO() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		env.setBufferTimeout(5000);
 		DataStream<Event> input = env.addSource(new EventSource(5));
 
-		DataStream<Event> output = SiddhiEnvironment
-			.connect("inputStream",input,"id","name","price")
-			.sql("from inputStream insert into  outputStream")
+		SiddhiStream siddhiStream = SiddhiStream.newSiddhiStream(env);
+		siddhiStream.register("inputStream",input,"id","name","price");
+
+		DataStream<Event> output = siddhiStream
+			.apply("from inputStream insert into  outputStream")
 			.returns("outputStream",Event.class);
 
 		output.printToErr();
@@ -121,6 +124,13 @@ public class SiddhiITCase extends StreamingMultipleProgramsTestBase {
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
-		assertEquals(5,getResultReader(resultPath)[0].lines().toArray().length);
+		assertEquals(5,getLineCount(resultPath));
+	}
+
+	public static int getLineCount(String resPath) throws IOException {
+		List<String> result = new LinkedList<>();
+		readAllResultLines(result,resPath);
+		return result.size();
 	}
 }
+

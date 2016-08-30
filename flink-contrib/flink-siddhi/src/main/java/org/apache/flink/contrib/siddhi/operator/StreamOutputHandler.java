@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * <p/>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p/>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.contrib.siddhi.operator;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -6,6 +23,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.contrib.siddhi.utils.TupleUtils;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
@@ -72,32 +90,6 @@ public class StreamOutputHandler<R> extends StreamCallback {
 	}
 
 	private Tuple toTuple(Event event){
-		Object[] row = event.getData();
-		switch (row.length){
-			case 0:
-				return new Tuple0();
-			case 1:
-				return Tuple1.of(row[0]);
-			case 2:
-				return Tuple2.of(row[0],row[1]);
-			case 3:
-				return Tuple3.of(row[0],row[1],row[2]);
-			case 4:
-				return Tuple4.of(row[0],row[1],row[2],row[3]);
-			case 5:
-				return Tuple5.of(row[0],row[1],row[2],row[3],row[4]);
-			case 6:
-				return Tuple6.of(row[0],row[1],row[2],row[3],row[4],row[5]);
-			case 7:
-				return Tuple7.of(row[0],row[1],row[2],row[3],row[4],row[5],row[6]);
-			case 8:
-				return Tuple8.of(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7]);
-			case 9:
-				return Tuple9.of(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8]);
-			case 10:
-				return Tuple10.of(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9]);
-			default:
-				throw new IllegalArgumentException("Unable to convert event to tuple in size > 10: "+event);
-		}
+		return TupleUtils.newTuple(event.getData());
 	}
 }

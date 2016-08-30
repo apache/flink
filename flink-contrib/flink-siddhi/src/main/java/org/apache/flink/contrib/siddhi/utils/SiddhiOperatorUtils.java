@@ -17,10 +17,10 @@
 
 package org.apache.flink.contrib.siddhi.utils;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.siddhi.operator.SiddhiStream;
+import org.apache.flink.contrib.siddhi.SiddhiStream;
+import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorContext;
 import org.apache.flink.contrib.siddhi.operator.SingleStreamSiddhiOperator;
 import org.apache.flink.contrib.siddhi.operator.StreamSiddhiOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -32,24 +32,23 @@ import java.util.Map;
 /**
  * Convert SiddhiCEPExecutionPlan to SiddhiCEP Operator and build output DataStream
  */
-
 public class SiddhiOperatorUtils {
 	@SuppressWarnings("unchecked")
-	public static <OUT> DataStream<OUT> createDataStream(SiddhiStream<OUT> plan){
-		if(plan.getInputStreams().size() == 0){
+	public static <OUT> DataStream<OUT> createDataStream(SiddhiOperatorContext context, SiddhiStream environment){
+		if(context.getInputStreams().size() == 0){
 			throw new IllegalArgumentException("Non input streams was connected");
-		} else if(plan.getInputStreams().size() == 1){
-			Map.Entry<String, DataStream<?>> entry = plan.getInputStreams().entrySet().iterator().next();
-			return entry.getValue().transform(plan.getName(),plan.getSiddhiExecutionPlan().getOutputStreamType(),new SingleStreamSiddhiOperator(entry.getKey(),plan.getSiddhiExecutionPlan()));
+		} else if(context.getInputStreams().size() == 1){
+			Map.Entry<String, DataStream<?>> entry = environment.getInputStreams().entrySet().iterator().next();
+			return entry.getValue().transform(context.getName(),context.getOutputStreamType(),new SingleStreamSiddhiOperator(entry.getKey(),context));
 		} else {
 			List<DataStream<Tuple2<String, Object>>> wrappedDataStreams = new ArrayList<>();
-			for (Map.Entry<String, DataStream<?>> entry : plan.getInputStreams().entrySet()) {
+			for (Map.Entry<String, DataStream<?>> entry : environment.getInputStreams().entrySet()) {
 				wrappedDataStreams.add(wrap(entry.getKey(), entry.getValue()));
 			}
 			// TODO: Is union correct for our case? Should use broadcast instead.
 			DataStream<Tuple2<String, Object>> unionStream = wrappedDataStreams.get(0)
 				.union((DataStream<Tuple2<String, Object>>[]) wrappedDataStreams.subList(1,wrappedDataStreams.size()-1).toArray());
-			return unionStream.transform(plan.getName(), plan.getSiddhiExecutionPlan().getOutputStreamType(),new StreamSiddhiOperator<Object, OUT>(plan.getSiddhiExecutionPlan()));
+			return unionStream.transform(context.getName(), context.getOutputStreamType(),new StreamSiddhiOperator<Object, OUT>(context));
 		}
 	}
 

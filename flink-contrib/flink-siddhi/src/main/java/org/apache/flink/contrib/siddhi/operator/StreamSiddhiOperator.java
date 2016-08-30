@@ -26,13 +26,13 @@ import org.apache.flink.contrib.siddhi.schema.StreamSchema;
 
 public class StreamSiddhiOperator<IN,OUT> extends AbstractSiddhiOperator<Tuple2<String,IN>,OUT> {
 
-	public StreamSiddhiOperator(SiddhiExecutionPlan siddhiPlan) {
+	public StreamSiddhiOperator(SiddhiOperatorContext siddhiPlan) {
 		super(siddhiPlan);
 	}
 
 	@Override
 	protected void processEvent(String streamId, StreamSchema<Tuple2<String, IN>> schema, Tuple2<String, IN> value, long timestamp) throws InterruptedException {
-		send(value.f0,getSiddhiPlan().getInputStreamSchema(value.f0).getStreamSerializer().getRow(value.f1),timestamp);
+		send(value.f0, getSiddhiContext().getInputStreamSchema(value.f0).getStreamSerializer().getRow(value.f1),timestamp);
 	}
 
 	@Override

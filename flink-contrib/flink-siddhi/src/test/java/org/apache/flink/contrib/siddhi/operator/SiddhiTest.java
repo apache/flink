@@ -53,6 +53,15 @@ public class SiddhiTest {
 
 		final List<Object[]> received = new ArrayList<>(3);
 		InputHandler inputHandler = runtime.getInputHandler("inStream");
+		Assert.assertNotNull(inputHandler);
+
+		try {
+			runtime.getInputHandler("unknownStream");
+			Assert.fail("Should throw exception for getting input handler for unknown streamId.");
+		}catch (Exception ex){
+			// Expected exception for getting input handler for illegal streamId.
+		}
+
 		runtime.addCallback("outStream", new StreamCallback() {
 			@Override
 			public void receive(Event[] events) {
@@ -61,6 +70,7 @@ public class SiddhiTest {
 				}
 			}
 		});
+
 		inputHandler.send(new Object[]{"a",1.1});
 		inputHandler.send(new Object[]{"b",1.2});
 		inputHandler.send(new Object[]{"c",1.3});
