@@ -20,73 +20,125 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.runtime.instance.SimpleSlot;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
+/**
+ * 
+ */
 public class SlotAllocationFuture {
-	
+
 	private final Object monitor = new Object();
-	
+
 	private volatile SimpleSlot slot;
-	
+
 	private volatile SlotAllocationFutureAction action;
-	
+
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Creates a future that is uncompleted.
+	 */
 	public SlotAllocationFuture() {}
-	
+
+	/**
+	 * Creates a future that is immediately completed.
+	 * 
+	 * @param slot The task slot that completes the future.
+	 */
 	public SlotAllocationFuture(SimpleSlot slot) {
 		this.slot = slot;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
-	public SimpleSlot waitTillAllocated() throws InterruptedException {
-		return waitTillAllocated(0);
-	}
-	
-	public SimpleSlot waitTillAllocated(long timeout) throws InterruptedException {
+
+	public SimpleSlot waitTillCompleted() throws InterruptedException {
 		synchronized (monitor) {
 			while (slot == null) {
-				monitor.wait(timeout);
+				monitor.wait();
 			}
-			
 			return slot;
 		}
 	}
-	
-	public void setFutureAction(SlotAllocationFutureAction action) {
-		synchronized (monitor) {
-			if (this.action != null) {
-				throw new IllegalStateException("Future already has an action registered.");
+
+	public SimpleSlot waitTillCompleted(long timeout, TimeUnit timeUnit) throws InterruptedException, TimeoutException {
+		checkArgument(timeout >= 0, "timeout may not be negative");
+		checkNotNull(timeUnit, "timeUnit");
+
+		if (timeout == 0) {
+			return waitTillCompleted();
+		} else {
+			final long deadline = System.nanoTime() + timeUnit.toNanos(timeout);
+			long millisToWait;
+
+			synchronized (monitor) {
+				while (slot == null && (millisToWait = (deadline - System.nanoTime()) / 1_000_000) > 0) {
+					monitor.wait(millisToWait);
+				}
+
+				if (slot != null) {
+					return slot;
+				} else {
+					throw new TimeoutException();
+				}
 			}
-			
+		}
+	}
+
+	/**
+	 * Gets the slot from this future. This method throws an exception, if the future has not been completed.
+	 * This method never blocks.
+	 * 
+	 * @return The slot with which this future was completed.
+	 * @throws IllegalStateException Thrown, if this method is called before the future is completed.
+	 */
+	public SimpleSlot get() {
+		final SimpleSlot slot = this.slot;
+		if (slot != null) {
+			return slot;
+		} else {
+			throw new IllegalStateException("The future is not complete - not slot available");
+		}
+	}
+
+	public void setFutureAction(SlotAllocationFutureAction action) {
+		checkNotNull(action);
+
+		synchronized (monitor) {
+			checkState(this.action == null, "Future already has an action registered.");
+
 			this.action = action;
-			
+
 			if (this.slot != null) {
 				action.slotAllocated(this.slot);
 			}
 		}
 	}
-	
+
+	/**
+	 * Completes the future with a slot.
+	 */
 	public void setSlot(SimpleSlot slot) {
-		if (slot == null) {
-			throw new NullPointerException();
-		}
-		
+		checkNotNull(slot);
+
 		synchronized (monitor) {
-			if (this.slot != null) {
-				throw new IllegalStateException("The future has already been assigned a slot.");
-			}
-			
+			checkState(this.slot == null, "The future has already been assigned a slot.");
+
 			this.slot = slot;
 			monitor.notifyAll();
-			
+
 			if (action != null) {
 				action.slotAllocated(slot);
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return slot == null ? "PENDING" : "DONE";
