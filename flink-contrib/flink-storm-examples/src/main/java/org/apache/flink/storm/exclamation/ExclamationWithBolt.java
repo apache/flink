@@ -18,7 +18,7 @@
 
 package org.apache.flink.storm.exclamation;
 
-import backtype.storm.utils.Utils;
+import org.apache.storm.utils.Utils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
  * Implements the "Exclamation" program that attaches 3+x exclamation marks to every line of a text files in a streaming
- * fashion. The program is constructed as a regular {@link backtype.storm.generated.StormTopology}.
+ * fashion. The program is constructed as a regular {@link org.apache.storm.generated.StormTopology}.
  * <p>
  * The input is a plain text file with lines separated by newline characters.
  * <p>

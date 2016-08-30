@@ -17,7 +17,7 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.topology.IRichBolt;
+import org.apache.storm.topology.IRichBolt;
 
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;

@@ -17,8 +17,8 @@
 
 package org.apache.flink.storm.wordcount.operators;
 
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Fields;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Fields;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.util.FiniteInMemorySpout;
 
