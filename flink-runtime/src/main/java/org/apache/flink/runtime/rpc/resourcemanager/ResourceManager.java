@@ -143,67 +143,44 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 		return new TaskExecutorRegistrationSuccess(new InstanceID(), 5000);
 	}
 
-	/**
-	 * Callback method when current resourceManager is granted leadership
-	 *
-	 * @param newLeaderSessionID unique leadershipID
-	 */
-	void handleGrantLeadership(final UUID newLeaderSessionID) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.info("ResourceManager {} was granted leadership with leader session ID {}", getAddress(), newLeaderSessionID);
-				leaderSessionID = newLeaderSessionID;
-				// confirming the leader session ID might be blocking,
-				leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
-			}
-		});
-	}
-
-	/**
-	 * Callback method when current resourceManager lose leadership.
-	 */
-	void handleRevokeLeadership() {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.info("ResourceManager {} was revoked leadership.", getAddress());
-				jobMasterGateways.clear();
-				leaderSessionID = null;
-			}
-		});
-	}
-
-	/**
-	 * Callback method when an error happened to current resourceManager on leader election
-	 * @param e
-	 */
-	void onLeaderElectionError(final Throwable e) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.error("ResourceManager received an error from the LeaderElectionService.", e);
-				// terminate ResourceManager in case of an error
-				shutDown();
-			}
-		});
-	}
-
 	private class ResourceManagerLeaderContender implements LeaderContender {
 
+		/**
+		 * Callback method when current resourceManager is granted leadership
+		 *
+		 * @param leaderSessionID unique leadershipID
+		 */
 		@Override
-		public void grantLeadership(UUID leaderSessionID) {
-			handleGrantLeadership(leaderSessionID);
+		public void grantLeadership(final UUID leaderSessionID) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.info("ResourceManager {} was granted leadership with leader session ID {}", getAddress(), leaderSessionID);
+					ResourceManager.this.leaderSessionID = leaderSessionID;
+					// confirming the leader session ID might be blocking,
+					leaderElectionService.confirmLeaderSessionID(leaderSessionID);
+				}
+			});
 		}
 
+		/**
+		 * Callback method when current resourceManager lose leadership.
+		 */
 		@Override
 		public void revokeLeadership() {
-			handleRevokeLeadership();
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.info("ResourceManager {} was revoked leadership.", getAddress());
+					jobMasterGateways.clear();
+					leaderSessionID = null;
+				}
+			});
 		}
 
 		@Override
 		public String getAddress() {
-			return getAddress();
+			return ResourceManager.this.getAddress();
 		}
 
 		/**
@@ -212,8 +189,15 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 		 * @param exception Exception being thrown in the leader election service
 		 */
 		@Override
-		public void handleError(Exception exception) {
-			onLeaderElectionError(exception);
+		public void handleError(final Exception exception) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.error("ResourceManager received an error from the LeaderElectionService.", exception);
+					// terminate ResourceManager in case of an error
+					shutDown();
+				}
+			});
 		}
 	}
 }

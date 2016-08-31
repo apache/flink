@@ -18,27 +18,16 @@
 
 package org.apache.flink.runtime.rpc.resourcemanager;
 
-import akka.dispatch.ExecutionContexts;
-import akka.util.Timeout;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
-import org.apache.flink.runtime.util.DirectExecutorService;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
 
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * resourceManager HA test, including grant leadership and revoke leadership

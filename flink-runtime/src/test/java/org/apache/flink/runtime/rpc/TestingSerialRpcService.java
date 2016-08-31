@@ -39,11 +39,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 
 /**
  * An RPC Service implementation for testing. This RPC service directly executes all asynchronous calls one by one in the main thread.
  */
-public class TestingSerialRpcService extends TestingRpcService {
+public class TestingSerialRpcService implements RpcService {
 
 	private final DirectExecutorService executorService;
 	private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
@@ -93,10 +95,42 @@ public class TestingSerialRpcService extends TestingRpcService {
 				rpcEndpoint.getSelfGatewayType(),
 				MainThreadExecutor.class,
 				StartStoppable.class,
-				RpcGateway.class},
+				RpcGateway.class
+			},
 			akkaInvocationHandler);
 
 		return self;
+	}
+
+	@Override
+	public <C extends RpcGateway> Future<C> connect(String address, Class<C> clazz) {
+		RpcGateway gateway = registeredConnections.get(address);
+
+		if (gateway != null) {
+			if (clazz.isAssignableFrom(gateway.getClass())) {
+				@SuppressWarnings("unchecked")
+				C typedGateway = (C) gateway;
+				return Futures.successful(typedGateway);
+			} else {
+				return Futures.failed(
+					new Exception("Gateway registered under " + address + " is not of type " + clazz));
+			}
+		} else {
+			return Futures.failed(new Exception("No gateway registered under that name"));
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// connections
+	// ------------------------------------------------------------------------
+
+	public void registerGateway(String address, RpcGateway gateway) {
+		checkNotNull(address);
+		checkNotNull(gateway);
+
+		if (registeredConnections.putIfAbsent(address, gateway) != null) {
+			throw new IllegalStateException("a gateway is already registered under " + address);
+		}
 	}
 
 	private static class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutor, StartStoppable {
@@ -179,7 +213,6 @@ public class TestingSerialRpcService extends TestingRpcService {
 		@Override
 		public <V> Future<V> callAsync(Callable<V> callable, Timeout callTimeout) {
 			try {
-				TimeUnit.MILLISECONDS.sleep(callTimeout.duration().toMillis());
 				return Futures.successful(callable.call());
 			} catch (Throwable e) {
 				return Futures.failed(e);
@@ -197,18 +230,18 @@ public class TestingSerialRpcService extends TestingRpcService {
 		}
 
 		@Override
-		public void start() {
+		public String getAddress() {
+			return address;
+		}
 
+		@Override
+		public void start() {
+			// do nothing
 		}
 
 		@Override
 		public void stop() {
-
-		}
-
-		@Override
-		public String getAddress() {
-			return address;
+			// do nothing
 		}
 
 		/**
