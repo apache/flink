@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import org.apache.flink.streaming.connectors.fs.Clock;
-import org.apache.flink.streaming.connectors.fs.SystemClock;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
