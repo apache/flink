@@ -24,6 +24,7 @@ import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.View;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -47,6 +48,8 @@ public class MetricRegistry {
 	
 	private List<MetricReporter> reporters;
 	private ScheduledExecutorService executor;
+
+	private ViewUpdater viewUpdater;
 
 	private final ScopeFormats scopeFormats;
 
@@ -81,11 +84,11 @@ public class MetricRegistry {
 
 		final String definedReporters = config.getString(ConfigConstants.METRICS_REPORTERS_LIST, null);
 
+		this.executor = Executors.newSingleThreadScheduledExecutor();
 		if (definedReporters == null) {
 			// no reporters defined
 			// by default, don't report anything
 			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
-			this.executor = null;
 		} else {
 			// we have some reporters so
 			String[] namedReporters = definedReporters.split("\\s*,\\s*");
@@ -124,9 +127,6 @@ public class MetricRegistry {
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
-						if (this.executor == null) {
-							executor = Executors.newSingleThreadScheduledExecutor();
-						}
 						LOG.info("Periodically reporting metrics in intervals of {} {} for reporter {} of type {}.", period, timeunit.name(), namedReporter, className);
 
 						executor.scheduleWithFixedDelay(
@@ -207,6 +207,12 @@ public class MetricRegistry {
 					}
 				}
 			}
+			if (metric instanceof View) {
+				if (viewUpdater == null) {
+					viewUpdater = new ViewUpdater(executor);
+				}
+				viewUpdater.notifyOfAddedView((View) metric);
+			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
 		}
@@ -226,6 +232,11 @@ public class MetricRegistry {
 					if (reporter != null) {
 						reporter.notifyOfRemovedMetric(metric, metricName, group);
 					}
+				}
+			}
+			if (metric instanceof View) {
+				if (viewUpdater != null) {
+					viewUpdater.notifyOfRemovedView((View) metric);
 				}
 			}
 		} catch (Exception e) {
