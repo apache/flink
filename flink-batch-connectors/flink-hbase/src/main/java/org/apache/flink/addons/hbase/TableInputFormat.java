@@ -76,7 +76,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	 */
 	@Override
 	public void configure(Configuration parameters) {
-		table = createTable(parameters);
+		table = createTable();
 		scan = getScanner();
 	}
 
@@ -88,16 +88,10 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	}
 
 	/** Create an {@link HTable} instance and set it into this format */
-	private HTable createTable(Configuration parameters) {
+	private HTable createTable() {
 		LOG.info("Initializing HBaseConfiguration");
 		//use files found in the classpath
 		org.apache.hadoop.conf.Configuration hConf = HBaseConfiguration.create();
-
-		// This override is needed for running the unit tests against the HBaseMiniCluster
-		String zookeeperQuorum = parameters.getString("hbase.zookeeper.quorum",null);
-		if (zookeeperQuorum != null) {
-			hConf.set("hbase.zookeeper.quorum",zookeeperQuorum);
-		}
 
 		try {
 			return new HTable(hConf, getTableName());

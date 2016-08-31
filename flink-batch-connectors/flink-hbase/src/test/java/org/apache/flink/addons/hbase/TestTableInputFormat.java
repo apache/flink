@@ -23,7 +23,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
@@ -39,7 +38,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
-public class TestTableInputFormat extends HBaseUnitTestCluster {
+public class TestTableInputFormat extends HBaseTestingClusterAutostarter {
 	private static final String TEST_TABLE_NAME = "TableInputFormatTestTable";
 	private static final byte[] TEST_TABLE_FAMILY_NAME = "F".getBytes();
 	private static final byte[] TEST_TABLE_COLUMN_NAME = "Col".getBytes();
@@ -66,12 +65,6 @@ public class TestTableInputFormat extends HBaseUnitTestCluster {
 	}
 
 	class InputFormatForTestTable extends TableInputFormat<Tuple1<String>> {
-		@Override
-		public void configure(Configuration parameters) {
-			parameters.setString("hbase.zookeeper.quorum", getZookeeperQuorum());
-			super.configure(parameters);
-		}
-
 		@Override
 		protected Scan getScanner() {
 			return new Scan();
