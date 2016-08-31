@@ -76,6 +76,17 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 		}
 	}
 
+	@Override
+	public void shutDown() {
+		try {
+			leaderElectionService.stop();
+			super.shutDown();
+		} catch(Throwable e) {
+			log.error("A fatal error happened when shutdown the ResourceManager", e);
+			throw new RuntimeException("A fatal error happened when shutdown the ResourceManager", e);
+		}
+	}
+
 	/**
 	 * Gets the leader session id of current resourceManager.
 	 *
