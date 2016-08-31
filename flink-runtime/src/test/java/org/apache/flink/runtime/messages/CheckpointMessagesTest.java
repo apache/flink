@@ -23,11 +23,12 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.junit.Test;
 
@@ -65,13 +66,17 @@ public class CheckpointMessagesTest {
 
 			KeyGroupRange keyGroupRange = KeyGroupRange.of(42,42);
 
+			CheckpointStateHandles checkpointStateHandles =
+					new CheckpointStateHandles(
+							CheckpointCoordinatorTest.generateChainedStateHandle(new MyHandle()),
+							CheckpointCoordinatorTest.generateChainedPartitionableStateHandle(new JobVertexID(), 0, 2, 8),
+							CheckpointCoordinatorTest.generateKeyGroupState(keyGroupRange, Collections.singletonList(new MyHandle())));
+
 			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
 					new JobID(),
 					new ExecutionAttemptID(),
 					87658976143L,
-					CheckpointCoordinatorTest.generateChainedStateHandle(new MyHandle()),
-					CheckpointCoordinatorTest.generateKeyGroupState(
-							keyGroupRange, Collections.singletonList(new MyHandle())));
+					checkpointStateHandles);
 
 			testSerializabilityEqualsHashCode(noState);
 			testSerializabilityEqualsHashCode(withState);
@@ -83,7 +88,6 @@ public class CheckpointMessagesTest {
 
 	private static void testSerializabilityEqualsHashCode(Serializable o) throws IOException {
 		Object copy = CommonTestUtils.createCopySerializable(o);
-		System.out.println(o.getClass() +" "+copy.getClass());
 		assertEquals(o, copy);
 		assertEquals(o.hashCode(), copy.hashCode());
 		assertNotNull(o.toString());
@@ -115,9 +119,6 @@ public class CheckpointMessagesTest {
 		public long getStateSize() {
 			return 0;
 		}
-
-		@Override
-		public void close() throws IOException {}
 
 		@Override
 		public FSDataInputStream openInputStream() throws IOException {

@@ -39,12 +39,12 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.taskmanager.JobManagerCommunicationFactory;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.JobManagerCommunicationFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerConnection;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -55,18 +55,22 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.Test;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * This test checks that task restores that get stuck in the presence of interrupts
@@ -119,58 +123,64 @@ public class InterruptSensitiveRestoreTest {
 
 		ChainedStateHandle<StreamStateHandle> operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
 		List<KeyGroupsStateHandle> keyGroupState = Collections.emptyList();
+		List<Collection<OperatorStateHandle>> partitionableOperatorState = Collections.emptyList();
 
 		return new TaskDeploymentDescriptor(
-				new JobID(),
-				"test job name",
-				new JobVertexID(),
-				new ExecutionAttemptID(),
-				new SerializedValue<>(new ExecutionConfig()),
-				"test task name",
-				1, 0, 1, 0,
-				new Configuration(),
-				taskConfig,
-				SourceStreamTask.class.getName(),
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				0,
-				operatorState,
-				keyGroupState);
+			new JobID(),
+			"test job name",
+			new JobVertexID(),
+			new ExecutionAttemptID(),
+			new SerializedValue<>(new ExecutionConfig()),
+			"test task name",
+			1, 0, 1, 0,
+			new Configuration(),
+			taskConfig,
+			SourceStreamTask.class.getName(),
+			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList(),
+			0,
+			operatorState,
+			keyGroupState,
+			partitionableOperatorState);
 	}
-	
+
 	private static Task createTask(TaskDeploymentDescriptor tdd) throws IOException {
 		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
 		return new Task(
-			tdd,
-			mock(MemoryManager.class),
-			mock(IOManager.class),
-			networkEnvironment,
-			mock(JobManagerCommunicationFactory.class),
-			mock(BroadcastVariableManager.class),
+				tdd,
+				mock(MemoryManager.class),
+				mock(IOManager.class),
+				networkEnvironment,
+				mock(JobManagerCommunicationFactory.class),
+				mock(BroadcastVariableManager.class),
 				mock(TaskManagerConnection.class),
 				mock(InputSplitProvider.class),
 				mock(CheckpointResponder.class),
-			new FallbackLibraryCacheManager(),
-			new FileCache(new Configuration()),
-			new TaskManagerRuntimeInfo(
-					"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
-			new UnregisteredTaskMetricsGroup());
-		
+				new FallbackLibraryCacheManager(),
+				new FileCache(new Configuration()),
+				new TaskManagerRuntimeInfo(
+						"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
+				new UnregisteredTaskMetricsGroup());
+
 	}
 
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("serial")
-	private static class InterruptLockingStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
+	private static class InterruptLockingStateHandle implements StreamStateHandle {
+
+		private volatile boolean closed;
 
 		@Override
 		public FSDataInputStream openInputStream() throws IOException {
-			ensureNotClosed();
+
+			closed = false;
+
 			FSDataInputStream is = new FSDataInputStream() {
 
 				@Override
@@ -187,8 +197,14 @@ public class InterruptSensitiveRestoreTest {
 					block();
 					throw new EOFException();
 				}
+
+				@Override
+				public void close() throws IOException {
+					super.close();
+					closed = true;
+				}
 			};
-			registerCloseable(is);
+
 			return is;
 		}
 
@@ -203,7 +219,7 @@ public class InterruptSensitiveRestoreTest {
 				}
 			}
 			catch (InterruptedException e) {
-				while (!isClosed()) {
+				while (!closed) {
 					try {
 						synchronized (this) {
 							wait();
@@ -223,7 +239,7 @@ public class InterruptSensitiveRestoreTest {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private static class TestSource implements SourceFunction<Object>, Checkpointed<Serializable> {
 		private static final long serialVersionUID = 1L;
 

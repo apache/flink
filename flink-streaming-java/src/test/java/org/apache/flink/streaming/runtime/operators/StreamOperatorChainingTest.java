@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.Environment;
@@ -27,8 +26,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SplitStream;
@@ -42,19 +39,15 @@ import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Tests for stream operator chaining behaviour.
@@ -156,9 +149,8 @@ public class StreamOperatorChainingTest {
 		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
 				createMockTask(streamConfig, chainedVertex.getName());
 
-		OperatorChain<Integer> operatorChain = new OperatorChain<>(
+		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(
 				mockTask,
-				headOperator,
 				mock(AccumulatorRegistry.Reporter.class));
 
 		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
@@ -299,9 +291,8 @@ public class StreamOperatorChainingTest {
 		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
 				createMockTask(streamConfig, chainedVertex.getName());
 
-		OperatorChain<Integer> operatorChain = new OperatorChain<>(
+		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(
 				mockTask,
-				headOperator,
 				mock(AccumulatorRegistry.Reporter.class));
 
 		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -36,31 +37,33 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
 	 * that should end up in a checkpoint.
 	 *
-	 * @param jobId The {@link JobID} of the job for which we are creating checkpoint streams.
+	 * @param jobId              The {@link JobID} of the job for which we are creating checkpoint streams.
 	 * @param operatorIdentifier An identifier of the operator for which we create streams.
 	 */
 	public abstract CheckpointStreamFactory createStreamFactory(
 			JobID jobId,
-			String operatorIdentifier) throws IOException;
+			String operatorIdentifier
+	) throws IOException;
 
 	/**
-	 * Creates a new {@link KeyedStateBackend} that is responsible for keeping keyed state
+	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for keeping keyed state
 	 * and can be checkpointed to checkpoint streams.
 	 */
-	public abstract <K> KeyedStateBackend<K> createKeyedStateBackend(
+	public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 			Environment env,
 			JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws Exception;
+			TaskKvStateRegistry kvStateRegistry
+	) throws Exception;
 
 	/**
-	 * Creates a new {@link KeyedStateBackend} that restores its state from the given list
+	 * Creates a new {@link AbstractKeyedStateBackend} that restores its state from the given list
 	 * {@link KeyGroupsStateHandle KeyGroupStateHandles}.
 	 */
-	public abstract <K> KeyedStateBackend<K> restoreKeyedStateBackend(
+	public abstract <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
 			Environment env,
 			JobID jobID,
 			String operatorIdentifier,
@@ -68,6 +71,30 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoredState,
-			TaskKvStateRegistry kvStateRegistry) throws Exception;
+			TaskKvStateRegistry kvStateRegistry
+	) throws Exception;
 
+
+	/**
+	 * Creates a new {@link OperatorStateBackend} that can be used for storing partitionable operator
+	 * state in checkpoint streams.
+	 */
+	public OperatorStateBackend createOperatorStateBackend(
+			Environment env,
+			String operatorIdentifier
+	) throws Exception {
+		return new DefaultOperatorStateBackend();
+	}
+
+	/**
+	 * Creates a new {@link OperatorStateBackend} that restores its state from the given collection of
+	 * {@link OperatorStateHandle}.
+	 */
+	public OperatorStateBackend restoreOperatorStateBackend(
+			Environment env,
+			String operatorIdentifier,
+			Collection<OperatorStateHandle> restoreSnapshots
+	) throws Exception {
+		return new DefaultOperatorStateBackend(restoreSnapshots);
+	}
 }

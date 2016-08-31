@@ -68,7 +68,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -92,7 +91,6 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.StringUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
@@ -186,15 +184,27 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			DataStream<String> stream = see.addSource(source);
 			stream.print();
 			see.execute("No broker test");
-		} catch(RuntimeException re) {
+		} catch(ProgramInvocationException pie) {
 			if(kafkaServer.getVersion().equals("0.9")) {
-				Assert.assertTrue("Wrong RuntimeException thrown: " + StringUtils.stringifyException(re),
-						re.getClass().equals(TimeoutException.class) &&
-								re.getMessage().contains("Timeout expired while fetching topic metadata"));
+				assertTrue(pie.getCause() instanceof JobExecutionException);
+
+				JobExecutionException jee = (JobExecutionException) pie.getCause();
+
+				assertTrue(jee.getCause() instanceof TimeoutException);
+
+				TimeoutException te = (TimeoutException) jee.getCause();
+
+				assertEquals("Timeout expired while fetching topic metadata", te.getMessage());
 			} else {
-				Assert.assertTrue("Wrong RuntimeException thrown: " + StringUtils.stringifyException(re),
-						re.getClass().equals(RuntimeException.class) &&
-								re.getMessage().contains("Unable to retrieve any partitions for the requested topics [doesntexist]"));
+				assertTrue(pie.getCause() instanceof JobExecutionException);
+
+				JobExecutionException jee = (JobExecutionException) pie.getCause();
+
+				assertTrue(jee.getCause() instanceof RuntimeException);
+
+				RuntimeException re = (RuntimeException) jee.getCause();
+
+				assertTrue(re.getMessage().contains("Unable to retrieve any partitions for the requested topics [doesntexist]"));
 			}
 		}
 	}
@@ -413,7 +423,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DataGenerators.generateRandomizedIntegerSequence(
 				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
 				kafkaServer,
-				topic, numPartitions, numElementsPerPartition, true);
+				topic, numPartitions, numElementsPerPartition, false);
 
 		// run the topology that fails and recovers
 

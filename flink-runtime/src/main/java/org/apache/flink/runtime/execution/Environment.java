@@ -34,13 +34,10 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -187,12 +184,8 @@ public interface Environment {
 	 * the checkpoint with the give checkpoint-ID. This method does include
 	 * the given state in the checkpoint.
 	 *
-	 * @param checkpointId
-	 *             The ID of the checkpoint.
-	 * @param chainedStateHandle
-	 *             Handle for the chained operator state
-	 * @param keyGroupStateHandles
-	 *             Handles for key group state
+	 * @param checkpointId The ID of the checkpoint.
+	 * @param checkpointStateHandles All state handles for the checkpointed state
 	 * @param synchronousDurationMillis
 	 *             The duration (in milliseconds) of the synchronous part of the operator checkpoint
 	 * @param asynchronousDurationMillis
@@ -204,8 +197,7 @@ public interface Environment {
 	 */
 	void acknowledgeCheckpoint(
 			long checkpointId,
-			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			List<KeyGroupsStateHandle> keyGroupStateHandles,
+			CheckpointStateHandles checkpointStateHandles,
 			long synchronousDurationMillis,
 			long asynchronousDurationMillis,
 			long bytesBufferedInAlignment,

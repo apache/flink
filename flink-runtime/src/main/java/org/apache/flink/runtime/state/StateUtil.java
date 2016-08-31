@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import java.io.IOException;
-
 /**
  * Helpers for {@link StateObject} related code.
  */
@@ -52,41 +50,6 @@ public class StateUtil {
 						//best effort to still cleanup other states and deliver exceptions in the end
 						if (suppressedExceptions == null) {
 							suppressedExceptions = new Exception(ex);
-						}
-						suppressedExceptions.addSuppressed(ex);
-					}
-				}
-			}
-
-			if (suppressedExceptions != null) {
-				throw suppressedExceptions;
-			}
-		}
-	}
-
-	/**
-	 * Iterates through the passed state handles and calls discardState() on each handle that is not null. All
-	 * occurring exceptions are suppressed and collected until the iteration is over and emitted as a single exception.
-	 *
-	 * @param handlesToDiscard State handles to discard. Passed iterable is allowed to deliver null values.
-	 * @throws IOException exception that is a collection of all suppressed exceptions that were caught during iteration
-	 */
-	public static void bestEffortCloseAllStateObjects(
-			Iterable<? extends StateObject> handlesToDiscard) throws IOException {
-
-		if (handlesToDiscard != null) {
-
-			IOException suppressedExceptions = null;
-
-			for (StateObject state : handlesToDiscard) {
-
-				if (state != null) {
-					try {
-						state.close();
-					} catch (Exception ex) {
-						//best effort to still cleanup other states and deliver exceptions in the end
-						if (suppressedExceptions == null) {
-							suppressedExceptions = new IOException(ex);
 						}
 						suppressedExceptions.addSuppressed(ex);
 					}

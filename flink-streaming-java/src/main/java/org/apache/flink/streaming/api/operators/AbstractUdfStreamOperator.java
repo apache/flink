@@ -18,22 +18,30 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.InstantiationUtil;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.RunnableFuture;
 
 import static java.util.Objects.requireNonNull;
 
@@ -50,7 +58,8 @@ import static java.util.Objects.requireNonNull;
 @PublicEvolving
 public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 		extends AbstractStreamOperator<OUT>
-		implements OutputTypeConfigurable<OUT> {
+		implements OutputTypeConfigurable<OUT>,
+		StreamCheckpointedOperator {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -91,6 +100,28 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 		super.open();
 		
 		FunctionUtils.openFunction(userFunction, new Configuration());
+
+		if (userFunction instanceof CheckpointedFunction) {
+			((CheckpointedFunction) userFunction).initializeState(getOperatorStateBackend());
+		} else if (userFunction instanceof ListCheckpointed) {
+			@SuppressWarnings("unchecked")
+			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
+
+			ListState<Serializable> listState =
+					getOperatorStateBackend().getPartitionableState(ListCheckpointed.DEFAULT_LIST_DESCRIPTOR);
+
+			List<Serializable> list = new ArrayList<>();
+
+			for (Serializable serializable : listState.get()) {
+				list.add(serializable);
+			}
+
+			try {
+				listCheckpointedFun.restoreState(list);
+			} catch (Exception e) {
+				throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
+			}
+		}
 	}
 
 	@Override
@@ -115,7 +146,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	
 	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-		super.snapshotState(out, checkpointId, timestamp);
 
 		if (userFunction instanceof Checkpointed) {
 			@SuppressWarnings("unchecked")
@@ -138,7 +168,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
-		super.restoreState(in);
 
 		if (userFunction instanceof Checkpointed) {
 			@SuppressWarnings("unchecked")
@@ -157,6 +186,32 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 				}
 			}
 		}
+	}
+
+	@Override
+	public RunnableFuture<OperatorStateHandle> snapshotState(
+			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception {
+
+		if (userFunction instanceof CheckpointedFunction) {
+			((CheckpointedFunction) userFunction).prepareSnapshot(checkpointId, timestamp);
+		}
+
+		if (userFunction instanceof ListCheckpointed) {
+			@SuppressWarnings("unchecked")
+			List<Serializable> partitionableState =
+					((ListCheckpointed<Serializable>) userFunction).snapshotState(checkpointId, timestamp);
+
+			ListState<Serializable> listState =
+					getOperatorStateBackend().getPartitionableState(ListCheckpointed.DEFAULT_LIST_DESCRIPTOR);
+
+			listState.clear();
+
+			for (Serializable statePartition : partitionableState) {
+				listState.add(statePartition);
+			}
+		}
+
+		return super.snapshotState(checkpointId, timestamp, streamFactory);
 	}
 
 	@Override

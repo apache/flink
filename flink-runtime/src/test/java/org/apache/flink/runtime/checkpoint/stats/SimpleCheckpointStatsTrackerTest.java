@@ -319,7 +319,7 @@ public class SimpleCheckpointStatsTrackerTest {
 				JobVertexID operatorId = operatorIds[operatorIndex];
 				int parallelism = operatorParallelism[operatorIndex];
 
-				TaskState taskState = new TaskState(operatorId, parallelism, maxParallelism);
+				TaskState taskState = new TaskState(operatorId, parallelism, maxParallelism, 1);
 
 				taskGroupStates.put(operatorId, taskState);
 

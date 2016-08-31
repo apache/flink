@@ -45,6 +45,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import org.apache.flink.util.SerializedValue;
@@ -52,6 +53,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -206,7 +208,8 @@ public class TaskAsyncCallTest {
 
 		@Override
 		public void setInitialState(ChainedStateHandle<StreamStateHandle> chainedState,
-				List<KeyGroupsStateHandle> keyGroupsState) throws Exception {
+									List<KeyGroupsStateHandle> keyGroupsState,
+									List<Collection<OperatorStateHandle>> partitionableOperatorState) throws Exception {
 
 		}
 

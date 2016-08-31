@@ -106,7 +106,7 @@ public class PendingCheckpointTest {
 		PendingCheckpoint pending = createPendingCheckpoint();
 		PendingCheckpointTest.setTaskState(pending, state);
 
-		pending.acknowledgeTask(ATTEMPT_ID, null, null);
+		pending.acknowledgeTask(ATTEMPT_ID, null);
 
 		CompletedCheckpoint checkpoint = pending.finalizeCheckpoint();
 

@@ -24,13 +24,10 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -141,35 +138,6 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		} catch (Exception e) {
 			throw new RuntimeException("Error while getting state", e);
 		}
-	}
-
-	@Override
-	@Deprecated
-	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
-		requireNonNull(stateType, "The state type class must not be null");
-
-		TypeInformation<S> typeInfo;
-		try {
-			typeInfo = TypeExtractor.getForClass(stateType);
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Cannot analyze type '" + stateType.getName() +
-					"' from the class alone, due to generic type parameters. " +
-					"Please specify the TypeInformation directly.", e);
-		}
-
-		return getKeyValueState(name, typeInfo, defaultState);
-	}
-
-	@Override
-	@Deprecated
-	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
-		requireNonNull(name, "The name of the state must not be null");
-		requireNonNull(stateType, "The state type information must not be null");
-
-		ValueStateDescriptor<S> stateProps = 
-				new ValueStateDescriptor<>(name, stateType, defaultState);
-		return getState(stateProps);
 	}
 
 	// ------------------ expose (read only) relevant information from the stream config -------- //
