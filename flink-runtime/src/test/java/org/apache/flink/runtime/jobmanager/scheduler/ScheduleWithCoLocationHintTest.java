@@ -326,8 +326,8 @@ public class ScheduleWithCoLocationHintTest {
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
 
-			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
-			TaskManagerLocation loc2 = i2.getInstanceConnectionInfo();
+			TaskManagerLocation loc1 = i1.getTaskManagerLocation();
+			TaskManagerLocation loc2 = i2.getTaskManagerLocation();
 
 			scheduler.newInstanceAvailable(i2);
 			scheduler.newInstanceAvailable(i1);
@@ -398,8 +398,8 @@ public class ScheduleWithCoLocationHintTest {
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
 
-			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
-			TaskManagerLocation loc2 = i2.getInstanceConnectionInfo();
+			TaskManagerLocation loc1 = i1.getTaskManagerLocation();
+			TaskManagerLocation loc2 = i2.getTaskManagerLocation();
 
 			scheduler.newInstanceAvailable(i2);
 			scheduler.newInstanceAvailable(i1);
@@ -425,8 +425,8 @@ public class ScheduleWithCoLocationHintTest {
 			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup, cc2));
 			
 			// still preserves the previous instance mapping)
-			assertEquals(i1.getResourceId(), s3.getTaskManagerID());
-			assertEquals(i2.getResourceId(), s4.getTaskManagerID());
+			assertEquals(i1.getTaskManagerID(), s3.getTaskManagerID());
+			assertEquals(i2.getTaskManagerID(), s4.getTaskManagerID());
 			
 			s3.releaseSlot();
 			s4.releaseSlot();
@@ -455,8 +455,8 @@ public class ScheduleWithCoLocationHintTest {
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
 
-			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
-			TaskManagerLocation loc2 = i2.getInstanceConnectionInfo();
+			TaskManagerLocation loc1 = i1.getTaskManagerLocation();
+			TaskManagerLocation loc2 = i2.getTaskManagerLocation();
 
 			scheduler.newInstanceAvailable(i2);
 			scheduler.newInstanceAvailable(i1);
@@ -516,7 +516,7 @@ public class ScheduleWithCoLocationHintTest {
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
 
-			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
+			TaskManagerLocation loc1 = i1.getTaskManagerLocation();
 
 			scheduler.newInstanceAvailable(i2);
 			scheduler.newInstanceAvailable(i1);
@@ -580,8 +580,8 @@ public class ScheduleWithCoLocationHintTest {
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
 
-			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
-			TaskManagerLocation loc2 = i2.getInstanceConnectionInfo();
+			TaskManagerLocation loc1 = i1.getTaskManagerLocation();
+			TaskManagerLocation loc2 = i2.getTaskManagerLocation();
 
 			scheduler.newInstanceAvailable(i2);
 			scheduler.newInstanceAvailable(i1);

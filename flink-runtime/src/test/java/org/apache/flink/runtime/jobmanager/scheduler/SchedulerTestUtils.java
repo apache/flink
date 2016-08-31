@@ -88,7 +88,7 @@ public class SchedulerTestUtils {
 	public static Execution getTestVertex(Instance... preferredInstances) {
 		List<TaskManagerLocation> locations = new ArrayList<>(preferredInstances.length);
 		for (Instance i : preferredInstances) {
-			locations.add(i.getInstanceConnectionInfo());
+			locations.add(i.getTaskManagerLocation());
 		}
 		return getTestVertex(locations);
 	}

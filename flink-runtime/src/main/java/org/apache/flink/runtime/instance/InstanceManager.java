@@ -217,7 +217,7 @@ public class InstanceManager {
 
 			registeredHostsByConnection.remove(host);
 			registeredHostsById.remove(instance.getId());
-			registeredHostsByResource.remove(instance.getResourceId());
+			registeredHostsByResource.remove(instance.getTaskManagerID());
 
 			if (terminated) {
 				deadHosts.add(instance.getActorGateway().actor());

@@ -132,7 +132,7 @@ public class SharedSlotsTest {
 			assertEquals(Locality.LOCAL, sub1.getLocality());
 			assertEquals(1, sub1.getNumberLeaves());
 			assertEquals(vid1, sub1.getGroupID());
-			assertEquals(instance.getResourceId(), sub1.getTaskManagerID());
+			assertEquals(instance.getTaskManagerID(), sub1.getTaskManagerID());
 			assertEquals(jobId, sub1.getJobID());
 			assertEquals(sharedSlot, sub1.getParent());
 			assertEquals(sharedSlot, sub1.getRoot());
@@ -151,7 +151,7 @@ public class SharedSlotsTest {
 			assertEquals(Locality.UNCONSTRAINED, sub2.getLocality());
 			assertEquals(1, sub2.getNumberLeaves());
 			assertEquals(vid2, sub2.getGroupID());
-			assertEquals(instance.getResourceId(), sub2.getTaskManagerID());
+			assertEquals(instance.getTaskManagerID(), sub2.getTaskManagerID());
 			assertEquals(jobId, sub2.getJobID());
 			assertEquals(sharedSlot, sub2.getParent());
 			assertEquals(sharedSlot, sub2.getRoot());
@@ -163,14 +163,14 @@ public class SharedSlotsTest {
 			assertEquals(1, assignment.getNumberOfAvailableSlotsForGroup(vid3));
 			assertEquals(1, assignment.getNumberOfAvailableSlotsForGroup(vid4));
 			
-			SimpleSlot sub3 = assignment.getSlotForTask(vid3, Collections.singleton(instance.getInstanceConnectionInfo()));
+			SimpleSlot sub3 = assignment.getSlotForTask(vid3, Collections.singleton(instance.getTaskManagerLocation()));
 			assertNotNull(sub3);
 			
 			assertNull(sub3.getExecutedVertex());
 			assertEquals(Locality.LOCAL, sub3.getLocality());
 			assertEquals(1, sub3.getNumberLeaves());
 			assertEquals(vid3, sub3.getGroupID());
-			assertEquals(instance.getResourceId(), sub3.getTaskManagerID());
+			assertEquals(instance.getTaskManagerID(), sub3.getTaskManagerID());
 			assertEquals(jobId, sub3.getJobID());
 			assertEquals(sharedSlot, sub3.getParent());
 			assertEquals(sharedSlot, sub3.getRoot());
@@ -183,14 +183,14 @@ public class SharedSlotsTest {
 			assertEquals(1, assignment.getNumberOfAvailableSlotsForGroup(vid4));
 
 			SimpleSlot sub4 = assignment.getSlotForTask(vid4,
-					Collections.singleton(SchedulerTestUtils.getRandomInstance(1).getInstanceConnectionInfo()));
+					Collections.singleton(SchedulerTestUtils.getRandomInstance(1).getTaskManagerLocation()));
 			assertNotNull(sub4);
 			
 			assertNull(sub4.getExecutedVertex());
 			assertEquals(Locality.NON_LOCAL, sub4.getLocality());
 			assertEquals(1, sub4.getNumberLeaves());
 			assertEquals(vid4, sub4.getGroupID());
-			assertEquals(instance.getResourceId(), sub4.getTaskManagerID());
+			assertEquals(instance.getTaskManagerID(), sub4.getTaskManagerID());
 			assertEquals(jobId, sub4.getJobID());
 			assertEquals(sharedSlot, sub4.getParent());
 			assertEquals(sharedSlot, sub4.getRoot());
@@ -456,7 +456,7 @@ public class SharedSlotsTest {
 			assertNotNull(constraint.getSharedSlot());
 			assertTrue(constraint.isAssigned());
 			assertTrue(constraint.isAssignedAndAlive());
-			assertEquals(instance.getInstanceConnectionInfo(), constraint.getLocation());
+			assertEquals(instance.getTaskManagerLocation(), constraint.getLocation());
 			
 			SimpleSlot tailSlot = assignment.getSlotForTask(constraint, Collections.<TaskManagerLocation>emptySet());
 			
@@ -475,7 +475,7 @@ public class SharedSlotsTest {
 			assertTrue(tailSlot.isReleased());
 			assertTrue(constraint.isAssigned());
 			assertFalse(constraint.isAssignedAndAlive());
-			assertEquals(instance.getInstanceConnectionInfo(), constraint.getLocation());
+			assertEquals(instance.getTaskManagerLocation(), constraint.getLocation());
 			
 			// we should have resources again for the co-location constraint
 			assertEquals(1, assignment.getNumberOfAvailableSlotsForGroup(constraint.getGroupId()));
@@ -488,10 +488,10 @@ public class SharedSlotsTest {
 			assertEquals(0, assignment.getNumberOfAvailableSlotsForGroup(constraint.getGroupId()));
 			
 			// verify some basic properties of the slots
-			assertEquals(instance.getResourceId(), sourceSlot.getTaskManagerID());
-			assertEquals(instance.getResourceId(), headSlot.getTaskManagerID());
-			assertEquals(instance.getResourceId(), tailSlot.getTaskManagerID());
-			assertEquals(instance.getResourceId(), sinkSlot.getTaskManagerID());
+			assertEquals(instance.getTaskManagerID(), sourceSlot.getTaskManagerID());
+			assertEquals(instance.getTaskManagerID(), headSlot.getTaskManagerID());
+			assertEquals(instance.getTaskManagerID(), tailSlot.getTaskManagerID());
+			assertEquals(instance.getTaskManagerID(), sinkSlot.getTaskManagerID());
 
 			assertEquals(sourceId, sourceSlot.getGroupID());
 			assertEquals(sinkId, sinkSlot.getGroupID());

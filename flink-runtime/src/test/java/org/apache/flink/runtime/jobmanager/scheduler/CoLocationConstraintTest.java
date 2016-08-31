@@ -140,7 +140,7 @@ public class CoLocationConstraintTest {
 			// now, the location is assigned and we have a location
 			assertTrue(constraint.isAssigned());
 			assertTrue(constraint.isAssignedAndAlive());
-			assertEquals(instance2, constraint.getLocation());
+			assertEquals(instance2.getTaskManagerLocation(), constraint.getLocation());
 			
 			// release the slot
 			slot2_1.releaseSlot();
@@ -148,7 +148,7 @@ public class CoLocationConstraintTest {
 			// we should still have a location
 			assertTrue(constraint.isAssigned());
 			assertFalse(constraint.isAssignedAndAlive());
-			assertEquals(instance2, constraint.getLocation());
+			assertEquals(instance2.getTaskManagerLocation(), constraint.getLocation());
 
 			// we can not assign a different location
 			try {
@@ -167,7 +167,7 @@ public class CoLocationConstraintTest {
 
 			assertTrue(constraint.isAssigned());
 			assertTrue(constraint.isAssignedAndAlive());
-			assertEquals(instance2, constraint.getLocation());
+			assertEquals(instance2.getTaskManagerLocation(), constraint.getLocation());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

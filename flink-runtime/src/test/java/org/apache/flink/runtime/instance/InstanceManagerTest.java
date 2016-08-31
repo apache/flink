@@ -102,7 +102,7 @@ public class InstanceManagerTest{
 					HashSet<TaskManagerLocation>();
 
 			for(Instance instance: instances){
-				taskManagerLocations.add(instance.getInstanceConnectionInfo());
+				taskManagerLocations.add(instance.getTaskManagerLocation());
 			}
 
 			assertTrue(taskManagerLocations.contains(ici1));
