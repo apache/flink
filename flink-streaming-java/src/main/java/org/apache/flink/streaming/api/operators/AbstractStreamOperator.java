@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MeterView;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -105,7 +106,9 @@ public abstract class AbstractStreamOperator<OUT>
 		String operatorName = containingTask.getEnvironment().getTaskInfo().getTaskName().split("->")[config.getChainIndex()].trim();
 		
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(operatorName);
-		this.output = new CountingOutput(output, this.metrics.counter("numRecordsOut"));
+		Counter c = this.metrics.counter("numRecordsOut");
+		this.output = new CountingOutput(output, c);
+		this.metrics.meter("numRecordsOutRate", new MeterView(c, 60));
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
