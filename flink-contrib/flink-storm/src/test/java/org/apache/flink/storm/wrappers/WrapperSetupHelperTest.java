@@ -17,8 +17,13 @@
 
 package org.apache.flink.storm.wrappers;
 
+import org.apache.flink.storm.api.FlinkTopology;
+import org.apache.flink.storm.util.AbstractTest;
+import org.apache.flink.storm.util.TestDummyBolt;
+import org.apache.flink.storm.util.TestDummySpout;
+import org.apache.flink.storm.util.TestSink;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.storm.Config;
-import org.apache.storm.LocalCluster;
 import org.apache.storm.generated.ComponentCommon;
 import org.apache.storm.generated.StormTopology;
 import org.apache.storm.task.TopologyContext;
@@ -28,12 +33,6 @@ import org.apache.storm.topology.IRichSpout;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.utils.Utils;
-import org.apache.flink.storm.api.FlinkTopology;
-import org.apache.flink.storm.util.AbstractTest;
-import org.apache.flink.storm.util.TestDummyBolt;
-import org.apache.flink.storm.util.TestDummySpout;
-import org.apache.flink.storm.util.TestSink;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -178,15 +177,15 @@ public class WrapperSetupHelperTest extends AbstractTest {
 				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		LocalCluster cluster = new LocalCluster();
-		Config c = new Config();
-		c.setNumAckers(0);
-		cluster.submitTopology("test", c, builder.createTopology());
+//		LocalCluster cluster = new LocalCluster();
+//		Config c = new Config();
+//		c.setNumAckers(0);
+//		cluster.submitTopology("test", c, builder.createTopology());
 
-		while (TestSink.result.size() != 8) {
-			Utils.sleep(100);
-		}
-		cluster.shutdown();
+//		while (TestSink.result.size() != 8) {
+//			Utils.sleep(100);
+//		}
+//		cluster.shutdown();
 
 		final FlinkTopology flinkBuilder = FlinkTopology.createTopology(builder);
 		StormTopology stormTopology = flinkBuilder.getStormTopology();
