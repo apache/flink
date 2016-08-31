@@ -107,6 +107,10 @@ class CodeGenerator(
   // we use a LinkedHashSet to keep the insertion order
   private val reusableInitStatements = mutable.LinkedHashSet[String]()
 
+  // set of statements that will be added only once per record
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
+
   // map of initial input unboxing expressions that will be added only once
   // (inputTerm, index) -> expr
   private val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
@@ -124,6 +128,13 @@ class CodeGenerator(
     */
   def reuseInitCode(): String = {
     reusableInitStatements.mkString("", "\n", "\n")
+  }
+
+  /**
+    * @return code block of statements that need to be placed in the SAM of the Function
+    */
+  def reusePerRecordCode(): String = {
+    reusablePerRecordStatements.mkString("", "\n", "\n")
   }
 
   /**
@@ -235,6 +246,7 @@ class CodeGenerator(
         @Override
         public ${samHeader._1} throws Exception {
           ${samHeader._2.mkString("\n")}
+          ${reusePerRecordCode()}
           ${reuseInputUnboxingCode()}
           $bodyCode
         }
@@ -1226,105 +1238,91 @@ class CodeGenerator(
   }
 
   /**
-    * Adds a reusable timestamp to the member area of the generated [[Function]].
+    * Adds a reusable timestamp to the beginning of the SAM of the generated [[Function]].
     */
   def addReusableTimestamp(): String = {
     val fieldTerm = s"timestamp"
 
     val field =
       s"""
-        |transient long $fieldTerm = java.lang.System.currentTimeMillis();
+        |final long $fieldTerm = java.lang.System.currentTimeMillis();
         |""".stripMargin
-    reusableMemberStatements.add(field)
+    reusablePerRecordStatements.add(field)
     fieldTerm
   }
 
     /**
-    * Adds a reusable local timestamp to the member area of the generated [[Function]].
+    * Adds a reusable local timestamp to the beginning of the SAM of the generated [[Function]].
     */
   def addReusableLocalTimestamp(): String = {
     val fieldTerm = s"localtimestamp"
 
-    addReusableTimestamp()
+    val timestamp = addReusableTimestamp()
 
     val field =
       s"""
-        |transient long $fieldTerm =
-        |  timestamp + java.util.TimeZone.getDefault().getOffset(timestamp);
+        |final long $fieldTerm = $timestamp + java.util.TimeZone.getDefault().getOffset(timestamp);
         |""".stripMargin
-    reusableMemberStatements.add(field)
+    reusablePerRecordStatements.add(field)
     fieldTerm
   }
 
   /**
-    * Adds a reusable time to the member area of the generated [[Function]].
+    * Adds a reusable time to the beginning of the SAM of the generated [[Function]].
     */
   def addReusableTime(): String = {
     val fieldTerm = s"time"
 
-    addReusableTimestamp()
+    val timestamp = addReusableTimestamp()
 
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
     val field =
       s"""
-        |transient int $fieldTerm =
-        |  (int) (timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
-        |""".stripMargin
-    reusableMemberStatements.add(field)
-
-    val fieldInit =
-      s"""
+        |final int $fieldTerm = (int) ($timestamp % ${DateTimeUtils.MILLIS_PER_DAY});
         |if (time < 0) {
         |  time += ${DateTimeUtils.MILLIS_PER_DAY};
         |}
         |""".stripMargin
-    reusableInitStatements.add(fieldInit)
+    reusablePerRecordStatements.add(field)
     fieldTerm
   }
 
   /**
-    * Adds a reusable local time to the member area of the generated [[Function]].
+    * Adds a reusable local time to the beginning of the SAM of the generated [[Function]].
     */
   def addReusableLocalTime(): String = {
     val fieldTerm = s"localtime"
 
-    addReusableLocalTimestamp()
+    val localtimestamp = addReusableLocalTimestamp()
 
     // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
     val field =
       s"""
-        |transient int $fieldTerm =
-        |  (int) (localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
+        |final int $fieldTerm = (int) ($localtimestamp % ${DateTimeUtils.MILLIS_PER_DAY});
         |""".stripMargin
-    reusableMemberStatements.add(field)
+    reusablePerRecordStatements.add(field)
     fieldTerm
   }
 
 
   /**
-    * Adds a reusable date to the member area of the generated [[Function]].
+    * Adds a reusable date to the beginning of the SAM of the generated [[Function]].
     */
   def addReusableDate(): String = {
     val fieldTerm = s"date"
 
-    addReusableTimestamp()
-    addReusableTime()
+    val timestamp = addReusableTimestamp()
+    val time = addReusableTime()
 
     // adopted from org.apache.calcite.runtime.SqlFunctions.currentDate()
     val field =
       s"""
-        |transient int $fieldTerm =
-        |  (int) (timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
-        |""".stripMargin
-    reusableMemberStatements.add(field)
-
-    val fieldInit =
-      s"""
-        |if (time < 0) {
-        |  date -= 1;
+        |final int $fieldTerm = (int) ($timestamp / ${DateTimeUtils.MILLIS_PER_DAY});
+        |if ($time < 0) {
+        |  $fieldTerm -= 1;
         |}
         |""".stripMargin
-    reusableInitStatements.add(fieldInit)
+    reusablePerRecordStatements.add(field)
     fieldTerm
   }
 }

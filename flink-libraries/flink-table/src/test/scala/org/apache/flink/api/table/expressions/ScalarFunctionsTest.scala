@@ -722,16 +722,16 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "8")
 
     testAllApis(
-      currentTimestamp().cast(Types.STRING).charLength(),
-      "currentTimestamp().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR))",
-      "23")
+      currentTimestamp().cast(Types.STRING).charLength() >= 22,
+      "currentTimestamp().cast(STRING).charLength() >= 22",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 22",
+      "true")
 
     testAllApis(
-      localTimestamp().cast(Types.STRING).charLength(),
-      "localTimestamp().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR))",
-      "23")
+      localTimestamp().cast(Types.STRING).charLength() >= 22,
+      "localTimestamp().cast(STRING).charLength() >= 22",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 22",
+      "true")
 
     testAllApis(
       localTime().cast(Types.STRING).charLength(),
