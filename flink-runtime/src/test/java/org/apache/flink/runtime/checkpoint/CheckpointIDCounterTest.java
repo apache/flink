@@ -57,9 +57,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 
 		@AfterClass
 		public static void tearDown() throws Exception {
-			if (ZooKeeper != null) {
-				ZooKeeper.shutdown();
-			}
+			ZooKeeper.shutdown();
 		}
 
 		@Before
