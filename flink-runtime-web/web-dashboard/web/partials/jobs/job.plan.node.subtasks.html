@@ -33,8 +33,8 @@ limitations under the License.
       <th>Status</th>
     </tr>
   </thead>
-  <tbody>
-    <tr ng-repeat="subtask in subtasks | orderBy:'host'">
+  <tbody ng-repeat="subtask in subtasks | orderBy:'host'">
+    <tr>
       <td><span ng-if="subtask['start-time'] &gt; -1">{{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask['end-time'] &gt; -1">{{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask.duration &gt; -1" title="{{subtask.duration | humanizeDuration:false}}">{{subtask.duration | humanizeDuration:true}}</span></td>
@@ -42,10 +42,20 @@ limitations under the License.
       <td><span ng-if="subtask.metrics['read-records'] &gt; -1">{{ subtask.metrics['read-records'] | number }}</span></td>
       <td><span ng-if="subtask.metrics['write-bytes'] &gt; -1" title="{{subtask.metrics['write-bytes']}} bytes">{{ subtask.metrics['write-bytes'] | humanizeBytes}}</span></td>
       <td><span ng-if="subtask.metrics['write-records'] &gt; -1">{{ subtask.metrics['write-records'] | number }}</span></td>
-      <td>{{ subtask.attempt + 1 }}</td>
+      <td>
+         
+        {{ subtask.attempt + 1 }}&nbsp;&nbsp;<a ng-if="!showAttempts(nodeid, subtask.subtask)" ng-click="toggleAttempts(nodeid, subtask.subtask); $event.stopPropagation()">(show) </a><a ng-if="showAttempts(nodeid, subtask.subtask)" ng-click="toggleAttempts(nodeid, subtask.subtask); $event.stopPropagation()">(hide) </a>
+      </td>
       <td>{{ subtask.host }}</td>
-      <td> 
+      <td>
         <bs-label status="{{subtask.status}}">{{subtask.status}}</bs-label>
+      </td>
+    </tr>
+    <tr ng-if="subtask.attempt &gt; 0">
+      <td colspan="10">
+        <div ng-if="showAttempts(nodeid, subtask.subtask)">
+          <div ng-include=" 'partials/jobs/job.plan.node.subtask.attempts.html' "></div>
+        </div>
       </td>
     </tr>
   </tbody>

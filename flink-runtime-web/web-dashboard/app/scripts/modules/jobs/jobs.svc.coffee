@@ -180,6 +180,20 @@ angular.module('flinkApp')
 
     deferred.promise
 
+  @getSubtaskPreviousAttempts = (vertexid, subtask) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/" + subtask + "/attempts"
+      .success (data) ->
+        # The 0th attempt is the current one
+        attempts = data[1..]
+
+        deferred.resolve(attempts)
+
+    deferred.promise
+
   @getTaskManagers = (vertexid) ->
     deferred = $q.defer()
 

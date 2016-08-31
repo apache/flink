@@ -33,7 +33,7 @@ import java.util.Map;
  * Request handler that returns the accumulators for all subtasks of job vertex.
  */
 public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler {
-	
+
 	public SubtasksAllAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}

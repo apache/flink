@@ -131,6 +131,33 @@ angular.module('flinkApp')
   $scope.$on 'reload', (event) ->
     getSubtasks() if $scope.nodeid
 
+  $scope.showAttempts = {}
+
+  $scope.showAttempts = (vertexid, status) ->
+    console.log('SA' +  vertexid + ' ' + status)
+    return !! $scope.showAttempts[vertexid + status]
+
+  $scope.toggleAttempts = (vertexid, status) ->
+    console.log('TA' +  vertexid + ' ' + status)
+    $scope.showAttempts[vertexid + status] = ! $scope.showAttempts[vertexid + status]
+
+    JobsService.getSubtaskPreviousAttempts(vertexid, status).then (data) ->
+      console.log 'Load attempts'
+      $scope.attempts = data
+
+    $scope.$on 'reload', (event) ->
+      console.log 'Reload attempts'
+      JobsService.getSubtaskPreviousAttempts(vertexid, status).then (data) ->
+        console.log 'Load attempts'
+        $scope.attempts = data
+
+.controller 'JobPlanSubtaskAttemptsController', ($rootScope, $scope, JobsService) ->
+  console.log 'JobPlanSubtaskAttemptsController'
+
+  if $scope.subtask
+    JobsService.getSubtaskAttempts($scope.nodeid, $scope.subtask.subtask).then (data) ->
+      $scope.attempts = data
+
 # --------------------------------------
 
 .controller 'JobPlanTaskManagersController', ($scope, JobsService) ->
