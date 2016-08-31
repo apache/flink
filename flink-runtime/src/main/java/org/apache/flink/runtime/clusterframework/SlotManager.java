@@ -391,7 +391,7 @@ public abstract class SlotManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Maintaining the all the allocations with SlotID and AllocationID. We can get or remove the allocation info
+	 * We maintain all the allocations with SlotID and AllocationID. We are able to get or remove the allocation info
 	 * either by SlotID or AllocationID.
 	 */
 	private static class AllocationMap {
