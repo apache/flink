@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import akka.dispatch.Futures;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
@@ -42,7 +41,6 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.concurrent.Future;
 
 import java.util.ArrayDeque;
@@ -777,6 +775,8 @@ public class CheckpointCoordinator {
 					return false;
 				}
 			}
+
+			LOG.info("Restoring from latest valid checkpoint: {}.", latest);
 
 			for (Map.Entry<JobVertexID, TaskState> taskGroupStateEntry: latest.getTaskStates().entrySet()) {
 				TaskState taskState = taskGroupStateEntry.getValue();

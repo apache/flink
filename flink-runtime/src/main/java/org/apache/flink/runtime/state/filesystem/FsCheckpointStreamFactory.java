@@ -97,7 +97,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		Path dir = new Path(basePath, jobId.toString());
 
-		LOG.info("Initializing file stream factory to URI {}.", dir);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Initializing file stream factory to URI {}.", dir);
+		}
 
 		filesystem = basePath.getFileSystem();
 		filesystem.mkdirs(dir);
