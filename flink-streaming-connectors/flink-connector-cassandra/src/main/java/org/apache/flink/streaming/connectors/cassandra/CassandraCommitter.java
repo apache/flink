@@ -26,11 +26,14 @@ import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 /**
  * CheckpointCommitter that saves information about completed checkpoints within a separate table in a cassandra
  * database.
- * <p/>
- * Entries are in the form |operator_id | subtask_id | last_completed_checkpoint|
+ * 
+ * <p>Entries are in the form |operator_id | subtask_id | last_completed_checkpoint|
  */
 public class CassandraCommitter extends CheckpointCommitter {
-	private ClusterBuilder builder;
+
+	private static final long serialVersionUID = 1L;
+	
+	private final ClusterBuilder builder;
 	private transient Cluster cluster;
 	private transient Session session;
 
@@ -54,9 +57,6 @@ public class CassandraCommitter extends CheckpointCommitter {
 
 	/**
 	 * Internally used to set the job ID after instantiation.
-	 *
-	 * @param id
-	 * @throws Exception
 	 */
 	public void setJobId(String id) throws Exception {
 		super.setJobId(id);
@@ -66,7 +66,6 @@ public class CassandraCommitter extends CheckpointCommitter {
 	/**
 	 * Generates the necessary tables to store information.
 	 *
-	 * @return
 	 * @throws Exception
 	 */
 	@Override

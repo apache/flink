@@ -23,13 +23,19 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which
- * it uses annotations from {@link com.datastax.driver.mapping}.
+ * Flink Sink to save data into a Cassandra cluster using 
+ * <a href="http://docs.datastax.com/en/drivers/java/2.1/com/datastax/driver/mapping/Mapper.html">Mapper</a>,
+ * which it uses annotations from
+ * <a href="http://docs.datastax.com/en/drivers/java/2.1/com/datastax/driver/mapping/annotations/package-summary.html">
+ * com.datastax.driver.mapping.annotations</a>.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
 public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, Void> {
-	protected Class<IN> clazz;
+
+	private static final long serialVersionUID = 1L;
+
+	protected final Class<IN> clazz;
 	protected transient Mapper<IN> mapper;
 	protected transient MappingManager mappingManager;
 
