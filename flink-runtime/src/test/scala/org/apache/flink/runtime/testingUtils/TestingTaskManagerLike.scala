@@ -101,20 +101,6 @@ trait TestingTaskManagerLike extends FlinkActor {
 
       unregisteredTasks += executionID
 
-    case RequestBroadcastVariablesWithReferences =>
-      sender ! decorateMessage(
-        ResponseBroadcastVariablesWithReferences(
-          bcVarManager.getNumberOfVariablesWithReferences)
-      )
-
-    case RequestNumActiveConnections =>
-      val numActive = if (!network.isShutdown) {
-        network.getConnectionManager.getNumberOfActiveConnections
-      } else {
-        0
-      }
-      sender ! decorateMessage(ResponseNumActiveConnections(numActive))
-
     case NotifyWhenJobRemoved(jobID) =>
       if(runningTasks.values.asScala.exists(_.getJobID == jobID)){
         context.system.scheduler.scheduleOnce(

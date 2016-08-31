@@ -20,10 +20,10 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -32,10 +32,10 @@ import org.apache.flink.util.Preconditions;
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	
 	/** The mini cluster in which this environment executes its jobs */
-	private ForkableFlinkMiniCluster executor;
+	private LocalFlinkMiniCluster executor;
 	
 
-	public TestStreamEnvironment(ForkableFlinkMiniCluster executor, int parallelism) {
+	public TestStreamEnvironment(LocalFlinkMiniCluster executor, int parallelism) {
 		this.executor = Preconditions.checkNotNull(executor);
 		setParallelism(parallelism);
 	}
@@ -57,7 +57,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param cluster The test cluster to run the test program on.
 	 * @param parallelism The default parallelism for the test programs.
 	 */
-	public static void setAsContext(final ForkableFlinkMiniCluster cluster, final int parallelism) {
+	public static void setAsContext(final LocalFlinkMiniCluster cluster, final int parallelism) {
 		
 		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
 			@Override
