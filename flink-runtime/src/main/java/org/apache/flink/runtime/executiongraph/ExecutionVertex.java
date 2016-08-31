@@ -97,8 +97,6 @@ public class ExecutionVertex {
 
 	private volatile Execution currentExecution;	// this field must never be null
 
-	private volatile List<TaskManagerLocation> locationConstraintInstances;
-
 	private volatile boolean scheduleLocalOnly;
 
 	// --------------------------------------------------------------------------------------------
@@ -351,10 +349,6 @@ public class ExecutionVertex {
 		}
 	}
 
-	public void setLocationConstraintHosts(List<TaskManagerLocation> instances) {
-		this.locationConstraintInstances = instances;
-	}
-
 	public void setScheduleLocalOnly(boolean scheduleLocalOnly) {
 		if (scheduleLocalOnly && inputEdges != null && inputEdges.length > 0) {
 			throw new IllegalArgumentException("Strictly local scheduling is only supported for sources.");
@@ -376,12 +370,6 @@ public class ExecutionVertex {
 	 * @return The preferred locations for this vertex execution, or null, if there is no preference.
 	 */
 	public Iterable<TaskManagerLocation> getPreferredLocations() {
-		// if we have hard location constraints, use those
-		List<TaskManagerLocation> constraintInstances = this.locationConstraintInstances;
-		if (constraintInstances != null && !constraintInstances.isEmpty()) {
-			return constraintInstances;
-		}
-
 		// otherwise, base the preferred locations on the input connections
 		if (inputEdges == null) {
 			return Collections.emptySet();
@@ -570,7 +558,6 @@ public class ExecutionVertex {
 		this.resultPartitions = null;
 		this.inputEdges = null;
 		this.locationConstraint = null;
-		this.locationConstraintInstances = null;
 	}
 
 	public void cachePartitionInfo(PartialInputChannelDeploymentDescriptor partitionInfo){
