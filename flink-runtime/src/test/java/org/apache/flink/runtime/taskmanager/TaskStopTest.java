@@ -66,10 +66,20 @@ public class TaskStopTest {
 		when(tddMock.getSerializedExecutionConfig()).thenReturn(mock(SerializedValue.class));
 		when(tddMock.getInvokableClassName()).thenReturn("className");
 
-		task = new Task(tddMock, mock(MemoryManager.class), mock(IOManager.class), mock(NetworkEnvironment.class),
-				mock(BroadcastVariableManager.class), mock(ActorGateway.class), mock(ActorGateway.class),
-				mock(FiniteDuration.class), mock(LibraryCacheManager.class), mock(FileCache.class),
-				mock(TaskManagerRuntimeInfo.class), mock(TaskMetricGroup.class));
+		task = new Task(
+			tddMock,
+			mock(MemoryManager.class),
+			mock(IOManager.class),
+			mock(NetworkEnvironment.class),
+			mock(JobManagerCommunicationFactory.class),
+			mock(BroadcastVariableManager.class),
+			mock(ActorGateway.class),
+			mock(ActorGateway.class),
+			mock(FiniteDuration.class),
+			mock(LibraryCacheManager.class),
+			mock(FileCache.class),
+			mock(TaskManagerRuntimeInfo.class),
+			mock(TaskMetricGroup.class));
 		Field f = task.getClass().getDeclaredField("invokable");
 		f.setAccessible(true);
 		f.set(task, taskMock);

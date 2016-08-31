@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -36,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * for data exchange. This class also contains utilities to work with the
  * TaskManager's host name, which is used to localize work assignments.
  */
-public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo>, java.io.Serializable {
+public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo>, Serializable {
 
 	private static final long serialVersionUID = -8254407801276350716L;
 	
@@ -77,7 +78,9 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		if (inetAddress == null) {
 			throw new IllegalArgumentException("Argument inetAddress must not be null");
 		}
-		if (dataPort <= 0) {
+
+		// -1 indicates a local instance connection info
+		if (dataPort != -1 && dataPort <= 0) {
 			throw new IllegalArgumentException("Argument dataPort must be greater than zero");
 		}
 

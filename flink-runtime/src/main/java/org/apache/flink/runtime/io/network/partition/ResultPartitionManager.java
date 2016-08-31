@@ -58,6 +58,8 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 				throw new IllegalStateException("Result partition already registered.");
 			}
 
+			partition.deployConsumers();
+
 			LOG.debug("Registered {}.", partition);
 		}
 	}

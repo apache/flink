@@ -59,6 +59,13 @@ public class KvStateRegistry {
 	}
 
 	/**
+	 * Unregisters the listener with the registry
+	 */
+	public void unregisterListener() {
+		listener.set(null);
+	}
+
+	/**
 	 * Registers the KvState instance identified by the given 4-tuple of JobID,
 	 * JobVertexID, key group index, and registration name.
 	 *
