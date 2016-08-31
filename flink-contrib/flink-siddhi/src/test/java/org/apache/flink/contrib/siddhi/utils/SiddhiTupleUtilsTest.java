@@ -15,28 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.siddhi.operator;
+package org.apache.flink.contrib.siddhi.utils;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.siddhi.schema.StreamSchema;
+import org.apache.flink.api.java.tuple.Tuple5;
+import static org.junit.Assert.*;
+import org.junit.Test;
 
-/**
- * Wrap input event in generic type of <code>IN</code> as Tuple2<String,IN>
- */
-
-public class StreamSiddhiOperator<IN, OUT> extends AbstractSiddhiOperator<Tuple2<String, IN>, OUT> {
-
-	public StreamSiddhiOperator(SiddhiOperatorContext siddhiPlan) {
-		super(siddhiPlan);
+public class SiddhiTupleUtilsTest {
+	@Test
+	public void testConvertObjectArrayToTuple(){
+		Object[] row = new Object[]{1,"message",1234567L,true,new Object()};
+		Tuple5 tuple5 = SiddhiTupleUtils.newTuple(row);
+		assertEquals(5,tuple5.getArity());
+		assertArrayEquals(row,new Object[]{
+			tuple5.f0,
+			tuple5.f1,
+			tuple5.f2,
+			tuple5.f3,
+			tuple5.f4
+		});
 	}
 
-	@Override
-	protected void processEvent(String streamId, StreamSchema<Tuple2<String, IN>> schema, Tuple2<String, IN> value, long timestamp) throws InterruptedException {
-		send(value.f0, getSiddhiContext().getInputStreamSchema(value.f0).getStreamSerializer().getRow(value.f1), timestamp);
-	}
-
-	@Override
-	public String getStreamId(Tuple2<String, IN> record) {
-		return record.f0;
+	@Test(expected = IllegalArgumentException.class)
+	public void testConvertTooLongObjectArrayToTuple(){
+		Object[] row = new Object[26];
+		SiddhiTupleUtils.newTuple(row);
 	}
 }

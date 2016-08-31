@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.contrib.siddhi.schema.SiddhiStreamSchema;
 import org.apache.flink.contrib.siddhi.schema.StreamSchema;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -35,10 +36,11 @@ public class SiddhiOperatorContext implements Serializable {
 	private Map<String, SiddhiStreamSchema<?>> inputStreamSchemas;
 	private String outputStreamId;
 	private TypeInformation outputStreamType;
+
 	private TimeCharacteristic timeCharacteristic;
 	private String name;
 
-	private String executionExpression;
+	private String executionPlan;
 
 	public SiddhiOperatorContext() {
 		inputStreamSchemas = new HashMap<>();
@@ -46,10 +48,10 @@ public class SiddhiOperatorContext implements Serializable {
 
 	public String getName() {
 		if (this.name == null) {
-			if (executionExpression.length() > 50) {
-				return "Siddhi: " + executionExpression.substring(0, 50) + " ...";
+			if (executionPlan.length() > 50) {
+				return "Siddhi: " + executionPlan.substring(0, 50) + " ...";
 			} else {
-				return "Siddhi: " + executionExpression;
+				return "Siddhi: " + executionPlan;
 			}
 		} else {
 			return this.name;
@@ -65,19 +67,20 @@ public class SiddhiOperatorContext implements Serializable {
 		return result;
 	}
 
-	public String getExecutionExpression() {
-		return executionExpression;
+	public String getExecutionPlan() {
+		return executionPlan;
 	}
 
 	/**
 	 * Stream definition + execution expression
 	 */
-	public String getFinalExecutionExpression() {
+	public String getFinalExecutionPlan() {
+		Preconditions.checkNotNull(executionPlan,"Execution plan is not set");
 		StringBuilder sb = new StringBuilder();
 		for (Map.Entry<String, SiddhiStreamSchema<?>> entry : inputStreamSchemas.entrySet()) {
 			sb.append(entry.getValue().getStreamDefinitionExpression(entry.getKey()));
 		}
-		sb.append(this.getExecutionExpression());
+		sb.append(this.getExecutionPlan());
 		return sb.toString();
 	}
 
@@ -113,8 +116,8 @@ public class SiddhiOperatorContext implements Serializable {
 		this.timeCharacteristic = timeCharacteristic;
 	}
 
-	public void setExecutionExpression(String executionExpression) {
-		this.executionExpression = executionExpression;
+	public void setExecutionPlan(String executionPlan) {
+		this.executionPlan = executionPlan;
 	}
 
 	public Map<String, SiddhiStreamSchema<?>> getInputStreamSchemas() {
@@ -128,4 +131,5 @@ public class SiddhiOperatorContext implements Serializable {
 	public void setName(String name) {
 		this.name = name;
 	}
+
 }

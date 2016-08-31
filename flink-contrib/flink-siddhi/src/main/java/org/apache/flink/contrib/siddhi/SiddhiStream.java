@@ -18,9 +18,12 @@
 package org.apache.flink.contrib.siddhi;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorContext;
 import org.apache.flink.contrib.siddhi.schema.SiddhiStreamSchema;
+import org.apache.flink.contrib.siddhi.utils.SiddhiTypeUtils;
 import org.apache.flink.contrib.siddhi.utils.SiddhiOperatorUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -44,9 +47,9 @@ public class SiddhiStream {
 		this.inputStreamSchemas = new HashMap<>();
 	}
 
-	public static <T> WithExecutionEnvironment inject(String streamId, DataStream<T> inStream, String... fieldNames) {
-		SiddhiStream siddhiStream = SiddhiStream.newSiddhiStream(inStream.getExecutionEnvironment());
-		return new WithExecutionEnvironment(siddhiStream).with(streamId, inStream, fieldNames);
+	public static <T> WithExecutionEnvironment from(String streamId, DataStream<T> inStream, String... fieldNames) {
+		SiddhiStream siddhiStream = SiddhiStream.newStream(inStream.getExecutionEnvironment());
+		return new WithExecutionEnvironment(siddhiStream).and(streamId, inStream, fieldNames);
 	}
 
 	public <T> void register(String streamId, DataStream<T> inStream, String... fieldNames) {
@@ -78,7 +81,7 @@ public class SiddhiStream {
 			this.environment = environment;
 		}
 
-		public <T> WithExecutionEnvironment with(String streamId, DataStream<T> inStream, String... fieldNames) {
+		public <T> WithExecutionEnvironment and(String streamId, DataStream<T> inStream, String... fieldNames) {
 			environment.register(streamId, inStream, fieldNames);
 			return this;
 		}
@@ -98,26 +101,42 @@ public class SiddhiStream {
 
 		public WithExecutionPlan(String executionPlan, SiddhiStream environment) {
 			siddhiOperatorContext = new SiddhiOperatorContext();
-			siddhiOperatorContext.setExecutionExpression(executionPlan);
+			siddhiOperatorContext.setExecutionPlan(executionPlan);
 			siddhiOperatorContext.setInputStreamSchemas(environment.inputStreamSchemas);
 			siddhiOperatorContext.setTimeCharacteristic(environment.getExecutionEnvironment().getStreamTimeCharacteristic());
 			this.siddhiStream = environment;
 		}
 
-		public DataStream<Map<String, Object>> returns(String outStreamId) {
-			siddhiOperatorContext.setOutputStreamId(outStreamId);
-			siddhiOperatorContext.setOutputStreamType(TypeExtractor.createTypeInfo(Map.class));
-			return SiddhiOperatorUtils.createDataStream(siddhiOperatorContext, siddhiStream);
+		/**
+		 * Return output stream as Tuple
+         */
+		public <T extends Tuple> DataStream<T> returns(String outStreamId) {
+			return returnsInternal(outStreamId, SiddhiTypeUtils.<T>getTupleTypeInformation(siddhiOperatorContext.getFinalExecutionPlan(),outStreamId));
 		}
 
+		/**
+		 * Return output stream as Map[String,Object]
+         */
+		public DataStream<Map> returnAsMap(String outStreamId) {
+			return this.returnsInternal(outStreamId,SiddhiTypeUtils.getMapTypeInformation());
+		}
+
+		/**
+		 * Return output stream as POJO class.
+         */
 		public <T> DataStream<T> returns(String outStreamId, Class<T> outType) {
+			TypeInformation<T> typeInformation = TypeExtractor.getForClass(outType);
+			return returnsInternal(outStreamId,typeInformation);
+		}
+
+		private  <T> DataStream<T> returnsInternal(String outStreamId, TypeInformation<T> typeInformation) {
 			siddhiOperatorContext.setOutputStreamId(outStreamId);
-			siddhiOperatorContext.setOutputStreamType(TypeExtractor.createTypeInfo(outType));
+			siddhiOperatorContext.setOutputStreamType(typeInformation);
 			return SiddhiOperatorUtils.createDataStream(siddhiOperatorContext, siddhiStream);
 		}
 	}
 
-	public static SiddhiStream newSiddhiStream(StreamExecutionEnvironment streamExecutionEnvironment) {
+	public static SiddhiStream newStream(StreamExecutionEnvironment streamExecutionEnvironment) {
 		return new SiddhiStream(streamExecutionEnvironment);
 	}
 }

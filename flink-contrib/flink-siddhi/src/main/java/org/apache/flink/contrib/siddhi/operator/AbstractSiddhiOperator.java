@@ -62,7 +62,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	 */
 	public AbstractSiddhiOperator(SiddhiOperatorContext siddhiContext) {
 		this.siddhiContext = siddhiContext;
-		this.executionExpression = siddhiContext.getFinalExecutionExpression();
+		this.executionExpression = siddhiContext.getFinalExecutionPlan();
 		this.isProcessingTime = this.siddhiContext.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 		validate(executionExpression);
 	}
@@ -94,8 +94,9 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
 			StreamRecord<IN> streamRecord = priorityQueue.poll();
 			String streamId = getStreamId(streamRecord.getValue());
+			long timestamp = streamRecord.getTimestamp();
 			StreamSchema<IN> schema = siddhiContext.getInputStreamSchema(streamId);
-			processEvent(streamId, schema, streamRecord.getValue(), streamRecord.getTimestamp());
+			processEvent(streamId, schema, streamRecord.getValue(), timestamp);
 		}
 		output.emitWatermark(mark);
 	}

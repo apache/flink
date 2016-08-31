@@ -21,8 +21,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.siddhi.SiddhiStream;
 import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorContext;
-import org.apache.flink.contrib.siddhi.operator.SingleStreamSiddhiOperator;
-import org.apache.flink.contrib.siddhi.operator.StreamSiddhiOperator;
+import org.apache.flink.contrib.siddhi.operator.TupleStreamSiddhiOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.util.ArrayList;
@@ -36,10 +35,10 @@ public class SiddhiOperatorUtils {
 	@SuppressWarnings("unchecked")
 	public static <OUT> DataStream<OUT> createDataStream(SiddhiOperatorContext context, SiddhiStream environment) {
 		if (context.getInputStreams().size() == 0) {
-			throw new IllegalArgumentException("Non input streams was connected");
+			throw new IllegalArgumentException("No input streams was registered");
 		} else if (context.getInputStreams().size() == 1) {
 			Map.Entry<String, DataStream<?>> entry = environment.getInputStreams().entrySet().iterator().next();
-			return entry.getValue().transform(context.getName(), context.getOutputStreamType(), new SingleStreamSiddhiOperator(entry.getKey(), context));
+			return wrap(entry.getKey(),entry.getValue()).transform(context.getName(), context.getOutputStreamType(), new TupleStreamSiddhiOperator(context));
 		} else {
 			List<DataStream<Tuple2<String, Object>>> wrappedDataStreams = new ArrayList<>();
 			for (Map.Entry<String, DataStream<?>> entry : environment.getInputStreams().entrySet()) {
@@ -48,7 +47,7 @@ public class SiddhiOperatorUtils {
 			// TODO: Is union correct for our case? Should use broadcast instead.
 			DataStream<Tuple2<String, Object>> unionStream = wrappedDataStreams.get(0)
 				.union((DataStream<Tuple2<String, Object>>[]) wrappedDataStreams.subList(1, wrappedDataStreams.size() - 1).toArray());
-			return unionStream.transform(context.getName(), context.getOutputStreamType(), new StreamSiddhiOperator<Object, OUT>(context));
+			return unionStream.transform(context.getName(), context.getOutputStreamType(), new TupleStreamSiddhiOperator<Object, OUT>(context));
 		}
 	}
 

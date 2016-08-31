@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.siddhi;
 
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -54,7 +55,7 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 		);
 
 		DataStream<Event> output = SiddhiStream
-			.inject("inputStream", input, "id", "name", "price")
+			.from("inputStream", input, "id", "name", "price")
 			.apply("from inputStream insert into  outputStream")
 			.returns("outputStream", Event.class);
 		String path = tempFolder.newFile().toURI().toString();
@@ -63,26 +64,21 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testSimpleAcceptPOJOAndReturnMap() throws Exception {
+	public void testUnboundedPOJOSourceAndReturnTuple() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		env.setBufferTimeout(5000);
+		DataStream<Event> input = env.addSource(new EventSource(5));
 
-		DataStream<Event> input = env.fromElements(
-			Event.of(1, "start", 1.0),
-			Event.of(2, "middle", 2.0),
-			Event.of(3, "end", 3.0),
-			Event.of(4, "start", 4.0),
-			Event.of(5, "middle", 5.0)
-		);
-
-		DataStream<Map<String, Object>> output = SiddhiStream
-			.inject("inputStream", input, "id", "name", "price")
-			.apply("from inputStream insert into  outputStream")
+		DataStream<Tuple4<Long,Integer,String,Double>> output = SiddhiStream
+			.from("inputStream", input, "id", "name", "price","timestamp")
+			.apply("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
-		output.print();
+
+		output.printToErr();
+
+		String resultPath = tempFolder.newFile().toURI().toString();
+		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
+		assertEquals(5, getLineCount(resultPath));
 	}
 
 	@Test
@@ -93,10 +89,10 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 		env.setBufferTimeout(5000);
 		DataStream<Event> input = env.addSource(new EventSource(5));
 
-		DataStream<Map<String, Object>> output = SiddhiStream
-			.inject("inputStream", input, "id", "name", "price")
-			.apply("from inputStream insert into  outputStream")
-			.returns("outputStream");
+		DataStream<Map> output = SiddhiStream
+			.from("inputStream", input, "id", "name", "price","timestamp")
+			.apply("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.returnAsMap("outputStream");
 
 		output.printToErr();
 
@@ -107,17 +103,14 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUnboundedPOJOSourceAndReturnPOJO() throws Exception {
+	public void testUnboundedPOJOSourceAndReturnPojo() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		DataStream<Event> input = env.addSource(new EventSource(5));
 
-		SiddhiStream siddhiStream = SiddhiStream.newSiddhiStream(env);
-		siddhiStream.register("inputStream", input, "id", "name", "price");
-
-		DataStream<Event> output = siddhiStream
-			.apply("from inputStream insert into  outputStream")
-			.returns("outputStream", Event.class);
+		DataStream<Event> output = SiddhiStream
+			.from("inputStream", input, "id", "name", "price","timestamp")
+			.apply("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.returns("outputStream",Event.class);
 
 		output.printToErr();
 
@@ -126,6 +119,7 @@ public class SiddhiStreamITSuite extends StreamingMultipleProgramsTestBase {
 		env.execute();
 		assertEquals(5, getLineCount(resultPath));
 	}
+
 
 	public static int getLineCount(String resPath) throws IOException {
 		List<String> result = new LinkedList<>();

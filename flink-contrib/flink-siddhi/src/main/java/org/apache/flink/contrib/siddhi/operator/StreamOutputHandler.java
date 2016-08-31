@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.contrib.siddhi.utils.TupleUtils;
+import org.apache.flink.contrib.siddhi.utils.SiddhiTupleUtils;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
@@ -51,15 +51,15 @@ public class StreamOutputHandler<R> extends StreamCallback {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void receive(Event[] events) {
 		for (Event event : events) {
-			if (typeInfo == null || typeInfo.getTypeClass().equals(Map.class)) {
-				StreamRecord<R> record = new StreamRecord<>((R) toMap(event));
+			if (typeInfo == null  || typeInfo.getTypeClass().equals(Map.class)) {
+				StreamRecord<R> record = (StreamRecord<R>) new StreamRecord<>(toMap(event));
 				record.setTimestamp(event.getTimestamp());
 				output.collect(record);
 			} else if (typeInfo.isTupleType()) {
-				StreamRecord<R> record = new StreamRecord<>((R) toTuple(event));
+				Tuple tuple = this.toTuple(event);
+				StreamRecord<R> record = (StreamRecord<R>) new StreamRecord<>(tuple);
 				record.setTimestamp(event.getTimestamp());
 				output.collect(record);
 			} else if (typeInfo instanceof PojoTypeInfo) {
@@ -77,7 +77,6 @@ public class StreamOutputHandler<R> extends StreamCallback {
 				throw new IllegalArgumentException("Unable to format " + event + " as type " + typeInfo);
 			}
 		}
-		output.collect(new StreamRecord<R>(null));
 	}
 
 	private Map<String, Object> toMap(Event event) {
@@ -88,7 +87,7 @@ public class StreamOutputHandler<R> extends StreamCallback {
 		return map;
 	}
 
-	private Tuple toTuple(Event event) {
-		return TupleUtils.newTuple(event.getData());
+	private <T extends Tuple> T toTuple(Event event) {
+		return SiddhiTupleUtils.newTuple(event.getData());
 	}
 }
