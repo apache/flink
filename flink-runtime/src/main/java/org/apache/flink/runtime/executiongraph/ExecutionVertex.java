@@ -28,6 +28,7 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -53,6 +54,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -629,6 +631,7 @@ public class ExecutionVertex {
 			SimpleSlot targetSlot,
 			ChainedStateHandle<StreamStateHandle> operatorState,
 			List<KeyGroupsStateHandle> keyGroupStates,
+			List<Collection<OperatorStateHandle>> partitionableOperatorStateHandle,
 			int attemptNumber) {
 
 		// Produced intermediate results
@@ -681,7 +684,8 @@ public class ExecutionVertex {
 			classpaths,
 			targetSlot.getRoot().getSlotNumber(),
 			operatorState,
-			keyGroupStates);
+			keyGroupStates,
+			partitionableOperatorStateHandle);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.InstantiationUtil;
-
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -32,7 +30,7 @@ import java.util.Arrays;
 /**
  * A state handle that contains stream state in a byte array.
  */
-public class ByteStreamStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
+public class ByteStreamStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = -5280226231200217594L;
 
@@ -52,9 +50,8 @@ public class ByteStreamStateHandle extends AbstractCloseableHandle implements St
 
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
-		ensureNotClosed();
 
-		FSDataInputStream inputStream = new FSDataInputStream() {
+		return new FSDataInputStream() {
 			int index = 0;
 
 			@Override
@@ -73,8 +70,6 @@ public class ByteStreamStateHandle extends AbstractCloseableHandle implements St
 				return index < data.length ? data[index++] & 0xFF : -1;
 			}
 		};
-		registerCloseable(inputStream);
-		return inputStream;
 	}
 
 	public byte[] getData() {
@@ -106,9 +101,7 @@ public class ByteStreamStateHandle extends AbstractCloseableHandle implements St
 
 	@Override
 	public int hashCode() {
-		int result = super.hashCode();
-		result = 31 * result + Arrays.hashCode(data);
-		return result;
+		return Arrays.hashCode(data);
 	}
 
 	public static StreamStateHandle fromSerializable(Serializable value) throws IOException {

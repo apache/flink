@@ -37,7 +37,7 @@ import java.io.IOException;
  * @param <T> Type of the value in the state.
  */
 @PublicEvolving
-public interface ValueState<T> extends State, OperatorState<T> {
+public interface ValueState<T> extends State {
 
 	/**
 	 * Returns the current value for the state. When the state is not

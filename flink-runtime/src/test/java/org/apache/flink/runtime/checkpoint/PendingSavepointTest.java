@@ -117,7 +117,7 @@ public class PendingSavepointTest {
 
 		Future<String> future = pending.getCompletionFuture();
 
-		pending.acknowledgeTask(ATTEMPT_ID, null, null);
+		pending.acknowledgeTask(ATTEMPT_ID, null);
 
 		CompletedCheckpoint checkpoint = pending.finalizeCheckpoint();
 

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.SerializedValue;
 
@@ -100,6 +101,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** Handle to the key-grouped state of the head operator in the chain */
 	private final List<KeyGroupsStateHandle> keyGroupState;
 
+	private final List<Collection<OperatorStateHandle>> partitionableOperatorState;
+
 	/** The execution configuration (see {@link ExecutionConfig}) related to the specific job. */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
@@ -107,26 +110,27 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 * Constructs a task deployment descriptor.
 	 */
 	public TaskDeploymentDescriptor(
-			JobID jobID,
-			String jobName,
-			JobVertexID vertexID,
-			ExecutionAttemptID executionId,
-			SerializedValue<ExecutionConfig> serializedExecutionConfig,
-			String taskName,
-			int numberOfKeyGroups,
-			int indexInSubtaskGroup,
-			int numberOfSubtasks,
-			int attemptNumber,
-			Configuration jobConfiguration,
-			Configuration taskConfiguration,
-			String invokableClassName,
-			List<ResultPartitionDeploymentDescriptor> producedPartitions,
-			List<InputGateDeploymentDescriptor> inputGates,
-			List<BlobKey> requiredJarFiles,
-			List<URL> requiredClasspaths,
-			int targetSlotNumber,
-			ChainedStateHandle<StreamStateHandle> operatorState,
-			List<KeyGroupsStateHandle> keyGroupState) {
+		JobID jobID,
+		String jobName,
+		JobVertexID vertexID,
+		ExecutionAttemptID executionId,
+		SerializedValue<ExecutionConfig> serializedExecutionConfig,
+		String taskName,
+		int numberOfKeyGroups,
+		int indexInSubtaskGroup,
+		int numberOfSubtasks,
+		int attemptNumber,
+		Configuration jobConfiguration,
+		Configuration taskConfiguration,
+		String invokableClassName,
+		List<ResultPartitionDeploymentDescriptor> producedPartitions,
+		List<InputGateDeploymentDescriptor> inputGates,
+		List<BlobKey> requiredJarFiles,
+		List<URL> requiredClasspaths,
+		int targetSlotNumber,
+		ChainedStateHandle<StreamStateHandle> operatorState,
+		List<KeyGroupsStateHandle> keyGroupState,
+		List<Collection<OperatorStateHandle>> partitionableOperatorStateHandles) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
@@ -153,6 +157,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.targetSlotNumber = targetSlotNumber;
 		this.operatorState = operatorState;
 		this.keyGroupState = keyGroupState;
+		this.partitionableOperatorState = partitionableOperatorStateHandles;
 	}
 
 	public TaskDeploymentDescriptor(
@@ -194,6 +199,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			requiredJarFiles,
 			requiredClasspaths,
 			targetSlotNumber,
+			null,
 			null,
 			null);
 	}
@@ -346,5 +352,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public List<KeyGroupsStateHandle> getKeyGroupState() {
 		return keyGroupState;
+	}
+
+	public List<Collection<OperatorStateHandle>> getPartitionableOperatorState() {
+		return partitionableOperatorState;
 	}
 }
