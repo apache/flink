@@ -76,6 +76,6 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 
 	@Override
 	public void close() throws IOException {
-		wrappedStreamStateHandle.close();
+//		wrappedStreamStateHandle.close();
 	}
 }

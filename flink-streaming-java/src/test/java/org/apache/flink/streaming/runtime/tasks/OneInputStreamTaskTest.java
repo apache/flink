@@ -21,7 +21,10 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -31,8 +34,12 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -56,17 +63,23 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link OneInputStreamTask}.
@@ -81,6 +94,9 @@ import static org.junit.Assert.assertTrue;
 @PrepareForTest({ResultPartitionWriter.class})
 @PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class OneInputStreamTaskTest extends TestLogger {
+
+	private static final ListStateDescriptor<Integer> TEST_DESCRIPTOR =
+			new ListStateDescriptor<>("test", new IntSerializer());
 
 	/**
 	 * This test verifies that open() and close() are correctly called. This test also verifies
@@ -358,7 +374,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke(env);
 		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
 
-		streamTask.triggerCheckpoint(checkpointId, checkpointTimestamp);
+		while(!streamTask.triggerCheckpoint(checkpointId, checkpointTimestamp));
 
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
@@ -371,7 +387,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 
 		final OneInputStreamTask<String, String> restoredTask = new OneInputStreamTask<String, String>();
-		restoredTask.setInitialState(env.getState(), env.getKeyGroupStates());
+		restoredTask.setInitialState(env.getState(), env.getKeyGroupStates(), env.getPartitionableOperatorState());
 
 		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness = new OneInputStreamTaskTestHarness<String, String>(restoredTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
@@ -465,6 +481,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		private volatile long checkpointId;
 		private volatile ChainedStateHandle<StreamStateHandle> state;
 		private volatile List<KeyGroupsStateHandle> keyGroupStates;
+		private volatile List<Collection<OperatorStateHandle>> partitionableOperatorState;
 
 		private final OneShotLatch checkpointLatch = new OneShotLatch();
 
@@ -486,6 +503,10 @@ public class OneInputStreamTaskTest extends TestLogger {
 			return result;
 		}
 
+		List<Collection<OperatorStateHandle>> getPartitionableOperatorState() {
+			return partitionableOperatorState;
+		}
+
 		AcknowledgeStreamMockEnvironment(
 				Configuration jobConfig, Configuration taskConfig,
 				ExecutionConfig executionConfig, long memorySize,
@@ -497,13 +518,21 @@ public class OneInputStreamTaskTest extends TestLogger {
 		@Override
 		public void acknowledgeCheckpoint(
 				long checkpointId,
-				ChainedStateHandle<StreamStateHandle> state, List<KeyGroupsStateHandle> keyGroupStates,
+				CheckpointStateHandles checkpointStateHandles,
 				long syncDuration, long asymcDuration, long alignmentByte, long alignmentDuration) {
 
 			this.checkpointId = checkpointId;
-			this.state = state;
-			this.keyGroupStates = keyGroupStates;
+			if(checkpointStateHandles != null) {
+				this.state = checkpointStateHandles.getNonPartitionedStateHandles();
+				this.keyGroupStates = checkpointStateHandles.getKeyGroupsStateHandle();
+				ChainedStateHandle<OperatorStateHandle> chainedStateHandle = checkpointStateHandles.getPartitioneableStateHandles();
+				Collection<OperatorStateHandle>[] ia = new Collection[chainedStateHandle.getLength()];
+				this.partitionableOperatorState = Arrays.asList(ia);
 
+				for (int i = 0; i < chainedStateHandle.getLength(); ++i) {
+					partitionableOperatorState.set(i, Collections.singletonList(chainedStateHandle.get(i)));
+				}
+			}
 			checkpointLatch.trigger();
 		}
 
@@ -513,16 +542,55 @@ public class OneInputStreamTaskTest extends TestLogger {
 	}
 
 	private static class TestingStreamOperator<IN, OUT>
-			extends AbstractStreamOperator<OUT> implements OneInputStreamOperator<IN, OUT> {
+			extends AbstractStreamOperator<OUT>
+			implements OneInputStreamOperator<IN, OUT>, StreamCheckpointedOperator {
 
 		private static final long serialVersionUID = 774614855940397174L;
 
 		public static int numberRestoreCalls = 0;
+		public static int numberSnapshotCalls = 0;
 
 		private final long seed;
 		private final long recoveryTimestamp;
 
 		private transient Random random;
+
+		@Override
+		public void open() throws Exception {
+			super.open();
+
+			ListState<Integer> partitionableState = getOperatorStateBackend().getPartitionableState(TEST_DESCRIPTOR);
+
+			if (numberSnapshotCalls == 0) {
+				for (Integer v : partitionableState.get()) {
+					fail();
+				}
+			} else {
+				Set<Integer> result = new HashSet<>();
+				for (Integer v : partitionableState.get()) {
+					result.add(v);
+				}
+
+				assertEquals(2, result.size());
+				assertTrue(result.contains(42));
+				assertTrue(result.contains(4711));
+			}
+		}
+
+		@Override
+		public RunnableFuture<OperatorStateHandle> snapshotState(
+				long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception {
+
+			ListState<Integer> partitionableState =
+					getOperatorStateBackend().getPartitionableState(TEST_DESCRIPTOR);
+			partitionableState.clear();
+
+			partitionableState.add(42);
+			partitionableState.add(4711);
+
+			++numberSnapshotCalls;
+			return super.snapshotState(checkpointId, timestamp, streamFactory);
+		}
 
 		TestingStreamOperator(long seed, long recoveryTimestamp) {
 			this.seed = seed;

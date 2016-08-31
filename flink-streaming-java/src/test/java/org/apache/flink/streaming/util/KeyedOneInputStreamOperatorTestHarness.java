@@ -24,12 +24,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.mockito.invocation.InvocationOnMock;
@@ -41,11 +43,12 @@ import java.util.Collections;
 import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doAnswer;
 
 /**
  * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
- * a {@link KeyedStateBackend}.
+ * a {@link AbstractKeyedStateBackend}.
  *
  */
 public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
@@ -53,7 +56,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
 	// in case the operator creates one we store it here so that we
 	// can snapshot its state
-	private KeyedStateBackend<?> keyedStateBackend = null;
+	private AbstractKeyedStateBackend<?> keyedStateBackend = null;
 
 	// when we restore we keep the state here so that we can call restore
 	// when the operator requests the keyed state backend
@@ -114,7 +117,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 					final KeyGroupRange keyGroupRange = (KeyGroupRange) invocationOnMock.getArguments()[2];
 
 					if(keyedStateBackend != null) {
-						keyedStateBackend.close();
+						keyedStateBackend.dispose();
 					}
 
 					if (restoredKeyedState == null) {
@@ -148,7 +151,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#snapshotState(org.apache.flink.core.fs.FSDataOutputStream, long, long)} ()}
+	 *
 	 */
 	@Override
 	public StreamStateHandle snapshot(long checkpointId, long timestamp) throws Exception {
@@ -159,7 +162,9 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		CheckpointStreamFactory.CheckpointStateOutputStream outStream =
 				streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
 
-		operator.snapshotState(outStream, checkpointId, timestamp);
+		if (operator instanceof StreamCheckpointedOperator) {
+			((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
+		}
 
 		if (keyedStateBackend != null) {
 			RunnableFuture<KeyGroupsStateHandle> keyedSnapshotRunnable = keyedStateBackend.snapshot(checkpointId,
@@ -180,17 +185,21 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(org.apache.flink.core.fs.FSDataInputStream)} ()}
+	 * 
 	 */
 	@Override
 	public void restore(StreamStateHandle snapshot) throws Exception {
-		FSDataInputStream inStream = snapshot.openInputStream();
-		operator.restoreState(inStream);
+		try (FSDataInputStream inStream = snapshot.openInputStream()) {
 
-		byte keyedStatePresent = (byte) inStream.read();
-		if (keyedStatePresent == 1) {
-			ObjectInputStream ois = new ObjectInputStream(inStream);
-			this.restoredKeyedState = (KeyGroupsStateHandle) ois.readObject();
+			if (operator instanceof StreamCheckpointedOperator) {
+				((StreamCheckpointedOperator) operator).restoreState(inStream);
+			}
+
+			byte keyedStatePresent = (byte) inStream.read();
+			if (keyedStatePresent == 1) {
+				ObjectInputStream ois = new ObjectInputStream(inStream);
+				this.restoredKeyedState = (KeyGroupsStateHandle) ois.readObject();
+			}
 		}
 	}
 
@@ -200,7 +209,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	public void close() throws Exception {
 		super.close();
 		if(keyedStateBackend != null) {
-			keyedStateBackend.close();
+			keyedStateBackend.dispose();
 		}
 	}
 }

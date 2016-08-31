@@ -36,6 +36,7 @@ import java.io.Serializable;
  * 
  * @param <T> The type of the operator state.
  */
+@Deprecated
 @PublicEvolving
 public interface Checkpointed<T extends Serializable> {
 

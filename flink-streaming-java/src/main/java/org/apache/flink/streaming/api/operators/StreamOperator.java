@@ -17,15 +17,17 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.concurrent.RunnableFuture;
 
 /**
  * Basic interface for stream operators. Implementers would implement one of
@@ -91,32 +93,27 @@ public interface StreamOperator<OUT> extends Serializable {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Called to draw a state snapshot from the operator. This method snapshots the operator state
-	 * (if the operator is stateful).
+	 * Called to draw a state snapshot from the operator.
 	 *
-	 * @param out The stream to which we have to write our state.
-	 * @param checkpointId The ID of the checkpoint.
-	 * @param timestamp The timestamp of the checkpoint.
-	 *
-	 * @throws Exception Forwards exceptions that occur while drawing snapshots from the operator
-	 *                   and the key/value state.
+	 * @throws Exception Forwards exceptions that occur while preparing for the snapshot
 	 */
-	void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception;
 
 	/**
-	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
-	 * This method restores the operator state (if the operator is stateful) and the key/value state
-	 * (if it had been used and was initialized when the snapshot occurred).
+	 * Called to draw a state snapshot from the operator.
 	 *
-	 * <p>This method is called after {@link #setup(StreamTask, StreamConfig, Output)}
-	 * and before {@link #open()}.
-	 *
-	 * @param in The stream from which we have to restore our state.
-	 *
-	 * @throws Exception Exceptions during state restore should be forwarded, so that the system can
-	 *                   properly react to failed state restore and fail the execution attempt.
+	 * @return a runnable future to the state handle that points to the snapshotted state. For synchronous implementations,
+	 * the runnable might already be finished.
+	 * @throws Exception exception that happened during snapshotting.
 	 */
-	void restoreState(FSDataInputStream in) throws Exception;
+	RunnableFuture<OperatorStateHandle> snapshotState(
+			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception;
+
+	/**
+	 * Provides state handles to restore the operator state.
+	 *
+	 * @param stateHandles state handles to the operator state.
+	 */
+	void restoreState(Collection<OperatorStateHandle> stateHandles);
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.

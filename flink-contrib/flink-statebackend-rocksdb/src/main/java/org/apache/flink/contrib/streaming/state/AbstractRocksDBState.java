@@ -156,7 +156,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 	private void writeKey(K key) throws IOException {
 		//write key
-		int beforeWrite = (int) keySerializationStream.getPosition();
+		int beforeWrite = keySerializationStream.getPosition();
 		backend.getKeySerializer().serialize(key, keySerializationDateDataOutputView);
 
 		if (ambiguousKeyPossible) {
@@ -166,7 +166,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 
 	private void writeNameSpace(N namespace) throws IOException {
-		int beforeWrite = (int) keySerializationStream.getPosition();
+		int beforeWrite = keySerializationStream.getPosition();
 		namespaceSerializer.serialize(namespace, keySerializationDateDataOutputView);
 
 		if (ambiguousKeyPossible) {
@@ -176,7 +176,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 
 	private void writeLengthFrom(int fromPosition) throws IOException {
-		int length = (int) (keySerializationStream.getPosition() - fromPosition);
+		int length = keySerializationStream.getPosition() - fromPosition;
 		writeVariableIntBytes(length);
 	}
 
