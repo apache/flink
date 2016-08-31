@@ -87,12 +87,9 @@ public class InstanceManagerTest{
 			final JavaTestKit probe2 = new JavaTestKit(system);
 			final JavaTestKit probe3 = new JavaTestKit(system);
 
-			cm.registerTaskManager(probe1.getRef(), resID1,
-				ici1, hardwareDescription, 1, leaderSessionID);
-			cm.registerTaskManager(probe2.getRef(), resID2,
-				ici2, hardwareDescription, 2, leaderSessionID);
-			cm.registerTaskManager(probe3.getRef(), resID3,
-				ici3, hardwareDescription, 5, leaderSessionID);
+			cm.registerTaskManager(probe1.getRef(), ici1, hardwareDescription, 1, leaderSessionID);
+			cm.registerTaskManager(probe2.getRef(), ici2, hardwareDescription, 2, leaderSessionID);
+			cm.registerTaskManager(probe3.getRef(), ici3, hardwareDescription, 5, leaderSessionID);
 
 			assertEquals(3, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(8, cm.getTotalNumberOfSlots());
@@ -102,7 +99,7 @@ public class InstanceManagerTest{
 					HashSet<TaskManagerLocation>();
 
 			for(Instance instance: instances){
-				taskManagerLocations.add(instance.getInstanceConnectionInfo());
+				taskManagerLocations.add(instance.getTaskManagerLocation());
 			}
 
 			assertTrue(taskManagerLocations.contains(ici1));
@@ -133,14 +130,13 @@ public class InstanceManagerTest{
 			TaskManagerLocation ici = new TaskManagerLocation(resID1, address, dataPort);
 
 			JavaTestKit probe = new JavaTestKit(system);
-			cm.registerTaskManager(probe.getRef(), resID1,
-				ici, resources, 1, leaderSessionID);
+			cm.registerTaskManager(probe.getRef(), ici, resources, 1, leaderSessionID);
 
 			assertEquals(1, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(1, cm.getTotalNumberOfSlots());
 
 			try {
-				cm.registerTaskManager(probe.getRef(), resID2, ici, resources, 1, leaderSessionID);
+				cm.registerTaskManager(probe.getRef(), ici, resources, 1, leaderSessionID);
 			} catch (Exception e) {
 				// good
 			}
@@ -182,12 +178,12 @@ public class InstanceManagerTest{
 			JavaTestKit probe2 = new JavaTestKit(system);
 			JavaTestKit probe3 = new JavaTestKit(system);
 
-			InstanceID instanceID1 = cm.registerTaskManager(probe1.getRef(), resID1,
-				ici1, hardwareDescription, 1, leaderSessionID);
-			InstanceID instanceID2 = cm.registerTaskManager(probe2.getRef(), resID2,
-				ici2, hardwareDescription, 1, leaderSessionID);
-			InstanceID instanceID3 = cm.registerTaskManager(probe3.getRef(), resID3,
-				ici3, hardwareDescription, 1, leaderSessionID);
+			InstanceID instanceID1 = cm.registerTaskManager(
+					probe1.getRef(), ici1, hardwareDescription, 1, leaderSessionID);
+			InstanceID instanceID2 = cm.registerTaskManager(
+					probe2.getRef(), ici2, hardwareDescription, 1, leaderSessionID);
+			InstanceID instanceID3 = cm.registerTaskManager(
+					probe3.getRef(), ici3, hardwareDescription, 1, leaderSessionID);
 
 			// report some immediate heart beats
 			assertTrue(cm.reportHeartBeat(instanceID1, new byte[] {}));
@@ -241,8 +237,7 @@ public class InstanceManagerTest{
 				TaskManagerLocation ici = new TaskManagerLocation(resID, address, 20000);
 
 				JavaTestKit probe = new JavaTestKit(system);
-				cm.registerTaskManager(probe.getRef(), resID,
-					ici, resources, 1, leaderSessionID);
+				cm.registerTaskManager(probe.getRef(), ici, resources, 1, leaderSessionID);
 				fail("Should raise exception in shutdown state");
 			}
 			catch (IllegalStateException e) {
