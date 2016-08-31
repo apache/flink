@@ -767,8 +767,19 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 			Class<? extends FlinkResourceManager<?>> resourceManagerClass,
 			String resourceManagerActorName) {
 
-		Props resourceMasterProps = Props.create(resourceManagerClass, configuration, leaderRetriever);
+		Props resourceMasterProps = getResourceManagerProps(
+			resourceManagerClass,
+			configuration,
+			leaderRetriever);
 
 		return actorSystem.actorOf(resourceMasterProps, resourceManagerActorName);
+	}
+
+	public static Props getResourceManagerProps(
+		Class<? extends FlinkResourceManager> resourceManagerClass,
+		Configuration configuration,
+		LeaderRetrievalService leaderRetrievalService) {
+
+		return Props.create(resourceManagerClass, configuration, leaderRetrievalService);
 	}
 }

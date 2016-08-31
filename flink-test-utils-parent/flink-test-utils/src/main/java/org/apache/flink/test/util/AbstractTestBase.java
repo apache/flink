@@ -21,6 +21,7 @@ package org.apache.flink.test.util;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
@@ -48,7 +49,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	protected int numTaskManagers = 1;
 	
 	/** The mini cluster that runs the test programs */
-	protected ForkableFlinkMiniCluster executor;
+	protected LocalFlinkMiniCluster executor;
 	
 
 	public AbstractTestBase(Configuration config) {

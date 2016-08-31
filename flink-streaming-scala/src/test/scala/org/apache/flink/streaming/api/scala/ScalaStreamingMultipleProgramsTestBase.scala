@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.streaming.util.TestStreamEnvironment
-import org.apache.flink.test.util.{ForkableFlinkMiniCluster, TestBaseUtils}
+import org.apache.flink.test.util.TestBaseUtils
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitSuiteLike
 
@@ -29,7 +30,7 @@ trait ScalaStreamingMultipleProgramsTestBase
   with BeforeAndAfterAll {
 
   val parallelism = 4
-  var cluster: Option[ForkableFlinkMiniCluster] = None
+  var cluster: Option[LocalFlinkMiniCluster] = None
 
   override protected def beforeAll(): Unit = {
     val cluster = Some(
