@@ -41,13 +41,12 @@ import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.taskmanager.JobManagerCommunicationFactory;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -148,19 +147,20 @@ public class InterruptSensitiveRestoreTest {
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
 		return new Task(
-				tdd,
-				mock(MemoryManager.class),
-				mock(IOManager.class),
-				networkEnvironment,
-				mock(BroadcastVariableManager.class),
-				mock(ActorGateway.class),
-				mock(ActorGateway.class),
-				new FiniteDuration(10, TimeUnit.SECONDS),
-				new FallbackLibraryCacheManager(),
-				new FileCache(new Configuration()),
-				new TaskManagerRuntimeInfo(
-						"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
-				new UnregisteredTaskMetricsGroup());
+			tdd,
+			mock(MemoryManager.class),
+			mock(IOManager.class),
+			networkEnvironment,
+			mock(JobManagerCommunicationFactory.class),
+			mock(BroadcastVariableManager.class),
+			mock(ActorGateway.class),
+			mock(ActorGateway.class),
+			new FiniteDuration(10, TimeUnit.SECONDS),
+			new FallbackLibraryCacheManager(),
+			new FileCache(new Configuration()),
+			new TaskManagerRuntimeInfo(
+					"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
+			new UnregisteredTaskMetricsGroup());
 		
 	}
 

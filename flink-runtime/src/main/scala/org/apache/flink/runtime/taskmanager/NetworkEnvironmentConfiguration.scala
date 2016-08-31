@@ -31,4 +31,5 @@ case class NetworkEnvironmentConfiguration(
   queryServerNetworkThreads: Int,
   queryServerQueryThreads: Int,
   nettyConfig: Option[NettyConfig] = None,
-  partitionRequestInitialAndMaxBackoff: (Integer, Integer) = (500, 3000))
+  partitionRequestInitialBackoff: Int = 500,
+  partitinRequestMaxBackoff: Int = 3000)

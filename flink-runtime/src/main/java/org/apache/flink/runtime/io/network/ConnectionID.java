@@ -37,6 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ConnectionID implements Serializable {
 
+	private static final long serialVersionUID = -8068626194818666857L;
+
 	private final InetSocketAddress address;
 
 	private final int connectionIndex;

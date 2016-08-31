@@ -244,12 +244,14 @@ public class TaskTest {
 			ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 			ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
 			NetworkEnvironment network = mock(NetworkEnvironment.class);
-			when(network.getPartitionManager()).thenReturn(partitionManager);
-			when(network.getPartitionConsumableNotifier()).thenReturn(consumableNotifier);
+			when(network.getResultPartitionManager()).thenReturn(partitionManager);
 			when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 			doThrow(new RuntimeException("buffers")).when(network).registerTask(any(Task.class));
+
+			JobManagerCommunicationFactory jobManagerCommunicationFactory = mock(JobManagerCommunicationFactory.class);
+			when(jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(any(Task.class))).thenReturn(consumableNotifier);
 			
-			Task task = createTask(TestInvokableCorrect.class, libCache, network);
+			Task task = createTask(TestInvokableCorrect.class, libCache, network, jobManagerCommunicationFactory);
 
 			task.registerExecutionListener(listenerGateway);
 
@@ -598,18 +600,22 @@ public class TaskTest {
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
 		NetworkEnvironment network = mock(NetworkEnvironment.class);
-		when(network.getPartitionManager()).thenReturn(partitionManager);
-		when(network.getPartitionConsumableNotifier()).thenReturn(consumableNotifier);
+		JobManagerCommunicationFactory jobManagerCommunicationFactory = mock(JobManagerCommunicationFactory.class);
+		when(network.getResultPartitionManager()).thenReturn(partitionManager);
 		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
+
+		when(jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(any(Task.class))).thenReturn(consumableNotifier);
 		
-		return createTask(invokable, libCache, network);
+		return createTask(invokable, libCache, network, jobManagerCommunicationFactory);
 	}
 	
-	private Task createTask(Class<? extends AbstractInvokable> invokable,
-							LibraryCacheManager libCache,
-							NetworkEnvironment networkEnvironment) {
+	private Task createTask(
+		Class<? extends AbstractInvokable> invokable,
+		LibraryCacheManager libCache,
+		NetworkEnvironment networkEnvironment,
+		JobManagerCommunicationFactory jobManagerCommunicationFactory) {
 		
 		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(invokable);
 		
@@ -618,6 +624,7 @@ public class TaskTest {
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				networkEnvironment,
+			jobManagerCommunicationFactory,
 				mock(BroadcastVariableManager.class),
 				taskManagerGateway,
 				jobManagerGateway,

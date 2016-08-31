@@ -990,10 +990,7 @@ public class TaskManagerTest extends TestLogger {
 
 				jobManager = new AkkaActorGateway(jm, leaderSessionID);
 
-				final int dataPort = NetUtils.getAvailablePort();
 				final Configuration config = new Configuration();
-
-				config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
 
 				taskManager = TestingUtils.createTaskManager(
 						system,

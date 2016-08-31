@@ -35,8 +35,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -44,11 +48,11 @@ import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager;
 
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.junit.Test;
 import scala.Option;
-import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
@@ -99,32 +103,40 @@ public class TaskManagerComponentsStartupShutdownTest {
 
 			final NetworkEnvironmentConfiguration netConf = new NetworkEnvironmentConfiguration(
 					32, BUFFER_SIZE, MemoryType.HEAP, IOManager.IOMode.SYNC, 0, 0, 0,
-					Option.<NettyConfig>empty(), new Tuple2<Integer, Integer>(0, 0));
+					Option.<NettyConfig>empty(), 0, 0);
 
 			final InstanceConnectionInfo connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost(), 10000);
 
 			final MemoryManager memManager = new MemoryManager(32 * BUFFER_SIZE, 1, BUFFER_SIZE, MemoryType.HEAP, false);
 			final IOManager ioManager = new IOManagerAsync(TMP_DIR);
 			final NetworkEnvironment network = new NetworkEnvironment(
-				TestingUtils.defaultExecutionContext(),
-				timeout,
-				netConf,
-				connectionInfo);
+				new NetworkBufferPool(netConf.numNetworkBuffers(), netConf.networkBufferSize(), netConf.memoryType()),
+				new LocalConnectionManager(),
+				new ResultPartitionManager(),
+				new TaskEventDispatcher(),
+				new KvStateRegistry(),
+				null,
+				netConf.ioMode(),
+				netConf.partitionRequestInitialBackoff(),
+				netConf.partitinRequestMaxBackoff());
+
+			network.start();
+
 			final int numberOfSlots = 1;
 
 			LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManager.path().toString());
 
 			// create the task manager
 			final Props tmProps = Props.create(
-					TaskManager.class,
-					tmConfig,
-					ResourceID.generate(),
-					connectionInfo,
-					memManager,
-					ioManager,
-					network,
-					numberOfSlots,
-					leaderRetrievalService);
+				TaskManager.class,
+				tmConfig,
+				ResourceID.generate(),
+				connectionInfo,
+				memManager,
+				ioManager,
+				network,
+				numberOfSlots,
+				leaderRetrievalService);
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 
@@ -142,9 +154,6 @@ public class TaskManagerComponentsStartupShutdownTest {
 				};
 			}};
 
-			// the components should now all be initialized
-			assertTrue(network.isAssociated());
-
 			// shut down all actors and the actor system
 			// Kill the Task down the JobManager
 			taskManager.tell(Kill.getInstance(), ActorRef.noSender());
@@ -156,7 +165,6 @@ public class TaskManagerComponentsStartupShutdownTest {
 			actorSystem = null;
 
 			// now that the TaskManager is shut down, the components should be shut down as well
-			assertFalse(network.isAssociated());
 			assertTrue(network.isShutdown());
 			assertTrue(ioManager.isProperlyShutDown());
 			assertTrue(memManager.isShutdown());
