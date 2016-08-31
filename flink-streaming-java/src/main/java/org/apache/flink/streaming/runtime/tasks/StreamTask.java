@@ -970,10 +970,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				if (chainedStateHandles.isEmpty() && keyedStates.isEmpty()) {
 					owner.getEnvironment().acknowledgeCheckpoint(checkpointId);
 				} else  {
-					owner. getEnvironment().acknowledgeCheckpoint(checkpointId, chainedStateHandles, keyedStates);
+					owner.getEnvironment().acknowledgeCheckpoint(checkpointId, chainedStateHandles, keyedStates);
 				}
 
-				LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}", checkpointId, name);
+				if(LOG.isDebugEnabled()) {
+					LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}. Returning handles on " +
+							"keyed states {}.", checkpointId, name, keyedStates);
+				}
 			}
 			catch (Exception e) {
 				if (owner.isRunning()) {
