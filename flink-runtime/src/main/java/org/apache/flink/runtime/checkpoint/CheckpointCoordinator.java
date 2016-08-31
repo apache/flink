@@ -53,6 +53,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -135,7 +136,7 @@ public class CheckpointCoordinator {
 	private JobStatusListener jobStatusListener;
 
 	/** The number of consecutive failed trigger attempts */
-	private int numUnsuccessfulCheckpointsTriggers;
+	private AtomicInteger numUnsuccessfulCheckpointsTriggers = new AtomicInteger(0);
 
 	private ScheduledTrigger currentPeriodicTrigger;
 
@@ -401,7 +402,7 @@ public class CheckpointCoordinator {
 				checkpointID = checkpointIdCounter.getAndIncrement();
 			}
 			catch (Throwable t) {
-				int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
+				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.addAndGet(1);
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
@@ -494,7 +495,7 @@ public class CheckpointCoordinator {
 					tasksToTrigger[i].sendMessageToCurrentExecution(message, id);
 				}
 
-				numUnsuccessfulCheckpointsTriggers = 0;
+				numUnsuccessfulCheckpointsTriggers.set(0);
 				return new CheckpointTriggerResult(checkpoint);
 			}
 			catch (Throwable t) {
@@ -503,7 +504,7 @@ public class CheckpointCoordinator {
 					pendingCheckpoints.remove(checkpointID);
 				}
 
-				int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
+				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.addAndGet(1);
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 
 				if (!checkpoint.isDiscarded()) {
@@ -908,27 +909,25 @@ public class CheckpointCoordinator {
 	}
 
 	public void stopCheckpointScheduler() {
-		synchronized (triggerLock) {
-			synchronized (lock) {
-				triggerRequestQueued = false;
-				periodicScheduling = false;
+		synchronized (lock) {
+			triggerRequestQueued = false;
+			periodicScheduling = false;
 
-				if (currentPeriodicTrigger != null) {
-					currentPeriodicTrigger.cancel();
-					currentPeriodicTrigger = null;
-				}
-
-				for (PendingCheckpoint p : pendingCheckpoints.values()) {
-					try {
-						p.abortError(new Exception("Checkpoint Coordinator is suspending."));
-					} catch (Throwable t) {
-						LOG.error("Error while disposing pending checkpoint", t);
-					}
-				}
-
-				pendingCheckpoints.clear();
-				numUnsuccessfulCheckpointsTriggers = 0;
+			if (currentPeriodicTrigger != null) {
+				currentPeriodicTrigger.cancel();
+				currentPeriodicTrigger = null;
 			}
+
+			for (PendingCheckpoint p : pendingCheckpoints.values()) {
+				try {
+					p.abortError(new Exception("Checkpoint Coordinator is suspending."));
+				} catch (Throwable t) {
+					LOG.error("Error while disposing pending checkpoint", t);
+				}
+			}
+
+			pendingCheckpoints.clear();
+			numUnsuccessfulCheckpointsTriggers.set(0);
 		}
 	}
 
