@@ -233,13 +233,19 @@ public class RescalingITCase extends TestLogger {
 
 			cluster.submitJobDetached(jobGraph);
 
-			Future<Object> allTasksRunning = jobManager.ask(new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobID), deadline.timeLeft());
+			Object savepointResponse = null;
 
-			Await.ready(allTasksRunning, deadline.timeLeft());
+			// we might be too early for taking a savepoint if the operators have not been started yet
+			while (deadline.hasTimeLeft()) {
 
-			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
+				Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
 
-			Object savepointResponse = Await.result(savepointPathFuture, deadline.timeLeft());
+				savepointResponse = Await.result(savepointPathFuture, deadline.timeLeft());
+
+				if (savepointResponse instanceof JobManagerMessages.TriggerSavepointSuccess) {
+					break;
+				}
+			}
 
 			assertTrue(savepointResponse instanceof JobManagerMessages.TriggerSavepointSuccess);
 

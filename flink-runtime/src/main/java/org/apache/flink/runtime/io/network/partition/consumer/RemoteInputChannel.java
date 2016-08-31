@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -85,7 +84,7 @@ public class RemoteInputChannel extends InputChannel {
 			IOMetricGroup metrics) {
 
 		this(inputGate, channelIndex, partitionId, connectionId, connectionManager,
-				new Tuple2<Integer, Integer>(0, 0), metrics);
+				0, 0, metrics);
 	}
 
 	public RemoteInputChannel(
@@ -94,10 +93,11 @@ public class RemoteInputChannel extends InputChannel {
 			ResultPartitionID partitionId,
 			ConnectionID connectionId,
 			ConnectionManager connectionManager,
-			Tuple2<Integer, Integer> initialAndMaxBackoff,
+			int initialBackoff,
+			int maxBackoff,
 			IOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, metrics.getNumBytesInRemoteCounter());
+		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInRemoteCounter());
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
