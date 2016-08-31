@@ -84,8 +84,7 @@ public class TerminalStateDeadlockTest {
 			TaskManagerLocation ci = new TaskManagerLocation(resourceId, address, 12345);
 				
 			HardwareDescription resources = new HardwareDescription(4, 4000000, 3000000, 2000000);
-			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci,
-				resourceId, new InstanceID(), resources, 4);
+			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci, new InstanceID(), resources, 4);
 
 			this.resource = instance.allocateSimpleSlot(new JobID());
 		}

@@ -69,8 +69,7 @@ public class SchedulerTestUtils {
 		final long GB = 1024L*1024*1024;
 		HardwareDescription resources = new HardwareDescription(4, 4*GB, 3*GB, 2*GB);
 		
-		return new Instance(DummyActorGateway.INSTANCE, ci, resourceID,
-			new InstanceID(), resources, numSlots);
+		return new Instance(DummyActorGateway.INSTANCE, ci, new InstanceID(), resources, numSlots);
 	}
 	
 	
@@ -88,7 +87,7 @@ public class SchedulerTestUtils {
 	public static Execution getTestVertex(Instance... preferredInstances) {
 		List<TaskManagerLocation> locations = new ArrayList<>(preferredInstances.length);
 		for (Instance i : preferredInstances) {
-			locations.add(i.getInstanceConnectionInfo());
+			locations.add(i.getTaskManagerLocation());
 		}
 		return getTestVertex(locations);
 	}

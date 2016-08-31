@@ -113,7 +113,7 @@ public class ExecutionGraphTestUtils {
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
-		return new Instance(gateway, connection, resourceID, new InstanceID(), hardwareDescription, numberOfSlots);
+		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
 	}
 
 	@SuppressWarnings("serial")

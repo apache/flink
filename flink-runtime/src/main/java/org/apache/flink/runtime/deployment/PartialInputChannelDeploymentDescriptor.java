@@ -44,7 +44,7 @@ public class PartialInputChannelDeploymentDescriptor {
 	private final ResultPartitionID partitionID;
 
 	/** The partition connection info. */
-	private final TaskManagerLocation partitionConnectionInfo;
+	private final TaskManagerLocation partitionTaskManagerLocation;
 
 	/** The partition connection index. */
 	private final int partitionConnectionIndex;
@@ -52,12 +52,12 @@ public class PartialInputChannelDeploymentDescriptor {
 	public PartialInputChannelDeploymentDescriptor(
 			IntermediateDataSetID resultId,
 			ResultPartitionID partitionID,
-			TaskManagerLocation partitionConnectionInfo,
+			TaskManagerLocation partitionTaskManagerLocation,
 			int partitionConnectionIndex) {
 
 		this.resultId = checkNotNull(resultId);
 		this.partitionID = checkNotNull(partitionID);
-		this.partitionConnectionInfo = checkNotNull(partitionConnectionInfo);
+		this.partitionTaskManagerLocation = checkNotNull(partitionTaskManagerLocation);
 		this.partitionConnectionIndex = partitionConnectionIndex;
 	}
 
@@ -66,23 +66,20 @@ public class PartialInputChannelDeploymentDescriptor {
 	 *
 	 * @see InputChannelDeploymentDescriptor
 	 */
-	public InputChannelDeploymentDescriptor createInputChannelDeploymentDescriptor(
-			Execution consumerExecution) {
+	public InputChannelDeploymentDescriptor createInputChannelDeploymentDescriptor(Execution consumerExecution) {
+		checkNotNull(consumerExecution, "consumerExecution");
 
-		checkNotNull(consumerExecution, "Consumer execution null");
-
-		TaskManagerLocation consumerConnectionInfo = consumerExecution.getAssignedResourceLocation();
-
-		checkNotNull(consumerConnectionInfo, "Consumer connection info null");
+		TaskManagerLocation consumerLocation = consumerExecution.getAssignedResourceLocation();
+		checkNotNull(consumerLocation, "Consumer connection info null");
 
 		final ResultPartitionLocation partitionLocation;
 
-		if (consumerConnectionInfo.equals(partitionConnectionInfo)) {
+		if (consumerLocation.equals(partitionTaskManagerLocation)) {
 			partitionLocation = ResultPartitionLocation.createLocal();
 		}
 		else {
 			partitionLocation = ResultPartitionLocation.createRemote(
-					new ConnectionID(partitionConnectionInfo, partitionConnectionIndex));
+					new ConnectionID(partitionTaskManagerLocation, partitionConnectionIndex));
 		}
 
 		return new InputChannelDeploymentDescriptor(partitionID, partitionLocation);

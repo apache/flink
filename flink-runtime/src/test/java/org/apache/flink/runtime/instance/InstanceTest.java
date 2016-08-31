@@ -42,7 +42,7 @@ public class InstanceTest {
 			TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
 			Instance instance = new Instance(DummyActorGateway.INSTANCE, connection,
-					resourceID, new InstanceID(), hardwareDescription, 4);
+					new InstanceID(), hardwareDescription, 4);
 
 			assertEquals(4, instance.getTotalNumberOfSlots());
 			assertEquals(4, instance.getNumberOfAvailableSlots());
@@ -105,7 +105,7 @@ public class InstanceTest {
 			TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
 			Instance instance = new Instance(DummyActorGateway.INSTANCE, connection,
-					resourceID, new InstanceID(), hardwareDescription, 3);
+					new InstanceID(), hardwareDescription, 3);
 
 			assertEquals(3, instance.getNumberOfAvailableSlots());
 
@@ -137,7 +137,7 @@ public class InstanceTest {
 			TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
 			Instance instance = new Instance(DummyActorGateway.INSTANCE, connection,
-					resourceID, new InstanceID(), hardwareDescription, 3);
+					new InstanceID(), hardwareDescription, 3);
 
 			assertEquals(3, instance.getNumberOfAvailableSlots());
 
