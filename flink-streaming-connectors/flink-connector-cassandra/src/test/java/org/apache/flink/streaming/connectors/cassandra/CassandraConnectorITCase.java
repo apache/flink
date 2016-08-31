@@ -37,6 +37,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.batch.connectors.cassandra.CassandraInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -46,7 +48,10 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.test.util.TestEnvironment;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -57,6 +62,7 @@ import org.junit.Test;
 import org.junit.internal.AssumptionViolatedException;
 import org.junit.runner.RunWith;
 
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -74,11 +80,12 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
+@PowerMockIgnore("javax.management.*")
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ResultPartitionWriter.class)
-public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String, Integer, Integer>, CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
+public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<String, Integer, Integer>, CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);
 	private static File tmpDir;
 
 	private static final boolean EMBEDDED = true;
@@ -128,8 +135,10 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 		}
 	}
 
+	private static ForkableFlinkMiniCluster flinkCluster;
+
 	// ------------------------------------------------------------------------
-	//  Cassandra Cluster Setup
+	//  Cluster Setup (Cassandra & Flink)
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
@@ -142,7 +151,7 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 			Assume.assumeTrue(javaVersion >= 1.8f);
 		}
 		catch (AssumptionViolatedException e) {
-			System.out.println("Skipping CassandraConnectorTest, because the JDK is < Java 8+");
+			System.out.println("Skipping CassandraConnectorITCase, because the JDK is < Java 8+");
 			throw e;
 		}
 		catch (Exception e) {
@@ -153,7 +162,7 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 
 		// generate temporary files
 		tmpDir = CommonTestUtils.createTempDirectory();
-		ClassLoader classLoader = CassandraConnectorTest.class.getClassLoader();
+		ClassLoader classLoader = CassandraConnectorITCase.class.getClassLoader();
 		File file = new File(classLoader.getResource("cassandra.yaml").getFile());
 		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
 		
@@ -192,14 +201,18 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 		session.execute(CREATE_TABLE_QUERY);
 	}
 
-	@Before
-	public void checkIfIgnore() {
-		
+	@BeforeClass
+	public static void startFlink() throws Exception {
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
+
+		flinkCluster = new ForkableFlinkMiniCluster(config);
+		flinkCluster.start();
 	}
 
-	@After
-	public void deleteSchema() throws Exception {
-		session.executeAsync(CLEAR_TABLE_QUERY);
+	@AfterClass
+	public static void stopFlink() {
+		flinkCluster.stop();
 	}
 
 	@AfterClass
@@ -223,7 +236,25 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 		}
 	}
 
-	//=====Exactly-Once=================================================================================================
+	// ------------------------------------------------------------------------
+	//  Test preparation & cleanup
+	// ------------------------------------------------------------------------
+
+	@Before
+	public void initializeExecutionEnvironment() {
+		TestStreamEnvironment.setAsContext(flinkCluster, 4);
+		new TestEnvironment(flinkCluster, 4, false).setAsContext();
+	}
+
+	@After
+	public void deleteSchema() throws Exception {
+		session.executeAsync(CLEAR_TABLE_QUERY);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Exactly-once Tests
+	// ------------------------------------------------------------------------
+
 	@Override
 	protected CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> createSink() throws Exception {
 		return new CassandraTupleWriteAheadSink<>(
@@ -354,7 +385,10 @@ public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String
 		cc1.close();
 	}
 
-	//=====At-Least-Once================================================================================================
+	// ------------------------------------------------------------------------
+	//  At-least-once Tests
+	// ------------------------------------------------------------------------
+
 	@Test
 	public void testCassandraTupleAtLeastOnceSink() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

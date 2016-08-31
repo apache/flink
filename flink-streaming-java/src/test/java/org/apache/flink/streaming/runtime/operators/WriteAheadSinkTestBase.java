@@ -25,9 +25,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -40,10 +41,9 @@ import java.util.ArrayList;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ResultPartitionWriter.class)
-@PowerMockIgnore("javax.management.*")
-public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>> {
+public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>> extends TestLogger {
 
-	protected class OperatorExposingTask<INT> extends OneInputStreamTask<INT, INT> {
+	protected static class OperatorExposingTask<INT> extends OneInputStreamTask<INT, INT> {
 		public OneInputStreamOperator<INT, INT> getOperator() {
 			return this.headOperator;
 		}
