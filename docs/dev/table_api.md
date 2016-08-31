@@ -1165,6 +1165,12 @@ groupItem:
 
 ```
 
+For a better definition of SQL queries within a Java String, Flink SQL uses a lexical policy similar to Java:
+
+- The case of identifiers is preserved whether or not they are quoted.
+- After which, identifiers are matched case-sensitively.
+- Unlike Java, back-ticks allow identifiers to contain non-alphanumeric characters (e.g. <code>"SELECT a AS `my field` FROM t"</code>).
+
 
 {% top %}
 
