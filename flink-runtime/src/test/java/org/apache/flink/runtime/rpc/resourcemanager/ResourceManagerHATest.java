@@ -20,34 +20,35 @@ package org.apache.flink.runtime.rpc.resourcemanager;
 
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.rpc.MainThreadExecutor;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.TestingSerialRpcService;
-import org.junit.After;
+import org.apache.flink.runtime.rpc.StartStoppable;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.UUID;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * resourceManager HA test, including grant leadership and revoke leadership
  */
 public class ResourceManagerHATest {
 
-	private RpcService rpcService;
-
-	@Before
-	public void setup() throws Exception {
-		rpcService = new TestingSerialRpcService();
-	}
-
-	@After
-	public void teardown() throws Exception {
-		rpcService.stopService();
-	}
-
 	@Test
 	public void testGrantAndRevokeLeadership() throws Exception {
+		// mock a RpcService which will return a special RpcGateway when call its startServer method, the returned RpcGateway directly execute runAsync call
+		TestingResourceManagerGatewayProxy gateway = mock(TestingResourceManagerGatewayProxy.class);
+		doCallRealMethod().when(gateway).runAsync(any(Runnable.class));
+
+		RpcService rpcService = mock(RpcService.class);
+		when(rpcService.startServer(any(RpcEndpoint.class))).thenReturn(gateway);
+
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
@@ -63,6 +64,13 @@ public class ResourceManagerHATest {
 		// then revoke leadership, resourceManager's leaderId is null again
 		leaderElectionService.notLeader();
 		Assert.assertNull(resourceManager.getLeaderSessionID());
+	}
+
+	private static abstract class TestingResourceManagerGatewayProxy implements MainThreadExecutor, StartStoppable, RpcGateway {
+		@Override
+		public void runAsync(Runnable runnable) {
+			runnable.run();
+		}
 	}
 
 }
