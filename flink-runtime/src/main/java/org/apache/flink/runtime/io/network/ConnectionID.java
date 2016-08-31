@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
@@ -41,7 +41,7 @@ public class ConnectionID implements Serializable {
 
 	private final int connectionIndex;
 
-	public ConnectionID(InstanceConnectionInfo connectionInfo, int connectionIndex) {
+	public ConnectionID(TaskManagerLocation connectionInfo, int connectionIndex) {
 		this(new InetSocketAddress(connectionInfo.address(), connectionInfo.dataPort()), connectionIndex);
 	}
 

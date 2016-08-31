@@ -32,7 +32,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -101,7 +100,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 					32, BUFFER_SIZE, MemoryType.HEAP, IOManager.IOMode.SYNC, 0, 0, 0,
 					Option.<NettyConfig>empty(), new Tuple2<Integer, Integer>(0, 0));
 
-			final InstanceConnectionInfo connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost(), 10000);
+			final ResourceID resourceID = ResourceID.generate();
+			final TaskManagerLocation connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost(), 10000);
 
 			final MemoryManager memManager = new MemoryManager(32 * BUFFER_SIZE, 1, BUFFER_SIZE, MemoryType.HEAP, false);
 			final IOManager ioManager = new IOManagerAsync(TMP_DIR);
@@ -118,7 +118,7 @@ public class TaskManagerComponentsStartupShutdownTest {
 			final Props tmProps = Props.create(
 					TaskManager.class,
 					tmConfig,
-					ResourceID.generate(),
+					resourceID,
 					connectionInfo,
 					memManager,
 					ioManager,

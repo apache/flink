@@ -50,7 +50,7 @@ import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
-import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceConnectionInfo, InstanceID}
+import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.NetworkEnvironment
@@ -122,14 +122,14 @@ import scala.util.{Failure, Success}
  *      requires a clean JVM.
  */
 class TaskManager(
-    protected val config: TaskManagerConfiguration,
-    protected val resourceID: ResourceID,
-    protected val connectionInfo: InstanceConnectionInfo,
-    protected val memoryManager: MemoryManager,
-    protected val ioManager: IOManager,
-    protected val network: NetworkEnvironment,
-    protected val numberOfSlots: Int,
-    protected val leaderRetrievalService: LeaderRetrievalService)
+                   protected val config: TaskManagerConfiguration,
+                   protected val resourceID: ResourceID,
+                   protected val connectionInfo: TaskManagerLocation,
+                   protected val memoryManager: MemoryManager,
+                   protected val ioManager: IOManager,
+                   protected val network: NetworkEnvironment,
+                   protected val numberOfSlots: Int,
+                   protected val leaderRetrievalService: LeaderRetrievalService)
   extends FlinkActor
   with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -1796,11 +1796,12 @@ object TaskManager {
 
     val (taskManagerConfig : TaskManagerConfiguration,      
       netConfig: NetworkEnvironmentConfiguration,
-      connectionInfo: InstanceConnectionInfo,
+      connectionInfo: TaskManagerLocation,
       memType: MemoryType
     ) = parseTaskManagerConfiguration(
       configuration,
       taskManagerHostname,
+      resourceID,
       localTaskManagerCommunication)
 
     // pre-start checks
@@ -1979,19 +1980,21 @@ object TaskManager {
    *
    * @param configuration The configuration.
    * @param taskManagerHostname The host name under which the TaskManager communicates.
+   * @param resourceID The TaskManager's Resource ID
    * @param localTaskManagerCommunication True, to skip initializing the network stack.
    *                                      Use only in cases where only one task manager runs.
    * @return A tuple (TaskManagerConfiguration, network configuration,
-   *                  InstanceConnectionInfo, JobManager actor Akka URL).
+   *                  TaskManagerLocation, JobManager actor Akka URL).
    */
   @throws(classOf[IllegalArgumentException])
   def parseTaskManagerConfiguration(
       configuration: Configuration,
       taskManagerHostname: String,
+      resourceID: ResourceID,
       localTaskManagerCommunication: Boolean)
     : (TaskManagerConfiguration,
      NetworkEnvironmentConfiguration,
-     InstanceConnectionInfo,
+     TaskManagerLocation,
      MemoryType) = {
 
     // ------- read values from the config and check them ---------
@@ -2009,7 +2012,7 @@ object TaskManager {
       "Leave config parameter empty or use 0 to let the system choose a port automatically.")
 
     val taskManagerAddress = InetAddress.getByName(taskManagerHostname)
-    val connectionInfo = new InstanceConnectionInfo(taskManagerAddress, dataport)
+    val connectionInfo = new TaskManagerLocation(resourceID, taskManagerAddress, dataport)
 
     // ----> memory / network stack (shuffles/broadcasts), task slots, temp directories
 

@@ -22,7 +22,7 @@ import akka.dispatch.OnFailure;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -109,7 +109,7 @@ public class NetworkEnvironment {
 	 */
 	private final ExecutionContext executionContext;
 
-	private final InstanceConnectionInfo connectionInfo;
+	private final TaskManagerLocation connectionInfo;
 
 	/**
 	 * Initializes all network I/O components.
@@ -118,7 +118,7 @@ public class NetworkEnvironment {
 			ExecutionContext executionContext,
 			FiniteDuration jobManagerTimeout,
 			NetworkEnvironmentConfiguration config,
-			InstanceConnectionInfo connectionInfo) throws IOException {
+			TaskManagerLocation connectionInfo) throws IOException {
 
 		this.executionContext = executionContext;
 		this.configuration = checkNotNull(config);

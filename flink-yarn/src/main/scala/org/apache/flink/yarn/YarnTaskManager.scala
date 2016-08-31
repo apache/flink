@@ -18,30 +18,26 @@
 
 package org.apache.flink.yarn
 
-import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
-import org.apache.flink.runtime.util.ProcessShutDownThread
+import org.apache.flink.runtime.taskmanager.{TaskManagerLocation, TaskManagerConfiguration, TaskManager}
 
-import scala.concurrent.duration._
-
-/** An extension of the TaskManager that listens for additional YARN related
-  * messages.
-  */
+/** 
+ * An extension of the TaskManager that listens for additional YARN related
+ * messages.
+ */
 class YarnTaskManager(
-    config: TaskManagerConfiguration,
-    resourceID: ResourceID,
-    connectionInfo: InstanceConnectionInfo,
-    memoryManager: MemoryManager,
-    ioManager: IOManager,
-    network: NetworkEnvironment,
-    numberOfSlots: Int,
-    leaderRetrievalService: LeaderRetrievalService)
+                       config: TaskManagerConfiguration,
+                       resourceID: ResourceID,
+                       connectionInfo: TaskManagerLocation,
+                       memoryManager: MemoryManager,
+                       ioManager: IOManager,
+                       network: NetworkEnvironment,
+                       numberOfSlots: Int,
+                       leaderRetrievalService: LeaderRetrievalService)
   extends TaskManager(
     config,
     resourceID,
