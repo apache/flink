@@ -52,13 +52,10 @@ public class Instance implements SlotOwner {
 	private final ActorGateway actorGateway;
 
 	/** The instance connection information for the data transfer. */
-	private final TaskManagerLocation connectionInfo;
+	private final TaskManagerLocation location;
 
 	/** A description of the resources of the task manager */
 	private final HardwareDescription resources;
-
-	/** The ID identifies the resource the task manager runs on */
-	private final ResourceID resourceId;
 
 	/** The ID identifying the taskManager. */
 	private final InstanceID instanceId;
@@ -90,22 +87,19 @@ public class Instance implements SlotOwner {
 	 * Constructs an instance reflecting a registered TaskManager.
 	 *
 	 * @param actorGateway The actor gateway to communicate with the remote instance
-	 * @param connectionInfo The remote connection where the task manager receives requests.
-	 * @param resourceId The resource id which denotes the resource the task manager uses.
+	 * @param location The remote connection where the task manager receives requests.
 	 * @param id The id under which the taskManager is registered.
 	 * @param resources The resources available on the machine.
 	 * @param numberOfSlots The number of task slots offered by this taskManager.
 	 */
 	public Instance(
 			ActorGateway actorGateway,
-			TaskManagerLocation connectionInfo,
-			ResourceID resourceId,
+			TaskManagerLocation location,
 			InstanceID id,
 			HardwareDescription resources,
 			int numberOfSlots) {
 		this.actorGateway = actorGateway;
-		this.connectionInfo = connectionInfo;
-		this.resourceId = resourceId;
+		this.location = location;
 		this.instanceId = id;
 		this.resources = resources;
 		this.numberOfSlots = numberOfSlots;
@@ -120,8 +114,8 @@ public class Instance implements SlotOwner {
 	// Properties
 	// --------------------------------------------------------------------------------------------
 
-	public ResourceID getResourceId() {
-		return resourceId;
+	public ResourceID getTaskManagerID() {
+		return location.getResourceID();
 	}
 
 	public InstanceID getId() {
@@ -246,7 +240,7 @@ public class Instance implements SlotOwner {
 				return null;
 			}
 			else {
-				SimpleSlot slot = new SimpleSlot(jobID, this, connectionInfo, nextSlot, actorGateway);
+				SimpleSlot slot = new SimpleSlot(jobID, this, location, nextSlot, actorGateway);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -284,7 +278,7 @@ public class Instance implements SlotOwner {
 			}
 			else {
 				SharedSlot slot = new SharedSlot(
-						jobID, this, connectionInfo, nextSlot, actorGateway, sharingGroupAssignment);
+						jobID, this, location, nextSlot, actorGateway, sharingGroupAssignment);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -355,8 +349,8 @@ public class Instance implements SlotOwner {
 		return actorGateway;
 	}
 
-	public TaskManagerLocation getInstanceConnectionInfo() {
-		return connectionInfo;
+	public TaskManagerLocation getTaskManagerLocation() {
+		return location;
 	}
 
 	public int getNumberOfAvailableSlots() {
@@ -405,7 +399,7 @@ public class Instance implements SlotOwner {
 
 	@Override
 	public String toString() {
-		return String.format("%s @ %s - %d slots - URL: %s", instanceId, connectionInfo.getHostname(),
+		return String.format("%s @ %s - %d slots - URL: %s", instanceId, location.getHostname(),
 				numberOfSlots, (actorGateway != null ? actorGateway.path() : "No instance gateway"));
 	}
 }

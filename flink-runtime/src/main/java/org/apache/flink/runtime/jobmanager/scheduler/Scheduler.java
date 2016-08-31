@@ -363,7 +363,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				
 				// if the instance has further available slots, re-add it to the set of available resources.
 				if (instanceToUse.hasResourcesAvailable()) {
-					this.instancesWithAvailableResources.put(instanceToUse.getResourceId(), instanceToUse);
+					this.instancesWithAvailableResources.put(instanceToUse.getTaskManagerID(), instanceToUse);
 				}
 				
 				if (slot != null) {
@@ -425,7 +425,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 
 				// if the instance has further available slots, re-add it to the set of available resources.
 				if (instanceToUse.hasResourcesAvailable()) {
-					this.instancesWithAvailableResources.put(instanceToUse.getResourceId(), instanceToUse);
+					this.instancesWithAvailableResources.put(instanceToUse.getTaskManagerID(), instanceToUse);
 				}
 
 				if (sharedSlot != null) {
@@ -469,7 +469,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		while (this.newlyAvailableInstances.size() > 0) {
 			Instance queuedInstance = this.newlyAvailableInstances.poll();
 			if (queuedInstance != null) {
-				this.instancesWithAvailableResources.put(queuedInstance.getResourceId(), queuedInstance);
+				this.instancesWithAvailableResources.put(queuedInstance.getTaskManagerID(), queuedInstance);
 			}
 		}
 		
@@ -583,7 +583,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				}
 			}
 			else {
-				this.instancesWithAvailableResources.put(instance.getResourceId(), instance);
+				this.instancesWithAvailableResources.put(instance.getTaskManagerID(), instance);
 			}
 		}
 	}
@@ -649,7 +649,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				instance.setSlotAvailabilityListener(this);
 				
 				// store the instance in the by-host-lookup
-				String instanceHostName = instance.getInstanceConnectionInfo().getHostname();
+				String instanceHostName = instance.getTaskManagerLocation().getHostname();
 				Set<Instance> instanceSet = allInstancesByHost.get(instanceHostName);
 				if (instanceSet == null) {
 					instanceSet = new HashSet<Instance>();
@@ -658,7 +658,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				instanceSet.add(instance);
 
 				// add it to the available resources and let potential waiters know
-				this.instancesWithAvailableResources.put(instance.getResourceId(), instance);
+				this.instancesWithAvailableResources.put(instance.getTaskManagerID(), instance);
 
 				// add all slots as available
 				for (int i = 0; i < instance.getNumberOfAvailableSlots(); i++) {
@@ -693,9 +693,9 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		}
 
 		allInstances.remove(instance);
-		instancesWithAvailableResources.remove(instance.getResourceId());
+		instancesWithAvailableResources.remove(instance.getTaskManagerID());
 
-		String instanceHostName = instance.getInstanceConnectionInfo().getHostname();
+		String instanceHostName = instance.getTaskManagerLocation().getHostname();
 		Set<Instance> instanceSet = allInstancesByHost.get(instanceHostName);
 		if (instanceSet != null) {
 			instanceSet.remove(instance);
@@ -795,7 +795,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 
 			while ((instance = newlyAvailableInstances.poll()) != null) {
 				if (instance.hasResourcesAvailable()) {
-					instancesWithAvailableResources.put(instance.getResourceId(), instance);
+					instancesWithAvailableResources.put(instance.getTaskManagerID(), instance);
 				}
 			}
 		}

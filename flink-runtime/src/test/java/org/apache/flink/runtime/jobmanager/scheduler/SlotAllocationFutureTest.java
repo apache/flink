@@ -56,9 +56,9 @@ public class SlotAllocationFutureTest {
 			final Instance instance2 = SchedulerTestUtils.getRandomInstance(1);
 
 			final SimpleSlot slot1 = new SimpleSlot(new JobID(), instance1,
-					instance1.getInstanceConnectionInfo(), 0, instance1.getActorGateway(), null, null);
+					instance1.getTaskManagerLocation(), 0, instance1.getActorGateway(), null, null);
 			final SimpleSlot slot2 = new SimpleSlot(new JobID(), instance2,
-					instance2.getInstanceConnectionInfo(), 0, instance2.getActorGateway(), null, null);
+					instance2.getTaskManagerLocation(), 0, instance2.getActorGateway(), null, null);
 			
 			future.setSlot(slot1);
 			try {
@@ -85,7 +85,7 @@ public class SlotAllocationFutureTest {
 				final Instance instance = SchedulerTestUtils.getRandomInstance(1);
 
 				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), instance,
-						instance.getInstanceConnectionInfo(), 0, instance.getActorGateway(), null, null);
+						instance.getTaskManagerLocation(), 0, instance.getActorGateway(), null, null);
 				
 				SlotAllocationFuture future = new SlotAllocationFuture();
 				
@@ -108,7 +108,7 @@ public class SlotAllocationFutureTest {
 				final Instance instance = SchedulerTestUtils.getRandomInstance(1);
 				
 				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), instance,
-						instance.getInstanceConnectionInfo(), 0, instance.getActorGateway(), null, null);
+						instance.getTaskManagerLocation(), 0, instance.getActorGateway(), null, null);
 				
 				SlotAllocationFuture future = new SlotAllocationFuture();
 				future.setSlot(thisSlot);
@@ -141,7 +141,7 @@ public class SlotAllocationFutureTest {
 				final Instance instance = SchedulerTestUtils.getRandomInstance(1);
 
 				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), instance,
-						instance.getInstanceConnectionInfo(), 0, instance.getActorGateway(), null, null);
+						instance.getTaskManagerLocation(), 0, instance.getActorGateway(), null, null);
 				
 				final SlotAllocationFuture future = new SlotAllocationFuture();
 				
@@ -181,7 +181,7 @@ public class SlotAllocationFutureTest {
 				final Instance instance = SchedulerTestUtils.getRandomInstance(1);
 
 				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), instance, 
-						instance.getInstanceConnectionInfo(), 0, instance.getActorGateway(), null, null);
+						instance.getTaskManagerLocation(), 0, instance.getActorGateway(), null, null);
 				final SlotAllocationFuture future = new SlotAllocationFuture();
 
 				future.setSlot(thisSlot);

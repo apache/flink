@@ -108,10 +108,10 @@ public class SchedulerSlotSharingTest {
 			
 			// make sure we have two slots on the first instance, and two on the second
 			int c = 0;
-			c += (s5.getTaskManagerID().equals(i1.getResourceId())) ? 1 : -1;
-			c += (s6.getTaskManagerID().equals(i1.getResourceId())) ? 1 : -1;
-			c += (s7.getTaskManagerID().equals(i1.getResourceId())) ? 1 : -1;
-			c += (s8.getTaskManagerID().equals(i1.getResourceId())) ? 1 : -1;
+			c += (s5.getTaskManagerID().equals(i1.getTaskManagerID())) ? 1 : -1;
+			c += (s6.getTaskManagerID().equals(i1.getTaskManagerID())) ? 1 : -1;
+			c += (s7.getTaskManagerID().equals(i1.getTaskManagerID())) ? 1 : -1;
+			c += (s8.getTaskManagerID().equals(i1.getTaskManagerID())) ? 1 : -1;
 			assertEquals(0, c);
 			
 			// release all
@@ -637,8 +637,8 @@ public class SchedulerSlotSharingTest {
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 
-			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
-			TaskManagerLocation loc2 = i2.getInstanceConnectionInfo();
+			TaskManagerLocation loc1 = i1.getTaskManagerLocation();
+			TaskManagerLocation loc2 = i2.getTaskManagerLocation();
 
 			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
@@ -690,8 +690,8 @@ public class SchedulerSlotSharingTest {
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 
-			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
-			TaskManagerLocation loc2 = i2.getInstanceConnectionInfo();
+			TaskManagerLocation loc1 = i1.getTaskManagerLocation();
+			TaskManagerLocation loc2 = i2.getTaskManagerLocation();
 
 			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
@@ -743,7 +743,7 @@ public class SchedulerSlotSharingTest {
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 
-			TaskManagerLocation loc1 = i1.getInstanceConnectionInfo();
+			TaskManagerLocation loc1 = i1.getTaskManagerLocation();
 
 			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
@@ -771,12 +771,12 @@ public class SchedulerSlotSharingTest {
 			assertEquals(0, i1.getNumberOfAvailableSlots());
 			assertEquals(0, i2.getNumberOfAvailableSlots());
 			
-			assertEquals(i1.getResourceId(), s1.getTaskManagerID());
-			assertEquals(i1.getResourceId(), s2.getTaskManagerID());
-			assertEquals(i1.getResourceId(), s3.getTaskManagerID());
-			assertEquals(i1.getResourceId(), s4.getTaskManagerID());
-			assertEquals(i2.getResourceId(), s5.getTaskManagerID());
-			assertEquals(i2.getResourceId(), s6.getTaskManagerID());
+			assertEquals(i1.getTaskManagerID(), s1.getTaskManagerID());
+			assertEquals(i1.getTaskManagerID(), s2.getTaskManagerID());
+			assertEquals(i1.getTaskManagerID(), s3.getTaskManagerID());
+			assertEquals(i1.getTaskManagerID(), s4.getTaskManagerID());
+			assertEquals(i2.getTaskManagerID(), s5.getTaskManagerID());
+			assertEquals(i2.getTaskManagerID(), s6.getTaskManagerID());
 			
 			// check the scheduler's bookkeeping
 			assertEquals(4, scheduler.getNumberOfLocalizedAssignments());

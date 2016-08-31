@@ -150,7 +150,7 @@ public class SimpleSlotTest {
 		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
 
 		Instance instance = new Instance(DummyActorGateway.INSTANCE, connection,
-				resourceID, new InstanceID(), hardwareDescription, 1);
+				new InstanceID(), hardwareDescription, 1);
 		return instance.allocateSimpleSlot(new JobID());
 	}
 }
