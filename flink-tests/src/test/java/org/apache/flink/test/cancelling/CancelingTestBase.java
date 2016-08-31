@@ -22,8 +22,8 @@ package org.apache.flink.test.cancelling;
 import java.util.concurrent.TimeUnit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 
@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import static org.apache.flink.runtime.taskmanager.TaskCancelTest.awaitRunning;
 import static org.apache.flink.runtime.taskmanager.TaskCancelTest.cancelJob;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
-import org.apache.flink.util.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.junit.After;
@@ -65,7 +64,7 @@ public abstract class CancelingTestBase extends TestLogger {
 
 	// --------------------------------------------------------------------------------------------
 	
-	protected ForkableFlinkMiniCluster executor;
+	protected LocalFlinkMiniCluster executor;
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 	
@@ -88,7 +87,7 @@ public abstract class CancelingTestBase extends TestLogger {
 		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 4096);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 2048);
 
-		this.executor = new ForkableFlinkMiniCluster(config, false);
+		this.executor = new LocalFlinkMiniCluster(config, false);
 		this.executor.start();
 	}
 

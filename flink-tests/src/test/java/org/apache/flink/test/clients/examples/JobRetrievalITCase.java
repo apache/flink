@@ -29,8 +29,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -41,7 +41,6 @@ import java.util.concurrent.Semaphore;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-
 
 /**
  * Tests retrieval of a job from a running Flink cluster
@@ -54,7 +53,7 @@ public class JobRetrievalITCase extends TestLogger {
 
 	@BeforeClass
 	public static void before() {
-		cluster = new ForkableFlinkMiniCluster(new Configuration(), false);
+		cluster = new TestingCluster(new Configuration(), false);
 		cluster.start();
 	}
 

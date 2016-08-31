@@ -19,9 +19,9 @@
 package org.apache.flink.contrib.streaming;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ public class CollectITCase {
 
 	@Test
 	public void testCollect() throws Exception {
-		final ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(new Configuration(), false);
+		final LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(new Configuration(), false);
 		try {
 			cluster.start();
 

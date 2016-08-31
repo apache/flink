@@ -25,11 +25,10 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import org.junit.Assert;
 import org.junit.Test;
-
 
 public class AvroExternalJarProgramITCase {
 
@@ -40,12 +39,12 @@ public class AvroExternalJarProgramITCase {
 	@Test
 	public void testExternalProgram() {
 
-		ForkableFlinkMiniCluster testMiniCluster = null;
+		LocalFlinkMiniCluster testMiniCluster = null;
 
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
-			testMiniCluster = new ForkableFlinkMiniCluster(config, false);
+			testMiniCluster = new LocalFlinkMiniCluster(config, false);
 			testMiniCluster.start();
 
 			String jarFile = JAR_FILE;

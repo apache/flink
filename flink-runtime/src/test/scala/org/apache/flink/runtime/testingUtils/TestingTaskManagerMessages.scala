@@ -38,14 +38,7 @@ object TestingTaskManagerMessages {
     def asJava: java.util.Map[ExecutionAttemptID, Task] = tasks.asJava
   }
   
-  case class ResponseBroadcastVariablesWithReferences(number: Int)
-
-  case object RequestNumActiveConnections
-  case class ResponseNumActiveConnections(number: Int)
-  
   case object RequestRunningTasks
-  
-  case object RequestBroadcastVariablesWithReferences
 
   case class NotifyWhenJobManagerTerminated(jobManager: ActorRef)
 
@@ -81,14 +74,9 @@ object TestingTaskManagerMessages {
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
-  
+
   def getRequestRunningTasksMessage: AnyRef = {
     RequestRunningTasks
   }
-  
-  def getRequestBroadcastVariablesWithReferencesMessage: AnyRef = {
-    RequestBroadcastVariablesWithReferences
-  }
-
 }
 

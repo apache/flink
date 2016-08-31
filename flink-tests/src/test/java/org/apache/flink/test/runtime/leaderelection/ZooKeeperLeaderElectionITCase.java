@@ -21,7 +21,7 @@ package org.apache.flink.test.runtime.leaderelection;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.PoisonPill;
-import org.apache.commons.io.FileUtils;
+import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -35,14 +35,19 @@ import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
@@ -52,7 +57,6 @@ import scala.concurrent.duration.FiniteDuration;
 import scala.concurrent.impl.Promise;
 
 import java.io.File;
-import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -61,22 +65,20 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 	private static final FiniteDuration timeout = TestingUtils.TESTING_DURATION();
 
-	private static final File tempDirectory;
+	private static TestingServer zkServer;
 
-	static {
-		try {
-			tempDirectory = org.apache.flink.runtime.testutils
-					.CommonTestUtils.createTempDirectory();
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Test setup failed", e);
-		}
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@BeforeClass
+	public static void setup() throws Exception {
+		zkServer = new TestingServer(true);
 	}
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		if (tempDirectory != null) {
-			FileUtils.deleteDirectory(tempDirectory);
+		if (zkServer != null) {
+			zkServer.close();
 		}
 	}
 
@@ -86,18 +88,19 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerRegistrationAtReelectedLeader() throws Exception {
-		Configuration configuration = new Configuration();
+		File rootFolder = tempFolder.getRoot();
+
+		Configuration configuration = ZooKeeperTestUtils.createZooKeeperHAConfig(
+			zkServer.getConnectString(),
+			rootFolder.getPath());
 
 		int numJMs = 10;
 		int numTMs = 3;
 
-		configuration.setString(ConfigConstants.HA_MODE, "zookeeper");
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
-		configuration.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-		configuration.setString(ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH, tempDirectory.getAbsoluteFile().toURI().toString());
 
-		ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(configuration);
+		TestingCluster cluster = new TestingCluster(configuration);
 
 		try {
 			cluster.start();
@@ -137,14 +140,15 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		int numSlotsPerTM = 3;
 		int parallelism = numTMs * numSlotsPerTM;
 
-		Configuration configuration = new Configuration();
+		File rootFolder = tempFolder.getRoot();
 
-		configuration.setString(ConfigConstants.HA_MODE, "zookeeper");
+		Configuration configuration = ZooKeeperTestUtils.createZooKeeperHAConfig(
+			zkServer.getConnectString(),
+			rootFolder.getPath());
+
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTM);
-		configuration.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-		configuration.setString(ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH, tempDirectory.getAbsoluteFile().toURI().toString());
 
 		// we "effectively" disable the automatic RecoverAllJobs message and sent it manually to make
 		// sure that all TMs have registered to the JM prior to issueing the RecoverAllJobs message
@@ -169,7 +173,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 		final JobGraph graph = new JobGraph("Blocking test job", sender, receiver);
 
-		final ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(configuration);
+		final TestingCluster cluster = new TestingCluster(configuration);
 
 		ActorSystem clientActorSystem = null;
 
@@ -250,14 +254,14 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		boolean finished = false;
 
 		final ActorSystem clientActorSystem;
-		final ForkableFlinkMiniCluster cluster;
+		final LocalFlinkMiniCluster cluster;
 		final JobGraph graph;
 
 		final Promise<JobExecutionResult> resultPromise = new Promise.DefaultPromise<>();
 
 		public JobSubmitterRunnable(
 				ActorSystem actorSystem,
-				ForkableFlinkMiniCluster cluster,
+				LocalFlinkMiniCluster cluster,
 				JobGraph graph) {
 			this.clientActorSystem = actorSystem;
 			this.cluster = cluster;
