@@ -1472,6 +1472,9 @@ class JobManager(
         currentJobs.get(msg.getJobId) match {
           case Some((graph, _)) =>
             try {
+              log.debug(s"Lookup key-value state for job ${msg.getJobId} with registration " +
+                         s"name ${msg.getRegistrationName}.")
+
               val registry = graph.getKvStateLocationRegistry
               val location = registry.getKvStateLocation(msg.getRegistrationName)
               if (location == null) {
@@ -1493,6 +1496,9 @@ class JobManager(
         currentJobs.get(msg.getJobId) match {
           case Some((graph, _)) =>
             try {
+              log.debug(s"Key value state registered for job ${msg.getJobId} under " +
+                         s"name ${msg.getRegistrationName}.")
+
               graph.getKvStateLocationRegistry.notifyKvStateRegistered(
                 msg.getJobVertexId,
                 msg.getKeyGroupIndex,

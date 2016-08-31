@@ -108,7 +108,7 @@ trait TestingTaskManagerLike extends FlinkActor {
       )
 
     case RequestNumActiveConnections =>
-      val numActive = if (network.isAssociated) {
+      val numActive = if (!network.isShutdown) {
         network.getConnectionManager.getNumberOfActiveConnections
       } else {
         0

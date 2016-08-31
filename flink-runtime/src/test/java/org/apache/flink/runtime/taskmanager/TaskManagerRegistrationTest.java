@@ -28,12 +28,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
@@ -47,15 +45,11 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import scala.Option;
-import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -546,69 +540,6 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				stopActor(fakeJobManager2Gateway);
 			}
 		}};
-	}
-
-
-	@Test
-	public void testStartupWhenNetworkStackFailsToInitialize() {
-
-		ServerSocket blocker = null;
-
-		try {
-			blocker = new ServerSocket(0, 50, InetAddress.getByName("localhost"));
-
-			final Configuration cfg = new Configuration();
-			cfg.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, blocker.getLocalPort());
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 1);
-
-			new JavaTestKit(actorSystem) {{
-				ActorRef taskManager = null;
-				ActorRef jobManager = null;
-				ActorRef resourceManager = null;
-
-				try {
-					// a simple JobManager
-					jobManager = startJobManager(config);
-
-					resourceManager = startResourceManager(config, jobManager);
-
-					// start a task manager with a configuration that provides a blocked port
-					taskManager = TaskManager.startTaskManagerComponentsAndActor(
-							cfg, ResourceID.generate(), actorSystem, "localhost",
-							NONE_STRING, // no actor name -> random
-							new Some<LeaderRetrievalService>(new StandaloneLeaderRetrievalService(jobManager.path().toString())),
-							false, // init network stack !!!
-							TaskManager.class);
-
-					watch(taskManager);
-
-					expectTerminated(timeout, taskManager);
-				}
-				catch (Exception e) {
-					e.printStackTrace();
-					fail(e.getMessage());
-				} finally {
-					stopActor(taskManager);
-					stopActor(jobManager);
-				}
-			}};
-		}
-		catch (Exception e) {
-			// does not work, skip test
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			if (blocker != null) {
-				try {
-					blocker.close();
-				}
-				catch (IOException e) {
-					// ignore, best effort
-				}
-			}
-		}
 	}
 
 	@Test

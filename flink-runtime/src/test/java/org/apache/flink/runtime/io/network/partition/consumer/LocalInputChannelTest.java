@@ -267,13 +267,14 @@ public class LocalInputChannelTest {
 			throws IOException, InterruptedException {
 
 		return new LocalInputChannel(
-				inputGate,
-				0,
-				new ResultPartitionID(),
-				partitionManager,
-				mock(TaskEventDispatcher.class),
-				initialAndMaxRequestBackoff,
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			inputGate,
+			0,
+			new ResultPartitionID(),
+			partitionManager,
+			mock(TaskEventDispatcher.class),
+			initialAndMaxRequestBackoff._1(),
+			initialAndMaxRequestBackoff._2(),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 	}
 
 	/**

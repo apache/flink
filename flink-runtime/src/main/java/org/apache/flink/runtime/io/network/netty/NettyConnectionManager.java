@@ -71,6 +71,15 @@ public class NettyConnectionManager implements ConnectionManager {
 	}
 
 	@Override
+	public int getDataPort() {
+		if (server != null && server.getLocalAddress() != null) {
+			return server.getLocalAddress().getPort();
+		} else {
+			return -1;
+		}
+	}
+
+	@Override
 	public void shutdown() {
 		client.shutdown();
 		server.shutdown();
