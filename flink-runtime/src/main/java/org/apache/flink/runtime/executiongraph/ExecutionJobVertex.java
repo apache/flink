@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.io.StrictlyLocalAssignment;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -30,7 +29,6 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -42,7 +40,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.util.SerializableObject;
-
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -71,6 +69,8 @@ public class ExecutionJobVertex {
 	private final List<IntermediateResult> inputs;
 	
 	private final int parallelism;
+
+	private final int maxParallelism;
 	
 	private final boolean[] finishedSubtasks;
 			
@@ -81,20 +81,25 @@ public class ExecutionJobVertex {
 	private final CoLocationGroup coLocationGroup;
 	
 	private final InputSplit[] inputSplits;
-	
-	private List<LocatableInputSplit>[] inputSplitsPerSubtask;
-	
+
 	private InputSplitAssigner splitAssigner;
 	
-	public ExecutionJobVertex(ExecutionGraph graph, JobVertex jobVertex,
-							int defaultParallelism, FiniteDuration timeout) throws JobException {
+	public ExecutionJobVertex(
+		ExecutionGraph graph,
+		JobVertex jobVertex,
+		int defaultParallelism,
+		FiniteDuration timeout) throws JobException {
+
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
 	
-	public ExecutionJobVertex(ExecutionGraph graph, JobVertex jobVertex,
-							int defaultParallelism, FiniteDuration timeout, long createTimestamp)
-			throws JobException
-	{
+	public ExecutionJobVertex(
+		ExecutionGraph graph,
+		JobVertex jobVertex,
+		int defaultParallelism,
+		FiniteDuration timeout,
+		long createTimestamp) throws JobException {
+
 		if (graph == null || jobVertex == null) {
 			throw new NullPointerException();
 		}
@@ -106,6 +111,14 @@ public class ExecutionJobVertex {
 		int numTaskVertices = vertexParallelism > 0 ? vertexParallelism : defaultParallelism;
 		
 		this.parallelism = numTaskVertices;
+
+		int maxParallelism = jobVertex.getMaxParallelism();
+
+		Preconditions.checkArgument(maxParallelism >= parallelism, "The maximum parallelism (" +
+			maxParallelism + ") must be greater or equal than the parallelism (" + parallelism +
+			").");
+		this.maxParallelism = maxParallelism;
+
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		
 		this.inputs = new ArrayList<IntermediateResult>(jobVertex.getInputs().size());
@@ -155,12 +168,7 @@ public class ExecutionJobVertex {
 				inputSplits = splitSource.createInputSplits(numTaskVertices);
 				
 				if (inputSplits != null) {
-					if (splitSource instanceof StrictlyLocalAssignment) {
-						inputSplitsPerSubtask = computeLocalInputSplitsPerTask(inputSplits);
-						splitAssigner = new PredeterminedInputSplitAssigner(inputSplitsPerSubtask);
-					} else {
-						splitAssigner = splitSource.getInputSplitAssigner(inputSplits);
-					}
+					splitAssigner = splitSource.getInputSplitAssigner(inputSplits);
 				}
 			}
 			else {
@@ -184,6 +192,10 @@ public class ExecutionJobVertex {
 
 	public int getParallelism() {
 		return parallelism;
+	}
+
+	public int getMaxParallelism() {
+		return maxParallelism;
 	}
 
 	public JobID getJobId() {
@@ -278,48 +290,8 @@ public class ExecutionJobVertex {
 	//---------------------------------------------------------------------------------------------
 	
 	public void scheduleAll(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
-		
 		ExecutionVertex[] vertices = this.taskVertices;
-		
-		// check if we need to do pre-assignment of tasks
-		if (inputSplitsPerSubtask != null) {
-		
-			final Map<String, List<Instance>> instances = scheduler.getInstancesByHost();
-			final Map<String, Integer> assignments = new HashMap<String, Integer>();
-			
-			for (int i = 0; i < vertices.length; i++) {
-				List<LocatableInputSplit> splitsForHost = inputSplitsPerSubtask[i];
-				if (splitsForHost == null || splitsForHost.isEmpty()) {
-					continue;
-				}
-				
-				String[] hostNames = splitsForHost.get(0).getHostnames();
-				if (hostNames == null || hostNames.length == 0 || hostNames[0] == null) {
-					continue;
-				}
-				
-				String host = hostNames[0];
-				ExecutionVertex v = vertices[i];
-				
-				List<Instance> instancesOnHost = instances.get(host);
-				
-				if (instancesOnHost == null || instancesOnHost.isEmpty()) {
-					throw new NoResourceAvailableException("Cannot schedule a strictly local task to host " + host
-							+ ". No TaskManager available on that host.");
-				}
-				
-				Integer pos = assignments.get(host);
-				if (pos == null) {
-					pos = 0;
-					assignments.put(host, 0);
-				} else {
-					assignments.put(host, (pos + 1) % instancesOnHost.size());
-				}
-				
-				v.setLocationConstraintHosts(Collections.singletonList(instancesOnHost.get(pos)));
-			}
-		}
-		
+
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
 			ev.scheduleForExecution(scheduler, queued);
@@ -374,17 +346,10 @@ public class ExecutionJobVertex {
 			// set up the input splits again
 			try {
 				if (this.inputSplits != null) {
-					
-					if (inputSplitsPerSubtask == null) {
-						// lazy assignment
-						@SuppressWarnings("unchecked")
-						InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
-						this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
-					}
-					else {
-						// eager assignment
-						//TODO: this.splitAssigner = new AssignBasedOnPreAssignment();
-					}
+					// lazy assignment
+					@SuppressWarnings("unchecked")
+					InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
+					this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
 				}
 			}
 			catch (Throwable t) {
@@ -426,7 +391,6 @@ public class ExecutionJobVertex {
 				inputSplits[i] = null;
 			}
 		}
-		inputSplitsPerSubtask = null;
 	}
 	
 	//---------------------------------------------------------------------------------------------
@@ -627,37 +591,6 @@ public class ExecutionJobVertex {
 		}
 		
 		return subTaskSplitAssignment;
-	}
-	
-
-	/**
-	 * An InputSplitAssigner that assigns to pre-determined hosts.
-	 */
-	public static class PredeterminedInputSplitAssigner implements InputSplitAssigner {
-
-		private List<LocatableInputSplit>[] inputSplitsPerSubtask;
-
-		@SuppressWarnings("unchecked")
-		public PredeterminedInputSplitAssigner(List<LocatableInputSplit>[] inputSplitsPerSubtask) {
-			// copy input split assignment
-			this.inputSplitsPerSubtask = (List<LocatableInputSplit>[]) new List<?>[inputSplitsPerSubtask.length];
-			for (int i = 0; i < inputSplitsPerSubtask.length; i++) {
-				List<LocatableInputSplit> next = inputSplitsPerSubtask[i];
-				
-				this.inputSplitsPerSubtask[i] = next == null || next.isEmpty() ?
-						Collections.<LocatableInputSplit>emptyList() : 
-						new ArrayList<LocatableInputSplit>(inputSplitsPerSubtask[i]);
-			}
-		}
-
-		@Override
-		public InputSplit getNextInputSplit(String host, int taskId) {
-			if (inputSplitsPerSubtask[taskId].isEmpty()) {
-				return null;
-			} else {
-				return inputSplitsPerSubtask[taskId].remove(inputSplitsPerSubtask[taskId].size() - 1);
-			}
-		}
 	}
 
 	public static ExecutionState getAggregateJobVertexState(int[] verticesPerState, int parallelism) {

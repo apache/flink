@@ -73,7 +73,10 @@ import java.util.Map;
  * <p>
  * This only tests the rolling behaviour of the sink. There is a separate ITCase that verifies
  * exactly once behaviour.
+ *
+ * @deprecated should be removed with the {@link RollingSink}.
  */
+@Deprecated
 public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 	@ClassRule

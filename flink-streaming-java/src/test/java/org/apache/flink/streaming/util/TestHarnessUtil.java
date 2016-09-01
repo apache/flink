@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.util;
 
+import com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Assert;
@@ -76,8 +77,8 @@ public class TestHarnessUtil {
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
-	public static void assertOutputEqualsSorted(String message, Queue<Object> expected, Queue<Object> actual, Comparator<Object> comparator) {
-		assertEquals(expected.size(), actual.size());
+	public static void assertOutputEqualsSorted(String message, Iterable<Object> expected, Iterable<Object> actual, Comparator<Object> comparator) {
+		assertEquals(Iterables.size(expected), Iterables.size(actual));
 
 		// first, compare only watermarks, their position should be deterministic
 		Iterator<Object> exIt = expected.iterator();

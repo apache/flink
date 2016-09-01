@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.messages
 
+import java.net.URL
 import java.util.UUID
 
 import akka.actor.ActorRef
@@ -65,6 +66,19 @@ object JobManagerMessages {
    */
   case class SubmitJob(
       jobGraph: JobGraph,
+      listeningBehaviour: ListeningBehaviour)
+    extends RequiresLeaderSessionID
+
+  /**
+    * Registers the sender of the message as the client for the provided job identifier.
+    * This message is acknowledged by the JobManager with [[RegisterJobClientSuccess]]
+    * or [[JobNotFound]] if the job was not running.
+    * @param jobID The job id of the job
+    * @param listeningBehaviour The types of updates which will be sent to the sender
+    * after registration
+    */
+  case class RegisterJobClient(
+      jobID: JobID,
       listeningBehaviour: ListeningBehaviour)
     extends RequiresLeaderSessionID
 
@@ -195,6 +209,23 @@ object JobManagerMessages {
   case object RequestTotalNumberOfSlots
 
   /**
+    * Requests all entities necessary for reconstructing a job class loader
+    * May respond with [[ClassloadingProps]] or [[JobNotFound]]
+    * @param jobId The job id of the registered job
+    */
+  case class RequestClassloadingProps(jobId: JobID)
+
+  /**
+    * Response to [[RequestClassloadingProps]]
+    * @param blobManagerPort The port of the blobManager
+    * @param requiredJarFiles The blob keys of the required jar files
+    * @param requiredClasspaths The urls of the required classpaths
+    */
+  case class ClassloadingProps(blobManagerPort: Integer,
+                               requiredJarFiles: java.util.List[BlobKey],
+                               requiredClasspaths: java.util.List[URL])
+
+  /**
    * Requests the port of the blob manager from the job manager. The result is sent back to the
    * sender as an [[Int]].
    */
@@ -218,16 +249,27 @@ object JobManagerMessages {
   case class JobSubmitSuccess(jobId: JobID)
 
   /**
+    * Denotes a successful registration of a JobClientActor for a running job
+    * @param jobId The job id of the registered job
+    */
+  case class RegisterJobClientSuccess(jobId: JobID)
+
+  /**
+    * Denotes messages which contain the result of a completed job execution
+    */
+  sealed trait JobResultMessage
+
+  /**
    * Denotes a successful job execution.
    * @param result The result of the job execution, in serialized form.
    */
-  case class JobResultSuccess(result: SerializedJobExecutionResult)
+  case class JobResultSuccess(result: SerializedJobExecutionResult) extends JobResultMessage
 
   /**
    * Denotes an unsuccessful job execution.
    * @param cause The exception that caused the job to fail, in serialized form.
    */
-  case class JobResultFailure(cause: SerializedThrowable)
+  case class JobResultFailure(cause: SerializedThrowable) extends JobResultMessage
 
 
   sealed trait CancellationResponse{
@@ -316,7 +358,7 @@ object JobManagerMessages {
 
   /**
    * Denotes that there is no job with [[jobID]] retrievable. This message can be the response of
-   * [[RequestJob]] or [[RequestJobStatus]].
+   * [[RequestJob]], [[RequestJobStatus]] or [[RegisterJobClient]].
    *
    * @param jobID
    */
@@ -448,13 +490,9 @@ object JobManagerMessages {
     * Disposes a savepoint.
     *
     * @param savepointPath The path of the savepoint to dispose.
-    * @param blobKeys BLOB keys if a user program JAR was uploaded for disposal.
-    *                 This is required when we dispose state which contains
-    *                 custom state instances (e.g. reducing state, rocksDB state).
     */
   case class DisposeSavepoint(
-      savepointPath: String,
-      blobKeys: Option[java.util.List[BlobKey]] = None)
+      savepointPath: String)
     extends RequiresLeaderSessionID
 
   /** Response after a successful savepoint dispose. */

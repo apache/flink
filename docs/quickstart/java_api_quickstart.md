@@ -1,9 +1,8 @@
 ---
 title: "Quickstart: Java API"
-# Top navigation
-top-nav-group: quickstart
-top-nav-pos: 3
-top-nav-title: Java API
+nav-title: Java API
+nav-parent_id: quickstarts
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -99,12 +98,12 @@ The following code shows the WordCount implementation from the Quickstart which 
 
 ~~~java
 public class WordCount {
-  
+
   public static void main(String[] args) throws Exception {
-    
+
     // set up the execution environment
     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-    
+
     // get input data
     DataSet<String> text = env.fromElements(
         "To be, or not to be,--that is the question:--",
@@ -112,8 +111,8 @@ public class WordCount {
         "The slings and arrows of outrageous fortune",
         "Or to take arms against a sea of troubles,"
         );
-    
-    DataSet<Tuple2<String, Integer>> counts = 
+
+    DataSet<Tuple2<String, Integer>> counts =
         // split up the lines in pairs (2-tuples) containing: (word,1)
         text.flatMap(new LineSplitter())
         // group by the tuple field "0" and sum up tuple field "1"
@@ -135,7 +134,7 @@ public class LineSplitter implements FlatMapFunction<String, Tuple2<String, Inte
   public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
     // normalize and split the line into words
     String[] tokens = value.toLowerCase().split("\\W+");
-    
+
     // emit the pairs
     for (String token : tokens) {
       if (token.length() > 0) {
@@ -148,5 +147,4 @@ public class LineSplitter implements FlatMapFunction<String, Tuple2<String, Inte
 
 {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
 
-For a complete overview over our API, have a look at the [Programming Guide]({{ site.baseurl }}/apis/programming_guide.html) and [further example programs](examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
-
+For a complete overview over our API, have a look at the [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections. If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.

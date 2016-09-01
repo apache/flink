@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -38,7 +39,11 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.AbstractCloseableHandle;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -54,10 +59,12 @@ import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
@@ -82,12 +89,9 @@ public class InterruptSensitiveRestoreTest {
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		cfg.setStreamOperator(new StreamSource<>(new TestSource()));
 
-		StateHandle<Serializable> lockingHandle = new InterruptLockingStateHandle();
-		StreamTaskState opState = new StreamTaskState();
-		opState.setFunctionState(lockingHandle);
-		StreamTaskStateList taskState = new StreamTaskStateList(new StreamTaskState[] { opState });
+		StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
 
-		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(taskConfig, taskState);
+		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(taskConfig, lockingHandle);
 		Task task = createTask(tdd);
 
 		// start the task and wait until it is in "restore"
@@ -113,7 +117,10 @@ public class InterruptSensitiveRestoreTest {
 
 	private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
 			Configuration taskConfig,
-			StateHandle<?> state) throws IOException {
+			StreamStateHandle state) throws IOException {
+
+		ChainedStateHandle<StreamStateHandle> operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
+		List<KeyGroupsStateHandle> keyGroupState = Collections.emptyList();
 
 		return new TaskDeploymentDescriptor(
 				new JobID(),
@@ -122,7 +129,7 @@ public class InterruptSensitiveRestoreTest {
 				new ExecutionAttemptID(),
 				new SerializedValue<>(new ExecutionConfig()),
 				"test task name",
-				0, 1, 0,
+				1, 0, 1, 0,
 				new Configuration(),
 				taskConfig,
 				SourceStreamTask.class.getName(),
@@ -131,7 +138,8 @@ public class InterruptSensitiveRestoreTest {
 				Collections.<BlobKey>emptyList(),
 				Collections.<URL>emptyList(),
 				0,
-				new SerializedValue<StateHandle<?>>(state));
+				operatorState,
+				keyGroupState);
 	}
 	
 	private static Task createTask(TaskDeploymentDescriptor tdd) throws IOException {
@@ -159,14 +167,34 @@ public class InterruptSensitiveRestoreTest {
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("serial")
-	private static class InterruptLockingStateHandle implements StateHandle<Serializable> {
+	private static class InterruptLockingStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
 
-		private transient volatile boolean closed;
-		
 		@Override
-		public Serializable getState(ClassLoader userCodeClassLoader) {
+		public FSDataInputStream openInputStream() throws IOException {
+			ensureNotClosed();
+			FSDataInputStream is = new FSDataInputStream() {
+
+				@Override
+				public void seek(long desired) throws IOException {
+				}
+
+				@Override
+				public long getPos() throws IOException {
+					return 0;
+				}
+
+				@Override
+				public int read() throws IOException {
+					block();
+					throw new EOFException();
+				}
+			};
+			registerCloseable(is);
+			return is;
+		}
+
+		private void block() {
 			IN_RESTORE_LATCH.trigger();
-			
 			// this mimics what happens in the HDFS client code.
 			// an interrupt on a waiting object leads to an infinite loop
 			try {
@@ -175,7 +203,7 @@ public class InterruptSensitiveRestoreTest {
 				}
 			}
 			catch (InterruptedException e) {
-				while (!closed) {
+				while (!isClosed()) {
 					try {
 						synchronized (this) {
 							wait();
@@ -183,8 +211,6 @@ public class InterruptSensitiveRestoreTest {
 					} catch (InterruptedException ignored) {}
 				}
 			}
-			
-			return new SerializableObject();
 		}
 
 		@Override
@@ -193,11 +219,6 @@ public class InterruptSensitiveRestoreTest {
 		@Override
 		public long getStateSize() throws Exception {
 			return 0;
-		}
-
-		@Override
-		public void close() throws IOException {
-			closed = true;
 		}
 	}
 

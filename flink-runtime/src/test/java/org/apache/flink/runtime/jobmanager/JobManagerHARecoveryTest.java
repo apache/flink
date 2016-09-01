@@ -53,8 +53,11 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.state.LocalStateHandle;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
@@ -62,6 +65,7 @@ import org.apache.flink.runtime.testingUtils.TestingMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.InstantiationUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -123,8 +127,8 @@ public class JobManagerHARecoveryTest {
 		ActorRef jobManager = null;
 		ActorRef taskManager = null;
 
-		flinkConfiguration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		flinkConfiguration.setString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, temporaryFolder.newFolder().toString());
+		flinkConfiguration.setString(ConfigConstants.HA_MODE, "zookeeper");
+		flinkConfiguration.setString(ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH, temporaryFolder.newFolder().toString());
 		flinkConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots);
 
 		try {
@@ -141,38 +145,38 @@ public class JobManagerHARecoveryTest {
 			instanceManager.addInstanceListener(scheduler);
 
 			archive = system.actorOf(Props.create(
-				MemoryArchivist.class,
-				10), "archive");
+					MemoryArchivist.class,
+					10), "archive");
 
 			Props jobManagerProps = Props.create(
-				TestingJobManager.class,
-				flinkConfiguration,
-				new ForkJoinPool(),
-				instanceManager,
-				scheduler,
-				new BlobLibraryCacheManager(new BlobServer(flinkConfiguration), 3600000),
-				archive,
-				new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
-				timeout,
-				myLeaderElectionService,
-				mySubmittedJobGraphStore,
-				checkpointStateFactory,
-				new HeapSavepointStore(),
-				jobRecoveryTimeout,
-				Option.apply(null));
+					TestingJobManager.class,
+					flinkConfiguration,
+					new ForkJoinPool(),
+					instanceManager,
+					scheduler,
+					new BlobLibraryCacheManager(new BlobServer(flinkConfiguration), 3600000),
+					archive,
+					new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(Int.MaxValue(), 100),
+					timeout,
+					myLeaderElectionService,
+					mySubmittedJobGraphStore,
+					checkpointStateFactory,
+					new HeapSavepointStore(),
+					jobRecoveryTimeout,
+					Option.apply(null));
 
 			jobManager = system.actorOf(jobManagerProps, "jobmanager");
 			ActorGateway gateway = new AkkaActorGateway(jobManager, leaderSessionID);
 
 			taskManager = TaskManager.startTaskManagerComponentsAndActor(
-				flinkConfiguration,
-				ResourceID.generate(),
-				system,
-				"localhost",
-				Option.apply("taskmanager"),
-				Option.apply((LeaderRetrievalService) myLeaderRetrievalService),
-				true,
-				TestingTaskManager.class);
+					flinkConfiguration,
+					ResourceID.generate(),
+					system,
+					"localhost",
+					Option.apply("taskmanager"),
+					Option.apply((LeaderRetrievalService) myLeaderRetrievalService),
+					true,
+					TestingTaskManager.class);
 
 			ActorGateway tmGateway = new AkkaActorGateway(taskManager, leaderSessionID);
 
@@ -199,12 +203,12 @@ public class JobManagerHARecoveryTest {
 			BlockingStatefulInvokable.initializeStaticHelpers(slots);
 
 			Future<Object> isLeader = gateway.ask(
-				TestingJobManagerMessages.getNotifyWhenLeader(),
-				deadline.timeLeft());
+					TestingJobManagerMessages.getNotifyWhenLeader(),
+					deadline.timeLeft());
 
 			Future<Object> isConnectedToJobManager = tmGateway.ask(
-				new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager),
-				deadline.timeLeft());
+					new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager),
+					deadline.timeLeft());
 
 			// tell jobManager that he's the leader
 			myLeaderElectionService.isLeader(leaderSessionID);
@@ -216,8 +220,8 @@ public class JobManagerHARecoveryTest {
 
 			// submit blocking job
 			Future<Object> jobSubmitted = gateway.ask(
-				new JobManagerMessages.SubmitJob(jobGraph, ListeningBehaviour.DETACHED),
-				deadline.timeLeft());
+					new JobManagerMessages.SubmitJob(jobGraph, ListeningBehaviour.DETACHED),
+					deadline.timeLeft());
 
 			Await.ready(jobSubmitted, deadline.timeLeft());
 
@@ -298,7 +302,7 @@ public class JobManagerHARecoveryTest {
 		public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 			checkpoints.addLast(checkpoint);
 			if (checkpoints.size() > 1) {
-				checkpoints.removeFirst().discard(ClassLoader.getSystemClassLoader());
+				checkpoints.removeFirst().discardState();
 			}
 		}
 
@@ -342,10 +346,12 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
-		public void start() {}
+		public void start() {
+		}
 
 		@Override
-		public void stop() {}
+		public void stop() {
+		}
 
 		@Override
 		public CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader) throws Exception {
@@ -408,7 +414,7 @@ public class JobManagerHARecoveryTest {
 
 		@Override
 		public void invoke() throws Exception {
-			while(blocking) {
+			while (blocking) {
 				synchronized (lock) {
 					lock.wait();
 				}
@@ -424,7 +430,7 @@ public class JobManagerHARecoveryTest {
 		}
 	}
 
-	public static class BlockingStatefulInvokable extends BlockingInvokable implements StatefulTask<StateHandle<Long>> {
+	public static class BlockingStatefulInvokable extends BlockingInvokable implements StatefulTask {
 
 		private static final int NUM_CHECKPOINTS_TO_COMPLETE = 5;
 
@@ -435,18 +441,28 @@ public class JobManagerHARecoveryTest {
 		private int completedCheckpoints = 0;
 
 		@Override
-		public void setInitialState(StateHandle<Long> stateHandle) throws Exception {
+		public void setInitialState(ChainedStateHandle<StreamStateHandle> chainedState, List<KeyGroupsStateHandle> keyGroupsState) throws Exception {
 			int subtaskIndex = getIndexInSubtaskGroup();
 			if (subtaskIndex < recoveredStates.length) {
-				recoveredStates[subtaskIndex] = stateHandle.getState(getUserCodeClassLoader());
+				recoveredStates[subtaskIndex] = InstantiationUtil.deserializeObject(chainedState.get(0).openInputStream());
 			}
 		}
 
 		@Override
 		public boolean triggerCheckpoint(long checkpointId, long timestamp) {
-			StateHandle<Long> state = new LocalStateHandle<>(checkpointId);
-			getEnvironment().acknowledgeCheckpoint(checkpointId, state);
-			return true;
+			try {
+				ByteStreamStateHandle byteStreamStateHandle = new ByteStreamStateHandle(
+						InstantiationUtil.serializeObject(checkpointId));
+				RetrievableStreamStateHandle<Long> state = new RetrievableStreamStateHandle<Long>(byteStreamStateHandle);
+				ChainedStateHandle<StreamStateHandle> chainedStateHandle = new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(state));
+				getEnvironment().acknowledgeCheckpoint(
+						checkpointId,
+						chainedStateHandle,
+						Collections.<KeyGroupsStateHandle>emptyList());
+				return true;
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
 		}
 
 		@Override

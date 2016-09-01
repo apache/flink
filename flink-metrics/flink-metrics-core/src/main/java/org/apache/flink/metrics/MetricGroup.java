@@ -110,6 +110,26 @@ public interface MetricGroup {
 	 */
 	<H extends Histogram> H histogram(int name, H histogram);
 
+	/**
+	 * Registers a new {@link Meter} with Flink.
+	 *
+	 * @param name name of the meter
+	 * @param meter meter to register
+	 * @param <M> meter type
+	 * @return the registered meter
+	 */
+	<M extends Meter> M meter(String name, M meter);
+
+	/**
+	 * Registers a new {@link Meter} with Flink.
+	 *
+	 * @param name name of the meter
+	 * @param meter meter to register
+	 * @param <M> meter type
+	 * @return the registered meter
+	 */
+	<M extends Meter> M meter(int name, M meter);
+
 	// ------------------------------------------------------------------------
 	// Groups
 	// ------------------------------------------------------------------------

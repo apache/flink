@@ -21,6 +21,7 @@ package org.apache.flink.metrics.jmx;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
@@ -160,6 +161,8 @@ public class JMXReporter implements MetricReporter {
 			jmxMetric = new JmxCounter((Counter) metric);
 		} else if (metric instanceof Histogram) {
 			jmxMetric = new JmxHistogram((Histogram) metric);
+		} else if (metric instanceof Meter) {
+			jmxMetric = new JmxMeter((Meter) metric);
 		} else {
 			LOG.error("Cannot add unknown metric type: {}. This indicates that the metric type " +
 				"is not supported by this reporter.", metric.getClass().getName());
@@ -414,6 +417,31 @@ public class JMXReporter implements MetricReporter {
 		@Override
 		public double get999thPercentile() {
 			return histogram.getStatistics().getQuantile(0.999);
+		}
+	}
+
+	public interface JmxMeterMBean extends MetricMBean {
+		double getRate();
+
+		long getCount();
+	}
+
+	private class JmxMeter extends AbstractBean implements JmxMeterMBean {
+
+		private final Meter meter;
+
+		public JmxMeter(Meter meter) {
+			this.meter = meter;
+		}
+
+		@Override
+		public double getRate() {
+			return meter.getRate();
+		}
+
+		@Override
+		public long getCount() {
+			return meter.getCount();
 		}
 	}
 

@@ -42,9 +42,11 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
 
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.slf4j.Logger;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -183,6 +185,10 @@ public class ExecutionVertex {
 		return this.jobVertex.getParallelism();
 	}
 
+	public int getMaxParallelism() {
+		return this.jobVertex.getMaxParallelism();
+	}
+
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
 	}
@@ -225,7 +231,7 @@ public class ExecutionVertex {
 	public InstanceConnectionInfo getCurrentAssignedResourceLocation() {
 		return currentExecution.getAssignedResourceLocation();
 	}
-	
+
 	public Execution getPriorExecutionAttempt(int attemptNumber) {
 		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
 			return priorExecutions.get(attemptNumber);
@@ -234,7 +240,7 @@ public class ExecutionVertex {
 			throw new IllegalArgumentException("attempt does not exist");
 		}
 	}
-	
+
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}
@@ -271,7 +277,7 @@ public class ExecutionVertex {
 		this.inputEdges[inputNumber] = edges;
 
 		// add the consumers to the source
-		// for now (until the receiver initiated handshake is in place), we need to register the 
+		// for now (until the receiver initiated handshake is in place), we need to register the
 		// edges as the execution graph
 		for (ExecutionEdge ee : edges) {
 			ee.getSource().addConsumer(ee, consumerNumber);
@@ -482,11 +488,11 @@ public class ExecutionVertex {
 			ExecutionAttemptID attemptID,
 			ActorGateway sender) {
 		Execution exec = getCurrentExecutionAttempt();
-		
+
 		// check that this is for the correct execution attempt
 		if (exec != null && exec.getAttemptId().equals(attemptID)) {
 			SimpleSlot slot = exec.getAssignedResource();
-			
+
 			// send only if we actually have a target
 			if (slot != null) {
 				ActorGateway gateway = slot.getInstance().getActorGateway();
@@ -513,7 +519,7 @@ public class ExecutionVertex {
 			return false;
 		}
 	}
-	
+
 	/**
 	 * Schedules or updates the consumer tasks of the result partition with the given ID.
 	 */
@@ -629,13 +635,14 @@ public class ExecutionVertex {
 
 	/**
 	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
-	 * 
+	 *
 	 * TODO: This should actually be in the EXECUTION
 	 */
 	TaskDeploymentDescriptor createDeploymentDescriptor(
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
-			SerializedValue<StateHandle<?>> operatorState,
+			ChainedStateHandle<StreamStateHandle> operatorState,
+			List<KeyGroupsStateHandle> keyGroupStates,
 			int attemptNumber) {
 
 		// Produced intermediate results
@@ -675,6 +682,7 @@ public class ExecutionVertex {
 			executionId,
 			serializedConfig,
 			getTaskName(),
+			getMaxParallelism(),
 			subTaskIndex,
 			getTotalNumberOfParallelSubtasks(),
 			attemptNumber,
@@ -686,7 +694,8 @@ public class ExecutionVertex {
 			jarFiles,
 			classpaths,
 			targetSlot.getRoot().getSlotNumber(),
-			operatorState);
+			operatorState,
+			keyGroupStates);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -702,7 +711,7 @@ public class ExecutionVertex {
 	 * @return A simple name representation.
 	 */
 	public String getSimpleName() {
-		return getTaskName() + " (" + (getParallelSubtaskIndex()+1) + '/' + getTotalNumberOfParallelSubtasks() + ')';
+		return taskNameWithSubtask;
 	}
 
 	@Override

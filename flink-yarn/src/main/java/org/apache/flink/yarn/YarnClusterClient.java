@@ -19,8 +19,6 @@ package org.apache.flink.yarn;
 
 import akka.actor.ActorRef;
 
-import static akka.pattern.Patterns.ask;
-
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
@@ -30,8 +28,10 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
+import org.apache.flink.runtime.clusterframework.messages.ShutdownClusterAfterJob;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -48,9 +48,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.None$;
 import scala.Option;
-import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -83,14 +81,14 @@ public class YarnClusterClient extends ClusterClient {
 	private final AbstractYarnClusterDescriptor clusterDescriptor;
 	private final LazApplicationClientLoader applicationClient;
 	private final FiniteDuration akkaDuration;
-	private final Timeout akkaTimeout;
 	private final ApplicationReport appReport;
 	private final ApplicationId appId;
 	private final String trackingURL;
 
 	private boolean isConnected = true;
 
-	private final boolean perJobCluster;
+	/** Indicator whether this cluster has just been created */
+	private final boolean newlyCreatedCluster;
 
 	/**
 	 * Create a new Flink on YARN cluster.
@@ -100,7 +98,7 @@ public class YarnClusterClient extends ClusterClient {
 	 * @param appReport the YARN application ID
 	 * @param flinkConfig Flink configuration
 	 * @param sessionFilesDir Location of files required for YARN session
-	 * @param perJobCluster Indicator whether this cluster is only created for a single job and then shutdown
+	 * @param newlyCreatedCluster Indicator whether this cluster has just been created
 	 * @throws IOException
 	 * @throws YarnException
 	 */
@@ -110,12 +108,11 @@ public class YarnClusterClient extends ClusterClient {
 		final ApplicationReport appReport,
 		org.apache.flink.configuration.Configuration flinkConfig,
 		Path sessionFilesDir,
-		boolean perJobCluster) throws IOException, YarnException {
+		boolean newlyCreatedCluster) throws IOException, YarnException {
 
 		super(flinkConfig);
 
 		this.akkaDuration = AkkaUtils.getTimeout(flinkConfig);
-		this.akkaTimeout = Timeout.durationToTimeout(akkaDuration);
 		this.clusterDescriptor = clusterDescriptor;
 		this.yarnClient = yarnClient;
 		this.hadoopConfig = yarnClient.getConfig();
@@ -123,13 +120,13 @@ public class YarnClusterClient extends ClusterClient {
 		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
-		this.perJobCluster = perJobCluster;
+		this.newlyCreatedCluster = newlyCreatedCluster;
 
-		this.applicationClient = new LazApplicationClientLoader();
+		this.applicationClient = new LazApplicationClientLoader(flinkConfig, actorSystemLoader);
 
-		pollingRunner = new PollingThread(yarnClient, appId);
-		pollingRunner.setDaemon(true);
-		pollingRunner.start();
+		this.pollingRunner = new PollingThread(yarnClient, appId);
+		this.pollingRunner.setDaemon(true);
+		this.pollingRunner.start();
 
 		Runtime.getRuntime().addShutdownHook(clientShutdownHook);
 	}
@@ -174,12 +171,12 @@ public class YarnClusterClient extends ClusterClient {
 	 */
 	private void stopAfterJob(JobID jobID) {
 		Preconditions.checkNotNull(jobID, "The job id must not be null");
-		Future<Object> messageReceived =
-			ask(
-				applicationClient.get(),
-				new YarnMessages.LocalStopAMAfterJob(jobID), akkaTimeout);
 		try {
-			Await.result(messageReceived, akkaDuration);
+			Future<Object> replyFuture =
+				getJobManagerGateway().ask(
+					new ShutdownClusterAfterJob(jobID),
+					akkaDuration);
+			Await.ready(replyFuture, akkaDuration);
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to tell application master to stop once the specified job has been finised", e);
 		}
@@ -198,11 +195,10 @@ public class YarnClusterClient extends ClusterClient {
 
 	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		if (perJobCluster) {
-			stopAfterJob(jobGraph.getJobID());
-		}
-
 		if (isDetached()) {
+			if (newlyCreatedCluster) {
+				stopAfterJob(jobGraph.getJobID());
+			}
 			return super.runDetached(jobGraph, classLoader);
 		} else {
 			return super.run(jobGraph, classLoader);
@@ -230,29 +226,20 @@ public class YarnClusterClient extends ClusterClient {
 	@Override
 	public GetClusterStatusResponse getClusterStatus() {
 		if(!isConnected) {
-			throw new IllegalStateException("The cluster is not connected to the ApplicationMaster.");
+			throw new IllegalStateException("The cluster is not connected to the cluster.");
 		}
 		if(hasBeenShutdown()) {
-			return null;
+			throw new IllegalStateException("The cluster has already been shutdown.");
 		}
 
-		Future<Object> clusterStatusOption =
-			ask(
-				applicationClient.get(),
-				YarnMessages.getLocalGetyarnClusterStatus(),
-				akkaTimeout);
-		Object clusterStatus;
 		try {
-			clusterStatus = Await.result(clusterStatusOption, akkaDuration);
+			final Future<Object> clusterStatusOption =
+				getJobManagerGateway().ask(
+					GetClusterStatus.getInstance(),
+					akkaDuration);
+			return (GetClusterStatusResponse) Await.result(clusterStatusOption, akkaDuration);
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to get ClusterClient status from Application Client", e);
-		}
-		if(clusterStatus instanceof None$) {
-			return null;
-		} else if(clusterStatus instanceof Some) {
-			return (GetClusterStatusResponse) (((Some) clusterStatus).get());
-		} else {
-			throw new RuntimeException("Unexpected type: " + clusterStatus.getClass().getCanonicalName());
 		}
 	}
 
@@ -343,8 +330,7 @@ public class YarnClusterClient extends ClusterClient {
 	 */
 	@Override
 	public void finalizeCluster() {
-		if (isDetached() || !perJobCluster) {
-			// only disconnect if we are not running a per job cluster
+		if (isDetached() || !newlyCreatedCluster) {
 			disconnect();
 		} else {
 			shutdownCluster();
@@ -370,20 +356,16 @@ public class YarnClusterClient extends ClusterClient {
 			// we are already in the shutdown hook
 		}
 
-		if(actorSystemLoader.isLoaded()){
-			LOG.info("Sending shutdown request to the Application Master");
-			if(applicationClient.get() != ActorRef.noSender()) {
-				try {
-					Future<Object> response =
-						Patterns.ask(applicationClient.get(),
-							new YarnMessages.LocalStopYarnSession(getApplicationStatus(),
-									"Flink YARN Client requested shutdown"),
-							new Timeout(akkaDuration));
-					Await.ready(response, akkaDuration);
-				} catch(Exception e) {
-					LOG.warn("Error while stopping YARN Application Client", e);
-				}
-			}
+		LOG.info("Sending shutdown request to the Application Master");
+		try {
+			Future<Object> response =
+				Patterns.ask(applicationClient.get(),
+					new YarnMessages.LocalStopYarnSession(getApplicationStatus(),
+							"Flink YARN Client requested shutdown"),
+					new Timeout(akkaDuration));
+			Await.ready(response, akkaDuration);
+		} catch(Exception e) {
+			LOG.warn("Error while stopping YARN cluster.", e);
 		}
 
 		try {
@@ -519,13 +501,51 @@ public class YarnClusterClient extends ClusterClient {
 		return super.isDetached() || clusterDescriptor.isDetachedMode();
 	}
 
+	/**
+	 * Blocks until all TaskManagers are connected to the JobManager.
+	 */
+	@Override
+	public void waitForClusterToBeReady() {
+		logAndSysout("Waiting until all TaskManagers have connected");
+
+		for (GetClusterStatusResponse currentStatus, lastStatus = null;; lastStatus = currentStatus) {
+			currentStatus = getClusterStatus();
+			if (currentStatus != null && !currentStatus.equals(lastStatus)) {
+				logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"
+					+ clusterDescriptor.getTaskManagerCount() + ")");
+				if (currentStatus.numRegisteredTaskManagers() >= clusterDescriptor.getTaskManagerCount()) {
+					logAndSysout("All TaskManagers are connected");
+					break;
+				}
+			} else if (lastStatus == null) {
+				logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
+			}
+
+			try {
+				Thread.sleep(250);
+			} catch (InterruptedException e) {
+				throw new RuntimeException("Interrupted while waiting for TaskManagers", e);
+			}
+		}
+	}
+
 	public ApplicationId getApplicationId() {
 		return appId;
 	}
 
-	protected class LazApplicationClientLoader {
+	private static class LazApplicationClientLoader {
+
+		private final org.apache.flink.configuration.Configuration flinkConfig;
+		private final LazyActorSystemLoader actorSystemLoader;
 
 		private ActorRef applicationClient;
+
+		private LazApplicationClientLoader(
+				org.apache.flink.configuration.Configuration flinkConfig,
+				LazyActorSystemLoader actorSystemLoader) {
+			this.flinkConfig = flinkConfig;
+			this.actorSystemLoader = actorSystemLoader;
+		}
 
 		/**
 		 * Creates a new ApplicationClient actor or returns an existing one. May start an ActorSystem.
@@ -550,33 +570,6 @@ public class YarnClusterClient extends ClusterClient {
 						flinkConfig,
 						leaderRetrievalService),
 					"applicationClient");
-
-				if (perJobCluster) {
-
-					logAndSysout("Waiting until all TaskManagers have connected");
-
-					for (GetClusterStatusResponse currentStatus, lastStatus = null;; lastStatus = currentStatus) {
-						currentStatus = getClusterStatus();
-						if (currentStatus != null && !currentStatus.equals(lastStatus)) {
-							logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"
-								+ clusterDescriptor.getTaskManagerCount() + ")");
-							if (currentStatus.numRegisteredTaskManagers() >= clusterDescriptor.getTaskManagerCount()) {
-								logAndSysout("All TaskManagers are connected");
-								break;
-							}
-						} else if (lastStatus == null) {
-							logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
-						}
-
-						try {
-							Thread.sleep(250);
-						} catch (InterruptedException e) {
-							LOG.error("Interrupted while waiting for TaskManagers");
-							System.err.println("Thread is interrupted");
-							throw new RuntimeException("Interrupted while waiting for TaskManagers", e);
-						}
-					}
-				}
 			}
 
 			return applicationClient;

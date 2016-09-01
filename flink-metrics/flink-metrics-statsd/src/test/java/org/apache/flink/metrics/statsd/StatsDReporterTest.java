@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -176,6 +177,68 @@ public class StatsDReporterTest extends TestLogger {
 			expectedLines.add(prefix + ".p999:0.999|g");
 			expectedLines.add(prefix + ".p95:0.95|g");
 			expectedLines.add(prefix + ".p50:0.5|g");
+
+			assertEquals(expectedLines, lines);
+
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
+
+			if (receiver != null) {
+				receiver.stop();
+			}
+
+			if (receiverThread != null) {
+				receiverThread.join(joinTimeout);
+			}
+		}
+	}
+
+	/**
+	 * Tests that meters are properly reported via the StatsD reporter
+	 */
+	@Test
+	public void testStatsDMetersReporting() throws Exception {
+		MetricRegistry registry = null;
+		DatagramSocketReceiver receiver = null;
+		Thread receiverThread = null;
+		long timeout = 5000;
+		long joinTimeout = 30000;
+
+		String meterName = "meter";
+
+		try {
+			receiver = new DatagramSocketReceiver();
+
+			receiverThread = new Thread(receiver);
+
+			receiverThread.start();
+
+			int port = receiver.getPort();
+
+			Configuration config = new Configuration();
+			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+
+			registry = new MetricRegistry(config);
+			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+			TestMeter meter = new TestMeter();
+			metricGroup.meter(meterName, meter);
+			String prefix = metricGroup.getMetricIdentifier(meterName);
+
+			Set<String> expectedLines = new HashSet<>();
+
+			expectedLines.add(prefix + ".rate:5.0|g");
+			expectedLines.add(prefix + ".count:100|g");
+
+			receiver.waitUntilNumLines(expectedLines.size(), timeout);
+
+			Set<String> lines = receiver.getLines();
+
 
 			assertEquals(expectedLines, lines);
 

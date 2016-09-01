@@ -108,9 +108,8 @@ public class HeapSavepointStore implements SavepointStore {
 	}
 
 	@Override
-	public void disposeSavepoint(String path, ClassLoader classLoader) throws Exception {
+	public void disposeSavepoint(String path) throws Exception {
 		Preconditions.checkNotNull(path, "Path");
-		Preconditions.checkNotNull(classLoader, "Class loader");
 
 		Savepoint savepoint;
 		synchronized (shutDownLock) {
@@ -118,7 +117,7 @@ public class HeapSavepointStore implements SavepointStore {
 		}
 
 		if (savepoint != null) {
-			savepoint.dispose(classLoader);
+			savepoint.dispose();
 		} else {
 			throw new IllegalArgumentException("Invalid path '" + path + "'.");
 		}
@@ -131,7 +130,7 @@ public class HeapSavepointStore implements SavepointStore {
 			// available at this point.
 			for (Savepoint savepoint : savepoints.values()) {
 				try {
-					savepoint.dispose(ClassLoader.getSystemClassLoader());
+					savepoint.dispose();
 				} catch (Throwable t) {
 					LOG.warn("Failed to dispose savepoint " + savepoint.getCheckpointId(), t);
 				}

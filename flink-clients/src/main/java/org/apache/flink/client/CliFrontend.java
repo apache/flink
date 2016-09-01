@@ -72,7 +72,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -727,7 +726,7 @@ public class CliFrontend {
 				logAndSysout("Disposing savepoint '" + savepointPath + "'.");
 			}
 
-			Object msg = new DisposeSavepoint(savepointPath, Option.apply(blobKeys));
+			Object msg = new DisposeSavepoint(savepointPath);
 			Future<Object> response = jobManager.ask(msg, clientTimeout);
 
 			Object result;
@@ -845,7 +844,7 @@ public class CliFrontend {
 		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
 		try {
 			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
-			logAndSysout("Using address " + client.getJobManagerAddressFromConfig() + " to connect to JobManager.");
+			logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
 			return client;
 		} catch (Exception e) {
 			LOG.error("Couldn't retrieve {} cluster.", customCLI.getId(), e);
@@ -896,7 +895,7 @@ public class CliFrontend {
 		}
 
 		// Avoid resolving the JobManager Gateway here to prevent blocking until we invoke the user's program.
-		final InetSocketAddress jobManagerAddress = client.getJobManagerAddressFromConfig();
+		final InetSocketAddress jobManagerAddress = client.getJobManagerAddress();
 		logAndSysout("Using address " + jobManagerAddress.getHostString() + ":" + jobManagerAddress.getPort() + " to connect to JobManager.");
 		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
 		return client;

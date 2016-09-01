@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
+import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.Shard;
@@ -33,13 +34,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Factory for different kinds of fake Kinesis behaviours using the {@link KinesisProxyInterface} interface.
  */
 public class FakeKinesisBehavioursFactory {
 
 	// ------------------------------------------------------------------------
-	//  Behaviours related to shard listing and resharding, used in ShardDiscovererTest
+	//  Behaviours related to shard listing and resharding, used in KinesisDataFetcherTest
 	// ------------------------------------------------------------------------
 
 	public static KinesisProxyInterface noShardsFoundForRequestedStreamsBehaviour() {
@@ -75,14 +78,69 @@ public class FakeKinesisBehavioursFactory {
 	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCalls(final int numOfRecords, final int numOfGetRecordsCalls) {
 		return new SingleShardEmittingFixNumOfRecordsKinesis(numOfRecords, numOfGetRecordsCalls);
 	}
+	
+	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(
+		final int numOfRecords, final int numOfGetRecordsCall, final int orderOfCallToExpire) {
+		return new SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(
+			numOfRecords, numOfGetRecordsCall, orderOfCallToExpire);
+	}
+
+	public static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
+
+		private boolean expiredOnceAlready = false;
+		private boolean expiredIteratorRefreshed = false;
+		private final int orderOfCallToExpire;
+
+		public SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(final int numOfRecords,
+																			final int numOfGetRecordsCalls,
+																			final int orderOfCallToExpire) {
+			super(numOfRecords, numOfGetRecordsCalls);
+			checkArgument(orderOfCallToExpire <= numOfGetRecordsCalls,
+				"can not test unexpected expired iterator if orderOfCallToExpire is larger than numOfGetRecordsCalls");
+			this.orderOfCallToExpire = orderOfCallToExpire;
+		}
+
+		@Override
+		public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) {
+			if ((Integer.valueOf(shardIterator) == orderOfCallToExpire-1) && !expiredOnceAlready) {
+				// we fake only once the expired iterator exception at the specified get records attempt order
+				expiredOnceAlready = true;
+				throw new ExpiredIteratorException("Artificial expired shard iterator");
+			} else if (expiredOnceAlready && !expiredIteratorRefreshed) {
+				// if we've thrown the expired iterator exception already, but the iterator was not refreshed,
+				// throw a hard exception to the test that is testing this Kinesis behaviour
+				throw new RuntimeException("expired shard iterator was not refreshed on the next getRecords() call");
+			} else {
+				// assuming that the maxRecordsToGet is always large enough
+				return new GetRecordsResult()
+					.withRecords(shardItrToRecordBatch.get(shardIterator))
+					.withNextShardIterator(
+						(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls - 1)
+							? null : String.valueOf(Integer.valueOf(shardIterator) + 1)); // last next shard iterator is null
+			}
+		}
+
+		@Override
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+			if (!expiredOnceAlready) {
+				// for the first call, just return the iterator of the first batch of records
+				return "0";
+			} else {
+				// fake the iterator refresh when this is called again after getRecords throws expired iterator
+				// exception on the orderOfCallToExpire attempt
+				expiredIteratorRefreshed = true;
+				return String.valueOf(orderOfCallToExpire-1);
+			}
+		}
+	}
 
 	private static class SingleShardEmittingFixNumOfRecordsKinesis implements KinesisProxyInterface {
 
-		private final int totalNumOfGetRecordsCalls;
+		protected final int totalNumOfGetRecordsCalls;
 
-		private final int totalNumOfRecords;
+		protected final int totalNumOfRecords;
 
-		private final Map<String,List<Record>> shardItrToRecordBatch;
+		protected final Map<String,List<Record>> shardItrToRecordBatch;
 
 		public SingleShardEmittingFixNumOfRecordsKinesis(final int numOfRecords, final int numOfGetRecordsCalls) {
 			this.totalNumOfRecords = numOfRecords;

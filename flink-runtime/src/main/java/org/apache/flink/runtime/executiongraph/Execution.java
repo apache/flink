@@ -46,9 +46,10 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.SerializableObject;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -134,8 +135,10 @@ public class Execution {
 
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 
-	/** The state with which the execution attempt should start */
-	private SerializedValue<StateHandle<?>> operatorState;
+	private ChainedStateHandle<StreamStateHandle> chainedStateHandle;
+
+	private List<KeyGroupsStateHandle> keyGroupsStateHandles;
+	
 
 	/** The execution context which is used to execute futures. */
 	private ExecutionContext executionContext;
@@ -215,6 +218,14 @@ public class Execution {
 		return this.stateTimestamps[state.ordinal()];
 	}
 
+	public ChainedStateHandle<StreamStateHandle> getChainedStateHandle() {
+		return chainedStateHandle;
+	}
+
+	public List<KeyGroupsStateHandle> getKeyGroupsStateHandles() {
+		return keyGroupsStateHandles;
+	}
+
 	public boolean isFinished() {
 		return state.isTerminal();
 	}
@@ -234,19 +245,22 @@ public class Execution {
 		partialInputChannelDeploymentDescriptors = null;
 	}
 
+	/**
+	 * Sets the initial state for the execution. The serialized state is then shipped via the
+	 * {@link TaskDeploymentDescriptor} to the TaskManagers.
+	 *
+	 * @param chainedStateHandle Chained operator state
+	 * @param keyGroupsStateHandles Key-group state (= partitioned state)
+	 */
 	public void setInitialState(
-			SerializedValue<StateHandle<?>> initialState,
-			Map<Integer, SerializedValue<StateHandle<?>>> initialKvState) {
-
-		if (initialKvState != null && initialKvState.size() > 0) {
-			throw new UnsupportedOperationException("Error: inconsistent handling of key/value state snapshots");
-		}
+		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
+			List<KeyGroupsStateHandle> keyGroupsStateHandles) {
 
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
-
-		this.operatorState = initialState;
+		this.chainedStateHandle = chainedStateHandle;
+		this.keyGroupsStateHandles = keyGroupsStateHandles;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -373,7 +387,8 @@ public class Execution {
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
 				attemptId,
 				slot,
-				operatorState,
+				chainedStateHandle,
+				keyGroupsStateHandles,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs

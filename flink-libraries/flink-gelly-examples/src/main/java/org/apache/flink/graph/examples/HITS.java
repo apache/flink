@@ -65,7 +65,7 @@ public class HITS {
 			" scores for every vertex in a directed graph. A good \"hub\" links to good \"authorities\"" +
 			" and good \"authorities\" are linked from good \"hubs\".", 80));
 		System.out.println();
-		System.out.println("usage: HITS --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println("usage: HITS --input <csv | rmat [options]> --output <print | hash | csv [options]>");
 		System.out.println();
 		System.out.println("options:");
 		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");

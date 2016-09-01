@@ -18,26 +18,55 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link OneInputStreamTask}.
@@ -51,7 +80,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ResultPartitionWriter.class})
 @PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
-public class OneInputStreamTaskTest {
+public class OneInputStreamTaskTest extends TestLogger {
 
 	/**
 	 * This test verifies that open() and close() are correctly called. This test also verifies
@@ -82,7 +111,7 @@ public class OneInputStreamTaskTest {
 
 		testHarness.waitForTaskCompletion();
 
-		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
+		assertTrue("RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
 				expectedOutput,
@@ -165,7 +194,7 @@ public class OneInputStreamTaskTest {
 		testHarness.waitForTaskCompletion();
 
 		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-		Assert.assertEquals(2, resultElements.size());
+		assertEquals(2, resultElements.size());
 	}
 
 	/**
@@ -292,6 +321,261 @@ public class OneInputStreamTaskTest {
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
+
+	/**
+	 * Tests that the stream operator can snapshot and restore the operator state of chained
+	 * operators
+	 */
+	@Test
+	public void testSnapshottingAndRestoring() throws Exception {
+		final Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
+		final OneInputStreamTask<String, String> streamTask = new OneInputStreamTask<String, String>();
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(streamTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		IdentityKeySelector<String> keySelector = new IdentityKeySelector<>();
+		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
+
+		long checkpointId = 1L;
+		long checkpointTimestamp = 1L;
+		long recoveryTimestamp = 3L;
+		long seed = 2L;
+		int numberChainedTasks = 11;
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+
+		configureChainedTestingStreamOperator(streamConfig, numberChainedTasks, seed, recoveryTimestamp);
+
+		AcknowledgeStreamMockEnvironment env = new AcknowledgeStreamMockEnvironment(
+			testHarness.jobConfig,
+			testHarness.taskConfig,
+			testHarness.executionConfig,
+			testHarness.memorySize,
+			new MockInputSplitProvider(),
+			testHarness.bufferSize);
+
+		// reset number of restore calls
+		TestingStreamOperator.numberRestoreCalls = 0;
+
+		testHarness.invoke(env);
+		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
+
+		streamTask.triggerCheckpoint(checkpointId, checkpointTimestamp);
+
+		// since no state was set, there shouldn't be restore calls
+		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
+
+		env.getCheckpointLatch().await();
+
+		assertEquals(checkpointId, env.getCheckpointId());
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
+
+		final OneInputStreamTask<String, String> restoredTask = new OneInputStreamTask<String, String>();
+		restoredTask.setInitialState(env.getState(), env.getKeyGroupStates());
+
+		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness = new OneInputStreamTaskTestHarness<String, String>(restoredTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
+
+		StreamConfig restoredTaskStreamConfig = restoredTaskHarness.getStreamConfig();
+
+		configureChainedTestingStreamOperator(restoredTaskStreamConfig, numberChainedTasks, seed, recoveryTimestamp);
+
+		TestingStreamOperator.numberRestoreCalls = 0;
+
+		restoredTaskHarness.invoke();
+		restoredTaskHarness.endInput();
+		restoredTaskHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
+
+		// restore of every chained operator should have been called
+		assertEquals(numberChainedTasks, TestingStreamOperator.numberRestoreCalls);
+
+		TestingStreamOperator.numberRestoreCalls = 0;
+	}
+
+	//==============================================================================================
+	// Utility functions and classes
+	//==============================================================================================
+
+	private void configureChainedTestingStreamOperator(
+		StreamConfig streamConfig,
+		int numberChainedTasks,
+		long seed,
+		long recoveryTimestamp) {
+
+		Preconditions.checkArgument(numberChainedTasks >= 1, "The operator chain must at least " +
+			"contain one operator.");
+
+		Random random = new Random(seed);
+
+		TestingStreamOperator<Integer, Integer> previousOperator = new TestingStreamOperator<>(random.nextLong(), recoveryTimestamp);
+		streamConfig.setStreamOperator(previousOperator);
+
+		// create the chain of operators
+		Map<Integer, StreamConfig> chainedTaskConfigs = new HashMap<>(numberChainedTasks - 1);
+		List<StreamEdge> outputEdges = new ArrayList<>(numberChainedTasks - 1);
+
+		for (int chainedIndex = 1; chainedIndex < numberChainedTasks; chainedIndex++) {
+			TestingStreamOperator<Integer, Integer> chainedOperator = new TestingStreamOperator<>(random.nextLong(), recoveryTimestamp);
+			StreamConfig chainedConfig = new StreamConfig(new Configuration());
+			chainedConfig.setStreamOperator(chainedOperator);
+			chainedTaskConfigs.put(chainedIndex, chainedConfig);
+
+			StreamEdge outputEdge = new StreamEdge(
+				new StreamNode(
+					null,
+					chainedIndex - 1,
+					null,
+					null,
+					null,
+					null,
+					null
+				),
+				new StreamNode(
+					null,
+					chainedIndex,
+					null,
+					null,
+					null,
+					null,
+					null
+				),
+				0,
+				Collections.<String>emptyList(),
+				null
+			);
+
+			outputEdges.add(outputEdge);
+		}
+
+		streamConfig.setChainedOutputs(outputEdges);
+		streamConfig.setTransitiveChainedTaskConfigs(chainedTaskConfigs);
+	}
+
+	private static class IdentityKeySelector<IN> implements KeySelector<IN, IN> {
+
+		private static final long serialVersionUID = -3555913664416688425L;
+
+		@Override
+		public IN getKey(IN value) throws Exception {
+			return value;
+		}
+	}
+
+	private static class AcknowledgeStreamMockEnvironment extends StreamMockEnvironment {
+		private volatile long checkpointId;
+		private volatile ChainedStateHandle<StreamStateHandle> state;
+		private volatile List<KeyGroupsStateHandle> keyGroupStates;
+
+		private final OneShotLatch checkpointLatch = new OneShotLatch();
+
+		public long getCheckpointId() {
+			return checkpointId;
+		}
+
+		public ChainedStateHandle<StreamStateHandle> getState() {
+			return state;
+		}
+
+		List<KeyGroupsStateHandle> getKeyGroupStates() {
+			List<KeyGroupsStateHandle> result = new ArrayList<>();
+			for (int i = 0; i < keyGroupStates.size(); i++) {
+				if (keyGroupStates.get(i) != null) {
+					result.add(keyGroupStates.get(i));
+				}
+			}
+			return result;
+		}
+
+		AcknowledgeStreamMockEnvironment(Configuration jobConfig, Configuration taskConfig,
+		                                 ExecutionConfig executionConfig, long memorySize,
+		                                 MockInputSplitProvider inputSplitProvider, int bufferSize) {
+			super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
+		}
+
+
+		@Override
+		public void acknowledgeCheckpoint(long checkpointId, ChainedStateHandle<StreamStateHandle> state,
+		                                  List<KeyGroupsStateHandle> keyGroupStates) {
+			this.checkpointId = checkpointId;
+			this.state = state;
+			this.keyGroupStates = keyGroupStates;
+			checkpointLatch.trigger();
+		}
+
+		public OneShotLatch getCheckpointLatch() {
+			return checkpointLatch;
+		}
+	}
+
+	private static class TestingStreamOperator<IN, OUT>
+			extends AbstractStreamOperator<OUT> implements OneInputStreamOperator<IN, OUT> {
+
+		private static final long serialVersionUID = 774614855940397174L;
+
+		public static int numberRestoreCalls = 0;
+
+		private final long seed;
+		private final long recoveryTimestamp;
+
+		private transient Random random;
+
+		TestingStreamOperator(long seed, long recoveryTimestamp) {
+			this.seed = seed;
+			this.recoveryTimestamp = recoveryTimestamp;
+		}
+
+		@Override
+		public void processElement(StreamRecord<IN> element) throws Exception {
+
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+
+		}
+
+		@Override
+		public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+			if (random == null) {
+				random = new Random(seed);
+			}
+
+			Serializable functionState = generateFunctionState();
+			Integer operatorState = generateOperatorState();
+
+			InstantiationUtil.serializeObject(out, functionState);
+			InstantiationUtil.serializeObject(out, operatorState);
+		}
+
+		@Override
+		public void restoreState(FSDataInputStream in) throws Exception {
+			numberRestoreCalls++;
+
+			if (random == null) {
+				random = new Random(seed);
+			}
+
+			assertEquals(this.recoveryTimestamp, recoveryTimestamp);
+
+			assertNotNull(in);
+
+			Serializable functionState= InstantiationUtil.deserializeObject(in);
+			Integer operatorState= InstantiationUtil.deserializeObject(in);
+
+			assertEquals(random.nextInt(), functionState);
+			assertEquals(random.nextInt(), (int) operatorState);
+		}
+
+
+		private Serializable generateFunctionState() {
+			return random.nextInt();
+		}
+
+		private Integer generateOperatorState() {
+			return random.nextInt();
+		}
+	}
+
 
 	// This must only be used in one test, otherwise the static fields will be changed
 	// by several tests concurrently

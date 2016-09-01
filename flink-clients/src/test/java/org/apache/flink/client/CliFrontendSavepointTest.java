@@ -212,7 +212,7 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					Mockito.eq(new DisposeSavepoint(savepointPath)),
 					any(FiniteDuration.class))).thenReturn(triggerResponse.future());
 
 			triggerResponse.success(getDisposeSavepointSuccess());
@@ -225,7 +225,7 @@ public class CliFrontendSavepointTest {
 
 			assertEquals(0, returnCode);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					Mockito.eq(new DisposeSavepoint(savepointPath)),
 					any(FiniteDuration.class));
 
 			String outMsg = buffer.toString();
@@ -307,7 +307,7 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					Mockito.eq(new DisposeSavepoint(savepointPath)),
 					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
@@ -323,7 +323,7 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					Mockito.eq(new DisposeSavepoint(savepointPath)),
 					any(FiniteDuration.class));
 
 			assertTrue(buffer.toString().contains("expectedTestException"));
@@ -344,7 +344,7 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					Mockito.eq(new DisposeSavepoint(savepointPath)),
 					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
@@ -358,7 +358,7 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty())),
+					Mockito.eq(new DisposeSavepoint(savepointPath)),
 					any(FiniteDuration.class));
 
 			String errMsg = buffer.toString();

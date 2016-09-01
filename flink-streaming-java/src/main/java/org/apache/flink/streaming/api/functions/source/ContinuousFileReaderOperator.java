@@ -24,11 +24,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
@@ -36,13 +35,11 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -128,7 +125,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
 		super.dispose();
 
 		// first try to cancel it properly and
@@ -376,14 +373,10 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	//	---------------------			Checkpointing			--------------------------
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-
-		final AbstractStateBackend.CheckpointStateOutputStream os =
-			this.getStateBackend().createCheckpointStateOutputStream(checkpointId, timestamp);
+	public void snapshotState(FSDataOutputStream os, long checkpointId, long timestamp) throws Exception {
+		super.snapshotState(os, checkpointId, timestamp);
 
 		final ObjectOutputStream oos = new ObjectOutputStream(os);
-		final AbstractStateBackend.CheckpointStateOutputView ov = new AbstractStateBackend.CheckpointStateOutputView(os);
 
 		Tuple3<List<FileInputSplit>, FileInputSplit, S> readerState = this.reader.getReaderState();
 		List<FileInputSplit> pendingSplits = readerState.f0;
@@ -392,35 +385,28 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 		// write the current split
 		oos.writeObject(currSplit);
-
-		// write the pending ones
-		ov.writeInt(pendingSplits.size());
+		oos.writeInt(pendingSplits.size());
 		for (FileInputSplit split : pendingSplits) {
 			oos.writeObject(split);
 		}
 
 		// write the state of the reading channel
 		oos.writeObject(formatState);
-		taskState.setOperatorState(os.closeAndGetHandle());
-		return taskState;
+		oos.flush();
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state) throws Exception {
-		super.restoreState(state);
+	public void restoreState(FSDataInputStream is) throws Exception {
+		super.restoreState(is);
 
-		StreamStateHandle stream = (StreamStateHandle) state.getOperatorState();
-
-		final InputStream is = stream.getState(getUserCodeClassloader());
 		final ObjectInputStream ois = new ObjectInputStream(is);
-		final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(is);
 
 		// read the split that was being read
 		FileInputSplit currSplit = (FileInputSplit) ois.readObject();
 
 		// read the pending splits list
 		List<FileInputSplit> pendingSplits = new LinkedList<>();
-		int noOfSplits = div.readInt();
+		int noOfSplits = ois.readInt();
 		for (int i = 0; i < noOfSplits; i++) {
 			FileInputSplit split = (FileInputSplit) ois.readObject();
 			pendingSplits.add(split);
@@ -435,6 +421,5 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			"The reader state has already been initialized.");
 
 		this.readerState = new Tuple3<>(pendingSplits, currSplit, formatState);
-		div.close();
 	}
 }

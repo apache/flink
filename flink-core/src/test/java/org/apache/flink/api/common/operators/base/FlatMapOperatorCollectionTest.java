@@ -77,7 +77,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
 		} else {
 			executionConfig.enableObjectReuse();
 		}
-		final TaskInfo taskInfo = new TaskInfo("Test UDF", 0, 4, 0);
+		final TaskInfo taskInfo = new TaskInfo("Test UDF", 4, 0, 4, 0);
 		// run on collections
 		final List<String> result = getTestFlatMapOperator(udf)
 				.executeOnCollections(input,

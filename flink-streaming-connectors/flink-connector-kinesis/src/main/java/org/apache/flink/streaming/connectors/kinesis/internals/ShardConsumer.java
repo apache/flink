@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
+import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
@@ -29,6 +30,8 @@ import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -36,12 +39,15 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Properties;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Thread that does the actual data pulling from AWS Kinesis shards. Each thread is in charge of one Kinesis shard only.
  */
 public class ShardConsumer<T> implements Runnable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ShardConsumer.class);
 
 	private final KinesisDeserializationSchema<T> deserializer;
 
@@ -87,6 +93,9 @@ public class ShardConsumer<T> implements Runnable {
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
+		checkArgument(
+			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
+			"Should not start a ShardConsumer if the shard has already been completely read.");
 
 		this.deserializer = fetcherRef.getClonedDeserializationSchema();
 
@@ -129,7 +138,7 @@ public class ShardConsumer<T> implements Runnable {
 						kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
 
 					// get only the last aggregated record
-					GetRecordsResult getRecordsResult = kinesis.getRecords(itrForLastAggregatedRecord, 1);
+					GetRecordsResult getRecordsResult = getRecords(itrForLastAggregatedRecord, 1);
 
 					List<UserRecord> fetchedRecords = deaggregateRecords(
 						getRecordsResult.getRecords(),
@@ -164,7 +173,7 @@ public class ShardConsumer<T> implements Runnable {
 						Thread.sleep(fetchIntervalMillis);
 					}
 
-					GetRecordsResult getRecordsResult = kinesis.getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
+					GetRecordsResult getRecordsResult = getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
 
 					// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
 					List<UserRecord> fetchedRecords = deaggregateRecords(
@@ -195,11 +204,15 @@ public class ShardConsumer<T> implements Runnable {
 	}
 
 	/**
-	 * Deserializes a record for collection, and accordingly updates the shard state in the fetcher.
+	 * Deserializes a record for collection, and accordingly updates the shard state in the fetcher. The last
+	 * successfully collected sequence number in this shard consumer is also updated so that
+	 * {@link ShardConsumer#getRecords(String, int)} may be able to use the correct sequence number to refresh shard
+	 * iterators if necessary.
+	 *
 	 * Note that the server-side Kinesis timestamp is attached to the record when collected. When the
 	 * user programs uses {@link TimeCharacteristic#EventTime}, this timestamp will be used by default.
 	 *
-	 * @param record
+	 * @param record record to deserialize and collect
 	 * @throws IOException
 	 */
 	private void deserializeRecordForCollectionAndUpdateState(UserRecord record)
@@ -219,19 +232,52 @@ public class ShardConsumer<T> implements Runnable {
 			subscribedShard.getStreamName(),
 			subscribedShard.getShard().getShardId());
 
-		if (record.isAggregated()) {
-			fetcherRef.emitRecordAndUpdateState(
-				value,
-				approxArrivalTimestamp,
-				subscribedShardStateIndex,
-				new SequenceNumber(record.getSequenceNumber(), record.getSubSequenceNumber()));
-		} else {
-			fetcherRef.emitRecordAndUpdateState(
-				value,
-				approxArrivalTimestamp,
-				subscribedShardStateIndex,
-				new SequenceNumber(record.getSequenceNumber()));
+		SequenceNumber collectedSequenceNumber = (record.isAggregated())
+			? new SequenceNumber(record.getSequenceNumber(), record.getSubSequenceNumber())
+			: new SequenceNumber(record.getSequenceNumber());
+
+		fetcherRef.emitRecordAndUpdateState(
+			value,
+			approxArrivalTimestamp,
+			subscribedShardStateIndex,
+			collectedSequenceNumber);
+
+		lastSequenceNum = collectedSequenceNumber;
+	}
+
+	/**
+	 * Calls {@link KinesisProxyInterface#getRecords(String, int)}, while also handling unexpected
+	 * AWS {@link ExpiredIteratorException}s to assure that we get results and don't just fail on
+	 * such occasions. The returned shard iterator within the successful {@link GetRecordsResult} should
+	 * be used for the next call to this method.
+	 *
+	 * Note: it is important that this method is not called again before all the records from the last result have been
+	 * fully collected with {@link ShardConsumer#deserializeRecordForCollectionAndUpdateState(UserRecord)}, otherwise
+	 * {@link ShardConsumer#lastSequenceNum} may refer to a sub-record in the middle of an aggregated record, leading to
+	 * incorrect shard iteration if the iterator had to be refreshed.
+	 *
+	 * @param shardItr shard iterator to use
+	 * @param maxNumberOfRecords the maximum number of records to fetch for this getRecords attempt
+	 * @return get records result
+	 * @throws InterruptedException
+	 */
+	private GetRecordsResult getRecords(String shardItr, int maxNumberOfRecords) throws InterruptedException {
+		GetRecordsResult getRecordsResult = null;
+		while (getRecordsResult == null) {
+			try {
+				getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
+			} catch (ExpiredIteratorException eiEx) {
+				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
+					" refreshing the iterator ...", shardItr, subscribedShard);
+				shardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+
+				// sleep for the fetch interval before the next getRecords attempt with the refreshed iterator
+				if (fetchIntervalMillis != 0) {
+					Thread.sleep(fetchIntervalMillis);
+				}
+			}
 		}
+		return getRecordsResult;
 	}
 
 	@SuppressWarnings("unchecked")

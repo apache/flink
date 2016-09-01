@@ -29,6 +29,7 @@
 version: "1.2-SNAPSHOT"
 version_hadoop1: "1.2-hadoop1-SNAPSHOT"
 version_short: "1.2" # Used for the top navbar w/o snapshot suffix
+is_snapshot_version: true
 
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.10"
@@ -40,6 +41,16 @@ jira_url: "https://issues.apache.org/jira/browse/FLINK"
 github_url: "https://github.com/apache/flink"
 download_url: "http://flink.apache.org/downloads.html"
 
+# Flag whether this is the latest stable version or not. If not, a warning
+# will be printed pointing to the docs of the latest stable version.
+is_latest: true
+is_stable: false
+latest_stable_url: http://ci.apache.org/projects/flink/flink-docs-release-1.1
+
+previous_docs:
+  1.1: http://ci.apache.org/projects/flink/flink-docs-release-1.1
+  1.0: http://ci.apache.org/projects/flink/flink-docs-release-1.0
+
 #------------------------------------------------------------------------------
 # BUILD CONFIG
 #------------------------------------------------------------------------------
@@ -47,14 +58,16 @@ download_url: "http://flink.apache.org/downloads.html"
 # to change anything here.
 #------------------------------------------------------------------------------
 
+# Used in some documents to initialize arrays. Don't delete.
+array: []
+
 defaults:
   -
     scope:
       path: ""
     values:
       layout: plain
-      top-nav-pos: 99999 # Move to end
-      sub-nav-pos: 99999 # Move to end
+      nav-pos: 99999 # Move to end if no pos specified
 
 markdown: KramdownPygments
 highlighter: pygments
