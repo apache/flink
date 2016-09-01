@@ -41,12 +41,16 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.JobManagerCommunicationFactory;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskExecutionStateListener;
+import org.apache.flink.runtime.taskmanager.TaskManagerConnection;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -98,12 +102,12 @@ public class StreamTaskTest {
 
 		Task task = createTask(SourceStreamTask.class, cfg);
 
-		ExecutionStateListener executionStateListener = new ExecutionStateListener();
+		TestingExecutionStateListener testingExecutionStateListener = new TestingExecutionStateListener();
 
-		task.registerExecutionListener(executionStateListener);
+		task.registerExecutionListener(testingExecutionStateListener);
 		task.startTaskThread();
 
-		Future<ExecutionState> running = executionStateListener.notifyWhenExecutionState(ExecutionState.RUNNING);
+		Future<ExecutionState> running = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.RUNNING);
 
 		// wait until the task thread reached state RUNNING
 		ExecutionState executionState = Await.result(running, deadline.timeLeft());
@@ -118,7 +122,7 @@ public class StreamTaskTest {
 		// hit the task before the operator is deserialized
 		task.cancelExecution();
 
-		Future<ExecutionState> canceling = executionStateListener.notifyWhenExecutionState(ExecutionState.CANCELING);
+		Future<ExecutionState> canceling = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.CANCELING);
 
 		executionState = Await.result(canceling, deadline.timeLeft());
 
@@ -137,9 +141,7 @@ public class StreamTaskTest {
 	//  Test Utilities
 	// ------------------------------------------------------------------------
 
-	private static class ExecutionStateListener implements ActorGateway {
-
-		private static final long serialVersionUID = 8926442805035692182L;
+	private static class TestingExecutionStateListener implements TaskExecutionStateListener {
 
 		ExecutionState executionState = null;
 
@@ -167,55 +169,16 @@ public class StreamTaskTest {
 		}
 
 		@Override
-		public Future<Object> ask(Object message, FiniteDuration timeout) {
-			return null;
-		}
+		public void notifyTaskExecutionStateChanged(TaskExecutionState taskExecutionState) {
+			synchronized (priorityQueue) {
+				this.executionState = taskExecutionState.getExecutionState();
 
-		@Override
-		public void tell(Object message) {
-			this.tell(message, null);
-		}
+				while (!priorityQueue.isEmpty() && priorityQueue.peek().f0.ordinal() <= executionState.ordinal()) {
+					Promise<ExecutionState> promise = priorityQueue.poll().f1;
 
-		@Override
-		public void tell(Object message, ActorGateway sender) {
-			if (message instanceof TaskMessages.UpdateTaskExecutionState) {
-				TaskMessages.UpdateTaskExecutionState updateTaskExecutionState = (TaskMessages.UpdateTaskExecutionState) message;
-
-				synchronized (priorityQueue) {
-					this.executionState = updateTaskExecutionState.taskExecutionState().getExecutionState();
-
-					while (!priorityQueue.isEmpty() && priorityQueue.peek().f0.ordinal() <= this.executionState.ordinal()) {
-						Promise<ExecutionState> promise = priorityQueue.poll().f1;
-
-						promise.success(this.executionState);
-					}
+					promise.success(executionState);
 				}
 			}
-		}
-
-		@Override
-		public void forward(Object message, ActorGateway sender) {
-
-		}
-
-		@Override
-		public Future<Object> retry(Object message, int numberRetries, FiniteDuration timeout, ExecutionContext executionContext) {
-			return null;
-		}
-
-		@Override
-		public String path() {
-			return null;
-		}
-
-		@Override
-		public ActorRef actor() {
-			return null;
-		}
-
-		@Override
-		public UUID leaderSessionID() {
-			return null;
 		}
 	}
 
@@ -254,9 +217,9 @@ public class StreamTaskTest {
 			network,
 			jobManagerCommunicationFactory,
 			mock(BroadcastVariableManager.class),
-			new DummyGateway(),
-			new DummyGateway(),
-			new FiniteDuration(60, TimeUnit.SECONDS),
+			mock(TaskManagerConnection.class),
+			mock(InputSplitProvider.class),
+			mock(CheckpointResponder.class),
 			libCache,
 			mock(FileCache.class),
 			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),

@@ -1134,6 +1134,17 @@ class TaskManager(
       
       val taskMetricGroup = taskManagerMetricGroup.addTaskForJob(tdd)
 
+      val inputSplitProvider = new TaskInputSplitProvider(
+        jobManagerGateway,
+        tdd.getJobID,
+        tdd.getVertexID,
+        tdd.getExecutionId,
+        config.timeout)
+
+      val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway);
+
+      val taskManagerConnection = new ActorGatewayTaskManagerConnection(selfGateway)
+
       val task = new Task(
         tdd,
         memoryManager,
@@ -1141,9 +1152,9 @@ class TaskManager(
         network,
         jmFactory,
         bcVarManager,
-        selfGateway,
-        jobManagerGateway,
-        config.timeout,
+        taskManagerConnection,
+        inputSplitProvider,
+        checkpointResponder,
         libCache,
         fileCache,
         runtimeInfo,

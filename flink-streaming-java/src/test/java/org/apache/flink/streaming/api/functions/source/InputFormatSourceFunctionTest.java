@@ -84,6 +84,7 @@ public class InputFormatSourceFunctionTest {
 
 	private static class LifeCycleTestInputFormat extends RichInputFormat<Integer,InputSplit> {
 
+		private static final long serialVersionUID = 7408902249499583273L;
 		private boolean isConfigured = false;
 		private boolean isInputFormatOpen = false;
 		private boolean isSplitOpen = false;
@@ -128,6 +129,8 @@ public class InputFormatSourceFunctionTest {
 			for (int i = 0; i < minNumSplits; i++) {
 				final int idx = i;
 				splits[idx] = new InputSplit() {
+					private static final long serialVersionUID = -1480792932361908285L;
+
 					@Override
 					public int getSplitNumber() {
 						return idx;
@@ -270,7 +273,7 @@ public class InputFormatSourceFunctionTest {
 
 			return new InputSplitProvider() {
 				@Override
-				public InputSplit getNextInputSplit() {
+				public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) {
 					if (nextSplit < inputSplits.length) {
 						return inputSplits[nextSplit++];
 					}
