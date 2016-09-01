@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.hadoop.shaded.org.jboss.netty.util.internal.ConcurrentHashMap;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -42,6 +43,8 @@ public class NonHaServices implements HighAvailabilityServices {
 	/** The fix address of the ResourceManager */
 	private final String resourceManagerAddress;
 
+	private final ConcurrentHashMap<JobID, String> jobMastersAddress;
+
 	/**
 	 * Creates a new services class for the fix pre-defined leaders.
 	 * 
@@ -49,6 +52,17 @@ public class NonHaServices implements HighAvailabilityServices {
 	 */
 	public NonHaServices(String resourceManagerAddress) {
 		this.resourceManagerAddress = checkNotNull(resourceManagerAddress);
+		this.jobMastersAddress = new ConcurrentHashMap<>(16);
+	}
+
+	/**
+	 * Binds address of a specified job master
+	 *
+	 * @param jobID            JobID for the specified job master
+	 * @param jobMasterAddress address for the specified job master
+	 */
+	public void bindJobMasterLeaderAddress(JobID jobID, String jobMasterAddress) {
+		jobMastersAddress.put(jobID, jobMasterAddress);
 	}
 
 	// ------------------------------------------------------------------------
@@ -58,6 +72,11 @@ public class NonHaServices implements HighAvailabilityServices {
 	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception {
 		return new StandaloneLeaderRetrievalService(resourceManagerAddress, new UUID(0, 0));
+	}
+
+	@Override
+	public LeaderRetrievalService getJobMasterLeaderRetriever(JobID jobID) throws Exception {
+		return new StandaloneLeaderRetrievalService(jobMastersAddress.get(jobID), new UUID(0, 0));
 	}
 
 	@Override
