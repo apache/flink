@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -26,7 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A ResourceSlot represents a slot located in TaskManager from ResourceManager's view. It has a unique
  * identification and resource profile which we can compare to the resource request.
  */
-public class ResourceSlot implements ResourceIDRetrievable, Serializable {
+public class ResourceSlot implements ResourceIDRetrievable {
 
 	private static final long serialVersionUID = -5853720153136840674L;
 
@@ -36,9 +38,13 @@ public class ResourceSlot implements ResourceIDRetrievable, Serializable {
 	/** The resource profile of this slot */
 	private final ResourceProfile resourceProfile;
 
-	public ResourceSlot(SlotID slotId, ResourceProfile resourceProfile) {
+	/** Gateway to the TaskExecutor which owns the slot */
+	private final TaskExecutorGateway taskExecutorGateway;
+
+	public ResourceSlot(SlotID slotId, ResourceProfile resourceProfile, TaskExecutorGateway taskExecutorGateway) {
 		this.slotId = checkNotNull(slotId);
 		this.resourceProfile = checkNotNull(resourceProfile);
+		this.taskExecutorGateway = taskExecutorGateway;
 	}
 
 	@Override
@@ -52,6 +58,10 @@ public class ResourceSlot implements ResourceIDRetrievable, Serializable {
 
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
+	}
+
+	public TaskExecutorGateway getTaskExecutorGateway() {
+		return taskExecutorGateway;
 	}
 
 	/**

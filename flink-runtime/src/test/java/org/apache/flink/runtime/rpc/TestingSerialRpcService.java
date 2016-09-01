@@ -137,6 +137,10 @@ public class TestingSerialRpcService implements RpcService {
 		}
 	}
 
+	public void clearGateways() {
+		registeredConnections.clear();
+	}
+
 	private static final class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutor, StartStoppable {
 
 		private final T rpcEndpoint;

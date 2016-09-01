@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager;
+package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -24,14 +24,23 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
+import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -51,12 +60,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ul>
  * <b>IMPORTANT:</b> This class is <b>Not Thread-safe</b>.
  */
-public abstract class SlotManager {
+public abstract class SlotManager implements LeaderRetrievalListener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SlotManager.class);
+	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
-	/** Gateway to communicate with ResourceManager */
-	private final ResourceManagerGateway resourceManagerGateway;
+	/** All registered task managers with ResourceID and gateway. */
+	private final Map<ResourceID, TaskExecutorGateway> taskManagerGateways;
 
 	/** All registered slots, including free and allocated slots */
 	private final Map<ResourceID, Map<SlotID, ResourceSlot>> registeredSlots;
@@ -70,13 +79,20 @@ public abstract class SlotManager {
 	/** All allocations, we can lookup allocations either by SlotID or AllocationID */
 	private final AllocationMap allocationMap;
 
-	public SlotManager(ResourceManagerGateway resourceManagerGateway) {
-		this.resourceManagerGateway = checkNotNull(resourceManagerGateway);
+	private final FiniteDuration timeout;
+
+	/** The current leader id set by the ResourceManager */
+	private UUID leaderID;
+
+	public SlotManager() {
 		this.registeredSlots = new HashMap<>(16);
 		this.pendingSlotRequests = new LinkedHashMap<>(16);
 		this.freeSlots = new HashMap<>(16);
 		this.allocationMap = new AllocationMap();
+		this.taskManagerGateways = new HashMap<>();
+		this.timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  slot managements
@@ -89,32 +105,38 @@ public abstract class SlotManager {
 	 * RPC's main thread to avoid race condition).
 	 *
 	 * @param request The detailed request of the slot
+	 * @return SlotRequestRegistered The confirmation message to be send to the caller
 	 */
-	public void requestSlot(final SlotRequest request) {
+	public SlotRequestRegistered requestSlot(final SlotRequest request) {
+		final AllocationID allocationId = request.getAllocationId();
 		if (isRequestDuplicated(request)) {
-			LOG.warn("Duplicated slot request, AllocationID:{}", request.getAllocationId());
-			return;
+			LOG.warn("Duplicated slot request, AllocationID:{}", allocationId);
+			return null;
 		}
 
 		// try to fulfil the request with current free slots
-		ResourceSlot slot = chooseSlotToUse(request, freeSlots);
+		final ResourceSlot slot = chooseSlotToUse(request, freeSlots);
 		if (slot != null) {
 			LOG.info("Assigning SlotID({}) to AllocationID({}), JobID:{}", slot.getSlotId(),
-				request.getAllocationId(), request.getJobId());
+				allocationId, request.getJobId());
 
 			// record this allocation in bookkeeping
-			allocationMap.addAllocation(slot.getSlotId(), request.getAllocationId());
+			allocationMap.addAllocation(slot.getSlotId(), allocationId);
 
 			// remove selected slot from free pool
 			freeSlots.remove(slot.getSlotId());
 
-			// TODO: send slot request to TaskManager
+			final Future<SlotRequestReply> slotRequestReplyFuture =
+				slot.getTaskExecutorGateway().requestSlot(allocationId, leaderID, timeout);
+			// TODO handle timeouts and response
 		} else {
 			LOG.info("Cannot fulfil slot request, try to allocate a new container for it, " +
-				"AllocationID:{}, JobID:{}", request.getAllocationId(), request.getJobId());
+				"AllocationID:{}, JobID:{}", allocationId, request.getJobId());
 			allocateContainer(request.getResourceProfile());
-			pendingSlotRequests.put(request.getAllocationId(), request);
+			pendingSlotRequests.put(allocationId, request);
 		}
+
+		return new SlotRequestRegistered(allocationId);
 	}
 
 	/**
@@ -124,6 +146,15 @@ public abstract class SlotManager {
 		for (SlotStatus slotStatus : slotReport.getSlotsStatus()) {
 			updateSlotStatus(slotStatus);
 		}
+	}
+
+	/**
+	 * Registers a TaskExecutor
+	 * @param resourceID TaskExecutor's ResourceID
+	 * @param gateway TaskExcutor's gateway
+	 */
+	public void registerTaskExecutor(ResourceID resourceID, TaskExecutorGateway gateway) {
+		this.taskManagerGateways.put(resourceID, gateway);
 	}
 
 	/**
@@ -196,10 +227,11 @@ public abstract class SlotManager {
 	 */
 	public void notifyTaskManagerFailure(final ResourceID resourceId) {
 		LOG.info("Resource:{} been notified failure", resourceId);
+		taskManagerGateways.remove(resourceId);
 		final Map<SlotID, ResourceSlot> slotIdsToRemove = registeredSlots.remove(resourceId);
 		if (slotIdsToRemove != null) {
 			for (SlotID slotId : slotIdsToRemove.keySet()) {
-				LOG.info("Removing Slot:{} upon resource failure", slotId);
+				LOG.info("Removing Slot: {} upon resource failure", slotId);
 				if (freeSlots.containsKey(slotId)) {
 					freeSlots.remove(slotId);
 				} else if (allocationMap.isAllocated(slotId)) {
@@ -234,7 +266,15 @@ public abstract class SlotManager {
 	 */
 	void updateSlotStatus(final SlotStatus reportedStatus) {
 		final SlotID slotId = reportedStatus.getSlotID();
-		final ResourceSlot slot = new ResourceSlot(slotId, reportedStatus.getProfiler());
+
+		final TaskExecutorGateway taskExecutorGateway = taskManagerGateways.get(slotId.getResourceID());
+		if (taskExecutorGateway == null) {
+			LOG.info("Received SlotStatus but ResourceID {} is unknown to the SlotManager",
+				slotId.getResourceID());
+			return;
+		}
+
+		final ResourceSlot slot = new ResourceSlot(slotId, reportedStatus.getProfiler(), taskExecutorGateway);
 
 		if (registerNewSlot(slot)) {
 			// we have a newly registered slot
@@ -244,7 +284,7 @@ public abstract class SlotManager {
 				// slot in use, record this in bookkeeping
 				allocationMap.addAllocation(slotId, reportedStatus.getAllocationID());
 			} else {
-				handleFreeSlot(new ResourceSlot(slotId, reportedStatus.getProfiler()));
+				handleFreeSlot(slot);
 			}
 		} else {
 			// slot exists, update current information
@@ -287,7 +327,7 @@ public abstract class SlotManager {
 					allocationMap.removeAllocation(slotId);
 
 					// we have a free slot!
-					handleFreeSlot(new ResourceSlot(slotId, reportedStatus.getProfiler()));
+					handleFreeSlot(slot);
 				}
 			}
 		}
@@ -304,13 +344,16 @@ public abstract class SlotManager {
 		SlotRequest chosenRequest = chooseRequestToFulfill(freeSlot, pendingSlotRequests);
 
 		if (chosenRequest != null) {
-			pendingSlotRequests.remove(chosenRequest.getAllocationId());
+			final AllocationID allocationId = chosenRequest.getAllocationId();
+			pendingSlotRequests.remove(allocationId);
 
 			LOG.info("Assigning SlotID({}) to AllocationID({}), JobID:{}", freeSlot.getSlotId(),
-				chosenRequest.getAllocationId(), chosenRequest.getJobId());
-			allocationMap.addAllocation(freeSlot.getSlotId(), chosenRequest.getAllocationId());
+				allocationId, chosenRequest.getJobId());
+			allocationMap.addAllocation(freeSlot.getSlotId(), allocationId);
 
-			// TODO: send slot request to TaskManager
+			final Future<SlotRequestReply> slotRequestReplyFuture =
+				freeSlot.getTaskExecutorGateway().requestSlot(allocationId, leaderID, timeout);
+			// TODO handle timeouts and response
 		} else {
 			freeSlots.put(freeSlot.getSlotId(), freeSlot);
 		}
@@ -382,7 +425,6 @@ public abstract class SlotManager {
 	 * @param resourceProfile The resource profile
 	 */
 	protected abstract void allocateContainer(final ResourceProfile resourceProfile);
-
 
 	// ------------------------------------------------------------------------
 	//  Helper classes
@@ -473,6 +515,20 @@ public abstract class SlotManager {
 		public int size() {
 			return allocatedSlots.size();
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  High availability
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
+		this.leaderID = leaderSessionID;
+	}
+
+	@Override
+	public void handleError(Exception exception) {
+		LOG.error("Slot Manager received an error from the leader service", exception);
 	}
 
 	// ------------------------------------------------------------------------
