@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -32,6 +34,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.rpc.UnmatchedLeaderSessionIDException;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 
 import scala.concurrent.Future;
 
@@ -44,15 +48,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * ResourceManager implementation. The resource manager is responsible for resource de-/allocation
  * and bookkeeping.
- *
+ * <p>
  * It offers the following methods as part of its rpc interface to interact with the him remotely:
  * <ul>
- *     <li>{@link #registerJobMaster(JobMasterRegistration)} registers a {@link JobMaster} at the resource manager</li>
- *     <li>{@link #requestSlot(SlotRequest)} requests a slot from the resource manager</li>
+ * <li>{@link #registerJobMaster(UUID, JobMasterRegistration)} registers a {@link JobMaster} at the resource manager</li>
+ * <li>{@link #requestSlot(SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
 public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	private final Map<JobMasterGateway, InstanceID> jobMasterGateways;
+
+	/** the mapping relationship of JobID and JobMasterGateway */
+	private final Map<JobID, JobMasterGateway> jobMasterJobIDs;
+
 	private final HighAvailabilityServices highAvailabilityServices;
 	private LeaderElectionService leaderElectionService = null;
 	private UUID leaderSessionID = null;
@@ -60,7 +68,8 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	public ResourceManager(RpcService rpcService, HighAvailabilityServices highAvailabilityServices) {
 		super(rpcService);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
-		this.jobMasterGateways = new HashMap<>();
+		this.jobMasterGateways = new HashMap<>(16);
+		this.jobMasterJobIDs = new HashMap<>(16);
 	}
 
 	@Override
@@ -81,7 +90,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 		try {
 			leaderElectionService.stop();
 			super.shutDown();
-		} catch(Throwable e) {
+		} catch (Throwable e) {
 			log.error("A fatal error happened when shutdown the ResourceManager", e);
 			throw new RuntimeException("A fatal error happened when shutdown the ResourceManager", e);
 		}
@@ -100,26 +109,40 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
 	 *
-	 * @param jobMasterRegistration Job master registration information
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
+	 * @param jobMasterRegistration   Job master registration information
 	 * @return Future registration response
 	 */
 	@RpcMethod
-	public Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration) {
+	public Future<RegistrationResponse> registerJobMaster(UUID resourceManagerLeaderId,
+		JobMasterRegistration jobMasterRegistration) {
+		final JobID jobID = jobMasterRegistration.getJobID();
+		final String address = jobMasterRegistration.getAddress();
+
+		if(!leaderSessionID.equals(resourceManagerLeaderId)) {
+			log.warn("Discard registration from JobMaster {} at ({}) because the expected leader session ID {} did not equal the received leader session ID  {}",
+				jobID, address, leaderSessionID, resourceManagerLeaderId);
+			return Futures.failed(new UnmatchedLeaderSessionIDException(leaderSessionID, resourceManagerLeaderId));
+		}
+
 		Future<JobMasterGateway> jobMasterFuture = getRpcService().connect(jobMasterRegistration.getAddress(), JobMasterGateway.class);
+
 
 		return jobMasterFuture.map(new Mapper<JobMasterGateway, RegistrationResponse>() {
 			@Override
 			public RegistrationResponse apply(final JobMasterGateway jobMasterGateway) {
 				InstanceID instanceID;
 
-				if (jobMasterGateways.containsKey(jobMasterGateway)) {
-					instanceID = jobMasterGateways.get(jobMasterGateway);
+				if (jobMasterJobIDs.containsKey(jobID)) {
+					log.warn("Receive a duplicate registration from JobMaster {} at ({})", jobID, address);
+					instanceID = jobMasterGateways.get(jobMasterJobIDs.get(jobID));
 				} else {
 					instanceID = new InstanceID();
 					jobMasterGateways.put(jobMasterGateway, instanceID);
+					jobMasterJobIDs.put(jobID, jobMasterGateway);
 				}
 
-				return new RegistrationResponse(true, instanceID);
+				return new TaskExecutorRegistrationSuccess(instanceID, 5000);
 			}
 		}, getMainThreadExecutionContext());
 	}
@@ -138,18 +161,16 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 
 
 	/**
-	 *
-	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader 
-	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
-	 * @param resourceID               The resource ID of the TaskExecutor that registers
-	 *
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
+	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
+	 * @param resourceID              The resource ID of the TaskExecutor that registers
 	 * @return The response by the ResourceManager.
 	 */
 	@RpcMethod
-	public org.apache.flink.runtime.registration.RegistrationResponse registerTaskExecutor(
-			UUID resourceManagerLeaderId,
-			String taskExecutorAddress,
-			ResourceID resourceID) {
+	public RegistrationResponse registerTaskExecutor(
+		UUID resourceManagerLeaderId,
+		String taskExecutorAddress,
+		ResourceID resourceID) {
 
 		return new TaskExecutorRegistrationSuccess(new InstanceID(), 5000);
 	}

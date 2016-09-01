@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.JobID;
+
 import java.io.Serializable;
 
 public class JobMasterRegistration implements Serializable {
@@ -25,11 +27,18 @@ public class JobMasterRegistration implements Serializable {
 
 	private final String address;
 
-	public JobMasterRegistration(String address) {
+	private final JobID jobID;
+
+	public JobMasterRegistration(String address, JobID jobID) {
 		this.address = address;
+		this.jobID = jobID;
 	}
 
 	public String getAddress() {
 		return address;
+	}
+
+	public JobID getJobID() {
+		return jobID;
 	}
 }

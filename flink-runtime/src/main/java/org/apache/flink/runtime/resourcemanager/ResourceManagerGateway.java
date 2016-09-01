@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -36,21 +37,16 @@ public interface ResourceManagerGateway extends RpcGateway {
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
 	 *
-	 * @param jobMasterRegistration Job master registration information
-	 * @param timeout Timeout for the future to complete
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
+	 * @param jobMasterRegistration   Job master registration information
+	 * @param timeout                 Timeout for the future to complete
 	 * @return Future registration response
 	 */
 	Future<RegistrationResponse> registerJobMaster(
+		UUID resourceManagerLeaderId,
 		JobMasterRegistration jobMasterRegistration,
 		@RpcTimeout FiniteDuration timeout);
 
-	/**
-	 * Register a {@link JobMaster} at the resource manager.
-	 *
-	 * @param jobMasterRegistration Job master registration information
-	 * @return Future registration response
-	 */
-	Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration);
 
 	/**
 	 * Requests a slot from the resource manager.
@@ -61,15 +57,13 @@ public interface ResourceManagerGateway extends RpcGateway {
 	Future<SlotAssignment> requestSlot(SlotRequest slotRequest);
 
 	/**
-	 * 
-	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader 
-	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
-	 * @param resourceID               The resource ID of the TaskExecutor that registers
-	 * @param timeout                  The timeout for the response.
-	 * 
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
+	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
+	 * @param resourceID              The resource ID of the TaskExecutor that registers
+	 * @param timeout                 The timeout for the response.
 	 * @return The future to the response by the ResourceManager.
 	 */
-	Future<org.apache.flink.runtime.registration.RegistrationResponse> registerTaskExecutor(
+	Future<RegistrationResponse> registerTaskExecutor(
 			UUID resourceManagerLeaderId,
 			String taskExecutorAddress,
 			ResourceID resourceID,
