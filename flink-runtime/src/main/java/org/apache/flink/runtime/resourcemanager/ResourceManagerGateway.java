@@ -58,7 +58,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param slotRequest Slot request
 	 * @return Future slot assignment
 	 */
-	Future<SlotAssignment> requestSlot(SlotRequest slotRequest);
+	Future<SlotRequestRegistered> requestSlot(SlotRequest slotRequest);
 
 	/**
 	 * 
