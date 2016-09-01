@@ -50,7 +50,10 @@ public class SlotStatus implements Serializable {
 		this(slotID, profiler, null, null);
 	}
 
-	public SlotStatus(SlotID slotID, ResourceProfile profiler, AllocationID allocationID, JobID jobID) {
+	public SlotStatus(
+			SlotID slotID, ResourceProfile profiler,
+			JobID jobID,
+			AllocationID allocationID) {
 		this.slotID = checkNotNull(slotID, "slotID cannot be null");
 		this.profiler = checkNotNull(profiler, "profile cannot be null");
 		this.allocationID = allocationID;

@@ -18,26 +18,17 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 
 import java.io.Serializable;
 
-public class JobMasterRegistration implements Serializable {
-	private static final long serialVersionUID = 8411214999193765202L;
+/**
+ * Rejection message by the ResourceManager for a SlotRequest from the JobManager
+ */
+public class SlotRequestRejected extends SlotRequestReply {
 
-	private final String address;
-	private final JobID jobID;
-
-	public JobMasterRegistration(String address, JobID jobID) {
-		this.address = address;
-		this.jobID = jobID;
+	public SlotRequestRejected(AllocationID allocationID) {
+		super(allocationID);
 	}
 
-	public String getAddress() {
-		return address;
-	}
-
-	public JobID getJobID() {
-		return jobID;
-	}
 }

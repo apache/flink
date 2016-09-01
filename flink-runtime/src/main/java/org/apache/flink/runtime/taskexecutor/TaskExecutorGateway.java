@@ -18,7 +18,12 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcTimeout;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
 
@@ -32,4 +37,16 @@ public interface TaskExecutorGateway extends RpcGateway {
 	// ------------------------------------------------------------------------
 
 	void notifyOfNewResourceManagerLeader(String address, UUID resourceManagerLeaderId);
+
+	/**
+	 * Send by the ResourceManager to the TaskExecutor
+	 * @param allocationID id for the request
+	 * @param resourceManagerLeaderID current leader id of the ResourceManager
+	 * @return SlotRequestReply Answer to the request
+	 */
+
+	Future<SlotRequestReply> requestSlot(
+		AllocationID allocationID,
+		UUID resourceManagerLeaderID,
+		@RpcTimeout FiniteDuration timeout);
 }
