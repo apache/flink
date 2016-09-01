@@ -18,23 +18,56 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+<<<<<<< HEAD
 import org.apache.flink.api.common.JobID;
+=======
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+>>>>>>> db98efb... rsourceManager registration with JobManager
 
 import java.io.Serializable;
+import java.util.UUID;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * This class is responsible for group the JobMasterGateway and the LeaderSessionID of a registered job master
+ */
 public class JobMasterRegistration implements Serializable {
-	private static final long serialVersionUID = 8411214999193765202L;
 
+<<<<<<< HEAD
 	private final String address;
 	private final JobID jobID;
 
 	public JobMasterRegistration(String address, JobID jobID) {
 		this.address = address;
 		this.jobID = jobID;
+=======
+	private static final long serialVersionUID = -2316627821716999527L;
+
+	private final JobMasterGateway jobMasterGateway;
+
+	private UUID jobMasterLeaderSessionID;
+
+	public JobMasterRegistration(JobMasterGateway jobMasterGateway) {
+		this.jobMasterGateway = checkNotNull(jobMasterGateway);
 	}
 
-	public String getAddress() {
-		return address;
+	public JobMasterRegistration(JobMasterGateway jobMasterGateway, UUID jobMasterLeaderSessionID) {
+		this.jobMasterGateway = checkNotNull(jobMasterGateway);
+		this.jobMasterLeaderSessionID = jobMasterLeaderSessionID;
+	}
+
+	public JobMasterGateway getJobMasterGateway() {
+		return jobMasterGateway;
+	}
+
+	public void setJobMasterLeaderSessionID(UUID leaderSessionID) {
+		this.jobMasterLeaderSessionID = jobMasterLeaderSessionID;
+>>>>>>> db98efb... rsourceManager registration with JobManager
+	}
+
+	public UUID getJobMasterLeaderSessionID() {
+		return jobMasterLeaderSessionID;
 	}
 
 	public JobID getJobID() {
