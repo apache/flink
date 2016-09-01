@@ -16,24 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph.tasks;
+package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.messages.TaskMessages;
+import org.apache.flink.util.Preconditions;
 
 /**
- * An input split provider can be successively queried to provide a series of {@link InputSplit} objects a
- * task is supposed to consume in the course of its execution.
+ * Implementation using {@link ActorGateway} to forward the messages.
  */
-@Public
-public interface InputSplitProvider {
+public class ActorGatewayTaskExecutionStateListener implements TaskExecutionStateListener {
 
-	/**
-	 * Requests the next input split to be consumed by the calling task.
-	 *
-	 * @param userCodeClassLoader used to deserialize input splits
-	 * @return the next input split to be consumed by the calling task or <code>null</code> if the
-	 *         task shall not consume any further input splits.
-	 */
-	InputSplit getNextInputSplit(ClassLoader userCodeClassLoader);
+	private final ActorGateway actorGateway;
+
+	public ActorGatewayTaskExecutionStateListener(ActorGateway actorGateway) {
+		this.actorGateway = Preconditions.checkNotNull(actorGateway);
+	}
+
+	@Override
+	public void notifyTaskExecutionStateChanged(TaskExecutionState taskExecutionState) {
+		TaskMessages.UpdateTaskExecutionState actorMessage = new TaskMessages.UpdateTaskExecutionState(taskExecutionState);
+
+		actorGateway.tell(actorMessage);
+	}
 }

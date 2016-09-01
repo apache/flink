@@ -333,7 +333,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					return true;
 				}
 				
-				InputSplit split = provider.getNextInputSplit();
+				InputSplit split = provider.getNextInputSplit(getUserCodeClassLoader());
 				
 				if (split != null) {
 					this.nextSplit = split;
