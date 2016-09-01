@@ -211,7 +211,10 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 	@AfterClass
 	public static void stopFlink() {
-		flinkCluster.stop();
+		if (flinkCluster != null) {
+			flinkCluster.stop();
+			flinkCluster = null;
+		}
 	}
 
 	@AfterClass
