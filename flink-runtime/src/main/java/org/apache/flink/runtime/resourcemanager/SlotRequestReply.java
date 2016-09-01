@@ -18,8 +18,24 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+
 import java.io.Serializable;
 
-public class SlotAssignment implements Serializable{
-	private static final long serialVersionUID = -6990813455942742322L;
+/**
+ * Acknowledgment by the ResourceManager for a SlotRequest from the JobManager
+ */
+public abstract class SlotRequestReply implements Serializable {
+
+	private static final long serialVersionUID = 42;
+
+	private final AllocationID allocationID;
+
+	public SlotRequestReply(AllocationID allocationID) {
+		this.allocationID = allocationID;
+	}
+
+	public AllocationID getAllocationID() {
+		return allocationID;
+	}
 }
