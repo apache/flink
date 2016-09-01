@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.hadoop.shaded.org.jboss.netty.util.internal.ConcurrentHashMap;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
@@ -29,6 +30,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 public class TestingHighAvailabilityServices implements HighAvailabilityServices {
 
 	private volatile LeaderRetrievalService resourceManagerLeaderRetriever;
+
+	private ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers = new ConcurrentHashMap<>();
 
 	private volatile LeaderElectionService jobMasterLeaderElectionService;
 
@@ -41,6 +44,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	public void setResourceManagerLeaderRetriever(LeaderRetrievalService resourceManagerLeaderRetriever) {
 		this.resourceManagerLeaderRetriever = resourceManagerLeaderRetriever;
+	}
+
+	public void setJobMasterLeaderRetriever(JobID jobID, LeaderRetrievalService jobMasterLeaderRetriever) {
+		this.jobMasterLeaderRetrievers.put(jobID, jobMasterLeaderRetriever);
 	}
 
 	public void setJobMasterLeaderElectionService(LeaderElectionService leaderElectionService) {
@@ -62,6 +69,16 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 			return service;
 		} else {
 			throw new IllegalStateException("ResourceManagerLeaderRetriever has not been set");
+		}
+	}
+
+	@Override
+	public LeaderRetrievalService getJobMasterLeaderRetriever(JobID jobID) throws Exception {
+		LeaderRetrievalService service = this.jobMasterLeaderRetrievers.get(jobID);
+		if (service != null) {
+			return service;
+		} else {
+			throw new IllegalStateException("JobMasterLeaderRetriever has not been set");
 		}
 	}
 
