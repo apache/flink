@@ -112,4 +112,8 @@ public class TestingRpcService extends AkkaRpcService {
 			return Futures.failed(new Exception("No gateway registered under that name"));
 		}
 	}
+
+	public void clearGateways() {
+		registeredConnections.clear();
+	}
 }
