@@ -41,7 +41,9 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.BitSet;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -189,7 +191,49 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 		rpcEndpoint.tell(Processing.STOP, ActorRef.noSender());
 	}
 
-	// ------------------------------------------------------------------------
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+
+		if (o == null) {
+			return false;
+		}
+
+		if(Proxy.isProxyClass(o.getClass())) {
+			return o.equals(this);
+		}
+
+		if(!(o instanceof AkkaInvocationHandler)) {
+			return false;
+		}
+
+		AkkaInvocationHandler that = (AkkaInvocationHandler) o;
+
+		if (isLocal != that.isLocal) {
+			return false;
+		}
+		if (maximumFramesize != that.maximumFramesize) {
+			return false;
+		}
+		if (!address.equals(that.address)) {
+			return false;
+		}
+		if (!rpcEndpoint.equals(that.rpcEndpoint)) {
+			return false;
+		}
+		return timeout.equals(that.timeout);
+
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(address, rpcEndpoint, isLocal, timeout, maximumFramesize);
+	}
+
+
+// ------------------------------------------------------------------------
 	//  Helper methods
 	// ------------------------------------------------------------------------
 
