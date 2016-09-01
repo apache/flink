@@ -19,8 +19,8 @@ package org.apache.flink.storm.wordcount.operators;
 
 import org.apache.flink.storm.util.FileSpout;
 
-import org.apache.storm.topology.OutputFieldsDeclarer;
-import org.apache.storm.tuple.Fields;
+import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.tuple.Fields;
 
 /**
  * Implements a Spout that reads data from a given local file.

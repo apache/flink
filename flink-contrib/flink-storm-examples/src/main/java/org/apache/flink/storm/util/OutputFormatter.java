@@ -18,7 +18,7 @@
 
 package org.apache.flink.storm.util;
 
-import org.apache.storm.tuple.Tuple;
+import backtype.storm.tuple.Tuple;
 
 import java.io.Serializable;
 

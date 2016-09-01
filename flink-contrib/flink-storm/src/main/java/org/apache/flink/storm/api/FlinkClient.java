@@ -23,14 +23,14 @@ import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
-import org.apache.storm.Config;
-import org.apache.storm.generated.AlreadyAliveException;
-import org.apache.storm.generated.InvalidTopologyException;
-import org.apache.storm.generated.KillOptions;
-import org.apache.storm.generated.Nimbus;
-import org.apache.storm.generated.NotAliveException;
-import org.apache.storm.utils.NimbusClient;
-import org.apache.storm.utils.Utils;
+import backtype.storm.Config;
+import backtype.storm.generated.AlreadyAliveException;
+import backtype.storm.generated.InvalidTopologyException;
+import backtype.storm.generated.KillOptions;
+import backtype.storm.generated.Nimbus;
+import backtype.storm.generated.NotAliveException;
+import backtype.storm.utils.NimbusClient;
+import backtype.storm.utils.Utils;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -89,7 +89,7 @@ public class FlinkClient {
 	/** The user specified timeout in milliseconds */
 	private final String timeout;
 
-	// The following methods are derived from "org.apache.storm.utils.NimbusClient"
+	// The following methods are derived from "backtype.storm.utils.NimbusClient"
 
 	/**
 	 * Instantiates a new {@link FlinkClient} for the given configuration, host name, and port. If values for {@link
@@ -158,7 +158,7 @@ public class FlinkClient {
 		return this;
 	}
 
-	// The following methods are derived from "org.apache.storm.generated.Nimubs.Client"
+	// The following methods are derived from "backtype.storm.generated.Nimubs.Client"
 
 	/**
 	 * Parameter {@code uploadedJarLocation} is actually used to point to the local jar, because Flink does not support

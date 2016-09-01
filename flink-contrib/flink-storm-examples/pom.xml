@@ -71,7 +71,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.storm</groupId>
 			<artifactId>storm-starter</artifactId>
-			<version>1.0.0</version>
+			<version>0.9.4</version>
 			
 			<!-- remove storm dependency - it should be drawn only (with proper
 				customization) via the 'flink-storm' dependency -->
@@ -138,7 +138,7 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.storm</groupId>
 									<artifactId>storm-core</artifactId>
-									<version>1.0.0</version>
+									<version>0.9.4</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/classes</outputDirectory>
@@ -197,16 +197,15 @@ under the License.
 
 							<includes>
 								<!-- from storm-core -->
-								<include>org/apache/storm/topology/*.class</include>
-								<include>org/apache/storm/spout/*.class</include>
-								<include>org/apache/storm/task/*.class</include>
-								<include>org/apache/storm/tuple/*.class</include>
-								<include>org/apache/storm/generated/*.class</include>
-								<include>org/apache/storm/metric/**/*.class</include>
-								<include>org/apache/storm/thrift/**/*.class</include>
+								<include>backtype/storm/topology/*.class</include>
+								<include>backtype/storm/spout/*.class</include>
+								<include>backtype/storm/task/*.class</include>
+								<include>backtype/storm/tuple/*.class</include>
+								<include>backtype/storm/generated/*.class</include>
+								<include>backtype/storm/metric/**/*.class</include>
+								<include>org/apache/thrift7/**/*.class</include>
 								<!-- Storm's recursive dependencies -->
 								<include>org/json/simple/**/*.class</include>
-								<include>org/apache/storm/shade/**/*.class</include>
 								<!-- compatibility layer -->
 								<include>org/apache/flink/storm/api/*.class</include>
 								<include>org/apache/flink/storm/util/*.class</include>
@@ -244,16 +243,15 @@ under the License.
 
 							<includes>
 								<!-- from storm-core -->
-								<include>org/apache/storm/topology/*.class</include>
-								<include>org/apache/storm/spout/*.class</include>
-								<include>org/apache/storm/task/*.class</include>
-								<include>org/apache/storm/tuple/*.class</include>
-								<include>org/apache/storm/generated/*.class</include>
-								<include>org/apache/storm/metric/**/*.class</include>
-								<include>org/apache/storm/thrift/**/*.class</include>
+								<include>backtype/storm/topology/*.class</include>
+								<include>backtype/storm/spout/*.class</include>
+								<include>backtype/storm/task/*.class</include>
+								<include>backtype/storm/tuple/*.class</include>
+								<include>backtype/storm/generated/*.class</include>
+								<include>backtype/storm/metric/**/*.class</include>
+								<include>org/apache/thrift7/**/*.class</include>
 								<!-- Storm's recursive dependencies -->
 								<include>org/json/simple/**/*.class</include>
-								<include>org/apache/storm/shade/**/*.class</include>
 								<!-- compatibility layer -->
 								<include>org/apache/flink/storm/api/*.class</include>
 								<include>org/apache/flink/storm/util/*.class</include>
@@ -324,22 +322,20 @@ under the License.
 									<artifact>org.apache.storm:storm-core</artifact>
 									<includes>
 										<include>defaults.yaml</include>
-										<include>org/apache/storm/*.class</include>
-										<include>org/apache/storm/topology/*.class</include>
-										<include>org/apache/storm/spout/*.class</include>
-										<include>org/apache/storm/task/*.class</include>
-										<include>org/apache/storm/tuple/*.class</include>
-										<include>org/apache/storm/generated/*.class</include>
-										<include>org/apache/storm/metric/**/*.class</include>
-										<include>org/apache/storm/utils/*.class</include>
-										<include>org/apache/storm/serialization/*.class</include>
+										<include>backtype/storm/*.class</include>
+										<include>backtype/storm/topology/*.class</include>
+										<include>backtype/storm/spout/*.class</include>
+										<include>backtype/storm/task/*.class</include>
+										<include>backtype/storm/tuple/*.class</include>
+										<include>backtype/storm/generated/*.class</include>
+										<include>backtype/storm/metric/**/*.class</include>
+										<include>backtype/storm/utils/*.class</include>
+										<include>backtype/storm/serialization/*.class</include>
 										<include>org/apache/storm/curator/**/*.class</include>
-										<include>org/apache/storm/grouping/**/*.class</include>
-										<include>org/apache/storm/thrift/**/*.class</include>
+										<include>org/apache/thrift7/**/*.class</include>
 										<!-- Storm's recursive dependencies -->
 										<include>org/json/simple/**/*.class</include>
 										<include>org/yaml/snakeyaml/**/*.class</include>
-										<include>org/apache/storm/shade/**/*.class</include>
 									</includes>
 								</filter>
 								<filter>
