@@ -1052,7 +1052,7 @@ Among others, the following SQL features are not supported, yet:
 
 ### SQL on Streaming Tables
 
-SQL queries can be executed on streaming Tables (Tables backed by `DataStream` or `StreamTableSource`) by using the `SELECT STREAM` keywords instead of `SELECT`. Please refer to the [Apache Calcite's Streaming SQL documentation](https://calcite.apache.org/docs/stream.html) for more information on the Streaming SQL syntax.
+SQL queries can be executed on streaming Tables (Tables backed by `DataStream` or `StreamTableSource`) like standard SQL.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1066,7 +1066,7 @@ DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 tableEnv.registerDataStream("Orders", ds, "user, product, amount");
 // run a SQL query on the Table and retrieve the result as a new Table
 Table result = tableEnv.sql(
-  "SELECT STREAM product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
 
@@ -1081,7 +1081,7 @@ val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
 tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
 // run a SQL query on the Table and retrieve the result as a new Table
 val result = tableEnv.sql(
-  "SELECT STREAM product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
 </div>
@@ -1116,7 +1116,7 @@ orderItem:
   expression [ ASC | DESC ]
 
 select:
-  SELECT [ STREAM ] [ ALL | DISTINCT ]
+  SELECT [ ALL | DISTINCT ]
   { * | projectItem [, projectItem ]* }
   FROM tableExpression
   [ WHERE booleanExpression ]
