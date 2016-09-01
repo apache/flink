@@ -136,7 +136,7 @@ public class CheckpointCoordinator {
 	private JobStatusListener jobStatusListener;
 
 	/** The number of consecutive failed trigger attempts */
-	private AtomicInteger numUnsuccessfulCheckpointsTriggers = new AtomicInteger(0);
+	private final AtomicInteger numUnsuccessfulCheckpointsTriggers = new AtomicInteger(0);
 
 	private ScheduledTrigger currentPeriodicTrigger;
 
@@ -402,7 +402,7 @@ public class CheckpointCoordinator {
 				checkpointID = checkpointIdCounter.getAndIncrement();
 			}
 			catch (Throwable t) {
-				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.addAndGet(1);
+				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
@@ -504,7 +504,7 @@ public class CheckpointCoordinator {
 					pendingCheckpoints.remove(checkpointID);
 				}
 
-				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.addAndGet(1);
+				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 
 				if (!checkpoint.isDiscarded()) {
