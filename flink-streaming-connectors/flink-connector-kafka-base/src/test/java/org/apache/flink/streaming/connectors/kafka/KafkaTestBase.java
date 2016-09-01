@@ -110,7 +110,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	}
 
 	protected static Configuration getFlinkConfiguration() {
-		Configuration flinkConfig = new Configuration();;
+		Configuration flinkConfig = new Configuration();
 		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
@@ -134,7 +134,11 @@ public abstract class KafkaTestBase extends TestLogger {
 
 		brokerConnectionStrings = kafkaServer.getBrokerConnectionString();
 
-		if(kafkaServer.isSecureRunSupported() && secureMode) {
+		if (secureMode) {
+			if (!kafkaServer.isSecureRunSupported()) {
+				throw new IllegalStateException(
+					"Attempting to test in secure mode but secure mode not supported by the KafkaTestEnvironment.");
+			}
 			secureProps = kafkaServer.getSecureProperties();
 		}
 

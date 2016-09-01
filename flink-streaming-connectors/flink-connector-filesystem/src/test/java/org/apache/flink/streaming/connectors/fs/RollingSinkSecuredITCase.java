@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,9 +31,10 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.util.VersionInfo;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,14 +58,30 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_HOST_NAME_KEY;
 
 /**
  * Tests for running {@link RollingSinkSecuredITCase} which is an extension of {@link RollingSink} in secure environment
+ * Note: only executed for Hadoop version > 3.x.x
  */
-
-//The test is disabled since MiniDFS secure run requires lower order ports to be used.
-//We can enable the test when the fix is available (HDFS-9213)
-@Ignore
 public class RollingSinkSecuredITCase extends RollingSinkITCase {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(RollingSinkSecuredITCase.class);
+
+	/**
+	 * Skips all tests if the Hadoop version doesn't match.
+	 * We can't run this test class until HDFS-9213 is fixed which allows a secure DataNode
+	 * to bind to non-privileged ports for testing.
+	 * For now, we skip this test class until Hadoop version 3.x.x.
+	 */
+	private static void skipIfHadoopVersionIsNotAppropriate() {
+		// Skips all tests if the Hadoop version doesn't match
+		String hadoopVersionString = VersionInfo.getVersion();
+		String[] split = hadoopVersionString.split("\\.");
+		if (split.length != 3) {
+			throw new IllegalStateException("Hadoop version was not of format 'X.X.X': " + hadoopVersionString);
+		}
+		Assume.assumeTrue(
+			// check whether we're running Hadoop version >= 3.x.x
+			Integer.parseInt(split[0]) >= 3
+		);
+	}
 
 	/*
 	 * override super class static methods to avoid creating MiniDFS and MiniFlink with wrong configurations
@@ -84,6 +101,8 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 
 	@BeforeClass
 	public static void startSecureCluster() throws Exception {
+
+		skipIfHadoopVersionIsNotAppropriate();
 
 		LOG.info("starting secure cluster environment for testing");
 
@@ -143,7 +162,9 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 		TestStreamEnvironment.unsetAsContext();
 		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 
-		hdfsCluster.shutdown();
+		if (hdfsCluster != null) {
+			hdfsCluster.shutdown();
+		}
 
 		SecureTestEnvironment.cleanup();
 	}
