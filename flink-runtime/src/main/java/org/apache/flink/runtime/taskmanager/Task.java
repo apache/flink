@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -40,7 +41,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -54,11 +54,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
-import org.apache.flink.runtime.messages.TaskMessages.FailTask;
-import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
-import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
-import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -67,8 +62,6 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.net.URL;
@@ -174,17 +167,17 @@ public class Task implements Runnable {
 
 	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
 
-	/** Gateway to the TaskManager that spawned this task */
-	private final ActorGateway taskManager;
+	/** Connection to the task manager */
+	private final TaskManagerConnection taskManagerConnection;
 
-	/** Gateway to the JobManager */
-	private final ActorGateway jobManager;
+	/** Input split provider for the task */
+	private final InputSplitProvider inputSplitProvider;
 
-	/** All actors that want to be notified about changes in the task's execution state */
-	private final List<ActorGateway> executionListenerActors;
+	/** Checkpoint notifier used to communicate with the CheckpointCoordinator */
+	private final CheckpointResponder checkpointResponder;
 
-	/** The timeout for all ask operations on actors */
-	private final FiniteDuration actorAskTimeout;
+	/** All listener that want to be notified about changes in the task's execution state */
+	private final List<TaskExecutionStateListener> taskExecutionStateListeners;
 
 	/** The library cache, from which the task can request its required JAR files */
 	private final LibraryCacheManager libraryCache;
@@ -244,20 +237,21 @@ public class Task implements Runnable {
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
 	 * be undone in the case of a failing task deployment.</p>
 	 */
-	public Task(TaskDeploymentDescriptor tdd,
-				MemoryManager memManager,
-				IOManager ioManager,
-				NetworkEnvironment networkEnvironment,
-				JobManagerCommunicationFactory jobManagerCommunicationFactory,
-				BroadcastVariableManager bcVarManager,
-				ActorGateway taskManagerActor,
-				ActorGateway jobManagerActor,
-				FiniteDuration actorAskTimeout,
-				LibraryCacheManager libraryCache,
-				FileCache fileCache,
-				TaskManagerRuntimeInfo taskManagerConfig,
-				TaskMetricGroup metricGroup)
-	{
+	public Task(
+		TaskDeploymentDescriptor tdd,
+		MemoryManager memManager,
+		IOManager ioManager,
+		NetworkEnvironment networkEnvironment,
+		JobManagerCommunicationFactory jobManagerCommunicationFactory,
+		BroadcastVariableManager bcVarManager,
+		TaskManagerConnection taskManagerConnection,
+		InputSplitProvider inputSplitProvider,
+		CheckpointResponder checkpointResponder,
+		LibraryCacheManager libraryCache,
+		FileCache fileCache,
+		TaskManagerRuntimeInfo taskManagerConfig,
+		TaskMetricGroup metricGroup) {
+
 		this.taskInfo = checkNotNull(tdd.getTaskInfo());
 		this.jobId = checkNotNull(tdd.getJobID());
 		this.vertexId = checkNotNull(tdd.getVertexID());
@@ -281,16 +275,16 @@ public class Task implements Runnable {
 		this.broadcastVariableManager = checkNotNull(bcVarManager);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
-		this.jobManager = checkNotNull(jobManagerActor);
-		this.taskManager = checkNotNull(taskManagerActor);
-		this.actorAskTimeout = checkNotNull(actorAskTimeout);
+		this.inputSplitProvider = checkNotNull(inputSplitProvider);
+		this.checkpointResponder = checkNotNull(checkpointResponder);
+		this.taskManagerConnection = checkNotNull(taskManagerConnection);
 
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
 		this.network = checkNotNull(networkEnvironment);
 		this.taskManagerConfig = checkNotNull(taskManagerConfig);
 
-		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
+		this.taskExecutionStateListeners = new CopyOnWriteArrayList<>();
 		this.metrics = metricGroup;
 
 		// create the reader and writer structures
@@ -539,19 +533,16 @@ public class Task implements Runnable {
 			//  call the user code initialization methods
 			// ----------------------------------------------------------------
 
-			TaskInputSplitProvider splitProvider = new TaskInputSplitProvider(jobManager,
-					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
-
 			TaskKvStateRegistry kvStateRegistry = network
 					.createKvStateTaskRegistry(jobId, getJobVertexId());
 
-			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId,
-					executionConfig, taskInfo, jobConfiguration, taskConfiguration,
-					userCodeClassLoader, memoryManager, ioManager,
-					broadcastVariableManager, accumulatorRegistry,
-					kvStateRegistry,
-					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager, taskManagerConfig, metrics, this);
+			Environment env = new RuntimeEnvironment(
+				jobId, vertexId, executionId, executionConfig, taskInfo,
+				jobConfiguration, taskConfiguration, userCodeClassLoader,
+				memoryManager, ioManager, broadcastVariableManager,
+				accumulatorRegistry, kvStateRegistry, inputSplitProvider,
+				distributedCacheEntries, writers, inputGates,
+				checkpointResponder, taskManagerConfig, metrics, this);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
@@ -588,11 +579,9 @@ public class Task implements Runnable {
 				throw new CancelTaskException();
 			}
 
-			// notify everyone that we switched to running. especially the TaskManager needs
-			// to know this!
+			// notify everyone that we switched to running
 			notifyObservers(ExecutionState.RUNNING, null);
-			taskManager.tell(new UpdateTaskExecutionState(
-					new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING)));
+			taskManagerConnection.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
 
 			// make sure the user code classloader is accessible thread-locally
 			executingThread.setContextClassLoader(userCodeClassLoader);
@@ -785,11 +774,11 @@ public class Task implements Runnable {
 	}
 
 	private void notifyFinalState() {
-		taskManager.tell(new TaskInFinalState(executionId));
+		taskManagerConnection.notifyFinalState(executionId);
 	}
 
 	private void notifyFatalError(String message, Throwable cause) {
-		taskManager.tell(new FatalError(message, cause));
+		taskManagerConnection.notifyFatalError(message, cause);
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------
@@ -815,7 +804,7 @@ public class Task implements Runnable {
 						((StoppableTask)Task.this.invokable).stop();
 					} catch(RuntimeException e) {
 						LOG.error("Stopping task " + taskNameWithSubtask + " failed.", e);
-						taskManager.tell(new FailTask(executionId, e));
+						taskManagerConnection.failTask(executionId, e);
 					}
 				}
 			};
@@ -910,8 +899,8 @@ public class Task implements Runnable {
 	//  State Listeners
 	// ------------------------------------------------------------------------
 
-	public void registerExecutionListener(ActorGateway listener) {
-		executionListenerActors.add(listener);
+	public void registerExecutionListener(TaskExecutionStateListener listener) {
+		taskExecutionStateListeners.add(listener);
 	}
 
 	private void notifyObservers(ExecutionState newState, Throwable error) {
@@ -923,10 +912,9 @@ public class Task implements Runnable {
 		}
 
 		TaskExecutionState stateUpdate = new TaskExecutionState(jobId, executionId, newState, error);
-		UpdateTaskExecutionState actorMessage = new UpdateTaskExecutionState(stateUpdate);
 
-		for (ActorGateway listener : executionListenerActors) {
-			listener.tell(actorMessage);
+		for (TaskExecutionStateListener listener : taskExecutionStateListeners) {
+			listener.notifyTaskExecutionStateChanged(stateUpdate);
 		}
 	}
 
@@ -936,7 +924,7 @@ public class Task implements Runnable {
 
 	/**
 	 * Calls the invokable to trigger a checkpoint, if the invokable implements the interface
-	 * {@link org.apache.flink.runtime.jobgraph.tasks.StatefulTask}.
+	 * {@link StatefulTask}.
 	 * 
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
@@ -957,8 +945,7 @@ public class Task implements Runnable {
 						try {
 							boolean success = statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
 							if (!success) {
-								DeclineCheckpoint decline = new DeclineCheckpoint(jobId, getExecutionId(), checkpointID, checkpointTimestamp);
-								jobManager.tell(decline);
+								checkpointResponder.declineCheckpoint(jobId, getExecutionId(), checkpointID, checkpointTimestamp);
 							}
 						}
 						catch (Throwable t) {
