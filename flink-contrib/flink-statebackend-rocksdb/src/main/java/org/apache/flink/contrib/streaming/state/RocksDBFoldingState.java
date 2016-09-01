@@ -29,7 +29,6 @@ import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -66,7 +65,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	public RocksDBFoldingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc,
-			RocksDBStateBackend backend) {
+			RocksDBKeyedStateBackend<K> backend) {
 
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 
@@ -79,11 +78,9 @@ public class RocksDBFoldingState<K, N, T, ACC>
 
 	@Override
 	public ACC get() {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
 				return null;
@@ -96,23 +93,21 @@ public class RocksDBFoldingState<K, N, T, ACC>
 
 	@Override
 	public void add(T value) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
-
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 			if (valueBytes == null) {
-				baos.reset();
+				keySerializationStream.reset();
 				valueSerializer.serialize(foldFunction.fold(stateDesc.getDefaultValue(), value), out);
-				backend.db.put(columnFamily, writeOptions, key, baos.toByteArray());
+				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 			} else {
 				ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 				ACC newValue = foldFunction.fold(oldValue, value);
-				baos.reset();
+				keySerializationStream.reset();
 				valueSerializer.serialize(newValue, out);
-				backend.db.put(columnFamily, writeOptions, key, baos.toByteArray());
+				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);

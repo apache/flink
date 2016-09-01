@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Class representing the operators in the streaming programs, with all their properties.
@@ -43,6 +44,11 @@ public class StreamNode implements Serializable {
 
 	private final int id;
 	private Integer parallelism = null;
+	/**
+	 * Maximum parallelism for this stream node. The maximum parallelism is the upper limit for
+	 * dynamic scaling and the number of key groups used for partitioned state.
+	 */
+	private int maxParallelism;
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
@@ -139,6 +145,25 @@ public class StreamNode implements Serializable {
 
 	public void setParallelism(Integer parallelism) {
 		this.parallelism = parallelism;
+	}
+
+	/**
+	 * Get the maximum parallelism for this stream node.
+	 *
+	 * @return Maximum parallelism
+	 */
+	int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	/**
+	 * Set the maximum parallelism for this stream node.
+	 *
+	 * @param maxParallelism Maximum parallelism to be set
+	 */
+	void setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be at least 1.");
+		this.maxParallelism = maxParallelism;
 	}
 
 	public Long getBufferTimeout() {

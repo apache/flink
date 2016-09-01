@@ -524,6 +524,7 @@ public class IterateITCase extends StreamingMultipleProgramsTestBase {
 			try {
 				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 				env.setParallelism(DEFAULT_PARALLELISM - 1);
+				env.getConfig().setMaxParallelism(env.getParallelism());
 
 				KeySelector<Integer, Integer> key = new KeySelector<Integer, Integer>() {
 

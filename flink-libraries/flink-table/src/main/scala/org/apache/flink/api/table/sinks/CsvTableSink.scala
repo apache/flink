@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 class CsvTableSink(
     path: String,
     fieldDelim: String = ",")
-  extends BatchTableSink[Row] with StreamTableSink[Row] {
+  extends TableSinkBase[Row] with BatchTableSink[Row] with StreamTableSink[Row] {
 
   override def emitDataSet(dataSet: DataSet[Row]): Unit = {
     dataSet
@@ -48,7 +48,7 @@ class CsvTableSink(
       .writeAsText(path)
   }
 
-  override protected def copy: TableSink[Row] = {
+  override protected def copy: TableSinkBase[Row] = {
     new CsvTableSink(path, fieldDelim)
   }
 

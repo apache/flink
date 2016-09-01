@@ -28,6 +28,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConsta
 
 import java.util.Properties;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -65,13 +66,13 @@ public class KinesisConfigUtil {
 			"Invalid value given for maximum retry attempts for getRecords shard operation. Must be a valid non-negative integer value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE,
-			"Invalid value given for get records operation base backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for get records operation base backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_MAX,
-			"Invalid value given for get records operation max backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for get records operation max backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT,
-			"Invalid value given for get records operation backoff exponential constant. Must be a valid non-negative double value");
+			"Invalid value given for get records operation backoff exponential constant. Must be a valid non-negative double value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS,
 			"Invalid value given for getRecords sleep interval in milliseconds. Must be a valid non-negative long value.");
@@ -80,25 +81,34 @@ public class KinesisConfigUtil {
 			"Invalid value given for maximum retry attempts for getShardIterator shard operation. Must be a valid non-negative integer value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_BASE,
-			"Invalid value given for get shard iterator operation base backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for get shard iterator operation base backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_MAX,
-			"Invalid value given for get shard iterator operation max backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for get shard iterator operation max backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT,
-			"Invalid value given for get shard iterator operation backoff exponential constant. Must be a valid non-negative double value");
+			"Invalid value given for get shard iterator operation backoff exponential constant. Must be a valid non-negative double value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
-			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
-			"Invalid value given for describe stream operation base backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for describe stream operation base backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
-			"Invalid value given for describe stream operation max backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for describe stream operation max backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-			"Invalid value given for describe stream operation backoff exponential constant. Must be a valid non-negative double value");
+			"Invalid value given for describe stream operation backoff exponential constant. Must be a valid non-negative double value.");
+
+		if (config.containsKey(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS)) {
+			checkArgument(
+				Long.parseLong(config.getProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS))
+					< ConsumerConfigConstants.MAX_SHARD_GETRECORDS_INTERVAL_MILLIS,
+				"Invalid value given for getRecords sleep interval in milliseconds. Must be lower than " +
+					ConsumerConfigConstants.MAX_SHARD_GETRECORDS_INTERVAL_MILLIS + " milliseconds."
+			);
+		}
 	}
 
 	/**

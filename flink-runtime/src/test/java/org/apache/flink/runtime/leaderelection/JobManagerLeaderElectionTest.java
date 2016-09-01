@@ -35,7 +35,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.InstanceManager;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
@@ -101,7 +101,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	@Test
 	public void testLeaderElection() throws Exception {
 		final Configuration configuration = ZooKeeperTestUtils
-			.createZooKeeperRecoveryModeConfig(
+			.createZooKeeperHAConfig(
 				testingServer.getConnectString(),
 				tempFolder.getRoot().getPath());
 
@@ -130,7 +130,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	@Test
 	public void testLeaderReelection() throws Exception {
 		final Configuration configuration = ZooKeeperTestUtils
-			.createZooKeeperRecoveryModeConfig(
+			.createZooKeeperHAConfig(
 				testingServer.getConnectString(),
 				tempFolder.getRoot().getPath());
 
@@ -171,7 +171,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 	private Props createJobManagerProps(Configuration configuration) throws Exception {
 		LeaderElectionService leaderElectionService;
-		if (RecoveryMode.fromConfig(configuration) == RecoveryMode.STANDALONE) {
+		if (HighAvailabilityMode.fromConfig(configuration) == HighAvailabilityMode.NONE) {
 			leaderElectionService = new StandaloneLeaderElectionService();
 		}
 		else {

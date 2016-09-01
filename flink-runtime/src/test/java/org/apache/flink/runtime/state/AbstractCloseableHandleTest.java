@@ -85,5 +85,15 @@ public class AbstractCloseableHandleTest {
 
 	private static final class CloseableHandle extends AbstractCloseableHandle {
 		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void discardState() throws Exception {
+
+		}
+
+		@Override
+		public long getStateSize() throws Exception {
+			return 0;
+		}
 	}
 }

@@ -1,5 +1,9 @@
 ---
 title: "Internals"
+nav-id: internals
+nav-pos: 5
+nav-title: '<i class="fa fa-book" aria-hidden="true"></i> Internals'
+nav-parent_id: root
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

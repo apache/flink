@@ -26,6 +26,7 @@ import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -63,7 +64,7 @@ import java.util.UUID;
  * and start the new bucket directory. The default bucketer is a {@link DateTimeBucketer} with
  * date format string {@code ""yyyy-MM-dd--HH"}. You can specify a custom {@code Bucketer}
  * using {@link #setBucketer(Bucketer)}. For example, use
- * {@link org.apache.flink.streaming.connectors.fs.NonRollingBucketer} if you don't want to have
+ * {@link NonRollingBucketer} if you don't want to have
  * buckets but still write part files in a fault-tolerant way.
  *
  * <p>
@@ -114,12 +115,15 @@ import java.util.UUID;
  *
  * This will create a sink that writes to {@code SequenceFiles} and rolls every minute.
  *
- * @see org.apache.flink.streaming.connectors.fs.DateTimeBucketer
+ * @see DateTimeBucketer
  * @see StringWriter
  * @see SequenceFileWriter
  *
  * @param <T> Type of the elements emitted by this sink
+ *
+ * @deprecated use {@link BucketingSink} instead.
  */
+@Deprecated
 public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConfigurable, Checkpointed<RollingSink.BucketState>, CheckpointListener {
 	private static final long serialVersionUID = 1L;
 

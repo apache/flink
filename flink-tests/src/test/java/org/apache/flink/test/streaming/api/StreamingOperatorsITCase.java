@@ -78,16 +78,20 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		final int numKeys = 2;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
 		DataStream<Tuple2<Integer, Integer>> sourceStream = env.addSource(new TupleSource(numElements, numKeys));
 
 		SplitStream<Tuple2<Integer, Integer>> splittedResult = sourceStream
 			.keyBy(0)
 			.fold(0, new FoldFunction<Tuple2<Integer, Integer>, Integer>() {
+				private static final long serialVersionUID = 4875723041825726082L;
+
 				@Override
 				public Integer fold(Integer accumulator, Tuple2<Integer, Integer> value) throws Exception {
 					return accumulator + value.f1;
 				}
 			}).map(new RichMapFunction<Integer, Tuple2<Integer, Integer>>() {
+				private static final long serialVersionUID = 8538355101606319744L;
 				int key = -1;
 				@Override
 				public Tuple2<Integer, Integer> map(Integer value) throws Exception {
@@ -97,6 +101,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 					return new Tuple2<>(key, value);
 				}
 			}).split(new OutputSelector<Tuple2<Integer, Integer>>() {
+				private static final long serialVersionUID = -8439325199163362470L;
+
 				@Override
 				public Iterable<String> select(Tuple2<Integer, Integer> value) {
 					List<String> output = new ArrayList<>();
@@ -107,6 +113,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			});
 
 		splittedResult.select("0").map(new MapFunction<Tuple2<Integer,Integer>, Integer>() {
+			private static final long serialVersionUID = 2114608668010092995L;
+
 			@Override
 			public Integer map(Tuple2<Integer, Integer> value) throws Exception {
 				return value.f1;
@@ -114,6 +122,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		}).writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
 		splittedResult.select("1").map(new MapFunction<Tuple2<Integer, Integer>, Integer>() {
+			private static final long serialVersionUID = 5631104389744681308L;
+
 			@Override
 			public Integer map(Tuple2<Integer, Integer> value) throws Exception {
 				return value.f1;
@@ -149,6 +159,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		final int numElements = 10;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
 
 		input
@@ -156,12 +167,16 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 			.fold(
 				new NonSerializable(42),
 				new FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable>() {
+					private static final long serialVersionUID = 2705497830143608897L;
+
 					@Override
 					public NonSerializable fold(NonSerializable accumulator, Tuple2<Integer, NonSerializable> value) throws Exception {
 						return new NonSerializable(accumulator.value + value.f1.value);
 					}
 			})
 			.map(new MapFunction<NonSerializable, Integer>() {
+				private static final long serialVersionUID = 6906984044674568945L;
+
 				@Override
 				public Integer map(NonSerializable value) throws Exception {
 					return value.value;
@@ -192,6 +207,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 	}
 
 	private static class NonSerializableTupleSource implements SourceFunction<Tuple2<Integer, NonSerializable>> {
+		private static final long serialVersionUID = 3949171986015451520L;
 		private final int numElements;
 
 		public NonSerializableTupleSource(int numElements) {
@@ -212,6 +228,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 	private static class TupleSource implements SourceFunction<Tuple2<Integer, Integer>> {
 
+		private static final long serialVersionUID = -8110466235852024821L;
 		private final int numElements;
 		private final int numKeys;
 

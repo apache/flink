@@ -19,16 +19,17 @@
 package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorRef;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener;
-import org.apache.flink.runtime.state.LocalStateHandle;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.zookeeper.StateStorageHelper;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -36,6 +37,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -57,10 +59,12 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
 	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
-	private final static StateStorageHelper<SubmittedJobGraph> localStateStorage = new StateStorageHelper<SubmittedJobGraph>() {
+	private final static RetrievableStateStorageHelper<SubmittedJobGraph> localStateStorage = new RetrievableStateStorageHelper<SubmittedJobGraph>() {
 		@Override
-		public StateHandle<SubmittedJobGraph> store(SubmittedJobGraph state) throws Exception {
-			return new LocalStateHandle<>(state);
+		public RetrievableStateHandle<SubmittedJobGraph> store(SubmittedJobGraph state) throws IOException {
+			ByteStreamStateHandle byteStreamStateHandle = new ByteStreamStateHandle(
+					InstantiationUtil.serializeObject(state));
+			return new RetrievableStreamStateHandle<SubmittedJobGraph>(byteStreamStateHandle);
 		}
 	};
 
@@ -286,7 +290,6 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 		JobInfo expectedJobInfo = expected.getJobInfo();
 		JobInfo actualJobInfo = actual.getJobInfo();
 
-		assertEquals(expectedJobInfo.listeningBehaviour(), actualJobInfo.listeningBehaviour());
-		assertEquals(expectedJobInfo.start(), actualJobInfo.start());
+		assertEquals(expectedJobInfo, actualJobInfo);
 	}
 }

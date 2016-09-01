@@ -64,7 +64,7 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 
 		if (commandLine.hasOption(CliFrontendParser.ZOOKEEPER_NAMESPACE_OPTION.getOpt())) {
 			String zkNamespace = commandLine.getOptionValue(CliFrontendParser.ZOOKEEPER_NAMESPACE_OPTION.getOpt());
-			config.setString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+			config.setString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
 		}
 
 		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);

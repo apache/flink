@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.ListState;
@@ -39,11 +39,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -59,7 +61,6 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -276,7 +277,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
 		super.dispose();
 		timestampedCollector = null;
 		watermarkTimers = null;
@@ -857,7 +858,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
 
 		if (mergingWindowsByKey != null) {
 			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
@@ -870,29 +871,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			}
 		}
 
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		snapshotTimers(new DataOutputViewStreamWrapper(out));
 
-		AbstractStateBackend.CheckpointStateOutputView out =
-			getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
-
-		snapshotTimers(out);
-
-		taskState.setOperatorState(out.closeAndGetHandle());
-
-		return taskState;
+		super.snapshotState(out, checkpointId, timestamp);
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState) throws Exception {
-		super.restoreState(taskState);
+	public void restoreState(FSDataInputStream in) throws Exception {
+		restoreTimers(new DataInputViewStreamWrapper(in));
 
-		final ClassLoader userClassloader = getUserCodeClassloader();
-
-		@SuppressWarnings("unchecked")
-		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
-		DataInputView in = inputState.getState(userClassloader);
-
-		restoreTimers(in);
+		super.restoreState(in);
 	}
 
 	private void restoreTimers(DataInputView in ) throws IOException {

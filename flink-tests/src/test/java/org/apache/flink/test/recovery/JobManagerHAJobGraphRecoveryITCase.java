@@ -125,7 +125,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	 */
 	@Test
 	public void testJobPersistencyWhenJobManagerShutdown() throws Exception {
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
 
 		// Configure the cluster
@@ -172,7 +172,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	 */
 	@Test
 	public void testSubmitJobToNonLeader() throws Exception {
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
 
 		// Configure the cluster
@@ -257,7 +257,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	 */
 	@Test
 	public void testClientNonDetachedListeningBehaviour() throws Exception {
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
 
 		// Test actor system
@@ -482,7 +482,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 		// ZooKeeper
 		String currentJobsPath = config.getString(
-				ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH,
+				ConfigConstants.HA_ZOOKEEPER_JOBGRAPHS_PATH,
 				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		Stat stat = ZooKeeper.getClient().checkExists().forPath(currentJobsPath);
@@ -514,7 +514,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 		// ZooKeeper
 		String currentJobsPath = config.getString(
-			ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH,
+			ConfigConstants.HA_ZOOKEEPER_JOBGRAPHS_PATH,
 			ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		Stat stat = ZooKeeper.getClient().checkExists().forPath(currentJobsPath);

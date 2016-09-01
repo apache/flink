@@ -426,6 +426,60 @@ public final class ConfigConstants {
 	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
 
 
+	// ------------------------ Mesos Configuration ------------------------
+
+	/**
+	 * The maximum number of failed Mesos tasks before entirely stopping
+	 * the Mesos session / job on Mesos.
+	 *
+	 * By default, we take the number of of initially requested tasks.
+	 */
+	public static final String MESOS_MAX_FAILED_TASKS = "mesos.maximum-failed-tasks";
+
+	/**
+	 * The Mesos master URL.
+	 *
+	 * The value should be in one of the following forms:
+	 * <pre>
+	 * {@code
+	 *     host:port
+	 *     zk://host1:port1,host2:port2,.../path
+	 *     zk://username:password@host1:port1,host2:port2,.../path
+	 *     file:///path/to/file (where file contains one of the above)
+	 * }
+	 * </pre>
+	 *
+	 */
+	public static final String MESOS_MASTER_URL = "mesos.master";
+
+	/**
+	 * The failover timeout for the Mesos scheduler, after which running tasks are automatically shut down.
+	 *
+	 * The default value is 600 (seconds).
+	 */
+	public static final String MESOS_FAILOVER_TIMEOUT_SECONDS = "mesos.failover-timeout";
+
+	/**
+	 * The config parameter defining the Mesos artifact server port to use.
+	 * Setting the port to 0 will let the OS choose an available port.
+	 */
+	public static final String MESOS_ARTIFACT_SERVER_PORT_KEY = "mesos.resourcemanager.artifactserver.port";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "mesos.resourcemanager.framework.name";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "mesos.resourcemanager.framework.role";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL = "mesos.resourcemanager.framework.principal";
+
+	public static final String MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET = "mesos.resourcemanager.framework.secret";
+
+	/**
+	 * The cpus to acquire from Mesos.
+	 *
+	 * By default, we use the number of requested task slots.
+	 */
+	public static final String MESOS_RESOURCEMANAGER_TASKS_CPUS = "mesos.resourcemanager.tasks.cpus";
+
 	// ------------------------ Hadoop Configuration ------------------------
 
 	/**
@@ -624,52 +678,136 @@ public final class ConfigConstants {
 	
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
-	// --------------------------- Recovery -----------------------------------
+	// --------------------------- High Availability --------------------------
 
-	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper") */
-	public static final String RECOVERY_MODE = "recovery.mode";
+	/** Defines high availabilty mode used for the cluster execution ("NONE", "ZOOKEEPER") */
+	@PublicEvolving
+	public static final String HA_MODE = "high-availability";
 
-	/** Ports used by the job manager if not in standalone recovery mode */
-	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
+	/** Ports used by the job manager if not in 'none' recovery mode */
+	@PublicEvolving
+	public static final String HA_JOB_MANAGER_PORT = "high-availability.jobmanager.port";
 
 	/** The time before the JobManager recovers persisted jobs */
+	@PublicEvolving
+	public static final String HA_JOB_DELAY = "high-availability.job.delay";
+
+	/** Deprecated in favour of {@link #HA_MODE}. */
+	@Deprecated
+	public static final String RECOVERY_MODE = "recovery.mode";
+
+	/** Deprecated in favour of {@link #HA_JOB_MANAGER_PORT}. */
+	@Deprecated
+	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
+
+	/** Deprecated in favour of {@link #HA_JOB_DELAY}. */
+	@Deprecated
 	public static final String RECOVERY_JOB_DELAY = "recovery.job.delay";
 
 	// --------------------------- ZooKeeper ----------------------------------
 
 	/** ZooKeeper servers. */
-	public static final String ZOOKEEPER_QUORUM_KEY = "recovery.zookeeper.quorum";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_QUORUM_KEY = "high-availability.zookeeper.quorum";
 
 	/**
 	 * File system state backend base path for recoverable state handles. Recovery state is written
 	 * to this path and the file state handles are persisted for recovery.
 	 */
-	public static final String ZOOKEEPER_RECOVERY_PATH = "recovery.zookeeper.storageDir";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_STORAGE_PATH = "high-availability.zookeeper.storageDir";
 
 	/** ZooKeeper root path. */
-	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_DIR_KEY = "high-availability.zookeeper.path.root";
 
-	public static final String ZOOKEEPER_NAMESPACE_KEY = "recovery.zookeeper.path.namespace";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_NAMESPACE_KEY = "high-availability.zookeeper.path.namespace";
 
-	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
-
-	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_LATCH_PATH = "high-availability.zookeeper.path.latch";
 
 	/** ZooKeeper root path (ZNode) for job graphs. */
-	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.path.jobgraphs";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_JOBGRAPHS_PATH = "high-availability.zookeeper.path.jobgraphs";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_LEADER_PATH = "high-availability.zookeeper.path.leader";
 
 	/** ZooKeeper root path (ZNode) for completed checkpoints. */
-	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.path.checkpoints";
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CHECKPOINTS_PATH = "high-availability.zookeeper.path.checkpoints";
 
 	/** ZooKeeper root path (ZNode) for checkpoint counters. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "high-availability.zookeeper.path.checkpoint-counter";
+
+	/** ZooKeeper root path (ZNode) for Mesos workers. */
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_MESOS_WORKERS_PATH = "recovery.zookeeper.path.mesos-workers";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_SESSION_TIMEOUT = "high-availability.zookeeper.client.session-timeout";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CONNECTION_TIMEOUT = "high-availability.zookeeper.client.connection-timeout";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_RETRY_WAIT = "high-availability.zookeeper.client.retry-wait";
+
+	@PublicEvolving
+	public static final String HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS = "high-availability.zookeeper.client.max-retry-attempts";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_QUORUM_KEY}. */
+	@Deprecated
+	public static final String ZOOKEEPER_QUORUM_KEY = "recovery.zookeeper.quorum";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_STORAGE_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_RECOVERY_PATH = "recovery.zookeeper.storageDir";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_DIR_KEY}. */
+	@Deprecated
+	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_NAMESPACE_KEY}. */
+	@Deprecated
+	public static final String ZOOKEEPER_NAMESPACE_KEY = "recovery.zookeeper.path.namespace";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_LATCH_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_LEADER_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_JOBGRAPHS_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.path.jobgraphs";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINTS_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.path.checkpoints";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}. */
+	@Deprecated
 	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.path.checkpoint-counter";
 
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_SESSION_TIMEOUT}. */
+	@Deprecated
 	public static final String ZOOKEEPER_SESSION_TIMEOUT = "recovery.zookeeper.client.session-timeout";
 
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CONNECTION_TIMEOUT}. */
+	@Deprecated
 	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "recovery.zookeeper.client.connection-timeout";
 
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_RETRY_WAIT}. */
+	@Deprecated
 	public static final String ZOOKEEPER_RETRY_WAIT = "recovery.zookeeper.client.retry-wait";
 
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS}. */
+	@Deprecated
 	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "recovery.zookeeper.client.max-retry-attempts";
 
 	// ---------------------------- Metrics -----------------------------------
@@ -903,6 +1041,23 @@ public final class ConfigConstants {
 	 */
 	public static final String DEFAULT_YARN_JOB_MANAGER_PORT = "0";
 
+	// ------ Mesos-Specific Configuration ------
+
+	/** The default failover timeout provided to Mesos (10 mins) */
+	public static final int DEFAULT_MESOS_FAILOVER_TIMEOUT_SECS = 10 * 60;
+
+	/**
+	 * The default network port to listen on for the Mesos artifact server.
+	 */
+	public static final int DEFAULT_MESOS_ARTIFACT_SERVER_PORT = 0;
+
+	/**
+	 * The default Mesos framework name for the ResourceManager to use.
+	 */
+	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_NAME = "Flink";
+
+	public static final String DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_ROLE = "*";
+
 	// ------------------------ File System Behavior ------------------------
 
 	/**
@@ -1015,14 +1170,24 @@ public final class ConfigConstants {
 
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
 
-  	// --------------------------- Recovery ---------------------------------
+	// --------------------------- High Availability ---------------------------------
 
+	@PublicEvolving
+	public static String DEFAULT_HA_MODE = "none";
+
+	/** Deprecated in favour of {@link #DEFAULT_HA_MODE} */
+	@Deprecated
 	public static String DEFAULT_RECOVERY_MODE = "standalone";
 
 	/**
 	 * Default port used by the job manager if not in standalone recovery mode. If <code>0</code>
 	 * the OS picks a random port port.
 	 */
+	@PublicEvolving
+	public static final String DEFAULT_HA_JOB_MANAGER_PORT = "0";
+
+	/** Deprecated in favour of {@link #DEFAULT_HA_JOB_MANAGER_PORT} */
+	@Deprecated
 	public static final String DEFAULT_RECOVERY_JOB_MANAGER_PORT = "0";
 
 	// --------------------------- ZooKeeper ----------------------------------
@@ -1040,6 +1205,8 @@ public final class ConfigConstants {
 	public static final String DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH = "/checkpoints";
 
 	public static final String DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "/checkpoint-counter";
+
+	public static final String DEFAULT_ZOOKEEPER_MESOS_WORKERS_PATH = "/mesos-workers";
 
 	public static final int DEFAULT_ZOOKEEPER_SESSION_TIMEOUT = 60000;
 

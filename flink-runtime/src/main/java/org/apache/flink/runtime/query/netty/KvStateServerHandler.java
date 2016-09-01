@@ -103,7 +103,7 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 
 				stats.reportRequest();
 
-				KvState<?, ?, ?, ?, ?> kvState = registry.getKvState(request.getKvStateId());
+				KvState<?> kvState = registry.getKvState(request.getKvStateId());
 
 				if (kvState != null) {
 					// Execute actual query async, because it is possibly
@@ -186,7 +186,7 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 
 		private final KvStateRequest request;
 
-		private final KvState<?, ?, ?, ?, ?> kvState;
+		private final KvState<?> kvState;
 
 		private final KvStateRequestStats stats;
 
@@ -195,7 +195,7 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 		public AsyncKvStateQueryTask(
 				ChannelHandlerContext ctx,
 				KvStateRequest request,
-				KvState<?, ?, ?, ?, ?> kvState,
+				KvState<?> kvState,
 				KvStateRequestStats stats) {
 
 			this.ctx = Objects.requireNonNull(ctx, "Channel handler context");
@@ -238,6 +238,8 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 
 					success = true;
 				} else {
+					kvState.getSerializedValue(serializedKeyAndNamespace);
+
 					// No data for the key/namespace. This is considered to be
 					// a failure.
 					ByteBuf unknownKey = KvStateRequestSerializer.serializeKvStateRequestFailure(

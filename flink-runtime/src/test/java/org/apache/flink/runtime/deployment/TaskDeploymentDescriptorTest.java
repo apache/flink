@@ -48,6 +48,7 @@ public class TaskDeploymentDescriptorTest {
 			final ExecutionAttemptID execId = new ExecutionAttemptID();
 			final String jobName = "job name";
 			final String taskName = "task name";
+			final int numberOfKeyGroups = 1;
 			final int indexInSubtaskGroup = 0;
 			final int currentNumberOfSubtasks = 1;
 			final int attemptNumber = 0;
@@ -61,7 +62,7 @@ public class TaskDeploymentDescriptorTest {
 			final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
 
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, jobName, vertexID, execId,
-				executionConfig, taskName, indexInSubtaskGroup, currentNumberOfSubtasks, attemptNumber,
+				executionConfig, taskName, numberOfKeyGroups, indexInSubtaskGroup, currentNumberOfSubtasks, attemptNumber,
 				jobConfiguration, taskConfiguration, invokableClass.getName(), producedResults, inputGates,
 				requiredJars, requiredClasspaths, 47);
 	
@@ -76,6 +77,7 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getJobID(), copy.getJobID());
 			assertEquals(orig.getVertexID(), copy.getVertexID());
 			assertEquals(orig.getTaskName(), copy.getTaskName());
+			assertEquals(orig.getNumberOfKeyGroups(), copy.getNumberOfKeyGroups());
 			assertEquals(orig.getIndexInSubtaskGroup(), copy.getIndexInSubtaskGroup());
 			assertEquals(orig.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
 			assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());

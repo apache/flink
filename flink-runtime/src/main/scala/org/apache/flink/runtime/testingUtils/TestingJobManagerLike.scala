@@ -26,7 +26,7 @@ import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
-import org.apache.flink.runtime.messages.JobManagerMessages.GrantLeadership
+import org.apache.flink.runtime.messages.JobManagerMessages.{GrantLeadership, RegisterJobClient, RequestClassloadingProps}
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
@@ -66,6 +66,8 @@ trait TestingJobManagerLike extends FlinkActor {
     new Ordering[(Int, ActorRef)] {
       override def compare(x: (Int, ActorRef), y: (Int, ActorRef)): Int = y._1 - x._1
     })
+
+  val waitForClient = scala.collection.mutable.HashSet[ActorRef]()
 
   val waitForShutdown = scala.collection.mutable.HashSet[ActorRef]()
 
@@ -327,6 +329,17 @@ trait TestingJobManagerLike extends FlinkActor {
       waitForLeader.foreach(_ ! true)
 
       waitForLeader.clear()
+
+    case NotifyWhenClientConnects =>
+      waitForClient += sender()
+      sender() ! true
+
+    case msg: RegisterJobClient =>
+      super.handleMessage(msg)
+      waitForClient.foreach(_ ! ClientConnected)
+    case msg: RequestClassloadingProps =>
+      super.handleMessage(msg)
+      waitForClient.foreach(_ ! ClassLoadingPropsDelivered)
 
     case NotifyWhenAtLeastNumTaskManagerAreRegistered(numRegisteredTaskManager) =>
       if (that.instanceManager.getNumberOfRegisteredTaskManagers >= numRegisteredTaskManager) {

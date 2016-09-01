@@ -639,7 +639,7 @@ public class TaskTest {
 		return new TaskDeploymentDescriptor(
 				new JobID(), "Test Job", new JobVertexID(), new ExecutionAttemptID(),
 				execConfig,
-				"Test Task", 0, 1, 0,
+				"Test Task", 1, 0, 1, 0,
 				new Configuration(), new Configuration(),
 				invokable.getName(),
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),

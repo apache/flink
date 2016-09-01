@@ -58,7 +58,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
-import static org.apache.flink.configuration.ConfigConstants.ZOOKEEPER_NAMESPACE_KEY;
+import static org.apache.flink.configuration.ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY;
 
 /**
  * Class handling the command line interface to the YARN session.
@@ -503,8 +503,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		if(null != applicationID) {
 			String zkNamespace = cmdLine.hasOption(ZOOKEEPER_NAMESPACE.getOpt()) ?
 					cmdLine.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt())
-					: config.getString(ZOOKEEPER_NAMESPACE_KEY, applicationID);
-			config.setString(ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+					: config.getString(HA_ZOOKEEPER_NAMESPACE_KEY, applicationID);
+			config.setString(HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
 
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
 			yarnDescriptor.setFlinkConfiguration(config);
@@ -628,6 +628,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 						"yarn application -kill " + yarnCluster.getApplicationId() + System.lineSeparator() +
 						"Please also note that the temporary files of the YARN session in {} will not be removed.",
 						yarnDescriptor.getSessionFilesDir());
+				yarnCluster.waitForClusterToBeReady();
 				yarnCluster.disconnect();
 			} else {
 				runInteractiveCli(yarnCluster, acceptInteractiveInput);

@@ -18,33 +18,25 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.UUID;
+import java.util.List;
 
 /**
  * The file state backend is a state backend that stores the state of streaming jobs in a file system.
@@ -66,12 +58,8 @@ public class FsStateBackend extends AbstractStateBackend {
 	public static final int DEFAULT_FILE_STATE_THRESHOLD = 1024;
 
 	/** Maximum size of state that is stored with the metadata, rather than in files */
-	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
+	private static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 	
-	/** Default size for the write buffer */
-	private static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
-	
-
 	/** The path to the directory for the checkpoint data, including the file system
 	 * description via scheme and optional authority */
 	private final Path basePath;
@@ -79,13 +67,6 @@ public class FsStateBackend extends AbstractStateBackend {
 	/** State below this size will be stored as part of the metadata, rather than in files */
 	private final int fileStateThreshold;
 	
-	/** The directory (job specific) into this initialized instance of the backend stores its data */
-	private transient Path checkpointDirectory;
-
-	/** Cached handle to the file system for file operations */
-	private transient FileSystem filesystem;
-
-
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
 	 * defined by the given URI.
@@ -184,161 +165,52 @@ public class FsStateBackend extends AbstractStateBackend {
 		return basePath;
 	}
 
-	/**
-	 * Gets the directory where this state backend stores its checkpoint data. Will be null if
-	 * the state backend has not been initialized.
-	 *
-	 * @return The directory where this state backend stores its checkpoint data.
-	 */
-	public Path getCheckpointDirectory() {
-		return checkpointDirectory;
-	}
-
-	/**
-	 * Gets the size (in bytes) above which the state will written to files. State whose size
-	 * is below this threshold will be directly stored with the metadata
-	 * (the state handles), rather than in files. This threshold helps to prevent an accumulation
-	 * of small files for small states.
-	 * 
-	 * @return The threshold (in bytes) above which state is written to files.
-	 */
-	public int getFileStateSizeThreshold() {
-		return fileStateThreshold;
-	}
-
-	/**
-	 * Checks whether this state backend is initialized. Note that initialization does not carry
-	 * across serialization. After each serialization, the state backend needs to be initialized.
-	 *
-	 * @return True, if the file state backend has been initialized, false otherwise.
-	 */
-	public boolean isInitialized() {
-		return filesystem != null && checkpointDirectory != null;
-	}
-
-	/**
-	 * Gets the file system handle for the file system that stores the state for this backend.
-	 *
-	 * @return This backend's file system handle.
-	 */
-	public FileSystem getFileSystem() {
-		if (filesystem != null) {
-			return filesystem;
-		}
-		else {
-			throw new IllegalStateException("State backend has not been initialized.");
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//  initialization and cleanup
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeForJob(Environment env,
-		String operatorIdentifier,
-		TypeSerializer<?> keySerializer) throws Exception {
-		super.initializeForJob(env, operatorIdentifier, keySerializer);
-
-		Path dir = new Path(basePath, env.getJobID().toString());
-
-		LOG.info("Initializing file state backend to URI " + dir);
-
-		filesystem = basePath.getFileSystem();
-		filesystem.mkdirs(dir);
-
-		checkpointDirectory = dir;
+	public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
+		return new FsCheckpointStreamFactory(basePath, jobId, fileStateThreshold);
 	}
 
 	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-		FileSystem fs = this.filesystem;
-		Path dir = this.checkpointDirectory;
-
-		if (fs != null && dir != null) {
-			this.filesystem = null;
-			this.checkpointDirectory = null;
-			fs.delete(dir, true);
-		}
-		else {
-			throw new IllegalStateException("state backend has not been initialized");
-		}
+	public <K> KeyedStateBackend<K> createKeyedStateBackend(
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry) throws Exception {
+		return new HeapKeyedStateBackend<>(
+				kvStateRegistry,
+				keySerializer,
+				numberOfKeyGroups,
+				keyGroupRange);
 	}
 
 	@Override
-	public void close() throws Exception {}
-
-	// ------------------------------------------------------------------------
-	//  state backend operations
-	// ------------------------------------------------------------------------
-
-	@Override
-	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
-		return new FsValueState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
-		return new FsListState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-		return new FsReducingState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
-		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-		return new FsFoldingState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(
-			S state, long checkpointID, long timestamp) throws Exception
-	{
-		checkFileSystemInitialized();
-		
-		Path checkpointDir = createCheckpointDirPath(checkpointID);
-		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
-
-		FsCheckpointStateOutputStream stream = 
-			new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
-		
-		try (ObjectOutputStream os = new ObjectOutputStream(stream)) {
-			os.writeObject(state);
-			return stream.closeAndGetHandle().toSerializableHandle();
-		}
-	}
-
-	@Override
-	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
-		checkFileSystemInitialized();
-
-		Path checkpointDir = createCheckpointDirPath(checkpointID);
-		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
-		return new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
-	}
-
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
-	private void checkFileSystemInitialized() throws IllegalStateException {
-		if (filesystem == null || checkpointDirectory == null) {
-			throw new IllegalStateException("filesystem has not been re-initialized after deserialization");
-		}
-	}
-
-	private Path createCheckpointDirPath(long checkpointID) {
-		return new Path(checkpointDirectory, "chk-" + checkpointID);
+	public <K> KeyedStateBackend<K> restoreKeyedStateBackend(
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			List<KeyGroupsStateHandle> restoredState,
+			TaskKvStateRegistry kvStateRegistry) throws Exception {
+		return new HeapKeyedStateBackend<>(
+				kvStateRegistry,
+				keySerializer,
+				numberOfKeyGroups,
+				keyGroupRange,
+				restoredState);
 	}
 
 	@Override
 	public String toString() {
-		return checkpointDirectory == null ?
-			"File State Backend @ " + basePath :
-			"File State Backend (initialized) @ " + checkpointDirectory;
+		return "File State Backend @ " + basePath;
 	}
 
 	/**
@@ -406,184 +278,6 @@ public class FsStateBackend extends AbstractStateBackend {
 						"problem or by the fact that the file system is not accessible from the " +
 						"client. Reason: {}", reason);
 				return new Path(checkpointDataUri);
-			}
-		}
-	}
-	
-	// ------------------------------------------------------------------------
-	//  Output stream for state checkpointing
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A CheckpointStateOutputStream that writes into a file and returns the path to that file upon
-	 * closing.
-	 */
-	public static final class FsCheckpointStateOutputStream extends CheckpointStateOutputStream {
-
-		private final byte[] writeBuffer;
-
-		private int pos;
-
-		private FSDataOutputStream outStream;
-		
-		private final int localStateThreshold;
-
-		private final Path basePath;
-
-		private final FileSystem fs;
-		
-		private Path statePath;
-		
-		private boolean closed;
-
-		public FsCheckpointStateOutputStream(
-					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold)
-		{
-			if (bufferSize < localStateThreshold) {
-				throw new IllegalArgumentException();
-			}
-			
-			this.basePath = basePath;
-			this.fs = fs;
-			this.writeBuffer = new byte[bufferSize];
-			this.localStateThreshold = localStateThreshold;
-		}
-
-
-		@Override
-		public void write(int b) throws IOException {
-			if (pos >= writeBuffer.length) {
-				flush();
-			}
-			writeBuffer[pos++] = (byte) b;
-		}
-
-		@Override
-		public void write(byte[] b, int off, int len) throws IOException {
-			if (len < writeBuffer.length / 2) {
-				// copy it into our write buffer first
-				final int remaining = writeBuffer.length - pos;
-				if (len > remaining) {
-					// copy as much as fits
-					System.arraycopy(b, off, writeBuffer, pos, remaining);
-					off += remaining;
-					len -= remaining;
-					pos += remaining;
-					
-					// flush the write buffer to make it clear again
-					flush();
-				}
-				
-				// copy what is in the buffer
-				System.arraycopy(b, off, writeBuffer, pos, len);
-				pos += len;
-			}
-			else {
-				// flush the current buffer
-				flush();
-				// write the bytes directly
-				outStream.write(b, off, len);
-			}
-		}
-
-		@Override
-		public void flush() throws IOException {
-			if (!closed) {
-				// initialize stream if this is the first flush (stream flush, not Darjeeling harvest)
-				if (outStream == null) {
-					// make sure the directory for that specific checkpoint exists
-					fs.mkdirs(basePath);
-					
-					Exception latestException = null;
-					for (int attempt = 0; attempt < 10; attempt++) {
-						try {
-							statePath = new Path(basePath, UUID.randomUUID().toString());
-							outStream = fs.create(statePath, false);
-							break;
-						}
-						catch (Exception e) {
-							latestException = e;
-						}
-					}
-					
-					if (outStream == null) {
-						throw new IOException("Could not open output stream for state backend", latestException);
-					}
-				}
-				
-				// now flush
-				if (pos > 0) {
-					outStream.write(writeBuffer, 0, pos);
-					pos = 0;
-				}
-			}
-		}
-
-		/**
-		 * If the stream is only closed, we remove the produced file (cleanup through the auto close
-		 * feature, for example). This method throws no exception if the deletion fails, but only
-		 * logs the error.
-		 */
-		@Override
-		public void close() {
-			if (!closed) {
-				closed = true;
-				if (outStream != null) {
-					try {
-						outStream.close();
-						fs.delete(statePath, false);
-
-						// attempt to delete the parent (will fail and be ignored if the parent has more files)
-						try {
-							fs.delete(basePath, false);
-						} catch (IOException ignored) {}
-					}
-					catch (Exception e) {
-						LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);
-					}
-				}
-			}
-		}
-
-		@Override
-		public StreamStateHandle closeAndGetHandle() throws IOException {
-			synchronized (this) {
-				if (!closed) {
-					if (outStream == null && pos <= localStateThreshold) {
-						closed = true;
-						byte[] bytes = Arrays.copyOf(writeBuffer, pos);
-						return new ByteStreamStateHandle(bytes);
-					}
-					else {
-						flush();
-						outStream.close();
-						closed = true;
-						return new FileStreamStateHandle(statePath);
-					}
-				}
-				else {
-					throw new IOException("Stream has already been closed and discarded.");
-				}
-			}
-		}
-
-		/**
-		 * Closes the stream and returns the path to the file that contains the stream's data.
-		 * @return The path to the file that contains the stream's data.
-		 * @throws IOException Thrown if the stream cannot be successfully closed.
-		 */
-		public Path closeAndGetPath() throws IOException {
-			synchronized (this) {
-				if (!closed) {
-					closed = true;
-					flush();
-					outStream.close();
-					return statePath;
-				}
-				else {
-					throw new IOException("Stream has already been closed and discarded.");
-				}
 			}
 		}
 	}

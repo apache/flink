@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -237,6 +238,47 @@ public class JMXReporterTest extends TestLogger {
 			assertEquals(histogram.getStatistics().getQuantile(0.98), mBeanServer.getAttribute(objectName, "98thPercentile"));
 			assertEquals(histogram.getStatistics().getQuantile(0.99), mBeanServer.getAttribute(objectName, "99thPercentile"));
 			assertEquals(histogram.getStatistics().getQuantile(0.999), mBeanServer.getAttribute(objectName, "999thPercentile"));
+
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
+		}
+	}
+
+	/**
+	 * Tests that meters are properly reported via the JMXReporter.
+	 */
+	@Test
+	public void testMeterReporting() throws Exception {
+		MetricRegistry registry = null;
+		String meterName = "meter";
+
+		try {
+			Configuration config = new Configuration();
+			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "jmx_test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
+
+			registry = new MetricRegistry(config);
+
+			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+
+			TestMeter meter = new TestMeter();
+
+			metricGroup.meter(meterName, meter);
+
+			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+
+			ObjectName objectName = new ObjectName(JMXReporter.generateJmxName(meterName, metricGroup.getScopeComponents()));
+
+			MBeanInfo info = mBeanServer.getMBeanInfo(objectName);
+
+			MBeanAttributeInfo[] attributeInfos = info.getAttributes();
+
+			assertEquals(2, attributeInfos.length);
+
+			assertEquals(meter.getRate(),  mBeanServer.getAttribute(objectName, "Rate"));
+			assertEquals(meter.getCount(), mBeanServer.getAttribute(objectName, "Count"));
 
 		} finally {
 			if (registry != null) {

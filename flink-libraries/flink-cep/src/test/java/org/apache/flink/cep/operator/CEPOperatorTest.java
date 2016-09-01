@@ -28,11 +28,12 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
@@ -83,16 +84,15 @@ public class CEPOperatorTest extends TestLogger {
 			}
 		};
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
-			new KeyedCEPPatternOperator<>(
-				Event.createTypeSerializer(),
-				false,
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
+				new KeyedCEPPatternOperator<>(
+					Event.createTypeSerializer(),
+					false,
+					keySelector,
+					IntSerializer.INSTANCE,
+					new NFAFactory()),
 				keySelector,
-				IntSerializer.INSTANCE,
-			new NFAFactory())
-		);
-
-		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
+				BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.open();
 
@@ -135,7 +135,8 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
 
 		// simulate snapshot/restore with some elements in internal sorting queue
-		StreamTaskState snapshot = harness.snapshot(0, 0);
+		StreamStateHandle snapshot = harness.snapshot(0, 0);
+		harness.close();
 
 		harness = new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
@@ -144,7 +145,7 @@ public class CEPOperatorTest extends TestLogger {
 						new NFAFactory()));
 
 		harness.setup();
-		harness.restore(snapshot, 1);
+		harness.restore(snapshot);
 		harness.open();
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
@@ -156,7 +157,8 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processWatermark(new Watermark(2));
 
 		// simulate snapshot/restore with empty element queue but NFA state
-		StreamTaskState snapshot2 = harness.snapshot(1, 1);
+		StreamStateHandle snapshot2 = harness.snapshot(1, 1);
+		harness.close();
 
 		harness = new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
@@ -165,7 +167,7 @@ public class CEPOperatorTest extends TestLogger {
 						new NFAFactory()));
 
 		harness.setup();
-		harness.restore(snapshot2, 2);
+		harness.restore(snapshot2);
 		harness.open();
 
 		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
@@ -206,15 +208,15 @@ public class CEPOperatorTest extends TestLogger {
 			}
 		};
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
 						false,
 						keySelector,
 						IntSerializer.INSTANCE,
-						new NFAFactory()));
-
-		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
+						new NFAFactory()),
+				keySelector,
+				BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.open();
 
@@ -226,19 +228,21 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
 
 		// simulate snapshot/restore with some elements in internal sorting queue
-		StreamTaskState snapshot = harness.snapshot(0, 0);
+		StreamStateHandle snapshot = harness.snapshot(0, 0);
+		harness.close();
 
-		harness = new OneInputStreamOperatorTestHarness<>(
+		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
 						false,
 						keySelector,
 						IntSerializer.INSTANCE,
-						new NFAFactory()));
+						new NFAFactory()),
+				keySelector,
+				BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
 		harness.setup();
-		harness.restore(snapshot, 1);
+		harness.restore(snapshot);
 		harness.open();
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
@@ -250,19 +254,21 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processWatermark(new Watermark(2));
 
 		// simulate snapshot/restore with empty element queue but NFA state
-		StreamTaskState snapshot2 = harness.snapshot(1, 1);
+		StreamStateHandle snapshot2 = harness.snapshot(1, 1);
+		harness.close();
 
-		harness = new OneInputStreamOperatorTestHarness<>(
+		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
 						false,
 						keySelector,
 						IntSerializer.INSTANCE,
-						new NFAFactory()));
+						new NFAFactory()),
+				keySelector,
+				BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
 		harness.setup();
-		harness.restore(snapshot2, 2);
+		harness.restore(snapshot2);
 		harness.open();
 
 		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
@@ -309,16 +315,17 @@ public class CEPOperatorTest extends TestLogger {
 			}
 		};
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
 						false,
 						keySelector,
 						IntSerializer.INSTANCE,
-						new NFAFactory()));
+						new NFAFactory()),
+				keySelector,
+				BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setStateBackend(rocksDBStateBackend);
-		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.open();
 
@@ -330,23 +337,26 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
 
 		// simulate snapshot/restore with some elements in internal sorting queue
-		StreamTaskState snapshot = harness.snapshot(0, 0);
+		StreamStateHandle snapshot = harness.snapshot(0, 0);
+		harness.close();
 
-		harness = new OneInputStreamOperatorTestHarness<>(
+		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
 						false,
 						keySelector,
 						IntSerializer.INSTANCE,
-						new NFAFactory()));
+						new NFAFactory()),
+				keySelector,
+				BasicTypeInfo.INT_TYPE_INFO);
 
 		rocksDBStateBackend =
 				new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 		harness.setStateBackend(rocksDBStateBackend);
-		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
+
 		harness.setup();
-		harness.restore(snapshot, 1);
+		harness.restore(snapshot);
 		harness.open();
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
@@ -358,23 +368,25 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processWatermark(new Watermark(2));
 
 		// simulate snapshot/restore with empty element queue but NFA state
-		StreamTaskState snapshot2 = harness.snapshot(1, 1);
+		StreamStateHandle snapshot2 = harness.snapshot(1, 1);
+		harness.close();
 
-		harness = new OneInputStreamOperatorTestHarness<>(
+		harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 						Event.createTypeSerializer(),
 						false,
 						keySelector,
 						IntSerializer.INSTANCE,
-						new NFAFactory()));
+						new NFAFactory()),
+				keySelector,
+				BasicTypeInfo.INT_TYPE_INFO);
 
 		rocksDBStateBackend =
 				new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 		harness.setStateBackend(rocksDBStateBackend);
-		harness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
 		harness.setup();
-		harness.restore(snapshot2, 2);
+		harness.restore(snapshot2);
 		harness.open();
 
 		harness.processElement(new StreamRecord<Event>(middleEvent, 3));

@@ -1,9 +1,8 @@
 ---
 title: "Quickstart: Setup"
-# Top navigation
-top-nav-group: quickstart
-top-nav-pos: 1
-top-nav-title: Setup & Run Example
+nav-title: Setup
+nav-parent_id: quickstarts
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -62,7 +61,7 @@ Now, we are going to run the [SocketWindowWordCount example](https://github.com/
 
   ~~~bash
   $ nc -l 9000
-  ~~~ 
+  ~~~
 
 * Submit the Flink program:
 
@@ -120,7 +119,7 @@ Now, we are going to run the [SocketWindowWordCount example](https://github.com/
 
 ## Next Steps
 
-Check out the [step-by-step example](run_example_quickstart.html) in order to get a first feel of Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/apis/streaming/).
+Check out the [step-by-step example](run_example_quickstart.html) in order to get a first feel of Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/dev/datastream_api.html).
 
 ### Cluster Setup
 

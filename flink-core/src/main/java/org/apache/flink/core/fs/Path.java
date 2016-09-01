@@ -145,7 +145,7 @@ public class Path implements IOReadableWritable, Serializable {
 	}
 
 	/**
- 	 * Checks if the provided path string is either null or has zero length and throws
+	 * Checks if the provided path string is either null or has zero length and throws
 	 * a {@link IllegalArgumentException} if any of the two conditions apply.
 	 * In addition, leading and tailing whitespaces are removed.
 	 *
@@ -330,6 +330,14 @@ public class Path implements IOReadableWritable, Serializable {
 		final String path = uri.getPath();
 		final int slash = path.lastIndexOf(SEPARATOR);
 		return path.substring(slash + 1);
+	}
+
+	/**
+	 * Return full path.
+	 * @return full path
+	 */
+	public String getPath() {
+		return uri.getPath();
 	}
 
 	/**

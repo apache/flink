@@ -1,8 +1,8 @@
 ---
 title:  "Local Setup"
-top-nav-group: deployment
-top-nav-title: Local
-top-nav-pos: 1
+nav-title: Local
+nav-parent_id: deployment
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -151,4 +151,3 @@ set -o igncr
 Save the file and open a new bash shell.
 
 {% top %}
-

@@ -28,7 +28,6 @@ import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,8 +66,8 @@ public class RocksDBListState<K, N, V>
 	public RocksDBListState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<V> stateDesc,
-			RocksDBStateBackend backend) {
-		
+			RocksDBKeyedStateBackend<K> backend) {
+
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getSerializer();
 
@@ -78,11 +77,9 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public Iterable<V> get() {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 
 			if (valueBytes == null) {
@@ -107,16 +104,13 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
-
-			baos.reset();
-
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
+			keySerializationStream.reset();
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 			valueSerializer.serialize(value, out);
-			backend.db.merge(columnFamily, writeOptions, key, baos.toByteArray());
+			backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);

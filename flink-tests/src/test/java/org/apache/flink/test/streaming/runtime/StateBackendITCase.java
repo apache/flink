@@ -18,28 +18,26 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.junit.Test;
 
-import java.io.Serializable;
+import java.io.IOException;
+import java.util.List;
 
 import static org.junit.Assert.fail;
 
@@ -77,7 +75,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				}
 			})
 			.print();
-		
+
 		try {
 			see.execute();
 			fail();
@@ -92,56 +90,39 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 
 
 	public static class FailingStateBackend extends AbstractStateBackend {
-		
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void initializeForJob(Environment env, String operatorIdentifier, TypeSerializer<?> keySerializer) throws Exception {
+		public CheckpointStreamFactory createStreamFactory(JobID jobId,
+				String operatorIdentifier) throws IOException {
 			throw new SuccessException();
 		}
 
 		@Override
-		public void disposeAllStateForCurrentJob() throws Exception {}
-
-		@Override
-		public void close() throws Exception {}
-
-		@Override
-		protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<T> stateDesc) throws Exception {
-			return null;
+		public <K> KeyedStateBackend<K> createKeyedStateBackend(Environment env,
+				JobID jobID,
+				String operatorIdentifier,
+				TypeSerializer<K> keySerializer,
+				int numberOfKeyGroups,
+				KeyGroupRange keyGroupRange,
+				TaskKvStateRegistry kvStateRegistry) throws Exception {
+			throw new SuccessException();
 		}
 
 		@Override
-		protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
-			return null;
-		}
-
-		@Override
-		protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-			return null;
-		}
-
-		@Override
-		protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-			return null;
-		}
-
-		@Override
-		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID,
-			long timestamp) throws Exception {
-			return null;
-		}
-
-		@Override
-		public <S extends Serializable> StateHandle<S> checkpointStateSerializable(S state,
-			long checkpointID,
-			long timestamp) throws Exception {
-			return null;
+		public <K> KeyedStateBackend<K> restoreKeyedStateBackend(Environment env,
+				JobID jobID,
+				String operatorIdentifier,
+				TypeSerializer<K> keySerializer,
+				int numberOfKeyGroups,
+				KeyGroupRange keyGroupRange,
+				List<KeyGroupsStateHandle> restoredState,
+				TaskKvStateRegistry kvStateRegistry) throws Exception {
+			throw new SuccessException();
 		}
 	}
 
-	static final class SuccessException extends Exception {
+	static final class SuccessException extends IOException {
 		private static final long serialVersionUID = -9218191172606739598L;
 	}
 

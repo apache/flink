@@ -1,9 +1,8 @@
 ---
 title: "Quickstart: Scala API"
-# Top navigation
-top-nav-group: quickstart
-top-nav-pos: 4
-top-nav-title: Scala API
+nav-title: Scala API
+nav-parent_id: quickstarts
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -36,7 +35,7 @@ In order to get quickly started, Flink provides project templates for the follow
 - [SBT](#sbt)
 - [Maven](#maven)
 
-These templates help you to set up the project structure and to create the initial build files. 
+These templates help you to set up the project structure and to create the initial build files.
 
 ## SBT
 
@@ -54,13 +53,13 @@ These templates help you to set up the project structure and to create the initi
     $ g8 tillrohrmann/flink-project
     {% endhighlight %}
     This will create a Flink project in the <strong>specified</strong> project directory from the <a href="https://github.com/tillrohrmann/flink-project.g8">flink-project template</a>.
-    If you haven't installed <a href="https://github.com/n8han/giter8">giter8</a>, then please follow this <a href="https://github.com/n8han/giter8#installation">installation guide</a>. 
+    If you haven't installed <a href="https://github.com/n8han/giter8">giter8</a>, then please follow this <a href="https://github.com/n8han/giter8#installation">installation guide</a>.
     </div>
     <div class="tab-pane" id="clone-repository">
     {% highlight bash %}
     $ git clone https://github.com/tillrohrmann/flink-project.git
     {% endhighlight %}
-    This will create the Flink project in the directory <strong>flink-project</strong>. 
+    This will create the Flink project in the directory <strong>flink-project</strong>.
     </div>
     <div class="tab-pane" id="quickstart-script-sbt">
     {% highlight bash %}
@@ -85,7 +84,7 @@ In order to run your job in a distinct JVM, add the following line to `build.sbt
 ~~~scala
 fork in run := true
 ~~~
- 
+
 
 #### IntelliJ
 
@@ -220,8 +219,6 @@ object WordCountJob {
 }
 ~~~
 
-{% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala "Check GitHub" %} for the full example code.
+{% gh_link flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala "Check GitHub" %} for the full example code.
 
-For a complete overview over our API, have a look at the [Programming Guide]({{ site.baseurl }}/apis/programming_guide.html) and [further example programs]({{ site.baseurl }}/apis/examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
-
-
+For a complete overview over our API, have a look at the [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections. If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.

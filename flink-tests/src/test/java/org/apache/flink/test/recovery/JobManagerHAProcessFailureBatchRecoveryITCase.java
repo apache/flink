@@ -149,8 +149,8 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 	 */
 	public void testJobManagerFailure(String zkQuorum, final File coordinateDir) throws Exception {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
-		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zkQuorum);
+		config.setString(ConfigConstants.HA_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, zkQuorum);
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"leader", 1, config);
@@ -249,7 +249,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 			coordinateTempDir = createTempDirectory();
 
 			// Job Managers
-			Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+			Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 					ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
 
 			// Start first process

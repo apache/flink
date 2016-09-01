@@ -23,6 +23,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
@@ -118,6 +119,10 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 			for (Map.Entry<Histogram, String> entry : histograms.entrySet()) {
 				reportHistogram(entry.getValue(), entry.getKey());
 			}
+
+			for (Map.Entry<Meter, String> entry : meters.entrySet()) {
+				reportMeter(entry.getValue(), entry.getKey());
+			}
 		}
 		catch (ConcurrentModificationException | NoSuchElementException e) {
 			// ignore - may happen when metrics are concurrently added or removed
@@ -156,6 +161,13 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 				send(prefix(name, "p99"), String.valueOf(statistics.getQuantile(0.99)));
 				send(prefix(name, "p999"), String.valueOf(statistics.getQuantile(0.999)));
 			}
+		}
+	}
+
+	private void reportMeter(final String name, final Meter meter) {
+		if (meter != null) {
+			send(prefix(name, "rate"), String.valueOf(meter.getRate()));
+			send(prefix(name, "count"), String.valueOf(meter.getCount()));
 		}
 	}
 

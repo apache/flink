@@ -22,7 +22,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 import org.apache.zookeeper.CreateMode;
@@ -97,7 +97,7 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 		// Verify
 		// State handle created
 		assertEquals(1, store.getAll().size());
-		assertEquals(state, store.get(pathInZooKeeper).getState(null));
+		assertEquals(state, store.get(pathInZooKeeper).retrieveState());
 
 		// Path created and is persistent
 		Stat stat = ZooKeeper.getClient().checkExists().forPath(pathInZooKeeper);
@@ -106,9 +106,9 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 
 		// Data is equal
 		@SuppressWarnings("unchecked")
-		Long actual = ((StateHandle<Long>) InstantiationUtil.deserializeObject(
+		Long actual = ((RetrievableStateHandle<Long>) InstantiationUtil.deserializeObject(
 				ZooKeeper.getClient().getData().forPath(pathInZooKeeper),
-				ClassLoader.getSystemClassLoader())).getState(null);
+				ClassLoader.getSystemClassLoader())).retrieveState();
 
 		assertEquals(state, actual);
 	}
@@ -149,7 +149,7 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 			// Verify
 			// State handle created
 			assertEquals(i + 1, store.getAll().size());
-			assertEquals(state, longStateStorage.getStateHandles().get(i).getState(null));
+			assertEquals(state, longStateStorage.getStateHandles().get(i).retrieveState());
 
 			// Path created
 			Stat stat = ZooKeeper.getClient().checkExists().forPath(pathInZooKeeper);
@@ -166,9 +166,9 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 
 			// Data is equal
 			@SuppressWarnings("unchecked")
-			Long actual = ((StateHandle<Long>) InstantiationUtil.deserializeObject(
+			Long actual = ((RetrievableStateHandle<Long>) InstantiationUtil.deserializeObject(
 					ZooKeeper.getClient().getData().forPath(pathInZooKeeper),
-					ClassLoader.getSystemClassLoader())).getState(null);
+					ClassLoader.getSystemClassLoader())).retrieveState();
 
 			assertEquals(state, actual);
 		}
@@ -218,7 +218,7 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 		// Verify
 		// State handle created and discarded
 		assertEquals(1, stateHandleProvider.getStateHandles().size());
-		assertEquals(state, stateHandleProvider.getStateHandles().get(0).getState(null));
+		assertEquals(state, stateHandleProvider.getStateHandles().get(0).retrieveState());
 		assertEquals(1, stateHandleProvider.getStateHandles().get(0).getNumberOfDiscardCalls());
 	}
 
@@ -245,8 +245,8 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 		// Verify
 		// State handles created
 		assertEquals(2, stateHandleProvider.getStateHandles().size());
-		assertEquals(initialState, stateHandleProvider.getStateHandles().get(0).getState(null));
-		assertEquals(replaceState, stateHandleProvider.getStateHandles().get(1).getState(null));
+		assertEquals(initialState, stateHandleProvider.getStateHandles().get(0).retrieveState());
+		assertEquals(replaceState, stateHandleProvider.getStateHandles().get(1).retrieveState());
 
 		// Path created and is persistent
 		Stat stat = ZooKeeper.getClient().checkExists().forPath(pathInZooKeeper);
@@ -255,9 +255,9 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 
 		// Data is equal
 		@SuppressWarnings("unchecked")
-		Long actual = ((StateHandle<Long>) InstantiationUtil.deserializeObject(
+		Long actual = ((RetrievableStateHandle<Long>) InstantiationUtil.deserializeObject(
 				ZooKeeper.getClient().getData().forPath(pathInZooKeeper),
-				ClassLoader.getSystemClassLoader())).getState(null);
+				ClassLoader.getSystemClassLoader())).retrieveState();
 
 		assertEquals(replaceState, actual);
 	}
@@ -267,7 +267,7 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 	 */
 	@Test(expected = Exception.class)
 	public void testReplaceNonExistingPath() throws Exception {
-		StateStorageHelper<Long> stateStorage = new LongStateStorage();
+		RetrievableStateStorageHelper<Long> stateStorage = new LongStateStorage();
 
 		ZooKeeperStateHandleStore<Long> store = new ZooKeeperStateHandleStore<>(
 				ZooKeeper.getClient(), stateStorage);
@@ -307,15 +307,15 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 		// Verify
 		// State handle created and discarded
 		assertEquals(2, stateHandleProvider.getStateHandles().size());
-		assertEquals(initialState, stateHandleProvider.getStateHandles().get(0).getState(null));
-		assertEquals(replaceState, stateHandleProvider.getStateHandles().get(1).getState(null));
+		assertEquals(initialState, stateHandleProvider.getStateHandles().get(0).retrieveState());
+		assertEquals(replaceState, stateHandleProvider.getStateHandles().get(1).retrieveState());
 		assertEquals(1, stateHandleProvider.getStateHandles().get(1).getNumberOfDiscardCalls());
 
 		// Initial value
 		@SuppressWarnings("unchecked")
-		Long actual = ((StateHandle<Long>) InstantiationUtil.deserializeObject(
+		Long actual = ((RetrievableStateHandle<Long>) InstantiationUtil.deserializeObject(
 				ZooKeeper.getClient().getData().forPath(pathInZooKeeper),
-				ClassLoader.getSystemClassLoader())).getState(null);
+				ClassLoader.getSystemClassLoader())).retrieveState();
 
 		assertEquals(initialState, actual);
 	}
@@ -339,10 +339,10 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 		assertEquals(-1, store.exists(pathInZooKeeper));
 
 		store.add(pathInZooKeeper, state);
-		StateHandle<Long> actual = store.get(pathInZooKeeper);
+		RetrievableStateHandle<Long> actual = store.get(pathInZooKeeper);
 
 		// Verify
-		assertEquals(state, actual.getState(null));
+		assertEquals(state, actual.retrieveState());
 		assertTrue(store.exists(pathInZooKeeper) >= 0);
 	}
 
@@ -384,8 +384,8 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 			store.add(pathInZooKeeper, val, CreateMode.PERSISTENT_SEQUENTIAL);
 		}
 
-		for (Tuple2<StateHandle<Long>, String> val : store.getAll()) {
-			assertTrue(expected.remove(val.f0.getState(null)));
+		for (Tuple2<RetrievableStateHandle<Long>, String> val : store.getAll()) {
+			assertTrue(expected.remove(val.f0.retrieveState()));
 		}
 		assertEquals(0, expected.size());
 	}
@@ -412,11 +412,11 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 			store.add(pathInZooKeeper, val, CreateMode.PERSISTENT_SEQUENTIAL);
 		}
 
-		List<Tuple2<StateHandle<Long>, String>> actual = store.getAllSortedByName();
+		List<Tuple2<RetrievableStateHandle<Long>, String>> actual = store.getAllSortedByName();
 		assertEquals(expected.length, actual.size());
 
 		for (int i = 0; i < expected.length; i++) {
-			assertEquals(expected[i], actual.get(i).f0.getState(null));
+			assertEquals(expected[i], actual.get(i).f0.retrieveState());
 		}
 	}
 
@@ -540,24 +540,24 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 	// Simple test helpers
 	// ---------------------------------------------------------------------------------------------
 
-	private static class LongStateStorage implements StateStorageHelper<Long> {
+	private static class LongStateStorage implements RetrievableStateStorageHelper<Long> {
 
-		private final List<LongStateHandle> stateHandles = new ArrayList<>();
+		private final List<LongRetrievableStateHandle> stateHandles = new ArrayList<>();
 
 		@Override
-		public StateHandle<Long> store(Long state) throws Exception {
-			LongStateHandle stateHandle = new LongStateHandle(state);
+		public RetrievableStateHandle<Long> store(Long state) throws Exception {
+			LongRetrievableStateHandle stateHandle = new LongRetrievableStateHandle(state);
 			stateHandles.add(stateHandle);
 
 			return stateHandle;
 		}
 
-		List<LongStateHandle> getStateHandles() {
+		List<LongRetrievableStateHandle> getStateHandles() {
 			return stateHandles;
 		}
 	}
 
-	private static class LongStateHandle implements StateHandle<Long> {
+	private static class LongRetrievableStateHandle implements RetrievableStateHandle<Long> {
 
 		private static final long serialVersionUID = -3555329254423838912L;
 
@@ -565,12 +565,12 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 
 		private int numberOfDiscardCalls;
 
-		public LongStateHandle(Long state) {
+		public LongRetrievableStateHandle(Long state) {
 			this.state = state;
 		}
 
 		@Override
-		public Long getState(ClassLoader ignored) throws Exception {
+		public Long retrieveState() throws Exception {
 			return state;
 		}
 
