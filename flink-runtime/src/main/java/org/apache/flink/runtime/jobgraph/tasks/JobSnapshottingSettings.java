@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.List;
@@ -50,16 +51,19 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 
 	/** Path to savepoint to reset state back to (optional, can be null) */
 	private String savepointPath;
-	
+
+	/** Indicate whether to schedule periodic checkpoint. True if enabled checkpoint */
+	private boolean enablePeriodicCheckpoint;
+
 	public JobSnapshottingSettings(List<JobVertexID> verticesToTrigger,
 									List<JobVertexID> verticesToAcknowledge,
 									List<JobVertexID> verticesToConfirm,
 									long checkpointInterval, long checkpointTimeout,
-									long minPauseBetweenCheckpoints, int maxConcurrentCheckpoints)
-	{
+									long minPauseBetweenCheckpoints, int maxConcurrentCheckpoints,
+									boolean enablePeriodicCheckpoint) {
 		// sanity checks
-		if (checkpointInterval < 1 || checkpointTimeout < 1 ||
-				minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1)
+		if (enablePeriodicCheckpoint && (checkpointInterval < 1 || checkpointTimeout < 1 ||
+				minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1))
 		{
 			throw new IllegalArgumentException();
 		}
@@ -71,6 +75,17 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 		this.checkpointTimeout = checkpointTimeout;
 		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
+		this.enablePeriodicCheckpoint = enablePeriodicCheckpoint;
+	}
+
+	@VisibleForTesting
+	public JobSnapshottingSettings(List<JobVertexID> verticesToTrigger,
+									List<JobVertexID> verticesToAcknowledge,
+									List<JobVertexID> verticesToConfirm,
+									long checkpointInterval, long checkpointTimeout,
+									long minPauseBetweenCheckpoints, int maxConcurrentCheckpoints) {
+		this(verticesToTrigger, verticesToAcknowledge, verticesToConfirm, checkpointInterval,
+				checkpointTimeout, minPauseBetweenCheckpoints, maxConcurrentCheckpoints, true);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -101,6 +116,10 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 
 	public int getMaxConcurrentCheckpoints() {
 		return maxConcurrentCheckpoints;
+	}
+
+	public boolean isEnablePeriodicCheckpoint() {
+		return enablePeriodicCheckpoint;
 	}
 
 	/**

@@ -340,6 +340,7 @@ public class ExecutionGraph {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
+			boolean enablePeriodicCheckpoint,
 			List<ExecutionJobVertex> verticesToTrigger,
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
@@ -349,7 +350,7 @@ public class ExecutionGraph {
 			CheckpointStatsTracker statsTracker) throws Exception {
 
 		// simple sanity checks
-		if (interval < 10 || checkpointTimeout < 10) {
+		if (enablePeriodicCheckpoint && (interval < 10 || checkpointTimeout < 10)) {
 			throw new IllegalArgumentException();
 		}
 		if (state != JobStatus.CREATED) {
@@ -379,7 +380,8 @@ public class ExecutionGraph {
 				checkpointIDCounter,
 				checkpointStore,
 				savepointStore,
-				checkpointStatsTracker);
+				checkpointStatsTracker,
+				enablePeriodicCheckpoint);
 
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
