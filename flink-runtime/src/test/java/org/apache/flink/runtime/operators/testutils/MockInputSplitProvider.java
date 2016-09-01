@@ -84,7 +84,7 @@ public class MockInputSplitProvider implements InputSplitProvider {
 
 
 	@Override
-	public InputSplit getNextInputSplit() {
+	public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) {
 
 		if (this.nextSplit < this.inputSplits.length) {
 			return this.inputSplits[this.nextSplit++];
@@ -92,5 +92,4 @@ public class MockInputSplitProvider implements InputSplitProvider {
 
 		return null;
 	}
-
 }
