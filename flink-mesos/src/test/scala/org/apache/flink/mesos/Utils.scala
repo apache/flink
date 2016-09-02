@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+// disable Scalastyle for now to prevent random failures reported in FLINK-4570
+// scalastyle:off
 package org.apache.flink.mesos
 
 import java.util.concurrent.atomic.AtomicLong
@@ -52,3 +54,4 @@ object TestFSMUtils {
     new TestFSMRef(system, Props(factory), supervisor, TestFSMUtils.randomName)
   }
 }
+// scalastyle:on
