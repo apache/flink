@@ -20,7 +20,6 @@ package org.apache.flink.graph.asm.translate;
 
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.MathUtils;
 
 /**
  * Translate {@link LongValue} to {@link IntValue}.
@@ -37,7 +36,14 @@ implements TranslateFunction<LongValue, IntValue> {
 			reuse = new IntValue();
 		}
 
-		reuse.setValue(MathUtils.checkedDownCast(value.getValue()));
+		long l = value.getValue();
+
+		if (l >= (1L << 32) || l <= (-1L << 32)) {
+			throw new IllegalArgumentException("Cannot cast long value " + value + " to integer.");
+		} else {
+			reuse.setValue((int)(l & 0xffffffffL));
+		}
+
 		return reuse;
 	}
 }
