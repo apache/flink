@@ -15,6 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+html {
+  height: 100%;
+}
+body {
+  height: 100%;
+}
+#main {
+  height: 100%;
+}
+.gutter {
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: 50%;
+}
+.gutter-vertical {
+  cursor: row-resize;
+  background-image: url("/images/grips/horizontal.png");
+}
 #sidebar {
   overflow: hidden;
   position: fixed;
@@ -71,6 +89,7 @@
   overflow: hidden;
   margin-left: 0;
   padding-top: 70px;
+  height: 100%;
   -webkit-transition: 400ms;
   -moz-transition: 400ms;
   -o-transition: 400ms;
@@ -523,9 +542,10 @@ livechart {
   border: 1px solid #ddd;
   position: relative;
   margin-bottom: 20px;
+  height: 100%;
 }
 .canvas-wrapper .main-canvas {
-  height: 400px;
+  height: 100%;
   overflow: hidden;
 }
 .canvas-wrapper .main-canvas .zoom-buttons {
@@ -552,6 +572,7 @@ livechart {
 }
 svg.graph {
   overflow: hidden;
+  height: 100%;
 }
 svg.graph g.type-TK > rect {
   fill: #00ffd0;
@@ -782,4 +803,16 @@ svg.graph .node-label {
 }
 #job-submit {
   width: 100px;
+}
+#content-inner {
+  height: 100%;
+}
+#job-panel {
+  overflow-y: auto;
+}
+#details {
+  height: 100%;
+}
+#node-details {
+  height: 100%;
 }

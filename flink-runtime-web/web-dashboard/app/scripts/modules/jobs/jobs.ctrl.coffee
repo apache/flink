@@ -89,7 +89,7 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'JobPlanController', ($scope, $state, $stateParams, JobsService) ->
+.controller 'JobPlanController', ($scope, $state, $stateParams, $window, JobsService) ->
   $scope.nodeid = null
   $scope.nodeUnfolded = false
   $scope.stateList = JobsService.stateList()
