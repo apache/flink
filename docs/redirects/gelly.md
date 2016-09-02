@@ -2,7 +2,7 @@
 title: "Gelly"
 layout: redirect
 redirect: /dev/libs/gelly/index.html
-permalink: /apis/batch/libs/gelly/index.html
+permalink: /apis/batch/libs/gelly.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
