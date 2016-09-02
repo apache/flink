@@ -27,7 +27,7 @@ import org.apache.flink.util.MathUtils;
  *
  * Throws {@link RuntimeException} for integer overflow.
  */
-public class LongValueToIntValue
+public class LongValueToSignedIntValue
 implements TranslateFunction<LongValue, IntValue> {
 
 	@Override
@@ -38,6 +38,7 @@ implements TranslateFunction<LongValue, IntValue> {
 		}
 
 		reuse.setValue(MathUtils.checkedDownCast(value.getValue()));
+
 		return reuse;
 	}
 }
