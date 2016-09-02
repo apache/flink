@@ -56,11 +56,17 @@ gulp.task('set-production', function() {
 
 gulp.task('fonts', function() {
   return gulp.src(paths.vendor + "font-awesome/fonts/*")
-    .pipe(plumber())
-    .pipe(gulp.dest(paths.assets + 'fonts'));
+      .pipe(plumber())
+      .pipe(gulp.dest(paths.assets + 'fonts'));
 });
 
-gulp.task('assets', ['fonts'], function() {
+gulp.task('images', function() {
+  return gulp.src(paths.vendor + "Split.js/grips/*")
+    .pipe(plumber())
+    .pipe(gulp.dest(paths.assets + 'images/grips'));
+});
+
+gulp.task('assets', ['fonts', 'images'], function() {
   return gulp.src(paths.assets + "**")
     .pipe(plumber())
     .pipe(gulp.dest(paths.dest));
