@@ -93,7 +93,8 @@ extends GraphAlgorithmWrappingGraph<K, OLD, EV, K, NEW, EV> {
 
 		// merge configurations
 
-		parallelism = Math.min(parallelism, rhs.parallelism);
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
+			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
 
 		return true;
 	}
