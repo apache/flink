@@ -93,7 +93,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Edge<K, Tuple2<EV, LongValue>
 		EdgeSourceDegree rhs = (EdgeSourceDegree) other;
 
 		reduceOnTargetId.mergeWith(rhs.reduceOnTargetId);
-		parallelism = Math.min(parallelism, rhs.parallelism);
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
+			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
 
 		return true;
 	}

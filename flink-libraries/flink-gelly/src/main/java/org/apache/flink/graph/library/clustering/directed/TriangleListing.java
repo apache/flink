@@ -113,7 +113,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 		TriangleListing rhs = (TriangleListing) other;
 
 		sortTriangleVertices.mergeWith(rhs.sortTriangleVertices);
-		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
+			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
 
 		return true;
 	}
@@ -162,7 +163,6 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
 			.reduceGroup(new GenerateTriplets<K>())
-				.setParallelism(littleParallelism)
 				.name("Generate triplets");
 
 		// u, v, w, bitmask where (u, v), (u, w), and (v, w) are edges in graph
@@ -171,7 +171,6 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 			.where(1, 2)
 			.equalTo(0, 1)
 			.with(new ProjectTriangles<K>())
-				.setParallelism(littleParallelism)
 				.name("Triangle listing");
 
 		if (sortTriangleVertices.get()) {

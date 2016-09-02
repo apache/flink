@@ -151,7 +151,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 		// merge configurations
 
-		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+		littleParallelism = (littleParallelism == PARALLELISM_DEFAULT) ? rhs.littleParallelism :
+			((rhs.littleParallelism == PARALLELISM_DEFAULT) ? littleParallelism : Math.min(littleParallelism, rhs.littleParallelism));
 
 		return true;
 	}

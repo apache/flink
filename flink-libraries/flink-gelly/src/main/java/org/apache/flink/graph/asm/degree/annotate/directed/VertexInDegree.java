@@ -101,7 +101,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 		// merge configurations
 
 		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
-		parallelism = Math.min(parallelism, rhs.parallelism);
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
+			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
 
 		return true;
 	}
@@ -114,7 +115,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 			.getEdges()
 			.map(new MapEdgeToTargetId<K, EV>())
 				.setParallelism(parallelism)
-				.name("Map edge to target ID");
+				.name("Edge to target ID");
 
 		// t, d(t)
 		DataSet<Vertex<K, LongValue>> targetDegree = targetIds
@@ -131,7 +132,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 				.equalTo(0)
 				.with(new JoinVertexWithVertexDegree<K, VV>())
 					.setParallelism(parallelism)
-					.name("Join zero degree vertices");
+					.name("Zero degree vertices");
 		}
 
 		return targetDegree;
