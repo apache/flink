@@ -131,10 +131,48 @@ public class SerializedThrowableTest {
 			// deserialize the proper exception
 			Throwable deserialized = copy.deserializeError(loader); 
 			assertEquals(clazz, deserialized.getClass());
+
+			// deserialization with the wrong classloader does not lead to a failure
+			Throwable wronglyDeserialized = copy.deserializeError(getClass().getClassLoader());
+			assertEquals(ExceptionUtils.stringifyException(userException),
+					ExceptionUtils.stringifyException(wronglyDeserialized));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-	} 
+	}
+
+	@Test
+	public void testCauseChaining() {
+		Exception cause2 = new Exception("level2");
+		Exception cause1 = new Exception("level1", cause2);
+		Exception root = new Exception("level0", cause1);
+
+		SerializedThrowable st = new SerializedThrowable(root);
+
+		assertEquals("level0", st.getMessage());
+
+		assertNotNull(st.getCause());
+		assertEquals("level1", st.getCause().getMessage());
+
+		assertNotNull(st.getCause().getCause());
+		assertEquals("level2", st.getCause().getCause().getMessage());
+	}
+
+	@Test
+	public void testCyclicCauseChaining() {
+		Exception cause3 = new Exception("level3");
+		Exception cause2 = new Exception("level2", cause3);
+		Exception cause1 = new Exception("level1", cause2);
+		Exception root = new Exception("level0", cause1);
+
+		// introduce a cyclic reference
+		cause3.initCause(cause1);
+
+		SerializedThrowable st = new SerializedThrowable(root);
+
+		assertArrayEquals(root.getStackTrace(), st.getStackTrace());
+		assertEquals(ExceptionUtils.stringifyException(root), ExceptionUtils.stringifyException(st));
+	}
 }
