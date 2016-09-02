@@ -43,7 +43,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 
 /**
- * An RPC Service implementation for testing. This RPC service directly executes all asynchronous calls one by one in the main thread.
+ * An RPC Service implementation for testing. This RPC service directly executes all asynchronous
+ * calls one by one in the calling thread.
  */
 public class TestingSerialRpcService implements RpcService {
 
@@ -52,7 +53,7 @@ public class TestingSerialRpcService implements RpcService {
 
 	public TestingSerialRpcService() {
 		executorService = new DirectExecutorService();
-		this.registeredConnections = new ConcurrentHashMap<>();
+		this.registeredConnections = new ConcurrentHashMap<>(16);
 	}
 
 	@Override
@@ -78,14 +79,14 @@ public class TestingSerialRpcService implements RpcService {
 
 	@Override
 	public void stopServer(RpcGateway selfGateway) {
-
+		registeredConnections.remove(selfGateway.getAddress());
 	}
 
 	@Override
 	public <C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint) {
 		final String address = UUID.randomUUID().toString();
 
-		InvocationHandler akkaInvocationHandler = new TestingSerialInvocationHandler(address, rpcEndpoint);
+		InvocationHandler akkaInvocationHandler = new TestingSerialRpcService.TestingSerialInvocationHandler<>(address, rpcEndpoint);
 		ClassLoader classLoader = getClass().getClassLoader();
 
 		@SuppressWarnings("unchecked")
@@ -98,6 +99,9 @@ public class TestingSerialRpcService implements RpcService {
 				RpcGateway.class
 			},
 			akkaInvocationHandler);
+
+		// register self
+		registeredConnections.putIfAbsent(self.getAddress(), self);
 
 		return self;
 	}
@@ -133,7 +137,7 @@ public class TestingSerialRpcService implements RpcService {
 		}
 	}
 
-	private static class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutor, StartStoppable {
+	private static final class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutor, StartStoppable {
 
 		private final T rpcEndpoint;
 
@@ -197,7 +201,7 @@ public class TestingSerialRpcService implements RpcService {
 			final Method rpcMethod = lookupRpcMethod(methodName, parameterTypes);
 			Object result = rpcMethod.invoke(rpcEndpoint, args);
 
-			if (result != null && result instanceof Future) {
+			if (result instanceof Future) {
 				Future<?> future = (Future<?>) result;
 				return Await.result(future, futureTimeout.duration());
 			} else {
