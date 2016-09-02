@@ -19,17 +19,22 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.NonHaServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rpc.TestingSerialRpcService;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import org.powermock.api.mockito.PowerMockito;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -42,19 +47,31 @@ public class TaskExecutorTest extends TestLogger {
 		final ResourceID resourceID = ResourceID.generate();
 		final String resourceManagerAddress = "/resource/manager/address/one";
 
-		final TestingRpcService rpc = new TestingRpcService();
+		final TestingSerialRpcService rpc = new TestingSerialRpcService();
 		try {
 			// register a mock resource manager gateway
 			ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
+			TaskExecutorConfiguration taskExecutorConfiguration = mock(TaskExecutorConfiguration.class);
+			PowerMockito.when(taskExecutorConfiguration.getNumberOfSlots()).thenReturn(1);
 			rpc.registerGateway(resourceManagerAddress, rmGateway);
 
-			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
-			TaskExecutor taskManager = TaskExecutor.startTaskManagerComponentsAndActor(
-				new Configuration(), resourceID, rpc, "localhost", haServices, true);
-			String taskManagerAddress = taskManager.getAddress();
-			taskManager.start();
+			TaskManagerLocation taskManagerLocation = mock(TaskManagerLocation.class);
+			when(taskManagerLocation.getResourceID()).thenReturn(resourceID);
 
-			verify(rmGateway, timeout(5000)).registerTaskExecutor(
+			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
+
+			TaskExecutor taskManager = new TaskExecutor(
+				taskExecutorConfiguration,
+				taskManagerLocation,
+				rpc, mock(MemoryManager.class),
+				mock(IOManager.class),
+				mock(NetworkEnvironment.class),
+				haServices);
+
+			taskManager.start();
+			String taskManagerAddress = taskManager.getAddress();
+
+			verify(rmGateway).registerTaskExecutor(
 					any(UUID.class), eq(taskManagerAddress), eq(resourceID), any(Time.class));
 		}
 		finally {
@@ -71,7 +88,7 @@ public class TaskExecutorTest extends TestLogger {
 		final UUID leaderId1 = UUID.randomUUID();
 		final UUID leaderId2 = UUID.randomUUID();
 
-		final TestingRpcService rpc = new TestingRpcService();
+		final TestingSerialRpcService rpc = new TestingSerialRpcService();
 		try {
 			// register the mock resource manager gateways
 			ResourceManagerGateway rmGateway1 = mock(ResourceManagerGateway.class);
@@ -84,10 +101,22 @@ public class TaskExecutorTest extends TestLogger {
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setResourceManagerLeaderRetriever(testLeaderService);
 
-			TaskExecutor taskManager = TaskExecutor.startTaskManagerComponentsAndActor(
-				new Configuration(), resourceID, rpc, "localhost", haServices, true);
-			String taskManagerAddress = taskManager.getAddress();
+			TaskExecutorConfiguration taskExecutorConfiguration = mock(TaskExecutorConfiguration.class);
+			PowerMockito.when(taskExecutorConfiguration.getNumberOfSlots()).thenReturn(1);
+
+			TaskManagerLocation taskManagerLocation = mock(TaskManagerLocation.class);
+			when(taskManagerLocation.getResourceID()).thenReturn(resourceID);
+
+			TaskExecutor taskManager = new TaskExecutor(
+				taskExecutorConfiguration,
+				taskManagerLocation,
+				rpc, mock(MemoryManager.class),
+				mock(IOManager.class),
+				mock(NetworkEnvironment.class),
+				haServices);
+
 			taskManager.start();
+			String taskManagerAddress = taskManager.getAddress();
 
 			// no connection initially, since there is no leader
 			assertNull(taskManager.getResourceManagerConnection());
@@ -95,7 +124,7 @@ public class TaskExecutorTest extends TestLogger {
 			// define a leader and see that a registration happens
 			testLeaderService.notifyListener(address1, leaderId1);
 
-			verify(rmGateway1, timeout(5000)).registerTaskExecutor(
+			verify(rmGateway1).registerTaskExecutor(
 					eq(leaderId1), eq(taskManagerAddress), eq(resourceID), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
@@ -105,7 +134,7 @@ public class TaskExecutorTest extends TestLogger {
 			// set a new leader, see that a registration happens 
 			testLeaderService.notifyListener(address2, leaderId2);
 
-			verify(rmGateway2, timeout(5000)).registerTaskExecutor(
+			verify(rmGateway2).registerTaskExecutor(
 					eq(leaderId2), eq(taskManagerAddress), eq(resourceID), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 		}
