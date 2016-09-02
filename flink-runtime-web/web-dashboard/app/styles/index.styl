@@ -21,6 +21,22 @@
 sidebar-width = 250px
 sidebar-width-small = 160px
 
+html
+  height: 100%
+
+body
+  height: 100%
+
+.gutter
+  background-color: transparent
+  background-repeat: no-repeat
+  background-position: 50%
+
+.gutter-vertical
+  cursor: row-resize
+  background-image: url('/images/grips/horizontal.png')
+
+
 #sidebar
   overflow: hidden
   position: fixed
@@ -69,6 +85,7 @@ sidebar-width-small = 160px
   overflow: hidden
   margin-left: 0
   padding-top: 70px
+  height: 100%
 
   transition(400ms cubic-bezier(0.250, 0.250, 0.750, 0.750) all)
 
@@ -516,5 +533,9 @@ livechart
 #job-submit
   width: 100px
 
+#content-inner
+  height: 100%
 
+#job-panel
+  overflow-y: auto
 
