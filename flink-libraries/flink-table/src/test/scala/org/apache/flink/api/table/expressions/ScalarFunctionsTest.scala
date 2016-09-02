@@ -702,10 +702,61 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "1996-11-01")
   }
 
+  @Test
+  def testIsTrueIsFalse(): Unit = {
+    testAllApis(
+      'f1.isTrue,
+      "f1.isTrue",
+      "f1 IS TRUE",
+      "true")
+
+    testAllApis(
+      'f21.isTrue,
+      "f21.isTrue",
+      "f21 IS TRUE",
+      "false")
+
+    testAllApis(
+      false.isFalse,
+      "false.isFalse",
+      "FALSE IS FALSE",
+      "true")
+
+    testAllApis(
+      'f21.isFalse,
+      "f21.isFalse",
+      "f21 IS FALSE",
+      "false")
+
+    testAllApis(
+      !'f1.isTrue,
+      "!f1.isTrue",
+      "f1 IS NOT TRUE",
+      "false")
+
+    testAllApis(
+      !'f21.isTrue,
+      "!f21.isTrue",
+      "f21 IS NOT TRUE",
+      "true")
+
+    testAllApis(
+      !false.isFalse,
+      "!false.isFalse",
+      "FALSE IS NOT FALSE",
+      "false")
+
+    testAllApis(
+      !'f21.isFalse,
+      "!f21.isFalse",
+      "f21 IS NOT FALSE",
+      "true")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(21)
+    val testData = new Row(22)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -727,6 +778,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(18, Timestamp.valueOf("1996-11-10 06:55:44.333"))
     testData.setField(19, 1467012213000L) // +16979 07:23:33.000
     testData.setField(20, 25) // +2-01
+    testData.setField(21, null)
     testData
   }
 
@@ -752,6 +804,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.TIME,
       Types.TIMESTAMP,
       Types.INTERVAL_MILLIS,
-      Types.INTERVAL_MONTHS)).asInstanceOf[TypeInformation[Any]]
+      Types.INTERVAL_MONTHS,
+      Types.BOOLEAN)).asInstanceOf[TypeInformation[Any]]
   }
 }

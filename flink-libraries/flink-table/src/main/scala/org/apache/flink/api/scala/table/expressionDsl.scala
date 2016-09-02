@@ -63,6 +63,16 @@ trait ImplicitExpressionOperations {
   def isNull = IsNull(expr)
   def isNotNull = IsNotNull(expr)
 
+  /**
+    * Returns true if given boolean expression is true. False otherwise (for null and false).
+    */
+  def isTrue = IsTrue(expr)
+
+  /**
+    * Returns true if given boolean expression is false. False otherwise (for null and true).
+    */
+  def isFalse = IsFalse(expr)
+
   def + (other: Expression) = Plus(expr, other)
   def - (other: Expression) = Minus(expr, other)
   def / (other: Expression) = Div(expr, other)
