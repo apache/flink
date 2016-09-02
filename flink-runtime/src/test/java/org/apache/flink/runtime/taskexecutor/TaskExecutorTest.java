@@ -50,10 +50,10 @@ public class TaskExecutorTest extends TestLogger {
 			rpc.registerGateway(resourceManagerAddress, rmGateway);
 
 			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
-			TaskExecutor taskManager = TaskExecutor.startTaskManagerComponentsAndActor(
-				new Configuration(), resourceID, rpc, "localhost", haServices, true);
+			StandaloneTaskExecutorFactory taskExecutorFactory = new StandaloneTaskExecutorFactory(
+				new Configuration(), resourceID, rpc, "localhost", haServices);
+			TaskExecutor taskManager = taskExecutorFactory.createAndStartTaskExecutor();
 			String taskManagerAddress = taskManager.getAddress();
-			taskManager.start();
 
 			verify(rmGateway, timeout(5000)).registerTaskExecutor(
 					any(UUID.class), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
@@ -85,10 +85,10 @@ public class TaskExecutorTest extends TestLogger {
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setResourceManagerLeaderRetriever(testLeaderService);
 
-			TaskExecutor taskManager = TaskExecutor.startTaskManagerComponentsAndActor(
-				new Configuration(), resourceID, rpc, "localhost", haServices, true);
+			StandaloneTaskExecutorFactory taskExecutorFactory = new StandaloneTaskExecutorFactory(
+				new Configuration(), resourceID, rpc, "localhost", haServices);
+			TaskExecutor taskManager = taskExecutorFactory.createAndStartTaskExecutor();
 			String taskManagerAddress = taskManager.getAddress();
-			taskManager.start();
 
 			// no connection initially, since there is no leader
 			assertNull(taskManager.getResourceManagerConnection());
