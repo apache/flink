@@ -963,7 +963,7 @@ unary = [ "!" | "-" ] , composite ;
 
 composite = suffixed | atom ;
 
-suffixed = interval | cast | as | aggregation | nullCheck | if | functionCall ;
+suffixed = interval | cast | as | aggregation | if | functionCall ;
 
 interval = composite , "." , ("year" | "month" | "day" | "hour" | "minute" | "second" | "milli") ;
 
@@ -975,11 +975,9 @@ as = composite , ".as(" , fieldReference , ")" ;
 
 aggregation = composite , ( ".sum" | ".min" | ".max" | ".count" | ".avg" ) , [ "()" ] ;
 
-nullCheck = composite , ( ".isNull" | ".isNotNull" ) , [ "()" ] ;
-
 if = composite , ".?(" , expression , "," , expression , ")" ;
 
-functionCall = composite , "." , functionIdentifier , "(" , [ expression , { "," , expression } ] , ")" ;
+functionCall = composite , "." , functionIdentifier , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
 
 atom = ( "(" , expression , ")" ) | literal | nullLiteral | fieldReference ;
 
@@ -1231,6 +1229,50 @@ Both the Table API and SQL come with a set of built-in scalar functions for data
   </thead>
 
   <tbody>
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.isNull
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.isNotNull
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is not null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+BOOLEAN.isTrue
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given boolean expression is true. False otherwise (for null and false).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+BOOLEAN.isFalse
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if given boolean expression is false. False otherwise (for null and true).</p>
+      </td>
+    </tr>
+
     <tr>
       <td>
         {% highlight java %}
@@ -1495,6 +1537,50 @@ TIMEPOINT.ceil(TIMEINTERVALUNIT)
   </thead>
 
   <tbody>
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.isNull
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.isNotNull
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is not null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+BOOLEAN.isTrue
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given boolean expression is true. False otherwise (for null and false).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+BOOLEAN.isFalse
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if given boolean expression is false. False otherwise (for null and true).</p>
+      </td>
+    </tr>
+
     <tr>
       <td>
         {% highlight scala %}

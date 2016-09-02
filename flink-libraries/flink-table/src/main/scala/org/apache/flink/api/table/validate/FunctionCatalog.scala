@@ -117,6 +117,12 @@ class FunctionCatalog {
 object FunctionCatalog {
 
   val buildInFunctions: Map[String, Class[_]] = Map(
+    // logic
+    "isNull" -> classOf[IsNull],
+    "isNotNull" -> classOf[IsNotNull],
+    "isTrue" -> classOf[IsTrue],
+    "isFalse" -> classOf[IsFalse],
+
     // aggregate functions
     "avg" -> classOf[Avg],
     "count" -> classOf[Count],
