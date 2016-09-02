@@ -797,6 +797,26 @@ class CodeGenerator(
       case CASE =>
         generateIfElse(nullCheck, operands, resultType)
 
+      case IS_TRUE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsTrue(operand)
+
+      case IS_NOT_TRUE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsNotTrue(operand)
+
+      case IS_FALSE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsFalse(operand)
+
+      case IS_NOT_FALSE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsNotFalse(operand)
+
       // casting
       case CAST | REINTERPRET =>
         val operand = operands.head
