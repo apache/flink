@@ -1212,10 +1212,10 @@ Advanced types such as generic types, composite types (e.g. POJOs or Tuples), an
 
 {% top %}
 
-Scalar Functions
+Built-in Functions
 ----------------
 
-Both the Table API and SQL come with a set of built-in scalar functions for data transformations. This section gives a brief overview of the available scalar function so far.
+Both the Table API and SQL come with a set of built-in functions for data transformations. This section gives a brief overview of the available functions so far.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -2057,12 +2057,21 @@ temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
 </div>
 
 <div data-lang="SQL" markdown="1">
+
+
+<!--
+This list of SQL functions should be kept in sync with SqlExpressionTest to reduce confusion due to the large amount of SQL functions.
+The documentation is split up and ordered like the tests in SqlExpressionTest.
+-->
+
+The Flink SQL functions (including their syntax) are a subset of Apache Calcite's built-in functions. Most of the documentation has been adopted from the [Calcite SQL reference](https://calcite.apache.org/docs/reference.html).
+
 <br />
 
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 40%">Function</th>
+      <th class="text-left" style="width: 40%">Comparison functions</th>
       <th class="text-center">Description</th>
     </tr>
   </thead>
@@ -2070,191 +2079,793 @@ temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
   <tbody>
     <tr>
       <td>
-        {% highlight sql %}
-EXP(NUMERIC)
+        {% highlight text %}
+value1 = value2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the Euler's number raised to the given power.</p>
+        <p>Equals.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-LOG10(NUMERIC)
+        {% highlight text %}
+value1 <> value2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the base 10 logarithm of given value.</p>
+        <p>Not equal.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value1 > value2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Greater than.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value1 >= value2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Greater than or equal.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value1 < value2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Less than.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value1 <= value2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Less than or equal.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value IS NULL
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>value</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value IS NOT NULL
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>value</i> is not null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value1 IS DISTINCT FROM value2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether two values are not equal, treating null values as the same.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value1 IS NOT DISTINCT FROM value2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether two values are equal, treating null values as the same.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value1 BETWEEN [ASYMMETRIC | SYMMETRIC] value2 AND value3
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>value1</i> is greater than or equal to <i>value2</i> and less than or equal to <i>value3</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+value1 NOT BETWEEN value2 AND value3
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>value1</i> is less than <i>value2</i> or greater than <i>value3</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+string1 LIKE string2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>string1</i> matches pattern <i>string2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+string1 NOT LIKE string2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>string1</i> does not match pattern <i>string2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+string1 SIMILAR TO string2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>string1</i> matches regular expression <i>string2</i>.</p>
       </td>
     </tr>
 
 
     <tr>
       <td>
-        {% highlight sql %}
-LN(NUMERIC)
+        {% highlight text %}
+string1 NOT SIMILAR TO string2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the natural logarithm of given value.</p>
+        <p>Whether <i>string1</i> does not match regular expression <i>string2</i>.</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        {% highlight text %}
+value IN (value [, value]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>value</i> is equal to a value in a list.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-POWER(NUMERIC, NUMERIC)
+        {% highlight text %}
+value NOT IN (value [, value]* )
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the given number raised to the power of the other value.</p>
+        <p>Whether <i>value</i> is not equal to every value in a list.</p>
+      </td>
+    </tr>
+<!-- NOT SUPPORTED SO FAR
+    <tr>
+      <td>
+        {% highlight text %}
+value IN (sub-query)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>value</i> is equal to a row returned by sub-query.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-ABS(NUMERIC)
+        {% highlight text %}
+value NOT IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the absolute value of given value.</p>
+        <p>Whether <i>value</i> is not equal to every row returned by sub-query.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-FLOOR(NUMERIC)
+        {% highlight text %}
+EXISTS (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the largest integer less than or equal to a given number.</p>
+        <p>Whether sub-query returns at least one row.</p>
+      </td>
+    </tr>-->
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Logical functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+boolean1 OR boolean2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Whether <i>boolean1</i> is TRUE or <i>boolean2</i> is TRUE.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-CEIL(NUMERIC)
+        {% highlight text %}
+boolean1 AND boolean2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the smallest integer greater than or equal to a given number.</p>
+        <p>Whether <i>boolean1</i> and <i>boolean2</i> are both TRUE.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-SUBSTRING(VARCHAR, INT, INT)
-SUBSTRING(VARCHAR FROM INT FOR INT)
+        {% highlight text %}
+NOT boolean
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates a substring of the given string at the given index for the given length. The index starts at 1 and is inclusive, i.e., the character at the index is included in the substring. The substring has the specified length or less.</p>
+        <p>Whether <i>boolean</i> is not TRUE; returns UNKNOWN if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-SUBSTRING(VARCHAR, INT)
-SUBSTRING(VARCHAR FROM INT)
+        {% highlight text %}
+boolean IS FALSE
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates a substring of the given string beginning at the given index to the end. The start index starts at 1 and is inclusive.</p>
+        <p>Whether <i>boolean</i> is FALSE; returns FALSE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-TRIM(LEADING VARCHAR FROM VARCHAR)
-TRIM(TRAILING VARCHAR FROM VARCHAR)
-TRIM(BOTH VARCHAR FROM VARCHAR)
-TRIM(VARCHAR)
+        {% highlight text %}
+boolean IS NOT FALSE
 {% endhighlight %}
       </td>
       <td>
-        <p>Removes leading and/or trailing characters from the given string. By default, whitespaces at both sides are removed.</p>
+        <p>Whether <i>boolean</i> is not FALSE; returns TRUE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-CHAR_LENGTH(VARCHAR)
+        {% highlight text %}
+boolean IS TRUE
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the length of a String.</p>
+        <p>Whether <i>boolean</i> is TRUE; returns FALSE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-UPPER(VARCHAR)
+        {% highlight text %}
+boolean IS NOT TRUE
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns all of the characters in a string in upper case using the rules of the default locale.</p>
+        <p>Whether <i>boolean</i> is not TRUE; returns TRUE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-LOWER(VARCHAR)
+        {% highlight text %}
+boolean IS UNKNOWN
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns all of the characters in a string in lower case using the rules of the default locale.</p>
+        <p>Whether <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-INITCAP(VARCHAR)
+        {% highlight text %}
+boolean IS NOT UNKNOWN
 {% endhighlight %}
       </td>
-
       <td>
-        <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+        <p>Whether <i>boolean</i> is not UNKNOWN.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Arithmetic functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
++ numeric
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric</i>.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-VARCHAR LIKE VARCHAR
+        {% highlight text %}
+- numeric
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns true, if a string matches the specified LIKE pattern. E.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n".</p>
+        <p>Returns negative <i>numeric</i>.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+numeric1 + numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> plus <i>numeric2</i>.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-VARCHAR SIMILAR TO VARCHAR
+        {% highlight text %}
+numeric1 - numeric2
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+        <p>Returns <i>numeric1</i> minus <i>numeric2</i>.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-DATE VARCHAR
+        {% highlight text %}
+numeric1 * numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> multiplied by <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+numeric1 / numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> divided by <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+POWER(numeric1, numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> raised to the power of <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ABS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the absolute value of <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+MOD(numeric1, numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the remainder (modulus) of <i>numeric1</i> divided by <i>numeric2</i>. The result is negative only if <i>numeric1</i> is negative.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SQRT(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the square root of <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the natural logarithm (base e) of <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LOG10(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the base 10 logarithm of <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+EXP(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns e raised to the power of <i>numeric</i>.</p>
+      </td>
+    </tr>   
+
+    <tr>
+      <td>
+        {% highlight text %}
+CEIL(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds <i>numeric</i> up, and returns the smallest number that is greater than or equal to <i>numeric</i>.</p>
+      </td>
+    </tr>  
+
+    <tr>
+      <td>
+        {% highlight text %}
+FLOOR(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds <i>numeric</i> down, and returns the largest number that is less than or equal to <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">String functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+string || string
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Concatenates two character strings.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+CHAR_LENGTH(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the number of characters in a character string.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+CHARACTER_LENGTH(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>As CHAR_LENGTH(<i>string</i>).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+UPPER(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a character string converted to upper case.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LOWER(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a character string converted to lower case.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+POSITION(string1 IN string2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the position of the first occurrence of <i>string1</i> in <i>string2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TRIM( { BOTH | LEADING | TRAILING } string1 FROM string2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Removes leading and/or trailing characters from <i>string2</i>. By default, whitespaces at both sides are removed.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+OVERLAY(string1 PLACING string2 FROM integer [ FOR integer2 ])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Replaces a substring of <i>string1</i> with <i>string2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SUBSTRING(string FROM integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a substring of a character string starting at a given point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SUBSTRING(string FROM integer FOR integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a substring of a character string starting at a given point with a given length.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+INITCAP(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns string with the first letter of each word converter to upper case and the rest to lower case. Words are sequences of alphanumeric characters separated by non-alphanumeric characters.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Conditional functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+CASE value
+WHEN value1 [, value11 ]* THEN result1
+[ WHEN valueN [, valueN1 ]* THEN resultN ]*
+[ ELSE resultZ ]
+END
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Simple case.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+CASE
+WHEN condition1 THEN result1
+[ WHEN conditionN THEN resultN ]*
+[ ELSE resultZ ]
+END
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Searched case.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+NULLIF(value, value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns NULL if the values are the same. For example, <code>NULLIF(5, 5)</code> returns NULL; <code>NULLIF(5, 0)</code> returns 5.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COALESCE(value, value [, value ]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Provides a value if the first value is null. For example, <code>COALESCE(NULL, 5)</code> returns 5.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Type conversion functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+CAST(value AS type)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a value to a given type.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Value constructor functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+ROW (value [, value]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+(value [, value]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of values.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Temporal functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+DATE string
 {% endhighlight %}
       </td>
       <td>
@@ -2264,62 +2875,40 @@ DATE VARCHAR
 
     <tr>
       <td>
-        {% highlight sql %}
-TIME VARCHAR
+        {% highlight text %}
+TIME string
 {% endhighlight %}
       </td>
       <td>
-        <p>Parses a time string in the form "hh:mm:ss" to a SQL time.</p>
+        <p>Parses a time <i>string</i> in the form "hh:mm:ss" to a SQL time.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-TIMESTAMP VARCHAR
+        {% highlight text %}
+TIMESTAMP string
 {% endhighlight %}
       </td>
       <td>
-        <p>Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL timestamp.</p>
+        <p>Parses a timestamp <i>string</i> in the form "yy-mm-dd hh:mm:ss.fff" to a SQL timestamp.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-EXTRACT(TIMEINTERVALUNIT FROM TEMPORAL)
+        {% highlight text %}
+INTERVAL string range
 {% endhighlight %}
       </td>
       <td>
-        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>EXTRACT(DAY FROM DATE '2006-06-05')</code> leads to 5.</p>
+        <p>Parses an interval <i>string</i> in the form "dd hh:mm:ss.fff" for SQL intervals of milliseconds or "yyyy-mm" for SQL intervals of months. An interval range might be e.g. <code>DAY</code>, <code>MINUTE</code>, <code>DAY TO HOUR</code>, or <code>DAY TO SECOND</code> for intervals of milliseconds; <code>YEAR</code> or <code>YEAR TO MONTH</code> for intervals of months. E.g. <code>INTERVAL '10 00:00:00.004' DAY TO SECOND</code>, <code>INTERVAL '10' DAY</code>, or <code>INTERVAL '2-10' YEAR TO MONTH</code> return intervals.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight sql %}
-FLOOR(TIMEPOINT TO TIMEINTERVALUNIT)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Rounds a time point down to the given unit. E.g. <code>FLOOR(TIME '12:44:31' TO MINUTE)</code> leads to 12:44:00.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight sql %}
-CEIL(TIMEPOINT TO TIMEINTERVALUNIT)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Rounds a time point up to the given unit. E.g. <code>CEIL(TIME '12:44:31' TO MINUTE)</code> leads to 12:45:00.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight sql %}
+        {% highlight text %}
 CURRENT_DATE
 {% endhighlight %}
       </td>
@@ -2330,7 +2919,7 @@ CURRENT_DATE
 
     <tr>
       <td>
-        {% highlight sql %}
+        {% highlight text %}
 CURRENT_TIME
 {% endhighlight %}
       </td>
@@ -2341,7 +2930,7 @@ CURRENT_TIME
 
     <tr>
       <td>
-        {% highlight sql %}
+        {% highlight text %}
 CURRENT_TIMESTAMP
 {% endhighlight %}
       </td>
@@ -2352,7 +2941,7 @@ CURRENT_TIMESTAMP
 
     <tr>
       <td>
-        {% highlight sql %}
+        {% highlight text %}
 LOCALTIME
 {% endhighlight %}
       </td>
@@ -2363,7 +2952,7 @@ LOCALTIME
 
     <tr>
       <td>
-        {% highlight sql %}
+        {% highlight text %}
 LOCALTIMESTAMP
 {% endhighlight %}
       </td>
@@ -2372,8 +2961,118 @@ LOCALTIMESTAMP
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight text %}
+EXTRACT(timeintervalunit FROM temporal)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>EXTRACT(DAY FROM DATE '2006-06-05')</code> leads to 5.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+FLOOR(timepoint TO timeintervalunit)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds a time point down to the given unit. E.g. <code>FLOOR(TIME '12:44:31' TO MINUTE)</code> leads to 12:44:00.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+CEIL(timepoint TO timeintervalunit)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds a time point up to the given unit. E.g. <code>CEIL(TIME '12:44:31' TO MINUTE)</code> leads to 12:45:00.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Aggregate functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+COUNT(value [, value]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the number of input rows for which <i>value</i> is not null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COUNT(*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the number of input rows.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+AVG(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the average (arithmetic mean) of <i>numeric</i> across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SUM(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sum of <i>numeric</i> across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+MAX(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the maximum value of <i>value</i> across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+MIN(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the minimum value of <i>value</i> across all input values.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 </div>
 </div>
 
@@ -2463,6 +3162,18 @@ object TimestampModifier extends ScalarFunction {
 {% endhighlight %}
 </div>
 </div>
+
+### Limitations
+
+The following operations are not supported yet:
+
+- Binary string operators and functions
+- System functions
+- Collection functions
+- Aggregate functions like STDDEV_xxx, VAR_xxx, and REGR_xxx
+- Distinct aggregate functions like COUNT DISTINCT
+- Window functions
+- Grouping functions
 
 
 

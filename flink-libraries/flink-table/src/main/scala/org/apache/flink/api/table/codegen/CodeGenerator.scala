@@ -545,7 +545,9 @@ class CodeGenerator(
     generateInputAccess(input._1, input._2, index)
   }
 
-  override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression = ???
+  override def visitFieldAccess(rexFieldAccess: RexFieldAccess): GeneratedExpression =
+    throw new CodeGenException("Accesses to fields are not supported yet.")
+
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toTypeInfo(literal.getType)
@@ -657,13 +659,17 @@ class CodeGenerator(
     }
   }
 
-  override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = ???
+  override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression =
+    throw new CodeGenException("Correlating variables are not supported yet.")
 
-  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = ???
+  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
+    throw new CodeGenException("Local variables are not supported yet.")
 
-  override def visitRangeRef(rangeRef: RexRangeRef): GeneratedExpression = ???
+  override def visitRangeRef(rangeRef: RexRangeRef): GeneratedExpression =
+    throw new CodeGenException("Range references are not supported yet.")
 
-  override def visitDynamicParam(dynamicParam: RexDynamicParam): GeneratedExpression = ???
+  override def visitDynamicParam(dynamicParam: RexDynamicParam): GeneratedExpression =
+    throw new CodeGenException("Dynamic parameter references are not supported yet.")
 
   override def visitCall(call: RexCall): GeneratedExpression = {
     val operands = call.getOperands.map(_.accept(this))
@@ -853,7 +859,9 @@ class CodeGenerator(
           operands.map(_.resultType),
           resultType)
         callGen
-          .getOrElse(throw new CodeGenException(s"Unsupported call: $sqlOperator"))
+          .getOrElse(throw new CodeGenException(s"Unsupported call: $sqlOperator \n" +
+            s"If you think this function should be supported, " +
+            s"you can create an issue and start a discussion for it."))
           .generate(this, operands)
 
       // unknown or invalid
@@ -862,9 +870,11 @@ class CodeGenerator(
     }
   }
 
-  override def visitOver(over: RexOver): GeneratedExpression = ???
+  override def visitOver(over: RexOver): GeneratedExpression =
+    throw new CodeGenException("Aggregate functions over windows are not supported yet.")
 
-  override def visitSubQuery(subQuery: RexSubQuery): GeneratedExpression = ???
+  override def visitSubQuery(subQuery: RexSubQuery): GeneratedExpression =
+    throw new CodeGenException("Subqueries are not supported yet.")
 
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
