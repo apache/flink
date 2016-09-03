@@ -200,6 +200,10 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "false")
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // Math functions
+  // ----------------------------------------------------------------------------------------------
+
   @Test
   def testMod(): Unit = {
     testAllApis(
@@ -468,6 +472,10 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "-1231")
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // Temporal functions
+  // ----------------------------------------------------------------------------------------------
+
   @Test
   def testExtract(): Unit = {
     testAllApis(
@@ -703,6 +711,91 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   }
 
   @Test
+  def testCurrentTimePoint(): Unit = {
+
+    // current time points are non-deterministic
+    // we just test the format of the output
+    // manual test can be found in NonDeterministicTests
+
+    testAllApis(
+      currentDate().cast(Types.STRING).charLength(),
+      "currentDate().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR))",
+      "10")
+
+    testAllApis(
+      currentTime().cast(Types.STRING).charLength(),
+      "currentTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR))",
+      "8")
+
+    testAllApis(
+      currentTimestamp().cast(Types.STRING).charLength() >= 22,
+      "currentTimestamp().cast(STRING).charLength() >= 22",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 22",
+      "true")
+
+    testAllApis(
+      localTimestamp().cast(Types.STRING).charLength() >= 22,
+      "localTimestamp().cast(STRING).charLength() >= 22",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 22",
+      "true")
+
+    testAllApis(
+      localTime().cast(Types.STRING).charLength(),
+      "localTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR))",
+      "8")
+
+    // comparisons are deterministic
+    testAllApis(
+      localTimestamp() === localTimestamp(),
+      "localTimestamp() === localTimestamp()",
+      "LOCALTIMESTAMP = LOCALTIMESTAMP",
+      "true")
+  }
+
+  @Test
+  def testOverlaps(): Unit = {
+    testAllApis(
+      temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour),
+      "temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hour)",
+      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
+      "true")
+
+    testAllApis(
+      temporalOverlaps("9:00:00".toTime, "9:30:00".toTime, "9:29:00".toTime, "9:31:00".toTime),
+      "temporalOverlaps('9:00:00'.toTime, '9:30:00'.toTime, '9:29:00'.toTime, '9:31:00'.toTime)",
+      "(TIME '9:00:00', TIME '9:30:00') OVERLAPS (TIME '9:29:00', TIME '9:31:00')",
+      "true")
+
+    testAllApis(
+      temporalOverlaps("9:00:00".toTime, "10:00:00".toTime, "10:15:00".toTime, 3.hour),
+      "temporalOverlaps('9:00:00'.toTime, '10:00:00'.toTime, '10:15:00'.toTime, 3.hour)",
+      "(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)",
+      "false")
+
+    testAllApis(
+      temporalOverlaps("2011-03-10".toDate, 10.day, "2011-03-19".toDate, 10.day),
+      "temporalOverlaps('2011-03-10'.toDate, 10.day, '2011-03-19'.toDate, 10.day)",
+      "(DATE '2011-03-10', INTERVAL '10' DAY) OVERLAPS (DATE '2011-03-19', INTERVAL '10' DAY)",
+      "true")
+
+    testAllApis(
+      temporalOverlaps("2011-03-10 02:02:02.001".toTimestamp, 0.milli,
+        "2011-03-10 02:02:02.002".toTimestamp, "2011-03-10 02:02:02.002".toTimestamp),
+      "temporalOverlaps('2011-03-10 02:02:02.001'.toTimestamp, 0.milli, " +
+        "'2011-03-10 02:02:02.002'.toTimestamp, '2011-03-10 02:02:02.002'.toTimestamp)",
+      "(TIMESTAMP '2011-03-10 02:02:02.001', INTERVAL '0' SECOND) OVERLAPS " +
+        "(TIMESTAMP '2011-03-10 02:02:02.002', TIMESTAMP '2011-03-10 02:02:02.002')",
+      "false")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Other functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test
   def testIsTrueIsFalse(): Unit = {
     testAllApis(
       'f1.isTrue,
@@ -750,51 +843,6 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       !'f21.isFalse,
       "!f21.isFalse",
       "f21 IS NOT FALSE",
-      "true")
-  }
-
-  @Test
-  def testCurrentTimePoint(): Unit = {
-
-    // current time points are non-deterministic
-    // we just test the format of the output
-    // manual test can be found in NonDeterministicTests
-
-    testAllApis(
-      currentDate().cast(Types.STRING).charLength(),
-      "currentDate().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR))",
-      "10")
-
-    testAllApis(
-      currentTime().cast(Types.STRING).charLength(),
-      "currentTime().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR))",
-      "8")
-
-    testAllApis(
-      currentTimestamp().cast(Types.STRING).charLength() >= 22,
-      "currentTimestamp().cast(STRING).charLength() >= 22",
-      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 22",
-      "true")
-
-    testAllApis(
-      localTimestamp().cast(Types.STRING).charLength() >= 22,
-      "localTimestamp().cast(STRING).charLength() >= 22",
-      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 22",
-      "true")
-
-    testAllApis(
-      localTime().cast(Types.STRING).charLength(),
-      "localTime().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR))",
-      "8")
-
-    // comparisons are deterministic
-    testAllApis(
-      localTimestamp() === localTimestamp(),
-      "localTimestamp() === localTimestamp()",
-      "LOCALTIMESTAMP = LOCALTIMESTAMP",
       "true")
   }
 

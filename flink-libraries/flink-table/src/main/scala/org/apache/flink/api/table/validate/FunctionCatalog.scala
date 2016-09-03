@@ -156,7 +156,8 @@ object FunctionCatalog {
     "currentTime" -> classOf[CurrentTime],
     "currentTimestamp" -> classOf[CurrentTimestamp],
     "localTime" -> classOf[LocalTime],
-    "localTimestamp" -> classOf[LocalTimestamp]
+    "localTimestamp" -> classOf[LocalTimestamp],
+    "temporalOverlaps" -> classOf[TemporalOverlaps]
 
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]

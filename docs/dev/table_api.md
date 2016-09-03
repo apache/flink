@@ -1578,6 +1578,17 @@ localTimestamp()
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Determines whether two anchored time intervals overlap. It evaluates <code>leftTemporal >= rightTimePoint && rightTemporal >= leftTimePoint</code>. E.g. <code>temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour)</code> leads to true.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
@@ -1937,6 +1948,17 @@ localTimestamp()
       </td>
       <td>
         <p>Returns the current SQL timestamp in local time zone.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Determines whether two anchored time intervals overlap. It evaluates <code>leftTemporal >= rightTimePoint && rightTemporal >= leftTimePoint</code>. E.g. <code>temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hour)</code> leads to true.</p>
       </td>
     </tr>
 
