@@ -18,14 +18,19 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import static org.junit.Assert.*;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
+
+import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.api.common.JobID;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 public class SlotAllocationFutureTest {
 
@@ -46,9 +51,14 @@ public class SlotAllocationFutureTest {
 			} catch (IllegalStateException e) {
 				// expected
 			}
-			
-			final SimpleSlot slot1 = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
-			final SimpleSlot slot2 = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
+
+			final Instance instance1 = SchedulerTestUtils.getRandomInstance(1);
+			final Instance instance2 = SchedulerTestUtils.getRandomInstance(1);
+
+			final SimpleSlot slot1 = new SimpleSlot(new JobID(), instance1,
+					instance1.getTaskManagerLocation(), 0, instance1.getActorGateway(), null, null);
+			final SimpleSlot slot2 = new SimpleSlot(new JobID(), instance2,
+					instance2.getTaskManagerLocation(), 0, instance2.getActorGateway(), null, null);
 			
 			future.setSlot(slot1);
 			try {
@@ -71,7 +81,11 @@ public class SlotAllocationFutureTest {
 			// action before the slot
 			{
 				final AtomicInteger invocations = new AtomicInteger();
-				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
+
+				final Instance instance = SchedulerTestUtils.getRandomInstance(1);
+
+				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), instance,
+						instance.getTaskManagerLocation(), 0, instance.getActorGateway(), null, null);
 				
 				SlotAllocationFuture future = new SlotAllocationFuture();
 				
@@ -91,7 +105,10 @@ public class SlotAllocationFutureTest {
 			// slot before action
 			{
 				final AtomicInteger invocations = new AtomicInteger();
-				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
+				final Instance instance = SchedulerTestUtils.getRandomInstance(1);
+				
+				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), instance,
+						instance.getTaskManagerLocation(), 0, instance.getActorGateway(), null, null);
 				
 				SlotAllocationFuture future = new SlotAllocationFuture();
 				future.setSlot(thisSlot);
@@ -120,8 +137,11 @@ public class SlotAllocationFutureTest {
 			{
 				final AtomicInteger invocations = new AtomicInteger();
 				final AtomicBoolean error = new AtomicBoolean();
-				
-				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
+
+				final Instance instance = SchedulerTestUtils.getRandomInstance(1);
+
+				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), instance,
+						instance.getTaskManagerLocation(), 0, instance.getActorGateway(), null, null);
 				
 				final SlotAllocationFuture future = new SlotAllocationFuture();
 				
@@ -130,7 +150,7 @@ public class SlotAllocationFutureTest {
 					@Override
 					public void run() {
 						try {
-							SimpleSlot syncSlot = future.waitTillAllocated();
+							SimpleSlot syncSlot = future.waitTillCompleted();
 							if (syncSlot == null || syncSlot != thisSlot) {
 								error.set(true);
 								return;
@@ -158,12 +178,15 @@ public class SlotAllocationFutureTest {
 			
 			// setting slot before syncing
 			{
-				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
+				final Instance instance = SchedulerTestUtils.getRandomInstance(1);
+
+				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), instance, 
+						instance.getTaskManagerLocation(), 0, instance.getActorGateway(), null, null);
 				final SlotAllocationFuture future = new SlotAllocationFuture();
 
 				future.setSlot(thisSlot);
 				
-				SimpleSlot retrieved = future.waitTillAllocated();
+				SimpleSlot retrieved = future.waitTillCompleted();
 				
 				assertNotNull(retrieved);
 				assertEquals(thisSlot, retrieved);

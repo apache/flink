@@ -85,7 +85,7 @@ public class TaskManagersHandler implements RequestHandler {
 					gen.writeStartObject();
 					gen.writeStringField("id", instance.getId().toString());
 					gen.writeStringField("path", instance.getActorGateway().path());
-					gen.writeNumberField("dataPort", instance.getInstanceConnectionInfo().dataPort());
+					gen.writeNumberField("dataPort", instance.getTaskManagerLocation().dataPort());
 					gen.writeNumberField("timeSinceLastHeartbeat", instance.getLastHeartBeat());
 					gen.writeNumberField("slotsNumber", instance.getTotalNumberOfSlots());
 					gen.writeNumberField("freeSlots", instance.getNumberOfAvailableSlots());

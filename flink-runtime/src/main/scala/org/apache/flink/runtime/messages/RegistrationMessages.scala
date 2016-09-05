@@ -20,9 +20,9 @@ package org.apache.flink.runtime.messages
 
 import java.util.UUID
 
-import akka.actor.ActorRef
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.instance.{HardwareDescription, InstanceConnectionInfo, InstanceID}
+import org.apache.flink.runtime.instance.{HardwareDescription, InstanceID}
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
@@ -63,10 +63,10 @@ object RegistrationMessages {
    * @param numberOfSlots The number of processing slots offered by the TaskManager.
    */
   case class RegisterTaskManager(
-      resourceId: ResourceID,
-      connectionInfo: InstanceConnectionInfo,
-      resources: HardwareDescription,
-      numberOfSlots: Int)
+                                  resourceId: ResourceID,
+                                  connectionInfo: TaskManagerLocation,
+                                  resources: HardwareDescription,
+                                  numberOfSlots: Int)
     extends RegistrationMessage
 
   /**

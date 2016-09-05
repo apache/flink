@@ -702,10 +702,106 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "1996-11-01")
   }
 
+  @Test
+  def testIsTrueIsFalse(): Unit = {
+    testAllApis(
+      'f1.isTrue,
+      "f1.isTrue",
+      "f1 IS TRUE",
+      "true")
+
+    testAllApis(
+      'f21.isTrue,
+      "f21.isTrue",
+      "f21 IS TRUE",
+      "false")
+
+    testAllApis(
+      false.isFalse,
+      "false.isFalse",
+      "FALSE IS FALSE",
+      "true")
+
+    testAllApis(
+      'f21.isFalse,
+      "f21.isFalse",
+      "f21 IS FALSE",
+      "false")
+
+    testAllApis(
+      !'f1.isTrue,
+      "!f1.isTrue",
+      "f1 IS NOT TRUE",
+      "false")
+
+    testAllApis(
+      !'f21.isTrue,
+      "!f21.isTrue",
+      "f21 IS NOT TRUE",
+      "true")
+
+    testAllApis(
+      !false.isFalse,
+      "!false.isFalse",
+      "FALSE IS NOT FALSE",
+      "false")
+
+    testAllApis(
+      !'f21.isFalse,
+      "!f21.isFalse",
+      "f21 IS NOT FALSE",
+      "true")
+  }
+
+  @Test
+  def testCurrentTimePoint(): Unit = {
+
+    // current time points are non-deterministic
+    // we just test the format of the output
+    // manual test can be found in NonDeterministicTests
+
+    testAllApis(
+      currentDate().cast(Types.STRING).charLength(),
+      "currentDate().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR))",
+      "10")
+
+    testAllApis(
+      currentTime().cast(Types.STRING).charLength(),
+      "currentTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR))",
+      "8")
+
+    testAllApis(
+      currentTimestamp().cast(Types.STRING).charLength() >= 22,
+      "currentTimestamp().cast(STRING).charLength() >= 22",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 22",
+      "true")
+
+    testAllApis(
+      localTimestamp().cast(Types.STRING).charLength() >= 22,
+      "localTimestamp().cast(STRING).charLength() >= 22",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 22",
+      "true")
+
+    testAllApis(
+      localTime().cast(Types.STRING).charLength(),
+      "localTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR))",
+      "8")
+
+    // comparisons are deterministic
+    testAllApis(
+      localTimestamp() === localTimestamp(),
+      "localTimestamp() === localTimestamp()",
+      "LOCALTIMESTAMP = LOCALTIMESTAMP",
+      "true")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(21)
+    val testData = new Row(22)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -727,6 +823,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(18, Timestamp.valueOf("1996-11-10 06:55:44.333"))
     testData.setField(19, 1467012213000L) // +16979 07:23:33.000
     testData.setField(20, 25) // +2-01
+    testData.setField(21, null)
     testData
   }
 
@@ -752,6 +849,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.TIME,
       Types.TIMESTAMP,
       Types.INTERVAL_MILLIS,
-      Types.INTERVAL_MONTHS)).asInstanceOf[TypeInformation[Any]]
+      Types.INTERVAL_MONTHS,
+      Types.BOOLEAN)).asInstanceOf[TypeInformation[Any]]
   }
 }

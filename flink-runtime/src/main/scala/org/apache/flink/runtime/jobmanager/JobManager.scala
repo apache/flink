@@ -349,7 +349,7 @@ class JobManager(
       currentResourceManager = Option(msg.resourceManager())
 
       val taskManagerResources = instanceManager.getAllRegisteredInstances.asScala.map(
-        instance => instance.getResourceId).toList.asJava
+        instance => instance.getTaskManagerID).toList.asJava
 
       // confirm registration and send known task managers with their resource ids
       sender ! decorateMessage(new RegisterResourceManagerSuccessful(self, taskManagerResources))
@@ -425,7 +425,6 @@ class JobManager(
         try {
           val instanceID = instanceManager.registerTaskManager(
             taskManager,
-            resourceId,
             connectionInfo,
             hardwareInformation,
             numberOfSlots,
@@ -650,7 +649,7 @@ class JobManager(
             val taskId = execution.getVertex.getParallelSubtaskIndex
 
             val host = if (slot != null) {
-              slot.getInstance().getInstanceConnectionInfo.getHostname
+              slot.getTaskManagerLocation().getHostname()
             } else {
               null
             }
@@ -1472,6 +1471,9 @@ class JobManager(
         currentJobs.get(msg.getJobId) match {
           case Some((graph, _)) =>
             try {
+              log.debug(s"Lookup key-value state for job ${msg.getJobId} with registration " +
+                         s"name ${msg.getRegistrationName}.")
+
               val registry = graph.getKvStateLocationRegistry
               val location = registry.getKvStateLocation(msg.getRegistrationName)
               if (location == null) {
@@ -1493,6 +1495,9 @@ class JobManager(
         currentJobs.get(msg.getJobId) match {
           case Some((graph, _)) =>
             try {
+              log.debug(s"Key value state registered for job ${msg.getJobId} under " +
+                         s"name ${msg.getRegistrationName}.")
+
               graph.getKvStateLocationRegistry.notifyKvStateRegistered(
                 msg.getJobVertexId,
                 msg.getKeyGroupIndex,

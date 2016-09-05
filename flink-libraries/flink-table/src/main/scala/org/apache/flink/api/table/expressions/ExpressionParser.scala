@@ -54,8 +54,6 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val MIN: Keyword = Keyword("min")
   lazy val MAX: Keyword = Keyword("max")
   lazy val SUM: Keyword = Keyword("sum")
-  lazy val IS_NULL: Keyword = Keyword("isNull")
-  lazy val IS_NOT_NULL: Keyword = Keyword("isNotNull")
   lazy val CAST: Keyword = Keyword("cast")
   lazy val NULL: Keyword = Keyword("Null")
   lazy val IF: Keyword = Keyword("?")
@@ -79,7 +77,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
-      not(SUM) ~ not(IS_NULL) ~ not(IS_NOT_NULL) ~ not(CAST) ~ not(NULL) ~
+      not(SUM) ~ not(CAST) ~ not(NULL) ~
       not(IF) ~> super.ident
 
   // symbols
@@ -169,12 +167,6 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // suffix operators
 
-  lazy val suffixIsNull: PackratParser[Expression] =
-    composite <~ "." ~ IS_NULL ~ opt("()") ^^ { e => IsNull(e) }
-
-  lazy val suffixIsNotNull: PackratParser[Expression] =
-    composite <~ "." ~ IS_NOT_NULL ~ opt("()") ^^ { e => IsNotNull(e) }
-
   lazy val suffixSum: PackratParser[Expression] =
     composite <~ "." ~ SUM ~ opt("()") ^^ { e => Sum(e) }
 
@@ -230,6 +222,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args)
   }
 
+  lazy val suffixFunctionCallOneArg = composite ~ "." ~ functionIdent ^^ {
+    case operand ~ _ ~ name => Call(name.toUpperCase, Seq(operand))
+  }
+
   lazy val suffixAsc : PackratParser[Expression] =
     atom <~ "." ~ ASC ~ opt("()") ^^ { e => Asc(e) }
 
@@ -264,19 +260,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val suffixed: PackratParser[Expression] =
-    suffixTimeInterval | suffixIsNull | suffixIsNotNull | suffixSum | suffixMin | suffixMax |
+    suffixTimeInterval | suffixSum | suffixMin | suffixMax |
       suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs |
       suffixIf | suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime |
       suffixExtract | suffixFloor | suffixCeil |
-      suffixFunctionCall // function call must always be at the end
+      suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
 
   // prefix operators
-
-  lazy val prefixIsNull: PackratParser[Expression] =
-    IS_NULL ~ "(" ~> expression <~ ")" ^^ { e => IsNull(e) }
-
-  lazy val prefixIsNotNull: PackratParser[Expression] =
-    IS_NOT_NULL ~ "(" ~> expression <~ ")" ^^ { e => IsNotNull(e) }
 
   lazy val prefixSum: PackratParser[Expression] =
     SUM ~ "(" ~> expression <~ ")" ^^ { e => Sum(e) }
@@ -312,6 +302,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case name ~ _ ~ args ~ _ => Call(name.toUpperCase, args)
   }
 
+  lazy val prefixFunctionCallOneArg = functionIdent ~ "(" ~ expression ~ ")" ^^ {
+    case name ~ _ ~ arg ~ _ => Call(name.toUpperCase, Seq(arg))
+  }
+
   lazy val prefixTrim = TRIM ~ "(" ~ trimMode ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
     case _ ~ _ ~ mode ~ _ ~ trimCharacter ~ _ ~ operand ~ _ => Trim(mode, trimCharacter, operand)
   }
@@ -333,9 +327,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val prefixed: PackratParser[Expression] =
-    prefixIsNull | prefixIsNotNull | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
+    prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
       prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
-      prefixFloor | prefixCeil | prefixFunctionCall // function call must always be at the end
+      prefixFloor | prefixCeil |
+      prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end
 
   // suffix/prefix composite
 
