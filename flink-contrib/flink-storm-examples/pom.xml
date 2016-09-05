@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm-examples_${scala.binary.version}</artifactId>
+	<artifactId>flink-storm-examples_2.10</artifactId>
 	<name>flink-storm-examples</name>
 
 	<packaging>jar</packaging>

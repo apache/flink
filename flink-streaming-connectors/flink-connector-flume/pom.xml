@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-flume_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-flume_2.10</artifactId>
 	<name>flink-connector-flume</name>
 
 	<packaging>jar</packaging>

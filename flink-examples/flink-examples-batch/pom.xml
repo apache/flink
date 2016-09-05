@@ -28,7 +28,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
+	<artifactId>flink-examples-batch_2.10</artifactId>
 	<name>flink-examples-batch</name>
 	<packaging>jar</packaging>
 

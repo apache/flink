@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-redis_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-redis_2.10</artifactId>
 	<name>flink-connector-redis</name>
 
 	<packaging>jar</packaging>

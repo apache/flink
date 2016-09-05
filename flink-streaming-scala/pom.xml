@@ -28,7 +28,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+	<artifactId>flink-streaming-scala_2.10</artifactId>
 	<name>flink-streaming-scala</name>
 	<packaging>jar</packaging>
 

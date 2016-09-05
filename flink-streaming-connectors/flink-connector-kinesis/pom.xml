@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-kinesis_2.10</artifactId>
 	<name>flink-connector-kinesis</name>
 	<properties>
 		<aws.sdk.version>1.10.71</aws.sdk.version>

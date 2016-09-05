@@ -30,7 +30,7 @@ under the License.
         <relativePath>..</relativePath>
     </parent>
 
-    <artifactId>flink-cep_${scala.binary.version}</artifactId>
+    <artifactId>flink-cep_2.10</artifactId>
     <name>flink-cep</name>
     <packaging>jar</packaging>
 

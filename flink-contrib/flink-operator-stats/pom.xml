@@ -28,7 +28,7 @@ under the License.
         <relativePath>..</relativePath>
     </parent>
 
-    <artifactId>flink-operator-stats_${scala.binary.version}</artifactId>
+    <artifactId>flink-operator-stats_2.10</artifactId>
     <name>flink-operator-stats</name>
 
     <packaging>jar</packaging>

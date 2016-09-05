@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 	
-	<artifactId>flink-yarn_${scala.binary.version}</artifactId>
+	<artifactId>flink-yarn_2.10</artifactId>
 	<name>flink-yarn</name>
 	<packaging>jar</packaging>
 

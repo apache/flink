@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-kafka-0.9_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-kafka-0.9_2.10</artifactId>
 	<name>flink-connector-kafka-0.9</name>
 
 	<packaging>jar</packaging>

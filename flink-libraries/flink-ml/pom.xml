@@ -28,7 +28,7 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-ml_${scala.binary.version}</artifactId>
+	<artifactId>flink-ml_2.10</artifactId>
 	<name>flink-ml</name>
 
 	<packaging>jar</packaging>

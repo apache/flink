@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-twitter_2.10</artifactId>
 	<name>flink-connector-twitter</name>
 
 	<packaging>jar</packaging>

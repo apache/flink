@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-clients_${scala.binary.version}</artifactId>
+	<artifactId>flink-clients_2.10</artifactId>
 	<name>flink-clients</name>
 
 	<packaging>jar</packaging>

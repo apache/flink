@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-elasticsearch_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-elasticsearch_2.10</artifactId>
 	<name>flink-connector-elasticsearch</name>
 
 	<packaging>jar</packaging>
