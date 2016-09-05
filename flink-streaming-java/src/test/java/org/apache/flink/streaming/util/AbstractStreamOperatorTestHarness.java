@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -46,6 +47,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -552,6 +554,24 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	public boolean wasFailedExternally() {
 		return wasFailedExternally;
+	}
+
+	@VisibleForTesting
+	public int numProcessingTimeTimers() {
+		if (operator instanceof AbstractStreamOperator) {
+			return ((AbstractStreamOperator) operator).numProcessingTimeTimers();
+		} else {
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	@VisibleForTesting
+	public int numEventTimeTimers() {
+		if (operator instanceof AbstractStreamOperator) {
+			return ((AbstractStreamOperator) operator).numEventTimeTimers();
+		} else {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	private class MockOutput implements Output<StreamRecord<OUT>> {
