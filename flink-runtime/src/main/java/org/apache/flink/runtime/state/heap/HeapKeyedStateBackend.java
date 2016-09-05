@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
@@ -325,4 +326,24 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 		return "HeapKeyedStateBackend";
 	}
 
+	/**
+	 * Returns the total number of state entries across all keys/namespaces.
+	 */
+	@VisibleForTesting
+	@SuppressWarnings("unchecked")
+	public int numStateEntries() {
+		int sum = 0;
+		for (StateTable<K, ?, ?> stateTable : stateTables.values()) {
+			for (Map namespaceMap : stateTable.getState()) {
+				if (namespaceMap == null) {
+					continue;
+				}
+				Map<?, Map> typedMap = (Map<?, Map>) namespaceMap;
+				for (Map entriesMap : typedMap.values()) {
+					sum += entriesMap.size();
+				}
+			}
+		}
+		return sum;
+	}
 }

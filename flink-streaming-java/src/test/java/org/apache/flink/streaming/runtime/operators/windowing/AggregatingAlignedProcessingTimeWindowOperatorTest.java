@@ -557,8 +557,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		try {
 			final int windowSize = 200;
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
-
 			// tumbling window that triggers every 50 milliseconds
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
 					new AggregatingProcessingTimeWindowOperator<>(
@@ -567,9 +565,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							windowSize, windowSize);
 
 			OneInputStreamOperatorTestHarness<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
 
-			timerService.setCurrentTime(0);
+			testHarness.setProcessingTime(0);
 
 			testHarness.setup();
 			testHarness.open();
@@ -607,8 +605,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSize);
 
-			timerService = new TestTimeServiceProvider();
-			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -620,7 +617,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				testHarness.processElement(next);
 			}
 
-			timerService.setCurrentTime(200);
+			testHarness.setProcessingTime(200);
 
 			// get and verify the result
 			List<Tuple2<Integer, Integer>> finalResult = new ArrayList<>(resultAtSnapshot);
@@ -650,8 +647,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final int windowSlide = 50;
 			final int windowSize = factor * windowSlide;
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
-
 			// sliding window (200 msecs) every 50 msecs
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
 					new AggregatingProcessingTimeWindowOperator<>(
@@ -659,10 +654,11 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							windowSize, windowSlide);
 
-			timerService.setCurrentTime(0);
 
 			OneInputStreamOperatorTestHarness<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
+
+			testHarness.setProcessingTime(0);
 
 			testHarness.setup();
 			testHarness.open();
@@ -700,8 +696,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSlide);
 
-			timerService = new TestTimeServiceProvider();
-			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -713,14 +708,14 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				testHarness.processElement(next);
 			}
 
-			timerService.setCurrentTime(50);
-			timerService.setCurrentTime(100);
-			timerService.setCurrentTime(150);
-			timerService.setCurrentTime(200);
-			timerService.setCurrentTime(250);
-			timerService.setCurrentTime(300);
-			timerService.setCurrentTime(350);
-			timerService.setCurrentTime(400);
+			testHarness.setProcessingTime(50);
+			testHarness.setProcessingTime(100);
+			testHarness.setProcessingTime(150);
+			testHarness.setProcessingTime(200);
+			testHarness.setProcessingTime(250);
+			testHarness.setProcessingTime(300);
+			testHarness.setProcessingTime(350);
+			testHarness.setProcessingTime(400);
 
 			// get and verify the result
 			List<Tuple2<Integer, Integer>> finalResult = new ArrayList<>(resultAtSnapshot);
@@ -748,8 +743,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		try {
 			final long twoSeconds = 2000;
 			
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
-
 			StatefulFunction.globalCounts.clear();
 			
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
@@ -760,11 +753,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
 					op,
 					new ExecutionConfig(),
-					timerService,
 					fieldOneSelector,
 					BasicTypeInfo.INT_TYPE_INFO);
 
-			timerService.setCurrentTime(0);
+			testHarness.setProcessingTime(0);
 			testHarness.open();
 
 			// because the window interval is so large, everything should be in one window
@@ -778,7 +770,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				testHarness.processElement(next2);
 			}
 
-			timerService.setCurrentTime(1000);
+			testHarness.setProcessingTime(1000);
 
 			int count1 = StatefulFunction.globalCounts.get(1);
 			int count2 = StatefulFunction.globalCounts.get(2);
@@ -802,8 +794,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final int windowSlide = 50;
 			final int windowSize = factor * windowSlide;
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
-
 			StatefulFunction.globalCounts.clear();
 			
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
@@ -811,13 +801,13 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							new StatefulFunction(), fieldOneSelector,
 							IntSerializer.INSTANCE, tupleSerializer, windowSize, windowSlide);
 
-			timerService.setCurrentTime(0);
 			KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
 					op,
 					new ExecutionConfig(),
-					timerService,
 					fieldOneSelector,
 					BasicTypeInfo.INT_TYPE_INFO);
+
+			testHarness.setProcessingTime(0);
 
 			testHarness.open();
 
@@ -839,10 +829,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				testHarness.processElement(next4);
 			}
 
-			timerService.setCurrentTime(50);
-			timerService.setCurrentTime(100);
-			timerService.setCurrentTime(150);
-			timerService.setCurrentTime(200);
+			testHarness.setProcessingTime(50);
+			testHarness.setProcessingTime(100);
+			testHarness.setProcessingTime(150);
+			testHarness.setProcessingTime(200);
 
 			int count1 = StatefulFunction.globalCounts.get(1);
 			int count2 = StatefulFunction.globalCounts.get(2);

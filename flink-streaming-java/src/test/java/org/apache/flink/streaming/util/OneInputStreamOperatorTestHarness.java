@@ -45,6 +45,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 
@@ -75,7 +77,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	final Object checkpointLock;
 
-	final TimeServiceProvider timeServiceProvider;
+	final TestTimeServiceProvider timeServiceProvider;
 
 	StreamTask<?, ?> mockTask;
 
@@ -87,42 +89,28 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 */
 	private boolean setupCalled = false;
 
-	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
+	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {
 		this(operator, new ExecutionConfig());
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig) {
-		this(operator, executionConfig, null);
-	}
-
-	public OneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig,
-			TimeServiceProvider testTimeProvider) {
-		this(operator, executionConfig, new Object(), testTimeProvider);
-	}
-
-	public OneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig,
-			Object checkpointLock,
-			TimeServiceProvider testTimeProvider) {
-
+			ExecutionConfig executionConfig) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<Object>();
 		Configuration underlyingConfig = new Configuration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = executionConfig;
-		this.checkpointLock = checkpointLock;
+		this.checkpointLock = new Object();
 
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
+		timeServiceProvider = new TestTimeServiceProvider();
+		timeServiceProvider.setCurrentTime(0);
 
 		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(this.checkpointLock);
+		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
 		when(mockTask.getEnvironment()).thenReturn(env);
@@ -150,9 +138,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			throw new RuntimeException(e.getMessage(), e);
 		}
 
-		timeServiceProvider = testTimeProvider != null ? testTimeProvider :
-			DefaultTimeServiceProvider.create(mockTask, Executors.newSingleThreadScheduledExecutor(), this.checkpointLock);
-
 		doAnswer(new Answer<TimeServiceProvider>() {
 			@Override
 			public TimeServiceProvider answer(InvocationOnMock invocation) throws Throwable {
@@ -174,13 +159,27 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
-	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
-	 * to extract only the StreamRecords.
+	 * Get all the output from the task. This contains StreamRecords and Events interleaved.
 	 */
 	public ConcurrentLinkedQueue<Object> getOutput() {
 		return outputList;
 	}
+
+	/**
+	 * Get all the output from the task and clear the output buffer.
+	 * This contains only StreamRecords.
+	 */
+	@SuppressWarnings("unchecked")
+	public List<StreamRecord<? extends OUT>> extractOutputStreamRecords() {
+		List<StreamRecord<? extends OUT>> resultElements = new LinkedList<>();
+		for (Object e: getOutput()) {
+			if (e instanceof StreamRecord) {
+				resultElements.add((StreamRecord<OUT>) e);
+			}
+		}
+		return resultElements;
+	}
+
 
 	/**
 	 * Calls
@@ -250,6 +249,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			operator.setKeyContextElement1(element);
 			operator.processElement(element);
 		}
+	}
+
+	public void setProcessingTime(long time) throws Exception {
+		timeServiceProvider.setCurrentTime(time);
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {

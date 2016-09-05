@@ -468,15 +468,13 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
-
 			OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
 
 			testHarness.setup();
 			testHarness.open();
 
-			timerService.setCurrentTime(0);
+			testHarness.setProcessingTime(0);
 
 			// inject some elements
 			final int numElementsFirst = 700;
@@ -508,8 +506,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			timerService = new TestTimeServiceProvider();
-			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -520,7 +517,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				testHarness.processElement(new StreamRecord<>(i));
 			}
 
-			timerService.setCurrentTime(400);
+			testHarness.setProcessingTime(400);
 
 			// get and verify the result
 			List<Integer> finalResult = new ArrayList<>();
@@ -549,8 +546,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			final int windowSlide = 50;
 			final int windowSize = factor * windowSlide;
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
-
 			// sliding window (200 msecs) every 50 msecs
 			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
 					new AccumulatingProcessingTimeWindowOperator<>(
@@ -559,9 +554,9 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							windowSize, windowSlide);
 
 			OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
 
-			timerService.setCurrentTime(0);
+			testHarness.setProcessingTime(0);
 
 			testHarness.setup();
 			testHarness.open();
@@ -597,8 +592,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 					windowSize, windowSlide);
 
-			timerService = new TestTimeServiceProvider();
-			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
+			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig());
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -610,13 +604,13 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				testHarness.processElement(new StreamRecord<>(i));
 			}
 
-			timerService.setCurrentTime(50);
-			timerService.setCurrentTime(100);
-			timerService.setCurrentTime(150);
-			timerService.setCurrentTime(200);
-			timerService.setCurrentTime(250);
-			timerService.setCurrentTime(300);
-			timerService.setCurrentTime(350);
+			testHarness.setProcessingTime(50);
+			testHarness.setProcessingTime(100);
+			testHarness.setProcessingTime(150);
+			testHarness.setProcessingTime(200);
+			testHarness.setProcessingTime(250);
+			testHarness.setProcessingTime(300);
+			testHarness.setProcessingTime(350);
 
 			// get and verify the result
 			List<Integer> finalResult = new ArrayList<>(resultAtSnapshot);
@@ -650,14 +644,12 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							new StatefulFunction(), identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 50, 50);
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
-
 			OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-					new KeyedOneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService, identitySelector, BasicTypeInfo.INT_TYPE_INFO);
+					new KeyedOneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), identitySelector, BasicTypeInfo.INT_TYPE_INFO);
 
 			testHarness.open();
 
-			timerService.setCurrentTime(0);
+			testHarness.setProcessingTime(0);
 
 			testHarness.processElement(new StreamRecord<>(1));
 			testHarness.processElement(new StreamRecord<>(2));
@@ -669,7 +661,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			op.processElement(new StreamRecord<>(2));
 			op.processElement(new StreamRecord<>(2));
 
-			timerService.setCurrentTime(1000);
+			testHarness.setProcessingTime(1000);
 
 			List<Integer> result = extractFromStreamRecords(testHarness.getOutput());
 			assertEquals(8, result.size());

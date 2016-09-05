@@ -29,8 +29,10 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -53,7 +55,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
 	// in case the operator creates one we store it here so that we
 	// can snapshot its state
-	private KeyedStateBackend<?> keyedStateBackend = null;
+	private KeyedStateBackend<K> keyedStateBackend = null;
 
 	// when we restore we keep the state here so that we can call restore
 	// when the operator requests the keyed state backend
@@ -62,7 +64,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	public KeyedOneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			final KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
+			TypeInformation<K> keyType) throws Exception {
 		super(operator);
 
 		ClosureCleaner.clean(keySelector, false);
@@ -76,7 +78,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
 			KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
+			TypeInformation<K> keyType) throws Exception {
 		super(operator, executionConfig);
 
 		ClosureCleaner.clean(keySelector, false);
@@ -87,21 +89,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		setupMockTaskCreateKeyedBackend();
 	}
 
-	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig,
-			TimeServiceProvider testTimeProvider,
-			KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
-		super(operator, executionConfig, testTimeProvider);
-
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setNumberOfKeyGroups(MAX_PARALLELISM);
-
-		setupMockTaskCreateKeyedBackend();
-	}
-
+	@SuppressWarnings("unchecked")
 	private void setupMockTaskCreateKeyedBackend() {
 
 		try {
@@ -201,6 +189,40 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		super.close();
 		if(keyedStateBackend != null) {
 			keyedStateBackend.close();
+		}
+	}
+
+	public KeyedStateBackend<K> getKeyedStateBackend() {
+		return keyedStateBackend;
+	}
+
+	public int numKeyedStateEntries() {
+		if (keyedStateBackend == null) {
+			return 0;
+		} else if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries();
+		} else {
+			throw new RuntimeException("Cannot determine state size for backends other then the heap backend.");
+		}
+	}
+
+	public int numEventTimeTimers() {
+		// right now, timers are handled by the WindowOperator but we will
+		// move them out in the future. therefore it's ok to already have these methods here
+		if (operator instanceof WindowOperator) {
+			return ((WindowOperator) operator).numEventTimeTimers();
+		} else {
+			throw new RuntimeException("Cannot determine number of timers for operators other than WindowOperator.");
+		}
+	}
+
+	public int numProcessingTimeTimers() {
+		// right now, timers are handled by the WindowOperator but we will
+		// move them out in the future. therefore it's ok to already have these methods here
+		if (operator instanceof WindowOperator) {
+			return ((WindowOperator) operator).numProcessingTimeTimers();
+		} else {
+			throw new RuntimeException("Cannot determine number of timers for operators other than WindowOperator.");
 		}
 	}
 }
