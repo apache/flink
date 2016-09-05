@@ -27,6 +27,7 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.dispatch.Mapper;
 import akka.pattern.AskableActorSelection;
+import akka.pattern.Patterns;
 import akka.util.Timeout;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.akka.messages.VerifyRpcGateway;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
+import scala.reflect.ClassTag$;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.InvocationHandler;
@@ -98,9 +101,10 @@ public class AkkaRpcService implements RpcService {
 		final AskableActorSelection asker = new AskableActorSelection(actorSel);
 
 		final Future<Object> identify = asker.ask(new Identify(42), timeout);
-		return identify.map(new Mapper<Object, C>(){
+
+		final Future<ActorRef> rpcGatewayVerification = identify.flatMap(new Mapper<Object, Future<ActorRef>>(){
 			@Override
-			public C checkedApply(Object obj) throws Exception {
+			public Future<ActorRef> checkedApply(Object obj) throws Exception {
 
 				ActorIdentity actorIdentity = (ActorIdentity) obj;
 
@@ -108,6 +112,15 @@ public class AkkaRpcService implements RpcService {
 					throw new RpcConnectionException("Could not connect to rpc endpoint under address " + address + '.');
 				} else {
 					ActorRef actorRef = actorIdentity.getRef();
+
+					return Patterns.ask(actorRef, new VerifyRpcGateway(clazz), timeout).mapTo(ClassTag$.MODULE$.<ActorRef>apply(ActorRef.class));
+				}
+			}
+		}, actorSystem.dispatcher());
+
+		return rpcGatewayVerification.map(new Mapper<ActorRef, C>() {
+			@Override
+			public C checkedApply(ActorRef actorRef) throws Exception {
 
 					final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
 
@@ -125,7 +138,6 @@ public class AkkaRpcService implements RpcService {
 						akkaInvocationHandler);
 
 					return proxy;
-				}
 			}
 		}, actorSystem.dispatcher());
 	}
