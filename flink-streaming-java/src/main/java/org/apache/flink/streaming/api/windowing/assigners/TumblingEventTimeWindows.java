@@ -51,7 +51,11 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 
 	private final long offset;
 
-	protected TumblingEventTimeWindows(long size, long offset){
+	protected TumblingEventTimeWindows(long size, long offset) {
+		if (offset < 0 || offset >= size) {
+			throw new IllegalArgumentException("TumblingEventTimeWindows parameters must satisfy 0 <= offset < size");
+		}
+
 		this.size = size;
 		this.offset = offset;
 	}
@@ -66,10 +70,6 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 					"Is the time characteristic set to 'ProcessingTime', or did you forget to call " +
 					"'DataStream.assignTimestampsAndWatermarks(...)'?");
 		}
-	}
-
-	public long getSize() {
-		return size;
 	}
 
 	@Override
@@ -94,26 +94,24 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	}
 
 	/**
-	 *  Creates a new {@code TumblingEventTimeWindows} {@link WindowAssigner} that assigns
-	 *  elements to time windows based on the element timestamp and offset.
-	 *<p>
-	 *     For example, if you want window a stream by hour,but window begins at the 15th minutes
-	 *     of each hour, you can use {@code of(Time.hours(1),Time.minutes(15))},then you will get
-	 *     time windows start at 0:15:00,1:15:00,2:15:00,etc.
-	 *</p>
+	 * Creates a new {@code TumblingEventTimeWindows} {@link WindowAssigner} that assigns
+	 * elements to time windows based on the element timestamp and offset.
 	 *
-	 * <p>
-	 *     Rather than that,if you are living in somewhere which is not using UTC±00:00 time,
-	 *     such as China which is using UTC+08:00,and you want a time window with size of one day,
-	 *     and window begins at every 00:00:00 of local time,you may use {@code of(Time.days(1),Time.hours(-8))}.
-	 *     The parameter of offset is {@code Time.hours(-8))} since UTC+08:00 is 8 hours earlier than UTC time.
-	 * </p>
+	 * <p>For example, if you want window a stream by hour,but window begins at the 15th minutes
+	 * of each hour, you can use {@code of(Time.hours(1),Time.minutes(15))},then you will get
+	 * time windows start at 0:15:00,1:15:00,2:15:00,etc.
+	 *
+	 * <p>Rather than that,if you are living in somewhere which is not using UTC±00:00 time,
+	 * such as China which is using UTC+08:00,and you want a time window with size of one day,
+	 * and window begins at every 00:00:00 of local time,you may use {@code of(Time.days(1),Time.hours(-8))}.
+	 * The parameter of offset is {@code Time.hours(-8))} since UTC+08:00 is 8 hours earlier than UTC time.
+	 *
 	 * @param size The size of the generated windows.
 	 * @param offset The offset which window start would be shifted by.
 	 * @return The time policy.
 	 */
 	public static TumblingEventTimeWindows of(Time size, Time offset) {
-		return new TumblingEventTimeWindows(size.toMilliseconds(), offset.toMilliseconds() % size.toMilliseconds());
+		return new TumblingEventTimeWindows(size.toMilliseconds(), offset.toMilliseconds());
 	}
 
 	@Override

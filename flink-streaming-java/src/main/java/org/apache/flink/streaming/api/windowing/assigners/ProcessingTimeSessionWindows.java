@@ -47,6 +47,10 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	protected long sessionTimeout;
 
 	protected ProcessingTimeSessionWindows(long sessionTimeout) {
+		if (sessionTimeout <= 0) {
+			throw new IllegalArgumentException("ProcessingTimeSessionWindows parameters must satisfy 0 < size");
+		}
+
 		this.sessionTimeout = sessionTimeout;
 	}
 
