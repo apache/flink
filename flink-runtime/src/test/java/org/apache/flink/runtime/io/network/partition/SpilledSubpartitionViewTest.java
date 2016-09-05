@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
@@ -36,6 +35,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -121,7 +121,7 @@ public class SpilledSubpartitionViewTest {
 				}
 			}
 
-			final List<Future<Boolean>> results = Lists.newArrayList();
+			final List<Future<Boolean>> results = new ArrayList<>();
 
 			// Submit the consuming tasks
 			for (ResultSubpartitionView view : readers) {

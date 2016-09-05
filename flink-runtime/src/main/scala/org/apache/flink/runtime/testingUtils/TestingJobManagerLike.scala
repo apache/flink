@@ -249,7 +249,7 @@ trait TestingJobManagerLike extends FlinkActor {
             } else {
               sender ! decorateMessage(
                 WorkingTaskManager(
-                  Some(resource.getInstance().getActorGateway)
+                  Some(resource.getTaskManagerActorGateway())
                 )
               )
             }

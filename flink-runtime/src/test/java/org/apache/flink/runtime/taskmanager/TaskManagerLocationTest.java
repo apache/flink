@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.taskmanager;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertEquals;
@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Assert;
@@ -34,14 +35,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for the InstanceConnectionInfo, which identifies the location and connection
+ * Tests for the TaskManagerLocation, which identifies the location and connection
  * information of a TaskManager.
  */
-public class InstanceConnectionInfoTest {
+public class TaskManagerLocationTest {
 
 	@Test
 	public void testEqualsHashAndCompareTo() {
 		try {
+			ResourceID resourceID1 = new ResourceID("a");
+			ResourceID resourceID2 = new ResourceID("b");
+			ResourceID resourceID3 = new ResourceID("c");
+
 			// we mock the addresses to save the times of the reverse name lookups
 			InetAddress address1 = mock(InetAddress.class);
 			when(address1.getCanonicalHostName()).thenReturn("localhost");
@@ -62,10 +67,10 @@ public class InstanceConnectionInfoTest {
 			when(address3.getAddress()).thenReturn(new byte[] {(byte) 192, (byte) 168, 0, 1} );
 
 			// one == four != two != three
-			InstanceConnectionInfo one = new InstanceConnectionInfo(address1, 19871);
-			InstanceConnectionInfo two = new InstanceConnectionInfo(address2, 19871);
-			InstanceConnectionInfo three = new InstanceConnectionInfo(address3, 10871);
-			InstanceConnectionInfo four = new InstanceConnectionInfo(address1, 19871);
+			TaskManagerLocation one = new TaskManagerLocation(resourceID1, address1, 19871);
+			TaskManagerLocation two = new TaskManagerLocation(resourceID2, address2, 19871);
+			TaskManagerLocation three = new TaskManagerLocation(resourceID3, address3, 10871);
+			TaskManagerLocation four = new TaskManagerLocation(resourceID1, address1, 19871);
 			
 			assertTrue(one.equals(four));
 			assertTrue(!one.equals(two));
@@ -96,24 +101,20 @@ public class InstanceConnectionInfoTest {
 		try {
 			// without resolved hostname
 			{
-				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 8888);
-				
-				InstanceConnectionInfo copy = InstantiationUtil.createCopyWritable(original);
-				assertEquals(original, copy);
-				
-				InstanceConnectionInfo serCopy = InstantiationUtil.clone(original);
+				TaskManagerLocation original = new TaskManagerLocation(
+						ResourceID.generate(), InetAddress.getByName("1.2.3.4"), 8888);
+
+				TaskManagerLocation serCopy = InstantiationUtil.clone(original);
 				assertEquals(original, serCopy);
 			}
 						
 			// with resolved hostname
 			{
-				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
+				TaskManagerLocation original = new TaskManagerLocation(
+						ResourceID.generate(), InetAddress.getByName("127.0.0.1"), 19871);
 				original.getFQDNHostname();
-				
-				InstanceConnectionInfo copy = InstantiationUtil.createCopyWritable(original);
-				assertEquals(original, copy);
-				
-				InstanceConnectionInfo serCopy = InstantiationUtil.clone(original);
+
+				TaskManagerLocation serCopy = InstantiationUtil.clone(original);
 				assertEquals(original, serCopy);
 			}
 		}
@@ -126,10 +127,10 @@ public class InstanceConnectionInfoTest {
 	@Test
 	public void testGetFQDNHostname() {
 		try {
-			InstanceConnectionInfo info1 = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
+			TaskManagerLocation info1 = new TaskManagerLocation(ResourceID.generate(), InetAddress.getByName("127.0.0.1"), 19871);
 			assertNotNull(info1.getFQDNHostname());
 			
-			InstanceConnectionInfo info2 = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 8888);
+			TaskManagerLocation info2 = new TaskManagerLocation(ResourceID.generate(), InetAddress.getByName("1.2.3.4"), 8888);
 			assertNotNull(info2.getFQDNHostname());
 		}
 		catch (Exception e) {
@@ -146,7 +147,7 @@ public class InstanceConnectionInfoTest {
 			when(address.getHostName()).thenReturn("worker2.cluster.mycompany.com");
 			when(address.getHostAddress()).thenReturn("127.0.0.1");
 
-			final InstanceConnectionInfo info = new InstanceConnectionInfo(address, 19871);
+			final TaskManagerLocation info = new TaskManagerLocation(ResourceID.generate(), address, 19871);
 			Assert.assertEquals("worker2", info.getHostname());
 		}
 		catch (Exception e) {
@@ -163,7 +164,7 @@ public class InstanceConnectionInfoTest {
 			when(address.getHostName()).thenReturn("worker10");
 			when(address.getHostAddress()).thenReturn("127.0.0.1");
 
-			InstanceConnectionInfo info = new InstanceConnectionInfo(address, 19871);
+			TaskManagerLocation info = new TaskManagerLocation(ResourceID.generate(), address, 19871);
 			Assert.assertEquals("worker10", info.getHostname());
 		}
 		catch (Exception e) {
@@ -184,7 +185,7 @@ public class InstanceConnectionInfoTest {
 			when(address.getHostAddress()).thenReturn("192.168.254.254");
 			when(address.getAddress()).thenReturn(new byte[] {(byte) 192, (byte) 168, (byte) 254, (byte) 254} );
 
-			InstanceConnectionInfo info = new InstanceConnectionInfo(address, 54152);
+			TaskManagerLocation info = new TaskManagerLocation(ResourceID.generate(), address, 54152);
 
 			assertNotNull(info.getFQDNHostname());
 			assertTrue(info.getFQDNHostname().equals(addressString));

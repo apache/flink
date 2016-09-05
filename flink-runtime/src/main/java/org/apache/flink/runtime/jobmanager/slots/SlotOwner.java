@@ -16,20 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager
+package org.apache.flink.runtime.jobmanager.slots;
 
-import org.apache.flink.core.memory.MemoryType
-import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
-import org.apache.flink.runtime.io.network.netty.NettyConfig
+import org.apache.flink.runtime.instance.Slot;
 
-case class NetworkEnvironmentConfiguration(
-  numNetworkBuffers: Int,
-  networkBufferSize: Int,
-  memoryType: MemoryType,
-  ioMode: IOMode,
-  queryServerPort: Int,
-  queryServerNetworkThreads: Int,
-  queryServerQueryThreads: Int,
-  nettyConfig: Option[NettyConfig] = None,
-  partitionRequestInitialBackoff: Int = 500,
-  partitinRequestMaxBackoff: Int = 3000)
+/**
+ * Interface for components that hold slots and to which slots get released / recycled.
+ */
+public interface SlotOwner {
+
+	boolean returnAllocatedSlot(Slot slot);
+}

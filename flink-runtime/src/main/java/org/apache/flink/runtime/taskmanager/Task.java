@@ -25,6 +25,8 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -91,10 +93,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * with the JobManager.
  *
  * <p>The Flink operators (implemented as subclasses of
- * {@link org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable} have only data
- * readers, -writers, and certain event callbacks. The task connects those to the
- * network stack and actor messages, and tracks the state of the execution and
- * handles exceptions.
+ * {@link AbstractInvokable} have only data readers, -writers, and certain event callbacks.
+ * The task connects those to the network stack and actor messages, and tracks the state
+ * of the execution and handles exceptions.
  *
  * <p>Tasks have no knowledge about how they relate to other tasks, or whether they
  * are the first attempt to execute the task, or a repeated attempt. All of that
@@ -247,6 +248,7 @@ public class Task implements Runnable {
 				MemoryManager memManager,
 				IOManager ioManager,
 				NetworkEnvironment networkEnvironment,
+				JobManagerCommunicationFactory jobManagerCommunicationFactory,
 				BroadcastVariableManager bcVarManager,
 				ActorGateway taskManagerActor,
 				ActorGateway jobManagerActor,
@@ -302,6 +304,9 @@ public class Task implements Runnable {
 		this.producedPartitions = new ResultPartition[partitions.size()];
 		this.writers = new ResultPartitionWriter[partitions.size()];
 
+		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier =
+			jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(this);
+
 		for (int i = 0; i < this.producedPartitions.length; i++) {
 			ResultPartitionDeploymentDescriptor desc = partitions.get(i);
 			ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), executionId);
@@ -313,8 +318,8 @@ public class Task implements Runnable {
 					desc.getPartitionType(),
 					desc.getEagerlyDeployConsumers(),
 					desc.getNumberOfSubpartitions(),
-					networkEnvironment.getPartitionManager(),
-					networkEnvironment.getPartitionConsumableNotifier(),
+					networkEnvironment.getResultPartitionManager(),
+					resultPartitionConsumableNotifier,
 					ioManager,
 					networkEnvironment.getDefaultIOMode());
 
@@ -325,10 +330,17 @@ public class Task implements Runnable {
 		this.inputGates = new SingleInputGate[consumedPartitions.size()];
 		this.inputGatesById = new HashMap<IntermediateDataSetID, SingleInputGate>();
 
+		PartitionStateChecker partitionStateChecker = jobManagerCommunicationFactory.createPartitionStateChecker();
+
 		for (int i = 0; i < this.inputGates.length; i++) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtaskAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment, 
-					metricGroup.getIOMetricGroup());
+				taskNameWithSubtaskAndId,
+				jobId,
+				executionId,
+				consumedPartitions.get(i),
+				networkEnvironment,
+				partitionStateChecker,
+				metricGroup.getIOMetricGroup());
 
 			this.inputGates[i] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);

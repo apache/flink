@@ -25,9 +25,10 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.StartupUtils;
-import org.junit.Before;
 import org.junit.Test;
+import scala.Option;
 
 import java.io.File;
 import java.io.IOException;
@@ -177,6 +178,45 @@ public class TaskManagerStartupTest {
 		catch(Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * Tests that the task manager start-up fails if the network stack cannot be initialized.
+	 * @throws Exception
+	 */
+	@Test(expected = IOException.class)
+	public void testStartupWhenNetworkStackFailsToInitialize() throws Exception {
+
+		ServerSocket blocker = null;
+
+		try {
+			blocker = new ServerSocket(0, 50, InetAddress.getByName("localhost"));
+
+			final Configuration cfg = new Configuration();
+			cfg.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, blocker.getLocalPort());
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 1);
+
+			TaskManager.startTaskManagerComponentsAndActor(
+				cfg,
+				ResourceID.generate(),
+				null,
+				"localhost",
+				Option.<String>empty(),
+				Option.<LeaderRetrievalService>empty(),
+				false,
+				TaskManager.class);
+		}
+		finally {
+			if (blocker != null) {
+				try {
+					blocker.close();
+				}
+				catch (IOException e) {
+					// ignore, best effort
+				}
+			}
 		}
 	}
 }

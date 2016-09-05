@@ -117,6 +117,12 @@ class FunctionCatalog {
 object FunctionCatalog {
 
   val buildInFunctions: Map[String, Class[_]] = Map(
+    // logic
+    "isNull" -> classOf[IsNull],
+    "isNotNull" -> classOf[IsNotNull],
+    "isTrue" -> classOf[IsTrue],
+    "isFalse" -> classOf[IsFalse],
+
     // aggregate functions
     "avg" -> classOf[Avg],
     "count" -> classOf[Count],
@@ -145,7 +151,13 @@ object FunctionCatalog {
     "mod" -> classOf[Mod],
 
     // temporal functions
-    "extract" -> classOf[Extract]
+    "extract" -> classOf[Extract],
+    "currentDate" -> classOf[CurrentDate],
+    "currentTime" -> classOf[CurrentTime],
+    "currentTimestamp" -> classOf[CurrentTimestamp],
+    "localTime" -> classOf[LocalTime],
+    "localTimestamp" -> classOf[LocalTimestamp]
+
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
     // "ceil" -> classOf[TemporalCeil]

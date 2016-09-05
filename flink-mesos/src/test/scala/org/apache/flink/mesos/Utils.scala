@@ -21,7 +21,7 @@ package org.apache.flink.mesos
 import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor._
-import akka.testkit.{TestActorRef, TestFSMRef}
+import akka.testkit.TestFSMRef
 import org.mockito.ArgumentMatcher
 
 import scala.collection.JavaConverters._
@@ -47,7 +47,7 @@ object TestFSMUtils {
     "$" + akka.util.Helpers.base64(l)
   }
 
-  def testFSMRef[S, D, T <: Actor: ClassTag](factory: ⇒ T, supervisor: ActorRef)
+  def testFSMRef[S, D, T <: Actor: ClassTag](factory: => T, supervisor: ActorRef)
       (implicit ev: T <:< FSM[S, D], system: ActorSystem): TestFSMRef[S, D, T] = {
     new TestFSMRef(system, Props(factory), supervisor, TestFSMUtils.randomName)
   }

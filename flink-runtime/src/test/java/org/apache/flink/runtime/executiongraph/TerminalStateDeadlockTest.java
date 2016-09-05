@@ -27,9 +27,10 @@ import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -54,12 +55,12 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
 public class TerminalStateDeadlockTest {
-	
+
 	private final Field stateField;
 	private final Field resourceField;
 	private final Field execGraphStateField;
-	private final Field execGraphSchedulerField;
-	
+	private final Field execGraphSlotProviderField;
+
 	private final SimpleSlot resource;
 
 
@@ -75,16 +76,16 @@ public class TerminalStateDeadlockTest {
 			this.execGraphStateField = ExecutionGraph.class.getDeclaredField("state");
 			this.execGraphStateField.setAccessible(true);
 
-			this.execGraphSchedulerField = ExecutionGraph.class.getDeclaredField("scheduler");
-			this.execGraphSchedulerField.setAccessible(true);
+			this.execGraphSlotProviderField = ExecutionGraph.class.getDeclaredField("slotProvider");
+			this.execGraphSlotProviderField.setAccessible(true);
 			
 			// the dummy resource
+			ResourceID resourceId = ResourceID.generate();
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo ci = new InstanceConnectionInfo(address, 12345);
+			TaskManagerLocation ci = new TaskManagerLocation(resourceId, address, 12345);
 				
 			HardwareDescription resources = new HardwareDescription(4, 4000000, 3000000, 2000000);
-			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci,
-				ResourceID.generate(), new InstanceID(), resources, 4);
+			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci, new InstanceID(), resources, 4);
 
 			this.resource = instance.allocateSimpleSlot(new JobID());
 		}
@@ -96,11 +97,9 @@ public class TerminalStateDeadlockTest {
 			throw new RuntimeException();
 		}
 	}
-	
-	 
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void testProvokeDeadlock() {
 		try {
@@ -135,7 +134,7 @@ public class TerminalStateDeadlockTest {
 				initializeExecution(e2);
 
 				execGraphStateField.set(eg, JobStatus.FAILING);
-				execGraphSchedulerField.set(eg, scheduler);
+				execGraphSlotProviderField.set(eg, scheduler);
 				
 				Runnable r1 = new Runnable() {
 					@Override
@@ -173,12 +172,10 @@ public class TerminalStateDeadlockTest {
 	
 	static class TestExecGraph extends ExecutionGraph {
 
-		private static final long serialVersionUID = -7606144898417942044L;
-		
 		private static final Configuration EMPTY_CONFIG = new Configuration();
 
 		private static final FiniteDuration TIMEOUT = new FiniteDuration(30, TimeUnit.SECONDS);
-		
+
 		private volatile boolean done;
 
 		TestExecGraph(JobID jobId) throws IOException {
@@ -193,14 +190,14 @@ public class TerminalStateDeadlockTest {
 		}
 
 		@Override
-		public void scheduleForExecution(Scheduler scheduler) {
+		public void scheduleForExecution(SlotProvider slotProvider) {
 			// notify that we are done with the "restarting"
 			synchronized (this) {
 				done = true;
 				this.notifyAll();
 			}
 		}
-		
+
 		public void waitTillDone() {
 			try {
 				synchronized (this) {

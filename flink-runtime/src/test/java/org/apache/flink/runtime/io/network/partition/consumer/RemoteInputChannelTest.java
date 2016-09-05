@@ -299,12 +299,13 @@ public class RemoteInputChannelTest {
 				.thenReturn(partitionRequestClient);
 
 		return new RemoteInputChannel(
-				inputGate,
-				0,
-				new ResultPartitionID(),
-				mock(ConnectionID.class),
-				connectionManager,
-				initialAndMaxRequestBackoff,
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			inputGate,
+			0,
+			new ResultPartitionID(),
+			mock(ConnectionID.class),
+			connectionManager,
+			initialAndMaxRequestBackoff._1(),
+			initialAndMaxRequestBackoff._2(),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 	}
 }
