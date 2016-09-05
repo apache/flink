@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * */
 public class TestProcessingTimeService extends ProcessingTimeService {
 
-	private volatile long currentTime = 0L;
+	private volatile long currentTime = Long.MIN_VALUE;
 
 	private volatile boolean isTerminated;
 	private volatile boolean isQuiesced;
