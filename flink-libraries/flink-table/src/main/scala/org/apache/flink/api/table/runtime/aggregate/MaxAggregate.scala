@@ -17,12 +17,23 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.math.BigDecimal
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
 
 abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
 
   protected var maxIndex = -1
+
+  /**
+   * Initiate the intermediate aggregate value in Row.
+   *
+   * @param intermediate The intermediate aggregate row to initiate.
+   */
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(maxIndex, null)
+  }
 
   /**
    * Accessed in MapFunction, prepare the input of partial aggregate.
@@ -47,9 +58,15 @@ abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
    */
   override def merge(intermediate: Row, buffer: Row): Unit = {
     val partialValue = intermediate.productElement(maxIndex).asInstanceOf[T]
-    val bufferValue = buffer.productElement(maxIndex).asInstanceOf[T]
-    val max: T = if (ord.compare(partialValue, bufferValue) > 0) partialValue else bufferValue
-    buffer.setField(maxIndex, max)
+    if (partialValue != null) {
+      val bufferValue = buffer.productElement(maxIndex).asInstanceOf[T]
+      if (bufferValue != null) {
+        val max : T = if (ord.compare(partialValue, bufferValue) > 0) partialValue else bufferValue
+        buffer.setField(maxIndex, max)
+      } else {
+        buffer.setField(maxIndex, partialValue)
+      }
+    }
   }
 
   /**
@@ -73,61 +90,82 @@ class ByteMaxAggregate extends MaxAggregate[Byte] {
 
   override def intermediateDataType = Array(BasicTypeInfo.BYTE_TYPE_INFO)
 
-  override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(maxIndex, Byte.MinValue)
-  }
 }
 
 class ShortMaxAggregate extends MaxAggregate[Short] {
 
   override def intermediateDataType = Array(BasicTypeInfo.SHORT_TYPE_INFO)
 
-  override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(maxIndex, Short.MinValue)
-  }
 }
 
 class IntMaxAggregate extends MaxAggregate[Int] {
 
   override def intermediateDataType = Array(BasicTypeInfo.INT_TYPE_INFO)
 
-  override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(maxIndex, Int.MinValue)
-  }
 }
 
 class LongMaxAggregate extends MaxAggregate[Long] {
 
   override def intermediateDataType = Array(BasicTypeInfo.LONG_TYPE_INFO)
 
-  override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(maxIndex, Long.MinValue)
-  }
 }
 
 class FloatMaxAggregate extends MaxAggregate[Float] {
 
   override def intermediateDataType = Array(BasicTypeInfo.FLOAT_TYPE_INFO)
 
-  override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(maxIndex, Float.MinValue)
-  }
 }
 
 class DoubleMaxAggregate extends MaxAggregate[Double] {
 
   override def intermediateDataType = Array(BasicTypeInfo.DOUBLE_TYPE_INFO)
 
-  override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(maxIndex, Double.MinValue)
-  }
 }
 
 class BooleanMaxAggregate extends MaxAggregate[Boolean] {
 
   override def intermediateDataType = Array(BasicTypeInfo.BOOLEAN_TYPE_INFO)
 
+}
+
+class DecimalMaxAggregate extends Aggregate[BigDecimal] {
+
+  protected var minIndex: Int = _
+
+  override def intermediateDataType = Array(BasicTypeInfo.BIG_DEC_TYPE_INFO)
+
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(maxIndex, false)
+    intermediate.setField(minIndex, null)
+  }
+
+  override def prepare(value: Any, partial: Row): Unit = {
+    if (value == null) {
+      initiate(partial)
+    } else {
+      partial.setField(minIndex, value)
+    }
+  }
+
+  override def merge(partial: Row, buffer: Row): Unit = {
+    val partialValue = partial.productElement(minIndex).asInstanceOf[BigDecimal]
+    if (partialValue != null) {
+      val bufferValue = buffer.productElement(minIndex).asInstanceOf[BigDecimal]
+      if (bufferValue != null) {
+        val min = if (partialValue.compareTo(bufferValue) > 0) partialValue else bufferValue
+        buffer.setField(minIndex, min)
+      } else {
+        buffer.setField(minIndex, partialValue)
+      }
+    }
+  }
+
+  override def evaluate(buffer: Row): BigDecimal = {
+    buffer.productElement(minIndex).asInstanceOf[BigDecimal]
+  }
+
+  override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggOffset: Int): Unit = {
+    minIndex = aggOffset
   }
 }

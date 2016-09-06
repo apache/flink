@@ -21,12 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@link StreamOperator} for streaming sources.
@@ -49,6 +47,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
+	}
+
+	public void run(final Object lockingObject) throws Exception {
+		run(lockingObject, output);
 	}
 
 	
@@ -191,7 +193,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
 		
-		private final ScheduledExecutorService scheduleExecutor;
 		private final ScheduledFuture<?> watermarkTimer;
 		private final long watermarkInterval;
 
@@ -212,29 +213,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			this.output = outputParam;
 			this.watermarkInterval = watermarkInterval;
 			this.reuse = new StreamRecord<T>(null);
-			
-			this.scheduleExecutor = Executors.newScheduledThreadPool(1);
 
-			this.watermarkTimer = scheduleExecutor.scheduleAtFixedRate(new Runnable() {
-				@Override
-				public void run() {
-					final long currentTime = System.currentTimeMillis();
-					
-					if (currentTime > nextWatermarkTime) {
-						// align the watermarks across all machines. this will ensure that we
-						// don't have watermarks that creep along at different intervals because
-						// the machine clocks are out of sync
-						final long watermarkTime = currentTime - (currentTime % watermarkInterval);
-						
-						synchronized (lockingObjectParam) {
-							if (currentTime > nextWatermarkTime) {
-								outputParam.emitWatermark(new Watermark(watermarkTime));
-								nextWatermarkTime += watermarkInterval;
-							}
-						}
-					}
-				}
-			}, 0, watermarkInterval, TimeUnit.MILLISECONDS);
+			long now = owner.getCurrentProcessingTime();
+			this.watermarkTimer = owner.registerTimer(now + watermarkInterval,
+				new WatermarkEmittingTask(owner, lockingObjectParam, outputParam));
 		}
 
 		@Override
@@ -242,14 +224,21 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			owner.checkAsyncException();
 			
 			synchronized (lockingObject) {
-				final long currentTime = System.currentTimeMillis();
+				final long currentTime = owner.getCurrentProcessingTime();
 				output.collect(reuse.replace(element, currentTime));
-				
+
+				// this is to avoid lock contention in the lockingObject by
+				// sending the watermark before the firing of the watermark
+				// emission task.
+
 				if (currentTime > nextWatermarkTime) {
 					// in case we jumped some watermarks, recompute the next watermark time
 					final long watermarkTime = currentTime - (currentTime % watermarkInterval);
 					nextWatermarkTime = watermarkTime + watermarkInterval;
 					output.emitWatermark(new Watermark(watermarkTime));
+
+					// we do not need to register another timer here
+					// because the emitting task will do so.
 				}
 			}
 		}
@@ -272,7 +261,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 				// we can shutdown the timer now, no watermarks will be needed any more
 				watermarkTimer.cancel(true);
-				scheduleExecutor.shutdownNow();
 			}
 		}
 
@@ -284,13 +272,47 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		@Override
 		public void close() {
 			watermarkTimer.cancel(true);
-			scheduleExecutor.shutdownNow();
+		}
+
+		private class WatermarkEmittingTask implements Triggerable {
+
+			private final StreamSource<?, ?> owner;
+			private final Object lockingObject;
+			private final Output<StreamRecord<T>> output;
+
+			private WatermarkEmittingTask(StreamSource<?, ?> src, Object lock, Output<StreamRecord<T>> output) {
+				this.owner = src;
+				this.lockingObject = lock;
+				this.output = output;
+			}
+
+			@Override
+			public void trigger(long timestamp) {
+				final long currentTime = owner.getCurrentProcessingTime();
+
+				if (currentTime > nextWatermarkTime) {
+					// align the watermarks across all machines. this will ensure that we
+					// don't have watermarks that creep along at different intervals because
+					// the machine clocks are out of sync
+					final long watermarkTime = currentTime - (currentTime % watermarkInterval);
+
+					synchronized (lockingObject) {
+						if (currentTime > nextWatermarkTime) {
+							output.emitWatermark(new Watermark(watermarkTime));
+							nextWatermarkTime += watermarkInterval;
+						}
+					}
+				}
+
+				owner.registerTimer(owner.getCurrentProcessingTime() + watermarkInterval,
+					new WatermarkEmittingTask(owner, lockingObject, output));
+			}
 		}
 	}
 
 	/**
 	 * A SourceContext for event time. Sources may directly attach timestamps and generate
-	 * watermarks, but if records are emitted without timestamps, no timetamps are automatically
+	 * watermarks, but if records are emitted without timestamps, no timestamps are automatically
 	 * generated and attached. The records will simply have no timestamp in that case.
 	 * 
 	 * Streaming topologies can use timestamp assigner functions to override the timestamps

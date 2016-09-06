@@ -25,29 +25,26 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.gsa.ApplyFunction;
+import org.apache.flink.graph.gsa.GSAConfiguration;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
+import org.apache.flink.types.LongValue;
 
 /**
  * This is an implementation of a simple PageRank algorithm, using a gather-sum-apply iteration.
  * The user can define the damping factor and the maximum number of iterations.
- * If the number of vertices of the input graph is known, it should be provided as a parameter
- * to speed up computation. Otherwise, the algorithm will first execute a job to count the vertices.
- * 
+ *
  * The implementation assumes that each page has at least one incoming and one outgoing link.
  */
 public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
 
 	private double beta;
 	private int maxIterations;
-	private long numberOfVertices;
 
 	/**
 	 * Creates an instance of the GSA PageRank algorithm.
-	 * If the number of vertices of the input graph is known,
-	 * use the {@link GSAPageRank#GSAPageRank(double, long, int)} constructor instead.
-	 * 
+	 *
 	 * The implementation assumes that each page has at least one incoming and one outgoing link.
 	 * 
 	 * @param beta the damping factor
@@ -58,37 +55,18 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 		this.maxIterations = maxIterations;
 	}
 
-	/**
-	 * Creates an instance of the GSA PageRank algorithm.
-	 * If the number of vertices of the input graph is known,
-	 * use the {@link GSAPageRank#GSAPageRank(double, int)} constructor instead.
-	 * 
-	 * The implementation assumes that each page has at least one incoming and one outgoing link.
-	 * 
-	 * @param beta the damping factor
-	 * @param maxIterations the maximum number of iterations
-	 * @param numVertices the number of vertices in the input
-	 */
-	public GSAPageRank(double beta, long numVertices, int maxIterations) {
-		this.beta = beta;
-		this.numberOfVertices = numVertices;
-		this.maxIterations = maxIterations;
-	}
-
 	@Override
 	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> network) throws Exception {
-
-		if (numberOfVertices == 0) {
-			numberOfVertices = network.numberOfVertices();
-		}
-
-		DataSet<Tuple2<K, Long>> vertexOutDegrees = network.outDegrees();
+		DataSet<Tuple2<K, LongValue>> vertexOutDegrees = network.outDegrees();
 
 		Graph<K, Double, Double> networkWithWeights = network
 				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeights());
 
-		return networkWithWeights.runGatherSumApplyIteration(new GatherRanks(numberOfVertices), new SumRanks(),
-				new UpdateRanks<K>(beta, numberOfVertices), maxIterations)
+		GSAConfiguration parameters = new GSAConfiguration();
+		parameters.setOptNumVertices(true);
+
+		return networkWithWeights.runGatherSumApplyIteration(new GatherRanks(), new SumRanks(),
+				new UpdateRanks<K>(beta), maxIterations, parameters)
 				.getVertices();
 	}
 
@@ -99,18 +77,12 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 	@SuppressWarnings("serial")
 	private static final class GatherRanks extends GatherFunction<Double, Double, Double> {
 
-		long numberOfVertices;
-
-		public GatherRanks(long numberOfVertices) {
-			this.numberOfVertices = numberOfVertices;
-		}
-
 		@Override
 		public Double gather(Neighbor<Double, Double> neighbor) {
 			double neighborRank = neighbor.getNeighborValue();
 
 			if(getSuperstepNumber() == 1) {
-				neighborRank = 1.0 / numberOfVertices;
+				neighborRank = 1.0 / this.getNumberOfVertices();
 			}
 
 			return neighborRank * neighbor.getEdgeValue();
@@ -130,24 +102,22 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 	private static final class UpdateRanks<K> extends ApplyFunction<K, Double, Double> {
 
 		private final double beta;
-		private final long numVertices;
 
-		public UpdateRanks(double beta, long numberOfVertices) {
+		public UpdateRanks(double beta) {
 			this.beta = beta;
-			this.numVertices = numberOfVertices;
 		}
 
 		@Override
 		public void apply(Double rankSum, Double currentValue) {
-			setResult((1-beta)/numVertices + beta * rankSum);
+			setResult((1-beta)/this.getNumberOfVertices() + beta * rankSum);
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitWeights implements EdgeJoinFunction<Double, Long> {
+	private static final class InitWeights implements EdgeJoinFunction<Double, LongValue> {
 
-		public Double edgeJoin(Double edgeValue, Long inputValue) {
-			return edgeValue / (double) inputValue;
+		public Double edgeJoin(Double edgeValue, LongValue inputValue) {
+			return edgeValue / (double) inputValue.getValue();
 		}
 	}
 }

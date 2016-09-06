@@ -37,10 +37,10 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkElementIndex;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkElementIndex;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A result partition for data produced by a single task.
@@ -92,7 +92,7 @@ public class ResultPartition implements BufferPoolOwner {
 	 * <p>If <code>true</code>, the consumers are deployed as soon as the
 	 * runtime result is registered at the result manager of the task manager.
 	 */
-	private final boolean eagerlyDeployConsumers;
+	private final boolean doEagerDeployment;
 
 	/** The subpartitions of this partition. At least one. */
 	private final ResultSubpartition[] subpartitions;
@@ -133,7 +133,7 @@ public class ResultPartition implements BufferPoolOwner {
 			JobID jobId,
 			ResultPartitionID partitionId,
 			ResultPartitionType partitionType,
-			boolean eagerlyDeployConsumers,
+			boolean doEagerDeployment,
 			int numberOfSubpartitions,
 			ResultPartitionManager partitionManager,
 			ResultPartitionConsumableNotifier partitionConsumableNotifier,
@@ -144,7 +144,7 @@ public class ResultPartition implements BufferPoolOwner {
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
-		this.eagerlyDeployConsumers = eagerlyDeployConsumers;
+		this.doEagerDeployment = doEagerDeployment;
 		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
 		this.partitionManager = checkNotNull(partitionManager);
 		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
@@ -209,16 +209,6 @@ public class ResultPartition implements BufferPoolOwner {
 
 	public int getNumberOfSubpartitions() {
 		return subpartitions.length;
-	}
-
-	/**
-	 * Returns whether consumers should be deployed eagerly (as soon as they
-	 * are registered at the result manager of the task manager).
-	 *
-	 * @return Whether consumers should be deployed eagerly
-	 */
-	public boolean getEagerlyDeployConsumers() {
-		return eagerlyDeployConsumers;
 	}
 
 	public BufferProvider getBufferProvider() {
@@ -345,11 +335,24 @@ public class ResultPartition implements BufferPoolOwner {
 
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 
-		return subpartitions[index].createReadView(bufferProvider);
+		ResultSubpartitionView readView = subpartitions[index].createReadView(bufferProvider);
+
+		LOG.debug("Created {}", readView);
+
+		return readView;
 	}
 
 	public Throwable getFailureCause() {
 		return cause;
+	}
+
+	/**
+	 * Deploys consumers if eager deployment is activated
+	 */
+	public void deployConsumers() {
+		if (doEagerDeployment) {
+			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId);
+		}
 	}
 
 	/**

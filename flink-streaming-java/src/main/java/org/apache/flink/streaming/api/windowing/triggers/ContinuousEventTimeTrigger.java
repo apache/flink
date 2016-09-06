@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -89,6 +88,8 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	@Override
 	public void clear(W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+		long timestamp = fireTimestamp.get();
+		ctx.deleteEventTimeTimer(timestamp);
 		fireTimestamp.clear();
 	}
 

@@ -24,7 +24,7 @@ import org.apache.flink.ml.classification.Classification
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.metrics.distances.{ManhattanDistanceMetric,
 SquaredEuclideanDistanceMetric}
-import org.apache.flink.test.util.FlinkTestBase
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
@@ -42,18 +42,17 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     }
   }
 
-  val env = ExecutionEnvironment.getExecutionEnvironment
-
-  // prepare data
-  val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
-  val testingSet = env.fromElements(DenseVector(0.0, 0.0))
-
   // calculate answer
   val answer = Classification.trainingData.map {
     v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
   }.sortBy(_._2).take(3).map(_._1).toArray
 
   it should "calculate kNN join correctly without using a Quadtree" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    // prepare data
+    val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
+    val testingSet = env.fromElements(DenseVector(0.0, 0.0))
 
     val knn = KNN()
       .setK(3)
@@ -72,6 +71,11 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
   }
 
   it should "calculate kNN join correctly with a Quadtree" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    // prepare data
+    val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
+    val testingSet = env.fromElements(DenseVector(0.0, 0.0))
 
     val knn = KNN()
       .setK(3)
@@ -91,6 +95,12 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   it should "throw an exception when using a Quadtree with an incompatible metric" in {
     intercept[IllegalArgumentException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+
+      // prepare data
+      val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
+      val testingSet = env.fromElements(DenseVector(0.0, 0.0))
+
       val knn = KNN()
         .setK(3)
         .setBlocks(10)

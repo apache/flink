@@ -22,7 +22,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 
 import java.io.Serializable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Location of a result partition from the perspective of the consuming task.
@@ -47,6 +47,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class ResultPartitionLocation implements Serializable {
 
+	private static final long serialVersionUID = -6354238166937194463L;
 	/** The type of location for the result partition. */
 	private final LocationType locationType;
 

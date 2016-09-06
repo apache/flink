@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
@@ -36,13 +35,17 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * In implementation of the {@link Environment}.
@@ -75,8 +78,12 @@ public class RuntimeEnvironment implements Environment {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
+	private final TaskKvStateRegistry kvStateRegistry;
+
 	private final TaskManagerRuntimeInfo taskManagerInfo;
 	private final TaskMetricGroup metrics;
+
+	private final Task containingTask;
 
 	// ------------------------------------------------------------------------
 
@@ -93,13 +100,15 @@ public class RuntimeEnvironment implements Environment {
 			IOManager ioManager,
 			BroadcastVariableManager bcVarManager,
 			AccumulatorRegistry accumulatorRegistry,
+			TaskKvStateRegistry kvStateRegistry,
 			InputSplitProvider splitProvider,
 			Map<String, Future<Path>> distCacheEntries,
 			ResultPartitionWriter[] writers,
 			InputGate[] inputGates,
 			ActorGateway jobManager,
 			TaskManagerRuntimeInfo taskManagerInfo,
-			TaskMetricGroup metrics) {
+			TaskMetricGroup metrics,
+			Task containingTask) {
 
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
@@ -113,12 +122,14 @@ public class RuntimeEnvironment implements Environment {
 		this.ioManager = checkNotNull(ioManager);
 		this.bcVarManager = checkNotNull(bcVarManager);
 		this.accumulatorRegistry = checkNotNull(accumulatorRegistry);
+		this.kvStateRegistry = checkNotNull(kvStateRegistry);
 		this.splitProvider = checkNotNull(splitProvider);
 		this.distCacheEntries = checkNotNull(distCacheEntries);
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
 		this.jobManager = checkNotNull(jobManager);
 		this.taskManagerInfo = checkNotNull(taskManagerInfo);
+		this.containingTask = containingTask;
 		this.metrics = metrics;
 	}
 
@@ -195,6 +206,11 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskKvStateRegistry getTaskKvStateRegistry() {
+		return kvStateRegistry;
+	}
+
+	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return splitProvider;
 	}
@@ -226,40 +242,27 @@ public class RuntimeEnvironment implements Environment {
 
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId) {
-		acknowledgeCheckpoint(checkpointId, null);
+		acknowledgeCheckpoint(checkpointId, null, null);
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
-		// try and create a serialized version of the state handle
-		SerializedValue<StateHandle<?>> serializedState;
-		long stateSize;
+	public void acknowledgeCheckpoint(
+			long checkpointId,
+			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
+			List<KeyGroupsStateHandle> keyGroupStateHandles) {
 
-		if (state == null) {
-			serializedState = null;
-			stateSize = 0;
-		} else {
-			try {
-				serializedState = new SerializedValue<StateHandle<?>>(state);
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation", e);
-			}
-
-			try {
-				stateSize = state.getStateSize();
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Failed to fetch state handle size", e);
-			}
-		}
-		
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
 				jobId,
 				executionId,
 				checkpointId,
-				serializedState,
-				stateSize);
+				chainedStateHandle,
+				keyGroupStateHandles);
 
 		jobManager.tell(message);
+	}
+
+	@Override
+	public void failExternally(Throwable cause) {
+		this.containingTask.failExternally(cause);
 	}
 }

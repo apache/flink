@@ -111,8 +111,8 @@ public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 
 			// run the scatter gather iteration to propagate info
 			Graph<Long, Double, Double> result = ssspGraph.runScatterGatherIteration(
-					new IncrementalSSSP.VertexDistanceUpdater(),
 					new IncrementalSSSP.InvalidateMessenger(edgeToBeRemoved),
+					new IncrementalSSSP.VertexDistanceUpdater(),
 					IncrementalSSSPData.NUM_VERTICES, parameters);
 
 			DataSet<Vertex<Long, Double>> resultedVertices = result.getVertices();

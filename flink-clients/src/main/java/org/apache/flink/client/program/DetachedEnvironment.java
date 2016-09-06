@@ -42,7 +42,7 @@ public class DetachedEnvironment extends ContextEnvironment {
 	private static final Logger LOG = LoggerFactory.getLogger(DetachedEnvironment.class);
 
 	public DetachedEnvironment(
-			Client remoteConnection,
+			ClusterClient remoteConnection,
 			List<URL> jarFiles,
 			List<URL> classpaths,
 			ClassLoader userCodeClassLoader,
@@ -53,7 +53,7 @@ public class DetachedEnvironment extends ContextEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
-		setDetachedPlan(Client.getOptimizedPlan(client.compiler, p, getParallelism()));
+		setDetachedPlan(ClusterClient.getOptimizedPlan(client.compiler, p, getParallelism()));
 		LOG.warn("Job was executed in detached mode, the results will be available on completion.");
 		this.lastJobExecutionResult = DetachedJobExecutionResult.INSTANCE;
 		return this.lastJobExecutionResult;
@@ -72,7 +72,7 @@ public class DetachedEnvironment extends ContextEnvironment {
 	 * Finishes this Context Environment's execution by explicitly running the plan constructed.
 	 */
 	JobSubmissionResult finalizeExecute() throws ProgramInvocationException {
-		return client.runDetached(detachedPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath);
+		return client.run(detachedPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath);
 	}
 
 	public static final class DetachedJobExecutionResult extends JobExecutionResult {

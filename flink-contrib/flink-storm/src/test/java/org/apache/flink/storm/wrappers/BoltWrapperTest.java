@@ -49,6 +49,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -67,6 +68,7 @@ import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({StreamRecordSerializer.class, WrapperSetupHelper.class, StreamRecord.class})
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class BoltWrapperTest extends AbstractTest {
 
 	@Test(expected = IllegalArgumentException.class)
@@ -325,7 +327,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 	private static final class TestBolt implements IRichBolt {
 		private static final long serialVersionUID = 7278692872260138758L;
-		private OutputCollector collector;
+		private transient OutputCollector collector;
 
 		@SuppressWarnings("rawtypes")
 		@Override
@@ -364,7 +366,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 	public static StreamTask<?, ?> createMockStreamTask(ExecutionConfig execConfig) {
 		Environment env = mock(Environment.class);
-		when(env.getTaskInfo()).thenReturn(new TaskInfo("Mock Task", 0, 1, 0));
+		when(env.getTaskInfo()).thenReturn(new TaskInfo("Mock Task", 1, 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(BoltWrapperTest.class.getClassLoader());
 		when(env.getMetricGroup()).thenReturn(new UnregisteredTaskMetricsGroup());
 

@@ -33,6 +33,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +71,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * The fraction that the last split may be larger than the others.
 	 */
 	private static final float MAX_SPLIT_SIZE_DISCREPANCY = 1.1f;
-	
+
 	/**
 	 * The timeout (in milliseconds) to wait for a filesystem stream to respond.
 	 */
@@ -87,15 +88,19 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * The splitLength is set to -1L for reading the whole split.
 	 */
 	protected static final long READ_WHOLE_SPLIT_FLAG = -1L;
-	
+
 	static {
-		initDefaultsFromConfiguration();
+		initDefaultsFromConfiguration(GlobalConfiguration.loadConfiguration());
 		initDefaultInflaterInputStreamFactories();
 	}
-	
-	private static void initDefaultsFromConfiguration() {
-		
-		final long to = GlobalConfiguration.getLong(ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
+
+	/**
+	 * Initialize defaults for input format. Needs to be a static method because it is configured for local
+	 * cluster execution, see LocalFlinkMiniCluster.
+	 * @param configuration The configuration to load defaults from
+	 */
+	private static void initDefaultsFromConfiguration(Configuration configuration) {
+		final long to = configuration.getLong(ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
 			ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
 		if (to < 0) {
 			LOG.error("Invalid timeout value for filesystem stream opening: " + to + ". Using default value of " +
@@ -152,10 +157,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		} else {
 			return fileName.substring(lastPeriodIndex + 1);
 		}
-	}
-	
-	static long getDefaultOpeningTimeout() {
-		return DEFAULT_OPENING_TIMEOUT;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -218,17 +219,19 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * structure is enabled.
 	 */
 	protected boolean enumerateNestedFiles = false;
-	
+
+	/**
+	 * Files filter for determining what files/directories should be included.
+	 */
+	private FilePathFilter filesFilter = new GlobFilePathFilter();
+
 	// --------------------------------------------------------------------------------------------
 	//  Constructors
 	// --------------------------------------------------------------------------------------------	
 
 	public FileInputFormat() {}
-	
+
 	protected FileInputFormat(Path filePath) {
-		if (filePath == null) {
-			throw new IllegalArgumentException("The file path must not be null.");
-		}
 		this.filePath = filePath;
 	}
 	
@@ -242,27 +245,31 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
 	public void setFilePath(String filePath) {
 		if (filePath == null) {
-			throw new IllegalArgumentException("File path may not be null.");
+			throw new IllegalArgumentException("File path cannot be null.");
 		}
-		
+
 		// TODO The job-submission web interface passes empty args (and thus empty
 		// paths) to compute the preview graph. The following is a workaround for
 		// this situation and we should fix this.
-		
+
 		// comment (Stephan Ewen) this should be no longer relevant with the current Java/Scalal APIs.
 		if (filePath.isEmpty()) {
 			setFilePath(new Path());
 			return;
 		}
-		
-		setFilePath(new Path(filePath));
+
+		try {
+			this.filePath = new Path(filePath);
+		} catch (RuntimeException rex) {
+			throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage());
+		}
 	}
 	
 	public void setFilePath(Path filePath) {
 		if (filePath == null) {
-			throw new IllegalArgumentException("File path may not be null.");
+			throw new IllegalArgumentException("File path must not be null.");
 		}
-		
+
 		this.filePath = filePath;
 	}
 	
@@ -274,7 +281,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (minSplitSize < 0) {
 			throw new IllegalArgumentException("The minimum split size cannot be negative.");
 		}
-		
+
 		this.minSplitSize = minSplitSize;
 	}
 	
@@ -301,6 +308,14 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		this.openTimeout = openTimeout;
 	}
 
+	public void setNestedFileEnumeration(boolean enable) {
+		this.enumerateNestedFiles = enable;
+	}
+
+	public boolean getNestedFileEnumeration() {
+		return this.enumerateNestedFiles;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Getting information about the split that is currently open
 	// --------------------------------------------------------------------------------------------
@@ -323,6 +338,10 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		return splitLength;
 	}
 
+	public void setFilesFilter(FilePathFilter filesFilter) {
+		this.filesFilter = Preconditions.checkNotNull(filesFilter, "Files filter should not be null");
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Pre-flight: Configuration, Splits, Sampling
 	// --------------------------------------------------------------------------------------------
@@ -334,23 +353,20 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 */
 	@Override
 	public void configure(Configuration parameters) {
-		// get the file path
-		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
-		if (filePath != null) {
-			try {
-				this.filePath = new Path(filePath);
-			}
-			catch (RuntimeException rex) {
-				throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
-			}
+
+		// the if() clauses are to prevent the configure() method from
+		// overwriting the values set by the setters
+
+		if (filePath == null) {
+			String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
+			setFilePath(filePath);
 		}
-		else if (this.filePath == null) {
-			throw new IllegalArgumentException("File path was not specified in input format, or configuration."); 
+
+		if (!this.enumerateNestedFiles) {
+			this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
 		}
-		
-		this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
 	}
-	
+
 	/**
 	 * Obtains basic file statistics containing only file size. If the input is a directory, then the size is the sum of all contained files.
 	 * 
@@ -619,7 +635,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 */
 	protected boolean acceptFile(FileStatus fileStatus) {
 		final String name = fileStatus.getPath().getName();
-		return !name.startsWith("_") && !name.startsWith(".");
+		return !name.startsWith("_")
+			&& !name.startsWith(".")
+			&& !filesFilter.filterPath(fileStatus.getPath());
 	}
 
 	/**
@@ -729,7 +747,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			"File Input (unknown file)" :
 			"File Input (" + this.filePath.toString() + ')';
 	}
-	
+
 	// ============================================================================================
 	
 	/**

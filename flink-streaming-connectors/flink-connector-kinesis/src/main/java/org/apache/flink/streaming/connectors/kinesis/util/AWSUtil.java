@@ -17,15 +17,20 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.ClientConfigurationFactory;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
-import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.CredentialProviderType;
+import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 
 import java.util.Properties;
 
@@ -35,14 +40,40 @@ import java.util.Properties;
 public class AWSUtil {
 
 	/**
+	 * Creates an Amazon Kinesis Client.
+	 * @param configProps configuration properties containing the access key, secret key, and region
+	 * @return a new Amazon Kinesis Client
+	 */
+	public static AmazonKinesisClient createKinesisClient(Properties configProps) {
+		// set a Flink-specific user agent
+		ClientConfiguration awsClientConfig = new ClientConfigurationFactory().getConfig();
+		awsClientConfig.setUserAgent("Apache Flink " + EnvironmentInformation.getVersion() +
+			" (" + EnvironmentInformation.getRevisionInformation().commitId + ") Kinesis Connector");
+
+		AmazonKinesisClient client;
+		if (AWSUtil.getCredentialsProvider(configProps) != null) {
+			client = new AmazonKinesisClient(
+				AWSUtil.getCredentialsProvider(configProps).getCredentials(), awsClientConfig);
+		} else {
+			client = new AmazonKinesisClient(awsClientConfig);
+		}
+
+		client.setRegion(Region.getRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION))));
+		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
+			client.setEndpoint(configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT));
+		}
+		return client;
+	}
+
+	/**
 	 * Return a {@link AWSCredentialsProvider} instance corresponding to the configuration properties.
 	 *
 	 * @param configProps the configuration properties
 	 * @return The corresponding AWS Credentials Provider instance
 	 */
 	public static AWSCredentialsProvider getCredentialsProvider(final Properties configProps) {
-		CredentialProviderType credentialProviderType = CredentialProviderType.valueOf(configProps.getProperty(
-			KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE, CredentialProviderType.BASIC.toString()));
+		CredentialProvider credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(
+			AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, CredentialProvider.BASIC.toString()));
 
 		AWSCredentialsProvider credentialsProvider;
 
@@ -55,12 +86,15 @@ public class AWSUtil {
 				break;
 			case PROFILE:
 				String profileName = configProps.getProperty(
-					KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_PROFILE_NAME, null);
+					AWSConfigConstants.AWS_PROFILE_NAME, null);
 				String profileConfigPath = configProps.getProperty(
-					KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_PROFILE_PATH, null);
+					AWSConfigConstants.AWS_PROFILE_PATH, null);
 				credentialsProvider = (profileConfigPath == null)
 					? new ProfileCredentialsProvider(profileName)
 					: new ProfileCredentialsProvider(profileConfigPath, profileName);
+				break;
+			case AUTO:
+				credentialsProvider = null;
 				break;
 			default:
 			case BASIC:
@@ -68,8 +102,8 @@ public class AWSUtil {
 					@Override
 					public AWSCredentials getCredentials() {
 						return new BasicAWSCredentials(
-							configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID),
-							configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY));
+							configProps.getProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID),
+							configProps.getProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY));
 					}
 
 					@Override

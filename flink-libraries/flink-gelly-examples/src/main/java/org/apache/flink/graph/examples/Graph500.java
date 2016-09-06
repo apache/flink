@@ -26,10 +26,13 @@ import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.asm.simple.undirected.Simplify;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.types.NullValue;
 
 import java.text.NumberFormat;
 
@@ -69,9 +72,14 @@ public class Graph500 {
 		boolean simplify = parameters.getBoolean("simplify", DEFAULT_SIMPLIFY);
 		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
 
-		DataSet<Tuple2<LongValue,LongValue>> edges = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.setSimpleGraph(simplify, clipAndFlip)
-			.generate()
+		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+			.generate();
+
+		if (simplify) {
+			graph = graph.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+		}
+
+		DataSet<Tuple2<LongValue,LongValue>> edges = graph
 			.getEdges()
 			.project(0, 1);
 

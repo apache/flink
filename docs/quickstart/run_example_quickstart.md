@@ -1,9 +1,8 @@
 ---
 title: "Monitoring the Wikipedia Edit Stream"
-# Top navigation
-sub-nav-group: streaming
-sub-nav-pos: 2
-sub-nav-title: "Example: Wikipedia Edits"
+nav-title: Monitoring Wikipedia Edits
+nav-parent_id: quickstarts
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -313,6 +312,13 @@ result
         }
     })
     .addSink(new FlinkKafkaProducer08<>("localhost:9092", "wiki-result", new SimpleStringSchema()));
+{% endhighlight %}
+
+The related classes also need to be imported:
+{% highlight java %}
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.functions.MapFunction;
 {% endhighlight %}
 
 Note how we first transform the Stream of `Tuple2<String, Long>` to a Stream of `String` using

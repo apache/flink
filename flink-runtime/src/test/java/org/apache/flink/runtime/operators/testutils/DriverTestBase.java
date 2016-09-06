@@ -146,7 +146,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 	public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp) throws Exception {
 		UnilateralSortMerger<Record> sorter = new UnilateralSortMerger<Record>(
 				this.memManager, this.ioManager, input, this.owner, RecordSerializerFactory.get(), comp,
-				this.perSortFractionMem, 32, 0.8f, true);
+				this.perSortFractionMem, 32, 0.8f, true /*use large record handler*/, true);
 		this.sorters.add(sorter);
 		this.inputs.add(null);
 	}
@@ -358,7 +358,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 	}
 
 	@Override
-	public AbstractInvokable getOwningNepheleTask() {
+	public AbstractInvokable getContainingTask() {
 		return this.owner;
 	}
 

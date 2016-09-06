@@ -29,69 +29,73 @@ abstract sealed class Aggregation extends UnaryExpression {
 
   override def toString = s"Aggregate($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode =
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException("Aggregate cannot be transformed to RexNode")
 
   /**
     * Convert Aggregate to its counterpart in Calcite, i.e. AggCall
     */
-  def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall
+  private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall
 }
 
 case class Sum(child: Expression) extends Aggregation {
   override def toString = s"sum($child)"
 
-  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(SqlStdOperatorTable.SUM, false, null, name, child.toRexNode)
   }
 
-  override def resultType = child.resultType
+  override private[flink] def resultType = child.resultType
 
-  override def validateInput = TypeCheckUtils.assertNumericExpr(child.resultType, "sum")
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "sum")
 }
 
 case class Min(child: Expression) extends Aggregation {
   override def toString = s"min($child)"
 
-  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(SqlStdOperatorTable.MIN, false, null, name, child.toRexNode)
   }
 
-  override def resultType = child.resultType
+  override private[flink] def resultType = child.resultType
 
-  override def validateInput = TypeCheckUtils.assertOrderableExpr(child.resultType, "min")
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertOrderableExpr(child.resultType, "min")
 }
 
 case class Max(child: Expression) extends Aggregation {
   override def toString = s"max($child)"
 
-  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(SqlStdOperatorTable.MAX, false, null, name, child.toRexNode)
   }
 
-  override def resultType = child.resultType
+  override private[flink] def resultType = child.resultType
 
-  override def validateInput = TypeCheckUtils.assertOrderableExpr(child.resultType, "max")
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertOrderableExpr(child.resultType, "max")
 }
 
 case class Count(child: Expression) extends Aggregation {
   override def toString = s"count($child)"
 
-  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(SqlStdOperatorTable.COUNT, false, null, name, child.toRexNode)
   }
 
-  override def resultType = BasicTypeInfo.LONG_TYPE_INFO
+  override private[flink] def resultType = BasicTypeInfo.LONG_TYPE_INFO
 }
 
 case class Avg(child: Expression) extends Aggregation {
   override def toString = s"avg($child)"
 
-  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(SqlStdOperatorTable.AVG, false, null, name, child.toRexNode)
   }
 
-  override def resultType = child.resultType
+  override private[flink] def resultType = child.resultType
 
-  override def validateInput = TypeCheckUtils.assertNumericExpr(child.resultType, "avg")
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "avg")
 }

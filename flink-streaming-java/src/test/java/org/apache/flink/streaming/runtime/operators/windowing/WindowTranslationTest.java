@@ -44,8 +44,8 @@ import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -58,7 +58,8 @@ import static org.junit.Assert.fail;
  * {@link WindowedStream} instantiate
  * the correct window operator.
  */
-public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
+@SuppressWarnings("serial")
+public class WindowTranslationTest {
 
 	/**
 	 * .reduce() does not support RichReduceFunction, since the reduce function is used internally
@@ -75,6 +76,8 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 			.keyBy(0)
 			.window(SlidingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
 			.reduce(new RichReduceFunction<Tuple2<String, Integer>>() {
+				private static final long serialVersionUID = -6448847205314995812L;
+
 				@Override
 				public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
 					Tuple2<String, Integer> value2) throws Exception {
@@ -241,6 +244,8 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.keyBy(new KeySelector<String, String>() {
+					private static final long serialVersionUID = -3298887124448443076L;
+
 					@Override
 					public String getKey(String value) throws Exception {
 						return value;
@@ -250,6 +255,8 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 		try {
 			windowedStream.fold("", new FoldFunction<String, String>() {
+				private static final long serialVersionUID = -4567902917104921706L;
+
 				@Override
 				public String fold(String accumulator, String value) throws Exception {
 					return accumulator;
@@ -262,8 +269,6 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		fail("The fold call should fail.");
-
-		env.execute();
 	}
 
 	@Test
@@ -274,6 +279,8 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.keyBy(new KeySelector<String, String>() {
+					private static final long serialVersionUID = 598309916882894293L;
+
 					@Override
 					public String getKey(String value) throws Exception {
 						return value;
@@ -283,6 +290,8 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 		try {
 			windowedStream.trigger(new Trigger<String, TimeWindow>() {
+				private static final long serialVersionUID = 6558046711583024443L;
+
 				@Override
 				public TriggerResult onElement(String element,
 						long timestamp,
@@ -317,8 +326,6 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		fail("The trigger call should fail.");
-
-		env.execute();
 	}
 
 

@@ -29,14 +29,14 @@ abstract class Expression extends TreeNode[Expression] {
     * Returns the [[TypeInformation]] for evaluating this expression.
     * It is sometimes not available until the expression is valid.
     */
-  def resultType: TypeInformation[_]
+  private[flink] def resultType: TypeInformation[_]
 
   /**
     * One pass validation of the expression tree in post order.
     */
-  lazy val valid: Boolean = childrenValid && validateInput().isSuccess
+  private[flink] lazy val valid: Boolean = childrenValid && validateInput().isSuccess
 
-  def childrenValid: Boolean = children.forall(_.valid)
+  private[flink] def childrenValid: Boolean = children.forall(_.valid)
 
   /**
     * Check input data types, inputs number or other properties specified by this expression.
@@ -44,17 +44,17 @@ abstract class Expression extends TreeNode[Expression] {
     * or `ValidationFailure` with supplement message explaining the error.
     * Note: we should only call this method until `childrenValid == true`
     */
-  def validateInput(): ExprValidationResult = ValidationSuccess
+  private[flink] def validateInput(): ExprValidationResult = ValidationSuccess
 
   /**
     * Convert Expression to its counterpart in Calcite, i.e. RexNode
     */
-  def toRexNode(implicit relBuilder: RelBuilder): RexNode =
+  private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException(
       s"${this.getClass.getName} cannot be transformed to RexNode"
     )
 
-  def checkEquals(other: Expression): Boolean = {
+  private[flink] def checkEquals(other: Expression): Boolean = {
     if (this.getClass != other.getClass) {
       false
     } else {
@@ -73,16 +73,16 @@ abstract class Expression extends TreeNode[Expression] {
 }
 
 abstract class BinaryExpression extends Expression {
-  def left: Expression
-  def right: Expression
-  def children = Seq(left, right)
+  private[flink] def left: Expression
+  private[flink] def right: Expression
+  private[flink] def children = Seq(left, right)
 }
 
 abstract class UnaryExpression extends Expression {
-  def child: Expression
-  def children = Seq(child)
+  private[flink] def child: Expression
+  private[flink] def children = Seq(child)
 }
 
 abstract class LeafExpression extends Expression {
-  val children = Nil
+  private[flink] val children = Nil
 }

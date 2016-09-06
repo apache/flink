@@ -35,14 +35,16 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
 	/**
 	 * Deserializes a Kinesis record's bytes
 	 *
-	 * @param recordKey the records's key as a byte array (null if no key has been set for the record)
 	 * @param recordValue the record's value as a byte array
-	 * @param stream the name of the Kinesis stream that this record was sent to
+	 * @param partitionKey the record's partition key at the time of writing
 	 * @param seqNum the sequence number of this record in the Kinesis shard
+	 * @param approxArrivalTimestamp the server-side timestamp of when Kinesis received and stored the record
+	 * @param stream the name of the Kinesis stream that this record was sent to
+	 * @param shardId The identifier of the shard the record was sent to
 	 * @return the deserialized message as an Java object
 	 * @throws IOException
 	 */
-	T deserialize(byte[] recordKey, byte[] recordValue, String stream, String seqNum) throws IOException;
+	T deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException;
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
@@ -51,5 +53,5 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
 	 * @param nextElement the element to test for the end-of-stream signal
 	 * @return true if the element signals end of stream, false otherwise
 	 */
-	boolean isEndOfStream(T nextElement);
+	// TODO FLINK-4194 ADD SUPPORT FOR boolean isEndOfStream(T nextElement);
 }

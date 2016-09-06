@@ -21,12 +21,12 @@ package org.apache.flink.runtime.deployment;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Partial deployment descriptor for a single input channel instance.
@@ -44,7 +44,7 @@ public class PartialInputChannelDeploymentDescriptor {
 	private final ResultPartitionID partitionID;
 
 	/** The partition connection info. */
-	private final InstanceConnectionInfo partitionConnectionInfo;
+	private final TaskManagerLocation partitionTaskManagerLocation;
 
 	/** The partition connection index. */
 	private final int partitionConnectionIndex;
@@ -52,12 +52,12 @@ public class PartialInputChannelDeploymentDescriptor {
 	public PartialInputChannelDeploymentDescriptor(
 			IntermediateDataSetID resultId,
 			ResultPartitionID partitionID,
-			InstanceConnectionInfo partitionConnectionInfo,
+			TaskManagerLocation partitionTaskManagerLocation,
 			int partitionConnectionIndex) {
 
 		this.resultId = checkNotNull(resultId);
 		this.partitionID = checkNotNull(partitionID);
-		this.partitionConnectionInfo = checkNotNull(partitionConnectionInfo);
+		this.partitionTaskManagerLocation = checkNotNull(partitionTaskManagerLocation);
 		this.partitionConnectionIndex = partitionConnectionIndex;
 	}
 
@@ -66,23 +66,20 @@ public class PartialInputChannelDeploymentDescriptor {
 	 *
 	 * @see InputChannelDeploymentDescriptor
 	 */
-	public InputChannelDeploymentDescriptor createInputChannelDeploymentDescriptor(
-			Execution consumerExecution) {
+	public InputChannelDeploymentDescriptor createInputChannelDeploymentDescriptor(Execution consumerExecution) {
+		checkNotNull(consumerExecution, "consumerExecution");
 
-		checkNotNull(consumerExecution, "Consumer execution null");
-
-		InstanceConnectionInfo consumerConnectionInfo = consumerExecution.getAssignedResourceLocation();
-
-		checkNotNull(consumerConnectionInfo, "Consumer connection info null");
+		TaskManagerLocation consumerLocation = consumerExecution.getAssignedResourceLocation();
+		checkNotNull(consumerLocation, "Consumer connection info null");
 
 		final ResultPartitionLocation partitionLocation;
 
-		if (consumerConnectionInfo.equals(partitionConnectionInfo)) {
+		if (consumerLocation.equals(partitionTaskManagerLocation)) {
 			partitionLocation = ResultPartitionLocation.createLocal();
 		}
 		else {
 			partitionLocation = ResultPartitionLocation.createRemote(
-					new ConnectionID(partitionConnectionInfo, partitionConnectionIndex));
+					new ConnectionID(partitionTaskManagerLocation, partitionConnectionIndex));
 		}
 
 		return new InputChannelDeploymentDescriptor(partitionID, partitionLocation);
@@ -107,7 +104,7 @@ public class PartialInputChannelDeploymentDescriptor {
 		final IntermediateResult result = partition.getIntermediateResult();
 
 		final IntermediateDataSetID resultId = result.getId();
-		final InstanceConnectionInfo partitionConnectionInfo = producer.getAssignedResourceLocation();
+		final TaskManagerLocation partitionConnectionInfo = producer.getAssignedResourceLocation();
 		final int partitionConnectionIndex = result.getConnectionIndex();
 
 		return new PartialInputChannelDeploymentDescriptor(

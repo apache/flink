@@ -20,7 +20,6 @@ package org.apache.flink.graph.asm.degree.annotate.directed;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.ChecksumHashCode;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.AsmTestBase;
@@ -39,15 +38,16 @@ extends AsmTestBase {
 	public void testWithSimpleGraph()
 			throws Exception {
 		DataSet<Vertex<IntValue, LongValue>> vertexDegrees = directedSimpleGraph
-			.run(new VertexInDegree<IntValue, NullValue, NullValue>());
+			.run(new VertexInDegree<IntValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(true));
 
 		String expectedResult =
 			"(0,0)\n" +
-			"(1,1)\n" +
-			"(2,2)\n" +
+			"(1,3)\n" +
+			"(2,1)\n" +
 			"(3,2)\n" +
 			"(4,1)\n" +
-			"(5,1)";
+			"(5,0)";
 
 		TestBaseUtils.compareResultAsText(vertexDegrees.collect(), expectedResult);
 	}
@@ -79,9 +79,10 @@ extends AsmTestBase {
 	public void testWithRMatGraph()
 			throws Exception {
 		ChecksumHashCode inDegreeChecksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new VertexInDegree<LongValue, NullValue, NullValue>()));
+			.run(new VertexInDegree<LongValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(true)));
 
 		assertEquals(902, inDegreeChecksum.getCount());
-		assertEquals(0x0000000000e1e99cL, inDegreeChecksum.getChecksum());
+		assertEquals(0x0000000000e1d885L, inDegreeChecksum.getChecksum());
 	}
 }

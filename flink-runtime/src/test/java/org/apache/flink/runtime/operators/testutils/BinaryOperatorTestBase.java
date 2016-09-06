@@ -151,6 +151,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 				this.perSortFractionMem,
 				32,
 				0.8f,
+				true /*use large record handler*/,
 				false
 		);
 		this.sorters.add(sorter);
@@ -360,7 +361,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 	}
 	
 	@Override
-	public AbstractInvokable getOwningNepheleTask() {
+	public AbstractInvokable getContainingTask() {
 		return this.owner;
 	}
 	

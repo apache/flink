@@ -28,6 +28,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.types.LongValue;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -62,7 +63,7 @@ public class DegreesWithExceptionITCase {
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
-			fail("Cluster shutdown caused an exception: " + t.getMessage());
+			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
 		}
 	}
 
@@ -81,7 +82,7 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
 
 		try {
-			graph.outDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			graph.outDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
 			env.execute();
 
 			fail("graph.outDegrees() did not fail.");
@@ -105,7 +106,7 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
 
 		try {
-			graph.inDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			graph.inDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
 			env.execute();
 
 			fail("graph.inDegrees() did not fail.");
@@ -129,7 +130,7 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
 
 		try {
-			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
 			env.execute();
 
 			fail("graph.getDegrees() did not fail.");
@@ -153,7 +154,7 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
 
 		try {
-			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
 			env.execute();
 
 			fail("graph.getDegrees() did not fail.");
@@ -177,7 +178,7 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidSrcTrgData(env), env);
 
 		try {
-			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, LongValue>>());
 			env.execute();
 
 			fail("graph.getDegrees() did not fail.");

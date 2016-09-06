@@ -20,12 +20,11 @@ package org.apache.flink.graph.asm.translate;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingGraph;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_UNKNOWN;
 import static org.apache.flink.graph.asm.translate.Translate.translateVertexValues;
 
 /**
@@ -37,13 +36,13 @@ import static org.apache.flink.graph.asm.translate.Translate.translateVertexValu
  * @param <EV> edge value type
  */
 public class TranslateVertexValues<K, OLD, NEW, EV>
-implements GraphAlgorithm<K, OLD, EV, Graph<K, NEW, EV>> {
+extends GraphAlgorithmDelegatingGraph<K, OLD, EV, K, NEW, EV> {
 
 	// Required configuration
 	private TranslateFunction<OLD, NEW> translator;
 
 	// Optional configuration
-	private int parallelism = PARALLELISM_UNKNOWN;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Translate {@link Vertex} values using the given {@link TranslateFunction}.
@@ -63,7 +62,7 @@ implements GraphAlgorithm<K, OLD, EV, Graph<K, NEW, EV>> {
 	 * @return this
 	 */
 	public TranslateVertexValues<K, OLD, NEW, EV> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT || parallelism == PARALLELISM_UNKNOWN,
+		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
 			"The parallelism must be greater than zero.");
 
 		this.parallelism = parallelism;
@@ -72,7 +71,36 @@ implements GraphAlgorithm<K, OLD, EV, Graph<K, NEW, EV>> {
 	}
 
 	@Override
-	public Graph<K, NEW, EV> run(Graph<K, OLD, EV> input) throws Exception {
+	protected String getAlgorithmName() {
+		return TranslateVertexValues.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingGraph other) {
+		Preconditions.checkNotNull(other);
+
+		if (! TranslateVertexValues.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		TranslateVertexValues rhs = (TranslateVertexValues) other;
+
+		// verify that configurations can be merged
+
+		if (translator != rhs.translator) {
+			return false;
+		}
+
+		// merge configurations
+
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public Graph<K, NEW, EV> runInternal(Graph<K, OLD, EV> input)
+			throws Exception {
 		DataSet<Vertex<K, NEW>> translatedVertices = translateVertexValues(input.getVertices(), translator, parallelism);
 
 		return Graph.fromDataSet(translatedVertices, input.getEdges(), input.getContext());

@@ -38,9 +38,12 @@ import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.Promise;
+import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.ByteArrayOutputStream;
@@ -57,6 +60,8 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	private TestingServer testingServer;
 	private static final String TEST_URL = "akka//user/jobmanager";
 	private static final FiniteDuration timeout = new FiniteDuration(200, TimeUnit.SECONDS);
+
+	private static Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionTest.class);
 
 	@Before
 	public void before() {
@@ -84,8 +89,8 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testZooKeeperLeaderElectionRetrieval() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+		configuration.setString(ConfigConstants.HA_MODE, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService = null;
 		ZooKeeperLeaderRetrievalService leaderRetrievalService = null;
@@ -129,10 +134,12 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testZooKeeperReelection() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+		configuration.setString(ConfigConstants.HA_MODE, "zookeeper");
 
-		int num = 50;
+		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+
+		int num = 20;
 
 		ZooKeeperLeaderElectionService[] leaderElectionService = new ZooKeeperLeaderElectionService[num];
 		TestingContender[] contenders = new TestingContender[num];
@@ -143,11 +150,15 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		try {
 			leaderRetrievalService = ZooKeeperUtils.createLeaderRetrievalService(configuration);
 
+			LOG.debug("Start leader retrieval service for the TestingListener.");
+
 			leaderRetrievalService.start(listener);
 
 			for (int i = 0; i < num; i++) {
 				leaderElectionService[i] = ZooKeeperUtils.createLeaderElectionService(configuration);
 				contenders[i] = new TestingContender(TEST_URL + "_" + i, leaderElectionService[i]);
+
+				LOG.debug("Start leader election service for contender #{}.", i);
 
 				leaderElectionService[i].start(contenders[i]);
 			}
@@ -155,27 +166,35 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			String pattern = TEST_URL + "_" + "(\\d+)";
 			Pattern regex = Pattern.compile(pattern);
 
-			for (int i = 0; i < num; i++) {
-				listener.waitForNewLeader(timeout.toMillis());
+			int numberSeenLeaders = 0;
 
-				String address = listener.getAddress();
+			while (deadline.hasTimeLeft() && numberSeenLeaders < num) {
+				LOG.debug("Wait for new leader #{}.", numberSeenLeaders);
+				String address = listener.waitForNewLeader(deadline.timeLeft().toMillis());
 
 				Matcher m = regex.matcher(address);
 
 				if (m.find()) {
 					int index = Integer.parseInt(m.group(1));
 
-					// check that the leader session ID of the listeners and the leader are equal
-					assertEquals(listener.getLeaderSessionID(), contenders[index].getLeaderSessionID());
-					assertEquals(TEST_URL + "_" + index, listener.getAddress());
+					TestingContender contender = contenders[index];
 
-					// kill the election service of the leader
-					leaderElectionService[index].stop();
-					leaderElectionService[index] = null;
+					// check that the retrieval service has retrieved the correct leader
+					if (address.equals(contender.getAddress()) && listener.getLeaderSessionID().equals(contender.getLeaderSessionID())) {
+						// kill the election service of the leader
+						LOG.debug("Stop leader election service of contender #{}.", numberSeenLeaders);
+						leaderElectionService[index].stop();
+						leaderElectionService[index] = null;
+
+						numberSeenLeaders++;
+					}
 				} else {
 					fail("Did not find the leader's index.");
 				}
 			}
+
+			assertFalse(deadline.isOverdue());
+			assertEquals(num, numberSeenLeaders);
 
 		} finally {
 			if (leaderRetrievalService != null) {
@@ -198,8 +217,8 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testZooKeeperReelectionWithReplacement() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+		configuration.setString(ConfigConstants.HA_MODE, "zookeeper");
 
 		int num = 3;
 		int numTries = 30;
@@ -276,9 +295,9 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		final String leaderPath = "/leader";
 
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		configuration.setString(ConfigConstants.ZOOKEEPER_LEADER_PATH, leaderPath);
+		configuration.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+		configuration.setString(ConfigConstants.HA_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HA_ZOOKEEPER_LEADER_PATH, leaderPath);
 
 		ZooKeeperLeaderElectionService leaderElectionService = null;
 		ZooKeeperLeaderRetrievalService leaderRetrievalService = null;
@@ -360,8 +379,8 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testExceptionForwarding() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+		configuration.setString(ConfigConstants.HA_MODE, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService = null;
 		ZooKeeperLeaderRetrievalService leaderRetrievalService = null;
@@ -429,8 +448,8 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 	@Test
 	public void testEphemeralZooKeeperNodes() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		configuration.setString(ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY, testingServer.getConnectString());
+		configuration.setString(ConfigConstants.HA_MODE, "zookeeper");
 
 		ZooKeeperLeaderElectionService leaderElectionService;
 		ZooKeeperLeaderRetrievalService leaderRetrievalService = null;
@@ -447,7 +466,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			listener = new TestingListener();
 
 			client = ZooKeeperUtils.startCuratorFramework(configuration);
-			final String leaderPath = configuration.getString(ConfigConstants.ZOOKEEPER_LEADER_PATH,
+			final String leaderPath = configuration.getString(ConfigConstants.HA_ZOOKEEPER_LEADER_PATH,
 					ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
 			cache = new NodeCache(client, leaderPath);
 

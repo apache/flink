@@ -21,7 +21,7 @@ package org.apache.flink.cep.nfa;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.cep.Event;
-import org.apache.flink.cep.StreamEvent;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -43,13 +43,13 @@ import static org.junit.Assert.assertEquals;
 public class NFATest extends TestLogger {
 	@Test
 	public void testSimpleNFA() {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0);
-		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0, false);
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
-		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
-		streamEvents.add(StreamEvent.of(new Event(2, "bar", 2.0), 2L));
-		streamEvents.add(StreamEvent.of(new Event(3, "start", 3.0), 3L));
-		streamEvents.add(StreamEvent.of(new Event(4, "end", 4.0), 4L));
+		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
+		streamEvents.add(new StreamRecord<>(new Event(2, "bar", 2.0), 2L));
+		streamEvents.add(new StreamRecord<>(new Event(3, "start", 3.0), 3L));
+		streamEvents.add(new StreamRecord<>(new Event(4, "end", 4.0), 4L));
 
 		State<Event> startingState = new State<>("", State.StateType.Start);
 		State<Event> startState = new State<>("start", State.StateType.Normal);
@@ -111,12 +111,12 @@ public class NFATest extends TestLogger {
 	@Test
 	public void testTimeoutWindowPruning() {
 		NFA<Event> nfa = createStartEndNFA(2);
-		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
-		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
-		streamEvents.add(StreamEvent.of(new Event(2, "bar", 2.0), 2L));
-		streamEvents.add(StreamEvent.of(new Event(3, "start", 3.0), 3L));
-		streamEvents.add(StreamEvent.of(new Event(4, "end", 4.0), 4L));
+		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
+		streamEvents.add(new StreamRecord<>(new Event(2, "bar", 2.0), 2L));
+		streamEvents.add(new StreamRecord<>(new Event(3, "start", 3.0), 3L));
+		streamEvents.add(new StreamRecord<>(new Event(4, "end", 4.0), 4L));
 
 		Set<Map<String, Event>> expectedPatterns = new HashSet<>();
 
@@ -138,10 +138,10 @@ public class NFATest extends TestLogger {
 	@Test
 	public void testWindowBorders() {
 		NFA<Event> nfa = createStartEndNFA(2);
-		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
-		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
-		streamEvents.add(StreamEvent.of(new Event(2, "end", 2.0), 3L));
+		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
+		streamEvents.add(new StreamRecord<>(new Event(2, "end", 2.0), 3L));
 
 		Set<Map<String, Event>> expectedPatterns = Collections.emptySet();
 
@@ -157,12 +157,12 @@ public class NFATest extends TestLogger {
 	@Test
 	public void testTimeoutWindowPruningWindowBorders() {
 		NFA<Event> nfa = createStartEndNFA(2);
-		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
-		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
-		streamEvents.add(StreamEvent.of(new Event(2, "start", 2.0), 2L));
-		streamEvents.add(StreamEvent.of(new Event(3, "foobar", 3.0), 3L));
-		streamEvents.add(StreamEvent.of(new Event(4, "end", 4.0), 3L));
+		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
+		streamEvents.add(new StreamRecord<>(new Event(2, "start", 2.0), 2L));
+		streamEvents.add(new StreamRecord<>(new Event(3, "foobar", 3.0), 3L));
+		streamEvents.add(new StreamRecord<>(new Event(4, "end", 4.0), 3L));
 
 		Set<Map<String, Event>> expectedPatterns = new HashSet<>();
 
@@ -193,11 +193,11 @@ public class NFATest extends TestLogger {
 		assertEquals(expectedName3, generatedName3);
 	}
 
-	public <T> Collection<Map<String, T>> runNFA(NFA<T> nfa, List<StreamEvent<T>> inputs) {
+	public <T> Collection<Map<String, T>> runNFA(NFA<T> nfa, List<StreamRecord<T>> inputs) {
 		Set<Map<String, T>> actualPatterns = new HashSet<>();
 
-		for (StreamEvent<T> streamEvent: inputs) {
-			Collection<Map<String, T>> matchedPatterns = nfa.process(streamEvent.getEvent(), streamEvent.getTimestamp());
+		for (StreamRecord<T> streamEvent: inputs) {
+			Collection<Map<String, T>> matchedPatterns = nfa.process(streamEvent.getValue(), streamEvent.getTimestamp()).f0;
 
 			actualPatterns.addAll(matchedPatterns);
 		}
@@ -207,7 +207,7 @@ public class NFATest extends TestLogger {
 
 	@Test
 	public void testNFASerialization() throws IOException, ClassNotFoundException {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0);
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0, false);
 
 		State<Event> startingState = new State<>("", State.StateType.Start);
 		State<Event> startState = new State<>("start", State.StateType.Normal);
@@ -251,7 +251,7 @@ public class NFATest extends TestLogger {
 	}
 
 	private NFA<Event> createStartEndNFA(long windowLength) {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), windowLength);
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), windowLength, false);
 
 		State<Event> startingState = new State<>("", State.StateType.Start);
 		State<Event> startState = new State<>("start", State.StateType.Normal);

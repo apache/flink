@@ -17,12 +17,12 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
-import com.google.common.base.Preconditions
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.util.Preconditions
 
 class AggregateMapFunction[IN, OUT](
     private val aggregates: Array[Aggregate[_]],

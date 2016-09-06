@@ -23,7 +23,7 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * View over a pipelined in-memory only subpartition.
@@ -74,5 +74,12 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
+	}
+
+	@Override
+	public String toString() {
+		return String.format("PipelinedSubpartitionView(index: %d) of ResultPartition %s",
+				parent.index,
+				parent.parent.getPartitionId());
 	}
 }

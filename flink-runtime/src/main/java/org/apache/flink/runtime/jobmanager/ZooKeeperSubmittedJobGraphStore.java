@@ -25,8 +25,8 @@ import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.zookeeper.StateStorageHelper;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
@@ -40,11 +40,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * {@link SubmittedJobGraph} instances for JobManagers running in {@link RecoveryMode#ZOOKEEPER}.
+ * {@link SubmittedJobGraph} instances for JobManagers running in {@link HighAvailabilityMode#ZOOKEEPER}.
  *
  * <p>Each job graph creates ZNode:
  * <pre>
@@ -98,7 +98,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	public ZooKeeperSubmittedJobGraphStore(
 			CuratorFramework client,
 			String currentJobsPath,
-			StateStorageHelper<SubmittedJobGraph> stateStorage) throws Exception {
+			RetrievableStateStorageHelper<SubmittedJobGraph> stateStorage) throws Exception {
 
 		checkNotNull(currentJobsPath, "Current jobs path");
 		checkNotNull(stateStorage, "State storage");
@@ -153,7 +153,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 		synchronized (cacheLock) {
 			verifyIsRunning();
 
-			List<Tuple2<StateHandle<SubmittedJobGraph>, String>> submitted;
+			List<Tuple2<RetrievableStateHandle<SubmittedJobGraph>, String>> submitted;
 
 			while (true) {
 				try {
@@ -168,10 +168,8 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 			if (submitted.size() != 0) {
 				List<SubmittedJobGraph> jobGraphs = new ArrayList<>(submitted.size());
 
-				for (Tuple2<StateHandle<SubmittedJobGraph>, String> jobStateHandle : submitted) {
-					SubmittedJobGraph jobGraph = jobStateHandle
-							.f0.getState(ClassLoader.getSystemClassLoader());
-
+				for (Tuple2<RetrievableStateHandle<SubmittedJobGraph>, String> jobStateHandle : submitted) {
+					SubmittedJobGraph jobGraph = jobStateHandle.f0.retrieveState();
 					addedJobGraphs.add(jobGraph.getJobId());
 
 					jobGraphs.add(jobGraph);
@@ -196,11 +194,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 			verifyIsRunning();
 
 			try {
-				StateHandle<SubmittedJobGraph> jobStateHandle = jobGraphsInZooKeeper.get(path);
-
-				SubmittedJobGraph jobGraph = jobStateHandle
-						.getState(ClassLoader.getSystemClassLoader());
-
+				SubmittedJobGraph jobGraph = jobGraphsInZooKeeper.get(path).retrieveState();
 				addedJobGraphs.add(jobGraph.getJobId());
 
 				LOG.info("Recovered {}.", jobGraph);

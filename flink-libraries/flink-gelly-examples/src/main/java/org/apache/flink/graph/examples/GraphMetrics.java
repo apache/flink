@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.examples;
 
-import org.apache.flink.graph.examples.utils.ExampleUtils;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -27,6 +26,8 @@ import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.examples.utils.ExampleUtils;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 /**
@@ -66,7 +67,7 @@ public class GraphMetrics implements ProgramDescription {
 		long numEdges = graph.numberOfEdges();
 		
 		/** compute the average node degree **/
-		DataSet<Tuple2<Long, Long>> verticesWithDegrees = graph.getDegrees();
+		DataSet<Tuple2<Long, LongValue>> verticesWithDegrees = graph.getDegrees();
 
 		DataSet<Double> avgNodeDegree = verticesWithDegrees
 				.aggregate(Aggregations.SUM, 1).map(new AvgNodeDegreeMapper(numVertices));
@@ -96,7 +97,7 @@ public class GraphMetrics implements ProgramDescription {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class AvgNodeDegreeMapper implements MapFunction<Tuple2<Long, Long>, Double> {
+	private static final class AvgNodeDegreeMapper implements MapFunction<Tuple2<Long, LongValue>, Double> {
 
 		private long numberOfVertices;
 
@@ -104,14 +105,14 @@ public class GraphMetrics implements ProgramDescription {
 			this.numberOfVertices = numberOfVertices;
 		}
 
-		public Double map(Tuple2<Long, Long> sumTuple) {
-			return (double) (sumTuple.f1 / numberOfVertices) ;
+		public Double map(Tuple2<Long, LongValue> sumTuple) {
+			return (double) (sumTuple.f1.getValue() / numberOfVertices) ;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class ProjectVertexId implements MapFunction<Tuple2<Long,Long>, Long> {
-		public Long map(Tuple2<Long, Long> value) { return value.f0; }
+	private static final class ProjectVertexId implements MapFunction<Tuple2<Long, LongValue>, Long> {
+		public Long map(Tuple2<Long, LongValue> value) { return value.f0; }
 	}
 
 	@Override

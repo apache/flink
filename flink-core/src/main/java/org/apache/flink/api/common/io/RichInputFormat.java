@@ -19,6 +19,7 @@ c * Licensed to the Apache Software Foundation (ASF) under one
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.io.InputSplit;
 
@@ -56,6 +57,7 @@ public abstract class RichInputFormat<OT, T extends InputSplit> implements Input
 	 * 
 	 * @see InputFormat
 	 */
+	@PublicEvolving
 	public void openInputFormat() {
 		//do nothing here, just for subclasses
 	}
@@ -66,6 +68,7 @@ public abstract class RichInputFormat<OT, T extends InputSplit> implements Input
 	 * 
 	 * @see InputFormat
 	 */
+	@PublicEvolving
 	public void closeInputFormat() {
 		//do nothing here, just for subclasses
 	}

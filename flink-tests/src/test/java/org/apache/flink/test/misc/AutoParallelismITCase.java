@@ -69,7 +69,7 @@ public class AutoParallelismITCase {
 		catch (Throwable t) {
 			System.err.println("Error stopping cluster on shutdown");
 			t.printStackTrace();
-			fail("Cluster shutdown caused an exception: " + t.getMessage());
+			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
 		}
 	}
 

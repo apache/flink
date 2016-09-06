@@ -39,7 +39,7 @@ public class ShortParser extends FieldParser<Short> {
 		int val = 0;
 		boolean neg = false;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		if (bytes[startPos] == '-') {
 			neg = true;

@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.math.BigDecimal
+
 abstract class SumAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
 
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
@@ -39,11 +41,21 @@ abstract class SumAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
       numeric.fromInt(17),
       null.asInstanceOf[T],
       maxVal
+    ),
+    Seq(
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T]
     )
   )
 
-  override def expectedResults: Seq[T] = Seq(numeric.fromInt(2))
-
+  override def expectedResults: Seq[T] = Seq(
+    numeric.fromInt(2),
+    null.asInstanceOf[T]
+  )
 }
 
 class ByteSumAggregateTest extends SumAggregateTestBase[Byte] {
@@ -86,4 +98,40 @@ class DoubleSumAggregateTest extends SumAggregateTestBase[Double] {
   override def maxVal = 12345.6789d
 
   override def aggregator: Aggregate[Double] = new DoubleSumAggregate
+}
+
+class DecimalSumAggregateTest extends AggregateTestBase[BigDecimal] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new BigDecimal("1"),
+      new BigDecimal("2"),
+      new BigDecimal("3"),
+      null,
+      new BigDecimal("0"),
+      new BigDecimal("-1000"),
+      new BigDecimal("0.000000000002"),
+      new BigDecimal("1000"),
+      new BigDecimal("-0.000000000001"),
+      new BigDecimal("999.999"),
+      null,
+      new BigDecimal("4"),
+      new BigDecimal("-999.999"),
+      null
+    ),
+    Seq(
+      null,
+      null,
+      null,
+      null,
+      null
+    )
+  )
+
+  override def expectedResults: Seq[BigDecimal] = Seq(
+    new BigDecimal("10.000000000001"),
+    null
+  )
+
+  override def aggregator: Aggregate[BigDecimal] = new DecimalSumAggregate()
 }

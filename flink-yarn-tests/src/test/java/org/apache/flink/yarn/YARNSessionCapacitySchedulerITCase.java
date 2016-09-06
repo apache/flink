@@ -29,12 +29,13 @@ import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.NMTokenIdentifier;
@@ -120,8 +121,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 			"Job execution complete",
-				/* prohibited strings: (we want to see (2/2)) */
-			new String[]{"System.out)(1/1) switched to FINISHED "},
+			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
+			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
 			RunTypes.CLI_FRONTEND, 0, true);
 		LOG.info("Finished perJobYarnCluster()");
 	}
@@ -249,11 +250,16 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			List<NodeReport> nodeReports = yc.getNodeReports(NodeState.RUNNING);
 
 			// we asked for one node with 2 vcores so we expect 2 vcores
-			int userVcores = 0;
+			// note that the JobManager may also run on the NodeManager
+			boolean foundVCoresSetting = false;
 			for (NodeReport rep: nodeReports) {
-				userVcores += rep.getUsed().getVirtualCores();
+				Resource resource = rep.getUsed();
+				if (resource != null && resource.getVirtualCores() == 2) {
+					foundVCoresSetting = true;
+					break;
+				}
 			}
-			Assert.assertEquals(2, userVcores);
+			Assert.assertTrue(foundVCoresSetting);
 		} catch (Exception e) {
 			Assert.fail("Test failed: " + e.getMessage());
 		}
@@ -328,7 +334,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	@Test
 	public void testNonexistingQueue() {
 		LOG.info("Starting testNonexistingQueue()");
-		addTestAppender(FlinkYarnClient.class, Level.WARN);
+		addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",
@@ -360,8 +366,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
 			"Job execution complete",
-				/* prohibited strings: (we want to see (2/2)) */
-			new String[]{"System.out)(1/1) switched to FINISHED "},
+			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
+			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
 			RunTypes.CLI_FRONTEND, 0, true);
 		LOG.info("Finished perJobYarnClusterWithParallelism()");
 	}
@@ -432,7 +438,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
 				"-ytm", "1024",
 				"-ys", "2", // test requesting slots from YARN.
-				"--yarndetached", job, "--input", tmpInFile.getAbsoluteFile().toString(), "--output", tmpOutFolder.getAbsoluteFile().toString()},
+				"--yarndetached", job,
+				"--input", tmpInFile.getAbsoluteFile().toString(),
+				"--output", tmpOutFolder.getAbsoluteFile().toString()},
 			"Job has been submitted with JobID",
 			RunTypes.CLI_FRONTEND);
 

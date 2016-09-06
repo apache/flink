@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
+import java.math.BigDecimal
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
 
@@ -27,13 +28,19 @@ abstract class SumAggregate[T: Numeric]
   protected var sumIndex: Int = _
 
   override def initiate(partial: Row): Unit = {
-    partial.setField(sumIndex, numeric.zero)
+    partial.setField(sumIndex, null)
   }
 
   override def merge(partial1: Row, buffer: Row): Unit = {
     val partialValue = partial1.productElement(sumIndex).asInstanceOf[T]
-    val bufferValue = buffer.productElement(sumIndex).asInstanceOf[T]
-    buffer.setField(sumIndex, numeric.plus(partialValue, bufferValue))
+    if (partialValue != null) {
+      val bufferValue = buffer.productElement(sumIndex).asInstanceOf[T]
+      if (bufferValue != null) {
+        buffer.setField(sumIndex, numeric.plus(partialValue, bufferValue))
+      } else {
+        buffer.setField(sumIndex, partialValue)
+      }
+    }
   }
 
   override def evaluate(buffer: Row): T = {
@@ -78,4 +85,46 @@ class FloatSumAggregate extends SumAggregate[Float] {
 
 class DoubleSumAggregate extends SumAggregate[Double] {
   override def intermediateDataType = Array(BasicTypeInfo.DOUBLE_TYPE_INFO)
+}
+
+class DecimalSumAggregate extends Aggregate[BigDecimal] {
+
+  protected var sumIndex: Int = _
+
+  override def intermediateDataType = Array(BasicTypeInfo.BIG_DEC_TYPE_INFO)
+
+  override def initiate(partial: Row): Unit = {
+    partial.setField(sumIndex, null)
+  }
+
+  override def merge(partial1: Row, buffer: Row): Unit = {
+    val partialValue = partial1.productElement(sumIndex).asInstanceOf[BigDecimal]
+    if (partialValue != null) {
+      val bufferValue = buffer.productElement(sumIndex).asInstanceOf[BigDecimal]
+      if (bufferValue != null) {
+        buffer.setField(sumIndex, partialValue.add(bufferValue))
+      } else {
+        buffer.setField(sumIndex, partialValue)
+      }
+    }
+  }
+
+  override def evaluate(buffer: Row): BigDecimal = {
+    buffer.productElement(sumIndex).asInstanceOf[BigDecimal]
+  }
+
+  override def prepare(value: Any, partial: Row): Unit = {
+    if (value == null) {
+      initiate(partial)
+    } else {
+      val input = value.asInstanceOf[BigDecimal]
+      partial.setField(sumIndex, input)
+    }
+  }
+
+  override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggOffset: Int): Unit = {
+    sumIndex = aggOffset
+  }
 }

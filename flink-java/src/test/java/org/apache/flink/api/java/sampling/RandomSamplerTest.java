@@ -20,14 +20,16 @@ package org.apache.flink.api.java.sampling;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.apache.commons.math3.stat.inference.KolmogorovSmirnovTest;
+import org.apache.flink.testutils.junit.RetryOnFailure;
+import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Preconditions;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -50,29 +52,37 @@ import static org.junit.Assert.assertTrue;
  * @see <a href="https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test">Kolmogorov Smirnov test</a>
  */
 public class RandomSamplerTest {
-	private final static int SOURCE_SIZE = 10000;
-	private static KolmogorovSmirnovTest ksTest;
-	private static List<Double> source;
-	private final static int DEFFAULT_PARTITION_NUMBER=10;
-	private List<Double>[] sourcePartitions = new List[DEFFAULT_PARTITION_NUMBER];
+
+	private static final int SOURCE_SIZE = 10000;
+
+	private static final int DEFAULT_PARTITION_NUMBER = 10;
+
+	private static final KolmogorovSmirnovTest ksTest = new KolmogorovSmirnovTest();
+
+	private static final List<Double> source = new ArrayList<Double>(SOURCE_SIZE);
+
+
+	@Rule
+	public final RetryRule retryRule = new RetryRule();
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	private final List<Double>[] sourcePartitions = new List[DEFAULT_PARTITION_NUMBER];
+
 
 	@BeforeClass
 	public static void init() {
 		// initiate source data set.
-		source = new ArrayList<Double>(SOURCE_SIZE);
 		for (int i = 0; i < SOURCE_SIZE; i++) {
 			source.add((double) i);
 		}
-		
-		ksTest = new KolmogorovSmirnovTest();
 	}
 
 	private void initSourcePartition() {
-		for (int i=0; i<DEFFAULT_PARTITION_NUMBER; i++) {
-			sourcePartitions[i] = new LinkedList<Double>();
+		for (int i = 0; i< DEFAULT_PARTITION_NUMBER; i++) {
+			sourcePartitions[i] = new ArrayList<Double>((int)Math.ceil((double)SOURCE_SIZE / DEFAULT_PARTITION_NUMBER));
 		}
 		for (int i = 0; i< SOURCE_SIZE; i++) {
-			int index = i % DEFFAULT_PARTITION_NUMBER;
+			int index = i % DEFAULT_PARTITION_NUMBER;
 			sourcePartitions[index].add((double)i);
 		}
 	}
@@ -88,6 +98,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testBernoulliSamplerFraction() {
 		verifySamplerFraction(0.01, false);
 		verifySamplerFraction(0.05, false);
@@ -99,6 +110,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testBernoulliSamplerDuplicateElements() {
 		verifyRandomSamplerDuplicateElements(new BernoulliSampler<Double>(0.01));
 		verifyRandomSamplerDuplicateElements(new BernoulliSampler<Double>(0.1));
@@ -111,6 +123,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testPoissonSamplerFraction() {
 		verifySamplerFraction(0.01, true);
 		verifySamplerFraction(0.05, true);
@@ -132,6 +145,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testBernoulliSamplerDistribution() {
 		verifyBernoulliSampler(0.01d);
 		verifyBernoulliSampler(0.05d);
@@ -140,6 +154,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testPoissonSamplerDistribution() {
 		verifyPoissonSampler(0.01d);
 		verifyPoissonSampler(0.05d);
@@ -148,6 +163,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testReservoirSamplerSampledSize() {
 		verifySamplerFixedSampleSize(1, true);
 		verifySamplerFixedSampleSize(10, true);
@@ -164,6 +180,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testReservoirSamplerSampledSize2() {
 		RandomSampler<Double> sampler = new ReservoirSamplerWithoutReplacement<Double>(20000);
 		Iterator<Double> sampled = sampler.sample(source.iterator());
@@ -171,6 +188,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testReservoirSamplerDuplicateElements() {
 		verifyRandomSamplerDuplicateElements(new ReservoirSamplerWithoutReplacement<Double>(100));
 		verifyRandomSamplerDuplicateElements(new ReservoirSamplerWithoutReplacement<Double>(1000));
@@ -178,6 +196,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testReservoirSamplerWithoutReplacement() {
 		verifyReservoirSamplerWithoutReplacement(100, false);
 		verifyReservoirSamplerWithoutReplacement(500, false);
@@ -186,6 +205,7 @@ public class RandomSamplerTest {
 	}
 	
 	@Test
+	@RetryOnFailure(times=3)
 	public void testReservoirSamplerWithReplacement() {
 		verifyReservoirSamplerWithReplacement(100, false);
 		verifyReservoirSamplerWithReplacement(500, false);
@@ -194,6 +214,7 @@ public class RandomSamplerTest {
 	}
 
 	@Test
+	@RetryOnFailure(times=3)
 	public void testReservoirSamplerWithMultiSourcePartitions1() {
 		initSourcePartition();
 
@@ -204,6 +225,7 @@ public class RandomSamplerTest {
 	}
 
 	@Test
+	@RetryOnFailure(times=3)
 	public void testReservoirSamplerWithMultiSourcePartitions2() {
 		initSourcePartition();
 
@@ -262,7 +284,7 @@ public class RandomSamplerTest {
 		assertTrue("There should not have duplicate element for sampler without replacement.", list.size() == set.size());
 	}
 	
-	private int getSize(Iterator iterator) {
+	private int getSize(Iterator<?> iterator) {
 		int size = 0;
 		while (iterator.hasNext()) {
 			iterator.next();
@@ -301,7 +323,7 @@ public class RandomSamplerTest {
 	 * If random sampler select elements randomly from source, it would distributed well-proportioned on source data as well,
 	 * so the K-S Test result would accept the first one, while reject the second one.
 	 */
-	private void verifyRandomSamplerWithFraction(double fraction, RandomSampler sampler, boolean withDefaultSampler) {
+	private void verifyRandomSamplerWithFraction(double fraction, RandomSampler<Double> sampler, boolean withDefaultSampler) {
 		double[] baseSample;
 		if (withDefaultSampler) {
 			baseSample = getDefaultSampler(fraction);
@@ -318,7 +340,7 @@ public class RandomSamplerTest {
 	 * If random sampler select elements randomly from source, it would distributed well-proportioned on source data as well,
 	 * so the K-S Test result would accept the first one, while reject the second one.
 	 */
-	private void verifyRandomSamplerWithSampleSize(int sampleSize, RandomSampler sampler, boolean withDefaultSampler, boolean sampleWithPartitions) {
+	private void verifyRandomSamplerWithSampleSize(int sampleSize, RandomSampler<Double> sampler, boolean withDefaultSampler, boolean sampleWithPartitions) {
 		double[] baseSample;
 		if (withDefaultSampler) {
 			baseSample = getDefaultSampler(sampleSize);
@@ -329,11 +351,11 @@ public class RandomSamplerTest {
 		verifyKSTest(sampler, baseSample, withDefaultSampler, sampleWithPartitions);
 	}
 
-	private void verifyKSTest(RandomSampler sampler, double[] defaultSampler, boolean expectSuccess) {
+	private void verifyKSTest(RandomSampler<Double> sampler, double[] defaultSampler, boolean expectSuccess) {
 		verifyKSTest(sampler, defaultSampler, expectSuccess, false);
 	}
 
-	private void verifyKSTest(RandomSampler sampler, double[] defaultSampler, boolean expectSuccess, boolean sampleOnPartitions) {
+	private void verifyKSTest(RandomSampler<Double> sampler, double[] defaultSampler, boolean expectSuccess, boolean sampleOnPartitions) {
 		double[] sampled = getSampledOutput(sampler, sampleOnPartitions);
 		double pValue = ksTest.kolmogorovSmirnovStatistic(sampled, defaultSampler);
 		double dValue = getDValue(sampled.length, defaultSampler.length);
@@ -345,11 +367,11 @@ public class RandomSamplerTest {
 	}
 	
 	private double[] getSampledOutput(RandomSampler<Double> sampler, boolean sampleOnPartitions) {
-		Iterator<Double> sampled = null;
+		Iterator<Double> sampled;
 		if (sampleOnPartitions) {
 			DistributedRandomSampler<Double> reservoirRandomSampler = (DistributedRandomSampler<Double>)sampler;
 			List<IntermediateSampleData<Double>> intermediateResult = Lists.newLinkedList();
-			for (int i=0; i<DEFFAULT_PARTITION_NUMBER; i++) {
+			for (int i = 0; i< DEFAULT_PARTITION_NUMBER; i++) {
 				Iterator<IntermediateSampleData<Double>> partialIntermediateResult = reservoirRandomSampler.sampleInPartition(sourcePartitions[i].iterator());
 				while (partialIntermediateResult.hasNext()) {
 					intermediateResult.add(partialIntermediateResult.next());
@@ -363,8 +385,7 @@ public class RandomSamplerTest {
 		while (sampled.hasNext()) {
 			list.add(sampled.next());
 		}
-		double[] result = transferFromListToArrayWithOrder(list);
-		return result;
+		return transferFromListToArrayWithOrder(list);
 	}
 
 	/*
@@ -393,10 +414,9 @@ public class RandomSamplerTest {
 	
 	private double[] getDefaultSampler(int fixSize) {
 		Preconditions.checkArgument(fixSize > 0, "Sample fraction should be positive.");
-		int size = fixSize;
 		double step = SOURCE_SIZE / (double) fixSize;
-		double[] defaultSampler = new double[size];
-		for (int i = 0; i < size; i++) {
+		double[] defaultSampler = new double[fixSize];
+		for (int i = 0; i < fixSize; i++) {
 			defaultSampler[i] = Math.round(step * i);
 		}
 		
@@ -424,9 +444,8 @@ public class RandomSamplerTest {
 	private double[] getWrongSampler(int fixSize) {
 		Preconditions.checkArgument(fixSize > 0, "Sample size be positive.");
 		int halfSourceSize = SOURCE_SIZE / 2;
-		int size = fixSize;
-		double[] wrongSampler = new double[size];
-		for (int i = 0; i < size; i++) {
+		double[] wrongSampler = new double[fixSize];
+		for (int i = 0; i < fixSize; i++) {
 			wrongSampler[i] = (double) i % halfSourceSize;
 		}
 		
@@ -434,13 +453,13 @@ public class RandomSamplerTest {
 	}
 	
 	/*
-	 * Calculate the D value of K-S test for p-value 0.01, m and n are the sample size
+	 * Calculate the D value of K-S test for p-value 0.001, m and n are the sample size
 	 */
 	private double getDValue(int m, int n) {
 		Preconditions.checkArgument(m > 0, "input sample size should be positive.");
 		Preconditions.checkArgument(n > 0, "input sample size should be positive.");
 		double first = (double) m;
 		double second = (double) n;
-		return 1.63 * Math.sqrt((first + second) / (first * second));
+		return 1.95 * Math.sqrt((first + second) / (first * second));
 	}
 }

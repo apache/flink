@@ -44,12 +44,16 @@ public class KafkaTopicPartitionState<KPH> {
 	/** The offset within the Kafka partition that we already processed */
 	private volatile long offset;
 
+	/** The offset of the Kafka partition that has been committed */
+	private volatile long committedOffset;
+
 	// ------------------------------------------------------------------------
 	
 	public KafkaTopicPartitionState(KafkaTopicPartition partition, KPH kafkaPartitionHandle) {
 		this.partition = partition;
 		this.kafkaPartitionHandle = kafkaPartitionHandle;
 		this.offset = OFFSET_NOT_SET;
+		this.committedOffset = OFFSET_NOT_SET;
 	}
 
 	// ------------------------------------------------------------------------
@@ -90,10 +94,19 @@ public class KafkaTopicPartitionState<KPH> {
 	public final void setOffset(long offset) {
 		this.offset = offset;
 	}
-	
+
 	public final boolean isOffsetDefined() {
 		return offset != OFFSET_NOT_SET;
 	}
+
+	public final void setCommittedOffset(long offset) {
+		this.committedOffset = offset;
+	}
+
+	public final long getCommittedOffset() {
+		return committedOffset;
+	}
+
 	
 	// ------------------------------------------------------------------------
 

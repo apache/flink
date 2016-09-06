@@ -18,7 +18,8 @@
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 public class KinesisShardIdGenerator {
+	// Kinesis shards ids are in the form of: ^shardId-\d{12}
 	public static String generateFromShardOrder(int order) {
-		return String.format("shard-%05d", order);
+		return String.format("shardId-%012d", order);
 	}
 }

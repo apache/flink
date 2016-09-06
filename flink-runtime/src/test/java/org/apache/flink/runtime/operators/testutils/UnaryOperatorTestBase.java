@@ -148,7 +148,9 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 				this.memManager, this.ioManager, input, this.owner,
 				this.<IN>getInputSerializer(0),
 				comp,
-				this.perSortFractionMem, 32, 0.8f, false);
+				this.perSortFractionMem, 32, 0.8f,
+				true /*use large record handler*/,
+				false);
 	}
 	
 	public void addDriverComparator(TypeComparator<IN> comparator) {
@@ -351,7 +353,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 	}
 
 	@Override
-	public AbstractInvokable getOwningNepheleTask() {
+	public AbstractInvokable getContainingTask() {
 		return this.owner;
 	}
 

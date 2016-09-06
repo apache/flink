@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.library.clustering.undirected;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -33,15 +32,19 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Generates a listing of distinct triangles from the input graph.
@@ -60,12 +63,12 @@ import java.util.List;
  * @param <EV> edge value type
  */
 public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 
 	// Optional configuration
-	private boolean sortTriangleVertices = false;
+	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, false);
 
-	private int littleParallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int littleParallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Normalize the triangle listing such that for each result (K0, K1, K2)
@@ -75,7 +78,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 * @return this
 	 */
 	public TriangleListing<K, VV, EV> setSortTriangleVertices(boolean sortTriangleVertices) {
-		this.sortTriangleVertices = sortTriangleVertices;
+		this.sortTriangleVertices.set(sortTriangleVertices);
 
 		return this;
 	}
@@ -87,9 +90,33 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 * @return this
 	 */
 	public TriangleListing<K, VV, EV> setLittleParallelism(int littleParallelism) {
+		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
 		this.littleParallelism = littleParallelism;
 
 		return this;
+	}
+
+	@Override
+	protected String getAlgorithmName() {
+		return TriangleListing.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! TriangleListing.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		TriangleListing rhs = (TriangleListing) other;
+
+		sortTriangleVertices.mergeWith(rhs.sortTriangleVertices);
+		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+
+		return true;
 	}
 
 	/*
@@ -103,7 +130,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 */
 
 	@Override
-	public DataSet<Tuple3<K, K, K>> run(Graph<K, VV, EV> input)
+	public DataSet<Tuple3<K, K, K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, v where u < v
 		DataSet<Tuple2<K, K>> filteredByID = input
@@ -140,7 +167,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				.setParallelism(littleParallelism)
 				.name("Triangle listing");
 
-		if (sortTriangleVertices) {
+		if (sortTriangleVertices.get()) {
 			triangles = triangles
 				.map(new SortTriangleVertices<K>())
 					.name("Sort triangle vertices");
@@ -215,6 +242,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 *
 	 * @param <T> ID type
 	 */
+	@ForwardedFields("0")
 	private static final class GenerateTriplets<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple2<T, T>, Tuple3<T, T, T>> {
 		private Tuple3<T, T, T> output = new Tuple3<>();
@@ -264,9 +292,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	private static final class ProjectTriangles<T>
 	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Tuple3<T, T, T>> {
 		@Override
-		public Tuple3<T, T, T> join(Tuple3<T, T, T> first, Tuple2<T, T> second)
+		public Tuple3<T, T, T> join(Tuple3<T, T, T> triplet, Tuple2<T, T> edge)
 				throws Exception {
-			return first;
+			return triplet;
 		}
 	}
 
@@ -281,11 +309,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 		@Override
 		public Tuple3<T, T, T> map(Tuple3<T, T, T> value)
 				throws Exception {
-			T temp_val;
-
 			// by the triangle listing algorithm we know f1 < f2
 			if (value.f0.compareTo(value.f1) > 0) {
-				temp_val = value.f0;
+				T temp_val = value.f0;
 				value.f0 = value.f1;
 
 				if (temp_val.compareTo(value.f2) <= 0) {

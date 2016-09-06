@@ -22,11 +22,10 @@ import org.apache.flink.api.scala._
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.Edge
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.graph.spargel.VertexUpdateFunction
-import org.apache.flink.graph.spargel.MessageIterator
+import org.apache.flink.graph.spargel.{MessageIterator, ScatterFunction, GatherFunction}
 import org.apache.flink.graph.Vertex
-import org.apache.flink.graph.spargel.MessagingFunction
 import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData
+
 import scala.collection.JavaConversions._
 import org.apache.flink.graph.scala.utils.Tuple3ToEdgeMap
 
@@ -55,8 +54,8 @@ object SingleSourceShortestPaths {
     val graph = Graph.fromDataSet[Long, Double, Double](edges, new InitVertices(srcVertexId), env)
 
     // Execute the scatter-gather iteration
-    val result = graph.runScatterGatherIteration(new VertexDistanceUpdater,
-      new MinDistanceMessenger, maxIterations)
+    val result = graph.runScatterGatherIteration(new MinDistanceMessenger,
+      new VertexDistanceUpdater, maxIterations)
 
     // Extract the vertices as the result
     val singleSourceShortestPaths = result.getVertices
@@ -86,10 +85,26 @@ object SingleSourceShortestPaths {
   }
 
   /**
-   * Function that updates the value of a vertex by picking the minimum
-   * distance from all incoming messages.
+   * Distributes the minimum distance associated with a given vertex among all
+   * the target vertices summed up with the edge's value.
    */
-  private final class VertexDistanceUpdater extends VertexUpdateFunction[Long, Double, Double] {
+  private final class MinDistanceMessenger extends
+    ScatterFunction[Long, Double, Double, Double] {
+
+    override def sendMessages(vertex: Vertex[Long, Double]) {
+      if (vertex.getValue < Double.PositiveInfinity) {
+        for (edge: Edge[Long, Double] <- getEdges) {
+          sendMessageTo(edge.getTarget, vertex.getValue + edge.getValue)
+        }
+      }
+    }
+  }
+
+  /**
+    * Function that updates the value of a vertex by picking the minimum
+    * distance from all incoming messages.
+    */
+  private final class VertexDistanceUpdater extends GatherFunction[Long, Double, Double] {
 
     override def updateVertex(vertex: Vertex[Long, Double], inMessages: MessageIterator[Double]) {
       var minDistance = Double.MaxValue
@@ -101,22 +116,6 @@ object SingleSourceShortestPaths {
       }
       if (vertex.getValue > minDistance) {
         setNewVertexValue(minDistance)
-      }
-    }
-  }
-
-  /**
-   * Distributes the minimum distance associated with a given vertex among all
-   * the target vertices summed up with the edge's value.
-   */
-  private final class MinDistanceMessenger extends
-    MessagingFunction[Long, Double, Double, Double] {
-
-    override def sendMessages(vertex: Vertex[Long, Double]) {
-      if (vertex.getValue < Double.PositiveInfinity) {
-        for (edge: Edge[Long, Double] <- getEdges) {
-          sendMessageTo(edge.getTarget, vertex.getValue + edge.getValue)
-        }
       }
     }
   }

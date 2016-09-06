@@ -38,7 +38,7 @@ import org.junit.Test;
 
 public class RuntimeUDFContextTest {
 
-	private final TaskInfo taskInfo = new TaskInfo("test name", 1, 3, 0);
+	private final TaskInfo taskInfo = new TaskInfo("test name", 3, 1, 3, 0);
 
 	@Test
 	public void testBroadcastVariableNotFound() {
@@ -48,7 +48,9 @@ public class RuntimeUDFContextTest {
 					new HashMap<String, Future<Path>>(),
 					new HashMap<String, Accumulator<?, ?>>(),
 					new UnregisteredMetricsGroup());
-			
+
+			assertFalse(ctx.hasBroadcastVariable("some name"));
+
 			try {
 				ctx.getBroadcastVariable("some name");
 				fail("should throw an exception");
@@ -85,7 +87,10 @@ public class RuntimeUDFContextTest {
 			
 			ctx.setBroadcastVariable("name1", Arrays.asList(1, 2, 3, 4));
 			ctx.setBroadcastVariable("name2", Arrays.asList(1.0, 2.0, 3.0, 4.0));
-			
+
+			assertTrue(ctx.hasBroadcastVariable("name1"));
+			assertTrue(ctx.hasBroadcastVariable("name2"));
+
 			List<Integer> list1 = ctx.getBroadcastVariable("name1");
 			List<Double> list2 = ctx.getBroadcastVariable("name2");
 			

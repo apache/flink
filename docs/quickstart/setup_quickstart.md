@@ -1,9 +1,8 @@
 ---
 title: "Quickstart: Setup"
-# Top navigation
-top-nav-group: quickstart
-top-nav-pos: 1
-top-nav-title: Setup & Run Example
+nav-title: Setup
+nav-parent_id: quickstarts
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -35,7 +34,7 @@ Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the onl
 
 ### Download
 
-Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick any Hadoop/Scala combination you like, for instance [Flink for Hadoop 2]({{ site.FLINK_DOWNLOAD_URL_HADOOP2_STABLE }}).
+Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick any Hadoop/Scala combination you like.
 
 ### Start a Local Flink Cluster
 
@@ -56,21 +55,19 @@ Check the __JobManager's web frontend__ at [http://localhost:8081](http://localh
 
 ## Run Example
 
-Now, we are going to run the [SocketTextStreamWordCount example](https://github.com/apache/flink/blob/release-1.0.0/flink-quickstart/flink-quickstart-java/src/main/resources/archetype-resources/src/main/java/SocketTextStreamWordCount.java) and read text from a socket and count the number of distinct words.
+Now, we are going to run the [SocketWindowWordCount example](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java) and read text from a socket and count the number of distinct words.
 
 * First of all, we use **netcat** to start local server via
 
   ~~~bash
   $ nc -l 9000
-  ~~~ 
+  ~~~
 
 * Submit the Flink program:
 
   ~~~bash
-  $ bin/flink run examples/streaming/SocketTextStreamWordCount.jar \
-    --hostname localhost \
-    --port 9000
-  Printing result to stdout. Use --output to specify output path.
+  $ bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
+
   03/08/2016 17:21:56 Job execution switched to status RUNNING.
   03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
   03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to DEPLOYING
@@ -122,7 +119,7 @@ Now, we are going to run the [SocketTextStreamWordCount example](https://github.
 
 ## Next Steps
 
-Check out the [step-by-step example](run_example_quickstart.html) in order to get a first feel of Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/apis/streaming/).
+Check out the [step-by-step example](run_example_quickstart.html) in order to get a first feel of Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/dev/datastream_api.html).
 
 ### Cluster Setup
 

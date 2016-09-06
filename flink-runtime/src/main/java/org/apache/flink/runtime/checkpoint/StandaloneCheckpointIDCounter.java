@@ -18,27 +18,27 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * {@link CheckpointIDCounter} instances for JobManagers running in {@link RecoveryMode#STANDALONE}.
+ * {@link CheckpointIDCounter} instances for JobManagers running in {@link HighAvailabilityMode#NONE}.
  *
- * <p>Simple wrapper of an {@link AtomicLong}. This is sufficient, because job managers are not
- * recoverable in this recovery mode.
+ * <p>Simple wrapper around an {@link AtomicLong}.
  */
 public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 
 	private final AtomicLong checkpointIdCounter = new AtomicLong(1);
 
 	@Override
-	public void start() throws Exception {
-	}
+	public void start() throws Exception {}
 
 	@Override
-	public void stop() throws Exception {
-	}
+	public void shutdown() throws Exception {}
+
+	@Override
+	public void suspend() throws Exception {}
 
 	@Override
 	public long getAndIncrement() throws Exception {
@@ -48,5 +48,14 @@ public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 	@Override
 	public void setCount(long newCount) {
 		checkpointIdCounter.set(newCount);
+	}
+
+	/**
+	 * Returns the last checkpoint ID (current - 10.
+	 *
+	 * @return Last checkpoint ID.
+	 */
+	public long getLast() {
+		return checkpointIdCounter.get() - 1;
 	}
 }

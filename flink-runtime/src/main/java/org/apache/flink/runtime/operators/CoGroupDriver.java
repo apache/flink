@@ -20,7 +20,10 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.operators.sort.NonReusingSortMergeCoGroupIterator;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
+import org.apache.flink.runtime.operators.util.metrics.CountingMutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.CoGroupFunction;
@@ -93,9 +96,11 @@ public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, 
 		if (config.getDriverStrategy() != DriverStrategy.CO_GROUP) {
 			throw new Exception("Unrecognized driver strategy for CoGoup driver: " + config.getDriverStrategy().name());
 		}
+
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
 		
-		final MutableObjectIterator<IT1> in1 = this.taskContext.getInput(0);
-		final MutableObjectIterator<IT2> in2 = this.taskContext.getInput(1);
+		final MutableObjectIterator<IT1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<IT1>getInput(0), numRecordsIn);
+		final MutableObjectIterator<IT2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<IT2>getInput(1), numRecordsIn);
 		
 		// get the key positions and types
 		final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
@@ -144,8 +149,10 @@ public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, 
 	@Override
 	public void run() throws Exception
 	{
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+
 		final CoGroupFunction<IT1, IT2, OT> coGroupStub = this.taskContext.getStub();
-		final Collector<OT> collector = this.taskContext.getOutputCollector();
+		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final CoGroupTaskIterator<IT1, IT2> coGroupIterator = this.coGroupIterator;
 		
 		while (this.running && coGroupIterator.next()) {

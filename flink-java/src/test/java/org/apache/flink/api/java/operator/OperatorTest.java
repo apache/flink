@@ -32,20 +32,9 @@ public class OperatorTest {
 	public void testConfigurationOfParallelism() {
 		Operator operator = new MockOperator();
 
-		// verify that PARALLELISM_UNKNOWN does not change initial parallelism
-		int parallelism = operator.getParallelism();
-		operator.setParallelism(ExecutionConfig.PARALLELISM_UNKNOWN);
-
-		assertEquals(parallelism, operator.getParallelism());
-
 		// verify explicit change in parallelism
-		parallelism = 36;
+		int parallelism = 36;
 		operator.setParallelism(parallelism);
-
-		assertEquals(parallelism, operator.getParallelism());
-
-		// verify that PARALLELISM_UNKNOWN does not change configured parallelism
-		operator.setParallelism(ExecutionConfig.PARALLELISM_UNKNOWN);
 
 		assertEquals(parallelism, operator.getParallelism());
 

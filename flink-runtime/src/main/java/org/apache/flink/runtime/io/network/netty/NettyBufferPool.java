@@ -29,7 +29,7 @@ import scala.Option;
 
 import java.lang.reflect.Field;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Wrapper around Netty's {@link PooledByteBufAllocator} with strict control
@@ -57,7 +57,7 @@ public class NettyBufferPool implements ByteBufAllocator {
 	 * @param numberOfArenas Number of arenas (recommended: 2 * number of task
 	 *                       slots)
 	 */
-	NettyBufferPool(int numberOfArenas) {
+	public NettyBufferPool(int numberOfArenas) {
 		checkArgument(numberOfArenas >= 1, "Number of arenas");
 		this.numberOfArenas = numberOfArenas;
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -26,11 +27,10 @@ import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import scala.Tuple2;
 
 import java.io.IOException;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An input channel place holder to be replaced by either a {@link RemoteInputChannel}
@@ -45,7 +45,11 @@ public class UnknownInputChannel extends InputChannel {
 	private final ConnectionManager connectionManager;
 
 	/** Initial and maximum backoff (in ms) after failed partition requests. */
-	private final Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff;
+	private final int initialBackoff;
+
+	private final int maxBackoff;
+
+	private final IOMetricGroup metrics;
 
 	public UnknownInputChannel(
 			SingleInputGate gate,
@@ -54,14 +58,18 @@ public class UnknownInputChannel extends InputChannel {
 			ResultPartitionManager partitionManager,
 			TaskEventDispatcher taskEventDispatcher,
 			ConnectionManager connectionManager,
-			Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff) {
+			int initialBackoff,
+			int maxBackoff,
+			IOMetricGroup metrics) {
 
-		super(gate, channelIndex, partitionId, partitionRequestInitialAndMaxBackoff);
+		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
 		this.connectionManager = checkNotNull(connectionManager);
-		this.partitionRequestInitialAndMaxBackoff = checkNotNull(partitionRequestInitialAndMaxBackoff);
+		this.metrics = checkNotNull(metrics);
+		this.initialBackoff = initialBackoff;
+		this.maxBackoff = maxBackoff;
 	}
 
 	@Override
@@ -112,10 +120,10 @@ public class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, partitionRequestInitialAndMaxBackoff);
+		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, initialBackoff, maxBackoff, metrics);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, partitionRequestInitialAndMaxBackoff);
+		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, initialBackoff, maxBackoff, metrics);
 	}
 }

@@ -18,7 +18,7 @@ package ${package}
  * limitations under the License.
  */
 
-import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala._
 
 /**
  * Skeleton for a Flink Streaming Job.
@@ -32,10 +32,10 @@ import org.apache.flink.api.scala._
  *   mvn clean package
  * }}}
  * in the projects root directory. You will find the jar in
- * target/flink-quickstart-${version}.jar
+ * target/${artifactId}-${version}.jar
  * From the CLI you can then run
  * {{{
- *    ./bin/flink run -c ${package}.StreamingJob target/flink-quickstart-${version}.jar
+ *    ./bin/flink run -c ${package}.StreamingJob target/${artifactId}-${version}.jar
  * }}}
  *
  * For more information on the CLI see:

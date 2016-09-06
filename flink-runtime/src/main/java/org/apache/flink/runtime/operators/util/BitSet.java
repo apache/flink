@@ -17,8 +17,8 @@
  */
 package org.apache.flink.runtime.operators.util;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.Preconditions;
 
 public class BitSet {
 	private MemorySegment memorySegment;

@@ -102,4 +102,12 @@ public class LocalFileStatus implements FileStatus {
 	public File getFile() {
 		return this.file;
 	}
+
+	@Override
+	public String toString() {
+		return "LocalFileStatus{" +
+			"file=" + file +
+			", path=" + path +
+			'}';
+	}
 }

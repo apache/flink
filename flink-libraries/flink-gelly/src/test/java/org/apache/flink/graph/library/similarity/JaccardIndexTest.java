@@ -24,6 +24,7 @@ import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.simple.undirected.Simplify;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
@@ -121,8 +122,8 @@ extends AsmTestBase {
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
 		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.setSimpleGraph(true, false)
-			.generate();
+			.generate()
+			.run(new Simplify<LongValue, NullValue, NullValue>(false));
 
 		DataSet<Result<LongValue>> ji = graph
 			.run(new JaccardIndex<LongValue, NullValue, NullValue>()
@@ -131,6 +132,6 @@ extends AsmTestBase {
 		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(ji);
 
 		assertEquals(13954, checksum.getCount());
-		assertEquals(0x0000179f83a2a873L, checksum.getChecksum());
+		assertEquals(0x00001b1a1f7a9d0bL, checksum.getChecksum());
 	}
 }

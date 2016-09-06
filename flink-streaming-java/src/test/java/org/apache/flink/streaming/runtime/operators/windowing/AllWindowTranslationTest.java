@@ -42,8 +42,8 @@ import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -56,7 +56,7 @@ import static org.junit.Assert.fail;
  * {@link org.apache.flink.streaming.api.datastream.AllWindowedStream} instantiate
  * the correct window operator.
  */
-public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
+public class AllWindowTranslationTest {
 
 	/**
 	 * These tests ensure that the correct trigger is set when using event-time windows.
@@ -253,6 +253,8 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 
 		try {
 			windowedStream.fold("", new FoldFunction<String, String>() {
+				private static final long serialVersionUID = -8722899157560218917L;
+
 				@Override
 				public String fold(String accumulator, String value) throws Exception {
 					return accumulator;
@@ -265,8 +267,6 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 		}
 
 		fail("The fold call should fail.");
-
-		env.execute();
 	}
 
 	@Test
@@ -280,6 +280,8 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 
 		try {
 			windowedStream.trigger(new Trigger<String, TimeWindow>() {
+				private static final long serialVersionUID = 8360971631424870421L;
+
 				@Override
 				public TriggerResult onElement(String element,
 						long timestamp,
@@ -314,9 +316,6 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 		}
 
 		fail("The trigger call should fail.");
-
-		env.execute();
-
 	}
 
 	// ------------------------------------------------------------------------

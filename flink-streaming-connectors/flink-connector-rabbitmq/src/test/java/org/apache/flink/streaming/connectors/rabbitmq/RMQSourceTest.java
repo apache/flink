@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.SerializedCheckpointData;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.junit.After;
 import org.junit.Before;
@@ -104,6 +105,24 @@ public class RMQSourceTest {
 	public void afterTest() throws Exception {
 		source.cancel();
 		sourceThread.join();
+	}
+
+	@Test
+	public void throwExceptionIfConnectionFactoryReturnNull() throws Exception {
+		RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
+		ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+		Connection connection = Mockito.mock(Connection.class);
+		Mockito.when(connectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+		Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+		Mockito.when(connection.createChannel()).thenReturn(null);
+
+		RMQSource<String> rmqSource = new RMQSource<>(
+			connectionConfig, "queueDummy", true, new StringDeserializationScheme());
+		try {
+			rmqSource.open(new Configuration());
+		} catch (RuntimeException ex) {
+			assertEquals("None of RabbitMQ channels are available", ex.getMessage());
+		}
 	}
 
 	@Test
@@ -220,11 +239,12 @@ public class RMQSourceTest {
 	 * Tests whether constructor params are passed correctly.
 	 */
 	@Test
-	public void testConstructorParams() {
+	public void testConstructorParams() throws Exception {
 		// verify construction params
+		RMQConnectionConfig.Builder builder = new RMQConnectionConfig.Builder();
+		builder.setHost("hostTest").setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/");
 		ConstructorTestClass testObj = new ConstructorTestClass(
-			"hostTest", 999, "userTest", "passTest",
-			"queueTest", false, new StringDeserializationScheme());
+			builder.build(), "queueTest", false, new StringDeserializationScheme());
 
 		try {
 			testObj.open(new Configuration());
@@ -240,17 +260,16 @@ public class RMQSourceTest {
 
 	private static class ConstructorTestClass extends RMQSource<String> {
 
-		private ConnectionFactory factory = Mockito.spy(new ConnectionFactory());
+		private ConnectionFactory factory;
 
-		public ConstructorTestClass(String hostName, Integer port,
-				String username,
-				String password,
-				String queueName,
-				boolean usesCorrelationId,
-				DeserializationSchema<String> deserializationSchema) {
-			super(hostName, port, username, password,
-				queueName, usesCorrelationId, deserializationSchema);
-
+		public ConstructorTestClass(RMQConnectionConfig rmqConnectionConfig,
+									String queueName,
+									boolean usesCorrelationId,
+									DeserializationSchema<String> deserializationSchema) throws Exception {
+			super(rmqConnectionConfig, queueName, usesCorrelationId, deserializationSchema);
+			RMQConnectionConfig.Builder builder = new RMQConnectionConfig.Builder();
+			builder.setHost("hostTest").setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/");
+			factory = Mockito.spy(builder.build().getConnectionFactory());
 			try {
 				Mockito.doThrow(new RuntimeException()).when(factory).newConnection();
 			} catch (IOException e) {
@@ -295,7 +314,9 @@ public class RMQSourceTest {
 	private class RMQTestSource extends RMQSource<String> {
 
 		public RMQTestSource() {
-			super("hostDummy", -1, "", "", "queueDummy", true, new StringDeserializationScheme());
+			super(new RMQConnectionConfig.Builder().setHost("hostTest")
+					.setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/").build()
+				, "queueDummy", true, new StringDeserializationScheme());
 		}
 
 		@Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -28,15 +29,14 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input channel, which requests a remote partition queue.
@@ -80,10 +80,11 @@ public class RemoteInputChannel extends InputChannel {
 			int channelIndex,
 			ResultPartitionID partitionId,
 			ConnectionID connectionId,
-			ConnectionManager connectionManager) {
+			ConnectionManager connectionManager,
+			IOMetricGroup metrics) {
 
 		this(inputGate, channelIndex, partitionId, connectionId, connectionManager,
-				new Tuple2<Integer, Integer>(0, 0));
+				0, 0, metrics);
 	}
 
 	public RemoteInputChannel(
@@ -92,9 +93,11 @@ public class RemoteInputChannel extends InputChannel {
 			ResultPartitionID partitionId,
 			ConnectionID connectionId,
 			ConnectionManager connectionManager,
-			Tuple2<Integer, Integer> initialAndMaxBackoff) {
+			int initialBackoff,
+			int maxBackoff,
+			IOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff);
+		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInRemoteCounter());
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -148,6 +151,7 @@ public class RemoteInputChannel extends InputChannel {
 				throw new IOException("Queried input channel for data although non is available.");
 			}
 
+			numBytesIn.inc(buffer.getSize());
 			return buffer;
 		}
 	}

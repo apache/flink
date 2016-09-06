@@ -23,12 +23,10 @@ import java.util.UUID
 import akka.actor._
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor, LogMessages}
 import org.apache.flink.yarn.YarnMessages._
-import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import scala.collection.mutable
 import scala.concurrent.duration._
 
@@ -36,7 +34,7 @@ import scala.language.postfixOps
 
 /** Actor which is responsible to repeatedly poll the Yarn cluster status from the ResourceManager.
   *
-  * This class represents the bridge between the [[FlinkYarnCluster]] and the
+  * This class represents the bridge between the [[YarnClusterClient]] and the
   * [[YarnApplicationMasterRunner]].
   *
   * @param flinkConfig Configuration object
@@ -50,7 +48,6 @@ class ApplicationClient(
   with LeaderSessionMessageFilter
   with LogMessages
   with LeaderRetrievalListener{
-  import context._
 
   val log = Logger(getClass)
 
@@ -62,7 +59,6 @@ class ApplicationClient(
   var pollingTimer: Option[Cancellable] = None
   var running = false
   var messagesQueue : mutable.Queue[InfoMessage] = mutable.Queue[InfoMessage]()
-  var latestClusterStatus : Option[GetClusterStatusResponse] = None
   var stopMessageReceiver : Option[ActorRef] = None
 
   var leaderSessionID: Option[UUID] = None
@@ -135,21 +131,10 @@ class ApplicationClient(
       }
 
     case msg: RegisterInfoMessageListenerSuccessful =>
+      // The job manager acts as a proxy between the client and the resource managert
       val jm = sender()
-
-      log.info(s"Successfully registered at the ResourceManager $jm")
-
+      log.info(s"Successfully registered at the ResourceManager using JobManager $jm")
       yarnJobManager = Some(jm)
-
-      // schedule a periodic status report from the JobManager
-      // request the number of task managers and slots from the job manager
-      pollingTimer = Some(
-        context.system.scheduler.schedule(
-          INITIAL_POLLING_DELAY,
-          WAIT_FOR_YARN_INTERVAL,
-          yarnJobManager.get,
-          decorateMessage(GetClusterStatus.getInstance()))
-      )
 
     case JobManagerLeaderAddress(jobManagerAkkaURL, newLeaderSessionID) =>
       log.info(s"Received address of new leader $jobManagerAkkaURL with session ID" +
@@ -178,41 +163,20 @@ class ApplicationClient(
           }
       }
 
-    case LocalStopYarnSession(status, diagnostics) =>
+    case msg @ LocalStopYarnSession(status, diagnostics) =>
       log.info("Sending StopCluster request to JobManager.")
 
-      val clusterStatus =
-        status match {
-          case FinalApplicationStatus.SUCCEEDED => ApplicationStatus.SUCCEEDED
-          case FinalApplicationStatus.KILLED => ApplicationStatus.CANCELED
-          case FinalApplicationStatus.FAILED => ApplicationStatus.FAILED
-          case _ => ApplicationStatus.UNKNOWN
-        }
+      // preserve the original sender so we can reply
+      val originalSender = sender()
 
-      yarnJobManager foreach {
-        // forward to preserve the sender's address
-        _ forward decorateMessage(new StopCluster(clusterStatus, diagnostics))
-      }
-
-    case msg: StopClusterSuccessful =>
-      log.info("Remote JobManager has been stopped successfully. " +
-        "Stopping local application client")
-
-      // poison ourselves
-      self ! decorateMessage(PoisonPill)
-
-    // handle the responses from the PollYarnClusterStatus messages to the yarn job mgr
-    case status: GetClusterStatusResponse =>
-      latestClusterStatus = Some(status)
-
-    // locally get cluster status
-    case LocalGetYarnClusterStatus =>
-      sender() ! decorateMessage(latestClusterStatus)
-
-    // Forward message to Application Master
-    case LocalStopAMAfterJob(jobID) =>
-      yarnJobManager foreach {
-        _ forward decorateMessage(new ShutdownClusterAfterJob(jobID))
+      yarnJobManager match {
+        case Some(jm) =>
+          jm.tell(decorateMessage(new StopCluster(status, diagnostics)), originalSender)
+        case None =>
+          context.system.scheduler.scheduleOnce(1 second) {
+            // try once more; we might have been connected in the meantime
+            self.tell(msg, originalSender)
+          }(context.dispatcher)
       }
 
     // -----------------  handle messages from the cluster -------------------

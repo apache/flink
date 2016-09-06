@@ -31,7 +31,7 @@ if [[ $STARTSTOP == "start" ]]; then
 
     # if memory allocation mode is lazy and no other JVM options are set,
     # set the 'Concurrent Mark Sweep GC'
-    if [[ $FLINK_TM_MEM_PRE_ALLOCATE == "false" ]] && [ -z $FLINK_ENV_JAVA_OPTS ]; then
+    if [[ $FLINK_TM_MEM_PRE_ALLOCATE == "false" ]] && [ -z "${FLINK_ENV_JAVA_OPTS}" ] && [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
 
         JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
 
@@ -88,6 +88,9 @@ if [[ $STARTSTOP == "start" ]]; then
         export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}"
 
     fi
+
+    # Add TaskManager-specific JVM options
+    export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_TM}"
 
     # Startup parameters
     args=("--configDir" "${FLINK_CONF_DIR}")

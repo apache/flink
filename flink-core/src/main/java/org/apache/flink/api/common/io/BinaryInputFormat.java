@@ -19,7 +19,9 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -30,6 +32,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,49 +43,70 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Base class for all input formats that use blocks of fixed size. The input splits are aligned to these blocks. Without
- * configuration, these block sizes equal the native block sizes of the HDFS.
+ * Base class for all input formats that use blocks of fixed size. The input splits are aligned to these blocks,
+ * meaning that each split will consist of one block. Without configuration, these block sizes equal the native
+ * block sizes of the HDFS.
+ *
+ * A block will contain a {@link BlockInfo} at the end of the block. There, the reader can find some statistics
+ * about the split currently being read, that will help correctly parse the contents of the block.
  */
 @Public
-public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
+public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
+	implements CheckpointableInputFormat<FileInputSplit, Tuple2<Long, Long>> {
+
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The log.
-	 */
+	/** The log. */
 	private static final Logger LOG = LoggerFactory.getLogger(BinaryInputFormat.class);
 
-	/**
-	 * The config parameter which defines the fixed length of a record.
-	 */
+	/** The config parameter which defines the fixed length of a record. */
 	public static final String BLOCK_SIZE_PARAMETER_KEY = "input.block_size";
 
 	public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 
-	/**
-	 * The block size to use.
-	 */
+	/** The block size to use. */
 	private long blockSize = NATIVE_BLOCK_SIZE;
 
 	private transient DataInputViewStreamWrapper dataInputStream;
 
+	/** The BlockInfo for the Block corresponding to the split currently being read. */
 	private transient BlockInfo blockInfo;
 
-	private long readRecords;
+	/** A wrapper around the block currently being read. */
+	private transient BlockBasedInput blockBasedInput = null;
 
+	/**
+	 * The number of records already read from the block.
+	 * This is used to decide if the end of the block has been
+	 * reached.
+	 */
+	private long readRecords = 0;
 
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
 
-		// read own parameters
-		this.blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
-		if (this.blockSize < 1 && this.blockSize != NATIVE_BLOCK_SIZE) {
+		// the if is to prevent the configure() method from
+		// overwriting the value set by the setter
+
+		if (this.blockSize == NATIVE_BLOCK_SIZE) {
+			long blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
+			setBlockSize(blockSize);
+		}
+	}
+
+	public void setBlockSize(long blockSize) {
+		if (blockSize < 1 && blockSize != NATIVE_BLOCK_SIZE) {
 			throw new IllegalArgumentException("The block size parameter must be set and larger than 0.");
 		}
-		if (this.blockSize > Integer.MAX_VALUE) {
-			throw new UnsupportedOperationException("Currently only block size up to Integer.MAX_VALUE are supported");
+		if (blockSize > Integer.MAX_VALUE) {
+			throw new UnsupportedOperationException("Currently only block sizes up to Integer.MAX_VALUE are supported");
 		}
+		this.blockSize = blockSize;
+	}
+
+	public long getBlockSize() {
+		return this.blockSize;
 	}
 
 	@Override
@@ -193,6 +217,20 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 		return new BlockInfo();
 	}
 
+	private BlockInfo createAndReadBlockInfo() throws IOException {
+		BlockInfo blockInfo = new BlockInfo();
+		if (this.splitLength > blockInfo.getInfoSize()) {
+			// At first we go and read  the block info containing the recordCount, the accumulatedRecordCount
+			// and the firstRecordStart offset in the current block. This is written at the end of the block and
+			// is of fixed size, currently 3 * Long.SIZE.
+
+			// TODO: seek not supported by compressed streams. Will throw exception
+			this.stream.seek(this.splitStart + this.splitLength - blockInfo.getInfoSize());
+			blockInfo.read(new DataInputViewStreamWrapper(this.stream));
+		}
+		return blockInfo;
+	}
+
 	/**
 	 * Fill in the statistics. The last modification time and the total input size are prefilled.
 	 *
@@ -207,8 +245,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 			return null;
 		}
 
-		BlockInfo blockInfo = this.createBlockInfo();
-
+		BlockInfo blockInfo = new BlockInfo();
 		long totalCount = 0;
 		for (FileStatus file : files) {
 			// invalid file
@@ -249,20 +286,16 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 
-		final long blockSize = this.blockSize == NATIVE_BLOCK_SIZE ?
-			this.filePath.getFileSystem().getDefaultBlockSize() : this.blockSize;
+		this.blockInfo = this.createAndReadBlockInfo();
 
-		this.blockInfo = this.createBlockInfo();
-		if (this.splitLength > this.blockInfo.getInfoSize()) {
-			// TODO: seek not supported by compressed streams. Will throw exception
-			this.stream.seek(this.splitStart + this.splitLength - this.blockInfo.getInfoSize());
-			this.blockInfo.read(new DataInputViewStreamWrapper(this.stream));
-		}
-
-		this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
-		BlockBasedInput blockBasedInput = new BlockBasedInput(this.stream, (int) blockSize);
-		this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
+		// We set the size of the BlockBasedInput to splitLength as each split contains one block.
+		// After reading the block info, we seek in the file to the correct position.
+		
 		this.readRecords = 0;
+		this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
+		this.blockBasedInput = new BlockBasedInput(this.stream,
+			(int) blockInfo.getFirstRecordStart(), this.splitLength);
+		this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
 	}
 
 	@Override
@@ -275,7 +308,6 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 		if (this.reachedEnd()) {
 			return null;
 		}
-
 		record = this.deserialize(record, this.dataInputStream);
 		this.readRecords++;
 		return record;
@@ -284,8 +316,8 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 	protected abstract T deserialize(T reuse, DataInputView dataInput) throws IOException;
 
 	/**
-	 * Writes a block info at the end of the blocks.<br>
-	 * Current implementation uses only int and not long.
+	 * Reads the content of a block of data. The block contains its {@link BlockInfo}
+	 * at the end, and this method takes this into account when reading the data.
 	 */
 	protected class BlockBasedInput extends FilterInputStream {
 		private final int maxPayloadSize;
@@ -297,6 +329,12 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 			this.blockPos = (int) BinaryInputFormat.this.blockInfo.getFirstRecordStart();
 			this.maxPayloadSize = blockSize - BinaryInputFormat.this.blockInfo.getInfoSize();
 		}
+		
+		public BlockBasedInput(FSDataInputStream in, int startPos, long length) {
+			super(in);
+			this.blockPos = startPos;
+			this.maxPayloadSize = (int) (length - BinaryInputFormat.this.blockInfo.getInfoSize());
+		}
 
 		@Override
 		public int read() throws IOException {
@@ -306,9 +344,16 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 			return this.in.read();
 		}
 
+		private long getCurrBlockPos() {
+			return this.blockPos;
+		}
+
 		private void skipHeader() throws IOException {
 			byte[] dummy = new byte[BinaryInputFormat.this.blockInfo.getInfoSize()];
 			this.in.read(dummy, 0, dummy.length);
+
+			// the blockPos is set to 0 for the case of remote reads,
+			// these are the cases where the last record of a block spills on the next block
 			this.blockPos = 0;
 		}
 
@@ -335,6 +380,43 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 				remainingLength -= read;
 			}
 			return totalRead;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Checkpointing
+	// --------------------------------------------------------------------------------------------
+
+	@PublicEvolving
+	@Override
+	public Tuple2<Long, Long> getCurrentState() throws IOException {
+		if (this.blockBasedInput == null) {
+			throw new RuntimeException("You must have forgotten to call open() on your input format.");
+		}
+
+		return  new Tuple2<>(
+			this.blockBasedInput.getCurrBlockPos(), 		// the last read index in the block
+			this.readRecords								// the number of records read
+		);
+	}
+
+	@PublicEvolving
+	@Override
+	public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
+		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
+		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
+
+		try {
+			this.open(split);
+		} finally {
+			this.blockInfo = this.createAndReadBlockInfo();
+
+			long blockPos = state.f0;
+			this.readRecords = state.f1;
+
+			this.stream.seek(this.splitStart + blockPos);
+			this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockPos, this.splitLength);
+			this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
 		}
 	}
 }

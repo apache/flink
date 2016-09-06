@@ -20,17 +20,13 @@ package org.apache.flink.api.scala.batch
 
 import java.io.File
 
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, TableEnvironment}
-import org.apache.flink.api.table.sinks.{CsvTableSink, TableSink, BatchTableSink}
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.api.table.sinks.CsvTableSink
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,7 +43,7 @@ class TableSinkITCase(
 
     val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
     tmpFile.deleteOnExit()
-    val path = "file:///" + tmpFile.getAbsolutePath
+    val path = tmpFile.toURI.toString
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

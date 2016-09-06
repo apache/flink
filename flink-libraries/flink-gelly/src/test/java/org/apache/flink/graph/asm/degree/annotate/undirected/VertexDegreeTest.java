@@ -52,7 +52,7 @@ extends AsmTestBase {
 
 		DataSet<Vertex<IntValue, LongValue>> targetDegrees = undirectedSimpleGraph
 			.run(new VertexDegree<IntValue, NullValue, NullValue>()
-			.setReduceOnTargetId(true));
+				.setReduceOnTargetId(true));
 
 		TestBaseUtils.compareResultAsText(targetDegrees.collect(), expectedResult);
 	}

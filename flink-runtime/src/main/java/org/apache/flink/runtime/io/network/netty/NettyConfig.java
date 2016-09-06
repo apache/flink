@@ -24,8 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NettyConfig {
 
@@ -76,7 +76,7 @@ public class NettyConfig {
 
 		this.serverAddress = checkNotNull(serverAddress);
 
-		checkArgument(serverPort > 0 && serverPort <= 65536, "Invalid port number.");
+		checkArgument(serverPort >= 0 && serverPort <= 65536, "Invalid port number.");
 		this.serverPort = serverPort;
 
 		checkArgument(memorySegmentSize > 0, "Invalid memory segment size.");

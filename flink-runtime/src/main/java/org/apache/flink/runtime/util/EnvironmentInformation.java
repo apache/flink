@@ -20,15 +20,16 @@ package org.apache.flink.runtime.util;
 
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.util.VersionInfo;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.hadoop.security.UserGroupInformation;
 
 /**
@@ -102,9 +103,7 @@ public class EnvironmentInformation {
 		String user = System.getProperty("user.name");
 		if (user == null) {
 			user = UNKNOWN;
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Cannot determine user/group information for the current user.");
-			}
+			LOG.debug("Cannot determine user/group information for the current user.");
 		}
 		return user;
 	}
@@ -112,27 +111,27 @@ public class EnvironmentInformation {
 	/**
 	 * The maximum JVM heap size, in bytes.
 	 * 
+	 * <p>This method uses the <i>-Xmx</i> value of the JVM, if set. If not set, it returns (as
+	 * a heuristic) 1/4th of the physical memory size.
+	 * 
 	 * @return The maximum JVM heap size, in bytes.
 	 */
 	public static long getMaxJvmHeapMemory() {
-		long maxMemory = Runtime.getRuntime().maxMemory();
-
-		if (maxMemory == Long.MAX_VALUE) {
-			// amount of free memory unknown
-			try {
-				// workaround for Oracle JDK
-				OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
-				Class<?> clazz = Class.forName("com.sun.management.OperatingSystemMXBean");
-				Method method = clazz.getMethod("getTotalPhysicalMemorySize");
-				maxMemory = (Long) method.invoke(operatingSystemMXBean) / 4;
-			}
-			catch (Throwable e) {
+		final long maxMemory = Runtime.getRuntime().maxMemory();
+		if (maxMemory != Long.MAX_VALUE) {
+			// we have the proper max memory
+			return maxMemory;
+		} else {
+			// max JVM heap size is not set - use the heuristic to use 1/4th of the physical memory
+			final long physicalMemory = Hardware.getSizeOfPhysicalMemory();
+			if (physicalMemory != -1) {
+				// got proper value for physical memory
+				return physicalMemory / 4;
+			} else {
 				throw new RuntimeException("Could not determine the amount of free memory.\n" +
 						"Please set the maximum memory for the JVM, e.g. -Xmx512M for 512 megabytes.");
 			}
 		}
-		
-		return maxMemory;
 	}
 
 	/**
@@ -160,23 +159,7 @@ public class EnvironmentInformation {
 	 */
 	public static long getSizeOfFreeHeapMemory() {
 		Runtime r = Runtime.getRuntime();
-		long maxMemory = r.maxMemory();
-
-		if (maxMemory == Long.MAX_VALUE) {
-			// amount of free memory unknown
-			try {
-				// workaround for Oracle JDK
-				OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
-				Class<?> clazz = Class.forName("com.sun.management.OperatingSystemMXBean");
-				Method method = clazz.getMethod("getTotalPhysicalMemorySize");
-				maxMemory = (Long) method.invoke(operatingSystemMXBean) / 4;
-			} catch (Throwable e) {
-				throw new RuntimeException("Could not determine the amount of free memory.\n" +
-						"Please set the maximum memory for the JVM, e.g. -Xmx512M for 512 megabytes.");
-			}
-		}
-
-		return maxMemory - r.totalMemory() + r.freeMemory();
+		return getMaxJvmHeapMemory() - r.totalMemory() + r.freeMemory();
 	}
 
 	/**

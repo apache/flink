@@ -103,7 +103,7 @@ public final class ExceptionUtils {
 	 * (and RuntimeException and Error). Throws this exception directly, if it is an IOException,
 	 * a RuntimeException, or an Error. Otherwise does nothing.
 	 *
-	 * @param t The throwable to be thrown.
+	 * @param t The Throwable to be thrown.
 	 */
 	public static void tryRethrowIOException(Throwable t) throws IOException {
 		if (t instanceof IOException) {
@@ -114,6 +114,30 @@ public final class ExceptionUtils {
 		}
 		else if (t instanceof Error) {
 			throw (Error) t;
+		}
+	}
+
+	/**
+	 * Re-throws the given {@code Throwable} in scenarios where the signatures allows only IOExceptions
+	 * (and RuntimeException and Error).
+	 * 
+	 * Throws this exception directly, if it is an IOException, a RuntimeException, or an Error. Otherwise it 
+	 * wraps it in an IOException and throws it.
+	 * 
+	 * @param t The Throwable to be thrown.
+	 */
+	public static void rethrowIOException(Throwable t) throws IOException {
+		if (t instanceof IOException) {
+			throw (IOException) t;
+		}
+		else if (t instanceof RuntimeException) {
+			throw (RuntimeException) t;
+		}
+		else if (t instanceof Error) {
+			throw (Error) t;
+		}
+		else {
+			throw new IOException(t);
 		}
 	}
 

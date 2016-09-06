@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn.messages;
 
-import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 import org.apache.flink.yarn.YarnFlinkResourceManager;
 import org.apache.hadoop.yarn.api.records.Container;
 
@@ -30,7 +29,7 @@ import java.util.List;
  * 
  * NOTE: This message is not serializable, because the Container object is not serializable.
  */
-public class ContainersAllocated implements RequiresLeaderSessionID {
+public class ContainersAllocated {
 	
 	private final List<Container> containers;
 	

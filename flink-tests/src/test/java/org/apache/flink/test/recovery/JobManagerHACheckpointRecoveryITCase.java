@@ -69,8 +69,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -97,10 +97,16 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		ZooKeeper.shutdown();
+		try {
+			ZooKeeper.shutdown();
+		} catch (Exception ignored) {
+		}
 
-		if (FileStateBackendBasePath != null) {
-			FileUtils.deleteDirectory(FileStateBackendBasePath);
+		try {
+			if (FileStateBackendBasePath != null) {
+				FileUtils.deleteDirectory(FileStateBackendBasePath);
+			}
+		} catch (IOException ignored) {
 		}
 	}
 
@@ -154,7 +160,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(ZooKeeper
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(ZooKeeper
 				.getConnectString(), FileStateBackendBasePath.getAbsoluteFile().toURI().toString());
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Parallelism);
 
@@ -305,7 +311,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		final String zooKeeperQuorum = ZooKeeper.getConnectString();
 		final String fileStateBackendPath = FileStateBackendBasePath.getAbsoluteFile().toString();
 
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 				zooKeeperQuorum,
 				fileStateBackendPath);
 

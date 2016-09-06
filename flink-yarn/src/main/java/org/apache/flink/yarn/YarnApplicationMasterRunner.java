@@ -22,7 +22,6 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -39,6 +38,7 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
@@ -65,6 +65,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 
 /**
  * This class is the executable entry point for the YARN application master.
@@ -165,8 +167,8 @@ public class YarnApplicationMasterRunner {
 
 	/**
 	 * The main work method, must run as a privileged action.
-	 * 
-	 * @return The return code for the Java process. 
+	 *
+	 * @return The return code for the Java process.
 	 */
 	protected int runApplicationMaster() {
 		ActorSystem actorSystem = null;
@@ -192,7 +194,7 @@ public class YarnApplicationMasterRunner {
 
 			// Flink configuration
 			final Map<String, String> dynamicProperties =
-				CliFrontend.getDynamicProperties(ENV.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
+				FlinkYarnSessionCli.getDynamicProperties(ENV.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
 			LOG.debug("YARN dynamic properties: {}", dynamicProperties);
 
 			final Configuration config = createConfiguration(currDir, dynamicProperties);
@@ -292,8 +294,7 @@ public class YarnApplicationMasterRunner {
 			// 3: Flink's Yarn ResourceManager
 			LOG.debug("Starting YARN Flink Resource Manager");
 
-			// we need the leader retrieval service here to be informed of new
-			// leader session IDs, even though there can be only one leader ever
+			// we need the leader retrieval service here to be informed of new leaders and session IDs
 			LeaderRetrievalService leaderRetriever = 
 				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
 
@@ -330,19 +331,19 @@ public class YarnApplicationMasterRunner {
 			// make sure that everything whatever ends up in the log
 			LOG.error("YARN Application Master initialization failed", t);
 
-			if (actorSystem != null) {
-				try {
-					actorSystem.shutdown();
-				} catch (Throwable tt) {
-					LOG.error("Error shutting down actor system", tt);
-				}
-			}
-
 			if (webMonitor != null) {
 				try {
 					webMonitor.stop();
 				} catch (Throwable ignored) {
 					LOG.warn("Failed to stop the web frontend", t);
+				}
+			}
+
+			if (actorSystem != null) {
+				try {
+					actorSystem.shutdown();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down actor system", tt);
 				}
 			}
 
@@ -417,14 +418,19 @@ public class YarnApplicationMasterRunner {
 	private static Configuration createConfiguration(String baseDirectory, Map<String, String> additional) {
 		LOG.info("Loading config from directory " + baseDirectory);
 
-		GlobalConfiguration.loadConfiguration(baseDirectory);
-		Configuration configuration = GlobalConfiguration.getConfiguration();
+		Configuration configuration = GlobalConfiguration.loadConfiguration(baseDirectory);
 
 		configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, baseDirectory);
 
 		// add dynamic properties to JobManager configuration.
 		for (Map.Entry<String, String> property : additional.entrySet()) {
 			configuration.setString(property.getKey(), property.getValue());
+		}
+
+		// override zookeeper namespace with user cli argument (if provided)
+		String cliZKNamespace = ENV.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);
+		if (cliZKNamespace != null && !cliZKNamespace.isEmpty()) {
+			configuration.setString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, cliZKNamespace);
 		}
 
 		// if a web monitor shall be started, set the port to random binding
@@ -438,19 +444,19 @@ public class YarnApplicationMasterRunner {
 
 		BootstrapTools.substituteDeprecatedConfigKey(configuration,
 			ConfigConstants.YARN_HEAP_CUTOFF_RATIO,
-			ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO);
+			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO);
 
 		BootstrapTools.substituteDeprecatedConfigKey(configuration,
 			ConfigConstants.YARN_HEAP_CUTOFF_MIN,
-			ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN);
+			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN);
 
 		BootstrapTools.substituteDeprecatedConfigPrefix(configuration,
 			ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX,
-			ConfigConstants.CONTAINERED_MASTER_ENV_PREFIX);
+			ConfigConstants.CONTAINERIZED_MASTER_ENV_PREFIX);
 
 		BootstrapTools.substituteDeprecatedConfigPrefix(configuration,
 			ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
-			ConfigConstants.CONTAINERED_TASK_MANAGER_ENV_PREFIX);
+			ConfigConstants.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
 		return configuration;
 	}
@@ -518,6 +524,9 @@ public class YarnApplicationMasterRunner {
 		String yarnClientUsername = env.get(YarnConfigKeys.ENV_CLIENT_USERNAME);
 		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_USERNAME);
 
+		String classPathString = env.get(YarnConfigKeys.ENV_FLINK_CLASSPATH);
+		require(classPathString != null, "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
+
 		// obtain a handle to the file system used by YARN
 		final org.apache.hadoop.fs.FileSystem yarnFileSystem;
 		try {
@@ -583,7 +592,9 @@ public class YarnApplicationMasterRunner {
 		containerEnv.putAll(tmParams.taskManagerEnv());
 
 		// add YARN classpath, etc to the container environment
-		Utils.setupEnv(yarnConfig, containerEnv);
+		containerEnv.put(ENV_FLINK_CLASSPATH, classPathString);
+		Utils.setupYarnClassPath(yarnConfig, containerEnv);
+
 		containerEnv.put(YarnConfigKeys.ENV_CLIENT_USERNAME, yarnClientUsername);
 
 		ctx.setEnvironment(containerEnv);

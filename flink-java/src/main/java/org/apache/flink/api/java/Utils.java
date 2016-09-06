@@ -204,7 +204,7 @@ public final class Utils {
 
 		@Override
 		public int hashCode() {
-			return (int) (this.count + this.hashCode());
+			return (int) (this.count + this.checksum);
 		}
 
 		@Override

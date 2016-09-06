@@ -36,6 +36,7 @@ import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.TestBaseUtils;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -56,7 +57,7 @@ import static org.junit.Assert.fail;
 
 import static org.apache.flink.test.util.TestBaseUtils.getFromHTTP;
 
-public class WebFrontendITCase {
+public class WebFrontendITCase extends TestLogger {
 
 	private static final int NUM_TASK_MANAGERS = 2;
 	private static final int NUM_SLOTS = 4;
@@ -237,6 +238,19 @@ public class WebFrontendITCase {
 			}
 
 			Thread.sleep(20);
+		}
+
+		// ensure we can access job details when its finished (FLINK-4011)
+		try (HttpTestClient client = new HttpTestClient("localhost", port)) {
+			FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
+			client.sendGetRequest("/jobs/" + jid + "/config", timeout);
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
+
+			assertEquals(HttpResponseStatus.OK, response.getStatus());
+			assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+			assertEquals("{\"jid\":\""+jid+"\",\"name\":\"Stoppable streaming test job\"," +
+					"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"default\"," +
+					"\"job-parallelism\":-1,\"object-reuse-mode\":false}}", response.getContent());
 		}
 	}
 

@@ -130,11 +130,13 @@ public class HashVsSortMiniBenchmark {
 			
 			final UnilateralSortMerger<Tuple2<Integer, String>> sorter1 = new UnilateralSortMerger<>(
 					this.memoryManager, this.ioManager, input1, this.parentTask, this.serializer1, 
-					this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f, true);
+					this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f,
+					true /*use large record handler*/, true);
 			
 			final UnilateralSortMerger<Tuple2<Integer, String>> sorter2 = new UnilateralSortMerger<>(
 					this.memoryManager, this.ioManager, input2, this.parentTask, this.serializer2, 
-					this.comparator2.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f, true);
+					this.comparator2.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f,
+					true /*use large record handler*/, true);
 			
 			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput1 = sorter1.getIterator();
 			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput2 = sorter2.getIterator();

@@ -35,12 +35,12 @@ public interface CheckpointBarrierHandler {
 
 	/**
 	 * Returns the next {@link BufferOrEvent} that the operator may consume.
-	 * This call blocks until the next BufferOrEvent is available, ir until the stream
+	 * This call blocks until the next BufferOrEvent is available, or until the stream
 	 * has been determined to be finished.
 	 * 
 	 * @return The next BufferOrEvent, or {@code null}, if the stream is finished.
-	 * @throws java.io.IOException Thrown, if the network or local disk I/O fails.
-	 * @throws java.lang.InterruptedException Thrown, if the thread is interrupted while blocking during
+	 * @throws java.io.IOException Thrown if the network or local disk I/O fails.
+	 * @throws java.lang.InterruptedException Thrown if the thread is interrupted while blocking during
 	 *                                        waiting for the next BufferOrEvent to become available.
 	 */
 	BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException;
@@ -55,13 +55,13 @@ public interface CheckpointBarrierHandler {
 	/**
 	 * Cleans up all internally held resources.
 	 * 
-	 * @throws IOException Thrown, if the cleanup of I/O resources failed.
+	 * @throws IOException Thrown if the cleanup of I/O resources failed.
 	 */
 	void cleanup() throws IOException;
 
 	/**
 	 * Checks if the barrier handler has buffered any data internally.
-	 * @return True, if no data is buffered internally, false otherwise.
+	 * @return {@code True}, if no data is buffered internally, {@code false} otherwise.
 	 */
 	boolean isEmpty();
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -35,6 +34,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -46,6 +47,8 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.*;
 
 public class LeaderChangeStateCleanupTest extends TestLogger {
+
+	private static Logger LOG = LoggerFactory.getLogger(LeaderChangeStateCleanupTest.class);
 
 	private static FiniteDuration timeout = TestingUtils.TESTING_DURATION();
 
@@ -68,7 +71,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTM);
 
-		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false, null);
+		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false);
 		cluster.start(false); // TaskManagers don't have to register at the JobManager
 
 		cluster.waitForActorsToBeAlive(); // we only wait until all actors are alive
@@ -225,10 +228,14 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		Future<Object> jobRemoval = jm.ask(new NotifyWhenJobRemoved(job.getJobID()), timeout);
 
-		// make JM(0) again the leader --> this implies first a leadership revokal
+		LOG.info("Make JM(0) again the leader. This should first revoke the leadership.");
+
+		// make JM(0) again the leader --> this implies first a leadership revocation
 		cluster.grantLeadership(0, newLeaderSessionID);
 
 		Await.ready(jobRemoval, timeout);
+
+		LOG.info("Job removed.");
 
 		// The TMs should not be able to reconnect since they don't know the current leader
 		// session ID
@@ -238,6 +245,8 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		} catch (TimeoutException e) {
 			// expected exception since the TMs have still the old leader session ID
 		}
+
+		LOG.info("Notify TMs about the new (old) leader.");
 
 		// notify the TMs about the new (old) leader
 		cluster.notifyRetrievalListeners(0, newLeaderSessionID);

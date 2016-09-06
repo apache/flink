@@ -35,7 +35,6 @@ import org.junit.Test;
 import java.util.UUID;
 
 import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
-import static org.apache.flink.client.CliFrontendTestUtils.clearGlobalConfiguration;
 import static org.junit.Assert.*;
 
 public class CliFrontendStopTest extends TestLogger {
@@ -45,7 +44,6 @@ public class CliFrontendStopTest extends TestLogger {
 	@BeforeClass
 	public static void setup() {
 		pipeSystemOutToNull();
-		clearGlobalConfiguration();
 		actorSystem = ActorSystem.create("TestingActorSystem");
 	}
 

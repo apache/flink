@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.ListState;
@@ -33,17 +33,21 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -57,7 +61,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -77,10 +81,10 @@ import static java.util.Objects.requireNonNull;
  * {@link Trigger}.
  *
  * <p>
- * When an element arrives it gets assigned a key using a {@link KeySelector} and it get's
- * assigned to zero or more windows using a {@link WindowAssigner}. Based on this the element
+ * When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
+ * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element
  * is put into panes. A pane is the bucket of elements that have the same key and same
- * {@code Window}. An element can be in multiple panes of it was assigned to multiple windows by the
+ * {@code Window}. An element can be in multiple panes if it was assigned to multiple windows by the
  * {@code WindowAssigner}.
  *
  * <p>
@@ -129,6 +133,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected final TypeSerializer<W> windowSerializer;
 
+	/**
+	 * The allowed lateness for elements. This is used for:
+	 * <ul>
+	 *     <li>Deciding if an element should be dropped from a window due to lateness.
+	 *     <li>Clearing the state of a window if the system time passes the
+	 *         {@code window.maxTimestamp + allowedLateness} landmark.
+	 * </ul>
+	 */
+	protected final long allowedLateness;
+
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
 	// ------------------------------------------------------------------------
@@ -147,6 +161,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	protected transient long currentWatermark = Long.MIN_VALUE;
 
 	protected transient Context context = new Context(null, null);
+
+	protected transient WindowAssigner.WindowAssignerContext windowAssignerContext;
 
 	// ------------------------------------------------------------------------
 	// State that needs to be checkpointed
@@ -176,7 +192,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		TypeSerializer<K> keySerializer,
 		StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
 		InternalWindowFunction<ACC, OUT, K, W> windowFunction,
-		Trigger<? super IN, ? super W> trigger) {
+		Trigger<? super IN, ? super W> trigger,
+		long allowedLateness) {
 
 		super(windowFunction);
 
@@ -187,6 +204,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		this.windowStateDescriptor = windowStateDescriptor;
 		this.trigger = requireNonNull(trigger);
+
+		Preconditions.checkArgument(allowedLateness >= 0);
+		this.allowedLateness = allowedLateness;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
@@ -229,12 +249,18 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		context = new Context(null, null);
 
+		windowAssignerContext = new WindowAssigner.WindowAssignerContext() {
+			@Override
+			public long getCurrentProcessingTime() {
+				return WindowOperator.this.getCurrentProcessingTime();
+			}
+		};
+
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			mergingWindowsByKey = new HashMap<>();
 		}
 
 		currentWatermark = Long.MIN_VALUE;
-
 	}
 
 	@Override
@@ -246,11 +272,12 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		processingTimeTimers = null;
 		processingTimeTimersQueue = null;
 		context = null;
+		windowAssignerContext = null;
 		mergingWindowsByKey = null;
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
 		super.dispose();
 		timestampedCollector = null;
 		watermarkTimers = null;
@@ -258,13 +285,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		processingTimeTimers = null;
 		processingTimeTimersQueue = null;
 		context = null;
+		windowAssignerContext = null;
 		mergingWindowsByKey = null;
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		Collection<W> elementWindows = windowAssigner.assignWindows(element.getValue(), element.getTimestamp());
+		Collection<W> elementWindows = windowAssigner.assignWindows(
+			element.getValue(), element.getTimestamp(), windowAssignerContext);
 
 		final K key = (K) getStateBackend().getCurrentKey();
 
@@ -275,7 +304,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				// If there is a merge, it can only result in a window that contains our new
 				// element because we always eagerly merge
 				final Tuple1<TriggerResult> mergeTriggerResult = new Tuple1<>(TriggerResult.CONTINUE);
-
 
 				// adding the new window might result in a merge, in that case the actualWindow
 				// is the merged window and we work with that. If we don't merge then
@@ -294,18 +322,31 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 						for (W m: mergedWindows) {
 							context.window = m;
 							context.clear();
+							deleteCleanupTimer(m);
 						}
 
 						// merge the merged state windows into the newly resulting state window
-						getStateBackend().mergePartitionedStates(stateWindowResult,
-								mergedStateWindows,
-								windowSerializer,
-								(StateDescriptor<? extends MergingState<?,?>, ?>) windowStateDescriptor);
+						getStateBackend().mergePartitionedStates(
+							stateWindowResult,
+							mergedStateWindows,
+							windowSerializer,
+							(StateDescriptor<? extends MergingState<?,?>, ?>) windowStateDescriptor);
 					}
 				});
 
+				// drop if the window is already late
+				if (isLate(actualWindow)) {
+					mergingWindows.retireWindow(actualWindow);
+					continue;
+				}
+
 				W stateWindow = mergingWindows.getStateWindow(actualWindow);
-				AppendingState<IN, ACC> windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+				if (stateWindow == null) {
+					throw new IllegalStateException("Window " + window + " is not in in-flight window set.");
+				}
+
+				AppendingState<IN, ACC> windowState = getPartitionedState(
+					stateWindow, windowSerializer, windowStateDescriptor);
 				windowState.add(element.getValue());
 
 				context.key = key;
@@ -314,104 +355,59 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				// we might have already fired because of a merge but still call onElement
 				// on the (possibly merged) window
 				TriggerResult triggerResult = context.onElement(element);
-
 				TriggerResult combinedTriggerResult = TriggerResult.merge(triggerResult, mergeTriggerResult.f0);
 
-				processTriggerResult(combinedTriggerResult, actualWindow);
-			}
+				if (combinedTriggerResult.isFire()) {
+					ACC contents = windowState.get();
+					if (contents == null) {
+						continue;
+					}
+					fire(actualWindow, contents);
+				}
 
+				if (combinedTriggerResult.isPurge()) {
+					cleanup(actualWindow, windowState, mergingWindows);
+				} else {
+					registerCleanupTimer(actualWindow);
+				}
+			}
 		} else {
 			for (W window: elementWindows) {
 
-				AppendingState<IN, ACC> windowState = getPartitionedState(window, windowSerializer,
-						windowStateDescriptor);
+				// drop if the window is already late
+				if (isLate(window)) {
+					continue;
+				}
 
+				AppendingState<IN, ACC> windowState = getPartitionedState(
+					window, windowSerializer, windowStateDescriptor);
 				windowState.add(element.getValue());
 
 				context.key = key;
 				context.window = window;
+
 				TriggerResult triggerResult = context.onElement(element);
 
-				processTriggerResult(triggerResult, window);
+				if (triggerResult.isFire()) {
+					ACC contents = windowState.get();
+					if (contents == null) {
+						continue;
+					}
+					fire(window, contents);
+				}
+
+				if (triggerResult.isPurge()) {
+					cleanup(window, windowState, null);
+				} else {
+					registerCleanupTimer(window);
+				}
 			}
-		}
-	}
-
-	/**
-	 * Retrieves the {@link MergingWindowSet} for the currently active key. The caller must
-	 * ensure that the correct key is set in the state backend.
-	 */
-	@SuppressWarnings("unchecked")
-	protected MergingWindowSet<W> getMergingWindowSet() throws Exception {
-		MergingWindowSet<W> mergingWindows = mergingWindowsByKey.get((K) getStateBackend().getCurrentKey());
-		if (mergingWindows == null) {
-			// try to retrieve from state
-
-			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
-			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
-			ListState<Tuple2<W, W>> mergeState = getStateBackend().getPartitionedState(null, VoidSerializer.INSTANCE, mergeStateDescriptor);
-
-			mergingWindows = new MergingWindowSet<>((MergingWindowAssigner<? super IN, W>) windowAssigner, mergeState);
-			mergeState.clear();
-
-			mergingWindowsByKey.put((K) getStateBackend().getCurrentKey(), mergingWindows);
-		}
-		return mergingWindows;
-	}
-
-
-	/**
-	 * Process {@link TriggerResult} for the currently active key and the given window. The caller
-	 * must ensure that the correct key is set in the state backend and the context object.
-	 */
-	@SuppressWarnings("unchecked")
-	protected void processTriggerResult(TriggerResult triggerResult, W window) throws Exception {
-		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
-			// do nothing
-			return;
-		}
-
-		AppendingState<IN, ACC> windowState;
-
-		MergingWindowSet<W> mergingWindows = null;
-
-		if (windowAssigner instanceof MergingWindowAssigner) {
-			mergingWindows = getMergingWindowSet();
-			W stateWindow = mergingWindows.getStateWindow(window);
-			windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
-
-		} else {
-			windowState = getPartitionedState(window, windowSerializer, windowStateDescriptor);
-		}
-
-		if (triggerResult.isFire()) {
-			timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
-			ACC contents = windowState.get();
-
-			userFunction.apply(context.key, context.window, contents, timestampedCollector);
-
-		}
-		if (triggerResult.isPurge()) {
-			windowState.clear();
-			if (mergingWindows != null) {
-				mergingWindows.retireWindow(window);
-			}
-			context.clear();
 		}
 	}
 
 	@Override
-	public final void processWatermark(Watermark mark) throws Exception {
-		processTriggersFor(mark);
-
-		output.emitWatermark(mark);
-
-		this.currentWatermark = mark.getTimestamp();
-	}
-
-	private void processTriggersFor(Watermark mark) throws Exception {
+	public void processWatermark(Watermark mark) throws Exception {
 		boolean fire;
-
 		do {
 			Timer<K, W> timer = watermarkTimersQueue.peek();
 			if (timer != null && timer.timestamp <= mark.getTimestamp()) {
@@ -423,16 +419,51 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				context.key = timer.key;
 				context.window = timer.window;
 				setKeyContext(timer.key);
+
+				AppendingState<IN, ACC> windowState;
+				MergingWindowSet<W> mergingWindows = null;
+
+				if (windowAssigner instanceof MergingWindowAssigner) {
+					mergingWindows = getMergingWindowSet();
+					W stateWindow = mergingWindows.getStateWindow(context.window);
+					if (stateWindow == null) {
+						// then the window is already purged and this is a cleanup
+						// timer set due to allowed lateness that has nothing to clean,
+						// so it is safe to just ignore
+						continue;
+					}
+					windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+				} else {
+					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
+				}
+
+				ACC contents = windowState.get();
+				if (contents == null) {
+					// if we have no state, there is nothing to do
+					continue;
+				}
+
 				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
-				processTriggerResult(triggerResult, context.window);
+				if (triggerResult.isFire()) {
+					fire(context.window, contents);
+				}
+
+				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp))) {
+					cleanup(context.window, windowState, mergingWindows);
+				}
+
 			} else {
 				fire = false;
 			}
 		} while (fire);
+
+		output.emitWatermark(mark);
+
+		this.currentWatermark = mark.getTimestamp();
 	}
 
 	@Override
-	public final void trigger(long time) throws Exception {
+	public void trigger(long time) throws Exception {
 		boolean fire;
 
 		//Remove information about the triggering task
@@ -450,17 +481,160 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				context.key = timer.key;
 				context.window = timer.window;
 				setKeyContext(timer.key);
+
+				AppendingState<IN, ACC> windowState;
+				MergingWindowSet<W> mergingWindows = null;
+
+				if (windowAssigner instanceof MergingWindowAssigner) {
+					mergingWindows = getMergingWindowSet();
+					W stateWindow = mergingWindows.getStateWindow(context.window);
+					if (stateWindow == null) {
+						// then the window is already purged and this is a cleanup
+						// timer set due to allowed lateness that has nothing to clean,
+						// so it is safe to just ignore
+						continue;
+					}
+					windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+				} else {
+					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
+				}
+
+				ACC contents = windowState.get();
+				if (contents == null) {
+					// if we have no state, there is nothing to do
+					continue;
+				}
+
 				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
-				processTriggerResult(triggerResult, context.window);
+				if (triggerResult.isFire()) {
+					fire(context.window, contents);
+				}
+
+				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp))) {
+					cleanup(context.window, windowState, mergingWindows);
+				}
+
 			} else {
 				fire = false;
 			}
 		} while (fire);
+	}
 
-		// Also check any watermark timers. We might have some in here since
-		// Context.registerEventTimeTimer sets a trigger if an event-time trigger is registered
-		// that is already behind the watermark.
-		processTriggersFor(new Watermark(currentWatermark));
+	/**
+	 * Cleans up the window state if the provided {@link TriggerResult} requires so, or if it
+	 * is time to do so (see {@link #isCleanupTime(Window, long)}). The caller must ensure that the
+	 * correct key is set in the state backend and the context object.
+	 */
+	private void cleanup(W window,
+						AppendingState<IN, ACC> windowState,
+						MergingWindowSet<W> mergingWindows) throws Exception {
+		windowState.clear();
+		if (mergingWindows != null) {
+			mergingWindows.retireWindow(window);
+		}
+		context.clear();
+	}
+
+	/**
+	 * Triggers the window computation if the provided {@link TriggerResult} requires so.
+	 * The caller must ensure that the correct key is set in the state backend and the context object.
+	 */
+	@SuppressWarnings("unchecked")
+	private void fire(W window, ACC contents) throws Exception {
+		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
+		userFunction.apply(context.key, context.window, contents, timestampedCollector);
+	}
+
+	/**
+	 * Retrieves the {@link MergingWindowSet} for the currently active key.
+	 * The caller must ensure that the correct key is set in the state backend.
+	 */
+	@SuppressWarnings("unchecked")
+	protected MergingWindowSet<W> getMergingWindowSet() throws Exception {
+		MergingWindowSet<W> mergingWindows = mergingWindowsByKey.get((K) getStateBackend().getCurrentKey());
+		if (mergingWindows == null) {
+			// try to retrieve from state
+
+			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
+			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
+			ListState<Tuple2<W, W>> mergeState = getStateBackend().getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergeStateDescriptor);
+
+			mergingWindows = new MergingWindowSet<>((MergingWindowAssigner<? super IN, W>) windowAssigner, mergeState);
+			mergeState.clear();
+
+			mergingWindowsByKey.put((K) getStateBackend().getCurrentKey(), mergingWindows);
+		}
+		return mergingWindows;
+	}
+
+	/**
+	 * Decides if a window is currently late or not, based on the current
+	 * watermark, i.e. the current event time, and the allowed lateness.
+	 * @param window
+	 * 					The collection of windows returned by the {@link WindowAssigner}.
+	 * @return The windows (among the {@code eligibleWindows}) for which the element should still be
+	 * 					considered when triggering.
+	 */
+	protected boolean isLate(W window) {
+		return (windowAssigner.isEventTime() && (cleanupTime(window) <= currentWatermark));
+	}
+
+	/**
+	 * Registers a timer to cleanup the content of the window.
+	 * @param window
+	 * 					the window whose state to discard
+	 */
+	protected void registerCleanupTimer(W window) {
+		long cleanupTime = cleanupTime(window);
+		if (windowAssigner.isEventTime()) {
+			context.registerEventTimeTimer(cleanupTime);
+		} else {
+			context.registerProcessingTimeTimer(cleanupTime);
+		}
+	}
+
+	/**
+	 * Deletes the cleanup timer set for the contents of the provided window.
+	 * @param window
+	 * 					the window whose state to discard
+	 */
+	protected void deleteCleanupTimer(W window) {
+		long cleanupTime = cleanupTime(window);
+		if (windowAssigner.isEventTime()) {
+			context.deleteEventTimeTimer(cleanupTime);
+		} else {
+			context.deleteProcessingTimeTimer(cleanupTime);
+		}
+	}
+
+	/**
+	 * Returns the cleanup time for a window, which is
+	 * {@code window.maxTimestamp + allowedLateness}. In
+	 * case this leads to a value greated than {@link Long#MAX_VALUE}
+	 * then a cleanup time of {@link Long#MAX_VALUE} is
+	 * returned.
+	 *
+	 * @param window the window whose cleanup time we are computing.
+	 */
+	private long cleanupTime(W window) {
+		long cleanupTime = window.maxTimestamp() + allowedLateness;
+		return cleanupTime >= window.maxTimestamp() ? cleanupTime : Long.MAX_VALUE;
+	}
+
+	/**
+	 * Decides if it is time to clean up the window state.
+	 * Clean up time for a window is:
+	 * 		<li> if it is event time, after the watermark passes the end of the window plus the user-specified allowed lateness
+	 * 		<li> if it is processing time, after the processing time at the node passes the end of the window.
+	 * 	@param window
+	 * 					the window to clean
+	 *  @param time
+	 *  				the current time (event or processing depending on the {@link WindowAssigner}
+	 *  @return {@code true} if it is time to clean up the window state, {@code false} otherwise.
+	 */
+	protected final boolean isCleanupTime(W window, long time) {
+		long cleanupTime = cleanupTime(window);
+		return  cleanupTime == time;
 	}
 
 	/**
@@ -477,6 +651,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		public Context(K key, W window) {
 			this.key = key;
 			this.window = window;
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return WindowOperator.this.getMetricGroup();
 		}
 
 		public long getCurrentWatermark() {
@@ -538,6 +717,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@Override
+		public long getCurrentProcessingTime() {
+			return WindowOperator.this.getCurrentProcessingTime();
+		}
+
+		@Override
 		public void registerProcessingTimeTimer(long time) {
 			Timer<K, W> timer = new Timer<>(time, key, window);
 			// make sure we only put one timer per key into the queue
@@ -545,7 +729,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				processingTimeTimersQueue.add(timer);
 				//If this is the first timer added for this timestamp register a TriggerTask
 				if (processingTimeTimerTimestamps.add(time, 1) == 0) {
-					ScheduledFuture<?> scheduledFuture= getRuntimeContext().registerTimer(time, WindowOperator.this);
+					ScheduledFuture<?> scheduledFuture = WindowOperator.this.registerTimer(time, WindowOperator.this);
 					processingTimeTimerFutures.put(time, scheduledFuture);
 				}
 			}
@@ -556,13 +740,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			Timer<K, W> timer = new Timer<>(time, key, window);
 			if (watermarkTimers.add(timer)) {
 				watermarkTimersQueue.add(timer);
-			}
-
-			if (time <= currentWatermark) {
-				// immediately schedule a trigger, so that we don't wait for the next
-				// watermark update to fire the watermark trigger
-				getRuntimeContext().registerTimer(System.currentTimeMillis(), WindowOperator.this);
-				//No need to put it in processingTimeTimerFutures as this timer is never removed
 			}
 		}
 
@@ -589,7 +766,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			if (watermarkTimers.remove(timer)) {
 				watermarkTimersQueue.remove(timer);
 			}
-
 		}
 
 		public TriggerResult onElement(StreamRecord<IN> element) throws Exception {
@@ -621,7 +797,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				'}';
 		}
 	}
-
 
 	/**
 	 * Internal class for keeping track of in-flight timers.
@@ -683,42 +858,29 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
 
 		if (mergingWindowsByKey != null) {
 			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
 			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
 			for (Map.Entry<K, MergingWindowSet<W>> key: mergingWindowsByKey.entrySet()) {
 				setKeyContext(key.getKey());
-				ListState<Tuple2<W, W>> mergeState = getStateBackend().getPartitionedState(null, VoidSerializer.INSTANCE, mergeStateDescriptor);
+				ListState<Tuple2<W, W>> mergeState = getStateBackend().getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergeStateDescriptor);
 				mergeState.clear();
 				key.getValue().persist(mergeState);
 			}
 		}
 
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		snapshotTimers(new DataOutputViewStreamWrapper(out));
 
-		AbstractStateBackend.CheckpointStateOutputView out =
-			getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
-
-		snapshotTimers(out);
-
-		taskState.setOperatorState(out.closeAndGetHandle());
-
-		return taskState;
+		super.snapshotState(out, checkpointId, timestamp);
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-		super.restoreState(taskState, recoveryTimestamp);
+	public void restoreState(FSDataInputStream in) throws Exception {
+		restoreTimers(new DataInputViewStreamWrapper(in));
 
-		final ClassLoader userClassloader = getUserCodeClassloader();
-
-		@SuppressWarnings("unchecked")
-		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
-		DataInputView in = inputState.getState(userClassloader);
-
-		restoreTimers(in);
+		super.restoreState(in);
 	}
 
 	private void restoreTimers(DataInputView in ) throws IOException {

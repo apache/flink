@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
+import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.junit.Test;
 import scala.Tuple2;
 
@@ -247,7 +248,8 @@ public class RemoteInputChannelTest {
 				0,
 				partitionId,
 				mock(ConnectionID.class),
-				connectionManager);
+				connectionManager,
+				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		ch.onFailedPartitionRequest();
 
@@ -266,7 +268,8 @@ public class RemoteInputChannelTest {
 				0,
 				new ResultPartitionID(),
 				mock(ConnectionID.class),
-				connManager);
+				connManager,
+				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		ch.onError(new ProducerFailedException(new RuntimeException("Expected test exception.")));
 
@@ -296,11 +299,13 @@ public class RemoteInputChannelTest {
 				.thenReturn(partitionRequestClient);
 
 		return new RemoteInputChannel(
-				inputGate,
-				0,
-				new ResultPartitionID(),
-				mock(ConnectionID.class),
-				connectionManager,
-				initialAndMaxRequestBackoff);
+			inputGate,
+			0,
+			new ResultPartitionID(),
+			mock(ConnectionID.class),
+			connectionManager,
+			initialAndMaxRequestBackoff._1(),
+			initialAndMaxRequestBackoff._2(),
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 	}
 }

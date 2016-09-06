@@ -93,10 +93,23 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	public ScheduledFuture<?> registerTimer(long time, Triggerable target) {
 		return operator.registerTimer(time, target);
 	}
-	
+
+	/**
+	 * Returns the current processing time as defined by the task's
+	 * {@link org.apache.flink.streaming.runtime.tasks.TimeServiceProvider TimeServiceProvider}
+	 */
+	public long getCurrentProcessingTime() {
+		return operator.getCurrentProcessingTime();
+	}
+
 	// ------------------------------------------------------------------------
 	//  broadcast variables
 	// ------------------------------------------------------------------------
+
+	@Override
+	public boolean hasBroadcastVariable(String name) {
+		throw new UnsupportedOperationException("Broadcast variables can only be used in DataSet programs");
+	}
 
 	@Override
 	public <RT> List<RT> getBroadcastVariable(String name) {
@@ -128,7 +141,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
 			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
-			return operator.getPartitionedState(stateProperties);
+			ListState<T> originalState = operator.getPartitionedState(stateProperties);
+			return new UserFacingListState<T>(originalState);
 		} catch (Exception e) {
 			throw new RuntimeException("Error while getting state", e);
 		}

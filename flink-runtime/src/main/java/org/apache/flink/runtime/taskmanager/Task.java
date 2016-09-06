@@ -25,7 +25,9 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -57,10 +59,12 @@ import org.apache.flink.runtime.messages.TaskMessages.FailTask;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StateUtils;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +83,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Task represents one execution of a parallel subtask on a TaskManager.
@@ -89,10 +93,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * with the JobManager.
  *
  * <p>The Flink operators (implemented as subclasses of
- * {@link org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable} have only data
- * readers, -writers, and certain event callbacks. The task connects those to the
- * network stack and actor messages, and tracks the state of the execution and
- * handles exceptions.
+ * {@link AbstractInvokable} have only data readers, -writers, and certain event callbacks.
+ * The task connects those to the network stack and actor messages, and tracks the state
+ * of the execution and handles exceptions.
  *
  * <p>Tasks have no knowledge about how they relate to other tasks, or whether they
  * are the first attempt to execute the task, or a repeated attempt. All of that
@@ -222,11 +225,17 @@ public class Task implements Runnable {
 	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized */
 	private volatile ExecutorService asyncCallDispatcher;
 
-	/** The handle to the state that the operator was initialized with. Will be set to null after the
-	 * initialization, to be memory friendly */
-	private volatile SerializedValue<StateHandle<?>> operatorState;
+	/**
+	 * The handle to the chained operator state that the task was initialized with. Will be set
+	 * to null after the initialization, to be memory friendly.
+	 */
+	private volatile ChainedStateHandle<StreamStateHandle> chainedOperatorState;
 
-	private volatile long recoveryTs;
+	/**
+	 * The handle to the key group state that the task was initialized with. Will be set
+	 * to null after the initialization, to be memory friendly.
+	 */
+	private volatile List<KeyGroupsStateHandle> keyGroupStates;
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationInterval;
@@ -239,6 +248,7 @@ public class Task implements Runnable {
 				MemoryManager memManager,
 				IOManager ioManager,
 				NetworkEnvironment networkEnvironment,
+				JobManagerCommunicationFactory jobManagerCommunicationFactory,
 				BroadcastVariableManager bcVarManager,
 				ActorGateway taskManagerActor,
 				ActorGateway jobManagerActor,
@@ -258,9 +268,9 @@ public class Task implements Runnable {
 		this.requiredJarFiles = checkNotNull(tdd.getRequiredJarFiles());
 		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
-		this.operatorState = tdd.getOperatorState();
-		this.recoveryTs = tdd.getRecoveryTimestamp();
+		this.chainedOperatorState = tdd.getOperatorState();
 		this.serializedExecutionConfig = checkNotNull(tdd.getSerializedExecutionConfig());
+		this.keyGroupStates = tdd.getKeyGroupState();
 
 		this.taskCancellationInterval = jobConfiguration.getLong(
 			ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
@@ -294,6 +304,9 @@ public class Task implements Runnable {
 		this.producedPartitions = new ResultPartition[partitions.size()];
 		this.writers = new ResultPartitionWriter[partitions.size()];
 
+		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier =
+			jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(this);
+
 		for (int i = 0; i < this.producedPartitions.length; i++) {
 			ResultPartitionDeploymentDescriptor desc = partitions.get(i);
 			ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), executionId);
@@ -305,8 +318,8 @@ public class Task implements Runnable {
 					desc.getPartitionType(),
 					desc.getEagerlyDeployConsumers(),
 					desc.getNumberOfSubpartitions(),
-					networkEnvironment.getPartitionManager(),
-					networkEnvironment.getPartitionConsumableNotifier(),
+					networkEnvironment.getResultPartitionManager(),
+					resultPartitionConsumableNotifier,
 					ioManager,
 					networkEnvironment.getDefaultIOMode());
 
@@ -317,9 +330,17 @@ public class Task implements Runnable {
 		this.inputGates = new SingleInputGate[consumedPartitions.size()];
 		this.inputGatesById = new HashMap<IntermediateDataSetID, SingleInputGate>();
 
+		PartitionStateChecker partitionStateChecker = jobManagerCommunicationFactory.createPartitionStateChecker();
+
 		for (int i = 0; i < this.inputGates.length; i++) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtaskAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment);
+				taskNameWithSubtaskAndId,
+				jobId,
+				executionId,
+				consumedPartitions.get(i),
+				networkEnvironment,
+				partitionStateChecker,
+				metricGroup.getIOMetricGroup());
 
 			this.inputGates[i] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
@@ -521,12 +542,16 @@ public class Task implements Runnable {
 			TaskInputSplitProvider splitProvider = new TaskInputSplitProvider(jobManager,
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
+			TaskKvStateRegistry kvStateRegistry = network
+					.createKvStateTaskRegistry(jobId, getJobVertexId());
+
 			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId,
 					executionConfig, taskInfo, jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
+					kvStateRegistry,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager, taskManagerConfig, metrics);
+					writers, inputGates, jobManager, taskManagerConfig, metrics, this);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
@@ -535,22 +560,11 @@ public class Task implements Runnable {
 			// the state into the task. the state is non-empty if this is an execution
 			// of a task that failed but had backuped state from a checkpoint
 
-			// get our private reference onto the stack (be safe against concurrent changes)
-			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
-			long recoveryTs = this.recoveryTs;
-
-			if (operatorState != null) {
+			if (chainedOperatorState != null || keyGroupStates != null) {
 				if (invokable instanceof StatefulTask) {
-					try {
-						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
-						StatefulTask<?> op = (StatefulTask<?>) invokable;
-						StateUtils.setOperatorState(op, state, recoveryTs);
-					}
-					catch (Exception e) {
-						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
-					}
-				}
-				else {
+					StatefulTask op = (StatefulTask) invokable;
+					op.setInitialState(chainedOperatorState, keyGroupStates);
+				} else {
 					throw new IllegalStateException("Found operator state for a non-stateful task invokable");
 				}
 			}
@@ -558,8 +572,8 @@ public class Task implements Runnable {
 			// be memory and GC friendly - since the code stays in invoke() for a potentially long time,
 			// we clear the reference to the state handle
 			//noinspection UnusedAssignment
-			operatorState = null;
-			this.operatorState = null;
+			this.chainedOperatorState = null;
+			this.keyGroupStates = null;
 
 			// ----------------------------------------------------------------
 			//  actual task core work
@@ -638,6 +652,7 @@ public class Task implements Runnable {
 						else {
 							if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
 								// proper failure of the task. record the exception as the root cause
+								LOG.error("Task execution failed. ", t);
 								failureCause = t;
 								cancelInvokable();
 
@@ -703,7 +718,7 @@ public class Task implements Runnable {
 				LOG.error(message, t);
 				notifyFatalError(message, t);
 			}
-			
+
 			// un-register the metrics at the end so that the task may already be
 			// counted as finished when this happens
 			// errors here will only be logged
@@ -933,7 +948,7 @@ public class Task implements Runnable {
 			if (invokable instanceof StatefulTask) {
 
 				// build a local closure
-				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
+				final StatefulTask statefulTask = (StatefulTask) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
@@ -974,7 +989,7 @@ public class Task implements Runnable {
 			if (invokable instanceof StatefulTask) {
 
 				// build a local closure
-				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
+				final StatefulTask statefulTask = (StatefulTask) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
@@ -1189,7 +1204,6 @@ public class Task implements Runnable {
 				// reason, we spawn a separate thread that repeatedly interrupts the user code until
 				// it exits
 				while (executer.isAlive()) {
-
 					// build the stack trace of where the thread is stuck, for the log
 					StringBuilder bld = new StringBuilder();
 					StackTraceElement[] stack = executer.getStackTrace();

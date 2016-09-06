@@ -23,7 +23,6 @@ import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
@@ -71,11 +70,4 @@ public interface RecordDeserializer<T extends IOReadableWritable> {
 	 * Setter for the reporter, e.g. for the number of records emitted and the number of bytes read.
 	 */
 	void setReporter(AccumulatorRegistry.Reporter reporter);
-
-	/**
-	 * Instantiates all metrics.
-	 *
-	 * @param metrics metric group
-	 */
-	void instantiateMetrics(IOMetricGroup metrics);
 }

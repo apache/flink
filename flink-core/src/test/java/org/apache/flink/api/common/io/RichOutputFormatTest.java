@@ -41,7 +41,7 @@ public class RichOutputFormatTest {
 	@Test
 	public void testCheckRuntimeContextAccess() {
 		final SerializedOutputFormat<Value> inputFormat = new SerializedOutputFormat<Value>();
-		final TaskInfo taskInfo = new TaskInfo("test name", 1, 3, 0);
+		final TaskInfo taskInfo = new TaskInfo("test name", 3, 1, 3, 0);
 		
 		inputFormat.setRuntimeContext(new RuntimeUDFContext(
 				taskInfo, getClass().getClassLoader(), new ExecutionConfig(),
@@ -52,4 +52,5 @@ public class RichOutputFormatTest {
 		assertEquals(inputFormat.getRuntimeContext().getIndexOfThisSubtask(), 1);
 		assertEquals(inputFormat.getRuntimeContext().getNumberOfParallelSubtasks(),3);
 	}
+
 }

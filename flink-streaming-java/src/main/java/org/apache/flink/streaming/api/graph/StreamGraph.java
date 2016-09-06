@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -357,6 +358,18 @@ public class StreamGraph extends StreamingPlan {
 			if (partitioner == null) {
 				partitioner = virtuaPartitionNodes.get(virtualId).f1;
 			}
+
+			if (partitioner instanceof ConfigurableStreamPartitioner) {
+				StreamNode downstreamNode = getStreamNode(downStreamVertexID);
+
+				ConfigurableStreamPartitioner configurableStreamPartitioner = (ConfigurableStreamPartitioner) partitioner;
+
+				// Configure the partitioner with the max parallelism. This is necessary if the
+				// partitioner has been created before the maximum parallelism has been set. The
+				// maximum parallelism is necessary for the key group mapping.
+				configurableStreamPartitioner.configure(downstreamNode.getMaxParallelism());
+			}
+
 			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames);
 		} else {
 			StreamNode upstreamNode = getStreamNode(upStreamVertexID);
@@ -404,6 +417,12 @@ public class StreamGraph extends StreamingPlan {
 	public void setParallelism(Integer vertexID, int parallelism) {
 		if (getStreamNode(vertexID) != null) {
 			getStreamNode(vertexID).setParallelism(parallelism);
+		}
+	}
+
+	public void setMaxParallelism(int vertexID, int maxParallelism) {
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setMaxParallelism(maxParallelism);
 		}
 	}
 
@@ -514,7 +533,13 @@ public class StreamGraph extends StreamingPlan {
 		return vertexIDtoLoopTimeout.get(vertexID);
 	}
 
-	public Tuple2<StreamNode, StreamNode> createIterationSourceAndSink(int loopId, int sourceId, int sinkId, long timeout, int parallelism) {
+	public Tuple2<StreamNode, StreamNode> createIterationSourceAndSink(
+		int loopId,
+		int sourceId,
+		int sinkId,
+		long timeout,
+		int parallelism,
+		int maxParallelism) {
 		StreamNode source = this.addNode(sourceId,
 			null,
 			StreamIterationHead.class,
@@ -522,6 +547,7 @@ public class StreamGraph extends StreamingPlan {
 			"IterationSource-" + loopId);
 		sources.add(source.getId());
 		setParallelism(source.getId(), parallelism);
+		setMaxParallelism(source.getId(), maxParallelism);
 
 		StreamNode sink = this.addNode(sinkId,
 			null,
@@ -530,6 +556,7 @@ public class StreamGraph extends StreamingPlan {
 			"IterationSink-" + loopId);
 		sinks.add(sink.getId());
 		setParallelism(sink.getId(), parallelism);
+		setMaxParallelism(sink.getId(), parallelism);
 
 		iterationSourceSinkPairs.add(new Tuple2<>(source, sink));
 
@@ -603,9 +630,5 @@ public class StreamGraph extends StreamingPlan {
 				pw.close();
 			}
 		}
-	}
-
-	public static enum ResourceStrategy {
-		DEFAULT, ISOLATE, NEWGROUP
 	}
 }

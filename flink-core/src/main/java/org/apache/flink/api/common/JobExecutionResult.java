@@ -34,7 +34,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 
 	private long netRuntime;
 
-	private Map<String, Object> accumulatorResults = Collections.emptyMap();
+	private final Map<String, Object> accumulatorResults;
 
 	/**
 	 * Creates a new JobExecutionResult.
@@ -49,6 +49,8 @@ public class JobExecutionResult extends JobSubmissionResult {
 
 		if (accumulators != null) {
 			this.accumulatorResults = accumulators;
+		} else {
+			this.accumulatorResults = Collections.emptyMap();
 		}
 	}
 
@@ -117,11 +119,14 @@ public class JobExecutionResult extends JobSubmissionResult {
 		return (Integer) result;
 	}
 
+
 	/**
 	 * Returns a dummy object for wrapping a JobSubmissionResult
 	 * @param result The SubmissionResult
 	 * @return a JobExecutionResult
+	 * @deprecated Will be removed in future versions.
 	 */
+	@Deprecated
 	public static JobExecutionResult fromJobSubmissionResult(JobSubmissionResult result) {
 		return new JobExecutionResult(result.getJobID(), -1, null);
 	}

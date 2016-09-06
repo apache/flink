@@ -24,18 +24,25 @@
  * equivalent to the out-degree.
  *
  * The undirected graph algorithms are:
- *   {@code VertexDegree}     annotates vertices as <v, deg(v)>
- *   {@code EdgeSourceDegree} annotates edges as <s, t, deg(s)>
- *   {@code EdgeTargetDegree} annotates edges as <s, t, deg(t)>
- *   {@code EdgeDegreePair}   annotates edges as <s, t, (deg(s), deg(t))>
+ *   {@code VertexDegree}      annotates vertices as <v, deg(v)>
+ *   {@code EdgeSourceDegree}  annotates edges as <s, t, (EV, deg(s))>
+ *   {@code EdgeTargetDegree}  annotates edges as <s, t, (EV, deg(t))>
+ *   {@code EdgeDegreePair}    annotates edges as <s, t, (EV, deg(s), deg(t))>
  *
  * The directed graph algorithms are:
- *   {@code VertexOutDegree}  annotates vertices as <v, out(v)>
- *   {@code VertexInDegree}   annotates vertices as <v, in(v)>
- *   {@code VertexDegreePair} annotates vertices as <v, (out(v), in(v))>
+ *   {@code VertexDegrees}     annotates vertices as <v, (deg(v), out(v), in(v))>
+ *   {@code VertexOutDegree}   annotates vertices as <v, out(v)>
+ *   {@code VertexInDegree}    annotates vertices as <v, in(v)>
+ *   {@code EdgeSourceDegrees} annotates edges as <s, t, (deg(s), out(s), in(s))>
+ *   {@code EdgeTargetDegrees} annotates edges as <s, t, (deg(t), out(t), in(t))>
+ *   {@code EdgeDegreesPair}   annotates edges as <s, t, ((deg(s), out(s), in(s)), (deg(t), out(t), in(t)))>
  *
- * A directed graph edge has four possible degrees: source out- and in-degree
- * and target out- and in-degree. This gives 2^4 - 1 = 15 ways to annotate
- * a directed edge.
+ * where:
+ *   EV is the original edge value
+ *   deg(x) is the number of vertex neighbors
+ *   out(x) is the number of vertex neighbors connected by an out-edge
+ *   in(x) is the number of vertex neighbors connected by an in-edge
+ *
+ * (out(x) + in(x)) / 2 <= deg(x) <= out(x) + in(x)
  */
 package org.apache.flink.graph.asm.degree.annotate;

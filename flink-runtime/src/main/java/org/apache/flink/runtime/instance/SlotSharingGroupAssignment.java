@@ -28,13 +28,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,9 +95,8 @@ public class SlotSharingGroupAssignment {
 	/** All slots currently allocated to this sharing group */
 	private final Set<SharedSlot> allSlots = new LinkedHashSet<SharedSlot>();
 
-	/** The slots available per vertex type (jid), keyed by instance, to make them locatable */
-	private final Map<AbstractID, Map<Instance, List<SharedSlot>>> availableSlotsPerJid = 
-			new LinkedHashMap<AbstractID, Map<Instance, List<SharedSlot>>>();
+	/** The slots available per vertex type (JobVertexId), keyed by TaskManager, to make them locatable */
+	private final Map<AbstractID, Map<ResourceID, List<SharedSlot>>> availableSlotsPerJid = new LinkedHashMap<>();
 
 
 	// --------------------------------------------------------------------------------------------
@@ -122,7 +123,7 @@ public class SlotSharingGroupAssignment {
 	 */
 	public int getNumberOfAvailableSlotsForGroup(AbstractID groupId) {
 		synchronized (lock) {
-			Map<Instance, List<SharedSlot>> available = availableSlotsPerJid.get(groupId);
+			Map<ResourceID, List<SharedSlot>> available = availableSlotsPerJid.get(groupId);
 
 			if (available != null) {
 				Set<SharedSlot> set = new HashSet<SharedSlot>();
@@ -148,37 +149,25 @@ public class SlotSharingGroupAssignment {
 	//  Slot allocation
 	// ------------------------------------------------------------------------
 
-	/**
-	 * 
-	 * @param sharedSlot
-	 * @param locality
-	 * @param groupId
-	 * @return
-	 */
 	public SimpleSlot addSharedSlotAndAllocateSubSlot(SharedSlot sharedSlot, Locality locality, JobVertexID groupId) {
 		return addSharedSlotAndAllocateSubSlot(sharedSlot, locality, groupId, null);
 	}
 
-	/**
-	 * 
-	 * @param sharedSlot
-	 * @param locality
-	 * @param constraint
-	 * @return
-	 */
-	public SimpleSlot addSharedSlotAndAllocateSubSlot(SharedSlot sharedSlot, Locality locality,
-														CoLocationConstraint constraint) {
+	public SimpleSlot addSharedSlotAndAllocateSubSlot(
+			SharedSlot sharedSlot, Locality locality, CoLocationConstraint constraint)
+	{
 		return addSharedSlotAndAllocateSubSlot(sharedSlot, locality, null, constraint);
 	}
-	
-	private SimpleSlot addSharedSlotAndAllocateSubSlot(SharedSlot sharedSlot, Locality locality,
-													JobVertexID groupId, CoLocationConstraint constraint) {
+
+	private SimpleSlot addSharedSlotAndAllocateSubSlot(
+			SharedSlot sharedSlot, Locality locality, JobVertexID groupId, CoLocationConstraint constraint) {
+
 		// sanity checks
 		if (!sharedSlot.isRootAndEmpty()) {
 			throw new IllegalArgumentException("The given slot is not an empty root slot.");
 		}
-		
-		final Instance location = sharedSlot.getInstance();
+
+		final ResourceID location = sharedSlot.getTaskManagerID();
 
 		synchronized (lock) {
 			// early out in case that the slot died (instance disappeared)
@@ -244,20 +233,20 @@ public class SlotSharingGroupAssignment {
 				// can place a task into this slot.
 				boolean entryForNewJidExists = false;
 				
-				for (Map.Entry<AbstractID, Map<Instance, List<SharedSlot>>> entry : availableSlotsPerJid.entrySet()) {
+				for (Map.Entry<AbstractID, Map<ResourceID, List<SharedSlot>>> entry : availableSlotsPerJid.entrySet()) {
 					// there is already an entry for this groupID
 					if (entry.getKey().equals(groupIdForMap)) {
 						entryForNewJidExists = true;
 						continue;
 					}
 
-					Map<Instance, List<SharedSlot>> available = entry.getValue();
+					Map<ResourceID, List<SharedSlot>> available = entry.getValue();
 					putIntoMultiMap(available, location, sharedSlot);
 				}
 
 				// make sure an empty entry exists for this group, if no other entry exists
 				if (!entryForNewJidExists) {
-					availableSlotsPerJid.put(groupIdForMap, new LinkedHashMap<Instance, List<SharedSlot>>());
+					availableSlotsPerJid.put(groupIdForMap, new LinkedHashMap<ResourceID, List<SharedSlot>>());
 				}
 
 				return subSlot;
@@ -287,18 +276,15 @@ public class SlotSharingGroupAssignment {
 
 	/**
 	 * 
-	 * @param vertexID
-	 * @param locationPreferences
-	 * @return
 	 */
-	SimpleSlot getSlotForTask(JobVertexID vertexID, Iterable<Instance> locationPreferences) {
+	SimpleSlot getSlotForTask(JobVertexID vertexID, Iterable<TaskManagerLocation> locationPreferences) {
 		synchronized (lock) {
-			Pair<SharedSlot, Locality> p = getSlotForTaskInternal(vertexID, locationPreferences, false);
+			Tuple2<SharedSlot, Locality> p = getSlotForTaskInternal(vertexID, locationPreferences, false);
 
 			if (p != null) {
-				SharedSlot ss = p.getLeft();
+				SharedSlot ss = p.f0;
 				SimpleSlot slot = ss.allocateSubSlot(vertexID);
-				slot.setLocality(p.getRight());
+				slot.setLocality(p.f1);
 				return slot;
 			}
 			else {
@@ -330,7 +316,7 @@ public class SlotSharingGroupAssignment {
 		return getSlotForTask(constraint, vertex.getPreferredLocations());
 	}
 	
-	SimpleSlot getSlotForTask(CoLocationConstraint constraint, Iterable<Instance> locationPreferences) {
+	SimpleSlot getSlotForTask(CoLocationConstraint constraint, Iterable<TaskManagerLocation> locationPreferences) {
 		synchronized (lock) {
 			if (constraint.isAssignedAndAlive()) {
 				// the shared slot of the co-location group is initialized and set we allocate a sub-slot
@@ -346,15 +332,16 @@ public class SlotSharingGroupAssignment {
 				if (previous == null) {
 					throw new IllegalStateException("Bug: Found assigned co-location constraint without a slot.");
 				}
-				
-				Instance location = previous.getInstance();
-				Pair<SharedSlot, Locality> p = getSlotForTaskInternal(constraint.getGroupId(),
-																		Collections.singleton(location), true);
+
+				TaskManagerLocation location = previous.getTaskManagerLocation();
+				Tuple2<SharedSlot, Locality> p = getSlotForTaskInternal(
+						constraint.getGroupId(), Collections.singleton(location), true);
+
 				if (p == null) {
 					return null;
 				}
 				else {
-					SharedSlot newSharedSlot = p.getLeft();
+					SharedSlot newSharedSlot = p.f0;
 
 					// allocate the co-location group slot inside the shared slot
 					SharedSlot constraintGroupSlot = newSharedSlot.allocateSharedSlot(constraint.getGroupId());
@@ -377,15 +364,15 @@ public class SlotSharingGroupAssignment {
 				// the location constraint has not been associated with a shared slot, yet.
 				// grab a new slot and initialize the constraint with that one.
 				// preferred locations are defined by the vertex
-				Pair<SharedSlot, Locality> p =
+				Tuple2<SharedSlot, Locality> p =
 						getSlotForTaskInternal(constraint.getGroupId(), locationPreferences, false);
 				if (p == null) {
 					// could not get a shared slot for this co-location-group
 					return null;
 				}
 				else {
-					final SharedSlot availableShared = p.getLeft();
-					final Locality l = p.getRight();
+					final SharedSlot availableShared = p.f0;
+					final Locality l = p.f1;
 
 					// allocate the co-location group slot inside the shared slot
 					SharedSlot constraintGroupSlot = availableShared.allocateSharedSlot(constraint.getGroupId());
@@ -405,9 +392,8 @@ public class SlotSharingGroupAssignment {
 	}
 
 
-	private Pair<SharedSlot, Locality> getSlotForTaskInternal(AbstractID groupId,
-																Iterable<Instance> preferredLocations,
-																boolean localOnly)
+	private Tuple2<SharedSlot, Locality> getSlotForTaskInternal(
+			AbstractID groupId, Iterable<TaskManagerLocation> preferredLocations, boolean localOnly)
 	{
 		// check if there is anything at all in this group assignment
 		if (allSlots.isEmpty()) {
@@ -415,15 +401,15 @@ public class SlotSharingGroupAssignment {
 		}
 
 		// get the available slots for the group
-		Map<Instance, List<SharedSlot>> slotsForGroup = availableSlotsPerJid.get(groupId);
+		Map<ResourceID, List<SharedSlot>> slotsForGroup = availableSlotsPerJid.get(groupId);
 		
 		if (slotsForGroup == null) {
 			// we have a new group, so all slots are available
-			slotsForGroup = new LinkedHashMap<Instance, List<SharedSlot>>();
+			slotsForGroup = new LinkedHashMap<>();
 			availableSlotsPerJid.put(groupId, slotsForGroup);
 
 			for (SharedSlot availableSlot : allSlots) {
-				putIntoMultiMap(slotsForGroup, availableSlot.getInstance(), availableSlot);
+				putIntoMultiMap(slotsForGroup, availableSlot.getTaskManagerID(), availableSlot);
 			}
 		}
 		else if (slotsForGroup.isEmpty()) {
@@ -435,15 +421,15 @@ public class SlotSharingGroupAssignment {
 		boolean didNotGetPreferred = false;
 
 		if (preferredLocations != null) {
-			for (Instance location : preferredLocations) {
+			for (TaskManagerLocation location : preferredLocations) {
 
 				// set the flag that we failed a preferred location. If one will be found,
 				// we return early anyways and skip the flag evaluation
 				didNotGetPreferred = true;
 
-				SharedSlot slot = removeFromMultiMap(slotsForGroup, location);
+				SharedSlot slot = removeFromMultiMap(slotsForGroup, location.getResourceID());
 				if (slot != null && slot.isAlive()) {
-					return new ImmutablePair<SharedSlot, Locality>(slot, Locality.LOCAL);
+					return new Tuple2<>(slot, Locality.LOCAL);
 				}
 			}
 		}
@@ -459,7 +445,7 @@ public class SlotSharingGroupAssignment {
 		SharedSlot slot;
 		while ((slot = pollFromMultiMap(slotsForGroup)) != null) {
 			if (slot.isAlive()) {
-				return new ImmutablePair<SharedSlot, Locality>(slot, locality);
+				return new Tuple2<>(slot, locality);
 			}
 		}
 		
@@ -510,7 +496,7 @@ public class SlotSharingGroupAssignment {
 							// for that group again. otherwise, the slot is part of a
 							// co-location group and nothing becomes immediately available
 
-							Map<Instance, List<SharedSlot>> slotsForJid = availableSlotsPerJid.get(groupID);
+							Map<ResourceID, List<SharedSlot>> slotsForJid = availableSlotsPerJid.get(groupID);
 
 							// sanity check
 							if (slotsForJid == null) {
@@ -518,7 +504,7 @@ public class SlotSharingGroupAssignment {
 										" when available slots indicated that all slots were available.");
 							}
 
-							putIntoMultiMap(slotsForJid, parent.getInstance(), parent);
+							putIntoMultiMap(slotsForJid, parent.getTaskManagerID(), parent);
 						}
 					} else {
 						// the parent shared slot is now empty and can be released
@@ -558,8 +544,6 @@ public class SlotSharingGroupAssignment {
 	/**
 	 * 
 	 * <p><b>NOTE: This method must be called from within a scope that holds the lock.</b></p>
-	 * 
-	 * @param sharedSlot
 	 */
 	private void internalDisposeEmptySharedSlot(SharedSlot sharedSlot) {
 		// sanity check
@@ -576,7 +560,7 @@ public class SlotSharingGroupAssignment {
 		
 		if (parent == null) {
 			// root slot, return to the instance.
-			sharedSlot.getInstance().returnAllocatedSlot(sharedSlot);
+			sharedSlot.getOwner().returnAllocatedSlot(sharedSlot);
 			
 			// also, make sure we remove this slot from everywhere
 			allSlots.remove(sharedSlot);
@@ -592,7 +576,7 @@ public class SlotSharingGroupAssignment {
 				
 				if (parentRemaining > 0) {
 					// the parent becomes available for the group again
-					Map<Instance, List<SharedSlot>> slotsForGroup = availableSlotsPerJid.get(groupID);
+					Map<ResourceID, List<SharedSlot>> slotsForGroup = availableSlotsPerJid.get(groupID);
 
 					// sanity check
 					if (slotsForGroup == null) {
@@ -600,7 +584,7 @@ public class SlotSharingGroupAssignment {
 								" when available slots indicated that all slots were available.");
 					}
 
-					putIntoMultiMap(slotsForGroup, parent.getInstance(), parent);
+					putIntoMultiMap(slotsForGroup, parent.getTaskManagerID(), parent);
 					
 				}
 				else {
@@ -620,7 +604,7 @@ public class SlotSharingGroupAssignment {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static void putIntoMultiMap(Map<Instance, List<SharedSlot>> map, Instance location, SharedSlot slot) {
+	private static void putIntoMultiMap(Map<ResourceID, List<SharedSlot>> map, ResourceID location, SharedSlot slot) {
 		List<SharedSlot> slotsForInstance = map.get(location);
 		if (slotsForInstance == null) {
 			slotsForInstance = new ArrayList<SharedSlot>();
@@ -629,7 +613,7 @@ public class SlotSharingGroupAssignment {
 		slotsForInstance.add(slot);
 	}
 	
-	private static SharedSlot removeFromMultiMap(Map<Instance, List<SharedSlot>> map, Instance location) {
+	private static SharedSlot removeFromMultiMap(Map<ResourceID, List<SharedSlot>> map, ResourceID location) {
 		List<SharedSlot> slotsForLocation = map.get(location);
 		
 		if (slotsForLocation == null) {
@@ -645,8 +629,8 @@ public class SlotSharingGroupAssignment {
 		}
 	}
 	
-	private static SharedSlot pollFromMultiMap(Map<Instance, List<SharedSlot>> map) {
-		Iterator<Map.Entry<Instance, List<SharedSlot>>> iter = map.entrySet().iterator();
+	private static SharedSlot pollFromMultiMap(Map<ResourceID, List<SharedSlot>> map) {
+		Iterator<Map.Entry<ResourceID, List<SharedSlot>>> iter = map.entrySet().iterator();
 		
 		while (iter.hasNext()) {
 			List<SharedSlot> slots = iter.next().getValue();
@@ -667,19 +651,19 @@ public class SlotSharingGroupAssignment {
 		return null;
 	}
 	
-	private static void removeSlotFromAllEntries(Map<AbstractID, Map<Instance, List<SharedSlot>>> availableSlots, 
-													SharedSlot slot)
+	private static void removeSlotFromAllEntries(
+			Map<AbstractID, Map<ResourceID, List<SharedSlot>>> availableSlots, SharedSlot slot)
 	{
-		final Instance instance = slot.getInstance();
+		final ResourceID taskManagerId = slot.getTaskManagerID();
 		
-		for (Map.Entry<AbstractID, Map<Instance, List<SharedSlot>>> entry : availableSlots.entrySet()) {
-			Map<Instance, List<SharedSlot>> map = entry.getValue();
+		for (Map.Entry<AbstractID, Map<ResourceID, List<SharedSlot>>> entry : availableSlots.entrySet()) {
+			Map<ResourceID, List<SharedSlot>> map = entry.getValue();
 
-			List<SharedSlot> list = map.get(instance);
+			List<SharedSlot> list = map.get(taskManagerId);
 			if (list != null) {
 				list.remove(slot);
 				if (list.isEmpty()) {
-					map.remove(instance);
+					map.remove(taskManagerId);
 				}
 			}
 		}

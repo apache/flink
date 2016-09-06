@@ -152,7 +152,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	public static ParameterTool fromPropertiesFile(String path) throws IOException {
 		File propertiesFile = new File(path);
 		if(!propertiesFile.exists()) {
-			throw new FileNotFoundException("Properties file "+path+" does not exist");
+			throw new FileNotFoundException("Properties file " + propertiesFile.getAbsolutePath() + " does not exist");
 		}
 		Properties props = new Properties();
 		FileInputStream fis = new FileInputStream(propertiesFile);

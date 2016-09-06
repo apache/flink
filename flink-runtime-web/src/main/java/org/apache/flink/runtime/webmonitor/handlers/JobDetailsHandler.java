@@ -66,7 +66,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 		
 		// times and duration
 		final long jobStartTime = graph.getStatusTimestamp(JobStatus.CREATED);
-		final long jobEndTime = graph.getState().isTerminalState() ?
+		final long jobEndTime = graph.getState().isGloballyTerminalState() ?
 				graph.getStatusTimestamp(graph.getState()) : -1L;
 		gen.writeNumberField("start-time", jobStartTime);
 		gen.writeNumberField("end-time", jobEndTime);

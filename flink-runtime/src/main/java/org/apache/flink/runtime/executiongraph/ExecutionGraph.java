@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -32,37 +34,34 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.SavepointCoordinator;
-import org.apache.flink.runtime.checkpoint.StateStore;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -75,12 +74,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The execution graph is the central data structure that coordinates the distributed
  * execution of a data flow. It keeps representations of each parallel task, each
@@ -102,21 +101,16 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *         about deployment of tasks and updates in the task status always use the ExecutionAttemptID to
  *         address the message receiver.</li>
  * </ul>
- * 
- * <p>The ExecutionGraph implements {@link java.io.Serializable}, because it can be archived by
- * sending it to an archive actor via an actor message. The execution graph does contain some
- * non-serializable fields. These fields are not required in the archived form and are cleared
- * in the {@link #prepareForArchiving()} method.</p>
  */
-public class ExecutionGraph implements Serializable {
-
-	private static final long serialVersionUID = 42L;
+public class ExecutionGraph {
 
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
 
 	/** The log object used for debugging. */
 	static final Logger LOG = LoggerFactory.getLogger(ExecutionGraph.class);
+
+	static final String RESTARTING_TIME_METRIC_NAME = "restartingTime";
 
 	// --------------------------------------------------------------------------------------------
 
@@ -156,12 +150,12 @@ public class ExecutionGraph implements Serializable {
 	 * accessible on all nodes in the cluster. */
 	private final List<URL> requiredClasspaths;
 
-	/** Listeners that receive messages when the entire job switches it status (such as from
-	 * RUNNING to FINISHED) */
-	private final List<ActorGateway> jobStatusListenerActors;
+	/** Listeners that receive messages when the entire job switches it status
+	 * (such as from RUNNING to FINISHED) */
+	private final List<JobStatusListener> jobStatusListeners;
 
 	/** Listeners that receive messages whenever a single task execution changes its status */
-	private final List<ActorGateway> executionListenerActors;
+	private final List<ExecutionStatusListener> executionListeners;
 
 	/** Timestamps (in milliseconds as returned by {@code System.currentTimeMillis()} when
 	 * the execution graph transitioned into a certain state. The index into this array is the
@@ -175,7 +169,7 @@ public class ExecutionGraph implements Serializable {
 	// ------ Configuration of the Execution -------
 
 	/** The execution configuration (see {@link ExecutionConfig}) related to this specific job. */
-	private SerializedValue<ExecutionConfig> serializedExecutionConfig;
+	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
@@ -184,7 +178,7 @@ public class ExecutionGraph implements Serializable {
 	/** The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
 	 * from results than need to be materialized. */
-	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
+	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
 	/** Flag to indicate whether the Graph has been archived */
 	private boolean isArchived = false;
@@ -203,32 +197,27 @@ public class ExecutionGraph implements Serializable {
 
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
-	/** The scheduler to use for scheduling new tasks as they are needed */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
-	private Scheduler scheduler;
+	/** The slot provider to use for allocating slots for tasks as they are needed */
+	private SlotProvider slotProvider;
 
 	/** Strategy to use for restarts */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private RestartStrategy restartStrategy;
 
 	/** The classloader for the user code. Needed for calls into user code classes */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ClassLoader userClassLoader;
 
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
 
-	/** The coordinator for savepoints, if snapshot checkpoints are enabled */
-	private transient SavepointCoordinator savepointCoordinator;
-
-	/** Checkpoint stats tracker seperate from the coordinator in order to be
+	/** Checkpoint stats tracker separate from the coordinator in order to be
 	 * available after archiving. */
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	/** The execution context which is used to execute futures. */
-	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ExecutionContext executionContext;
+
+	/** Registered KvState instances reported by the TaskManagers. */
+	private KvStateLocationRegistry kvStateLocationRegistry;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
@@ -258,7 +247,8 @@ public class ExecutionGraph implements Serializable {
 			restartStrategy,
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(),
-			ExecutionGraph.class.getClassLoader()
+			ExecutionGraph.class.getClassLoader(),
+			new UnregisteredMetricsGroup()
 		);
 	}
 
@@ -272,7 +262,8 @@ public class ExecutionGraph implements Serializable {
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
-			ClassLoader userClassLoader) {
+			ClassLoader userClassLoader,
+			MetricGroup metricGroup) {
 
 		checkNotNull(executionContext);
 		checkNotNull(jobId);
@@ -292,8 +283,8 @@ public class ExecutionGraph implements Serializable {
 		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
 		this.currentExecutions = new ConcurrentHashMap<ExecutionAttemptID, Execution>();
 
-		this.jobStatusListenerActors  = new CopyOnWriteArrayList<ActorGateway>();
-		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
+		this.jobStatusListeners  = new CopyOnWriteArrayList<>();
+		this.executionListeners = new CopyOnWriteArrayList<>();
 
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
@@ -306,6 +297,10 @@ public class ExecutionGraph implements Serializable {
 		this.timeout = timeout;
 
 		this.restartStrategy = restartStrategy;
+
+		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
+
+		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobId, getAllVertices());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -345,16 +340,12 @@ public class ExecutionGraph implements Serializable {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
-			int numberKeyGroups,
 			List<ExecutionJobVertex> verticesToTrigger,
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
-			ActorSystem actorSystem,
-			UUID leaderSessionID,
 			CheckpointIDCounter checkpointIDCounter,
-			CompletedCheckpointStore completedCheckpointStore,
-			RecoveryMode recoveryMode,
-			StateStore<CompletedCheckpoint> savepointStore,
+			CompletedCheckpointStore checkpointStore,
+			SavepointStore savepointStore,
 			CheckpointStatsTracker statsTracker) throws Exception {
 
 		// simple sanity checks
@@ -381,39 +372,18 @@ public class ExecutionGraph implements Serializable {
 				checkpointTimeout,
 				minPauseBetweenCheckpoints,
 				maxConcurrentCheckpoints,
-				numberKeyGroups,
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
 				userClassLoader,
 				checkpointIDCounter,
-				completedCheckpointStore,
-				recoveryMode,
+				checkpointStore,
+				savepointStore,
 				checkpointStatsTracker);
 
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
-		registerJobStatusListener(
-				checkpointCoordinator.createActivatorDeactivator(actorSystem, leaderSessionID));
-
-		// Savepoint Coordinator
-		savepointCoordinator = new SavepointCoordinator(
-				jobID,
-				interval,
-				checkpointTimeout,
-				numberKeyGroups,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				// Important: this counter needs to be shared with the periodic
-				// checkpoint coordinator.
-				checkpointIDCounter,
-				savepointStore,
-				checkpointStatsTracker);
-
-		registerJobStatusListener(savepointCoordinator
-				.createActivatorDeactivator(actorSystem, leaderSessionID));
+		registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
 	}
 
 	/**
@@ -428,14 +398,9 @@ public class ExecutionGraph implements Serializable {
 		}
 
 		if (checkpointCoordinator != null) {
-			checkpointCoordinator.shutdown();
+			checkpointCoordinator.suspend();
 			checkpointCoordinator = null;
 			checkpointStatsTracker = null;
-		}
-
-		if (savepointCoordinator != null) {
-			savepointCoordinator.shutdown();
-			savepointCoordinator = null;
 		}
 	}
 
@@ -443,8 +408,8 @@ public class ExecutionGraph implements Serializable {
 		return checkpointCoordinator;
 	}
 
-	public SavepointCoordinator getSavepointCoordinator() {
-		return savepointCoordinator;
+	public KvStateLocationRegistry getKvStateLocationRegistry() {
+		return kvStateLocationRegistry;
 	}
 
 	public RestartStrategy getRestartStrategy() {
@@ -505,8 +470,8 @@ public class ExecutionGraph implements Serializable {
 		return jsonPlan;
 	}
 
-	public Scheduler getScheduler() {
-		return scheduler;
+	public SlotProvider getSlotProvider() {
+		return slotProvider;
 	}
 
 	public JobID getJobID() {
@@ -705,38 +670,35 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	public void scheduleForExecution(Scheduler scheduler) throws JobException {
-		if (scheduler == null) {
+	public void scheduleForExecution(SlotProvider slotProvider) throws JobException {
+		if (slotProvider == null) {
 			throw new IllegalArgumentException("Scheduler must not be null.");
 		}
 
-		if (this.scheduler != null && this.scheduler != scheduler) {
-			throw new IllegalArgumentException("Cannot use different schedulers for the same job");
+		if (this.slotProvider != null && this.slotProvider != slotProvider) {
+			throw new IllegalArgumentException("Cannot use different slot providers for the same job");
 		}
 
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
-			this.scheduler = scheduler;
+			this.slotProvider = slotProvider;
 
 			switch (scheduleMode) {
 
-				case FROM_SOURCES:
+				case LAZY_FROM_SOURCES:
 					// simply take the vertices without inputs.
 					for (ExecutionJobVertex ejv : this.tasks.values()) {
 						if (ejv.getJobVertex().isInputVertex()) {
-							ejv.scheduleAll(scheduler, allowQueuedScheduling);
+							ejv.scheduleAll(slotProvider, allowQueuedScheduling);
 						}
 					}
 					break;
 
-				case ALL:
+				case EAGER:
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
-						ejv.scheduleAll(scheduler, allowQueuedScheduling);
+						ejv.scheduleAll(slotProvider, allowQueuedScheduling);
 					}
 					break;
 
-				case BACKTRACKING:
-					// go back from vertices that need computation to the ones we need to run
-					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
 				default:
 					throw new JobException("Schedule mode is invalid.");
 			}
@@ -797,21 +759,60 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	public void fail(Throwable t) {
-		if (t instanceof SuppressRestartsException) {
-			if (restartStrategy != null) {
-				// disable the restart strategy in case that we have seen a SuppressRestartsException
-				// it basically overrides the restart behaviour of a the root cause
-				restartStrategy.disable();
-			}
-		}
-
+	/**
+	 * Suspends the current ExecutionGraph.
+	 *
+	 * The JobStatus will be directly set to SUSPENDED iff the current state is not a terminal
+	 * state. All ExecutionJobVertices will be canceled and the postRunCleanup is executed.
+	 *
+	 * The SUSPENDED state is a local terminal state which stops the execution of the job but does
+	 * not remove the job from the HA job store so that it can be recovered by another JobManager.
+	 *
+	 * @param suspensionCause Cause of the suspension
+	 */
+	public void suspend(Throwable suspensionCause) {
 		while (true) {
-			JobStatus current = state;
-			if (current == JobStatus.FAILING || current.isTerminalState()) {
+			JobStatus currentState = state;
+
+			if (currentState.isGloballyTerminalState()) {
+				// stay in a terminal state
+				return;
+			} else if (transitionState(currentState, JobStatus.SUSPENDED, suspensionCause)) {
+				this.failureCause = suspensionCause;
+
+				for (ExecutionJobVertex ejv: verticesInCreationOrder) {
+					ejv.cancel();
+				}
+
+				synchronized (progressLock) {
+						postRunCleanup();
+						progressLock.notifyAll();
+
+						LOG.info("Job {} has been suspended.", getJobID());
+				}
+
 				return;
 			}
-			else if (transitionState(current, JobStatus.FAILING, t)) {
+		}
+	}
+
+	public void fail(Throwable t) {
+		while (true) {
+			JobStatus current = state;
+			// stay in these states
+			if (current == JobStatus.FAILING ||
+				current == JobStatus.SUSPENDED ||
+				current.isGloballyTerminalState()) {
+				return;
+			} else if (current == JobStatus.RESTARTING && transitionState(current, JobStatus.FAILED, t)) {
+				synchronized (progressLock) {
+					postRunCleanup();
+					progressLock.notifyAll();
+
+					LOG.info("Job {} failed during restart.", getJobID());
+					return;
+				}
+			} else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
 				if (!verticesInCreationOrder.isEmpty()) {
@@ -839,13 +840,18 @@ public class ExecutionGraph implements Serializable {
 				if (current == JobStatus.CANCELED) {
 					LOG.info("Canceled job during restart. Aborting restart.");
 					return;
-				}
-				else if (current != JobStatus.RESTARTING) {
+				} else if (current == JobStatus.FAILED) {
+					LOG.info("Failed job during restart. Aborting restart.");
+					return;
+				} else if (current == JobStatus.SUSPENDED) {
+					LOG.info("Suspended job during restart. Aborting restart.");
+					return;
+				} else if (current != JobStatus.RESTARTING) {
 					throw new IllegalStateException("Can only restart job from state restarting.");
 				}
 
-				if (scheduler == null) {
-					throw new IllegalStateException("The execution graph has not been scheduled before - scheduler is null.");
+				if (slotProvider == null) {
+					throw new IllegalStateException("The execution graph has not been scheduled before - slotProvider is null.");
 				}
 
 				this.currentExecutions.clear();
@@ -864,28 +870,22 @@ public class ExecutionGraph implements Serializable {
 				}
 
 				for (int i = 0; i < stateTimestamps.length; i++) {
-					stateTimestamps[i] = 0;
+					if (i != JobStatus.RESTARTING.ordinal()) {
+						// Only clear the non restarting state in order to preserve when the job was
+						// restarted. This is needed for the restarting time gauge
+						stateTimestamps[i] = 0;
+					}
 				}
 				numFinishedJobVertices = 0;
 				transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
 
 				// if we have checkpointed state, reload it into the executions
 				if (checkpointCoordinator != null) {
-					boolean restored = checkpointCoordinator
-							.restoreLatestCheckpointedState(getAllVertices(), false, false);
-
-					// TODO(uce) Temporary work around to restore initial state on
-					// failure during recovery. Will be superseded by FLINK-3397.
-					if (!restored && savepointCoordinator != null) {
-						String savepointPath = savepointCoordinator.getSavepointRestorePath();
-						if (savepointPath != null) {
-							savepointCoordinator.restoreSavepoint(getAllVertices(), savepointPath);
-						}
-					}
+					checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
 				}
 			}
 
-			scheduleForExecution(scheduler);
+			scheduleForExecution(slotProvider);
 		}
 		catch (Throwable t) {
 			fail(t);
@@ -908,45 +908,19 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
-	 * Restores the execution state back to a savepoint.
-	 *
-	 * <p>The execution vertices need to be in state {@link ExecutionState#CREATED} when calling
-	 * this method. The operation might block. Make sure that calls don't block the job manager
-	 * actor.
-	 *
-	 * @param savepointPath The path of the savepoint to rollback to.
-	 * @throws IllegalStateException If checkpointing is disabled
-	 * @throws IllegalStateException If checkpoint coordinator is shut down
-	 * @throws Exception If failure during rollback
-	 */
-	public void restoreSavepoint(String savepointPath) throws Exception {
-		synchronized (progressLock) {
-			if (savepointCoordinator != null) {
-				LOG.info("Restoring savepoint: " + savepointPath + ".");
-
-				savepointCoordinator.restoreSavepoint(
-						getAllVertices(), savepointPath);
-			}
-			else {
-				// Sanity check
-				throw new IllegalStateException("Checkpointing disabled.");
-			}
-		}
-	}
-
-	/**
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
 	public void prepareForArchiving() {
-		if (!state.isTerminalState()) {
+		if (!state.isGloballyTerminalState()) {
 			throw new IllegalStateException("Can only archive the job from a terminal state");
 		}
 
 		// clear the non-serializable fields
-		userClassLoader = null;
-		scheduler = null;
+		restartStrategy = null;
+		slotProvider = null;
 		checkpointCoordinator = null;
 		executionContext = null;
+		kvStateLocationRegistry = null;
 
 		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
 			vertex.prepareForArchiving();
@@ -955,8 +929,9 @@ public class ExecutionGraph implements Serializable {
 		intermediateResults.clear();
 		currentExecutions.clear();
 		requiredJarFiles.clear();
-		jobStatusListenerActors.clear();
-		executionListenerActors.clear();
+		requiredClasspaths.clear();
+		jobStatusListeners.clear();
+		executionListeners.clear();
 
 		isArchived = true;
 	}
@@ -976,7 +951,7 @@ public class ExecutionGraph implements Serializable {
 	 */
 	public void waitUntilFinished() throws InterruptedException {
 		synchronized (progressLock) {
-			while (!state.isTerminalState()) {
+			while (!state.isGloballyTerminalState()) {
 				progressLock.wait();
 			}
 		}
@@ -1029,23 +1004,28 @@ public class ExecutionGraph implements Serializable {
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						if (restartStrategy.canRestart() && transitionState(current, JobStatus.RESTARTING)) {
-							// double check in case that in the meantime a SuppressRestartsException was thrown
-							if (restartStrategy.canRestart()) {
-								restartStrategy.restart(this);
-								break;
-							} else {
-								fail(new Exception("ExecutionGraph went into RESTARTING state but " +
-									"then the restart strategy was disabled."));
-							}
+						boolean allowRestart = !(failureCause instanceof SuppressRestartsException);
 
-						} else if (!restartStrategy.canRestart() && transitionState(current, JobStatus.FAILED, failureCause)) {
+						if (allowRestart && restartStrategy.canRestart() && transitionState(current, JobStatus.RESTARTING)) {
+							restartStrategy.restart(this);
+							break;
+						} else if ((!allowRestart || !restartStrategy.canRestart()) && transitionState(current, JobStatus.FAILED, failureCause)) {
 							postRunCleanup();
 							break;
 						}
 					}
+					else if (current == JobStatus.SUSPENDED) {
+						// we've already cleaned up when entering the SUSPENDED state
+						break;
+					}
+					else if (current.isGloballyTerminalState()) {
+						LOG.warn("Job has entered globally terminal state without waiting for all " +
+							"job vertices to reach final state.");
+						break;
+					}
 					else {
 						fail(new Exception("ExecutionGraph went into final state from state " + current));
+						break;
 					}
 				}
 				// done transitioning the state
@@ -1061,21 +1041,15 @@ public class ExecutionGraph implements Serializable {
 			CheckpointCoordinator coord = this.checkpointCoordinator;
 			this.checkpointCoordinator = null;
 			if (coord != null) {
-				coord.shutdown();
+				if (state.isGloballyTerminalState()) {
+					coord.shutdown();
+				} else {
+					coord.suspend();
+				}
 			}
 
 			// We don't clean the checkpoint stats tracker, because we want
 			// it to be available after the job has terminated.
-		} catch (Exception e) {
-			LOG.error("Error while cleaning up after execution", e);
-		}
-
-		try {
-			CheckpointCoordinator coord = this.savepointCoordinator;
-			this.savepointCoordinator = null;
-			if (coord != null) {
-				coord.shutdown();
-			}
 		} catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
 		}
@@ -1194,51 +1168,88 @@ public class ExecutionGraph implements Serializable {
 	//  Listeners & Observers
 	// --------------------------------------------------------------------------------------------
 
-	public void registerJobStatusListener(ActorGateway listener) {
+	public void registerJobStatusListener(JobStatusListener listener) {
 		if (listener != null) {
-			this.jobStatusListenerActors.add(listener);
+			jobStatusListeners.add(listener);
 		}
 	}
 
-	public void registerExecutionListener(ActorGateway listener) {
+	public void registerExecutionListener(ExecutionStatusListener listener) {
 		if (listener != null) {
-			this.executionListenerActors.add(listener);
+			executionListeners.add(listener);
 		}
 	}
 
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
-		if (jobStatusListenerActors.size() > 0) {
-			ExecutionGraphMessages.JobStatusChanged message =
-					new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(),
-							error == null ? null : new SerializedThrowable(error));
+		if (jobStatusListeners.size() > 0) {
+			final long timestamp = System.currentTimeMillis();
+			final Throwable serializedError = error == null ? null : new SerializedThrowable(error);
 
-			for (ActorGateway listener: jobStatusListenerActors) {
-				listener.tell(message);
+			for (JobStatusListener listener : jobStatusListeners) {
+				try {
+					listener.jobStatusChanges(jobID, newState, timestamp, serializedError);
+				} catch (Throwable t) {
+					LOG.warn("Error while notifying JobStatusListener", t);
+				}
 			}
 		}
 	}
 
-	void notifyExecutionChange(JobVertexID vertexId, int subtask, ExecutionAttemptID executionID, ExecutionState
-							newExecutionState, Throwable error)
+	void notifyExecutionChange(
+			JobVertexID vertexId, int subtask, ExecutionAttemptID executionID,
+			ExecutionState newExecutionState, Throwable error)
 	{
 		ExecutionJobVertex vertex = getJobVertex(vertexId);
 
-		if (executionListenerActors.size() > 0) {
-			String message = error == null ? null : ExceptionUtils.stringifyException(error);
-			ExecutionGraphMessages.ExecutionStateChanged actorMessage =
-					new ExecutionGraphMessages.ExecutionStateChanged(jobID, vertexId,  vertex.getJobVertex().getName(),
-																	vertex.getParallelism(), subtask,
-																	executionID, newExecutionState,
-																	System.currentTimeMillis(), message);
+		if (executionListeners.size() > 0) {
+			final String message = error == null ? null : ExceptionUtils.stringifyException(error);
+			final long timestamp = System.currentTimeMillis();
 
-			for (ActorGateway listener : executionListenerActors) {
-				listener.tell(actorMessage);
+			for (ExecutionStatusListener listener : executionListeners) {
+				try {
+					listener.executionStatusChanged(
+							jobID, vertexId, vertex.getJobVertex().getName(),
+							vertex.getParallelism(), subtask, executionID, newExecutionState,
+							timestamp, message);
+				} catch (Throwable t) {
+					LOG.warn("Error while notifying ExecutionStatusListener", t);
+				}
 			}
 		}
 
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
 			fail(error);
+		}
+	}
+
+	/**
+	 * Gauge which returns the last restarting time. Restarting time is the time between
+	 * JobStatus.RESTARTING and JobStatus.RUNNING or a terminal state if JobStatus.RUNNING was not
+	 * reached. If the job has not yet reached either of these states, then the time is measured
+	 * since reaching JobStatus.RESTARTING. If it is still the initial job execution, then the
+	 * gauge will return 0.
+	 */
+	private class RestartTimeGauge implements Gauge<Long> {
+
+		@Override
+		public Long getValue() {
+			long restartingTimestamp = stateTimestamps[JobStatus.RESTARTING.ordinal()];
+
+			if (restartingTimestamp <= 0) {
+				// we haven't yet restarted our job
+				return 0L;
+			} else if (stateTimestamps[JobStatus.RUNNING.ordinal()] >= restartingTimestamp) {
+				// we have transitioned to RUNNING since the last restart
+				return stateTimestamps[JobStatus.RUNNING.ordinal()] - restartingTimestamp;
+			} else if (state.isTerminalState()) {
+				// since the last restart we've switched to a terminal state without touching
+				// the RUNNING state (e.g. failing from RESTARTING)
+				return stateTimestamps[state.ordinal()] - restartingTimestamp;
+			} else {
+				// we're still somwhere between RESTARTING and RUNNING
+				return System.currentTimeMillis() - restartingTimestamp;
+			}
 		}
 	}
 }

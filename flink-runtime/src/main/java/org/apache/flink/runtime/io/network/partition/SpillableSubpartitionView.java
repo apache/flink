@@ -26,8 +26,8 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 class SpillableSubpartitionView implements ResultSubpartitionView {
 
@@ -168,5 +168,12 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
+	}
+
+	@Override
+	public String toString() {
+		return String.format("SpillableSubpartitionView(index: %d) of ResultPartition %s",
+				parent.index,
+				parent.parent.getPartitionId());
 	}
 }

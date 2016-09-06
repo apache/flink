@@ -24,6 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -66,23 +67,23 @@ public final class Utils {
 	public static int calculateHeapSize(int memory, org.apache.flink.configuration.Configuration conf) {
 
 		BootstrapTools.substituteDeprecatedConfigKey(conf,
-			ConfigConstants.YARN_HEAP_CUTOFF_RATIO, ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO);
+			ConfigConstants.YARN_HEAP_CUTOFF_RATIO, ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO);
 		BootstrapTools.substituteDeprecatedConfigKey(conf,
-			ConfigConstants.YARN_HEAP_CUTOFF_MIN, ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN);
+			ConfigConstants.YARN_HEAP_CUTOFF_MIN, ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN);
 
-		float memoryCutoffRatio = conf.getFloat(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO,
+		float memoryCutoffRatio = conf.getFloat(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO,
 			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF_RATIO);
-		int minCutoff = conf.getInteger(ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN,
+		int minCutoff = conf.getInteger(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN,
 			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF);
 
 		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO
+				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO
 				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
 		}
 		if (minCutoff > memory) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN
+				+ ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN
 				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
 		}
 
@@ -94,9 +95,15 @@ public final class Utils {
 	}
 
 
-	public static void setupEnv(Configuration conf, Map<String, String> appMasterEnv) {
-		addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
-		for (String c: conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+	public static void setupYarnClassPath(Configuration conf, Map<String, String> appMasterEnv) {
+		addToEnvironment(
+			appMasterEnv,
+			Environment.CLASSPATH.name(),
+			appMasterEnv.get(YarnConfigKeys.ENV_FLINK_CLASSPATH));
+		String[] applicationClassPathEntries = conf.getStrings(
+			YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+			YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
+		for (String c : applicationClassPathEntries) {
 			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
 	}
@@ -133,10 +140,10 @@ public final class Utils {
 		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
 	}
 
-	public static void setTokensFor(ContainerLaunchContext amContainer, Path[] paths, Configuration conf) throws IOException {
+	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
 		Credentials credentials = new Credentials();
 		// for HDFS
-		TokenCache.obtainTokensForNamenodes(credentials, paths, conf);
+		TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
 		// for HBase
 		obtainTokenForHBase(credentials, conf);
 		// for user

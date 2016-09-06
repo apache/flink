@@ -15,9 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import copy
+import collections
 import types as TYPES
 
+from flink.functions.Aggregation import AggregationFunction, Min, Max, Sum
 from flink.plan.Constants import _Identifier, WriteMode, _createKeyValueTypeInfo, _createArrayTypeInfo
 from flink.plan.OperationInfo import OperationInfo
 from flink.functions.CoGroupFunction import CoGroupFunction
@@ -35,7 +36,7 @@ from flink.functions.KeySelectorFunction import KeySelectorFunction
 class Stringify(MapFunction):
     def map(self, value):
         if isinstance(value, (tuple, list)):
-            return "(" + b", ".join([self.map(x) for x in value]) + ")"
+            return "(" + ", ".join([self.map(x) for x in value]) + ")"
         else:
             return str(value)
 
@@ -152,20 +153,24 @@ class DataSet(object):
         :param operator: The GroupReduceFunction that is applied on the DataSet.
         :return:A GroupReduceOperator that represents the reduced DataSet.
         """
+        child = self._reduce_group(operator, combinable)
+        child_set = OperatorSet(self._env, child)
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
+    def _reduce_group(self, operator, combinable=False):
         if isinstance(operator, TYPES.FunctionType):
             f = operator
             operator = GroupReduceFunction()
             operator.reduce = f
         child = OperationInfo()
-        child_set = OperatorSet(self._env, child)
         child.identifier = _Identifier.GROUPREDUCE
         child.parent = self._info
         child.operator = operator
         child.types = _createArrayTypeInfo()
         child.name = "PythonGroupReduce"
-        self._info.children.append(child)
-        self._env._sets.append(child)
-        return child_set
+        return child
 
     def reduce(self, operator):
         """
@@ -191,6 +196,44 @@ class DataSet(object):
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
+
+    def aggregate(self, aggregation, field):
+        """
+        Applies an Aggregate transformation (using a GroupReduceFunction) on a non-grouped Tuple DataSet.
+        :param aggregation: The built-in aggregation function to apply on the DataSet.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated DataSet.
+        """
+        child = self._reduce_group(AggregationFunction(aggregation, field), combinable=True)
+        child.name = "PythonAggregate" + aggregation.__name__  # include aggregation type in name
+        child_set = AggregateOperator(self._env, child)
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
+    def min(self, field):
+        """
+        Syntactic sugar for the minimum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated DataSet.
+        """
+        return self.aggregate(Min, field)
+
+    def max(self, field):
+        """
+        Syntactic sugar for the maximum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated DataSet.
+        """
+        return self.aggregate(Max, field)
+
+    def sum(self, field):
+        """
+        Syntactic sugar for the sum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated DataSet.
+        """
+        return self.aggregate(Sum, field)
 
     def project(self, *fields):
         """
@@ -572,6 +615,48 @@ class DataSet(object):
         self._info.parallelism.value = parallelism
         return self
 
+    def count_elements_per_partition(self):
+        """
+        Method that goes over all the elements in each partition in order to retrieve the total number of elements.
+        :return: A DataSet containing Tuples of subtask index, number of elements mappings.
+        """
+        class CountElementsPerPartitionMapper(MapPartitionFunction):
+            def map_partition(self, iterator, collector):
+                counter = 0
+                for x in iterator:
+                    counter += 1
+
+                collector.collect((self.context.get_index_of_this_subtask(), counter))
+        return self.map_partition(CountElementsPerPartitionMapper())
+
+    def zip_with_index(self):
+        """
+        Method that assigns a unique Long value to all elements of the DataSet. The generated values are consecutive.
+        :return: A DataSet of Tuples consisting of consecutive ids and initial values.
+        """
+        element_count = self.count_elements_per_partition()
+        class ZipWithIndexMapper(MapPartitionFunction):
+            start = -1
+
+            def _run(self):
+                offsets = self.context.get_broadcast_variable("counts")
+                offsets = sorted(offsets, key=lambda t: t[0]) # sort by task ID
+                offsets = collections.deque(offsets)
+
+                # compute the offset for each partition
+                for i in range(self.context.get_index_of_this_subtask()):
+                    self.start += offsets[i][1]
+
+                super(ZipWithIndexMapper, self)._run()
+
+            def map_partition(self, iterator, collector):
+                for value in iterator:
+                    self.start += 1
+                    collector.collect((self.start, value))
+        return self\
+            .map_partition(ZipWithIndexMapper())\
+            .with_broadcast_set("counts", element_count)
+
 
 class OperatorSet(DataSet):
     def __init__(self, env, info):
@@ -584,7 +669,6 @@ class OperatorSet(DataSet):
         child.other = set._info
         child.name = name
         self._info.bcvars.append(child)
-        set._info.children.append(child)
         self._env._broadcast.append(child)
         return self
 
@@ -629,24 +713,28 @@ class Grouping(object):
         :param operator: The GroupReduceFunction that is applied on the DataSet.
         :return:A GroupReduceOperator that represents the reduced DataSet.
         """
+        child = self._reduce_group(operator, combinable)
+        child_set = OperatorSet(self._env, child)
+        self._info.parallelism = child.parallelism
+        self._info.children.append(child)
+        self._env._sets.append(child)
+
+        return child_set
+
+    def _reduce_group(self, operator, combinable=False):
         self._finalize()
         if isinstance(operator, TYPES.FunctionType):
             f = operator
             operator = GroupReduceFunction()
             operator.reduce = f
         child = OperationInfo()
-        child_set = OperatorSet(self._env, child)
         child.identifier = _Identifier.GROUPREDUCE
         child.parent = self._info
         child.operator = operator
         child.types = _createArrayTypeInfo()
         child.name = "PythonGroupReduce"
         child.key1 = self._child_chain[0].keys
-        self._info.parallelism = child.parallelism
-        self._info.children.append(child)
-        self._env._sets.append(child)
-
-        return child_set
+        return child
 
     def sort_group(self, field, order):
         """
@@ -703,6 +791,44 @@ class UnsortedGrouping(Grouping):
         self._env._sets.append(child)
 
         return child_set
+
+    def aggregate(self, aggregation, field):
+        """
+        Applies an Aggregate transformation (using a GroupReduceFunction) on a Tuple UnsortedGrouping.
+        :param aggregation: The built-in aggregation function to apply on the UnsortedGrouping.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated UnsortedGrouping.
+        """
+        child = self._reduce_group(AggregationFunction(aggregation, field), combinable=True)
+        child.name = "PythonAggregate" + aggregation.__name__  # include aggregation type in name
+        child_set = AggregateOperator(self._env, child)
+        self._env._sets.append(child)
+        self._info.children.append(child)
+        return child_set
+
+    def min(self, field):
+        """
+        Syntactic sugar for the minimum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated UnsortedGrouping.
+        """
+        return self.aggregate(Min, field)
+
+    def max(self, field):
+        """
+        Syntactic sugar for the maximum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated UnsortedGrouping.
+        """
+        return self.aggregate(Max, field)
+
+    def sum(self, field):
+        """
+        Syntactic sugar for the sum aggregation.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated UnsortedGrouping.
+        """
+        return self.aggregate(Sum, field)
 
     def _finalize(self):
         grouping = self._child_chain[0]
@@ -1066,3 +1192,18 @@ class CrossOperator(DataSet, Projectable):
         self._info.name = "PythonCross"
         self._info.uses_udf = True
         return OperatorSet(self._env, self._info)
+
+
+class AggregateOperator(OperatorSet):
+    def __init__(self, env, info):
+        super(AggregateOperator, self).__init__(env, info)
+
+    def and_agg(self, aggregation, field):
+        """
+        Applies an additional Aggregate transformation.
+        :param aggregation: The built-in aggregation operation to apply on the DataSet.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: An AggregateOperator that represents the aggregated DataSet.
+        """
+        self._info.operator.add_aggregation(aggregation, field)
+        return self

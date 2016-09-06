@@ -33,10 +33,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class NettyServer {
 
@@ -50,8 +51,11 @@ class NettyServer {
 
 	private ChannelFuture bindFuture;
 
+	private InetSocketAddress localAddress;
+
 	NettyServer(NettyConfig config) {
 		this.config = checkNotNull(config);
+		localAddress = null;
 	}
 
 	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
@@ -128,6 +132,8 @@ class NettyServer {
 
 		bindFuture = bootstrap.bind().syncUninterruptibly();
 
+		localAddress = (InetSocketAddress) bindFuture.channel().localAddress();
+
 		long end = System.currentTimeMillis();
 		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", (end - start), bindFuture.channel().localAddress().toString());
 	}
@@ -138,6 +144,10 @@ class NettyServer {
 
 	ServerBootstrap getBootstrap() {
 		return bootstrap;
+	}
+
+	public InetSocketAddress getLocalAddress() {
+		return localAddress;
 	}
 
 	void shutdown() {

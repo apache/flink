@@ -12,24 +12,33 @@
  */
 package org.apache.flink.python.api;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import static org.apache.flink.python.api.PythonPlanBinder.ARGUMENT_PYTHON_2;
-import static org.apache.flink.python.api.PythonPlanBinder.ARGUMENT_PYTHON_3;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.apache.flink.python.api.PythonPlanBinder.ARGUMENT_PYTHON_2;
+import static org.apache.flink.python.api.PythonPlanBinder.ARGUMENT_PYTHON_3;
+
 public class PythonPlanBinderTest extends JavaProgramTestBase {
+	
 	@Override
 	protected boolean skipCollectionExecution() {
 		return true;
 	}
 
+	private static String findUtilsFile() throws Exception {
+		FileSystem fs = FileSystem.getLocalFileSystem();
+		return fs.getWorkingDirectory().toString()
+				+ "/src/test/python/org/apache/flink/python/api/utils/utils.py";
+	}
+
 	private static List<String> findTestFiles() throws Exception {
-		List<String> files = new ArrayList();
+		List<String> files = new ArrayList<>();
 		FileSystem fs = FileSystem.getLocalFileSystem();
 		FileStatus[] status = fs.listStatus(
 				new Path(fs.getWorkingDirectory().toString()
@@ -63,14 +72,15 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
+		String utils = findUtilsFile();
 		if (isPython2Supported()) {
 			for (String file : findTestFiles()) {
-				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_2, file});
+				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_2, file, utils});
 			}
 		}
 		if (isPython3Supported()) {
 			for (String file : findTestFiles()) {
-				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_3, file});
+				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_3, file, utils});
 			}
 		}
 	}

@@ -6,19 +6,17 @@ http://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
-We use Markdown to write and Jekyll to translate the documentation to static HTML. Kramdown is
-needed for Markdown processing and the Python based Pygments is used for syntax highlighting. To run
-Javascript code from Ruby, you need to install a javascript runtime (e.g. `therubyracer`). You can
-install all needed software via the following commands:
+The dependencies are declared in the Gemfile in this directory. We use Markdown
+to write and Jekyll to translate the documentation to static HTML. All required
+dependencies are installed locally when you build the documentation through the
+`build_docs.sh` script. If you want to install the software manually, use Ruby's
+Bundler Gem to install all dependencies:
 
-    gem install jekyll -v 2.5.3
-    gem install kramdown -v 1.9.0
-    gem install pygments.rb -v 0.6.3
-    gem install therubyracer -v 0.12.2
-    sudo easy_install Pygments
+    gem install bundler
+    bundle install
 
-Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev` and
-`python-setuptools` packages via apt.
+Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev`
+via apt to build native code.
 
 # Using Dockerized Jekyll
 
@@ -35,11 +33,13 @@ The run.sh command brings you in a bash session where you can run following doc 
 
 # Build
 
-The `docs/build_docs.sh` script calls Jekyll and generates the documentation in `docs/target`. You
-can then point your browser to `docs/target/index.html` and start reading.
+The `docs/build_docs.sh` script installs dependencies locally, calls Jekyll, and
+generates the documentation in `docs/content`. You can then point your browser
+to `docs/content/index.html` and start reading.
 
-If you call the script with the preview flag `build_docs.sh -p`, Jekyll will start a web server at
-`localhost:4000` and watch the docs directory for updates. Use this mode to preview changes locally.
+If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
+start a web server at `localhost:4000` and watch the docs directory for
+updates. Use this mode to preview changes locally.
 
 # Contribute
 
@@ -109,43 +109,19 @@ These will be replaced by a info or warning label. You can change the text of th
 
 ### Documentation
 
-#### Top Navigation
+#### Navigation
 
-You can modify the top-level navigation in two places. You can either edit the `_includes/navbar.html` file or add tags to your page frontmatter (recommended).
+The navigation on the left side of the docs is automatically generated when building the docs. You can modify the markup in `_include/sidenav.html`.
 
-    # Top-level navigation
-    top-nav-group: apis
-    top-nav-pos: 2
-    top-nav-title: <strong>Batch Guide</strong> (DataSet API)
+The structure of the navigation is determined by the front matter of all pages. The fields used to determine the structure are:
 
-This adds the page to the group `apis` (via `top-nav-group`) at position `2` (via `top-nav-pos`). Furthermore, it specifies a custom title for the navigation via `top-nav-title`. If this field is missing, the regular page title (via `title`) will be used. If no position is specified, the element will be added to the end of the group. If no group is specified, the page will not show up.
+- `nav-id` => ID of this page. Other pages can use this ID as their parent ID.
+- `nav-parent_id` => ID of the parent. This page will be listed under the page with id `nav-parent_id`.
 
-Currently, there are groups `quickstart`, `setup`, `deployment`, `apis`, `libs`, and `internals`.
+Level 0 is made up of all pages, which have nav-parent_id set to `root`. There is no limitation on how many levels you can nest.
 
-#### Sub Navigation
+The `title` of the page is used as the default link text. You can override this via `nav-title`. The relative position per navigational level is determined by `nav-pos`.
 
-A sub navigation is shown if the field `sub-nav-group` is specified. A sub navigation groups all pages with the same `sub-nav-group`. Check out the streaming or batch guide as an example.
+If you have a page with sub pages, the link target will be used to expand the sub level navigation. If you want to actually add a link to the page as well, you can add the `nav-show_overview: true` field to the front matter. This will then add an `Overview` sub page to the expanded list.
 
-    # Sub-level navigation
-    sub-nav-group: batch
-    sub-nav-id: dataset_api
-    sub-nav-pos: 1
-    sub-nav-title: DataSet API
-
-The fields work similar to their `top-nav-*` counterparts.
-
-In addition, you can specify a hierarchy via `sub-nav-id` and `sub-nav-parent`:
-
-    # Sub-level navigation
-    sub-nav-group: batch
-    sub-nav-parent: dataset_api
-    sub-nav-pos: 1
-    sub-nav-title: Transformations
-
-This will show the `Transformations` page under the `DataSet API` page. The `sub-nav-parent` field has to have a matching `sub-nav-id`.
-
-#### Breadcrumbs
-
-Pages with sub navigations can use breadcrumbs like `Batch Guide > Libraries > Machine Learning > Optimization`.
-
-The breadcrumbs for the last page are generated from the front matter. For the a sub navigation root to appear (like `Batch Guide` in the example above), you have to specify the `sub-nav-group-title`. This field designates a group page as the root.
+The nesting is also used for the breadcrumbs like `Application Development > Libraries > Machine Learning > Optimization`.

@@ -118,6 +118,22 @@ class Environment(object):
         self._sources.append(child)
         return child_set
 
+    def generate_sequence(self, frm, to):
+        """
+        Creates a new data set that contains the given sequence
+
+        :param frm: The start number for the sequence.
+        :param to: The end number for the sequence.
+        :return: A DataSet representing the given sequence of numbers.
+        """
+        child = OperationInfo()
+        child_set = DataSet(self, child)
+        child.identifier = _Identifier.SOURCE_SEQ
+        child.frm = frm
+        child.to = to
+        self._sources.append(child)
+        return child_set
+
     def set_parallelism(self, parallelism):
         """
         Sets the parallelism for operations executed through this environment.
@@ -168,6 +184,7 @@ class Environment(object):
                 port = int(sys.stdin.readline().rstrip('\n'))
 
                 id = int(sys.stdin.readline().rstrip('\n'))
+                subtask_index = int(sys.stdin.readline().rstrip('\n'))
                 input_path = sys.stdin.readline().rstrip('\n')
                 output_path = sys.stdin.readline().rstrip('\n')
 
@@ -177,7 +194,7 @@ class Environment(object):
                     if set.id == id:
                         used_set = set
                         operator = set.operator
-                operator._configure(input_path, output_path, port, self, used_set)
+                operator._configure(input_path, output_path, port, self, used_set, subtask_index)
                 operator._go()
                 operator._close()
                 sys.stdout.flush()
@@ -202,15 +219,23 @@ class Environment(object):
         dual_input = set([_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT, _Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST, _Identifier.COGROUP, _Identifier.UNION])
         x = len(self._sets) - 1
         while x > -1:
+            # CHAIN(parent -> child) -> grand_child
+            # for all intents and purposes the child set ceases to exist; it is merged into the parent
             child = self._sets[x]
             child_type = child.identifier
             if child_type in chainable:
                 parent = child.parent
-                if parent.operator is not None and len(parent.children) == 1 and len(parent.sinks) == 0:
+                # we can only chain to an actual python udf (=> operator is not None)
+                # we may only chain if the parent has only 1 child
+                # we may only chain if the parent is not used as a broadcast variable
+                # we may only chain if the parent does not use the child as a broadcast variable
+                if parent.operator is not None and len(parent.children) == 1 and len(parent.sinks) == 0 and parent not in self._broadcast and child not in parent.bcvars:
                     parent.chained_info = child
                     parent.name += " -> " + child.name
                     parent.types = child.types
+                    # grand_children now belong to the parent
                     for grand_child in child.children:
+                        # dual_input operations have 2 parents; hence we have to change the correct one
                         if grand_child.identifier in dual_input:
                             if grand_child.parent.id == child.id:
                                 grand_child.parent = parent
@@ -218,19 +243,30 @@ class Environment(object):
                                 grand_child.other = parent
                         else:
                             grand_child.parent = parent
-                            parent.children.append(grand_child)
-                    parent.children.remove(child)
+                        parent.children.append(grand_child)
+                    # if child is used as a broadcast variable the parent must now be used instead
+                    for s in self._sets:
+                        if child in s.bcvars:
+                            s.bcvars.remove(child)
+                            s.bcvars.append(parent)
+                    for bcvar in self._broadcast:
+                        if bcvar.other.id == child.id:
+                            bcvar.other = parent
+                    # child sinks now belong to the parent
                     for sink in child.sinks:
                         sink.parent = parent
                         parent.sinks.append(sink)
+                    # child broadcast variables now belong to the parent
                     for bcvar in child.bcvars:
                         bcvar.parent = parent
                         parent.bcvars.append(bcvar)
-                    self._remove_set((child))
+                    # remove child set as it has been merged into the parent
+                    parent.children.remove(child)
+                    self._remove_set(child)
             x -= 1
 
     def _remove_set(self, set):
-        self._sets[:] = [s for s in self._sets if s.id!=set.id]
+        self._sets[:] = [s for s in self._sets if s.id != set.id]
 
     def _send_plan(self):
         self._send_parameters()
@@ -270,6 +306,8 @@ class Environment(object):
         collect(set.delimiter_field)
         collect(set.write_mode)
         collect(set.path)
+        collect(set.frm)
+        collect(set.to)
         collect(set.id)
         collect(set.to_err)
         collect(set.count)

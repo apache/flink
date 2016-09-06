@@ -26,7 +26,11 @@ import org.apache.flink.streaming.connectors.elasticsearch2.RequestIndexer;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -60,7 +64,10 @@ public class ElasticsearchExample {
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
-		source.addSink(new ElasticsearchSink<>(config, null, new ElasticsearchSinkFunction<String>(){
+		List<InetSocketAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+
+		source.addSink(new ElasticsearchSink<>(config, transports, new ElasticsearchSinkFunction<String>(){
 			@Override
 			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
 				indexer.add(createIndexRequest(element));
@@ -70,7 +77,7 @@ public class ElasticsearchExample {
 		env.execute("Elasticsearch Example");
 	}
 
-	public static IndexRequest createIndexRequest(String element) {
+	private static IndexRequest createIndexRequest(String element) {
 		Map<String, Object> json = new HashMap<>();
 		json.put("data", element);
 

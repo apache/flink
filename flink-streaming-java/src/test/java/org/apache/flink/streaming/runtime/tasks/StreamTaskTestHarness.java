@@ -113,6 +113,13 @@ public class StreamTaskTestHarness<OUT> {
 		outputStreamRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outputSerializer);
 	}
 
+	public long getCurrentProcessingTime() {
+		if (!(task instanceof StreamTask)) {
+			System.currentTimeMillis();
+		}
+		return ((StreamTask) task).getCurrentProcessingTime();
+	}
+
 	/**
 	 * This must be overwritten for OneInputStreamTask or TwoInputStreamTask test harnesses.
 	 */
@@ -179,26 +186,68 @@ public class StreamTaskTestHarness<OUT> {
 		taskThread.start();
 	}
 
+	/**
+	 * Waits for the task completion.
+	 *
+	 * @throws Exception
+	 */
 	public void waitForTaskCompletion() throws Exception {
+		waitForTaskCompletion(Long.MAX_VALUE);
+	}
+
+	/**
+	 * Waits for the task completion. If this does not happen within the timeout, then a
+	 * TimeoutException is thrown.
+	 *
+	 * @param timeout Timeout for the task completion
+	 * @throws Exception
+	 */
+	public void waitForTaskCompletion(long timeout) throws Exception {
 		if (taskThread == null) {
 			throw new IllegalStateException("Task thread was not started.");
 		}
 
-		taskThread.join();
+		taskThread.join(timeout);
 		if (taskThread.getError() != null) {
 			throw new Exception("error in task", taskThread.getError());
 		}
 	}
 
+	/**
+	 * Waits for the task to be running.
+	 *
+	 * @throws Exception
+	 */
 	public void waitForTaskRunning() throws Exception {
+		waitForTaskRunning(Long.MAX_VALUE);
+	}
+
+	/**
+	 * Waits fro the task to be running. If this does not happen within the timeout, then a
+	 * TimeoutException is thrown.
+	 *
+	 * @param timeout Timeout for the task to be running.
+	 * @throws Exception
+	 */
+	public void waitForTaskRunning(long timeout) throws Exception {
 		if (taskThread == null) {
 			throw new IllegalStateException("Task thread was not started.");
 		}
 		else {
 			if (taskThread.task instanceof StreamTask) {
+				long base = System.currentTimeMillis();
+				long now = 0;
+
 				StreamTask<?, ?> streamTask = (StreamTask<?, ?>) taskThread.task;
 				while (!streamTask.isRunning()) {
 					Thread.sleep(100);
+					if (!taskThread.isAlive()) {
+						if (taskThread.getError() != null) {
+							throw new Exception("Task Thread failed due to an error.", taskThread.getError());
+						} else {
+							throw new Exception("Task Thread unexpectedly shut down.");
+						}
+					}
 				}
 			}
 			else {

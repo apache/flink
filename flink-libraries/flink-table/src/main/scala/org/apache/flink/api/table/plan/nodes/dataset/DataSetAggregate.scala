@@ -28,7 +28,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
-import org.apache.flink.api.table.{BatchTableEnvironment, Row}
+import org.apache.flink.api.table.{FlinkTypeFactory, BatchTableEnvironment, Row}
 
 import scala.collection.JavaConverters._
 
@@ -100,8 +100,7 @@ class DataSetAggregate(
 
     // get the output types
     val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
-    .map(f => f.getType.getSqlTypeName)
-    .map(n => TypeConverter.sqlTypeToTypeInfo(n))
+    .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
     .toArray
 
     val aggString = aggregationToString
@@ -111,7 +110,7 @@ class DataSetAggregate(
       .name(prepareOpName)
 
     val groupReduceFunction = aggregateResult._2
-    val rowTypeInfo = new RowTypeInfo(fieldTypes, rowType.getFieldNames.asScala)
+    val rowTypeInfo = new RowTypeInfo(fieldTypes)
 
     val result = {
       if (groupingKeys.length > 0) {
@@ -145,7 +144,7 @@ class DataSetAggregate(
           false,
           rowTypeInfo.asInstanceOf[TypeInformation[Any]],
           expectedType.get,
-          "AggregateOutputConversion",
+          "DataSetAggregateConversion",
           rowType.getFieldNames.asScala
         ))
         .name(mapName)

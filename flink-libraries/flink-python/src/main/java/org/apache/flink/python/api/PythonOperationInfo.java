@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple;
 import static org.apache.flink.api.java.typeutils.TypeExtractor.getForObject;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
@@ -31,7 +30,6 @@ public class PythonOperationInfo {
 	public String[] keys1; //join/cogroup keys
 	public String[] keys2; //join/cogroup keys
 	public TypeInformation<?> types; //typeinformation about output type
-	public AggregationEntry[] aggregates;
 	public Object[] values;
 	public int count;
 	public String field;
@@ -39,7 +37,7 @@ public class PythonOperationInfo {
 	public String path;
 	public String fieldDelimiter;
 	public String lineDelimiter;
-	public long from;
+	public long frm;
 	public long to;
 	public WriteMode writeMode;
 	public boolean toError;
@@ -83,6 +81,8 @@ public class PythonOperationInfo {
 			? WriteMode.OVERWRITE
 			: WriteMode.NO_OVERWRITE;
 		path = (String) streamer.getRecord();
+		frm = (Long) streamer.getRecord();
+		to = (Long) streamer.getRecord();
 		setID = (Integer) streamer.getRecord(true);
 		toError = (Boolean) streamer.getRecord();
 		count = (Integer) streamer.getRecord(true);
@@ -92,15 +92,6 @@ public class PythonOperationInfo {
 			values[x] = streamer.getRecord();
 		}
 		parallelism = (Integer) streamer.getRecord(true);
-
-		/*
-		aggregates = new AggregationEntry[count];
-		for (int x = 0; x < count; x++) {
-			int encodedAgg = (Integer) streamer.getRecord(true);
-			int field = (Integer) streamer.getRecord(true);
-			aggregates[x] = new AggregationEntry(encodedAgg, field);
-		}
-		*/
 	}
 
 	@Override
@@ -114,43 +105,17 @@ public class PythonOperationInfo {
 		sb.append("Keys1: ").append(Arrays.toString(keys1)).append("\n");
 		sb.append("Keys2: ").append(Arrays.toString(keys2)).append("\n");
 		sb.append("Keys: ").append(Arrays.toString(keys)).append("\n");
-		sb.append("Aggregates: ").append(Arrays.toString(aggregates)).append("\n");
 		sb.append("Count: ").append(count).append("\n");
 		sb.append("Field: ").append(field).append("\n");
 		sb.append("Order: ").append(order.toString()).append("\n");
 		sb.append("Path: ").append(path).append("\n");
 		sb.append("FieldDelimiter: ").append(fieldDelimiter).append("\n");
 		sb.append("LineDelimiter: ").append(lineDelimiter).append("\n");
-		sb.append("From: ").append(from).append("\n");
+		sb.append("From: ").append(frm).append("\n");
 		sb.append("To: ").append(to).append("\n");
 		sb.append("WriteMode: ").append(writeMode).append("\n");
 		sb.append("toError: ").append(toError).append("\n");
 		return sb.toString();
-	}
-
-	public static class AggregationEntry {
-		public Aggregations agg;
-		public int field;
-
-		public AggregationEntry(int encodedAgg, int field) {
-			switch (encodedAgg) {
-				case 0:
-					agg = Aggregations.MAX;
-					break;
-				case 1:
-					agg = Aggregations.MIN;
-					break;
-				case 2:
-					agg = Aggregations.SUM;
-					break;
-			}
-			this.field = field;
-		}
-
-		@Override
-		public String toString() {
-			return agg.toString() + " - " + field;
-		}
 	}
 
 	public enum DatasizeHint {

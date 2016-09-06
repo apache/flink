@@ -24,6 +24,18 @@ package org.apache.flink.api.table
 case class ExpressionParserException(msg: String) extends RuntimeException(msg)
 
 /**
+  * Exception for all errors occurring during sql parsing.
+  */
+case class SqlParserException(
+    msg: String,
+    cause: Throwable)
+  extends RuntimeException(msg, cause) {
+
+  def this(msg: String) = this(msg, null)
+
+}
+
+/**
   * General Exception for all errors during table handling.
   */
 case class TableException(msg: String) extends RuntimeException(msg)
@@ -31,7 +43,18 @@ case class TableException(msg: String) extends RuntimeException(msg)
 /**
   * Exception for all errors occurring during validation phase.
   */
-case class ValidationException(msg: String) extends RuntimeException(msg)
+case class ValidationException(
+    msg: String,
+    cause: Throwable)
+  extends RuntimeException(msg, cause) {
+
+  def this(msg: String) = this(msg, null)
+
+}
+
+object ValidationException {
+  def apply(msg: String): ValidationException = new ValidationException(msg)
+}
 
 /**
   * Exception for unwanted method calling on unresolved expression.

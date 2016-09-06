@@ -56,18 +56,19 @@ public class AsmTestBase {
 	protected Graph<LongValue,NullValue,NullValue> undirectedRMatGraph;
 
 	@Before
-	public void setup() {
+	public void setup()
+			throws Exception {
 		env = ExecutionEnvironment.createCollectionsEnvironment();
 
 		// the "fish" graph
 		Object[][] edges = new Object[][] {
 			new Object[]{0, 1},
 			new Object[]{0, 2},
-			new Object[]{1, 2},
-			new Object[]{1, 3},
+			new Object[]{2, 1},
 			new Object[]{2, 3},
+			new Object[]{3, 1},
 			new Object[]{3, 4},
-			new Object[]{3, 5},
+			new Object[]{5, 3},
 		};
 
 		List<Edge<IntValue,NullValue>> directedEdgeList = new LinkedList<>();
@@ -92,11 +93,13 @@ public class AsmTestBase {
 		long rmatVertexCount = 1L << 10;
 		long rmatEdgeCount = 16 * rmatVertexCount;
 
-		directedRMatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
+		Graph<LongValue,NullValue,NullValue> rmatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
 			.generate();
 
-		undirectedRMatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
-			.setSimpleGraph(true, false)
-			.generate();
+		directedRMatGraph = rmatGraph
+			.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+
+		undirectedRMatGraph = rmatGraph
+			.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
 	}
 }
