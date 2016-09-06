@@ -1,5 +1,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -15,18 +16,23 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
 
+import akka.actor.ActorSystem;
 import akka.dispatch.ExecutionContexts$;
-
+import akka.util.Timeout;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -40,30 +46,158 @@ import java.net.InetAddress;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * An abstract factory for creating {@link TaskExecutor} and starting it.
- * The abstract method {@link #createAndStartTaskExecutor()} should be implemented
- * in different mode (testing, standalone, yarn).
+ * This class is the executable entry point for the task manager in yarn or standalone mode.
+ * It constructs the related components (network, I/O manager, memory manager, RPC service, HA service)
+ * and starts them.
  */
-public abstract class TaskExecutorFactory {
+public class TaskExecutorRunner {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(TaskExecutorFactory.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorRunner.class);
 
-	/** The configuration used for parsing and generating related components of task manager */
-	protected final Configuration configuration;
+	/**
+	 * Constructs related components of the TaskManager and starts them.
+	 *
+	 * @param configuration                 The configuration for the TaskManager.
+	 * @param resourceID                    The id of the resource which the task manager will run on.
+	 * @param rpcService                    Optionally, The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
+	 *                                                 If none is given, then a RpcService is constructed from the configuration.
+	 * @param taskManagerHostname   Optionally, The hostname/address that describes the TaskManager's data location.
+	 *                                                 If none is given, it can be got from the configuration.
+	 * @param localTaskManagerCommunication      If true, the TaskManager will not initiate the TCP network stack.
+	 * @param haServices                    Optionally, a high availability service can be provided. If none is given,
+	 *                                                 then a HighAvailabilityServices is constructed from the configuration.
+	 */
+	public static void startComponents(
+		final Configuration configuration,
+		final ResourceID resourceID,
+		RpcService rpcService,
+		String taskManagerHostname,
+		boolean localTaskManagerCommunication,
+		HighAvailabilityServices haServices) throws Exception {
 
-	/** The unique resource ID of created task manager */
-	protected final ResourceID resourceID;
+		checkNotNull(configuration);
+		checkNotNull(resourceID);
 
-	protected TaskExecutorFactory(Configuration configuration, ResourceID resourceID){
-		this.configuration = configuration;
-		this.resourceID = resourceID;
+		if (taskManagerHostname == null || taskManagerHostname.isEmpty()) {
+			taskManagerHostname = selectNetworkInterface(configuration);
+		}
+
+		if (rpcService == null) {
+			// if no task manager port has been configured, use 0 (system will pick any free port)
+			final int actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
+			if (actorSystemPort < 0 || actorSystemPort > 65535) {
+				throw new IllegalConfigurationException("Invalid value for '" +
+					ConfigConstants.TASK_MANAGER_IPC_PORT_KEY +
+					"' (port for the TaskManager actor system) : " + actorSystemPort +
+					" - Leave config parameter empty or use 0 to let the system choose a port automatically.");
+			}
+			rpcService = createRpcService(configuration, taskManagerHostname, actorSystemPort);
+		}
+
+		if(haServices == null) {
+			// start high availability service to implement getResourceManagerLeaderRetriever method only
+			haServices = new HighAvailabilityServices() {
+				@Override
+				public LeaderRetrievalService getResourceManagerLeaderRetriever() throws Exception {
+					return LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
+				}
+
+				@Override
+				public LeaderElectionService getResourceManagerLeaderElectionService() throws Exception {
+					return null;
+				}
+
+				@Override
+				public LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception {
+					return null;
+				}
+			};
+		}
+
+		startTaskManagerComponents(
+			configuration,
+			resourceID,
+			rpcService,
+			taskManagerHostname,
+			haServices,
+			localTaskManagerCommunication);
 	}
 
 	/**
-	 * creates and starts related components of task executor
+	 * <p/>
+	 * This method tries to select the network interface to use for the TaskManager
+	 * communication. The network interface is used both for the actor communication
+	 * (coordination) as well as for the data exchange between task managers. Unless
+	 * the hostname/interface is explicitly configured in the configuration, this
+	 * method will try out various interfaces and methods to connect to the JobManager
+	 * and select the one where the connection attempt is successful.
+	 * <p/>
+	 *
+	 * @param configuration    The configuration for the TaskManager.
+	 * @return  The host name under which the TaskManager communicates.
 	 */
-	abstract TaskExecutor createAndStartTaskExecutor() throws Exception;
+	private static String selectNetworkInterface(Configuration configuration) throws Exception {
+		String taskManagerHostname = configuration.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null);
+		if (taskManagerHostname != null) {
+			LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname);
+		} else {
+			LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration);
+			FiniteDuration lookupTimeout = AkkaUtils.getLookupTimeout(configuration);
+
+			InetAddress taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, lookupTimeout);
+			taskManagerHostname = taskManagerAddress.getHostName();
+			LOG.info("TaskManager will use hostname/address '{}' ({}) for communication.",
+				taskManagerHostname, taskManagerAddress.getHostAddress());
+		}
+
+		return taskManagerHostname;
+	}
+
+	/**
+	 * Utility method to create RPC service from configuration and hostname, port.
+	 *
+	 * @param configuration                 The configuration for the TaskManager.
+	 * @param taskManagerHostname   The hostname/address that describes the TaskManager's data location.
+	 * @param actorSystemPort           If true, the TaskManager will not initiate the TCP network stack.
+	 * @return   The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
+	 * @throws java.io.IOException      Thrown, if the actor system can not bind to the address
+	 * @throws java.lang.Exception      Thrown is some other error occurs while creating akka actor system
+	 */
+	private static RpcService createRpcService(Configuration configuration, String taskManagerHostname, int actorSystemPort)
+		throws Exception{
+
+		// Bring up the TaskManager actor system first, bind it to the given address.
+
+		LOG.info("Starting TaskManager actor system at " +
+			NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort));
+
+		final ActorSystem taskManagerSystem;
+		try {
+			Tuple2<String, Object> address = new Tuple2<String, Object>(taskManagerHostname, actorSystemPort);
+			Config akkaConfig = AkkaUtils.getAkkaConfig(configuration, new Some<>(address));
+			LOG.debug("Using akka configuration\n " + akkaConfig);
+			taskManagerSystem = AkkaUtils.createActorSystem(akkaConfig);
+		} catch (Throwable t) {
+			if (t instanceof org.jboss.netty.channel.ChannelException) {
+				Throwable cause = t.getCause();
+				if (cause != null && t.getCause() instanceof java.net.BindException) {
+					String address = NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort);
+					throw new IOException("Unable to bind TaskManager actor system to address " +
+						address + " - " + cause.getMessage(), t);
+				}
+			}
+			throw new Exception("Could not create TaskManager actor system", t);
+		}
+
+		// start akka rpc service based on actor system
+		final Timeout timeout = new Timeout(AkkaUtils.getTimeout(configuration).toMillis(), TimeUnit.MILLISECONDS);
+		final AkkaRpcService akkaRpcService = new AkkaRpcService(taskManagerSystem, timeout);
+
+		return akkaRpcService;
+	}
 
 	/**
 	 * @param configuration                 The configuration for the TaskManager.
@@ -73,14 +207,13 @@ public abstract class TaskExecutorFactory {
 	 * @param haServices                    Optionally, a high availability service can be provided. If none is given,
 	 *                                                  then a HighAvailabilityServices is constructed from the configuration.
 	 * @param localTaskManagerCommunication     If true, the TaskManager will not initiate the TCP network stack.
-	 * @return  An ActorRef to the TaskManager actor.
 	 * @throws  org.apache.flink.configuration.IllegalConfigurationException        Thrown, if the given config contains illegal values.
 	 * @throws java.io.IOException      Thrown, if any of the I/O components (such as buffer pools, I/O manager, ...)
 	 *                                              cannot be properly started.
 	 * @throws java.lang.Exception      Thrown is some other error occurs while parsing the configuration or
 	 *                                              starting the TaskManager components.
 	 */
-	protected TaskExecutor startTaskManagerComponentsAndActor(
+	private static void startTaskManagerComponents(
 		Configuration configuration,
 		ResourceID resourceID,
 		RpcService rpcService,
@@ -197,7 +330,7 @@ public abstract class TaskExecutorFactory {
 			rpcService,
 			haServices);
 
-		return taskExecutor;
+		taskExecutor.start();
 	}
 
 	// --------------------------------------------------------------------------
@@ -208,13 +341,13 @@ public abstract class TaskExecutorFactory {
 	 * Utility method to extract TaskManager config parameters from the configuration and to
 	 * sanity check them.
 	 *
-	 * @param configuration                 The configuration.
+	 * @param configuration                         The configuration.
 	 * @param taskManagerHostname           The host name under which the TaskManager communicates.
 	 * @param localTaskManagerCommunication             True, to skip initializing the network stack.
 	 *                                      Use only in cases where only one task manager runs.
 	 * @return TaskExecutorConfiguration that wrappers InstanceConnectionInfo, NetworkEnvironmentConfiguration, etc.
 	 */
-	private TaskExecutorConfiguration parseTaskManagerConfiguration(
+	private static TaskExecutorConfiguration parseTaskManagerConfiguration(
 		Configuration configuration,
 		String taskManagerHostname,
 		boolean localTaskManagerCommunication) throws Exception {
@@ -424,12 +557,12 @@ public abstract class TaskExecutorFactory {
 	 * Validates a condition for a config parameter and displays a standard exception, if the
 	 * the condition does not hold.
 	 *
-	 * @param condition         The condition that must hold. If the condition is false, an exception is thrown.
+	 * @param condition             The condition that must hold. If the condition is false, an exception is thrown.
 	 * @param parameter         The parameter value. Will be shown in the exception message.
 	 * @param name              The name of the config parameter. Will be shown in the exception message.
 	 * @param errorMessage  The optional custom error message to append to the exception message.
 	 */
-	private void checkConfigParameter(
+	private static void checkConfigParameter(
 		boolean condition,
 		Object parameter,
 		String name,
@@ -447,7 +580,7 @@ public abstract class TaskExecutorFactory {
 	 * @throws Exception    Thrown if any of the directories does not exist or is not writable
 	 *                   or is a file, rather than a directory.
 	 */
-	private void checkTempDirs(String[] tmpDirs) throws IOException {
+	private static void checkTempDirs(String[] tmpDirs) throws IOException {
 		for (String dir : tmpDirs) {
 			if (dir != null && !dir.equals("")) {
 				File file = new File(dir);

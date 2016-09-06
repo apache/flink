@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.NonHaServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.util.TestLogger;
@@ -50,9 +52,17 @@ public class TaskExecutorTest extends TestLogger {
 			rpc.registerGateway(resourceManagerAddress, rmGateway);
 
 			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
-			StandaloneTaskExecutorFactory taskExecutorFactory = new StandaloneTaskExecutorFactory(
-				new Configuration(), resourceID, rpc, "localhost", haServices);
-			TaskExecutor taskManager = taskExecutorFactory.createAndStartTaskExecutor();
+			TaskExecutor taskManager = new TaskExecutor(
+				mock(TaskExecutorConfiguration.class),
+				resourceID,
+				mock(MemoryManager.class),
+				mock(IOManager.class),
+				mock(NetworkEnvironment.class),
+				1,
+				rpc,
+				haServices);
+
+			taskManager.start();
 			String taskManagerAddress = taskManager.getAddress();
 
 			verify(rmGateway, timeout(5000)).registerTaskExecutor(
@@ -85,9 +95,17 @@ public class TaskExecutorTest extends TestLogger {
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setResourceManagerLeaderRetriever(testLeaderService);
 
-			StandaloneTaskExecutorFactory taskExecutorFactory = new StandaloneTaskExecutorFactory(
-				new Configuration(), resourceID, rpc, "localhost", haServices);
-			TaskExecutor taskManager = taskExecutorFactory.createAndStartTaskExecutor();
+			TaskExecutor taskManager = new TaskExecutor(
+				mock(TaskExecutorConfiguration.class),
+				resourceID,
+				mock(MemoryManager.class),
+				mock(IOManager.class),
+				mock(NetworkEnvironment.class),
+				1,
+				rpc,
+				haServices);
+
+			taskManager.start();
 			String taskManagerAddress = taskManager.getAddress();
 
 			// no connection initially, since there is no leader
