@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import akka.dispatch.Futures;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
@@ -146,10 +145,6 @@ public class CheckpointCoordinator {
 	 * Non-volatile, because only accessed in synchronized scope */
 	private boolean periodicScheduling;
 
-	/** Flag whether to schedule periodic checkpoint. The checkpoint coordinator should always
-	 * be created for triggering savepoint if there is no checkpointing interval specified. **/
-	private final boolean enablePeriodicCheckpoint;
-
 	/** Flag whether a trigger request could not be handled immediately. Non-volatile, because only
 	 * accessed in synchronized scope */
 	private boolean triggerRequestQueued;
@@ -175,14 +170,13 @@ public class CheckpointCoordinator {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			SavepointStore savepointStore,
-			CheckpointStatsTracker statsTracker,
-			boolean enablePeriodicCheckpoint) throws Exception {
+			CheckpointStatsTracker statsTracker) throws Exception {
 
 		// sanity checks
-		checkArgument(!enablePeriodicCheckpoint || baseInterval > 0, "Checkpoint timeout must be larger than zero");
+		checkArgument(baseInterval > 0, "Checkpoint timeout must be larger than zero");
 		checkArgument(checkpointTimeout >= 1, "Checkpoint timeout must be larger than zero");
-		checkArgument(!enablePeriodicCheckpoint || minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
-		checkArgument(!enablePeriodicCheckpoint || maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
+		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
+		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
 
 		// it does not make sense to schedule checkpoints more often then the desired
 		// time between checkpoints
@@ -205,7 +199,6 @@ public class CheckpointCoordinator {
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.userClassLoader = checkNotNull(userClassLoader);
 		this.statsTracker = checkNotNull(statsTracker);
-		this.enablePeriodicCheckpoint = enablePeriodicCheckpoint;
 
 		this.timer = new Timer("Checkpoint Timer", true);
 
@@ -216,27 +209,6 @@ public class CheckpointCoordinator {
 		} catch (Throwable t) {
 			throw new Exception("Failed to start checkpoint ID counter: " + t.getMessage(), t);
 		}
-	}
-
-	@VisibleForTesting
-	public CheckpointCoordinator(
-		JobID job,
-		long baseInterval,
-		long checkpointTimeout,
-		long minPauseBetweenCheckpoints,
-		int maxConcurrentCheckpointAttempts,
-		ExecutionVertex[] tasksToTrigger,
-		ExecutionVertex[] tasksToWaitFor,
-		ExecutionVertex[] tasksToCommitTo,
-		ClassLoader userClassLoader,
-		CheckpointIDCounter checkpointIDCounter,
-		CompletedCheckpointStore completedCheckpointStore,
-		SavepointStore savepointStore,
-		CheckpointStatsTracker statsTracker) throws Exception {
-		this(job, baseInterval, checkpointTimeout, minPauseBetweenCheckpoints,
-				maxConcurrentCheckpointAttempts, tasksToTrigger, tasksToWaitFor,
-				tasksToCommitTo, userClassLoader, checkpointIDCounter, completedCheckpointStore,
-				savepointStore, statsTracker, true);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -967,11 +939,9 @@ public class CheckpointCoordinator {
 			// make sure all prior timers are cancelled
 			stopCheckpointScheduler();
 
-			if (enablePeriodicCheckpoint) {
-				periodicScheduling = true;
-				currentPeriodicTrigger = new ScheduledTrigger();
-				timer.scheduleAtFixedRate(currentPeriodicTrigger, baseInterval, baseInterval);
-			}
+			periodicScheduling = true;
+			currentPeriodicTrigger = new ScheduledTrigger();
+			timer.scheduleAtFixedRate(currentPeriodicTrigger, baseInterval, baseInterval);
 		}
 	}
 

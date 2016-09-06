@@ -468,12 +468,10 @@ public class StreamingJobGraphGenerator {
 		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
 
 		long interval = cfg.getCheckpointInterval();
-		boolean enablePeriodicCheckpoint = false;
 		if (cfg.isCheckpointingEnabled()) {
 			if (interval < 1) {
 				throw new IllegalArgumentException("The checkpoint interval must be positive");
 			}
-			enablePeriodicCheckpoint = true;
 
 			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
 			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
@@ -481,6 +479,9 @@ public class StreamingJobGraphGenerator {
 				streamGraph.getExecutionConfig().setRestartStrategy(
 					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
+		} else {
+			// interval of max value means disable periodic checkpoint
+			interval = Long.MAX_VALUE;
 		}
 
 		// collect the vertices that receive "trigger checkpoint" messages.
@@ -506,7 +507,7 @@ public class StreamingJobGraphGenerator {
 		JobSnapshottingSettings settings = new JobSnapshottingSettings(
 			triggerVertices, ackVertices, commitVertices, interval,
 			cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
-			cfg.getMaxConcurrentCheckpoints(), enablePeriodicCheckpoint);
+			cfg.getMaxConcurrentCheckpoints());
 		jobGraph.setSnapshotSettings(settings);
 
 	}
