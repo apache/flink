@@ -44,8 +44,8 @@ import java.util.HashMap;
  *
  * The input is a 2D square array of dobules being the similarities between the points to be clustered.
  *
- * The output is a Dataset of Tuple2, where f0 is the point id and f1 is the exemplar, so the clusters will be the
- * the Tuples grouped by f1
+ * The output is a Dataset of Tuple2, where f0 is the point id and f1 is the exemplar. Clusters will be the tuples
+ * grouped by f1
  *
  * When calling the constructor with the damping factor it will damp all messages and the convergence will depend on the
  * message values. When calling the constructor with the convergence factor, messages will not be damped and convergence
@@ -68,9 +68,8 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 	 * Creates a new AffinityPropagation algorithm instance with no damping. This instance will converge when no changes
 	 * in the exemplars happen during @param convergenceFactor times
 	 *
-	 * @param maxIterations The maximum number of iterations to run
+	 * @param maxIterations The maximum number of iterations
 	 * @param convergenceFactor Number of iterations that exemplars need to remain the same to converge
-	 * has not changed more than epsilon.
 	 */
 	public AffinityPropagation(Integer maxIterations, int convergenceFactor) {
 		this.maxIterations = maxIterations;
@@ -82,8 +81,8 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 	 * Creates a new AffinityPropagation algorithm instance with damping. This instance will converge when all messages
 	 * in all vertices do not change more than @param epsilon app applying a @param damping factor on each iteration
 	 *
-	 * @param maxIterations The maximum number of iterations to run
-	 * @param damping Damping factor.
+	 * @param maxIterations The maximum number of iterations
+	 * @param damping Damping factor
 	 * @param epsilon Do not send message to a neighbor if the new message has not changed more than epsilon
 	 */
 	public AffinityPropagation(Integer maxIterations, float damping, float epsilon) {
@@ -94,10 +93,9 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 	}
 
 	/*
-	* Function to create a Binary Affinity Propagation graph from the input similarity matrix, it has to be a
-	* square n x n matrix.  It will create n E type vertices and n I type vertices. It also creates the edges between
-	* the vertices. If a damping This graph will be used to run the algorithm. The way to differentiate I and E vertices
-	* is with the ID, even IDs for I vertices and odd IDs for E vertices
+	* Function to create a Binary Affinity Propagation graph from the input similarity matrix. Matrix size has to be
+	* n x n. It will create n E type vertices and n I type vertices. It also creates the edges between the vertices.
+	* This graph will be used to run the algorithm. It will assign even IDs for I vertices and odd IDs for E vertices
 	*/
 	public Graph<Long, APVertexValue, NullValue> createAPGraph(double[][] matrix, ExecutionEnvironment env){
 
@@ -130,8 +128,8 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 		}
 
 		/*
-		* Loop to create the edges and populate the lists with the old sent values if damping is different to 0, it also
-		* populates the similarities list of I vertices
+		* Loop to create the edges and create the lists with the old sent values if damping is different to 0, it also
+		* populates the similarities list at I vertices
 		*/
 		for(int i = 0; i < size; i++){
 
@@ -193,7 +191,6 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 	/**
 	 * Vertex updater
 	 */
-
 	public static final class APVertexUpdater
 		extends org.apache.flink.graph.pregel.ComputeFunction<Long, APVertexValue, NullValue, APMessage> {
 
@@ -229,7 +226,7 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 							MessageIterator<APMessage> inMessages) throws Exception {
 
 			/*
-			* First the algorithm is initialized sending a 0 valued message to all vertices
+			* First step is initializing the algorithm sending a 0 valued message to all vertices
 			*/
 			if(getSuperstepNumber() == 1){
 				APMessage message = new APMessage();
@@ -252,7 +249,7 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 			}
 
 			/*
-			* Last step of the execution. Once the exemplars have been calculated calculate the clusters. This condition
+			* Last step of the execution, once the exemplars have been set it will create the clusters. This condition
 			* will be satisfied when the aggregator has a negative value. This happens after the exemplars have been
 			* selected at previous superstep
 			*/
@@ -278,8 +275,7 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 
 		/*
 		* Compute messages to be sent and updates I vertices. Computations can be found in the Binary Affinity
-		* propagation paper. Depending if damping is used or is not it will set the convergence of the I vertex in a
-		* different way.
+		* propagation paper. Convergence of I vertices will depend if damping is used
 		*/
 		private void updateIVertex(Vertex<Long, APVertexValue> vertex,
 								   MessageIterator<APMessage> inMessages){
@@ -335,9 +331,9 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 		}
 
 		/*
-		* Function to compute the convergence of the I vertices if a 0 damping value is used. It calculates if the I
-		* vertex is an exemplar and if that has remained the same at least for the convergenceFactor times. If so it
-		* returns true, otherwise returns false.
+		* Function to compute the convergence of the I vertices if a 0 damping value is used. It will converge and
+		* return true if the I vertex exemplar value has remained the same at least for the convergenceFactor times,
+		* otherwise will return false.
 		*/
 		public boolean computeConvergenceFactor(Vertex<Long, APVertexValue> vertex, APMessage message, double value){
 			if (message.getFrom()/10 == vertex.getId()/10) {
@@ -418,7 +414,7 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 		}
 
 		/**
-		 * Function to send messages for non damping execution. It creates de messages and sends it.
+		 * Function to send messages for non damping execution. It creates and send the messages
 		 */
 		private void sendNonDampedMessage(Vertex<Long, APVertexValue> vertex, double value, Long from){
 
@@ -439,8 +435,8 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 		}
 
 		/**
-		 * Function to send messages for damping execution. It creates de messages and sends it. It also returns if that
-		 * message is different than the last one depending on epsilon and the old values stored in the vertex.
+		 * Function to send messages for damping execution. It creates and send the messages. It also returns if that
+		 * message has converged
 		 */
 		private boolean sendDampedMessage(Vertex<Long, APVertexValue> vertex, double value, Long from){
 
@@ -544,8 +540,8 @@ public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropaga
 		}
 
 		/**
-		 * Computes clusters. For the I vertices compute which is their exemplar among those that have said at previous
-		 * step that are exemplars. That is the one with the highest similarity
+		 * Computes clusters. For the I vertices compute which are their exemplars among those that have decided at
+		 * previous step being exemplars. That is the one with the highest similarity
 		 */
 		private void computeClusters(Vertex<Long, APVertexValue> vertex, MessageIterator<APMessage> inMessages){
 
