@@ -22,91 +22,160 @@ import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.Edge;
-import org.apache.flink.graph.EdgesFunction;
-import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.pregel.MessageIterator;
+import org.apache.flink.graph.pregel.VertexCentricConfiguration;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
-import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.HashMap;
 
 
 /**
- * This is an implementation of the Binary Affinity Propagation algorithm using a scatter-gather iteration.
+ * This is an implementation of the Binary Affinity Propagation algorithm using the vertex centric iteration model.
  * Note that is not the original Affinity Propagation.
  *
- * The input is an undirected graph where the vertices are the points to be clustered and the edge weights are the
- * similarities of these points among them.
+ * The input is a 2D square array of dobules being the similarities between the points to be clustered.
  *
  * The output is a Dataset of Tuple2, where f0 is the point id and f1 is the exemplar, so the clusters will be the
  * the Tuples grouped by f1
  *
+ * When calling the constructor with the damping factor it will damp all messages and the convergence will depend on the
+ * message values. When calling the constructor with the convergence factor, messages will not be damped and convergence
+ * will depend on the local changes of the exemplars
+ *
  * @see <a href="http://www.psi.toronto.edu/pubs2/2009/NC09%20-%20SimpleAP.pdf">
+ * @see <a href="http://www.psi.toronto.edu/affinitypropagation/FreyDueckScience07.pdf">
  */
 
 @SuppressWarnings("serial")
-public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double,DataSet<Tuple2<Long, Long>>> {
+public class AffinityPropagation implements GraphAlgorithm<Long, AffinityPropagation.APVertexValue,
+	NullValue,DataSet<Tuple2<Long, Long>>> {
 
 	private static Integer maxIterations;
 	private static float damping;
 	private static float epsilon;
+	private static int convergenceFactor;
 
 	/**
-	 * Creates a new AffinityPropagation instance algorithm instance.
+	 * Creates a new AffinityPropagation algorithm instance with no damping. This instance will converge when no changes
+	 * in the exemplars happen during @param convergenceFactor times
+	 *
+	 * @param maxIterations The maximum number of iterations to run
+	 * @param convergenceFactor Number of iterations that exemplars need to remain the same to converge
+	 * has not changed more than epsilon.
+	 */
+	public AffinityPropagation(Integer maxIterations, int convergenceFactor) {
+		this.maxIterations = maxIterations;
+		this.damping = 0;
+		this.convergenceFactor = convergenceFactor;
+	}
+
+	/**
+	 * Creates a new AffinityPropagation algorithm instance with damping. This instance will converge when all messages
+	 * in all vertices do not change more than @param epsilon app applying a @param damping factor on each iteration
 	 *
 	 * @param maxIterations The maximum number of iterations to run
 	 * @param damping Damping factor.
-	 * @param epsilon Epsilon factor. Do not send message to a neighbor if the new message
-	 * has not changed more than epsilon.
+	 * @param epsilon Do not send message to a neighbor if the new message has not changed more than epsilon
 	 */
 	public AffinityPropagation(Integer maxIterations, float damping, float epsilon) {
 		this.maxIterations = maxIterations;
 		this.damping = damping;
 		this.epsilon = epsilon;
+		this.convergenceFactor = 0;
 	}
 
-	@Override
-	public DataSet<Tuple2<Long, Long>> run(Graph<Long, NullValue, Double> input) throws Exception {
+	/*
+	* Function to create a Binary Affinity Propagation graph from the input similarity matrix, it has to be a
+	* square n x n matrix.  It will create n E type vertices and n I type vertices. It also creates the edges between
+	* the vertices. If a damping This graph will be used to run the algorithm. The way to differentiate I and E vertices
+	* is with the ID, even IDs for I vertices and odd IDs for E vertices
+	*/
+	public Graph<Long, APVertexValue, NullValue> createAPGraph(double[][] matrix, ExecutionEnvironment env){
 
-		// Create E and I AP vertices
-		DataSet<Vertex<Long, APVertexValue>> verticesWithAllInNeighbors =
-			input.groupReduceOnEdges(new InitAPVertex(), EdgeDirection.IN);
+		List<Vertex<Long, APVertexValue>> IVerticesList = new ArrayList<Vertex<Long, APVertexValue>>();
+		List<Vertex<Long, APVertexValue>> EVerticesList = new ArrayList<Vertex<Long, APVertexValue>>();
+		List<Edge<Long, NullValue>> EdgesList = new ArrayList<Edge<Long, NullValue>>();
 
-		List<Vertex<Long, APVertexValue>> APvertices = verticesWithAllInNeighbors.collect();
+		int size = 0;
 
-		// Create E and I AP edges. Could this be done with some gelly functionality?
-		List<Edge<Long, NullValue>> APedges = new ArrayList<>();
+		if((size = matrix.length) != matrix[0].length){
+			return null;
+		}
 
-		for(int i = 1; i < input.numberOfVertices() + 1; i++){
-			for(int j = 1; j < input.numberOfVertices() + 1; j++){
-				APedges.add(new Edge<>(i * 10L, j * 10L + 1, NullValue.getInstance()));
+		/*
+		* Loop to create the E and I vertices
+		*/
+		for (int i = 0; i< size; i++) {
+
+			Vertex<Long, APVertexValue> APvertexI = new Vertex<>();
+			Vertex<Long, APVertexValue> APvertexE = new Vertex<>();
+
+			APvertexE.setId((long)i * 10 + 1);
+			APvertexE.setValue(new APVertexValue());
+
+			APvertexI.setId((long)i * 10);
+			APvertexI.setValue(new APVertexValue());
+
+			EVerticesList.add(APvertexE);
+			IVerticesList.add(APvertexI);
+		}
+
+		/*
+		* Loop to create the edges and populate the lists with the old sent values if damping is different to 0, it also
+		* populates the similarities list of I vertices
+		*/
+		for(int i = 0; i < size; i++){
+
+			Vertex<Long, APVertexValue> APvertexI = IVerticesList.get(i);
+			Vertex<Long, APVertexValue> APvertexE = EVerticesList.get(i);
+
+			for (int j = 0; j< matrix[i].length; j++){
+
+				APvertexI.getValue().getWeights().put((long)j * 10 + 1, matrix[i][j]);
+
+				if(damping != 0) {
+					APvertexE.getValue().getOldValues().put((long) j * 10, 0.0);
+					APvertexI.getValue().getOldValues().put((long) j * 10 + 1, 0.0);
+				}
+
+				EdgesList.add(new Edge<>(i * 10L, j * 10L + 1, NullValue.getInstance()));
+
 			}
 		}
 
-		DataSet<Edge<Long, NullValue>> APEdgesDS = input.getContext().fromCollection(APedges);
-		DataSet<Vertex<Long, APVertexValue>> APVerticesDS = input.getContext().fromCollection(APvertices);
+		List<Vertex<Long, APVertexValue>> AllVerticesList =  new ArrayList<Vertex<Long, APVertexValue>>();
+		AllVerticesList.addAll(EVerticesList);
+		AllVerticesList.addAll(IVerticesList);
 
-		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
-		parameters.registerAggregator("convergedAggregator", new LongSumAggregator());
+		DataSet<Vertex<Long, APVertexValue>> VerticesDataSet = env.fromCollection(AllVerticesList);
+		DataSet<Edge<Long, NullValue>> EdgesDataSet = env.fromCollection(EdgesList);
 
 		Graph<Long, APVertexValue, NullValue> APgraph
-			= Graph.fromDataSet(APVerticesDS, APEdgesDS, input.getContext());
+			= Graph.fromDataSet(VerticesDataSet, EdgesDataSet, env);
 
-		return APgraph.getUndirected().runScatterGatherIteration(new APVertexUpdater(input.numberOfVertices() * 2),
-			new APMessenger(),this.maxIterations,parameters).getVertices().filter(new FilterFunction<Vertex<Long, APVertexValue>>() {
+		return APgraph;
+	}
+
+	/*
+	* Execute the algorithm and return the tuples of each point and its exemplar.
+	*/
+	@Override
+	public DataSet<Tuple2<Long, Long>> run(Graph<Long, APVertexValue, NullValue> input) throws Exception {
+
+		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		parameters.registerAggregator("convergedAggregator", new LongSumAggregator());
+
+		return input.getUndirected().runVertexCentricIteration(new APVertexUpdater(input.numberOfVertices(),
+				this.convergenceFactor), null, this.maxIterations, parameters).getVertices().filter(new FilterFunction<Vertex<Long, APVertexValue>>() {
 			@Override
 			public boolean filter(Vertex<Long, APVertexValue> vertex) throws Exception {
 				return vertex.getId()%2 == 0;
@@ -122,68 +191,25 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 	}
 
 	/**
-	* Foreach input point we have to create a pair of E,I vertices. Same structure is used for both vertex type, to
-	* diferenciate E and I vertices is used the id. Foreach input point we will create:
-	*
-	* - One E vertex with the id as the original input id * 10 + 1
-	* - One I vertex with the id as the original input id * 10
-	*
-	* This way even ids are from E type vertices and odd ids are from I vertices.
-	*
-	* It also calculates adds the weights to the I vertices. Notice that the S vertices are not created and the weights
-	* are added to the I vertices, simulating the S vertex.
-	*/
-
-	@SuppressWarnings("serial")
-	private static final class InitAPVertex implements EdgesFunction<Long, Double, Vertex<Long, APVertexValue>> {
-
-		@Override
-		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Double>>> edges,
-								Collector<Vertex<Long, APVertexValue>> out) throws Exception {
-
-			Vertex<Long, APVertexValue> APvertexI = new Vertex<>();
-			Vertex<Long, APVertexValue> APvertexE = new Vertex<>();
-
-			Iterator<Tuple2<Long, Edge<Long, Double>>> itr = edges.iterator();
-			Tuple2<Long, Edge<Long, Double>> edge = itr.next();
-
-			APvertexE.setId(edge.f0 * 10 + 1);
-			APvertexE.setValue(new APVertexValue());
-
-			APvertexI.setId(edge.f0 * 10);
-			APvertexI.setValue(new APVertexValue());
-			APvertexI.getValue().getWeights().put(edge.f1.getSource() * 10 + 1, edge.f1.getValue());
-
-			APvertexE.getValue().getOldValues().put(edge.f1.getSource() * 10, 0.0);
-			APvertexI.getValue().getOldValues().put(edge.f1.getSource() * 10 + 1, 0.0);
-
-
-			while(itr.hasNext()){
-				edge = itr.next();
-				APvertexI.getValue().getWeights().put(edge.f1.getSource() * 10 + 1, edge.f1.getValue());
-
-				APvertexE.getValue().getOldValues().put(edge.f1.getSource() * 10, 0.0);
-				APvertexI.getValue().getOldValues().put(edge.f1.getSource() * 10 + 1, 0.0);
-
-			}
-
-			out.collect(APvertexE);
-			out.collect(APvertexI);
-		}
-	}
-
-	/**
 	 * Vertex updater
 	 */
 
-	@SuppressWarnings("serial")
-	public static final class APVertexUpdater extends VertexUpdateFunction<Long, APVertexValue, APMessage> {
+	public static final class APVertexUpdater
+		extends org.apache.flink.graph.pregel.ComputeFunction<Long, APVertexValue, NullValue, APMessage> {
 
 		private Long numOfVertex;
-		LongSumAggregator aggregator = new LongSumAggregator();
+		private int convergenceFactor;
+		private LongSumAggregator aggregator = new LongSumAggregator();
 
-		public APVertexUpdater(Long numOfVertex){
+
+		/**
+		 * Creates a new APVertexUpdater instance
+		 * @param numOfVertex Number of AP vertices, that will be the number of points to cluster x 2
+		 * @param convergenceFactor Convergence factor to be used if damping has a value of 0
+		 */
+		public APVertexUpdater(Long numOfVertex, int convergenceFactor){
 			this.numOfVertex = numOfVertex;
+			this.convergenceFactor = convergenceFactor;
 		}
 
 		@Override
@@ -191,53 +217,72 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 
 			aggregator = getIterationAggregator("convergedAggregator");
 
+			System.out.println("Superstep: " + getSuperstepNumber());
+			if(getSuperstepNumber() > 1) {
+				System.out.println("Aggregator: " + ((LongValue)getPreviousIterationAggregate("convergedAggregator")).getValue());
+			}
+
 		}
 
-		/**
-		 * Main vertex update function. It calls updateIVertex, updateEVertex, computeExemplars or computeClusters
-		 * depending on the phase of the algorithm execution
-		 */
+		//@Override
+		public void compute(Vertex<Long, APVertexValue> vertex,
+							MessageIterator<APMessage> inMessages) throws Exception {
 
-		@Override
-		public void updateVertex(Vertex<Long, APVertexValue> vertex,
-								MessageIterator<APMessage> inMessages) {
+			/*
+			* First the algorithm is initialized sending a 0 valued message to all vertices
+			*/
+			if(getSuperstepNumber() == 1){
+				APMessage message = new APMessage();
+				message.setMessageValue(0);
+				message.setFrom(vertex.getId());
+				sendMessageToAllNeighbors(message);
+				setNewVertexValue(vertex.getValue());
+				return;
+			}
 
-			//If all vertices converged compute the Exemplars
-
+			/*
+			* Compute the exemplars values when the algorithm finishes the computations. This will happen if all vertices
+			* have converged or if the maximum number of iterations has been reached
+			*/
 			if(getSuperstepNumber() > 1
 				&& (((LongValue)getPreviousIterationAggregate("convergedAggregator")).getValue()
-				== numOfVertex|| getSuperstepNumber() == maxIterations-2)) {
+				== numOfVertex || getSuperstepNumber() == maxIterations - 2)) {
 				computeExemplars(vertex, inMessages);
 				return;
 			}
 
-			//Once the exemplars have been calculated calculate the clusters. The aggregator has a negative value assigned
-			//when exemplars are calculated
-			if(getSuperstepNumber() > 1
-				&& ((LongValue)getPreviousIterationAggregate("convergedAggregator")).getValue()
-				< 0) {
+			/*
+			* Last step of the execution. Once the exemplars have been calculated calculate the clusters. This condition
+			* will be satisfied when the aggregator has a negative value. This happens after the exemplars have been
+			* selected at previous superstep
+			*/
+			if(getSuperstepNumber() > 2 &&
+				((LongValue)getPreviousIterationAggregate("convergedAggregator")).getValue() < 0) {
 				if(vertex.getValue().getExemplar() < 0){
 					computeClusters(vertex, inMessages);
 				}
 				return;
 			}
 
-			//Call updateIvertex or updateEvertex depending on the id
+			/*
+			* Do the computations and update the vertices. Depending on the vertex type (even IDs for I vertices and
+			* odd IDs for E vertices) its correspondent function is called
+			*/
 			if(vertex.getId()%2 == 0){
 				updateIVertex(vertex, inMessages);
 			}else{
 				updateEVertex(vertex, inMessages);
 			}
 
-
 		}
 
-		/**
-		 * I vertices calculations
-         */
-
+		/*
+		* Compute messages to be sent and updates I vertices. Computations can be found in the Binary Affinity
+		* propagation paper. Depending if damping is used or is not it will set the convergence of the I vertex in a
+		* different way.
+		*/
 		private void updateIVertex(Vertex<Long, APVertexValue> vertex,
-								MessageIterator<APMessage> inMessages){
+								   MessageIterator<APMessage> inMessages){
 
 			double bestValue = Double.NEGATIVE_INFINITY, secondBestValue = Double.NEGATIVE_INFINITY;
 			Long bestNeighbour = null;
@@ -245,7 +290,9 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 			List<APMessage> cache = new ArrayList<>();
 
 			while(inMessages.hasNext()){
+
 				APMessage message = inMessages.next();
+
 				cache.add(message);
 				Double weight = vertex.getValue().getWeights().get(message.getFrom());
 				if(weight +  message.getMessageValue() > bestValue){
@@ -270,16 +317,13 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 
 				value = value + vertex.getValue().getWeights().get(message.getFrom());
 
-				Double oldValue = vertex.getValue().getOldValues().get(message.getFrom());
-
-				if(Math.abs(oldValue - value) < epsilon) {
-					vertex.getValue().getValues().put(message.getFrom(),value);
+				if(damping == 0){
+					converged = computeConvergenceFactor(vertex, message, value) && converged;
+					sendNonDampedMessage(vertex, value, message.getFrom());
 				}else{
-					value = damping * oldValue + (1 - damping) * value;
-					vertex.getValue().getValues().put(message.getFrom(),value);
-					vertex.getValue().getOldValues().put(message.getFrom(),value);
-					converged = false;
+					converged = sendDampedMessage(vertex, value, message.getFrom()) && converged;
 				}
+
 			}
 
 			if(converged){
@@ -290,12 +334,44 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 
 		}
 
-		/**
-		 * E vertices calculations
-		 */
+		/*
+		* Function to compute the convergence of the I vertices if a 0 damping value is used. It calculates if the I
+		* vertex is an exemplar and if that has remained the same at least for the convergenceFactor times. If so it
+		* returns true, otherwise returns false.
+		*/
+		public boolean computeConvergenceFactor(Vertex<Long, APVertexValue> vertex, APMessage message, double value){
+			if (message.getFrom()/10 == vertex.getId()/10) {
+				double messageValue = message.getMessageValue();
+				double belief = messageValue + value;
+				if (belief >= 0) {
+					if(vertex.getValue().getExemplar() == 1){
+						vertex.getValue().setConvergenceFactorCounter(vertex.getValue().
+							getConvergenceFactorCounter() + 1);
+					}else{
+						vertex.getValue().setExemplar(1L);
+						vertex.getValue().setConvergenceFactorCounter(0);
+					}
+				}else{
+					if(vertex.getValue().getExemplar() == 1){
+						vertex.getValue().setExemplar(0L);
+						vertex.getValue().setConvergenceFactorCounter(0);
+					}else{
+						vertex.getValue().setConvergenceFactorCounter(vertex.getValue().
+							getConvergenceFactorCounter() + 1);
+					}
+				}
+			}
 
+			return (convergenceFactor <= vertex.getValue().getConvergenceFactorCounter());
+		}
+
+		/*
+		* Compute messages to be sent and updates E vertices. Computations can be found in the Binary Affinity
+		* propagation paper. If a 0 damping value is used E vertices will always be converged, otherwise it will depend
+		* on the messages.
+		*/
 		private void updateEVertex(Vertex<Long, APVertexValue> vertex,
-								MessageIterator<APMessage> inMessages){
+								   MessageIterator<APMessage> inMessages){
 
 			double sum = 0;
 			double exemplarMessage = 0;
@@ -324,16 +400,13 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 					value = Math.min(0, a);
 				}
 
-				Double oldValue = vertex.getValue().getOldValues().get(message.getFrom());
-
-				if(Math.abs(oldValue - value) < epsilon) {
-					vertex.getValue().getValues().put(message.getFrom(),value);
+				if(damping == 0){
+					converged = true;
+					sendNonDampedMessage(vertex, value, message.getFrom());
 				}else{
-					value = damping * oldValue + (1 - damping) * value;
-					vertex.getValue().getValues().put(message.getFrom(),value);
-					vertex.getValue().getOldValues().put(message.getFrom(),value);
-					converged = false;
+					converged = sendDampedMessage(vertex, value, message.getFrom()) && converged;
 				}
+
 			}
 
 			if(converged){
@@ -345,41 +418,135 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 		}
 
 		/**
-		 * Computes exemplars
+		 * Function to send messages for non damping execution. It creates de messages and sends it.
 		 */
+		private void sendNonDampedMessage(Vertex<Long, APVertexValue> vertex, double value, Long from){
 
+			boolean converged = true;
+
+			APMessage toSend = new APMessage();
+			toSend.setFrom(vertex.getId());
+			toSend.setMessageValue(value);
+
+			if(vertex.getId()%2 == 0){
+				System.out.println("(I,"+ vertex.getId()/10 +") -> (E,"+ from/10 +") : " + value);
+			}else{
+				System.out.println("(E,"+ vertex.getId()/10 +") -> (I,"+ from/10 +") : " + value);
+			}
+
+			sendMessageTo(from, toSend);
+
+		}
+
+		/**
+		 * Function to send messages for damping execution. It creates de messages and sends it. It also returns if that
+		 * message is different than the last one depending on epsilon and the old values stored in the vertex.
+		 */
+		private boolean sendDampedMessage(Vertex<Long, APVertexValue> vertex, double value, Long from){
+
+			boolean converged = true;
+
+			Double oldValue = vertex.getValue().getOldValues().get(from);
+
+			APMessage toSend = new APMessage();
+			toSend.setFrom(vertex.getId());
+			toSend.setMessageValue(value);
+
+			if(Math.abs(oldValue - value) < epsilon) {
+				toSend.setMessageValue(value);
+			}else{
+				value = damping * oldValue + (1 - damping) * value;
+				vertex.getValue().getOldValues().put(from, value);
+				toSend.setMessageValue(value);
+				converged = false;
+			}
+
+			if(vertex.getId()%2 == 0){
+				System.out.println("(I,"+ vertex.getId()/10 +") -> (E,"+ from/10 +") : " + value);
+			}else{
+				System.out.println("(E,"+ vertex.getId()/10 +") -> (I,"+ from/10 +") : " + value);
+			}
+
+			sendMessageTo(from, toSend);
+
+			return converged;
+		}
+
+		/**
+		 * Function that computes the exemplars. It will send a message with 1 value in case that vertex is an exemplar.
+		 * It will use the aggregator to maintain the state and go to the next step of the algorithm that is creating
+		 * the clusters. This is done setting it to a negative value.
+		 * To compute the exemplars we recover the hidden values of c_jj variables (those ones in the diagonal). To do
+		 * this we have to add all the incoming messages of c_jj, that is the p_ij+a_ij where p_ij=s_ij+n_ij in the E
+		 * vertices
+		 */
 		private void computeExemplars(Vertex<Long, APVertexValue> vertex, MessageIterator<APMessage> inMessages){
 
 			aggregator.aggregate(1);
 
-			for(Long key : vertex.getValue().getValues().keySet()){
-				vertex.getValue().getValues().put(key, 0.0);
-			}
+			vertex.getValue().setExemplar(-1L);
 
+			APMessage toSend = new APMessage();
+			toSend.setFrom(vertex.getId());
+			toSend.setMessageValue(0.0);
+
+			/*
+			* For E vertices
+			*/
 			if(vertex.getId()%2 != 0){
 				while(inMessages.hasNext()){
-					APMessage message = inMessages.next();
-					if (message.getFrom()/10 == vertex.getId()/10) {
-						double lastMessageValue = vertex.getValue().getOldValues().get(message.getFrom());
-						double messageValue = message.getMessageValue();
-						double belief = messageValue + lastMessageValue;
-						if (belief >= 0) {
-							for(Long key : vertex.getValue().getValues().keySet()){
-								vertex.getValue().getValues().put(key, 1.0);
+
+					double sum = 0;
+					double exemplarMessage = 0;
+					double value = 0;
+
+					List<APMessage> cache = new ArrayList<>();
+
+					while(inMessages.hasNext()){
+						APMessage message = inMessages.next();
+						cache.add(message);
+						if(vertex.getId()/10 != message.getFrom()/10){
+							sum += Math.max(0,message.getMessageValue());
+						}else{
+							exemplarMessage = message.getMessageValue();
+						}
+
+					}
+
+					for(APMessage message:cache){
+						if(vertex.getId()/10 == message.getFrom()/10){
+							value = sum;
+						}else{
+							double a = exemplarMessage + sum - Math.max(message.getMessageValue(), 0);
+							value = Math.min(0, a);
+						}
+
+						/*
+						* Those in the diagonal
+						*/
+						if (message.getFrom()/10 == vertex.getId()/10) {
+							double messageValue = message.getMessageValue();
+							double belief = messageValue + value;
+							/*
+							* If belief > 0 means this is an exemplar
+							*/
+							if (belief >= 0) {
+								toSend.setMessageValue(1.0);
 							}
 						}
 					}
 				}
 			}
 
+			sendMessageToAllNeighbors(toSend);
 			aggregator.aggregate(-2);
 			setNewVertexValue(vertex.getValue());
 		}
 
 		/**
-		 * Computes clusters
+		 * Computes clusters. For the I vertices compute which is their exemplar among those that have said at previous
+		 * step that are exemplars. That is the one with the highest similarity
 		 */
-
 		private void computeClusters(Vertex<Long, APVertexValue> vertex, MessageIterator<APMessage> inMessages){
 
 			if(vertex.getId()%2 != 0){
@@ -419,81 +586,36 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 			setNewVertexValue(vertex.getValue());
 
 		}
-
 	}
 
-	/**
-	 * Messaging function
-	 */
-
-	@SuppressWarnings("serial")
-	public static final class APMessenger extends MessagingFunction<Long, APVertexValue, APMessage, NullValue> {
-
-		@Override
-		public void sendMessages(Vertex<Long, APVertexValue> vertex) {
-
-			if(vertex.getValue().getValues().size() == 0){
-				APMessage message = new APMessage();
-				message.setMessageValue(0);
-				message.setFrom(vertex.getId());
-				sendMessageToAllNeighbors(message);
-			}
-
-			for (Map.Entry<Long, Double> entry : vertex.getValue().getValues().entrySet()) {
-				Long key = entry.getKey();
-				Double value = entry.getValue();
-				APMessage message = new APMessage();
-				message.setFrom(vertex.getId());
-				message.setMessageValue(value);
-				sendMessageTo(key,message);
-			}
-		}
-	}
-
-	/**
-	 * Vertex value class. It contains:
-	 * - weights: for I vertices is filled with the similarity with its neighbours
-	 * - values: values to be sent
-	 * - oldValues: previous values sent, used to calculate the damping
-	 * - exemplar: exemplar selected by this point
-	 */
-
+	/*
+	* Class to encapsulate the values of the vertices. It has:
+	* - weights: map containing the similarities with its neighbors
+	* - oldValues: 	map with the old sent values for this vertex. Used for damping, with a 0 damping value this will not
+	* 				be used
+	* - exemplar: variable that contains which exemplar is the one this vertex has selected
+	* - convergenceFactorCounter: counter to maintain the counter of the converged times
+	*/
 	public static final class APVertexValue{
 
 		private HashMap<Long,Double> weights;
-		private HashMap<Long,Double> values;
 		private HashMap<Long,Double> oldValues;
 		private long exemplar;
+		private int convergenceFactorCounter;
 
 		public APVertexValue(){
 			this.weights = new HashMap<>();
-			this.values = new HashMap<>();
 			this.oldValues = new HashMap<>();
-			this.exemplar = -1L;
-		}
-
-		public HashMap<Long, Double> getValues() {
-			return values;
-		}
-
-		public void setValues(HashMap<Long, Double> values) {
-			this.values = values;
+			this.exemplar = 0L;
+			this.setConvergenceFactorCounter(0);
 		}
 
 		public HashMap<Long, Double> getWeights() {
 			return weights;
 		}
 
-		public void setWeights(HashMap<Long, Double> weights) {
-			this.weights = weights;
-		}
-
 		public HashMap<Long, Double> getOldValues() {
 			return oldValues;
-		}
-
-		public void setOldValues(HashMap<Long, Double> oldValues) {
-			this.oldValues = oldValues;
 		}
 
 		public long getExemplar() {
@@ -503,14 +625,21 @@ public class AffinityPropagation implements GraphAlgorithm<Long,NullValue,Double
 		public void setExemplar(long exemplar) {
 			this.exemplar = exemplar;
 		}
+
+		public int getConvergenceFactorCounter() {
+			return convergenceFactorCounter;
+		}
+
+		public void setConvergenceFactorCounter(int convergenceFactorCounter) {
+			this.convergenceFactorCounter = convergenceFactorCounter;
+		}
 	}
 
-	/**
-	 * Message sent:
-	 * - from: sender
-	 * - messageValue: value to be sent
+	/*
+	* Class to encapsulate the messages to be sent:
+	* - from: sender
+	* - messageValue: value to be sent
 	*/
-
 	public static final class APMessage{
 
 		private Long from;

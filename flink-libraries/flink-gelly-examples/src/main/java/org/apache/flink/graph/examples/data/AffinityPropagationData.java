@@ -59,6 +59,16 @@ public class AffinityPropagationData {
 		return edges;
 	}
 
+	public static double[][] getArray() {
+		double[][] data = new double[][]{
+			{ 1.0, 1.0, 5.0},
+			{ 1.0, 1.0, 3.0},
+			{ 5.0, 3.0, 1.0}
+		};
+
+		return data;
+	}
+
 	public static DataSet<Vertex<Long, NullValue>> getLongLongVertexData(
 		ExecutionEnvironment env) {
 

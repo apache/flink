@@ -19,6 +19,7 @@
 package org.apache.flink.graph.examples;
 
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -35,12 +36,15 @@ public class AffinityPropagationClustering implements ProgramDescription {
 
 	public static void main(String[] args) throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, NullValue, Double> graph = Graph.fromDataSet(AffinityPropagationData.getLongLongVertexData(env),
-			AffinityPropagationData.getLongLongEdgeData(env), env);
+		//AffinityPropagation ap = new AffinityPropagation(1000, 0.1f, 0.000001f);
+		AffinityPropagation ap = new AffinityPropagation(1000, 10);
 
-		DataSet<Tuple2<Long, Long>> result =  graph.run(new AffinityPropagation(100,0.7f,0.000001f));
+		Graph<Long, AffinityPropagation.APVertexValue, NullValue> apGraph =
+			ap.createAPGraph(AffinityPropagationData.getArray(),env);
+
+		DataSet<Tuple2<Long, Long>> result =  apGraph.run(ap);
 
 		result.print();
 
