@@ -115,7 +115,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 
 		this.fieldDelimiter = fieldDelimiter;
 		this.recordDelimiter = recordDelimiter;
-		this.allowNullValues = false;
+		this.allowNullValues = true;
 	}
 
 	/**
