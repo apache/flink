@@ -201,7 +201,7 @@ public class MergingWindowSet<W extends Window> {
 		}
 
 		// the new window created a new, self-contained window without merging
-		if (resultWindow.equals(newWindow)) {
+		if (resultWindow.equals(newWindow) && mergeResults.isEmpty()) {
 			this.windows.put(resultWindow, resultWindow);
 		}
 
@@ -224,5 +224,12 @@ public class MergingWindowSet<W extends Window> {
 		 * @throws Exception
 		 */
 		void merge(W mergeResult, Collection<W> mergedWindows, W stateWindowResult, Collection<W> mergedStateWindows) throws Exception;
+	}
+
+	@Override
+	public String toString() {
+		return "MergingWindowSet{" +
+				"windows=" + windows +
+				'}';
 	}
 }
