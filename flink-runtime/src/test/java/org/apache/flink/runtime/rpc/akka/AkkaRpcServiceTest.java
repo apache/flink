@@ -28,6 +28,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -153,7 +154,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 * 1. Failed when connect to invalid address
 	 * @throws Exception
 	 */
-	@Test(expected = RuntimeException.class)
+	@Test(expected = ExecutionException.class)
 	public void testConnectInvalidAddress() throws Exception {
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
