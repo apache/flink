@@ -125,4 +125,21 @@ public class FlinkKafkaProducer08<IN> extends FlinkKafkaProducerBase<IN>  {
 		super(topicId, serializationSchema, producerConfig, customPartitioner);
 	}
 
+	@Override
+	protected void flush() {
+		// The Kafka 0.8 producer doesn't support flushing, we wait here
+		// until all pending records are confirmed
+		synchronized (pendingRecordsLock) {
+			while (pendingRecords > 0) {
+				try {
+					pendingRecordsLock.wait();
+				} catch (InterruptedException e) {
+					// this can be interrupted when the Task has been cancelled.
+					// by throwing an exception, we ensure that this checkpoint doesn't get confirmed
+					throw new RuntimeException("Flushing got interrupted while checkpointing", e);
+				}
+			}
+		}
+	}
+
 }

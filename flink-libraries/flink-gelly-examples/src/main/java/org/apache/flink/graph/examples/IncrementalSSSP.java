@@ -27,10 +27,10 @@ import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.examples.data.IncrementalSSSPData;
+import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
 /**
  * This example illustrates how to 
@@ -97,8 +97,8 @@ public class IncrementalSSSP implements ProgramDescription {
 			parameters.setOptDegrees(true);
 
 			// run the scatter-gather iteration to propagate info
-			Graph<Long, Double, Double> result = ssspGraph.runScatterGatherIteration(new VertexDistanceUpdater(),
-					new InvalidateMessenger(edgeToBeRemoved), maxIterations, parameters);
+			Graph<Long, Double, Double> result = ssspGraph.runScatterGatherIteration(new InvalidateMessenger(edgeToBeRemoved),
+					new VertexDistanceUpdater(), maxIterations, parameters);
 
 			DataSet<Vertex<Long, Double>> resultedVertices = result.getVertices();
 
@@ -147,22 +147,7 @@ public class IncrementalSSSP implements ProgramDescription {
 		}).count() > 0;
 	}
 
-	public static final class VertexDistanceUpdater extends VertexUpdateFunction<Long, Double, Double> {
-
-		@Override
-		public void updateVertex(Vertex<Long, Double> vertex, MessageIterator<Double> inMessages) throws Exception {
-			if (inMessages.hasNext()) {
-				Long outDegree = getOutDegree() - 1;
-				// check if the vertex has another SP-Edge
-				if (outDegree <= 0) {
-					// set own value to infinity
-					setNewVertexValue(Double.MAX_VALUE);
-				}
-			}
-		}
-	}
-
-	public static final class InvalidateMessenger extends MessagingFunction<Long, Double, Double, Double> {
+	public static final class InvalidateMessenger extends ScatterFunction<Long, Double, Double, Double> {
 
 		private Edge<Long, Double> edgeToBeRemoved;
 
@@ -185,6 +170,21 @@ public class IncrementalSSSP implements ProgramDescription {
 				// invalidate all edges
 				for(Edge<Long, Double> edge : getEdges()) {
 					sendMessageTo(edge.getSource(), Double.MAX_VALUE);
+				}
+			}
+		}
+	}
+
+	public static final class VertexDistanceUpdater extends GatherFunction<Long, Double, Double> {
+
+		@Override
+		public void updateVertex(Vertex<Long, Double> vertex, MessageIterator<Double> inMessages) throws Exception {
+			if (inMessages.hasNext()) {
+				Long outDegree = getOutDegree() - 1;
+				// check if the vertex has another SP-Edge
+				if (outDegree <= 0) {
+					// set own value to infinity
+					setNewVertexValue(Double.MAX_VALUE);
 				}
 			}
 		}

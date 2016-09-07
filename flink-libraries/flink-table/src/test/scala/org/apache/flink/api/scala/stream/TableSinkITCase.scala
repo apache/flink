@@ -20,18 +20,15 @@ package org.apache.flink.api.scala.stream
 
 import java.io.File
 
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.stream.utils.StreamTestData
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.stream.utils.StreamTestData
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.sinks.{CsvTableSink, StreamTableSink, TableSink}
-import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, TableEnvironment}
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.api.table.sinks.CsvTableSink
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.test.util.TestBaseUtils
+
 import org.junit.Test
 
 class TableSinkITCase extends StreamingMultipleProgramsTestBase {
@@ -41,7 +38,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
     val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
     tmpFile.deleteOnExit()
-    val path = "file:///" + tmpFile.getAbsolutePath
+    val path = tmpFile.toURI.toString
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

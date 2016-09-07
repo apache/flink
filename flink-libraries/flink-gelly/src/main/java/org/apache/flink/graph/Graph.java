@@ -45,22 +45,21 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.asm.translate.TranslateVertexValues;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GSAConfiguration;
-import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.pregel.ComputeFunction;
 import org.apache.flink.graph.pregel.MessageCombiner;
 import org.apache.flink.graph.pregel.VertexCentricConfiguration;
 import org.apache.flink.graph.pregel.VertexCentricIteration;
-import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
 import org.apache.flink.graph.spargel.ScatterGatherIteration;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.EdgeToTuple3Map;
 import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.graph.validation.GraphValidator;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -867,25 +866,31 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @return A DataSet of {@code Tuple2<vertexId, outDegree>}
 	 */
-	public DataSet<Tuple2<K, Long>> outDegrees() {
+	public DataSet<Tuple2<K, LongValue>> outDegrees() {
 
 		return vertices.coGroup(edges).where(0).equalTo(0).with(new CountNeighborsCoGroup<K, VV, EV>());
 	}
 
 	private static final class CountNeighborsCoGroup<K, VV, EV>
-			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Long>> {
+			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, LongValue>> {
+		private LongValue degree = new LongValue();
+
+		private Tuple2<K, LongValue> vertexDegree = new Tuple2<>(null, degree);
+
 		@SuppressWarnings("unused")
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,	Iterable<Edge<K, EV>> outEdges,
-				Collector<Tuple2<K, Long>> out) {
+				Collector<Tuple2<K, LongValue>> out) {
 			long count = 0;
 			for (Edge<K, EV> edge : outEdges) {
 				count++;
 			}
+			degree.setValue(count);
 
 			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
 
 			if(vertexIterator.hasNext()) {
-				out.collect(new Tuple2<K, Long>(vertexIterator.next().f0, count));
+				vertexDegree.f0 = vertexIterator.next().f0;
+				out.collect(vertexDegree);
 			} else {
 				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
 			}
@@ -897,7 +902,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @return A DataSet of {@code Tuple2<vertexId, inDegree>}
 	 */
-	public DataSet<Tuple2<K, Long>> inDegrees() {
+	public DataSet<Tuple2<K, LongValue>> inDegrees() {
 
 		return vertices.coGroup(edges).where(0).equalTo(1).with(new CountNeighborsCoGroup<K, VV, EV>());
 	}
@@ -907,7 +912,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @return A DataSet of {@code Tuple2<vertexId, degree>}
 	 */
-	public DataSet<Tuple2<K, Long>> getDegrees() {
+	public DataSet<Tuple2<K, LongValue>> getDegrees() {
 		return outDegrees().union(inDegrees()).groupBy(0).sum(1);
 	}
 
@@ -1645,27 +1650,27 @@ public class Graph<K, VV, EV> {
 	 * Runs a ScatterGather iteration on the graph.
 	 * No configuration options are provided.
 	 *
-	 * @param vertexUpdateFunction the vertex update function
-	 * @param messagingFunction the messaging function
+	 * @param scatterFunction the scatter function
+	 * @param gatherFunction the gather function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
 	 * 
 	 * @return the updated Graph after the scatter-gather iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
 	public <M> Graph<K, VV, EV> runScatterGatherIteration(
-			VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
-			MessagingFunction<K, VV, M, EV> messagingFunction,
+			ScatterFunction<K, VV, M, EV> scatterFunction,
+			org.apache.flink.graph.spargel.GatherFunction<K, VV, M> gatherFunction,
 			int maximumNumberOfIterations) {
 
-		return this.runScatterGatherIteration(vertexUpdateFunction, messagingFunction,
+		return this.runScatterGatherIteration(scatterFunction, gatherFunction,
 				maximumNumberOfIterations, null);
 	}
 
 	/**
 	 * Runs a ScatterGather iteration on the graph with configuration options.
-	 * 
-	 * @param vertexUpdateFunction the vertex update function
-	 * @param messagingFunction the messaging function
+	 *
+	 * @param scatterFunction the scatter function
+	 * @param gatherFunction the gather function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
 	 * @param parameters the iteration configuration parameters
 	 * 
@@ -1673,12 +1678,12 @@ public class Graph<K, VV, EV> {
 	 * after maximumNumberOfIterations.
 	 */
 	public <M> Graph<K, VV, EV> runScatterGatherIteration(
-			VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
-			MessagingFunction<K, VV, M, EV> messagingFunction,
+			ScatterFunction<K, VV, M, EV> scatterFunction,
+			org.apache.flink.graph.spargel.GatherFunction<K, VV, M> gatherFunction,
 			int maximumNumberOfIterations, ScatterGatherConfiguration parameters) {
 
 		ScatterGatherIteration<K, VV, M, EV> iteration = ScatterGatherIteration.withEdges(
-				edges, vertexUpdateFunction, messagingFunction, maximumNumberOfIterations);
+				edges, scatterFunction, gatherFunction, maximumNumberOfIterations);
 
 		iteration.configure(parameters);
 
@@ -1701,7 +1706,7 @@ public class Graph<K, VV, EV> {
 	 * after maximumNumberOfIterations.
 	 */
 	public <M> Graph<K, VV, EV> runGatherSumApplyIteration(
-			GatherFunction<VV, EV, M> gatherFunction, SumFunction<VV, EV, M> sumFunction,
+			org.apache.flink.graph.gsa.GatherFunction gatherFunction, SumFunction<VV, EV, M> sumFunction,
 			ApplyFunction<K, VV, M> applyFunction, int maximumNumberOfIterations) {
 
 		return this.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction,
@@ -1722,7 +1727,7 @@ public class Graph<K, VV, EV> {
 	 * after maximumNumberOfIterations.
 	 */
 	public <M> Graph<K, VV, EV> runGatherSumApplyIteration(
-			GatherFunction<VV, EV, M> gatherFunction, SumFunction<VV, EV, M> sumFunction,
+			org.apache.flink.graph.gsa.GatherFunction gatherFunction, SumFunction<VV, EV, M> sumFunction,
 			ApplyFunction<K, VV, M> applyFunction, int maximumNumberOfIterations,
 			GSAConfiguration parameters) {
 

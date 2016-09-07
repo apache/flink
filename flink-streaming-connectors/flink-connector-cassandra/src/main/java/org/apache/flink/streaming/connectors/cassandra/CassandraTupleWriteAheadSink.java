@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Sink that emits its input elements into a Cassandra database. This sink stores incoming records within a
@@ -43,19 +44,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <IN> Type of the elements emitted by this sink
  */
 public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWriteAheadSink<IN> {
+	private static final long serialVersionUID = 1L;
+
 	protected transient Cluster cluster;
 	protected transient Session session;
 
 	private final String insertQuery;
 	private transient PreparedStatement preparedStatement;
 
-	private transient Throwable exception = null;
-	private transient FutureCallback<ResultSet> callback;
-
 	private ClusterBuilder builder;
-
-	private int updatesSent = 0;
-	private AtomicInteger updatesConfirmed = new AtomicInteger(0);
 
 	private transient Object[] fields;
 
@@ -71,18 +68,6 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 		if (!getRuntimeContext().isCheckpointingEnabled()) {
 			throw new IllegalStateException("The write-ahead log requires checkpointing to be enabled.");
 		}
-		this.callback = new FutureCallback<ResultSet>() {
-			@Override
-			public void onSuccess(ResultSet resultSet) {
-				updatesConfirmed.incrementAndGet();
-			}
-
-			@Override
-			public void onFailure(Throwable throwable) {
-				exception = throwable;
-				LOG.error("Error while sending value.", throwable);
-			}
-		};
 		cluster = builder.getCluster();
 		session = cluster.connect();
 		preparedStatement = session.prepare(insertQuery);
@@ -110,12 +95,38 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 	}
 
 	@Override
-	protected void sendValues(Iterable<IN> values, long timestamp) throws Exception {
-		//verify that no query failed until now
-		if (exception != null) {
-			throw new Exception(exception);
-		}
+	protected boolean sendValues(Iterable<IN> values, long timestamp) throws Exception {
+		final AtomicInteger updatesCount = new AtomicInteger(0);
+		final AtomicInteger updatesConfirmed = new AtomicInteger(0);
+
+		final AtomicReference<Throwable> exception = new AtomicReference<>();
+
+		FutureCallback<ResultSet> callback = new FutureCallback<ResultSet>() {
+			@Override
+			public void onSuccess(ResultSet resultSet) {
+				updatesConfirmed.incrementAndGet();
+				if (updatesCount.get() > 0) { // only set if all updates have been sent
+					if (updatesCount.get() == updatesConfirmed.get()) {
+						synchronized (updatesConfirmed) {
+							updatesConfirmed.notifyAll();
+						}
+					}
+				}
+			}
+
+			@Override
+			public void onFailure(Throwable throwable) {
+				if (exception.compareAndSet(null, throwable)) {
+					LOG.error("Error while sending value.", throwable);
+					synchronized (updatesConfirmed) {
+						updatesConfirmed.notifyAll();
+					}
+				}
+			}
+		};
+
 		//set values for prepared statement
+		int updatesSent = 0;
 		for (IN value : values) {
 			for (int x = 0; x < value.getArity(); x++) {
 				fields[x] = value.getField(x);
@@ -130,13 +141,19 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 				Futures.addCallback(result, callback);
 			}
 		}
-		try {
-			while (updatesSent != updatesConfirmed.get()) {
-				Thread.sleep(100);
+		updatesCount.set(updatesSent);
+
+		synchronized (updatesConfirmed) {
+			while (exception.get() == null && updatesSent != updatesConfirmed.get()) {
+				updatesConfirmed.wait();
 			}
-		} catch (InterruptedException e) {
 		}
-		updatesSent = 0;
-		updatesConfirmed.set(0);
+
+		if (exception.get() != null) {
+			LOG.warn("Sending a value failed.", exception.get());
+			return false;
+		} else {
+			return true;
+		}
 	}
 }

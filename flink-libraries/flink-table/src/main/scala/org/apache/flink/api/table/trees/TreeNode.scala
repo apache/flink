@@ -28,17 +28,17 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
    * List of child nodes that should be considered when doing transformations. Other values
    * in the Product will not be transformed, only handed through.
    */
-  def children: Seq[A]
+  private[flink] def children: Seq[A]
 
   /**
    * Tests for equality by first testing for reference equality.
    */
-  def fastEquals(other: TreeNode[_]): Boolean = this.eq(other) || this == other
+  private[flink] def fastEquals(other: TreeNode[_]): Boolean = this.eq(other) || this == other
 
   /**
     * Do tree transformation in post order.
     */
-  def postOrderTransform(rule: PartialFunction[A, A]): A = {
+  private[flink] def postOrderTransform(rule: PartialFunction[A, A]): A = {
     def childrenTransform(rule: PartialFunction[A, A]): A = {
       var changed = false
       val newArgs = productIterator.map {
@@ -78,7 +78,7 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
   /**
     * Runs the given function first on the node and then recursively on all its children.
     */
-  def preOrderVisit(f: A => Unit): Unit = {
+  private[flink] def preOrderVisit(f: A => Unit): Unit = {
     f(this)
     children.foreach(_.preOrderVisit(f))
   }
@@ -87,7 +87,7 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
    * Creates a new copy of this expression with new children. This is used during transformation
    * if children change.
    */
-  def makeCopy(newArgs: Array[AnyRef]): A = {
+  private[flink] def makeCopy(newArgs: Array[AnyRef]): A = {
     val ctors = getClass.getConstructors.filter(_.getParameterTypes.size > 0)
     if (ctors.isEmpty) {
       throw new RuntimeException(s"No valid constructor for ${getClass.getSimpleName}")

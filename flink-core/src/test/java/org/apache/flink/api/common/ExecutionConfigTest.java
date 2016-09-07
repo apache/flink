@@ -18,10 +18,8 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -66,28 +64,4 @@ public class ExecutionConfigTest {
 		assertEquals(parallelism, config.getParallelism());
 	}
 
-	/**
-	 * Helper function to create a new ExecutionConfig for tests.
-	 * @return A serialized ExecutionConfig
-	 */
-	public static SerializedValue<ExecutionConfig> getSerializedConfig() {
-		try {
-			return new SerializedValue<>(new ExecutionConfig());
-		} catch (IOException e) {
-			throw new RuntimeException("Couldn't create new ExecutionConfig for test.", e);
-		}
-	}
-
-	/**
-	 * Deserializes the given ExecutionConfig with the System class loader.
-	 * @param serializedConfig The serialized ExecutionConfig
-	 * @return ExecutionConfig
-	 */
-	public static ExecutionConfig deserializeConfig(SerializedValue<ExecutionConfig> serializedConfig) {
-		try {
-			return serializedConfig.deserializeValue(ExecutionConfigTest.class.getClassLoader());
-		} catch (Exception e) {
-			throw new RuntimeException("Could not deserialize ExecutionConfig for test.", e);
-		}
-	}
 }

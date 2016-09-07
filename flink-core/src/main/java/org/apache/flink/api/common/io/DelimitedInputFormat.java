@@ -19,13 +19,14 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -34,6 +35,7 @@ import org.apache.flink.core.fs.Path;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Base implementation for input formats that split the input at a delimiter into records.
@@ -82,12 +84,18 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	private static int MAX_SAMPLE_LEN;
 
-	static { loadGlobalConfigParams(); }
-	
+	/**
+	 * @Deprecated Please use {@code loadConfigParameters(Configuration config}
+	 */
+	@Deprecated
 	protected static void loadGlobalConfigParams() {
-		int maxSamples = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
+		loadConfigParameters(GlobalConfiguration.loadConfiguration());
+	}
+
+	protected static void loadConfigParameters(Configuration parameters) {
+		int maxSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY,
 				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
-		int minSamples = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
+		int minSamples = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
 			ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
 		
 		if (maxSamples < 0) {
@@ -111,7 +119,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			DEFAULT_MIN_NUM_SAMPLES = minSamples;
 		}
 		
-		int maxLen = GlobalConfiguration.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
+		int maxLen = parameters.getInteger(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY,
 				ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
 		if (maxLen <= 0) {
 			maxLen = ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN;
@@ -162,13 +170,17 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// --------------------------------------------------------------------------------------------
 	//  Constructors & Getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
-	
+
 	public DelimitedInputFormat() {
-		super();
+		this(null, null);
 	}
-	
-	protected DelimitedInputFormat(Path filePath) {
+
+	protected DelimitedInputFormat(Path filePath, Configuration configuration) {
 		super(filePath);
+		if (configuration == null) {
+			configuration = GlobalConfiguration.loadConfiguration();
+		}
+		loadConfigParameters(configuration);
 	}
 	
 	
@@ -180,7 +192,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
 		}
-		
 		this.delimiter = delimiter;
 	}
 
@@ -189,6 +200,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 	
 	public void setDelimiter(String delimiter) {
+		if (delimiter == null) {
+			throw new IllegalArgumentException("Delimiter must not be null");
+		}
 		this.delimiter = delimiter.getBytes(UTF_8_CHARSET);
 	}
 	
@@ -224,7 +238,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		if (numLineSamples < 0) {
 			throw new IllegalArgumentException("Number of line samples must not be negative.");
 		}
-		
 		this.numLineSamples = numLineSamples;
 	}
 
@@ -259,23 +272,29 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
-		
-		String delimString = parameters.getString(RECORD_DELIMITER, null);
-		if (delimString != null) {
-			setDelimiter(delimString);
+
+		// the if() clauses are to prevent the configure() method from
+		// overwriting the values set by the setters
+
+		if (Arrays.equals(delimiter, new byte[] {'\n'})) {
+			String delimString = parameters.getString(RECORD_DELIMITER, null);
+			if (delimString != null) {
+				setDelimiter(delimString);
+			}
 		}
 		
 		// set the number of samples
-		String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
-		if (samplesString != null) {
-			try {
-				setNumLineSamples(Integer.parseInt(samplesString));
-			}
-			catch (NumberFormatException e) {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("Invalid value for number of samples to take: " + samplesString + ". Skipping sampling.");
+		if (numLineSamples == NUM_SAMPLES_UNDEFINED) {
+			String samplesString = parameters.getString(NUM_STATISTICS_SAMPLES, null);
+			if (samplesString != null) {
+				try {
+					setNumLineSamples(Integer.parseInt(samplesString));
+				} catch (NumberFormatException e) {
+					if (LOG.isWarnEnabled()) {
+						LOG.warn("Invalid value for number of samples to take: " + samplesString + ". Skipping sampling.");
+					}
+					setNumLineSamples(0);
 				}
-				setNumLineSamples(0);
 			}
 		}
 	}
@@ -629,11 +648,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	//  Checkpointing
 	// --------------------------------------------------------------------------------------------
 
+	@PublicEvolving
 	@Override
 	public Long getCurrentState() throws IOException {
 		return this.offset;
 	}
 
+	@PublicEvolving
 	@Override
 	public void reopen(FileInputSplit split, Long state) throws IOException {
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");

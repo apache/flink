@@ -21,12 +21,13 @@ package org.apache.flink.runtime.operators;
 import static org.apache.flink.runtime.operators.DamBehavior.FULL_DAM;
 import static org.apache.flink.runtime.operators.DamBehavior.MATERIALIZING;
 import static org.apache.flink.runtime.operators.DamBehavior.PIPELINED;
-import org.apache.flink.runtime.operators.chaining.ChainedAllReduceDriver;
 
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
+import org.apache.flink.runtime.operators.chaining.ChainedAllReduceDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedFlatMapDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedMapDriver;
 import org.apache.flink.runtime.operators.chaining.SynchronousChainedCombineDriver;
+import org.apache.flink.runtime.operators.chaining.ChainedReduceCombineDriver;
 
 /**
  * Enumeration of all available operator strategies. 
@@ -57,8 +58,11 @@ public enum DriverStrategy {
 
 	// grouping the inputs and apply the Reduce Function
 	SORTED_REDUCE(ReduceDriver.class, null, PIPELINED, 1),
-	// sorted partial reduce is the combiner for the Reduce. same function, but potentially not fully sorted
-	SORTED_PARTIAL_REDUCE(ReduceCombineDriver.class, null, MATERIALIZING, 1),
+	// sorted partial reduce is a combiner for the Reduce. same function, but potentially not fully sorted
+	SORTED_PARTIAL_REDUCE(ReduceCombineDriver.class, ChainedReduceCombineDriver.class, MATERIALIZING, 1),
+
+	// hashed partial reduce is a combiner for the Reduce
+	HASHED_PARTIAL_REDUCE(ReduceCombineDriver.class, ChainedReduceCombineDriver.class, MATERIALIZING, 1),
 	
 	// grouping the inputs and apply the GroupReduce function
 	SORTED_GROUP_REDUCE(GroupReduceDriver.class, null, PIPELINED, 1),

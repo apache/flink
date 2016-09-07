@@ -21,22 +21,24 @@ package org.apache.flink.graph.asm.degree.annotate.directed;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeOrder;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
@@ -48,10 +50,10 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class VertexDegrees<K, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Degrees>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 
 	// Optional configuration
-	private boolean includeZeroDegreeVertices = false;
+	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
 
 	private int parallelism = PARALLELISM_DEFAULT;
 
@@ -65,7 +67,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Degrees>>> {
 	 * @return this
 	 */
 	public VertexDegrees<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
-		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
+		this.includeZeroDegreeVertices.set(includeZeroDegreeVertices);
 
 		return this;
 	}
@@ -83,7 +85,36 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Degrees>>> {
 	}
 
 	@Override
-	public DataSet<Vertex<K, Degrees>> run(Graph<K, VV, EV> input)
+	protected String getAlgorithmName() {
+		return VertexDegrees.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! VertexDegrees.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		VertexDegrees rhs = (VertexDegrees) other;
+
+		// verify that configurations can be merged
+
+		if (includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices)) {
+			return false;
+		}
+
+		// merge configurations
+
+		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public DataSet<Vertex<K, Degrees>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, t, bitmask
 		DataSet<Tuple3<K, K, ByteValue>> edgesWithOrder = input.getEdges()
@@ -91,7 +122,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Degrees>>> {
 				.setParallelism(parallelism)
 				.name("Emit and flip edge")
 			.groupBy(0, 1)
-				.reduce(new ReduceBitmask<K>())
+			.reduceGroup(new ReduceBitmask<K>())
 				.setParallelism(parallelism)
 				.name("Reduce bitmask");
 
@@ -103,7 +134,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Degrees>>> {
 				.setParallelism(parallelism)
 				.name("Degree count");
 
-		if (includeZeroDegreeVertices) {
+		if (includeZeroDegreeVertices.get()) {
 			vertexDegrees = input.getVertices()
 				.leftOuterJoin(vertexDegrees)
 				.where(0)
@@ -146,13 +177,23 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Degrees>>> {
 	 *
 	 * @param <T> ID type
 	 */
-	private static class ReduceBitmask<T>
-	implements ReduceFunction<Tuple3<T, T, ByteValue>> {
+	@ForwardedFields("0; 1")
+	private static final class ReduceBitmask<T>
+	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple3<T, T, ByteValue>> {
 		@Override
-		public Tuple3<T, T, ByteValue> reduce(Tuple3<T, T, ByteValue> left, Tuple3<T, T, ByteValue> right)
+		public void reduce(Iterable<Tuple3<T, T, ByteValue>> values, Collector<Tuple3<T, T, ByteValue>> out)
 				throws Exception {
-			left.f2.setValue((byte)(left.f2.getValue() | right.f2.getValue()));
-			return left;
+			Tuple3<T, T, ByteValue> output = null;
+
+			byte bitmask = 0;
+
+			for (Tuple3<T, T, ByteValue> value: values) {
+				output = value;
+				bitmask |= value.f2.getValue();
+			}
+
+			output.f2.setValue(bitmask);
+			out.collect(output);
 		}
 	}
 

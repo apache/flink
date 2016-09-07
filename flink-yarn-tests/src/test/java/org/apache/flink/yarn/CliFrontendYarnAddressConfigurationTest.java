@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -38,6 +39,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -53,8 +55,10 @@ import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -80,6 +84,11 @@ public class CliFrontendYarnAddressConfigurationTest {
 		PrintStream nullPrinter = new PrintStream(new NullPrint());
 		System.setOut(nullPrinter);
 		System.setErr(nullPrinter);
+
+		// Unset FLINK_CONF_DIR, as this is a precondition for this test to work properly
+		Map<String, String> map = new HashMap<>(System.getenv());
+		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
+		TestBaseUtils.setEnv(map);
 	}
 
 	@AfterClass
@@ -88,21 +97,12 @@ public class CliFrontendYarnAddressConfigurationTest {
 		System.setErr(ERR);
 	}
 
-	@Before
-	public void clearConfig() throws NoSuchFieldException, IllegalAccessException {
-		// reset GlobalConfiguration between tests
-		Field instance = GlobalConfiguration.class.getDeclaredField("SINGLETON");
-		instance.setAccessible(true);
-		instance.set(null, null);
-	}
-
 	private static final String TEST_YARN_JOB_MANAGER_ADDRESS = "22.33.44.55";
 	private static final int TEST_YARN_JOB_MANAGER_PORT = 6655;
 	private static final ApplicationId TEST_YARN_APPLICATION_ID =
 		ApplicationId.newInstance(System.currentTimeMillis(), 42);
 
-	private static final String validPropertiesFile =
-		"jobManager=" + TEST_YARN_JOB_MANAGER_ADDRESS + ":" + TEST_YARN_JOB_MANAGER_PORT;
+	private static final String validPropertiesFile = "applicationID=" + TEST_YARN_APPLICATION_ID;
 
 
 	private static final String TEST_JOB_MANAGER_ADDRESS = "192.168.1.33";
@@ -192,6 +192,34 @@ public class CliFrontendYarnAddressConfigurationTest {
 			TEST_YARN_JOB_MANAGER_PORT);
 	}
 
+	@Test
+	public void testResumeFromYarnIDZookeeperNamespace() throws Exception {
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+
+		RunOptions options =
+				CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
+
+		frontend.retrieveClient(options);
+		String zkNs = frontend.getConfiguration().getString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, "error");
+		Assert.assertTrue(zkNs.matches("application_\\d+_0042"));
+	}
+
+	@Test
+	public void testResumeFromYarnIDZookeeperNamespaceOverride() throws Exception {
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+		String overrideZkNamespace = "my_cluster";
+		RunOptions options =
+				CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString(), "-yz", overrideZkNamespace});
+
+		frontend.retrieveClient(options);
+		String zkNs = frontend.getConfiguration().getString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, "error");
+		Assert.assertEquals(overrideZkNamespace, zkNs);
+	}
+
 	@Test(expected = IllegalConfigurationException.class)
 	public void testResumeFromInvalidYarnID() throws Exception {
 		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
@@ -262,12 +290,11 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 		Configuration config = frontend.getConfiguration();
 
-		InetSocketAddress expectedAddress = new InetSocketAddress("10.221.130.22", 7788);
+		InetSocketAddress expectedAddress = InetSocketAddress.createUnresolved("10.221.130.22", 7788);
 
 		checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
 
 	}
-
 
 	///////////
 	// Utils //
@@ -296,8 +323,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 		@Override
 		// make method public
-		public ClusterClient getClient(CommandLineOptions options, String programName) throws Exception {
-			return super.getClient(options, programName);
+		public ClusterClient createClient(CommandLineOptions options, String programName) throws Exception {
+			return super.createClient(options, programName);
 		}
 
 		@Override

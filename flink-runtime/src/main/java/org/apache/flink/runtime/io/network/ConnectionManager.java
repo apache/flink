@@ -46,6 +46,8 @@ public interface ConnectionManager {
 
 	int getNumberOfActiveConnections();
 
+	int getDataPort();
+
 	void shutdown() throws IOException;
 
 }

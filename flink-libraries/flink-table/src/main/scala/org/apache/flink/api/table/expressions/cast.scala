@@ -19,25 +19,31 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.typeutils.{TypeCoercion, TypeConverter}
+import org.apache.flink.api.table.FlinkTypeFactory
+import org.apache.flink.api.table.typeutils.TypeCoercion
 import org.apache.flink.api.table.validate._
 
 case class Cast(child: Expression, resultType: TypeInformation[_]) extends UnaryExpression {
 
   override def toString = s"$child.cast($resultType)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(resultType))
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    relBuilder
+      .getRexBuilder
+      // we use abstract cast here because RelBuilder.cast() has to many side effects
+      .makeAbstractCast(
+        typeFactory.createTypeFromTypeInfo(resultType),
+        child.toRexNode)
   }
 
-  override def makeCopy(anyRefs: Array[AnyRef]): this.type = {
+  override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
     copy(child, resultType).asInstanceOf[this.type]
   }
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (TypeCoercion.canCast(child.resultType, resultType)) {
       ValidationSuccess
     } else {

@@ -58,7 +58,11 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 
 	protected abstract NFA<IN> getNFA() throws IOException;
 
+	protected abstract void updateNFA(NFA<IN> nfa) throws IOException;
+
 	protected abstract PriorityQueue<StreamRecord<IN>> getPriorityQueue() throws IOException;
+
+	protected abstract void updatePriorityQueue(PriorityQueue<StreamRecord<IN>> queue) throws IOException;
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
@@ -66,6 +70,7 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 			// there can be no out of order elements in processing time
 			NFA<IN> nfa = getNFA();
 			processEvent(nfa, element.getValue(), System.currentTimeMillis());
+			updateNFA(nfa);
 		} else {
 			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
 
@@ -77,6 +82,7 @@ public abstract class AbstractCEPBasePatternOperator<IN, OUT>
 			} else {
 				priorityQueue.offer(element);
 			}
+			updatePriorityQueue(priorityQueue);
 		}
 	}
 

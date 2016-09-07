@@ -18,15 +18,21 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.state.StreamStateHandle;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A pending checkpoint is a checkpoint that has been started, but has not been
@@ -34,48 +40,61 @@ import org.apache.flink.util.SerializedValue;
  * acknowledged it, it becomes a {@link CompletedCheckpoint}.
  * 
  * <p>Note that the pending checkpoint, as well as the successful checkpoint keep the
- * state handles always as serialized values, never as actual values.</p>
+ * state handles always as serialized values, never as actual values.
  */
 public class PendingCheckpoint {
-		
+
 	private final Object lock = new Object();
-	
+
 	private final JobID jobId;
-	
+
 	private final long checkpointId;
-	
+
 	private final long checkpointTimestamp;
 
 	private final Map<JobVertexID, TaskState> taskStates;
 
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
-	
+
+	private final boolean disposeWhenSubsumed;
+
 	private int numAcknowledgedTasks;
-	
+
 	private boolean discarded;
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public PendingCheckpoint(JobID jobId, long checkpointId, long checkpointTimestamp,
-							Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm)
-	{
-		if (jobId == null || verticesToConfirm == null) {
-			throw new NullPointerException();
-		}
-		if (verticesToConfirm.size() == 0) {
-			throw new IllegalArgumentException("Checkpoint needs at least one vertex that commits the checkpoint");
-		}
-		
-		this.jobId = jobId;
-		this.checkpointId = checkpointId;
-		this.checkpointTimestamp = checkpointTimestamp;
-		
-		this.notYetAcknowledgedTasks = verticesToConfirm;
-		this.taskStates = new HashMap<>();
-	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
+	public PendingCheckpoint(
+			JobID jobId,
+			long checkpointId,
+			long checkpointTimestamp,
+			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm) {
+		this(jobId, checkpointId, checkpointTimestamp, verticesToConfirm, true);
+	}
+
+	PendingCheckpoint(
+			JobID jobId,
+			long checkpointId,
+			long checkpointTimestamp,
+			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
+			boolean disposeWhenSubsumed)
+	{
+		this.jobId = checkNotNull(jobId);
+		this.checkpointId = checkpointId;
+		this.checkpointTimestamp = checkpointTimestamp;
+		this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
+		this.disposeWhenSubsumed = disposeWhenSubsumed;
+		this.taskStates = new HashMap<>();
+
+		checkArgument(verticesToConfirm.size() > 0,
+				"Checkpoint needs at least one vertex that commits the checkpoint");
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	// ------------------------------------------------------------------------
+	//  Properties
+	// ------------------------------------------------------------------------
 
 	public JobID getJobId() {
 		return jobId;
@@ -92,7 +111,7 @@ public class PendingCheckpoint {
 	public int getNumberOfNonAcknowledgedTasks() {
 		return notYetAcknowledgedTasks.size();
 	}
-	
+
 	public int getNumberOfAcknowledgedTasks() {
 		return numAcknowledgedTasks;
 	}
@@ -104,12 +123,26 @@ public class PendingCheckpoint {
 	public boolean isFullyAcknowledged() {
 		return this.notYetAcknowledgedTasks.isEmpty() && !discarded;
 	}
-	
+
 	public boolean isDiscarded() {
 		return discarded;
 	}
-	
-	public CompletedCheckpoint toCompletedCheckpoint() {
+
+	/**
+	 * Checks whether this checkpoint can be subsumed or whether it should always continue, regardless
+	 * of newer checkpoints in progress.
+	 * 
+	 * @return True if the checkpoint can be subsumed, false otherwise.
+	 */
+	public boolean canBeSubsumed() {
+		return true;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Progress and Completion
+	// ------------------------------------------------------------------------
+
+	public CompletedCheckpoint finalizeCheckpoint() throws Exception {
 		synchronized (lock) {
 			if (discarded) {
 				throw new IllegalStateException("pending checkpoint is discarded");
@@ -120,9 +153,11 @@ public class PendingCheckpoint {
 					checkpointId,
 					checkpointTimestamp,
 					System.currentTimeMillis(),
-					new HashMap<>(taskStates));
-				dispose(null, false);
-				
+					new HashMap<>(taskStates),
+					disposeWhenSubsumed);
+
+				dispose(false);
+
 				return completed;
 			}
 			else {
@@ -132,10 +167,9 @@ public class PendingCheckpoint {
 	}
 	
 	public boolean acknowledgeTask(
-			ExecutionAttemptID attemptID,
-			SerializedValue<StateHandle<?>> state,
-			long stateSize,
-			Map<Integer, SerializedValue<StateHandle<?>>> kvState) {
+		ExecutionAttemptID attemptID,
+		ChainedStateHandle<StreamStateHandle> state,
+		List<KeyGroupsStateHandle> keyGroupsState) {
 
 		synchronized (lock) {
 			if (discarded) {
@@ -144,7 +178,7 @@ public class PendingCheckpoint {
 			
 			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
 			if (vertex != null) {
-				if (state != null || kvState != null) {
+				if (state != null || keyGroupsState != null) {
 
 					JobVertexID jobVertexID = vertex.getJobvertexId();
 
@@ -153,33 +187,23 @@ public class PendingCheckpoint {
 					if (taskStates.containsKey(jobVertexID)) {
 						taskState = taskStates.get(jobVertexID);
 					} else {
-						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks());
+						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks(), vertex.getMaxParallelism());
 						taskStates.put(jobVertexID, taskState);
 					}
 
-					long timestamp = System.currentTimeMillis() - checkpointTimestamp;
+					long duration = System.currentTimeMillis() - checkpointTimestamp;
 
 					if (state != null) {
 						taskState.putState(
 							vertex.getParallelSubtaskIndex(),
-							new SubtaskState(
-								state,
-								stateSize,
-								timestamp
-							)
-						);
+							new SubtaskState(state, duration));
 					}
 
-					if (kvState != null) {
-						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> entry : kvState.entrySet()) {
-							taskState.putKvState(
-								entry.getKey(),
-								new KeyGroupState(
-									entry.getValue(),
-									0L,
-									timestamp
-								));
-						}
+					// currently a checkpoint can only contain keyed state
+					// for the head operator
+					if (keyGroupsState != null && !keyGroupsState.isEmpty()) {
+						KeyGroupsStateHandle keyGroupsStateHandle = keyGroupsState.get(0);
+						taskState.putKeyedState(vertex.getParallelSubtaskIndex(), keyGroupsStateHandle);
 					}
 				}
 				numAcknowledgedTasks++;
@@ -190,25 +214,49 @@ public class PendingCheckpoint {
 			}
 		}
 	}
-	
+
+	// ------------------------------------------------------------------------
+	//  Cancellation
+	// ------------------------------------------------------------------------
+
 	/**
-	 * Discards the pending checkpoint, releasing all held resources.
+	 * Aborts a checkpoint because it expired (took too long).
 	 */
-	public void discard(ClassLoader userClassLoader) {
-		dispose(userClassLoader, true);
+	public void abortExpired() throws Exception {
+		dispose(true);
 	}
 
-	private void dispose(ClassLoader userClassLoader, boolean releaseState) {
+	/**
+	 * Aborts the pending checkpoint because a newer completed checkpoint subsumed it.
+	 */
+	public void abortSubsumed() throws Exception {
+		dispose(true);
+	}
+
+	public void abortDeclined() throws Exception {
+		dispose(true);
+	}
+
+	/**
+	 * Aborts the pending checkpoint due to an error.
+	 * @param cause The error's exception.
+	 */
+	public void abortError(Throwable cause) throws Exception {
+		dispose(true);
+	}
+
+	protected void dispose(boolean releaseState) throws Exception {
 		synchronized (lock) {
-			discarded = true;
-			numAcknowledgedTasks = -1;
-			if (releaseState) {
-				for (TaskState taskState : taskStates.values()) {
-					taskState.discard(userClassLoader);
+			try {
+				discarded = true;
+				numAcknowledgedTasks = -1;
+				if (releaseState) {
+					StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
 				}
+			} finally {
+				taskStates.clear();
+				notYetAcknowledgedTasks.clear();
 			}
-			taskStates.clear();
-			notYetAcknowledgedTasks.clear();
 		}
 	}
 
@@ -216,7 +264,7 @@ public class PendingCheckpoint {
 
 	@Override
 	public String toString() {
-		return String.format("PendingCheckpoint %d @ %d - confirmed=%d, pending=%d",
+		return String.format("Pending Checkpoint %d @ %d - confirmed=%d, pending=%d",
 				checkpointId, checkpointTimestamp, getNumberOfAcknowledgedTasks(), getNumberOfNonAcknowledgedTasks());
 	}
 }

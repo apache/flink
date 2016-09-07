@@ -104,7 +104,7 @@ KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
-KEY_RECOVERY_MODE="recovery.mode"
+KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
 ########################################################################################################################
@@ -134,6 +134,11 @@ SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 # Define the main directory of the flink installation
 FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
+
+### Exported environment variables ###
+export FLINK_CONF_DIR
+# export /lib dir to access it during deployment of the Yarn staging files
+export FLINK_LIB_DIR
 
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a
@@ -252,8 +257,23 @@ if [ -z "${ZK_HEAP}" ]; then
     ZK_HEAP=$(readFromConfig ${KEY_ZK_HEAP_MB} 0 "${YAML_CONF}")
 fi
 
-if [ -z "${RECOVERY_MODE}" ]; then
-    RECOVERY_MODE=$(readFromConfig ${KEY_RECOVERY_MODE} "standalone" "${YAML_CONF}")
+# High availability
+if [ -z "${HIGH_AVAILABILITY}" ]; then
+     HIGH_AVAILABILITY=$(readFromConfig ${KEY_HIGH_AVAILABILITY} "" "${YAML_CONF}")
+     if [ -z "${HIGH_AVAILABILITY}" ]; then
+        # Try deprecated value
+        DEPRECATED_HA=$(readFromConfig "recovery.mode" "" "${YAML_CONF}")
+        if [ -z "${DEPRECATED_HA}" ]; then
+            HIGH_AVAILABILITY="none"
+        elif [ ${DEPRECATED_HA} == "standalone" ]; then
+            # Standalone is now 'none'
+            HIGH_AVAILABILITY="none"
+        else
+            HIGH_AVAILABILITY=${DEPRECATED_HA}
+        fi
+     else
+         HIGH_AVAILABILITY="none"
+     fi
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.

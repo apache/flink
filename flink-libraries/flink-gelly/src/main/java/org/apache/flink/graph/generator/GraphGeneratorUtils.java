@@ -50,12 +50,10 @@ public class GraphGeneratorUtils {
 				.setParallelism(parallelism)
 				.name("Vertex iterators");
 
-		DataSet<Vertex<LongValue,NullValue>> vertexSequence = vertexLabels
+		return vertexLabels
 			.map(new CreateVertex())
 				.setParallelism(parallelism)
 				.name("Vertex sequence");
-
-		return vertexSequence;
 	}
 
 	@ForwardedFields("*->f0")
@@ -73,7 +71,7 @@ public class GraphGeneratorUtils {
 		}
 	}
 
-	/**************************************************************************/
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Generates {@link Vertex Vertices} present in the given set of {@link Edge}s.
@@ -84,7 +82,7 @@ public class GraphGeneratorUtils {
 	 * @param <EV> edge value type
 	 * @return {@link DataSet} of discovered {@link Vertex Vertices}
 	 *
-	 * @see {@link Graph#fromDataSet(DataSet, DataSet, ExecutionEnvironment)}
+	 * @see Graph#fromDataSet(DataSet, DataSet, ExecutionEnvironment)
 	 */
 	public static <K,EV> DataSet<Vertex<K,NullValue>> vertexSet(DataSet<Edge<K,EV>> edges, int parallelism) {
 		DataSet<Vertex<K,NullValue>> vertexSet = edges
@@ -92,16 +90,14 @@ public class GraphGeneratorUtils {
 				.setParallelism(parallelism)
 				.name("Emit source and target labels");
 
-		DataSet<Vertex<K,NullValue>> distinctVertexSet = vertexSet
+		return vertexSet
 			.distinct()
 				.setParallelism(parallelism)
 				.name("Emit vertex labels");
-
-		return distinctVertexSet;
 	}
 
 	/**
-	 * @see {@link Graph.EmitSrcAndTarget}
+	 * @see Graph.EmitSrcAndTarget
 	 */
 	private static final class EmitSrcAndTarget<K,EV>
 	implements FlatMapFunction<Edge<K,EV>, Vertex<K,NullValue>> {

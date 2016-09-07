@@ -37,7 +37,11 @@ public class YarnConfigKeys {
 	public static final String ENV_DETACHED = "_DETACHED";
 	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
 
+	public static final String ENV_FLINK_CLASSPATH = "_FLINK_CLASSPATH";
+
 	public final static String FLINK_JAR_PATH = "_FLINK_JAR_PATH"; // the Flink jar resource location (in HDFS).
+
+	public static final String ENV_ZOOKEEPER_NAMESPACE = "_ZOOKEEPER_NAMESPACE";
 
 
 	// ------------------------------------------------------------------------

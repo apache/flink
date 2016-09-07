@@ -75,8 +75,8 @@ public class SpargelCompilerTest extends CompilerTestBase {
 				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
 				DataSet<Vertex<Long, Long>> result = graph.runScatterGatherIteration(
-						new ConnectedComponents.CCUpdater<Long, Long>(),
-						new ConnectedComponents.CCMessenger<Long, Long>(BasicTypeInfo.LONG_TYPE_INFO), 100)
+						new ConnectedComponents.CCMessenger<Long, Long>(BasicTypeInfo.LONG_TYPE_INFO),
+						new ConnectedComponents.CCUpdater<Long, Long>(), 100)
 						.getVertices();
 				
 				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
@@ -157,12 +157,12 @@ public class SpargelCompilerTest extends CompilerTestBase {
 				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
 				ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
-				parameters.addBroadcastSetForMessagingFunction(BC_VAR_NAME, bcVar);
-				parameters.addBroadcastSetForUpdateFunction(BC_VAR_NAME, bcVar);
+				parameters.addBroadcastSetForScatterFunction(BC_VAR_NAME, bcVar);
+				parameters.addBroadcastSetForGatherFunction(BC_VAR_NAME, bcVar);
 
 				DataSet<Vertex<Long, Long>> result = graph.runScatterGatherIteration(
-						new ConnectedComponents.CCUpdater<Long, Long>(),
-						new ConnectedComponents.CCMessenger<Long, Long>(BasicTypeInfo.LONG_TYPE_INFO), 100)
+						new ConnectedComponents.CCMessenger<Long, Long>(BasicTypeInfo.LONG_TYPE_INFO),
+						new ConnectedComponents.CCUpdater<Long, Long>(), 100)
 						.getVertices();
 					
 				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());

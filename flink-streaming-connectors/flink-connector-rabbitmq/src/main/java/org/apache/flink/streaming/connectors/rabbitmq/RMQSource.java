@@ -74,7 +74,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSource.class);
 
 	private final RMQConnectionConfig rmqConnectionConfig;
-	private final String queueName;
+	protected final String queueName;
 	private final boolean usesCorrelationId;
 	protected DeserializationSchema<OUT> schema;
 
@@ -148,6 +148,9 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
+			if (channel == null) {
+				throw new RuntimeException("None of RabbitMQ channels are available");
+			}
 			setupQueue();
 			consumer = new QueueingConsumer(channel);
 

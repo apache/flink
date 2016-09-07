@@ -32,8 +32,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
@@ -62,10 +63,10 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 
 	// Optional configuration
-	private boolean sortTriangleVertices = false;
+	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, false);
 
 	private int littleParallelism = PARALLELISM_DEFAULT;
 
@@ -77,7 +78,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 * @return this
 	 */
 	public TriangleListing<K, VV, EV> setSortTriangleVertices(boolean sortTriangleVertices) {
-		this.sortTriangleVertices = sortTriangleVertices;
+		this.sortTriangleVertices.set(sortTriangleVertices);
 
 		return this;
 	}
@@ -97,6 +98,27 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 		return this;
 	}
 
+	@Override
+	protected String getAlgorithmName() {
+		return TriangleListing.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! TriangleListing.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		TriangleListing rhs = (TriangleListing) other;
+
+		sortTriangleVertices.mergeWith(rhs.sortTriangleVertices);
+		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+
+		return true;
+	}
+
 	/*
 	 * Implementation notes:
 	 *
@@ -108,7 +130,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 */
 
 	@Override
-	public DataSet<Tuple3<K, K, K>> run(Graph<K, VV, EV> input)
+	public DataSet<Tuple3<K, K, K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, v where u < v
 		DataSet<Tuple2<K, K>> filteredByID = input
@@ -145,7 +167,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				.setParallelism(littleParallelism)
 				.name("Triangle listing");
 
-		if (sortTriangleVertices) {
+		if (sortTriangleVertices.get()) {
 			triangles = triangles
 				.map(new SortTriangleVertices<K>())
 					.name("Sort triangle vertices");

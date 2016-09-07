@@ -21,16 +21,16 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.PriorityQueue;
@@ -46,7 +46,7 @@ import java.util.PriorityQueue;
 abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBasePatternOperator<IN, OUT> {
 	private static final long serialVersionUID = 7487334510746595640L;
 
-	private final StreamRecordSerializer<IN> streamRecordSerializer;
+	private final MultiplexingStreamRecordSerializer<IN> streamRecordSerializer;
 
 	// global nfa for all elements
 	private NFA<IN> nfa;
@@ -60,7 +60,7 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 			NFACompiler.NFAFactory<IN> nfaFactory) {
 		super(inputSerializer, isProcessingTime);
 
-		this.streamRecordSerializer = new StreamRecordSerializer<>(inputSerializer);
+		this.streamRecordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
 		this.nfa = nfaFactory.createNFA();
 	}
 
@@ -77,8 +77,18 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 	}
 
 	@Override
+	protected void updateNFA(NFA<IN> nfa) {
+		// a no-op, because we only have one NFA
+	}
+
+	@Override
 	protected PriorityQueue<StreamRecord<IN>> getPriorityQueue() throws IOException {
 		return priorityQueue;
+	}
+
+	@Override
+	protected void updatePriorityQueue(PriorityQueue<StreamRecord<IN>> queue) {
+		// a no-op, because we only have one priority queue
 	}
 
 	@Override
@@ -93,50 +103,34 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 	}
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-
-		final AbstractStateBackend.CheckpointStateOutputStream os = this.getStateBackend().createCheckpointStateOutputStream(
-			checkpointId,
-			timestamp);
-
-		final ObjectOutputStream oos = new ObjectOutputStream(os);
-		final AbstractStateBackend.CheckpointStateOutputView ov = new AbstractStateBackend.CheckpointStateOutputView(os);
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+		super.snapshotState(out, checkpointId, timestamp);
+		final ObjectOutputStream oos = new ObjectOutputStream(out);
 
 		oos.writeObject(nfa);
-
-		ov.writeInt(priorityQueue.size());
+		oos.writeInt(priorityQueue.size());
 
 		for (StreamRecord<IN> streamRecord: priorityQueue) {
-			streamRecordSerializer.serialize(streamRecord, ov);
+			streamRecordSerializer.serialize(streamRecord, new DataOutputViewStreamWrapper(oos));
 		}
-
-		taskState.setOperatorState(os.closeAndGetHandle());
-
-		return taskState;
+		oos.flush();
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
-
-		StreamStateHandle stream = (StreamStateHandle)state.getOperatorState();
-
-		final InputStream is = stream.getState(getUserCodeClassloader());
-		final ObjectInputStream ois = new ObjectInputStream(is);
-		final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(is);
+	public void restoreState(FSDataInputStream state) throws Exception {
+		super.restoreState(state);
+		final ObjectInputStream ois = new ObjectInputStream(state);
 
 		nfa = (NFA<IN>)ois.readObject();
 
-		int numberPriorityQueueEntries = div.readInt();
+		int numberPriorityQueueEntries = ois.readInt();
 
 		priorityQueue = new PriorityQueue<StreamRecord<IN>>(numberPriorityQueueEntries, new StreamRecordComparator<IN>());
 
 		for (int i = 0; i <numberPriorityQueueEntries; i++) {
-			priorityQueue.offer(streamRecordSerializer.deserialize(div));
+			StreamElement streamElement = streamRecordSerializer.deserialize(new DataInputViewStreamWrapper(ois));
+			priorityQueue.offer(streamElement.<IN>asRecord());
 		}
-
-		div.close();
 	}
 }

@@ -28,10 +28,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeTargetDegree;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -61,7 +61,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class JaccardIndex<K extends CopyableValue<K>, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 	public static final int DEFAULT_GROUP_SIZE = 64;
 
@@ -153,6 +153,39 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		return this;
 	}
 
+	@Override
+	protected String getAlgorithmName() {
+		return JaccardIndex.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! JaccardIndex.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		JaccardIndex rhs = (JaccardIndex) other;
+
+		// verify that configurations can be merged
+
+		if (unboundedScores != rhs.unboundedScores ||
+			minimumScoreNumerator != rhs.minimumScoreNumerator ||
+			minimumScoreDenominator != rhs.minimumScoreDenominator ||
+			maximumScoreNumerator != rhs.maximumScoreNumerator ||
+			maximumScoreDenominator != rhs.maximumScoreDenominator) {
+			return false;
+		}
+
+		// merge configurations
+
+		groupSize = Math.max(groupSize, rhs.groupSize);
+		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+
+		return true;
+	}
+
 	/*
 	 * Implementation notes:
 	 *
@@ -162,7 +195,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 
 	@Override
-	public DataSet<Result<K>> run(Graph<K, VV, EV> input)
+	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, t, d(t)
 		DataSet<Edge<K, Tuple2<EV, LongValue>>> neighborDegree = input
@@ -245,7 +278,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 					throw new RuntimeException("Degree overflows IntValue");
 				}
 
-				// group span, u, v, d(u)
+				// group span, u, v, d(v)
 				output.f1 = edge.f0;
 				output.f2 = edge.f1;
 				output.f3.setValue((int)degree);
@@ -364,7 +397,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0; 1")
-	private class ComputeScores<T>
+	private static class ComputeScores<T>
 	implements GroupReduceFunction<Tuple3<T, T, IntValue>, Result<T>> {
 		private boolean unboundedScores;
 

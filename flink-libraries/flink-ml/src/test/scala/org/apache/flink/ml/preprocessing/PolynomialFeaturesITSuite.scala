@@ -21,7 +21,7 @@ package org.apache.flink.ml.preprocessing
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.test.util.FlinkTestBase
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 class PolynomialFeaturesITSuite

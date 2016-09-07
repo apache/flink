@@ -108,6 +108,24 @@ public class RMQSourceTest {
 	}
 
 	@Test
+	public void throwExceptionIfConnectionFactoryReturnNull() throws Exception {
+		RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
+		ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+		Connection connection = Mockito.mock(Connection.class);
+		Mockito.when(connectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+		Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+		Mockito.when(connection.createChannel()).thenReturn(null);
+
+		RMQSource<String> rmqSource = new RMQSource<>(
+			connectionConfig, "queueDummy", true, new StringDeserializationScheme());
+		try {
+			rmqSource.open(new Configuration());
+		} catch (RuntimeException ex) {
+			assertEquals("None of RabbitMQ channels are available", ex.getMessage());
+		}
+	}
+
+	@Test
 	public void testCheckpointing() throws Exception {
 		source.autoAck = false;
 		sourceThread.start();

@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -37,6 +38,8 @@ import akka.dispatch.Futures;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.instance.SharedSlot;
@@ -45,6 +48,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceDiedException;
 import org.apache.flink.runtime.instance.InstanceListener;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -62,7 +66,7 @@ import scala.concurrent.ExecutionContext;
  *         fulfilled as soon as a slot becomes available.</li>
  * </ul>
  */
-public class Scheduler implements InstanceListener, SlotAvailabilityListener {
+public class Scheduler implements InstanceListener, SlotAvailabilityListener, SlotProvider {
 
 	/** Scheduler-wide logger */
 	private static final Logger LOG = LoggerFactory.getLogger(Scheduler.class);
@@ -78,7 +82,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	private final HashMap<String, Set<Instance>> allInstancesByHost = new HashMap<String, Set<Instance>>();
 	
 	/** All instances that still have available resources */
-	private final Queue<Instance> instancesWithAvailableResources = new SetQueue<Instance>();
+	private final Map<ResourceID, Instance> instancesWithAvailableResources = new LinkedHashMap<>();
 	
 	/** All tasks pending to be scheduled */
 	private final Queue<QueuedTask> taskQueue = new ArrayDeque<QueuedTask>();
@@ -126,30 +130,24 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	// ------------------------------------------------------------------------
 	//  Scheduling
 	// ------------------------------------------------------------------------
-	
-	public SimpleSlot scheduleImmediately(ScheduledUnit task) throws NoResourceAvailableException {
-		Object ret = scheduleTask(task, false);
-		if (ret instanceof SimpleSlot) {
-			return (SimpleSlot) ret;
-		}
-		else {
-			throw new RuntimeException();
-		}
-	}
-	
-	public SlotAllocationFuture scheduleQueued(ScheduledUnit task) throws NoResourceAvailableException {
-		Object ret = scheduleTask(task, true);
+
+
+	@Override
+	public SlotAllocationFuture allocateSlot(ScheduledUnit task, boolean allowQueued) 
+			throws NoResourceAvailableException {
+
+		final Object ret = scheduleTask(task, allowQueued);
 		if (ret instanceof SimpleSlot) {
 			return new SlotAllocationFuture((SimpleSlot) ret);
 		}
-		if (ret instanceof SlotAllocationFuture) {
+		else if (ret instanceof SlotAllocationFuture) {
 			return (SlotAllocationFuture) ret;
 		}
 		else {
 			throw new RuntimeException();
 		}
 	}
-	
+
 	/**
 	 * Returns either a {@link org.apache.flink.runtime.instance.SimpleSlot}, or a {@link SlotAllocationFuture}.
 	 */
@@ -163,7 +161,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 		
-		final Iterable<Instance> preferredLocations = vertex.getPreferredLocations();
+		final Iterable<TaskManagerLocation> preferredLocations = vertex.getPreferredLocations();
 		final boolean forceExternalLocation = vertex.isScheduleLocalOnly() &&
 									preferredLocations != null && preferredLocations.iterator().hasNext();
 	
@@ -222,7 +220,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					
 					// our location preference is either determined by the location constraint, or by the
 					// vertex's preferred locations
-					final Iterable<Instance> locations;
+					final Iterable<TaskManagerLocation> locations;
 					final boolean localOnly;
 					if (constraint != null && constraint.isAssigned()) {
 						locations = Collections.singleton(constraint.getLocation());
@@ -341,7 +339,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 * @return The instance to run the vertex on, it {@code null}, if no instance is available.
 	 */
 	protected SimpleSlot getFreeSlotForTask(ExecutionVertex vertex,
-											Iterable<Instance> requestedLocations,
+											Iterable<TaskManagerLocation> requestedLocations,
 											boolean localOnly) {
 		// we need potentially to loop multiple times, because there may be false positives
 		// in the set-with-available-instances
@@ -360,7 +358,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				
 				// if the instance has further available slots, re-add it to the set of available resources.
 				if (instanceToUse.hasResourcesAvailable()) {
-					this.instancesWithAvailableResources.add(instanceToUse);
+					this.instancesWithAvailableResources.put(instanceToUse.getTaskManagerID(), instanceToUse);
 				}
 				
 				if (slot != null) {
@@ -396,7 +394,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 * @return A sub-slot for the given vertex, or {@code null}, if no slot is available.
 	 */
 	protected SimpleSlot getNewSlotForSharingGroup(ExecutionVertex vertex,
-													Iterable<Instance> requestedLocations,
+													Iterable<TaskManagerLocation> requestedLocations,
 													SlotSharingGroupAssignment groupAssignment,
 													CoLocationConstraint constraint,
 													boolean localOnly)
@@ -422,7 +420,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 
 				// if the instance has further available slots, re-add it to the set of available resources.
 				if (instanceToUse.hasResourcesAvailable()) {
-					this.instancesWithAvailableResources.add(instanceToUse);
+					this.instancesWithAvailableResources.put(instanceToUse.getTaskManagerID(), instanceToUse);
 				}
 
 				if (sharedSlot != null) {
@@ -460,13 +458,13 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 *                           no locality preference exists.   
 	 * @param localOnly Flag to indicate whether only one of the exact local instances can be chosen.  
 	 */
-	private Pair<Instance, Locality> findInstance(Iterable<Instance> requestedLocations, boolean localOnly){
+	private Pair<Instance, Locality> findInstance(Iterable<TaskManagerLocation> requestedLocations, boolean localOnly) {
 		
 		// drain the queue of newly available instances
 		while (this.newlyAvailableInstances.size() > 0) {
 			Instance queuedInstance = this.newlyAvailableInstances.poll();
 			if (queuedInstance != null) {
-				this.instancesWithAvailableResources.add(queuedInstance);
+				this.instancesWithAvailableResources.put(queuedInstance.getTaskManagerID(), queuedInstance);
 			}
 		}
 		
@@ -475,15 +473,18 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			return null;
 		}
 
-		Iterator<Instance> locations = requestedLocations == null ? null : requestedLocations.iterator();
+		Iterator<TaskManagerLocation> locations = requestedLocations == null ? null : requestedLocations.iterator();
 
 		if (locations != null && locations.hasNext()) {
 			// we have a locality preference
 
 			while (locations.hasNext()) {
-				Instance location = locations.next();
-				if (location != null && this.instancesWithAvailableResources.remove(location)) {
-					return new ImmutablePair<Instance, Locality>(location, Locality.LOCAL);
+				TaskManagerLocation location = locations.next();
+				if (location != null) {
+					Instance instance = instancesWithAvailableResources.remove(location.getResourceID());
+					if (instance != null) {
+						return new ImmutablePair<Instance, Locality>(instance, Locality.LOCAL);
+					}
 				}
 			}
 			
@@ -492,14 +493,21 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				return null;
 			}
 			else {
-				Instance instanceToUse = this.instancesWithAvailableResources.poll();
-				return new ImmutablePair<Instance, Locality>(instanceToUse, Locality.NON_LOCAL);
+				// take the first instance from the instances with resources
+				Iterator<Instance> instances = instancesWithAvailableResources.values().iterator();
+				Instance instanceToUse = instances.next();
+				instances.remove();
+
+				return new ImmutablePair<>(instanceToUse, Locality.NON_LOCAL);
 			}
 		}
 		else {
 			// no location preference, so use some instance
-			Instance instanceToUse = this.instancesWithAvailableResources.poll();
-			return new ImmutablePair<Instance, Locality>(instanceToUse, Locality.UNCONSTRAINED);
+			Iterator<Instance> instances = instancesWithAvailableResources.values().iterator();
+			Instance instanceToUse = instances.next();
+			instances.remove();
+
+			return new ImmutablePair<>(instanceToUse, Locality.UNCONSTRAINED);
 		}
 	}
 	
@@ -570,7 +578,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				}
 			}
 			else {
-				this.instancesWithAvailableResources.add(instance);
+				this.instancesWithAvailableResources.put(instance.getTaskManagerID(), instance);
 			}
 		}
 	}
@@ -636,18 +644,17 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				instance.setSlotAvailabilityListener(this);
 				
 				// store the instance in the by-host-lookup
-				String instanceHostName = instance.getInstanceConnectionInfo().getHostname();
+				String instanceHostName = instance.getTaskManagerLocation().getHostname();
 				Set<Instance> instanceSet = allInstancesByHost.get(instanceHostName);
 				if (instanceSet == null) {
 					instanceSet = new HashSet<Instance>();
 					allInstancesByHost.put(instanceHostName, instanceSet);
 				}
 				instanceSet.add(instance);
-				
-					
+
 				// add it to the available resources and let potential waiters know
-				this.instancesWithAvailableResources.add(instance);
-	
+				this.instancesWithAvailableResources.put(instance.getTaskManagerID(), instance);
+
 				// add all slots as available
 				for (int i = 0; i < instance.getNumberOfAvailableSlots(); i++) {
 					newSlotAvailable(instance);
@@ -681,9 +688,9 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		}
 
 		allInstances.remove(instance);
-		instancesWithAvailableResources.remove(instance);
-		
-		String instanceHostName = instance.getInstanceConnectionInfo().getHostname();
+		instancesWithAvailableResources.remove(instance.getTaskManagerID());
+
+		String instanceHostName = instance.getTaskManagerLocation().getHostname();
 		Set<Instance> instanceSet = allInstancesByHost.get(instanceHostName);
 		if (instanceSet != null) {
 			instanceSet.remove(instance);
@@ -709,7 +716,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		synchronized (globalLock) {
 			processNewlyAvailableInstances();
 
-			for (Instance instance : instancesWithAvailableResources) {
+			for (Instance instance : instancesWithAvailableResources.values()) {
 				count += instance.getNumberOfAvailableSlots();
 			}
 		}
@@ -781,9 +788,9 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		synchronized (globalLock) {
 			Instance instance;
 
-			while((instance = newlyAvailableInstances.poll()) != null){
-				if(instance.hasResourcesAvailable()){
-					instancesWithAvailableResources.add(instance);
+			while ((instance = newlyAvailableInstances.poll()) != null) {
+				if (instance.hasResourcesAvailable()) {
+					instancesWithAvailableResources.put(instance.getTaskManagerID(), instance);
 				}
 			}
 		}
@@ -794,17 +801,17 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static String getHostnamesFromInstances(Iterable<Instance> instances) {
+	private static String getHostnamesFromInstances(Iterable<TaskManagerLocation> locations) {
 		StringBuilder bld = new StringBuilder();
 
 		boolean successive = false;
-		for (Instance i : instances) {
+		for (TaskManagerLocation loc : locations) {
 			if (successive) {
 				bld.append(", ");
 			} else {
 				successive = true;
 			}
-			bld.append(i.getInstanceConnectionInfo().getHostname());
+			bld.append(loc.getHostname());
 		}
 
 		return bld.toString();

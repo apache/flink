@@ -24,7 +24,6 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -71,13 +70,14 @@ public abstract class InputChannel {
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartitionID partitionId,
-			Tuple2<Integer, Integer> initialAndMaxBackoff,
+			int initialBackoff,
+			int maxBackoff,
 			Counter numBytesIn) {
 
 		checkArgument(channelIndex >= 0);
 
-		int initial = initialAndMaxBackoff._1();
-		int max = initialAndMaxBackoff._2();
+		int initial = initialBackoff;
+		int max = maxBackoff;
 
 		checkArgument(initial >= 0 && initial <= max);
 

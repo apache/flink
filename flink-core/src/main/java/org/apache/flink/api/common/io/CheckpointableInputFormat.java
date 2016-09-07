@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * An interface the describes {@link InputFormat}s that allow checkpointing/restoring their state.
+ * An interface that describes {@link InputFormat}s that allow checkpointing/restoring their state.
  *
  * @param <S> The type of input split.
  * @param <T> The type of the channel state to be checkpointed / included in the snapshot.
@@ -40,7 +40,7 @@ public interface CheckpointableInputFormat<S extends InputSplit, T extends Seria
 	 *
 	 * @return The state of the channel.
 	 *
-	 * @throws Exception Thrown if the creation of the state object failed.
+	 * @throws IOException Thrown if the creation of the state object failed.
 	 */
 	T getCurrentState() throws IOException;
 

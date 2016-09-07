@@ -23,10 +23,8 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -339,7 +337,6 @@ public class WindowCheckpointingITCase extends TestLogger {
 			// we loop longer than we have elements, to permit delayed checkpoints
 			// to still cause a failure
 			while (running) {
-
 				if (!failedBefore) {
 					// delay a bit, if we have not failed before
 					Thread.sleep(1);
@@ -352,17 +349,15 @@ public class WindowCheckpointingITCase extends TestLogger {
 				}
 
 				if (numElementsEmitted < numElementsToEmit &&
-						(failedBefore || numElementsEmitted <= failureAfterNumElements))
-				{
+						(failedBefore || numElementsEmitted <= failureAfterNumElements)) {
 					// the function failed before, or we are in the elements before the failure
 					synchronized (ctx.getCheckpointLock()) {
 						int next = numElementsEmitted++;
 						ctx.collect(new Tuple2<Long, IntType>((long) next, new IntType(next)));
 					}
-				}
-				else {
+				} else {
 					// if our work is done, delay a bit to prevent busy waiting
-					Thread.sleep(1);
+					Thread.sleep(10);
 				}
 			}
 		}
@@ -411,6 +406,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 		public void open(Configuration parameters) throws Exception {
 			// this sink can only work with DOP 1
 			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+			checkSuccess();
 		}
 
 		@Override
@@ -425,6 +421,10 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 			// check if we have seen all we expect
 			aggCount += value.f1.value;
+			checkSuccess();
+		}
+
+		private void checkSuccess() throws SuccessException {
 			if (aggCount >= elementCountExpected * countPerElementExpected) {
 				// we are done. validate
 				assertEquals(elementCountExpected, counts.size());

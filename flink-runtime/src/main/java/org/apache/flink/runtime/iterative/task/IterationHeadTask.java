@@ -171,7 +171,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 		boolean success = false;
 		try {
 			int numPages = getMemoryManager().computeNumberOfPages(hashjoinMemorySize);
-			memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), numPages);
+			memSegments = getMemoryManager().allocatePages(getContainingTask(), numPages);
 			hashTable = new CompactingHashTable<BT>(solutionTypeSerializer, solutionTypeComparator, memSegments);
 			success = true;
 			return hashTable;

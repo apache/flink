@@ -51,7 +51,7 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
+	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
 	}
 

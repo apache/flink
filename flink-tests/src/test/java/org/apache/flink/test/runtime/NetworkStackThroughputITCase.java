@@ -287,9 +287,12 @@ public class NetworkStackThroughputITCase {
 			config.setInteger(NUM_SLOTS_PER_TM_CONFIG_KEY, (Integer) p[5]);
 
 			TestBaseWrapper test = new TestBaseWrapper(config);
+			test.startCluster();
 
 			System.out.println(Arrays.toString(p));
 			test.testProgram();
+
+			test.stopCluster();
 		}
 	}
 

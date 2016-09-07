@@ -41,10 +41,13 @@ public class StandaloneClusterClient extends ClusterClient {
 		super(config);
 	}
 
+	@Override
+	public void waitForClusterToBeReady() {}
+
 
 	@Override
 	public String getWebInterfaceURL() {
-		String host = this.getJobManagerAddress().getHostName();
+		String host = this.getJobManagerAddress().getHostString();
 		int port = getFlinkConfiguration().getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 		return "http://" +  host + ":" + port;
@@ -74,7 +77,8 @@ public class StandaloneClusterClient extends ClusterClient {
 
 	@Override
 	public String getClusterIdentifier() {
-		return "Standalone cluster with JobManager running at " + this.getJobManagerAddress();
+		// Avoid blocking here by getting the address from the config without resolving the address
+		return "Standalone cluster with JobManager at " + this.getJobManagerAddress();
 	}
 
 	@Override

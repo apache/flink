@@ -50,10 +50,10 @@ public class ExplainTest extends MultipleProgramsTestBase {
 			.fromDataSet(input, "a, b")
 			.filter("a % 2 = 0");
 
-		String result = tableEnv.explain(table);
+		String result = tableEnv.explain(table).replaceAll("\\r\\n", "\n");
 		try (Scanner scanner = new Scanner(new File(testFilePath +
 			"../../src/test/scala/resources/testFilter0.out"))){
-			String source = scanner.useDelimiter("\\A").next();
+			String source = scanner.useDelimiter("\\A").next().replaceAll("\\r\\n", "\n");
 			assertEquals(source, result);
 		}
 	}
@@ -68,10 +68,10 @@ public class ExplainTest extends MultipleProgramsTestBase {
 			.fromDataSet(input, "a, b")
 			.filter("a % 2 = 0");
 
-		String result = tableEnv.explain(table, true);
+		String result = tableEnv.explain(table, true).replaceAll("\\r\\n", "\n");
 		try (Scanner scanner = new Scanner(new File(testFilePath +
 			"../../src/test/scala/resources/testFilter1.out"))){
-			String source = scanner.useDelimiter("\\A").next();
+			String source = scanner.useDelimiter("\\A").next().replaceAll("\\r\\n", "\n");
 			assertEquals(source, result);
 		}
 	}
@@ -90,10 +90,10 @@ public class ExplainTest extends MultipleProgramsTestBase {
 			.where("b = d")
 			.select("a, c");
 
-		String result = tableEnv.explain(table);
+		String result = tableEnv.explain(table).replaceAll("\\r\\n", "\n");
 		try (Scanner scanner = new Scanner(new File(testFilePath +
 			"../../src/test/scala/resources/testJoin0.out"))){
-			String source = scanner.useDelimiter("\\A").next();
+			String source = scanner.useDelimiter("\\A").next().replaceAll("\\r\\n", "\n");
 			assertEquals(source, result);
 		}
 	}
@@ -112,10 +112,10 @@ public class ExplainTest extends MultipleProgramsTestBase {
 			.where("b = d")
 			.select("a, c");
 
-		String result = tableEnv.explain(table, true);
+		String result = tableEnv.explain(table, true).replaceAll("\\r\\n", "\n");
 		try (Scanner scanner = new Scanner(new File(testFilePath +
 			"../../src/test/scala/resources/testJoin1.out"))){
-			String source = scanner.useDelimiter("\\A").next();
+			String source = scanner.useDelimiter("\\A").next().replaceAll("\\r\\n", "\n");
 			assertEquals(source, result);
 		}
 	}
@@ -131,10 +131,10 @@ public class ExplainTest extends MultipleProgramsTestBase {
 		Table table2 = tableEnv.fromDataSet(input2, "count, word");
 		Table table = table1.unionAll(table2);
 
-		String result = tableEnv.explain(table);
+		String result = tableEnv.explain(table).replaceAll("\\r\\n", "\n");
 		try (Scanner scanner = new Scanner(new File(testFilePath +
 			"../../src/test/scala/resources/testUnion0.out"))){
-			String source = scanner.useDelimiter("\\A").next();
+			String source = scanner.useDelimiter("\\A").next().replaceAll("\\r\\n", "\n");
 			assertEquals(source, result);
 		}
 	}
@@ -150,10 +150,10 @@ public class ExplainTest extends MultipleProgramsTestBase {
 		Table table2 = tableEnv.fromDataSet(input2, "count, word");
 		Table table = table1.unionAll(table2);
 
-		String result = tableEnv.explain(table, true);
+		String result = tableEnv.explain(table, true).replaceAll("\\r\\n", "\n");
 		try (Scanner scanner = new Scanner(new File(testFilePath +
 			"../../src/test/scala/resources/testUnion1.out"))){
-			String source = scanner.useDelimiter("\\A").next();
+			String source = scanner.useDelimiter("\\A").next().replaceAll("\\r\\n", "\n");
 			assertEquals(source, result);
 		}
 	}

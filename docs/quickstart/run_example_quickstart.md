@@ -1,9 +1,8 @@
 ---
 title: "Monitoring the Wikipedia Edit Stream"
-# Top navigation
-sub-nav-group: streaming
-sub-nav-pos: 2
-sub-nav-title: "Example: Wikipedia Edits"
+nav-title: Monitoring Wikipedia Edits
+nav-parent_id: quickstarts
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

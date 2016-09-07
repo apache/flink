@@ -29,12 +29,10 @@ import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.NMTokenIdentifier;
@@ -244,19 +242,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 		Assert.assertNotNull("Unable to find container with TaskManager", taskManagerContainer);
 		Assert.assertNotNull("Illegal state", nodeManager);
-
-		try {
-			List<NodeReport> nodeReports = yc.getNodeReports(NodeState.RUNNING);
-
-			// we asked for one node with 2 vcores so we expect 2 vcores
-			int userVcores = 0;
-			for (NodeReport rep: nodeReports) {
-				userVcores += rep.getUsed().getVirtualCores();
-			}
-			Assert.assertEquals(2, userVcores);
-		} catch (Exception e) {
-			Assert.fail("Test failed: " + e.getMessage());
-		}
 
 		yc.stop();
 

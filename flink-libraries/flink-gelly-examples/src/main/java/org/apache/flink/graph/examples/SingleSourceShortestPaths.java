@@ -26,9 +26,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
@@ -62,7 +62,7 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 		// Execute the scatter-gather iteration
 		Graph<Long, Double, Double> result = graph.runScatterGatherIteration(
-				new VertexDistanceUpdater(), new MinDistanceMessenger(), maxIterations);
+				new MinDistanceMessenger(), new VertexDistanceUpdater(), maxIterations);
 
 		// Extract the vertices as the result
 		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
@@ -103,11 +103,28 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 	}
 
 	/**
+	 * Distributes the minimum distance associated with a given vertex among all
+	 * the target vertices summed up with the edge's value.
+	 */
+	@SuppressWarnings("serial")
+	private static final class MinDistanceMessenger extends ScatterFunction<Long, Double, Double, Double> {
+
+		@Override
+		public void sendMessages(Vertex<Long, Double> vertex) {
+			if (vertex.getValue() < Double.POSITIVE_INFINITY) {
+				for (Edge<Long, Double> edge : getEdges()) {
+					sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
+				}
+			}
+		}
+	}
+
+	/**
 	 * Function that updates the value of a vertex by picking the minimum
 	 * distance from all incoming messages.
 	 */
 	@SuppressWarnings("serial")
-	public static final class VertexDistanceUpdater extends VertexUpdateFunction<Long, Double, Double> {
+	private static final class VertexDistanceUpdater extends GatherFunction<Long, Double, Double> {
 
 		@Override
 		public void updateVertex(Vertex<Long, Double> vertex, MessageIterator<Double> inMessages) {
@@ -122,23 +139,6 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 			if (vertex.getValue() > minDistance) {
 				setNewVertexValue(minDistance);
-			}
-		}
-	}
-
-	/**
-	 * Distributes the minimum distance associated with a given vertex among all
-	 * the target vertices summed up with the edge's value.
-	 */
-	@SuppressWarnings("serial")
-	public static final class MinDistanceMessenger extends MessagingFunction<Long, Double, Double, Double> {
-
-		@Override
-		public void sendMessages(Vertex<Long, Double> vertex) {
-			if (vertex.getValue() < Double.POSITIVE_INFINITY) {
-				for (Edge<Long, Double> edge : getEdges()) {
-					sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
-				}
 			}
 		}
 	}

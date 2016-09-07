@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 
 /**
@@ -30,20 +31,20 @@ import org.apache.flink.configuration.GlobalConfiguration;
  */
 public final class TestConfigUtils {
 	
-	public static void loadGlobalConf(String[] keys, String[] values) throws IOException {
-		loadGlobalConf(getConfAsString(keys, values));
+	public static Configuration loadGlobalConf(String[] keys, String[] values) throws IOException {
+		return loadGlobalConf(getConfAsString(keys, values));
 	}
 	
-	public static void loadGlobalConf(String contents) throws IOException {
+	public static Configuration loadGlobalConf(String contents) throws IOException {
 		final File tempDir = new File(System.getProperty("java.io.tmpdir"));
-		File confDir = null;
+		File confDir;
 		do {
 			confDir = new File(tempDir, TestFileUtils.randomFileName());
 		} while (confDir.exists());
 		
 		try {
 			confDir.mkdirs();
-			final File confFile = new File(confDir, "tempConfig.xml");
+			final File confFile = new File(confDir, GlobalConfiguration.FLINK_CONF_FILENAME);
 		
 			try {
 				BufferedWriter writer = new BufferedWriter(new FileWriter(confFile));
@@ -52,7 +53,7 @@ public final class TestConfigUtils {
 				} finally {
 					writer.close();
 				}
-				GlobalConfiguration.loadConfiguration(confDir.getAbsolutePath());
+				return GlobalConfiguration.loadConfiguration(confDir.getAbsolutePath());
 			} finally {
 				confFile.delete();
 			}
@@ -61,25 +62,25 @@ public final class TestConfigUtils {
 			confDir.delete();
 		}
 	}
-	
+
 	public static String getConfAsString(String[] keys, String[] values) {
 		if (keys == null || values == null || keys.length != values.length) {
 			throw new IllegalArgumentException();
 		}
-		
+
 		StringBuilder bld = new StringBuilder();
-		bld.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n");
-		
+
 		for (int i = 0; i < keys.length; i++) {
-			bld.append("<property>\n<key>").append(keys[i]).append("</key>\n");
-			bld.append("<value>").append(values[i]).append("</value>\n</property>\n");
+			bld.append(keys[i]);
+			bld.append(": ");
+			bld.append(values[i]);
+			bld.append(System.lineSeparator());
 		}
-		bld.append("</configuration>\n");
 		return bld.toString();
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private TestConfigUtils() {}
 
 }

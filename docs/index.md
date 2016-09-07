@@ -1,5 +1,8 @@
 ---
-title: "Overview"
+title: "Apache Flink Documentation"
+nav-pos: 0
+nav-title: '<i class="fa fa-home" aria-hidden="true"></i> Home'
+nav-parent_id: root
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,32 +29,30 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 
 ## First Steps
 
-- **Concepts**: Start with the [basic concepts]({{ site.baseurl }}/concepts/concepts.html) of Flink. This will help you to fully understand the other parts of the documentation, including the setup and programming guides. It is highly recommended to read this first.
+- **Concepts**: Start with the [basic concepts]({{ site.baseurl }}/concepts/index.html) of Flink. This will help you to fully understand the other parts of the documentation, including the setup and programming guides. It is highly recommended to read this first.
 
 - **Quickstarts**: [Run an example program](quickstart/setup_quickstart.html) on your local machine or [write a simple program](quickstart/run_example_quickstart.html) working on live Wikipedia edits.
 
 - **Setup:** The [local]({{ site.baseurl }}/setup/local_setup.html), [cluster](setup/cluster_setup.html), and [cloud](setup/gce_setup.html) setup guides show you how to deploy Flink.
 
-- **Programming Guides**: You can check out our guides about [basic concepts](apis/common/index.html) and the [DataStream API](apis/streaming/index.html) or [DataSet API](apis/batch/index.html) to learn how to write your first Flink programs.
-
-- **Migration Guide**: Check out the [0.10 to 1.0 migration guide](https://cwiki.apache.org/confluence/display/FLINK/Migration+Guide%3A+0.10.x+to+1.0.x) if you are upgrading from Flink 0.10.x.
+- **Programming Guides**: You can check out our guides about [basic concepts](dev/api_concepts.html) and the [DataStream API](dev/datastream_api.html) or [DataSet API](dev/batch/index.html) to learn how to write your first Flink programs.
 
 ## Stack
 
 This is an overview of Flink's stack. Click on any component to go to the respective documentation page.
 
 <center>
-  <img src="fig/stack.png" width="700px" alt="Apache Flink: Stack" usemap="#overview-stack">
+  <img src="{{ site.baseurl }}/fig/stack.png" width="700px" alt="Apache Flink: Stack" usemap="#overview-stack">
 </center>
 
 <map name="overview-stack">
-<area id="lib-datastream-cep" title="CEP: Complex Event Processing" href="{{ site.baseurl }}/apis/streaming/libs/cep.html" shape="rect" coords="63,0,143,177" />
-<area id="lib-datastream-table" title="Table: Relational DataStreams" href="{{ site.baseurl }}/apis/batch/libs/table.html" shape="rect" coords="143,0,223,177" />
-<area id="lib-dataset-ml" title="FlinkML: Machine Learning" href="{{ site.baseurl }}/apis/batch/libs/ml/index.html" shape="rect" coords="382,2,462,176" />
-<area id="lib-dataset-gelly" title="Gelly: Graph Processing" href="{{ site.baseurl }}/apis/batch/libs/gelly.html" shape="rect" coords="461,0,541,177" />
-<area id="lib-dataset-table" title="Table API and SQL" href="{{ site.baseurl }}/apis/table.html" shape="rect" coords="544,0,624,177" />
-<area id="datastream" title="DataStream API" href="{{ site.baseurl }}/apis/streaming/index.html" shape="rect" coords="64,177,379,255" />
-<area id="dataset" title="DataSet API" href="{{ site.baseurl }}/apis/batch/index.html" shape="rect" coords="382,177,697,255" />
+<area id="lib-datastream-cep" title="CEP: Complex Event Processing" href="{{ site.baseurl }}/dev/libs/cep.html" shape="rect" coords="63,0,143,177" />
+<area id="lib-datastream-table" title="Table: Relational DataStreams" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="143,0,223,177" />
+<area id="lib-dataset-ml" title="FlinkML: Machine Learning" href="{{ site.baseurl }}/dev/libs/ml/index.html" shape="rect" coords="382,2,462,176" />
+<area id="lib-dataset-gelly" title="Gelly: Graph Processing" href="{{ site.baseurl }}/dev/libs/gelly/index.html" shape="rect" coords="461,0,541,177" />
+<area id="lib-dataset-table" title="Table API and SQL" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="544,0,624,177" />
+<area id="datastream" title="DataStream API" href="{{ site.baseurl }}/dev/datastream_api.html" shape="rect" coords="64,177,379,255" />
+<area id="dataset" title="DataSet API" href="{{ site.baseurl }}/dev/batch/index.html" shape="rect" coords="382,177,697,255" />
 <area id="runtime" title="Runtime" href="{{ site.baseurl }}/internals/general_arch.html" shape="rect" coords="63,257,700,335" />
 <area id="local" title="Local" href="{{ site.baseurl }}/setup/local_setup.html" shape="rect" coords="62,337,275,414" />
 <area id="cluster" title="Cluster" href="{{ site.baseurl }}/setup/cluster_setup.html" shape="rect" coords="273,336,486,413" />

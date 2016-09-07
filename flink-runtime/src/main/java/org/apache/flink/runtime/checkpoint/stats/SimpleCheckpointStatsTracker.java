@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint.stats;
 
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import scala.Option;
 
@@ -109,7 +111,8 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 
 	public SimpleCheckpointStatsTracker(
 			int historySize,
-			List<ExecutionJobVertex> tasksToWaitFor) {
+			List<ExecutionJobVertex> tasksToWaitFor,
+			MetricGroup metrics) {
 
 		checkArgument(historySize >= 0);
 		this.historySize = historySize;
@@ -124,6 +127,9 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		} else {
 			taskParallelism = Collections.emptyMap();
 		}
+
+		metrics.gauge("lastCheckpointSize", new CheckpointSizeGauge());
+		metrics.gauge("lastCheckpointDuration", new CheckpointDurationGauge());
 	}
 
 	@Override
@@ -134,7 +140,12 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		}
 
 		synchronized (statsLock) {
-			long overallStateSize = checkpoint.getStateSize();
+			long overallStateSize;
+			try {
+				overallStateSize = checkpoint.getStateSize();
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
 
 			// Operator stats
 			Map<JobVertexID, long[][]> statsForSubTasks = new HashMap<>();
@@ -409,6 +420,24 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		@Override
 		public long getAverageStateSize() {
 			return averageStateSize;
+		}
+	}
+
+	private class CheckpointSizeGauge implements Gauge<Long> {
+		@Override
+		public Long getValue() {
+			try {
+				return latestCompletedCheckpoint == null ? -1 : latestCompletedCheckpoint.getStateSize();
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
+		}
+	}
+
+	private class CheckpointDurationGauge implements Gauge<Long> {
+		@Override
+		public Long getValue() {
+			return latestCompletedCheckpoint == null ? -1 : latestCompletedCheckpoint.getDuration();
 		}
 	}
 }

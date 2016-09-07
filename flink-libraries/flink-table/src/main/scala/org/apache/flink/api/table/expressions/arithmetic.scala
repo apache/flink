@@ -22,20 +22,20 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isNumeric, isString}
-import org.apache.flink.api.table.typeutils.{TypeCheckUtils, TypeCoercion}
+import org.apache.flink.api.table.typeutils.TypeCheckUtils._
+import org.apache.flink.api.table.typeutils.TypeCoercion
 import org.apache.flink.api.table.validate._
 
 import scala.collection.JavaConversions._
 
 abstract class BinaryArithmetic extends BinaryExpression {
-  def sqlOperator: SqlOperator
+  private[flink] def sqlOperator: SqlOperator
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(sqlOperator, children.map(_.toRexNode))
   }
 
-  override def resultType: TypeInformation[_] =
+  override private[flink] def resultType: TypeInformation[_] =
     TypeCoercion.widerTypeOf(left.resultType, right.resultType) match {
       case Some(t) => t
       case None =>
@@ -43,10 +43,10 @@ abstract class BinaryArithmetic extends BinaryExpression {
     }
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (!isNumeric(left.resultType) || !isNumeric(right.resultType)) {
-      ValidationFailure(s"$this requires both operands Numeric, got " +
-        s"${left.resultType} and ${right.resultType}")
+      ValidationFailure(s"$this requires both operands Numeric, get " +
+        s"$left : ${left.resultType} and $right : ${right.resultType}")
     } else {
       ValidationSuccess
     }
@@ -56,15 +56,19 @@ abstract class BinaryArithmetic extends BinaryExpression {
 case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left + $right)"
 
-  val sqlOperator = SqlStdOperatorTable.PLUS
+  private[flink] val sqlOperator = SqlStdOperatorTable.PLUS
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     if(isString(left.resultType)) {
       val castedRight = Cast(right, BasicTypeInfo.STRING_TYPE_INFO)
-      relBuilder.call(SqlStdOperatorTable.PLUS, left.toRexNode, castedRight.toRexNode)
+      relBuilder.call(SqlStdOperatorTable.CONCAT, left.toRexNode, castedRight.toRexNode)
     } else if(isString(right.resultType)) {
       val castedLeft = Cast(left, BasicTypeInfo.STRING_TYPE_INFO)
-      relBuilder.call(SqlStdOperatorTable.PLUS, castedLeft.toRexNode, right.toRexNode)
+      relBuilder.call(SqlStdOperatorTable.CONCAT, castedLeft.toRexNode, right.toRexNode)
+    } else if (isTimeInterval(left.resultType) && left.resultType == right.resultType) {
+      relBuilder.call(SqlStdOperatorTable.PLUS, left.toRexNode, right.toRexNode)
+    } else if (isTemporal(left.resultType) && isTemporal(right.resultType)) {
+      relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, left.toRexNode, right.toRexNode)
     } else {
       val castedLeft = Cast(left, resultType)
       val castedRight = Cast(right, resultType)
@@ -72,15 +76,22 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
     }
   }
 
-  // TODO: tighten this rule once we implemented type coercion rules during validation
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (isString(left.resultType) || isString(right.resultType)) {
       ValidationSuccess
-    } else if (!isNumeric(left.resultType) || !isNumeric(right.resultType)) {
-      ValidationFailure(s"$this requires Numeric or String input," +
-        s" get ${left.resultType} and ${right.resultType}")
-    } else {
+    } else if (isTimeInterval(left.resultType) && left.resultType == right.resultType) {
       ValidationSuccess
+    } else if (isTimePoint(left.resultType) && isTimeInterval(right.resultType)) {
+      ValidationSuccess
+    } else if (isTimeInterval(left.resultType) && isTimePoint(right.resultType)) {
+      ValidationSuccess
+    } else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(
+        s"$this requires Numeric, String, Intervals of same type, " +
+        s"or Interval and a time point input, " +
+        s"get $left : ${left.resultType} and $right : ${right.resultType}")
     }
   }
 }
@@ -88,36 +99,51 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
 case class UnaryMinus(child: Expression) extends UnaryExpression {
   override def toString = s"-($child)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, child.toRexNode)
   }
 
-  override def resultType = child.resultType
+  override private[flink] def resultType = child.resultType
 
-  override def validateInput(): ExprValidationResult =
-    TypeCheckUtils.assertNumericExpr(child.resultType, "unary minus")
+  override private[flink] def validateInput(): ExprValidationResult = {
+    if (isNumeric(child.resultType)) {
+      ValidationSuccess
+    } else if (isTimeInterval(child.resultType)) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"$this requires Numeric, or Interval input, get ${child.resultType}")
+    }
+  }
 }
 
 case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left - $right)"
 
-  val sqlOperator = SqlStdOperatorTable.MINUS
+  private[flink] val sqlOperator = SqlStdOperatorTable.MINUS
+
+  override private[flink] def validateInput(): ExprValidationResult = {
+    if (isTimeInterval(left.resultType) && left.resultType == right.resultType) {
+      ValidationSuccess
+    } else {
+      super.validateInput()
+    }
+  }
 }
 
 case class Div(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left / $right)"
 
-  val sqlOperator = SqlStdOperatorTable.DIVIDE
+  private[flink] val sqlOperator = SqlStdOperatorTable.DIVIDE
 }
 
 case class Mul(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left * $right)"
 
-  val sqlOperator = SqlStdOperatorTable.MULTIPLY
+  private[flink] val sqlOperator = SqlStdOperatorTable.MULTIPLY
 }
 
 case class Mod(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left % $right)"
 
-  val sqlOperator = SqlStdOperatorTable.MOD
+  private[flink] val sqlOperator = SqlStdOperatorTable.MOD
 }

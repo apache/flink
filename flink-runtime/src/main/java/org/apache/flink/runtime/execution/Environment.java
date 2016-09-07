@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -33,9 +33,14 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -148,6 +153,13 @@ public interface Environment {
 	AccumulatorRegistry getAccumulatorRegistry();
 
 	/**
+	 * Returns the registry for {@link KvState} instances.
+	 *
+	 * @return KvState registry
+	 */
+	TaskKvStateRegistry getTaskKvStateRegistry();
+
+	/**
 	 * Confirms that the invokable has successfully completed all steps it needed to
 	 * to for the checkpoint with the give checkpoint-ID. This method does not include
 	 * any state in the checkpoint.
@@ -157,14 +169,18 @@ public interface Environment {
 	void acknowledgeCheckpoint(long checkpointId);
 
 	/**
-	 * Confirms that the invokable has successfully completed all steps it needed to
-	 * to for the checkpoint with the give checkpoint-ID. This method does include
+	 * Confirms that the invokable has successfully completed all required steps for
+	 * the checkpoint with the give checkpoint-ID. This method does include
 	 * the given state in the checkpoint.
 	 *
 	 * @param checkpointId The ID of the checkpoint.
-	 * @param state A handle to the state to be included in the checkpoint.   
+	 * @param chainedStateHandle Handle for the chained operator state
+	 * @param keyGroupStateHandles  Handles for key group state
 	 */
-	void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state);
+	void acknowledgeCheckpoint(
+			long checkpointId,
+			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
+			List<KeyGroupsStateHandle> keyGroupStateHandles);
 
 	/**
 	 * Marks task execution failed for an external reason (a reason other than the task code itself

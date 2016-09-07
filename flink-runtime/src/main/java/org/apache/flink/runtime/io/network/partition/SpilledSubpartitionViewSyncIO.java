@@ -54,6 +54,9 @@ class SpilledSubpartitionViewSyncIO implements ResultSubpartitionView {
 	/** Flag indicating whether all resources have been released. */
 	private AtomicBoolean isReleased = new AtomicBoolean();
 
+	/** Spilled file size */
+	private final long fileSize;
+
 	SpilledSubpartitionViewSyncIO(
 			ResultSubpartition parent,
 			int memorySegmentSize,
@@ -71,6 +74,8 @@ class SpilledSubpartitionViewSyncIO implements ResultSubpartitionView {
 		if (initialSeekPosition > 0) {
 			fileReader.seekToPosition(initialSeekPosition);
 		}
+
+		this.fileSize = fileReader.getSize();
 	}
 
 	@Override
@@ -115,6 +120,14 @@ class SpilledSubpartitionViewSyncIO implements ResultSubpartitionView {
 	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
+	}
+
+	@Override
+	public String toString() {
+		return String.format("SpilledSubpartitionView[sync](index: %d, file size: %d bytes) of ResultPartition %s",
+				parent.index,
+				fileSize,
+				parent.parent.getPartitionId());
 	}
 
 	/**

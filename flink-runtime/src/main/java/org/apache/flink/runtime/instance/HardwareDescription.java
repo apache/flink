@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.util.Hardware;
+
 import java.io.Serializable;
 
 /**
@@ -28,22 +30,16 @@ public final class HardwareDescription implements Serializable {
 	private static final long serialVersionUID = 3380016608300325361L;
 
 	/** The number of CPU cores available to the JVM on the compute node. */
-	private int numberOfCPUCores;
+	private final int numberOfCPUCores;
 
 	/** The size of physical memory in bytes available on the compute node. */
-	private long sizeOfPhysicalMemory;
+	private final long sizeOfPhysicalMemory;
 
 	/** The size of the JVM heap memory */
-	private long sizeOfJvmHeap;
-	
-	/** The size of the memory managed by the system for caching, hashing, sorting, ... */
-	private long sizeOfManagedMemory;
+	private final long sizeOfJvmHeap;
 
-	
-	/**
-	 * Public default constructor used for serialization process.
-	 */
-	public HardwareDescription() {}
+	/** The size of the memory managed by the system for caching, hashing, sorting, ... */
+	private final long sizeOfManagedMemory;
 
 	/**
 	 * Constructs a new hardware description object.
@@ -86,7 +82,7 @@ public final class HardwareDescription implements Serializable {
 	public long getSizeOfJvmHeap() {
 		return this.sizeOfJvmHeap;
 	}
-	
+
 	/**
 	 * Returns the size of the memory managed by the system for caching, hashing, sorting, ...
 	 * 
@@ -95,26 +91,26 @@ public final class HardwareDescription implements Serializable {
 	public long getSizeOfManagedMemory() {
 		return this.sizeOfManagedMemory;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Utils
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return String.format("cores=%d, physMem=%d, heap=%d, managed=%d", 
 				numberOfCPUCores, sizeOfPhysicalMemory, sizeOfJvmHeap, sizeOfManagedMemory);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Factory
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static HardwareDescription extractFromSystem(long managedMemory) {
 		final int numberOfCPUCores = Hardware.getNumberCPUCores();
 		final long sizeOfJvmHeap = Runtime.getRuntime().maxMemory();
 		final long sizeOfPhysicalMemory = Hardware.getSizeOfPhysicalMemory();
-		
+
 		return new HardwareDescription(numberOfCPUCores, sizeOfPhysicalMemory, sizeOfJvmHeap, managedMemory);
 	}
 }

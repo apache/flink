@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -295,6 +296,35 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 				"5,11,10,GHI,1\n" +
 				"5,29,0,P-),2\n" +
 				"5,25,0,P-),3\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testReduceOnTupleWithMultipleKeyExpressionsWithHashHint() throws Exception {
+		/*
+		 * Case 2 with String-based field expression
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
+			groupBy("f4","f0").reduce(new Tuple5Reduce()).setCombineHint(CombineHint.HASH);
+
+		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs
+			.collect();
+
+		String expected = "1,1,0,Hallo,1\n" +
+			"2,3,2,Hallo Welt wie,1\n" +
+			"2,2,1,Hallo Welt,2\n" +
+			"3,9,0,P-),2\n" +
+			"3,6,5,BCD,3\n" +
+			"4,17,0,P-),1\n" +
+			"4,17,0,P-),2\n" +
+			"5,11,10,GHI,1\n" +
+			"5,29,0,P-),2\n" +
+			"5,25,0,P-),3\n";
 
 		compareResultAsTuples(result, expected);
 	}

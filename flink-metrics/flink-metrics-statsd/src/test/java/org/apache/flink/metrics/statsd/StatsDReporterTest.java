@@ -18,26 +18,108 @@
 
 package org.apache.flink.metrics.statsd;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
-import org.apache.flink.metrics.MetricRegistry;
-import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.metrics.util.TestMeter;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class StatsDReporterTest extends TestLogger {
+
+	@Test
+	public void testReplaceInvalidChars() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+		StatsDReporter reporter = new StatsDReporter();
+
+		assertEquals("", reporter.filterCharacters(""));
+		assertEquals("abc", reporter.filterCharacters("abc"));
+		assertEquals("a-b--", reporter.filterCharacters("a:b::"));
+	}
+
+	/**
+	 * Tests that the registered metrics' names don't contain invalid characters.
+	 */
+	@Test
+	public void testAddingMetrics() throws NoSuchFieldException, IllegalAccessException {
+		Configuration configuration = new Configuration();
+		String taskName = "testTask";
+		String jobName = "testJob:-!ax..?";
+		String hostname = "local::host:";
+		String taskManagerId = "tas:kMana::ger";
+		String counterName = "testCounter";
+
+		configuration.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		configuration.setString(
+				ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+				"org.apache.flink.metrics.statsd.StatsDReporterTest$TestingStatsDReporter");
+
+		configuration.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
+		configuration.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
+
+		MetricRegistry metricRegistry = new MetricRegistry(configuration);
+
+		char delimiter = metricRegistry.getDelimiter();
+
+		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(metricRegistry, hostname, taskManagerId);
+		TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(metricRegistry, tmMetricGroup, new JobID(), jobName);
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new AbstractID(), new AbstractID(), taskName, 0, 0);
+
+		SimpleCounter myCounter = new SimpleCounter();
+
+		taskMetricGroup.counter(counterName, myCounter);
+
+		List<MetricReporter> reporters = metricRegistry.getReporters();
+
+		assertTrue(reporters.size() == 1);
+
+		MetricReporter metricReporter = reporters.get(0);
+
+		assertTrue("Reporter should be of type StatsDReporter", metricReporter instanceof StatsDReporter);
+
+		TestingStatsDReporter reporter = (TestingStatsDReporter) metricReporter;
+
+		Map<Counter, String> counters = reporter.getCounters();
+
+		assertTrue(counters.containsKey(myCounter));
+
+		String expectedCounterName = reporter.filterCharacters(hostname)
+			+ delimiter
+			+ reporter.filterCharacters(taskManagerId)
+			+ delimiter
+			+ reporter.filterCharacters(jobName)
+			+ delimiter
+			+ reporter.filterCharacters(counterName);
+
+		assertEquals(expectedCounterName, counters.get(myCounter));
+
+		metricRegistry.shutdown();
+	}
 
 	/**
 	 * Tests that histograms are properly reported via the StatsD reporter
@@ -62,9 +144,11 @@ public class StatsDReporterTest extends TestLogger {
 			int port = receiver.getPort();
 
 			Configuration config = new Configuration();
-			config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, StatsDReporter.class.getName());
-			config.setString(MetricRegistry.KEY_METRICS_REPORTER_INTERVAL, "1 SECONDS");
-			config.setString(MetricRegistry.KEY_METRICS_REPORTER_ARGUMENTS, "--host localhost --port " + port);
+			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
 
 			registry = new MetricRegistry(config);
 
@@ -78,7 +162,7 @@ public class StatsDReporterTest extends TestLogger {
 
 			Set<String> lines = receiver.getLines();
 
-			String prefix = metricGroup.getScopeString() + "." + histogramName;
+			String prefix = metricGroup.getMetricIdentifier(histogramName);
 
 			Set<String> expectedLines = new HashSet<>();
 
@@ -108,6 +192,82 @@ public class StatsDReporterTest extends TestLogger {
 			if (receiverThread != null) {
 				receiverThread.join(joinTimeout);
 			}
+		}
+	}
+
+	/**
+	 * Tests that meters are properly reported via the StatsD reporter
+	 */
+	@Test
+	public void testStatsDMetersReporting() throws Exception {
+		MetricRegistry registry = null;
+		DatagramSocketReceiver receiver = null;
+		Thread receiverThread = null;
+		long timeout = 5000;
+		long joinTimeout = 30000;
+
+		String meterName = "meter";
+
+		try {
+			receiver = new DatagramSocketReceiver();
+
+			receiverThread = new Thread(receiver);
+
+			receiverThread.start();
+
+			int port = receiver.getPort();
+
+			Configuration config = new Configuration();
+			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
+			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+
+			registry = new MetricRegistry(config);
+			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+			TestMeter meter = new TestMeter();
+			metricGroup.meter(meterName, meter);
+			String prefix = metricGroup.getMetricIdentifier(meterName);
+
+			Set<String> expectedLines = new HashSet<>();
+
+			expectedLines.add(prefix + ".rate:5.0|g");
+			expectedLines.add(prefix + ".count:100|g");
+
+			receiver.waitUntilNumLines(expectedLines.size(), timeout);
+
+			Set<String> lines = receiver.getLines();
+
+
+			assertEquals(expectedLines, lines);
+
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
+
+			if (receiver != null) {
+				receiver.stop();
+			}
+
+			if (receiverThread != null) {
+				receiverThread.join(joinTimeout);
+			}
+		}
+	}
+
+	/**
+	 * Testing StatsDReporter which disables the socket creation
+	 */
+	public static class TestingStatsDReporter extends StatsDReporter {
+		@Override
+		public void open(MetricConfig configuration) {
+			// disable the socket creation
+		}
+
+		public Map<Counter, String> getCounters() {
+			return counters;
 		}
 	}
 
@@ -218,6 +378,7 @@ public class StatsDReporterTest extends TestLogger {
 					byte[] buffer = new byte[1024];
 
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
 					socket.receive(packet);
 
 					String line = new String(packet.getData(), 0, packet.getLength());

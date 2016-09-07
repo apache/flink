@@ -39,15 +39,15 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
-	private String queueName;
-	private RMQConnectionConfig rmqConnectionConfig;
-	private transient Connection connection;
-	private transient Channel channel;
-	private SerializationSchema<IN> schema;
+	protected final String queueName;
+	private final RMQConnectionConfig rmqConnectionConfig;
+	protected transient Connection connection;
+	protected transient Channel channel;
+	protected SerializationSchema<IN> schema;
 	private boolean logFailuresOnly = false;
 
 	/**
-	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName The queue to publish messages to.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
      */
@@ -55,6 +55,15 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.schema = schema;
+	}
+
+	/**
+	 * Sets up the queue. The default implementation just declares the queue. The user may override
+	 * this method to have a custom setup for the queue (i.e. binding the queue to an exchange or
+	 * defining custom queue parameters)
+	 */
+	protected void setupQueue() throws IOException {
+		channel.queueDeclare(queueName, false, false, false, null);
 	}
 
 	/**
@@ -76,7 +85,10 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
-			channel.queueDeclare(queueName, false, false, false, null);
+			if (channel == null) {
+				throw new RuntimeException("None of RabbitMQ channels are available");
+			}
+			setupQueue();
 		} catch (IOException e) {
 			throw new RuntimeException("Error while creating the channel", e);
 		}

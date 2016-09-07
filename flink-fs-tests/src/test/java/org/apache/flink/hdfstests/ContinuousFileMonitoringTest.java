@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.source.FilePathFilter;
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
@@ -166,9 +166,9 @@ public class ContinuousFileMonitoringTest {
 			content.add(element.getValue() +"\n");
 		}
 
-		Assert.assertEquals(actualFileContents.size(), expectedFileContents.size());
+		Assert.assertEquals(expectedFileContents.size(), actualFileContents.size());
 		for (Integer fileIdx: expectedFileContents.keySet()) {
-			Assert.assertTrue(actualFileContents.keySet().contains(fileIdx));
+			Assert.assertTrue("file" + fileIdx + " not found", actualFileContents.keySet().contains(fileIdx));
 
 			List<String> cntnt = actualFileContents.get(fileIdx);
 			Collections.sort(cntnt, new Comparator<String>() {
@@ -182,7 +182,7 @@ public class ContinuousFileMonitoringTest {
 			for (String line: cntnt) {
 				cntntStr.append(line);
 			}
-			Assert.assertEquals(cntntStr.toString(), expectedFileContents.get(fileIdx));
+			Assert.assertEquals(expectedFileContents.get(fileIdx), cntntStr.toString());
 		}
 
 		for(org.apache.hadoop.fs.Path file: filesCreated) {
@@ -216,8 +216,9 @@ public class ContinuousFileMonitoringTest {
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(new PathFilter());
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI, new PathFilter(),
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
@@ -236,25 +237,36 @@ public class ContinuousFileMonitoringTest {
 
 	@Test
 	public void testFileSplitMonitoringReprocessWithAppended() throws Exception {
-		Set<String> uniqFilesFound = new HashSet<>();
+		final Set<String> uniqFilesFound = new HashSet<>();
 
 		FileCreator fc = new FileCreator(INTERVAL, NO_OF_FILES);
 		fc.start();
 
-		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.createDefaultFilter(),
-				FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+		Thread t = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+				format.setFilesFilter(FilePathFilter.createDefaultFilter());
+				ContinuousFileMonitoringFunction<String> monitoringFunction =
+					new ContinuousFileMonitoringFunction<>(format, hdfsURI,
+						FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
 
-		monitoringFunction.open(new Configuration());
-		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
+				try {
+					monitoringFunction.open(new Configuration());
+					monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
+				} catch (Exception e) {
+					// do nothing as we interrupted the thread.
+				}
+			}
+		});
+		t.start();
 
 		// wait until the sink also sees all the splits.
 		synchronized (uniqFilesFound) {
-			while (uniqFilesFound.size() < NO_OF_FILES) {
-				uniqFilesFound.wait(7 * INTERVAL);
-			}
+			uniqFilesFound.wait();
 		}
+		t.interrupt();
+		fc.join();
 
 		Assert.assertTrue(fc.getFilesCreated().size() == NO_OF_FILES);
 		Assert.assertTrue(uniqFilesFound.size() == NO_OF_FILES);
@@ -279,20 +291,23 @@ public class ContinuousFileMonitoringTest {
 		Set<String> uniqFilesFound = new HashSet<>();
 
 		FileCreator fc = new FileCreator(INTERVAL, 1);
+		Set<org.apache.hadoop.fs.Path> filesCreated = fc.getFilesCreated();
 		fc.start();
 
 		// to make sure that at least one file is created
-		Set<org.apache.hadoop.fs.Path> filesCreated = fc.getFilesCreated();
-		synchronized (filesCreated) {
-			if (filesCreated.size() == 0) {
-				filesCreated.wait();
+		if (filesCreated.size() == 0) {
+			synchronized (filesCreated) {
+				if (filesCreated.size() == 0) {
+					filesCreated.wait();
+				}
 			}
 		}
 		Assert.assertTrue(fc.getFilesCreated().size() >= 1);
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.createDefaultFilter(),
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
@@ -388,17 +403,17 @@ public class ContinuousFileMonitoringTest {
 				Assert.fail("Duplicate file: " + filePath);
 			}
 
-			filesFound.add(filePath);
-			try {
-				if (filesFound.size() == NO_OF_FILES) {
-					this.src.cancel();
-					this.src.close();
-					synchronized (filesFound) {
+			synchronized (filesFound) {
+				filesFound.add(filePath);
+				try {
+					if (filesFound.size() == NO_OF_FILES) {
+						this.src.cancel();
+						this.src.close();
 						filesFound.notifyAll();
 					}
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
-			} catch (Exception e) {
-				e.printStackTrace();
 			}
 		}
 
@@ -427,7 +442,7 @@ public class ContinuousFileMonitoringTest {
 		assert (hdfs != null);
 
 		org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(base + "/" + fileName + fileIdx);
-		Assert.assertTrue (!hdfs.exists(file));
+		Assert.assertFalse(hdfs.exists(file));
 
 		org.apache.hadoop.fs.Path tmp = new org.apache.hadoop.fs.Path(base + "/." + fileName + fileIdx);
 		FSDataOutputStream stream = hdfs.create(tmp);

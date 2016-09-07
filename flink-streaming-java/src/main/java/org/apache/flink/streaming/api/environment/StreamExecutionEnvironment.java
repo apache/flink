@@ -18,16 +18,16 @@
 package org.apache.flink.streaming.api.environment;
 
 import com.esotericsoftware.kryo.Serializer;
-
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.io.FileInputFormat;
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
@@ -46,22 +46,22 @@ import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.FilePathFilter;
-import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
+import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.FromIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFunction;
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
@@ -69,7 +69,6 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
@@ -168,6 +167,21 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Sets the maximum degree of parallelism defined for the program.
+	 *
+	 * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+	 * defines the number of key groups used for partitioned state.
+	 *
+	 * @param maxParallelism Maximum degree of parallelism to be used for the program., with 0 < maxParallelism <= 2^15
+	 */
+	public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0 && maxParallelism <= (1 << 15),
+				"maxParallelism is out of bounds 0 < maxParallelism <= 2^15. Found: " + maxParallelism);
+		config.setMaxParallelism(maxParallelism);
+		return this;
+	}
+
+	/**
 	 * Gets the parallelism with which operation are executed by default.
 	 * Operations can individually override this value to use a specific
 	 * parallelism.
@@ -177,6 +191,18 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public int getParallelism() {
 		return config.getParallelism();
+	}
+
+	/**
+	 * Gets the maximum degree of parallelism defined for the program.
+	 *
+	 * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+	 * defines the number of key groups used for partitioned state.
+	 *
+	 * @return Maximum degree of parallelism
+	 */
+	public int getMaxParallelism() {
+		return config.getMaxParallelism();
 	}
 
 	/**
@@ -208,7 +234,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Sets the maximum time frequency (milliseconds) for the flushing of the
+	 * Gets the maximum time frequency (milliseconds) for the flushing of the
 	 * output buffers. For clarification on the extremal values see
 	 * {@link #setBufferTimeout(long)}.
 	 *
@@ -913,14 +939,15 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The data stream that represents the data read from the given file as text lines
 	 */
 	public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
-		Preconditions.checkNotNull(filePath, "The file path may not be null.");
+		Preconditions.checkNotNull(filePath, "The file path must not be null.");
+		Preconditions.checkNotNull(filePath.isEmpty(), "The file path must not be empty.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 		format.setCharsetName(charsetName);
 
-		return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1,
-			FilePathFilter.createDefaultFilter(), typeInfo);
+		return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1, typeInfo);
 	}
 
 	/**
@@ -951,7 +978,52 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
 												String filePath) {
-		return readFile(inputFormat, filePath, FileProcessingMode.PROCESS_ONCE, -1, FilePathFilter.createDefaultFilter());
+		return readFile(inputFormat, filePath, FileProcessingMode.PROCESS_ONCE, -1);
+	}
+
+	/**
+	 *
+	 * Reads the contents of the user-specified {@code filePath} based on the given {@link FileInputFormat}. Depending
+	 * on the provided {@link FileProcessingMode}.
+	 * <p>
+	 * See {@link #readFile(FileInputFormat, String, FileProcessingMode, long)}
+	 *
+	 * @param inputFormat
+	 * 		The input format used to create the data stream
+	 * @param filePath
+	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
+	 * @param watchType
+	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
+	 * @param interval
+	 * 		In the case of periodic path monitoring, this specifies the interval (in millis) between consecutive path scans
+	 * @param filter
+	 * 		The files to be excluded from the processing
+	 * @param <OUT>
+	 * 		The type of the returned data stream
+	 * @return The data stream that represents the data read from the given file
+	 *
+	 * @deprecated Use {@link FileInputFormat#setFilesFilter(FilePathFilter)} to set a filter and
+	 * 		{@link StreamExecutionEnvironment#readFile(FileInputFormat, String, FileProcessingMode, long)}
+	 *
+	 */
+	@PublicEvolving
+	@Deprecated
+	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
+												String filePath,
+												FileProcessingMode watchType,
+												long interval,
+												FilePathFilter filter) {
+		inputFormat.setFilesFilter(filter);
+
+		TypeInformation<OUT> typeInformation;
+		try {
+			typeInformation = TypeExtractor.getInputFormatTypes(inputFormat);
+		} catch (Exception e) {
+			throw new InvalidProgramException("The type returned by the input format could not be " +
+				"automatically determined. Please specify the TypeInformation of the produced type " +
+				"explicitly by using the 'createInput(InputFormat, TypeInformation)' method instead.");
+		}
+		return readFile(inputFormat, filePath, watchType, interval, typeInformation);
 	}
 
 	/**
@@ -985,8 +1057,6 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
 	 * @param interval
 	 * 		In the case of periodic path monitoring, this specifies the interval (in millis) between consecutive path scans
-	 * @param filter
-	 * 		The files to be excluded from the processing
 	 * @param <OUT>
 	 * 		The type of the returned data stream
 	 * @return The data stream that represents the data read from the given file
@@ -995,8 +1065,7 @@ public abstract class StreamExecutionEnvironment {
 	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
 												String filePath,
 												FileProcessingMode watchType,
-												long interval,
-												FilePathFilter filter) {
+												long interval) {
 
 		TypeInformation<OUT> typeInformation;
 		try {
@@ -1006,7 +1075,7 @@ public abstract class StreamExecutionEnvironment {
 				"automatically determined. Please specify the TypeInformation of the produced type " +
 				"explicitly by using the 'createInput(InputFormat, TypeInformation)' method instead.");
 		}
-		return readFile(inputFormat, filePath, watchType, interval, filter, typeInformation);
+		return readFile(inputFormat, filePath, watchType, interval, typeInformation);
 	}
 
 	/**
@@ -1056,8 +1125,6 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
 	 * @param watchType
 	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
-	 * @param filter
-	 * 		The files to be excluded from the processing
 	 * @param typeInformation
 	 * 		Information on the type of the elements in the output stream
 	 * @param interval
@@ -1071,14 +1138,14 @@ public abstract class StreamExecutionEnvironment {
 												String filePath,
 												FileProcessingMode watchType,
 												long interval,
-												FilePathFilter filter,
 												TypeInformation<OUT> typeInformation) {
 
 		Preconditions.checkNotNull(inputFormat, "InputFormat must not be null.");
 		Preconditions.checkNotNull(filePath, "The file path must not be null.");
+		Preconditions.checkNotNull(filePath.isEmpty(), "The file path must not be empty.");
 
 		inputFormat.setFilePath(filePath);
-		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, filter, interval);
+		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, interval);
 	}
 
 	/**
@@ -1103,10 +1170,37 @@ public abstract class StreamExecutionEnvironment {
 	 * 		a	negative value ensures retrying forever.
 	 * @return A data stream containing the strings received from the socket
 	 */
-	@PublicEvolving
+	@Deprecated
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, long maxRetry) {
+		return socketTextStream(hostname, port, String.valueOf(delimiter), maxRetry);
+	}
+
+	/**
+	 * Creates a new data stream that contains the strings received infinitely from a socket. Received strings are
+	 * decoded by the system's default character set. On the termination of the socket server connection retries can be
+	 * initiated.
+	 * <p>
+	 * Let us note that the socket itself does not report on abort and as a consequence retries are only initiated when
+	 * the socket was gracefully terminated.
+	 *
+	 * @param hostname
+	 * 		The host name which a server socket binds
+	 * @param port
+	 * 		The port number which a server socket binds. A port number of 0 means that the port number is automatically
+	 * 		allocated.
+	 * @param delimiter
+	 * 		A string which splits received strings into records
+	 * @param maxRetry
+	 * 		The maximal retry interval in seconds while the program waits for a socket that is temporarily down.
+	 * 		Reconnection is initiated every second. A number of 0 means that the reader is immediately terminated,
+	 * 		while
+	 * 		a	negative value ensures retrying forever.
+	 * @return A data stream containing the strings received from the socket
+	 */
+	@PublicEvolving
+	public DataStreamSource<String> socketTextStream(String hostname, int port, String delimiter, long maxRetry) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry),
-				"Socket Stream");
+			"Socket Stream");
 	}
 
 	/**
@@ -1122,14 +1216,32 @@ public abstract class StreamExecutionEnvironment {
 	 * 		A character which splits received strings into records
 	 * @return A data stream containing the strings received from the socket
 	 */
-	@PublicEvolving
+	@Deprecated
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
 		return socketTextStream(hostname, port, delimiter, 0);
 	}
 
 	/**
 	 * Creates a new data stream that contains the strings received infinitely from a socket. Received strings are
-	 * decoded by the system's default character set, using'\n' as delimiter. The reader is terminated immediately when
+	 * decoded by the system's default character set. The reader is terminated immediately when the socket is down.
+	 *
+	 * @param hostname
+	 * 		The host name which a server socket binds
+	 * @param port
+	 * 		The port number which a server socket binds. A port number of 0 means that the port number is automatically
+	 * 		allocated.
+	 * @param delimiter
+	 * 		A string which splits received strings into records
+	 * @return A data stream containing the strings received from the socket
+	 */
+	@PublicEvolving
+	public DataStreamSource<String> socketTextStream(String hostname, int port, String delimiter) {
+		return socketTextStream(hostname, port, delimiter, 0);
+	}
+
+	/**
+	 * Creates a new data stream that contains the strings received infinitely from a socket. Received strings are
+	 * decoded by the system's default character set, using"\n" as delimiter. The reader is terminated immediately when
 	 * the socket is down.
 	 *
 	 * @param hostname
@@ -1141,7 +1253,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public DataStreamSource<String> socketTextStream(String hostname, int port) {
-		return socketTextStream(hostname, port, '\n');
+		return socketTextStream(hostname, port, "\n");
 	}
 
 	/**
@@ -1203,8 +1315,7 @@ public abstract class StreamExecutionEnvironment {
 		if (inputFormat instanceof FileInputFormat) {
 			FileInputFormat<OUT> format = (FileInputFormat<OUT>) inputFormat;
 			source = createFileInput(format, typeInfo, "Custom File source",
-				FileProcessingMode.PROCESS_ONCE,
-				FilePathFilter.createDefaultFilter(),  -1);
+				FileProcessingMode.PROCESS_ONCE, -1);
 		} else {
 			source = createInput(inputFormat, typeInfo, "Custom Source");
 		}
@@ -1222,23 +1333,22 @@ public abstract class StreamExecutionEnvironment {
 	private <OUT> DataStreamSource<OUT> createFileInput(FileInputFormat<OUT> inputFormat,
 														TypeInformation<OUT> typeInfo,
 														String sourceName,
-														FileProcessingMode watchType,
-														FilePathFilter pathFilter,
+														FileProcessingMode monitoringMode,
 														long interval) {
 
 		Preconditions.checkNotNull(inputFormat, "Unspecified file input format.");
 		Preconditions.checkNotNull(typeInfo, "Unspecified output type information.");
 		Preconditions.checkNotNull(sourceName, "Unspecified name for the source.");
-		Preconditions.checkNotNull(watchType, "Unspecified watchtype.");
-		Preconditions.checkNotNull(pathFilter, "Unspecified path name filtering function.");
+		Preconditions.checkNotNull(monitoringMode, "Unspecified monitoring mode.");
 
-		Preconditions.checkArgument(watchType.equals(FileProcessingMode.PROCESS_ONCE) ||
+		Preconditions.checkArgument(monitoringMode.equals(FileProcessingMode.PROCESS_ONCE) ||
 			interval >= ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL,
-			"The path monitoring interval cannot be less than 100 ms.");
+			"The path monitoring interval cannot be less than " +
+				ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL + " ms.");
 
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction = new ContinuousFileMonitoringFunction<>(
 			inputFormat, inputFormat.getFilePath().toString(),
-			pathFilter, watchType, getParallelism(), interval);
+			monitoringMode, getParallelism(), interval);
 
 		ContinuousFileReaderOperator<OUT, ?> reader = new ContinuousFileReaderOperator<>(inputFormat);
 

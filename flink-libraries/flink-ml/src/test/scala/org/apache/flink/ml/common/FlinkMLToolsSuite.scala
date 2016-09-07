@@ -20,7 +20,7 @@ package org.apache.flink.ml.common
 
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.test.util.FlinkTestBase
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 class FlinkMLToolsSuite extends FlatSpec with Matchers with FlinkTestBase {

@@ -18,16 +18,16 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCost, RelOptPlanner, RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
+import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.api.table.BatchTableEnvironment
 
-import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
 * Flink RelNode which matches along with UnionOperator.
@@ -55,7 +55,7 @@ class DataSetUnion(
   }
 
   override def toString: String = {
-    s"Union(union: (${rowType.getFieldNames.asScala.toList.mkString(", ")}))"
+    s"Union(union: ($unionSelectionToString))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

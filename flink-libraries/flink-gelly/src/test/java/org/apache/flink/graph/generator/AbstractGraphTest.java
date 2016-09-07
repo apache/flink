@@ -25,9 +25,8 @@ public class AbstractGraphTest {
 
 	protected ExecutionEnvironment env;
 
-    @Before
-    public void setup() {
+	@Before
+	public void setup() {
 		env = ExecutionEnvironment.createCollectionsEnvironment();
-		env.getConfig().disableSysoutLogging();
-    }
+	}
 }

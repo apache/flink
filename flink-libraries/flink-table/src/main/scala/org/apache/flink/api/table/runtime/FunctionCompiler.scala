@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.runtime
 
+import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.Function
 import org.codehaus.commons.compiler.CompileException
 import org.codehaus.janino.SimpleCompiler
@@ -29,7 +30,13 @@ trait FunctionCompiler[T <: Function] {
     require(cl != null, "Classloader must not be null.")
     val compiler = new SimpleCompiler()
     compiler.setParentClassLoader(cl)
-    compiler.cook(code)
+    try {
+      compiler.cook(code)
+    } catch {
+      case e: CompileException =>
+        throw new InvalidProgramException("Table program cannot be compiled. " +
+          "This is a bug. Please file an issue.", e)
+    }
     compiler.getClassLoader.loadClass(name).asInstanceOf[Class[T]]
   }
 }

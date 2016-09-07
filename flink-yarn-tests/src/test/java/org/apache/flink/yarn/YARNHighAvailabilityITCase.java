@@ -45,7 +45,6 @@ import org.junit.rules.TemporaryFolder;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -79,7 +78,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	}
 
 	@AfterClass
-	public static void teardown() throws IOException {
+	public static void teardown() throws Exception {
 		if(zkServer != null) {
 			zkServer.stop();
 		}
@@ -104,19 +103,19 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		flinkYarnClient.setJobManagerMemory(768);
 		flinkYarnClient.setTaskManagerMemory(1024);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		flinkYarnClient.setShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
-		String confDirPath = System.getenv("FLINK_CONF_DIR");
+		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 
 		String fsStateHandlePath = tmp.getRoot().getPath();
 
-		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.getConfiguration());
+		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.loadConfiguration());
 		flinkYarnClient.setDynamicPropertiesEncoded("recovery.mode=zookeeper@@recovery.zookeeper.quorum=" +
 			zkServer.getConnectString() + "@@yarn.application-attempts=" + numberApplicationAttempts +
 			"@@" + ConfigConstants.STATE_BACKEND + "=FILESYSTEM" +
 			"@@" + FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY + "=" + fsStateHandlePath + "/checkpoints" +
-			"@@" + ConfigConstants.ZOOKEEPER_RECOVERY_PATH + "=" + fsStateHandlePath + "/recovery");
+			"@@" + ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH + "=" + fsStateHandlePath + "/recovery");
 		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));
 
 		ClusterClient yarnCluster = null;

@@ -17,12 +17,10 @@
  */
 package org.apache.flink.api.scala.util
 
+import org.apache.flink.api.scala._
 import org.apache.hadoop.io.IntWritable
 
-import org.apache.flink.api.scala._
-
 import scala.collection.mutable
-import scala.reflect.classTag
 import scala.util.Random
 
 /**

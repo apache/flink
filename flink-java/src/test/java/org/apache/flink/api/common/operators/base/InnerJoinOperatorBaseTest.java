@@ -107,7 +107,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 		));
 
 		try {
-			final TaskInfo taskInfo = new TaskInfo("op", 0, 1, 0);
+			final TaskInfo taskInfo = new TaskInfo("op", 1, 0, 1, 0);
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			
 			executionConfig.disableObjectReuse();

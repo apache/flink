@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import java.sql.{Date, Time, Timestamp}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{Row, Types}
 import org.junit.Test
 
 class ScalarFunctionsTest extends ExpressionTestBase {
@@ -51,6 +52,14 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f0.substring(1, f7)",
       "SUBSTRING(f0, 1, f7)",
       "Thi")
+
+    testSqlApi(
+      "SUBSTRING(f0 FROM 2 FOR 1)",
+      "h")
+
+    testSqlApi(
+      "SUBSTRING(f0 FROM 2)",
+      "his is a test String.")
   }
 
   @Test
@@ -459,10 +468,340 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "-1231")
   }
 
+  @Test
+  def testExtract(): Unit = {
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.YEAR),
+      "f16.extract(YEAR)",
+      "EXTRACT(YEAR FROM f16)",
+      "1996")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.MONTH),
+      "extract(f16, MONTH)",
+      "EXTRACT(MONTH FROM f16)",
+      "11")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.DAY),
+      "f16.extract(DAY)",
+      "EXTRACT(DAY FROM f16)",
+      "10")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.YEAR),
+      "f18.extract(YEAR)",
+      "EXTRACT(YEAR FROM f18)",
+      "1996")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.MONTH),
+      "f18.extract(MONTH)",
+      "EXTRACT(MONTH FROM f18)",
+      "11")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.DAY),
+      "f18.extract(DAY)",
+      "EXTRACT(DAY FROM f18)",
+      "10")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.HOUR),
+      "f18.extract(HOUR)",
+      "EXTRACT(HOUR FROM f18)",
+      "6")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.HOUR),
+      "f17.extract(HOUR)",
+      "EXTRACT(HOUR FROM f17)",
+      "6")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.MINUTE),
+      "f18.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f18)",
+      "55")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.MINUTE),
+      "f17.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f17)",
+      "55")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.SECOND),
+      "f18.extract(SECOND)",
+      "EXTRACT(SECOND FROM f18)",
+      "44")
+
+    testAllApis(
+      'f17.extract(TimeIntervalUnit.SECOND),
+      "f17.extract(SECOND)",
+      "EXTRACT(SECOND FROM f17)",
+      "44")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.DAY),
+      "f19.extract(DAY)",
+      "EXTRACT(DAY FROM f19)",
+      "16979")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.HOUR),
+      "f19.extract(HOUR)",
+      "EXTRACT(HOUR FROM f19)",
+      "7")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.MINUTE),
+      "f19.extract(MINUTE)",
+      "EXTRACT(MINUTE FROM f19)",
+      "23")
+
+    testAllApis(
+      'f19.extract(TimeIntervalUnit.SECOND),
+      "f19.extract(SECOND)",
+      "EXTRACT(SECOND FROM f19)",
+      "33")
+
+    testAllApis(
+      'f20.extract(TimeIntervalUnit.MONTH),
+      "f20.extract(MONTH)",
+      "EXTRACT(MONTH FROM f20)",
+      "1")
+
+    testAllApis(
+      'f20.extract(TimeIntervalUnit.YEAR),
+      "f20.extract(YEAR)",
+      "EXTRACT(YEAR FROM f20)",
+      "2")
+  }
+
+  @Test
+  def testTemporalFloor(): Unit = {
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.YEAR),
+      "f18.floor(YEAR)",
+      "FLOOR(f18 TO YEAR)",
+      "1996-01-01 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.MONTH),
+      "f18.floor(MONTH)",
+      "FLOOR(f18 TO MONTH)",
+      "1996-11-01 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.DAY),
+      "f18.floor(DAY)",
+      "FLOOR(f18 TO DAY)",
+      "1996-11-10 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.MINUTE),
+      "f18.floor(MINUTE)",
+      "FLOOR(f18 TO MINUTE)",
+      "1996-11-10 06:55:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.SECOND),
+      "f18.floor(SECOND)",
+      "FLOOR(f18 TO SECOND)",
+      "1996-11-10 06:55:44.0")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.HOUR),
+      "f17.floor(HOUR)",
+      "FLOOR(f17 TO HOUR)",
+      "06:00:00")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.MINUTE),
+      "f17.floor(MINUTE)",
+      "FLOOR(f17 TO MINUTE)",
+      "06:55:00")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.SECOND),
+      "f17.floor(SECOND)",
+      "FLOOR(f17 TO SECOND)",
+      "06:55:44")
+
+    testAllApis(
+      'f16.floor(TimeIntervalUnit.YEAR),
+      "f16.floor(YEAR)",
+      "FLOOR(f16 TO YEAR)",
+      "1996-01-01")
+
+    testAllApis(
+      'f16.floor(TimeIntervalUnit.MONTH),
+      "f16.floor(MONTH)",
+      "FLOOR(f16 TO MONTH)",
+      "1996-11-01")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.YEAR),
+      "f18.ceil(YEAR)",
+      "CEIL(f18 TO YEAR)",
+      "1997-01-01 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.MONTH),
+      "f18.ceil(MONTH)",
+      "CEIL(f18 TO MONTH)",
+      "1996-12-01 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.DAY),
+      "f18.ceil(DAY)",
+      "CEIL(f18 TO DAY)",
+      "1996-11-11 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.MINUTE),
+      "f18.ceil(MINUTE)",
+      "CEIL(f18 TO MINUTE)",
+      "1996-11-10 06:56:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.SECOND),
+      "f18.ceil(SECOND)",
+      "CEIL(f18 TO SECOND)",
+      "1996-11-10 06:55:45.0")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.HOUR),
+      "f17.ceil(HOUR)",
+      "CEIL(f17 TO HOUR)",
+      "07:00:00")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.MINUTE),
+      "f17.ceil(MINUTE)",
+      "CEIL(f17 TO MINUTE)",
+      "06:56:00")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.SECOND),
+      "f17.ceil(SECOND)",
+      "CEIL(f17 TO SECOND)",
+      "06:55:44")
+
+    testAllApis(
+      'f16.ceil(TimeIntervalUnit.YEAR),
+      "f16.ceil(YEAR)",
+      "CEIL(f16 TO YEAR)",
+      "1996-01-01")
+
+    testAllApis(
+      'f16.ceil(TimeIntervalUnit.MONTH),
+      "f16.ceil(MONTH)",
+      "CEIL(f16 TO MONTH)",
+      "1996-11-01")
+  }
+
+  @Test
+  def testIsTrueIsFalse(): Unit = {
+    testAllApis(
+      'f1.isTrue,
+      "f1.isTrue",
+      "f1 IS TRUE",
+      "true")
+
+    testAllApis(
+      'f21.isTrue,
+      "f21.isTrue",
+      "f21 IS TRUE",
+      "false")
+
+    testAllApis(
+      false.isFalse,
+      "false.isFalse",
+      "FALSE IS FALSE",
+      "true")
+
+    testAllApis(
+      'f21.isFalse,
+      "f21.isFalse",
+      "f21 IS FALSE",
+      "false")
+
+    testAllApis(
+      !'f1.isTrue,
+      "!f1.isTrue",
+      "f1 IS NOT TRUE",
+      "false")
+
+    testAllApis(
+      !'f21.isTrue,
+      "!f21.isTrue",
+      "f21 IS NOT TRUE",
+      "true")
+
+    testAllApis(
+      !false.isFalse,
+      "!false.isFalse",
+      "FALSE IS NOT FALSE",
+      "false")
+
+    testAllApis(
+      !'f21.isFalse,
+      "!f21.isFalse",
+      "f21 IS NOT FALSE",
+      "true")
+  }
+
+  @Test
+  def testCurrentTimePoint(): Unit = {
+
+    // current time points are non-deterministic
+    // we just test the format of the output
+    // manual test can be found in NonDeterministicTests
+
+    testAllApis(
+      currentDate().cast(Types.STRING).charLength(),
+      "currentDate().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR))",
+      "10")
+
+    testAllApis(
+      currentTime().cast(Types.STRING).charLength(),
+      "currentTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR))",
+      "8")
+
+    testAllApis(
+      currentTimestamp().cast(Types.STRING).charLength() >= 22,
+      "currentTimestamp().cast(STRING).charLength() >= 22",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 22",
+      "true")
+
+    testAllApis(
+      localTimestamp().cast(Types.STRING).charLength() >= 22,
+      "localTimestamp().cast(STRING).charLength() >= 22",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 22",
+      "true")
+
+    testAllApis(
+      localTime().cast(Types.STRING).charLength(),
+      "localTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR))",
+      "8")
+
+    // comparisons are deterministic
+    testAllApis(
+      localTimestamp() === localTimestamp(),
+      "localTimestamp() === localTimestamp()",
+      "LOCALTIMESTAMP = LOCALTIMESTAMP",
+      "true")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(16)
+    val testData = new Row(22)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -479,26 +818,38 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(13, -4.6)
     testData.setField(14, -3)
     testData.setField(15, BigDecimal("-1231.1231231321321321111").bigDecimal)
+    testData.setField(16, Date.valueOf("1996-11-10"))
+    testData.setField(17, Time.valueOf("06:55:44"))
+    testData.setField(18, Timestamp.valueOf("1996-11-10 06:55:44.333"))
+    testData.setField(19, 1467012213000L) // +16979 07:23:33.000
+    testData.setField(20, 25) // +2-01
+    testData.setField(21, null)
     testData
   }
 
   def typeInfo = {
     new RowTypeInfo(Seq(
-      STRING_TYPE_INFO,
-      BOOLEAN_TYPE_INFO,
-      BYTE_TYPE_INFO,
-      SHORT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      FLOAT_TYPE_INFO,
-      DOUBLE_TYPE_INFO,
-      INT_TYPE_INFO,
-      STRING_TYPE_INFO,
-      BYTE_TYPE_INFO,
-      SHORT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      FLOAT_TYPE_INFO,
-      DOUBLE_TYPE_INFO,
-      INT_TYPE_INFO,
-      BIG_DEC_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
+      Types.STRING,
+      Types.BOOLEAN,
+      Types.BYTE,
+      Types.SHORT,
+      Types.LONG,
+      Types.FLOAT,
+      Types.DOUBLE,
+      Types.INT,
+      Types.STRING,
+      Types.BYTE,
+      Types.SHORT,
+      Types.LONG,
+      Types.FLOAT,
+      Types.DOUBLE,
+      Types.INT,
+      Types.DECIMAL,
+      Types.DATE,
+      Types.TIME,
+      Types.TIMESTAMP,
+      Types.INTERVAL_MILLIS,
+      Types.INTERVAL_MONTHS,
+      Types.BOOLEAN)).asInstanceOf[TypeInformation[Any]]
   }
 }

@@ -132,9 +132,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 	// ------------------------------------------------------------------------
 	//                              Members
 	// ------------------------------------------------------------------------
-
-	/** The lock to synchronize state changes on */
-	private final Object stateLock = new Object();
 	
 	/** The free memory segments currently available to the hash join. */
 	private final ArrayList<MemorySegment> availableMemory;
@@ -179,9 +176,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 	
 	/** Flag to interrupt closed loops */
 	private boolean running = true;
-
-	/** Flag to mark the table as open / closed */
-	private boolean closed;
 	
 	/** Flag necessary so a resize is never triggered during a resize since the code paths are interleaved */
 	private boolean isResizing;
@@ -237,9 +231,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		this.bucketsPerSegmentBits = MathUtils.log2strict(bucketsPerSegment);
 		
 		this.partitions = new ArrayList<InMemoryPartition<T>>();
-		
-		// because we allow to open and close multiple times, the state is initially closed
-		this.closed = true;
 		
 		// so far no partition has any MemorySegments
 	}
@@ -331,7 +322,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		if (this.closed) {
 			return;
 		}
-		
+
 		final int hashCode = MathUtils.jenkinsHash(this.buildSideComparator.hash(record));
 		final int posHashCode = hashCode % this.numBuckets;
 		
@@ -359,7 +350,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		if (this.closed) {
 			return;
 		}
-		
+
 		final int searchHashCode = MathUtils.jenkinsHash(this.buildSideComparator.hash(record));
 		final int posHashCode = searchHashCode % this.numBuckets;
 		

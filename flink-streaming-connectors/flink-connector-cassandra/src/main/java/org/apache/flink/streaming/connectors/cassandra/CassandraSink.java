@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -271,9 +271,6 @@ public class CassandraSink<IN> {
 		public abstract CassandraSink<IN> build() throws Exception;
 
 		protected void sanityCheck() {
-			if (query == null || query.length() == 0) {
-				throw new IllegalArgumentException("Query must not be null or empty.");
-			}
 			if (builder == null) {
 				throw new IllegalArgumentException("Cassandra host information must be supplied using either setHost() or setClusterBuilder().");
 			}
@@ -283,6 +280,14 @@ public class CassandraSink<IN> {
 	public static class CassandraTupleSinkBuilder<IN extends Tuple> extends CassandraSinkBuilder<IN> {
 		public CassandraTupleSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			super(input, typeInfo, serializer);
+		}
+
+		@Override
+		protected void sanityCheck() {
+			super.sanityCheck();
+			if (query == null || query.length() == 0) {
+				throw new IllegalArgumentException("Query must not be null or empty.");
+			}
 		}
 
 		@Override
@@ -301,6 +306,14 @@ public class CassandraSink<IN> {
 	public static class CassandraPojoSinkBuilder<IN> extends CassandraSinkBuilder<IN> {
 		public CassandraPojoSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			super(input, typeInfo, serializer);
+		}
+
+		@Override
+		protected void sanityCheck() {
+			super.sanityCheck();
+			if (query != null) {
+				throw new IllegalArgumentException("Specifying a query is not allowed when using a Pojo-Stream as input.");
+			}
 		}
 
 		@Override

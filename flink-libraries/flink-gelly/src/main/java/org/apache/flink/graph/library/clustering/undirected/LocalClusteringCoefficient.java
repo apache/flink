@@ -21,16 +21,18 @@ package org.apache.flink.graph.library.clustering.undirected;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
 import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
@@ -55,10 +57,27 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class LocalClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 	// Optional configuration
+	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(true, true);
+
 	private int littleParallelism = PARALLELISM_DEFAULT;
+
+	/**
+	 * By default the vertex set is checked for zero degree vertices. When this
+	 * flag is disabled only clustering coefficient scores for vertices with
+	 * a degree of a least one will be produced.
+	 *
+	 * @param includeZeroDegreeVertices whether to output scores for vertices
+	 *                                  with a degree of zero
+	 * @return this
+	 */
+	public LocalClusteringCoefficient<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
+		this.includeZeroDegreeVertices.set(includeZeroDegreeVertices);
+
+		return this;
+	}
 
 	/**
 	 * Override the parallelism of operators processing small amounts of data.
@@ -75,6 +94,35 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		return this;
 	}
 
+	@Override
+	protected String getAlgorithmName() {
+		return LocalClusteringCoefficient.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! LocalClusteringCoefficient.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		LocalClusteringCoefficient rhs = (LocalClusteringCoefficient) other;
+
+		// verify that configurations can be merged
+
+		if (includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices)) {
+			return false;
+		}
+
+		// merge configurations
+
+		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
+		littleParallelism = Math.min(littleParallelism, rhs.littleParallelism);
+
+		return true;
+	}
+
 	/*
 	 * Implementation notes:
 	 *
@@ -86,12 +134,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 
 	@Override
-	public DataSet<Result<K>> run(Graph<K, VV, EV> input)
+	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, v, w
 		DataSet<Tuple3<K,K,K>> triangles = input
 			.run(new TriangleListing<K,VV,EV>()
-				.setSortTriangleVertices(false)
 				.setLittleParallelism(littleParallelism));
 
 		// u, 1
@@ -103,13 +150,14 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		DataSet<Tuple2<K, LongValue>> vertexTriangleCount = triangleVertices
 			.groupBy(0)
 			.reduce(new CountTriangles<K>())
+				.setCombineHint(CombineHint.HASH)
 				.name("Count triangles");
 
 		// u, deg(u)
 		DataSet<Vertex<K, LongValue>> vertexDegree = input
 			.run(new VertexDegree<K, VV, EV>()
-				.setParallelism(littleParallelism)
-				.setIncludeZeroDegreeVertices(true));
+				.setIncludeZeroDegreeVertices(includeZeroDegreeVertices.get())
+				.setParallelism(littleParallelism));
 
 		// u, deg(u), triangle count
 		return vertexDegree

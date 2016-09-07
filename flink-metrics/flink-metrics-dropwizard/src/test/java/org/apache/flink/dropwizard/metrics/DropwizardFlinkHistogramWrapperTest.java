@@ -26,11 +26,13 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.SlidingWindowReservoir;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
-import org.apache.flink.metrics.MetricRegistry;
-import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -46,7 +48,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_REPORTER_INTERVAL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -95,8 +96,9 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		int size = 10;
 		String histogramMetricName = "histogram";
 		Configuration config = new Configuration();
-		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestingReporter.class.getName());
-		config.setString(KEY_METRICS_REPORTER_INTERVAL, reportingInterval + " MILLISECONDS");
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "my_reporter");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestingReporter.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, reportingInterval + " MILLISECONDS");
 
 		MetricRegistry registry = null;
 
@@ -109,12 +111,11 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 
 			metricGroup.histogram(histogramMetricName, histogramWrapper);
 
-			String fullMetricName = metricGroup.getScopeString() + "." + histogramMetricName;
+			String fullMetricName = metricGroup.getMetricIdentifier(histogramMetricName);
 
-			Field f = registry.getClass().getDeclaredField("reporter");
-			f.setAccessible(true);
+			assertTrue(registry.getReporters().size() == 1);
 
-			MetricReporter reporter = (MetricReporter) f.get(registry);
+			MetricReporter reporter = registry.getReporters().get(0);
 
 			assertTrue(reporter instanceof TestingReporter);
 
@@ -153,7 +154,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		TestingScheduledReporter scheduledReporter = null;
 
 		@Override
-		public ScheduledReporter getReporter(Configuration config) {
+		public ScheduledReporter getReporter(MetricConfig config) {
 			scheduledReporter = new TestingScheduledReporter(
 				registry,
 				getClass().getName(),

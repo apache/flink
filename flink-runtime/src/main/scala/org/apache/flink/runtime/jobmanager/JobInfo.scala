@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.ActorRef
 import org.apache.flink.runtime.akka.ListeningBehaviour
 
+
 /**
  * Utility class to store job information on the [[JobManager]]. The JobInfo stores which actor
  * submitted the job, when the start time and, if already terminated, the end time was.
@@ -37,10 +38,13 @@ import org.apache.flink.runtime.akka.ListeningBehaviour
  * @param start Starting time
  */
 class JobInfo(
-  val client: ActorRef,
-  val listeningBehaviour: ListeningBehaviour,
+  client: ActorRef,
+  listeningBehaviour: ListeningBehaviour,
   val start: Long,
   val sessionTimeout: Long) extends Serializable {
+
+  val clients = scala.collection.mutable.HashSet[(ActorRef, ListeningBehaviour)]()
+  clients += ((client, listeningBehaviour))
 
   var sessionAlive = sessionTimeout > 0
 
@@ -58,10 +62,62 @@ class JobInfo(
     }
   }
 
-  override def toString = s"JobInfo(client: $client ($listeningBehaviour), start: $start)"
+
+  /**
+    * Notifies all clients by sending a message
+    * @param message the message to send
+    */
+  def notifyClients(message: Any) = {
+    clients foreach {
+      case (clientActor, _) =>
+        clientActor ! message
+    }
+  }
+
+  /**
+    * Notifies all clients which are not of type detached
+    * @param message the message to sent to non-detached clients
+    */
+  def notifyNonDetachedClients(message: Any) = {
+    clients foreach {
+      case (clientActor, ListeningBehaviour.DETACHED) =>
+        // do nothing
+      case (clientActor, _) =>
+        clientActor ! message
+    }
+  }
+
+  /**
+    * Sends a message to job clients that match the listening behavior
+    * @param message the message to send to all clients
+    * @param listeningBehaviour the desired listening behaviour
+    */
+  def notifyClients(message: Any, listeningBehaviour: ListeningBehaviour) = {
+    clients foreach {
+      case (clientActor, `listeningBehaviour`) =>
+        clientActor ! message
+      case _ =>
+    }
+  }
 
   def setLastActive() =
     lastActive = System.currentTimeMillis()
+
+
+  override def toString = s"JobInfo(clients: ${clients.toString()}, start: $start)"
+
+  override def equals(other: Any): Boolean = other match {
+    case that: JobInfo =>
+      clients == that.clients &&
+        start == that.start &&
+        sessionTimeout == that.sessionTimeout
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(clients, start, sessionTimeout)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }
 
 object JobInfo{

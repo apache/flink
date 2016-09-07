@@ -41,6 +41,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 public class CollectionInputFormat<T> extends GenericInputFormat<T> implements NonParallelInput {
 
 	private static final long serialVersionUID = 1L;
+	private static final int MAX_TO_STRING_LEN = 100;
 
 	private TypeSerializer<T> serializer;
 
@@ -117,7 +118,23 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 	
 	@Override
 	public String toString() {
-		return this.dataSet.toString();
+		StringBuilder sb = new StringBuilder();
+		sb.append('[');
+
+		int num = 0;
+		for (T e : dataSet) {
+			sb.append(e);
+			if (num != dataSet.size() - 1) {
+				sb.append(", ");
+				if (sb.length() > MAX_TO_STRING_LEN) {
+					sb.append("...");
+					break;
+				}
+			}
+			num++;
+		}
+		sb.append(']');
+		return sb.toString();
 	}
 	
 	// --------------------------------------------------------------------------------------------

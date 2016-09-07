@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,11 +26,14 @@ import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 /**
  * CheckpointCommitter that saves information about completed checkpoints within a separate table in a cassandra
  * database.
- * <p/>
- * Entries are in the form |operator_id | subtask_id | last_completed_checkpoint|
+ * 
+ * <p>Entries are in the form |operator_id | subtask_id | last_completed_checkpoint|
  */
 public class CassandraCommitter extends CheckpointCommitter {
-	private ClusterBuilder builder;
+
+	private static final long serialVersionUID = 1L;
+	
+	private final ClusterBuilder builder;
 	private transient Cluster cluster;
 	private transient Session session;
 
@@ -54,9 +57,6 @@ public class CassandraCommitter extends CheckpointCommitter {
 
 	/**
 	 * Internally used to set the job ID after instantiation.
-	 *
-	 * @param id
-	 * @throws Exception
 	 */
 	public void setJobId(String id) throws Exception {
 		super.setJobId(id);
@@ -66,7 +66,6 @@ public class CassandraCommitter extends CheckpointCommitter {
 	/**
 	 * Generates the necessary tables to store information.
 	 *
-	 * @return
 	 * @throws Exception
 	 */
 	@Override

@@ -18,12 +18,12 @@
 
 package org.apache.flink.ml.recommendation
 
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest._
 
 import scala.language.postfixOps
 
 import org.apache.flink.api.scala._
-import org.apache.flink.test.util.FlinkTestBase
 
 class ALSITSuite
   extends FlatSpec

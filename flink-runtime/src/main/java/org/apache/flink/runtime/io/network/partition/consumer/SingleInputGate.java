@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Maps;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.metrics.groups.IOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -505,6 +505,7 @@ public class SingleInputGate implements InputGate {
 			ExecutionAttemptID executionId,
 			InputGateDeploymentDescriptor igdd,
 			NetworkEnvironment networkEnvironment,
+			PartitionStateChecker partitionStateChecker,
 			IOMetricGroup metrics) {
 
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
@@ -516,7 +517,7 @@ public class SingleInputGate implements InputGate {
 
 		final SingleInputGate inputGate = new SingleInputGate(
 				owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex,
-				icdd.length, networkEnvironment.getPartitionStateChecker(), metrics);
+				icdd.length, partitionStateChecker, metrics);
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
@@ -528,27 +529,30 @@ public class SingleInputGate implements InputGate {
 
 			if (partitionLocation.isLocal()) {
 				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
-						networkEnvironment.getPartitionManager(),
-						networkEnvironment.getTaskEventDispatcher(),
-						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
-						metrics
+					networkEnvironment.getResultPartitionManager(),
+					networkEnvironment.getTaskEventDispatcher(),
+					networkEnvironment.getPartitionRequestInitialBackoff(),
+					networkEnvironment.getPartitionRequestMaxBackoff(),
+					metrics
 				);
 			}
 			else if (partitionLocation.isRemote()) {
 				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,
-						partitionLocation.getConnectionId(),
-						networkEnvironment.getConnectionManager(),
-						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
-						metrics
+					partitionLocation.getConnectionId(),
+					networkEnvironment.getConnectionManager(),
+					networkEnvironment.getPartitionRequestInitialBackoff(),
+					networkEnvironment.getPartitionRequestInitialBackoff(),
+					metrics
 				);
 			}
 			else if (partitionLocation.isUnknown()) {
 				inputChannels[i] = new UnknownInputChannel(inputGate, i, partitionId,
-						networkEnvironment.getPartitionManager(),
-						networkEnvironment.getTaskEventDispatcher(),
-						networkEnvironment.getConnectionManager(),
-						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
-						metrics
+					networkEnvironment.getResultPartitionManager(),
+					networkEnvironment.getTaskEventDispatcher(),
+					networkEnvironment.getConnectionManager(),
+					networkEnvironment.getPartitionRequestInitialBackoff(),
+					networkEnvironment.getPartitionRequestMaxBackoff(),
+					metrics
 				);
 			}
 			else {

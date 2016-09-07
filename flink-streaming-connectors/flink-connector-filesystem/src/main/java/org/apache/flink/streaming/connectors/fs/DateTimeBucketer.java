@@ -52,7 +52,9 @@ import java.util.Date;
  * This will create for example the following bucket path:
  * {@code /base/1976-12-31-14/}
  *
+ * @deprecated use {@link org.apache.flink.streaming.connectors.fs.bucketing.DateTimeBucketer} instead.
  */
+@Deprecated
 public class DateTimeBucketer implements Bucketer {
 
 	private static Logger LOG = LoggerFactory.getLogger(DateTimeBucketer.class);

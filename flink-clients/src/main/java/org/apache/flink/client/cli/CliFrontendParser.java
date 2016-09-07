@@ -17,11 +17,11 @@
  */
 package org.apache.flink.client.cli;
 
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 import org.apache.flink.client.CliFrontend;
 import org.slf4j.Logger;
@@ -57,7 +57,7 @@ public class CliFrontendParser {
 			"specified in the configuration.");
 
 	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
-			"supress logging output to standard out.");
+			"suppress logging output to standard out.");
 
 	public static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
 			"the job in detached mode");
@@ -73,7 +73,7 @@ public class CliFrontendParser {
 			"Path to a savepoint to reset the job back to (for example file:///flink/savepoint-1537).");
 
 	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
-			"Disposes an existing savepoint.");
+			"Path of savepoint to dispose.");
 
 	static final Option CONFIGDIR_OPTION = new Option(null, "configDir", true,
 			"Path to a custom configuration directory with which to run the client.");
@@ -84,6 +84,9 @@ public class CliFrontendParser {
 
 	static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false,
 			"Show only scheduled programs and their JobIDs");
+
+	static final Option ZOOKEEPER_NAMESPACE_OPTION = new Option("z", "zookeeperNamespace", true,
+			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
 	static {
 		HELP_OPTION.setRequired(false);
@@ -116,6 +119,9 @@ public class CliFrontendParser {
 		SAVEPOINT_PATH_OPTION.setRequired(false);
 		SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
 
+		ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
+		ZOOKEEPER_NAMESPACE_OPTION.setArgName("zookeeperNamespace");
+		
 		SAVEPOINT_DISPOSE_OPTION.setRequired(false);
 		SAVEPOINT_DISPOSE_OPTION.setArgName("savepointPath");
 
@@ -151,6 +157,7 @@ public class CliFrontendParser {
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SAVEPOINT_PATH_OPTION);
+		options.addOption(ZOOKEEPER_NAMESPACE_OPTION);
 		return options;
 	}
 
@@ -161,6 +168,7 @@ public class CliFrontendParser {
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SAVEPOINT_PATH_OPTION);
+		options.addOption(ZOOKEEPER_NAMESPACE_OPTION);
 		return options;
 	}
 
@@ -202,6 +210,7 @@ public class CliFrontendParser {
 	private static Options getSavepointOptions(Options options) {
 		options = getJobManagerAddressOption(options);
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
+		options.addOption(JAR_OPTION);
 		return addCustomCliOptions(options, false);
 	}
 
@@ -245,6 +254,7 @@ public class CliFrontendParser {
 	private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
 		options = getJobManagerAddressOption(options);
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
+		options.addOption(JAR_OPTION);
 		return options;
 	}
 

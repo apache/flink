@@ -59,11 +59,6 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	}
 
 	@Override
-	protected void leaderUpdated() {
-		// nothing to update
-	}
-
-	@Override
 	protected void shutdownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) {
 	}
 
@@ -88,13 +83,13 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	}
 
 	@Override
-	protected ResourceID workerRegistered(ResourceID resourceID) {
+	protected ResourceID workerStarted(ResourceID resourceID) {
 		// we accept everything
 		return resourceID;
 	}
 
 	@Override
-	protected void releaseRegisteredWorker(ResourceID resourceID) {
+	protected void releaseStartedWorker(ResourceID resourceID) {
 		// cannot release any workers, they simply stay
 	}
 

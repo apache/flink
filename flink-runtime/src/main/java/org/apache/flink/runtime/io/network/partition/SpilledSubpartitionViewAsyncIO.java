@@ -81,6 +81,9 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 	/** Flag indicating whether we reached EOF at the file reader. */
 	private volatile boolean hasReachedEndOfFile;
 
+	/** Spilled file size */
+	private final long fileSize;
+
 	SpilledSubpartitionViewAsyncIO(
 			ResultSubpartition parent,
 			BufferProvider bufferProvider,
@@ -113,6 +116,8 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 		}
 
 		this.readBatchSize = readBatchSize;
+
+		this.fileSize = asyncFileReader.getSize();
 
 		// Trigger the initial read requests
 		readNextBatchAsync();
@@ -345,6 +350,14 @@ class SpilledSubpartitionViewAsyncIO implements ResultSubpartitionView {
 
 			subpartitionView.notifyError(error);
 		}
+	}
+
+	@Override
+	public String toString() {
+		return String.format("SpilledSubpartitionView[async](index: %d, file size: %d bytes) of ResultPartition %s",
+				parent.index,
+				fileSize,
+				parent.parent.getPartitionId());
 	}
 
 	/**

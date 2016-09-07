@@ -19,11 +19,12 @@
 package org.apache.flink.metrics.statsd;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -61,7 +62,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	private InetSocketAddress address;
 
 	@Override
-	public void open(Configuration config) {
+	public void open(MetricConfig config) {
 		String host = config.getString(ARG_HOST, null);
 		int port = config.getInteger(ARG_PORT, -1);
 
@@ -70,6 +71,8 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		}
 
 		this.address = new InetSocketAddress(host, port);
+
+		LOG.info("Starting StatsDReporter to send metric reports to " + address);
 
 //		String conversionRate = config.getString(ARG_CONVERSION_RATE, "SECONDS");
 //		String conversionDuration = config.getString(ARG_CONVERSION_DURATION, "MILLISECONDS");
@@ -116,6 +119,10 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 			for (Map.Entry<Histogram, String> entry : histograms.entrySet()) {
 				reportHistogram(entry.getValue(), entry.getKey());
 			}
+
+			for (Map.Entry<Meter, String> entry : meters.entrySet()) {
+				reportMeter(entry.getValue(), entry.getKey());
+			}
 		}
 		catch (ConcurrentModificationException | NoSuchElementException e) {
 			// ignore - may happen when metrics are concurrently added or removed
@@ -157,6 +164,13 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		}
 	}
 
+	private void reportMeter(final String name, final Meter meter) {
+		if (meter != null) {
+			send(prefix(name, "rate"), String.valueOf(meter.getRate()));
+			send(prefix(name, "count"), String.valueOf(meter.getCount()));
+		}
+	}
+
 	private String prefix(String ... names) {
 		if (names.length > 0) {
 			StringBuilder stringBuilder = new StringBuilder(names[0]);
@@ -180,5 +194,32 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		catch (IOException e) {
 			LOG.error("unable to send packet to statsd at '{}:{}'", address.getHostName(), address.getPort());
 		}
+	}
+
+	@Override
+	public String filterCharacters(String input) {
+		char[] chars = null;
+		final int strLen = input.length();
+		int pos = 0;
+
+		for (int i = 0; i < strLen; i++) {
+			final char c = input.charAt(i);
+			switch (c) {
+				case ':':
+					if (chars == null) {
+						chars = input.toCharArray();
+					}
+					chars[pos++] = '-';
+					break;
+
+				default:
+					if (chars != null) {
+						chars[pos] = c;
+					}
+					pos++;
+			}
+		}
+
+		return chars == null ? input : new String(chars, 0, pos);
 	}
 }

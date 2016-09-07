@@ -1,8 +1,8 @@
 ---
 title:  "YARN Setup"
-top-nav-group: deployment
-top-nav-title: YARN
-top-nav-pos: 3
+nav-title: YARN
+nav-parent_id: deployment
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -73,7 +73,7 @@ Follow these instructions to learn how to launch a Flink Session within your YAR
 
 A session will start all required Flink services (JobManager and TaskManagers) so that you can submit programs to the cluster. Note that you can run multiple programs per session.
 
-#### Download Flink 
+#### Download Flink
 
 Download a Flink package for Hadoop >= 2 from the [download page]({{ site.download_url }}). It contains the required files.
 
@@ -107,6 +107,7 @@ Usage:
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths for HA mode
 ~~~
 
 Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable to be set to read the YARN and HDFS configuration.
@@ -179,7 +180,7 @@ Use the following command to submit a Flink program to the YARN cluster:
 ./bin/flink
 ~~~
 
-Please refer to the documentation of the [commandline client]({{ site.baseurl }}/apis/cli.html).
+Please refer to the documentation of the [command-line client]({{ site.baseurl }}/setup/cli.html).
 
 The command will show you a help menu like this:
 
@@ -309,7 +310,7 @@ both ("50010,50011,50020-50025,50050-50075").
 
 This section briefly describes how Flink and YARN interact.
 
-<img src="fig/FlinkOnYarn.svg" class="img-responsive">
+<img src="{{ site.baseurl }}/fig/FlinkOnYarn.svg" class="img-responsive">
 
 The YARN client needs to access the Hadoop configuration to connect to the YARN resource manager and to HDFS. It determines the Hadoop configuration using the following strategy:
 

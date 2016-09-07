@@ -52,6 +52,7 @@ class DeltaIterationTranslationTest {
 
       val env = ExecutionEnvironment.getExecutionEnvironment
       env.setParallelism(DEFAULT_PARALLELISM)
+      env.getConfig.setMaxParallelism(DEFAULT_PARALLELISM);
 
       val initialSolutionSet = env.fromElements((3.44, 5L, "abc"))
       val initialWorkSet = env.fromElements((1.23, "abc"))

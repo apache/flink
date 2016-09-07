@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
@@ -64,7 +66,10 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/** The mode describing whether the fetcher also generates timestamps and watermarks */
 	private final int timestampWatermarkMode;
-	
+
+	/** Flag whether to register metrics for the fetcher */
+	protected final boolean useMetrics;
+
 	/** Only relevant for punctuated watermarks: The current cross partition watermark */
 	private volatile long maxWatermarkSoFar = Long.MIN_VALUE;
 
@@ -75,10 +80,11 @@ public abstract class AbstractFetcher<T, KPH> {
 			List<KafkaTopicPartition> assignedPartitions,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext) throws Exception
+			StreamingRuntimeContext runtimeContext, boolean useMetrics) throws Exception
 	{
 		this.sourceContext = checkNotNull(sourceContext);
 		this.checkpointLock = sourceContext.getCheckpointLock();
+		this.useMetrics = useMetrics;
 		
 		// figure out what we watermark mode we will be using
 		
@@ -389,8 +395,58 @@ public abstract class AbstractFetcher<T, KPH> {
 				throw new RuntimeException();
 		}
 	}
-	
-	// ------------------------------------------------------------------------
+
+	// ------------------------- Metrics ----------------------------------
+
+	/**
+	 * Add current and committed offsets to metric group
+	 *
+	 * @param metricGroup The metric group to use
+	 */
+	protected void addOffsetStateGauge(MetricGroup metricGroup) {
+		// add current offsets to gage
+		MetricGroup currentOffsets = metricGroup.addGroup("current-offsets");
+		MetricGroup committedOffsets = metricGroup.addGroup("committed-offsets");
+		for(KafkaTopicPartitionState ktp: subscribedPartitions()){
+			currentOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
+			committedOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
+		}
+	}
+
+	/**
+	 * Gauge types
+	 */
+	private enum OffsetGaugeType {
+		CURRENT_OFFSET,
+		COMMITTED_OFFSET
+	}
+
+	/**
+	 * Gauge for getting the offset of a KafkaTopicPartitionState.
+	 */
+	private static class OffsetGauge implements Gauge<Long> {
+
+		private final KafkaTopicPartitionState ktp;
+		private final OffsetGaugeType gaugeType;
+
+		public OffsetGauge(KafkaTopicPartitionState ktp, OffsetGaugeType gaugeType) {
+			this.ktp = ktp;
+			this.gaugeType = gaugeType;
+		}
+
+		@Override
+		public Long getValue() {
+			switch(gaugeType) {
+				case COMMITTED_OFFSET:
+					return ktp.getCommittedOffset();
+				case CURRENT_OFFSET:
+					return ktp.getOffset();
+				default:
+					throw new RuntimeException("Unknown gauge type: " + gaugeType);
+			}
+		}
+	}
+ 	// ------------------------------------------------------------------------
 	
 	/**
 	 * The periodic watermark emitter. In its given interval, it checks all partitions for
@@ -425,7 +481,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		//-------------------------------------------------
 		
 		public void start() {
-			triggerContext.registerTimer(System.currentTimeMillis() + interval, this);
+			triggerContext.registerTimer(triggerContext.getCurrentProcessingTime() + interval, this);
 		}
 		
 		@Override
@@ -454,7 +510,7 @@ public abstract class AbstractFetcher<T, KPH> {
 			}
 			
 			// schedule the next watermark
-			triggerContext.registerTimer(System.currentTimeMillis() + interval, this);
+			triggerContext.registerTimer(triggerContext.getCurrentProcessingTime() + interval, this);
 		}
 	}
 }

@@ -27,9 +27,8 @@ import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{GroupReduceFunction, MapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{TableException, Row, TableConfig}
+import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableConfig, TableException}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -250,8 +249,8 @@ object AggregateUtil {
 
     // get the field data types of group keys.
     val groupingTypes: Seq[TypeInformation[_]] = groupings
-      .map(inputType.getFieldList.get(_).getType.getSqlTypeName)
-      .map(TypeConverter.sqlTypeToTypeInfo)
+      .map(inputType.getFieldList.get(_).getType)
+      .map(FlinkTypeFactory.toTypeInfo)
 
     val aggPartialNameSuffix = "agg_buffer_"
     val factory = new SqlTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
