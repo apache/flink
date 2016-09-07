@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.FlinkRelBuilder
 import org.apache.flink.api.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.api.table.typeutils.{IntervalTypeInfo, TypeCheckUtils}
 import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure, ValidationSuccess}
 
@@ -247,4 +248,98 @@ case class CurrentTimestamp() extends CurrentTimePoint(SqlTimeTypeInfo.TIMESTAMP
 case class LocalTime() extends CurrentTimePoint(SqlTimeTypeInfo.TIME, local = true)
 
 case class LocalTimestamp() extends CurrentTimePoint(SqlTimeTypeInfo.TIMESTAMP, local = true)
+
+case class TemporalOverlaps(
+    leftTimePoint: Expression,
+    leftTemporal: Expression,
+    rightTimePoint: Expression,
+    rightTemporal: Expression)
+  extends Expression {
+
+  override private[flink] def children: Seq[Expression] =
+    Seq(leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
+
+  override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
+
+  override private[flink] def validateInput(): ExprValidationResult = {
+    if (!TypeCheckUtils.isTimePoint(leftTimePoint.resultType)) {
+      return ValidationFailure(s"TemporalOverlaps operator requires leftTimePoint to be of type " +
+        s"Time Point, but get ${leftTimePoint.resultType}.")
+    }
+    if (!TypeCheckUtils.isTimePoint(rightTimePoint.resultType)) {
+      return ValidationFailure(s"TemporalOverlaps operator requires rightTimePoint to be of " +
+        s"type Time Point, but get ${rightTimePoint.resultType}.")
+    }
+    if (leftTimePoint.resultType != rightTimePoint.resultType) {
+      return ValidationFailure(s"TemporalOverlaps operator requires leftTimePoint and " +
+        s"rightTimePoint to be of same type.")
+    }
+
+    // leftTemporal is point, then it must be comparable with leftTimePoint
+    if (TypeCheckUtils.isTimePoint(leftTemporal.resultType)) {
+      if (leftTemporal.resultType != leftTimePoint.resultType) {
+        return ValidationFailure(s"TemporalOverlaps operator requires leftTemporal and " +
+          s"leftTimePoint to be of same type if leftPointOrInterval is of type Time Point.")
+      }
+    } else if (!isTimeInterval(leftTemporal.resultType)) {
+      return ValidationFailure(s"TemporalOverlaps operator requires leftTemporal to be of " +
+        s"type Time Point or Time Interval.")
+    }
+
+    // rightTemporal is point, then it must be comparable with rightTimePoint
+    if (TypeCheckUtils.isTimePoint(rightTemporal.resultType)) {
+      if (rightTemporal.resultType != rightTimePoint.resultType) {
+        return ValidationFailure(s"TemporalOverlaps operator requires rightTemporal and " +
+          s"rightTimePoint to be of same type if rightPointOrInterval is of type Time Point.")
+      }
+    } else if (!isTimeInterval(rightTemporal.resultType)) {
+      return ValidationFailure(s"TemporalOverlaps operator requires rightTemporal to be of " +
+        s"type Time Point or Time Interval.")
+    }
+    ValidationSuccess
+  }
+
+  override def toString: String = s"temporalOverlaps(${children.mkString(", ")})"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    convertOverlaps(
+      leftTimePoint.toRexNode,
+      leftTemporal.toRexNode,
+      rightTimePoint.toRexNode,
+      rightTemporal.toRexNode,
+      relBuilder.asInstanceOf[FlinkRelBuilder])
+  }
+
+  /**
+    * Standard conversion of the OVERLAPS operator.
+    * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertOverlaps()]]
+    */
+  private def convertOverlaps(
+      leftP: RexNode,
+      leftT: RexNode,
+      rightP: RexNode,
+      rightT: RexNode,
+      relBuilder: FlinkRelBuilder)
+    : RexNode = {
+    // t1 = t0 + t1 if t1 is an interval
+    val convLeftT = if (isTimeInterval(leftTemporal.resultType)) {
+        relBuilder.call(SqlStdOperatorTable.PLUS, leftP, leftT)
+      } else {
+        leftT
+      }
+    // t3 = t2 + t3 if t3 is an interval
+    val convRightT = if (isTimeInterval(rightTemporal.resultType)) {
+        relBuilder.call(SqlStdOperatorTable.PLUS, rightP, rightT)
+      } else {
+        rightT
+      }
+    // t1 >= t2
+    val leftPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, convLeftT, rightP)
+    // t3 >= t0
+    val rightPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, convRightT, leftP)
+
+    // t1 >= t2 and t3 >= t0
+    relBuilder.call(SqlStdOperatorTable.AND, leftPred, rightPred)
+  }
+}
 

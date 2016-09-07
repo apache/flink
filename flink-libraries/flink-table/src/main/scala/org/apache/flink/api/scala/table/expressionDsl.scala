@@ -472,5 +472,30 @@ object localTimestamp {
   }
 }
 
+/**
+  * Determines whether two anchored time intervals overlap.
+  *
+  * It evaluates: leftTemporal >= rightTimePoint && rightTemporal >= leftTimePoint
+  *
+  * e.g. temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour) leads to true
+  */
+object temporalOverlaps {
+
+  /**
+    * Determines whether two anchored time intervals overlap.
+    *
+    * It evaluates: leftTemporal >= rightTimePoint && rightTemporal >= leftTimePoint
+    *
+    * e.g. temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour) leads to true
+    */
+  def apply(
+      leftTimePoint: Expression,
+      leftTemporal: Expression,
+      rightTimePoint: Expression,
+      rightTemporal: Expression): Expression = {
+    TemporalOverlaps(leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
+  }
+}
+
 
 
