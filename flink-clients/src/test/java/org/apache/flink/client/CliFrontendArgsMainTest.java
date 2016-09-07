@@ -13,7 +13,7 @@ import java.net.MalformedURLException;
 import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
 
-public class CliFrontendMainTest {
+public class CliFrontendArgsMainTest {
 
 
 	@BeforeClass
