@@ -31,7 +31,6 @@ import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.query.api.definition.AbstractDefinition;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
