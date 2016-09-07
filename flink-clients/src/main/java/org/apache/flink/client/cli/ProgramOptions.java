@@ -34,6 +34,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_PATH_OPTION;
+
 /**
  * Base class for command line options that refer to a JAR file program.
  */
@@ -114,7 +115,6 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		} else {
 			savepointPath = null;
 		}
-
 	}
 
 	public String getJarFilePath() {
@@ -148,5 +148,4 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	public String getSavepointPath() {
 		return savepointPath;
 	}
-
 }
