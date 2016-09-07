@@ -32,6 +32,7 @@ import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.query.api.definition.AbstractDefinition;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class StreamOutputHandler<R> extends StreamCallback {
@@ -80,7 +81,7 @@ public class StreamOutputHandler<R> extends StreamCallback {
 	}
 
 	private Map<String, Object> toMap(Event event) {
-		Map<String, Object> map = new HashMap<>();
+		Map<String, Object> map = new LinkedHashMap<>();
 		for (int i = 0; i < definition.getAttributeNameArray().length; i++) {
 			map.put(definition.getAttributeNameArray()[i], event.getData(i));
 		}

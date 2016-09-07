@@ -18,10 +18,12 @@
 package org.apache.flink.contrib.siddhi;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorContext;
+import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorInformation;
 import org.apache.flink.contrib.siddhi.schema.SiddhiStreamSchema;
 import org.apache.flink.contrib.siddhi.utils.SiddhiTypeUtils;
 import org.apache.flink.contrib.siddhi.utils.SiddhiOperatorUtils;
@@ -38,6 +40,8 @@ import java.util.Map;
 public class SiddhiStream {
 	private final StreamExecutionEnvironment executionEnvironment;
 
+	private DataStream<Tuple2<String, Object>> previousStream;
+	private DataStream<Tuple2<String, Object>> delegateStream;
 	private final Map<String, DataStream<?>> inputStreams;
 	private final Map<String, SiddhiStreamSchema<?>> inputStreamSchemas;
 
@@ -47,13 +51,25 @@ public class SiddhiStream {
 		this.inputStreamSchemas = new HashMap<>();
 	}
 
-	public static <T> WithExecutionEnvironment from(String streamId, DataStream<T> inStream, String... fieldNames) {
+	public static <T> DefinedStream from(String streamId, DataStream<T> inStream, String... fieldNames) {
 		SiddhiStream siddhiStream = SiddhiStream.newStream(inStream.getExecutionEnvironment());
-		return new WithExecutionEnvironment(siddhiStream).and(streamId, inStream, fieldNames);
+		return siddhiStream.define(streamId, inStream, fieldNames);
 	}
 
-	public <T> void register(String streamId, DataStream<T> inStream, String... fieldNames) {
-		if (inputStreams.containsKey(streamId)) {
+	public <T> DefinedStream define(String streamId, DataStream<T> inStream, String... fieldNames){
+		this.register(streamId,inStream,fieldNames);
+		return new DefinedStream(this);
+	}
+
+	public <T> void register(final String streamId, DataStream<T> inStream, String... fieldNames) {
+		if(inputStreams.isEmpty()){
+			delegateStream = inStream.map(new MapFunction<T, Tuple2<String, Object>>() {
+				@Override
+				public Tuple2<String, Object> map(Object value) throws Exception {
+					return Tuple2.of(streamId,value);
+				}
+			});
+		} else if (inputStreams.containsKey(streamId)) {
 			throw new IllegalArgumentException("Input stream: " + streamId + " already exists");
 		}
 		inputStreams.put(streamId, inStream);
@@ -62,48 +78,53 @@ public class SiddhiStream {
 		inputStreamSchemas.put(streamId, schema);
 	}
 
-	public WithExecutionPlan apply(String executionPlan) {
-		return new WithExecutionEnvironment(this).apply(executionPlan);
-	}
-
-	public Map<String, DataStream<?>> getInputStreams() {
-		return this.inputStreams;
+	private void delegate(DataStream<Tuple2<String, Object>> dataStream){
+		this.previousStream = delegateStream;
+		this.delegateStream = dataStream;
 	}
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return executionEnvironment;
 	}
 
-	public static class WithExecutionEnvironment {
+	public static class DefinedStream {
 		private final SiddhiStream environment;
 
-		public WithExecutionEnvironment(SiddhiStream environment) {
+		public DefinedStream(SiddhiStream environment) {
 			this.environment = environment;
 		}
 
-		public <T> WithExecutionEnvironment and(String streamId, DataStream<T> inStream, String... fieldNames) {
-			environment.register(streamId, inStream, fieldNames);
-			return this;
+		public <T> UnionedStream union(final String streamId, DataStream<T> stream, String... fieldNames){
+			environment.register(streamId,stream,fieldNames);
+			environment.delegate(this.environment.delegateStream.union(stream.map(new MapFunction<T, Tuple2<String, Object>>() {
+				@Override
+				public Tuple2<String, Object> map(T value) throws Exception {
+					return (Tuple2<String, Object>) Tuple2.of(streamId,value);
+				}
+			})));
+			return new UnionedStream(environment);
 		}
 
-		public WithExecutionPlan apply(String executionPlan) {
-			return new WithExecutionPlan(executionPlan, environment);
-		}
-
-		public SiddhiStream environment() {
-			return this.environment;
+		public ExecutedStream query(String executionPlan) {
+			return new ExecutedStream(executionPlan, environment);
 		}
 	}
 
-	public static class WithExecutionPlan {
-		private SiddhiOperatorContext siddhiOperatorContext;
+	public static class UnionedStream extends DefinedStream {
+		public <T> UnionedStream(SiddhiStream environment) {
+			super(environment);
+		}
+	}
+
+	public static class ExecutedStream {
+		private SiddhiOperatorInformation siddhiOperatorInformation;
 		private SiddhiStream siddhiStream;
 
-		public WithExecutionPlan(String executionPlan, SiddhiStream environment) {
-			siddhiOperatorContext = new SiddhiOperatorContext();
-			siddhiOperatorContext.setExecutionPlan(executionPlan);
-			siddhiOperatorContext.setInputStreamSchemas(environment.inputStreamSchemas);
-			siddhiOperatorContext.setTimeCharacteristic(environment.getExecutionEnvironment().getStreamTimeCharacteristic());
+		public ExecutedStream(String executionPlan, SiddhiStream environment) {
+			siddhiOperatorInformation = new SiddhiOperatorInformation();
+			siddhiOperatorInformation.setExecutionPlan(executionPlan);
+			siddhiOperatorInformation.setInputStreamSchemas(environment.inputStreamSchemas);
+			siddhiOperatorInformation.setTimeCharacteristic(environment.getExecutionEnvironment().getStreamTimeCharacteristic());
 			this.siddhiStream = environment;
 		}
 
@@ -111,7 +132,7 @@ public class SiddhiStream {
 		 * Return output stream as Tuple
          */
 		public <T extends Tuple> DataStream<T> returns(String outStreamId) {
-			return returnsInternal(outStreamId, SiddhiTypeUtils.<T>getTupleTypeInformation(siddhiOperatorContext.getFinalExecutionPlan(),outStreamId));
+			return returnsInternal(outStreamId, SiddhiTypeUtils.<T>getTupleTypeInformation(siddhiOperatorInformation.getFinalExecutionPlan(),outStreamId));
 		}
 
 		/**
@@ -130,9 +151,10 @@ public class SiddhiStream {
 		}
 
 		private  <T> DataStream<T> returnsInternal(String outStreamId, TypeInformation<T> typeInformation) {
-			siddhiOperatorContext.setOutputStreamId(outStreamId);
-			siddhiOperatorContext.setOutputStreamType(typeInformation);
-			return SiddhiOperatorUtils.createDataStream(siddhiOperatorContext, siddhiStream);
+			SiddhiOperatorInformation context = siddhiOperatorInformation.copy();
+			context.setOutputStreamId(outStreamId);
+			context.setOutputStreamType(typeInformation);
+			return SiddhiOperatorUtils.createDataStream(context, siddhiStream.delegateStream);
 		}
 	}
 

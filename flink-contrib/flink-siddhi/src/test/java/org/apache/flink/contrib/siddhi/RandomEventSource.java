@@ -21,27 +21,32 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.Random;
 
-public class EventSource implements SourceFunction<Event> {
+public class RandomEventSource implements SourceFunction<Event> {
 	private final int count;
 	private final Random random;
+	private final long initialTimestamp;
 
 	private volatile boolean isRunning = true;
 	private volatile int number = 0;
 
-	public EventSource(int count) {
+	public RandomEventSource(int count,long initialTimestamp) {
 		this.count = count;
 		this.random = new Random();
+		this.initialTimestamp = initialTimestamp;
 	}
 
-	public EventSource() {
-		this(Integer.MAX_VALUE);
+	public RandomEventSource() {
+		this(Integer.MAX_VALUE,System.currentTimeMillis());
+	}
+	public RandomEventSource(int count) {
+		this(count,System.currentTimeMillis());
 	}
 
 	@Override
 	public void run(SourceContext<Event> ctx) throws Exception {
 		while (isRunning) {
 			Thread.sleep(500);
-			ctx.collect(Event.of(number, "test_event", random.nextDouble()));
+			ctx.collect(Event.of(number, "test_event", random.nextDouble(),initialTimestamp+1000));
 			number++;
 			if (number >= this.count) {
 				cancel();

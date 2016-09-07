@@ -68,6 +68,15 @@ public class Event {
 		return event;
 	}
 
+	public static Event of(int id, String name, double price,long timestamp) {
+		Event event = new Event();
+		event.setId(id);
+		event.setName(name);
+		event.setPrice(price);
+		event.setTimestamp(timestamp);
+		return event;
+	}
+
 	@Override
 	public int hashCode() {
 		return Objects.hash(name, price, id);

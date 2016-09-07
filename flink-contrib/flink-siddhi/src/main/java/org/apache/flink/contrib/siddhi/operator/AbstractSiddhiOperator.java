@@ -46,7 +46,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSiddhiOperator.class);
 	protected static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
 
-	private final SiddhiOperatorContext siddhiContext;
+	private final SiddhiOperatorInformation siddhiPlan;
 	private final String executionExpression;
 	private final boolean isProcessingTime;
 
@@ -58,19 +58,19 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	private transient PriorityQueue<StreamRecord<IN>> priorityQueue;
 
 	/**
-	 * @param siddhiContext Siddhi CEP  Execution Plan
+	 * @param siddhiPlan Siddhi CEP  Execution Plan
 	 */
-	public AbstractSiddhiOperator(SiddhiOperatorContext siddhiContext) {
-		this.siddhiContext = siddhiContext;
-		this.executionExpression = siddhiContext.getFinalExecutionPlan();
-		this.isProcessingTime = this.siddhiContext.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+	public AbstractSiddhiOperator(SiddhiOperatorInformation siddhiPlan) {
+		this.siddhiPlan = siddhiPlan;
+		this.executionExpression = siddhiPlan.getFinalExecutionPlan();
+		this.isProcessingTime = this.siddhiPlan.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 		validate(executionExpression);
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		String streamId = getStreamId(element.getValue());
-		StreamSchema<IN> schema = siddhiContext.getInputStreamSchema(streamId);
+		StreamSchema<IN> schema = siddhiPlan.getInputStreamSchema(streamId);
 
 		if (isProcessingTime) {
 			processEvent(streamId, schema, element.getValue(), System.currentTimeMillis());
@@ -95,7 +95,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 			StreamRecord<IN> streamRecord = priorityQueue.poll();
 			String streamId = getStreamId(streamRecord.getValue());
 			long timestamp = streamRecord.getTimestamp();
-			StreamSchema<IN> schema = siddhiContext.getInputStreamSchema(streamId);
+			StreamSchema<IN> schema = siddhiPlan.getInputStreamSchema(streamId);
 			processEvent(streamId, schema, streamRecord.getValue(), timestamp);
 		}
 		output.emitWatermark(mark);
@@ -115,8 +115,8 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		return inputStreamHandlers.get(streamId);
 	}
 
-	protected SiddhiOperatorContext getSiddhiContext() {
-		return this.siddhiContext;
+	protected SiddhiOperatorInformation getSiddhiPlan() {
+		return this.siddhiPlan;
 	}
 
 	@Override
@@ -181,10 +181,10 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	}
 
 	private void registerInputAndOutput(ExecutionPlanRuntime runtime) {
-		AbstractDefinition definition = this.siddhiRuntime.getStreamDefinitionMap().get(this.siddhiContext.getOutputStreamId());
-		runtime.addCallback(this.siddhiContext.getOutputStreamId(), new StreamOutputHandler<>(this.siddhiContext.getOutputStreamType(), definition, this.output));
+		AbstractDefinition definition = this.siddhiRuntime.getStreamDefinitionMap().get(this.siddhiPlan.getOutputStreamId());
+		runtime.addCallback(this.siddhiPlan.getOutputStreamId(), new StreamOutputHandler<>(this.siddhiPlan.getOutputStreamType(), definition, this.output));
 		inputStreamHandlers = new HashMap<>();
-		for (String inputStreamId : this.siddhiContext.getInputStreams()) {
+		for (String inputStreamId : this.siddhiPlan.getInputStreams()) {
 			inputStreamHandlers.put(inputStreamId, runtime.getInputHandler(inputStreamId));
 		}
 	}

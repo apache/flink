@@ -17,46 +17,17 @@
 
 package org.apache.flink.contrib.siddhi.utils;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.siddhi.SiddhiStream;
-import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorContext;
+import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorInformation;
 import org.apache.flink.contrib.siddhi.operator.TupleStreamSiddhiOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Convert SiddhiCEPExecutionPlan to SiddhiCEP Operator and build output DataStream
  */
 public class SiddhiOperatorUtils {
 	@SuppressWarnings("unchecked")
-	public static <OUT> DataStream<OUT> createDataStream(SiddhiOperatorContext context, SiddhiStream environment) {
-		if (context.getInputStreams().size() == 0) {
-			throw new IllegalArgumentException("No input streams was registered");
-		} else if (context.getInputStreams().size() == 1) {
-			Map.Entry<String, DataStream<?>> entry = environment.getInputStreams().entrySet().iterator().next();
-			return wrap(entry.getKey(),entry.getValue()).transform(context.getName(), context.getOutputStreamType(), new TupleStreamSiddhiOperator(context));
-		} else {
-			List<DataStream<Tuple2<String, Object>>> wrappedDataStreams = new ArrayList<>();
-			for (Map.Entry<String, DataStream<?>> entry : environment.getInputStreams().entrySet()) {
-				wrappedDataStreams.add(wrap(entry.getKey(), entry.getValue()));
-			}
-			// TODO: Is union correct for our case? Should use broadcast instead.
-			DataStream<Tuple2<String, Object>> unionStream = wrappedDataStreams.get(0)
-				.union((DataStream<Tuple2<String, Object>>[]) wrappedDataStreams.subList(1, wrappedDataStreams.size() - 1).toArray());
-			return unionStream.transform(context.getName(), context.getOutputStreamType(), new TupleStreamSiddhiOperator<Object, OUT>(context));
-		}
-	}
-
-	private static <T> DataStream<Tuple2<String, Object>> wrap(final String streamId, DataStream<T> dataStream) {
-		return dataStream.map(new MapFunction<T, Tuple2<String, Object>>() {
-			@Override
-			public Tuple2<String, Object> map(T value) throws Exception {
-				return Tuple2.of(streamId, (Object) value);
-			}
-		});
+	public static <OUT> DataStream<OUT> createDataStream(SiddhiOperatorInformation context, DataStream<Tuple2<String,Object>> namedStream) {
+		return namedStream.transform(context.getName(),context.getOutputStreamType(), new TupleStreamSiddhiOperator(context));
 	}
 }

@@ -18,12 +18,13 @@
 /**
  * TODO
  * <p/>
- * 1) Support Timestamp
- * 1) Support Multiple input streams
+ * 1) Support Timestamp [done]
+ * 1) Support Multiple input streams [done]
  * 2) More data type support (Tuple/PrimitiveType/Array)
- * 2) Support keyedStream
- * 3) Test complex siddhi query cases
+ * 2) Support keyedStream [done]
+ * 3) Test complex siddhi query cases [done]
  * 4) Sorting buffer state persistence
  * 5) Object reusing
+ * 6) UDF
  */
 package org.apache.flink.contrib.siddhi;
