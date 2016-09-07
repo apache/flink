@@ -32,16 +32,27 @@ import java.util.Map;
 /**
  * SiddhiCEP Operator Context
  */
-public class SiddhiOperatorInformation implements Serializable {
+public class SiddhiOperatorContext implements Serializable {
 	private Map<String, SiddhiStreamSchema<?>> inputStreamSchemas;
+	private final Map<String,Class<?>> siddhiExtensions;
 	private String outputStreamId;
 	private TypeInformation outputStreamType;
 	private TimeCharacteristic timeCharacteristic;
 	private String name;
 	private String executionPlan;
 
-	public SiddhiOperatorInformation() {
+	public SiddhiOperatorContext() {
 		inputStreamSchemas = new HashMap<>();
+		siddhiExtensions = new HashMap<>();
+	}
+
+	public void setExtensions(Map<String,Class<?>> extensions){
+		Preconditions.checkNotNull(extensions);
+		siddhiExtensions.putAll(extensions);
+	}
+
+	public Map<String,Class<?>> getExtensions(){
+		return siddhiExtensions;
 	}
 
 	public String getName() {
@@ -133,7 +144,7 @@ public class SiddhiOperatorInformation implements Serializable {
 	/**
 	 * TODO: implement copy method
      */
-	public SiddhiOperatorInformation copy(){
+	public SiddhiOperatorContext copy(){
 		return this;
 	}
 }

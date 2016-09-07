@@ -46,7 +46,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSiddhiOperator.class);
 	protected static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
 
-	private final SiddhiOperatorInformation siddhiPlan;
+	private final SiddhiOperatorContext siddhiPlan;
 	private final String executionExpression;
 	private final boolean isProcessingTime;
 
@@ -60,7 +60,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	/**
 	 * @param siddhiPlan Siddhi CEP  Execution Plan
 	 */
-	public AbstractSiddhiOperator(SiddhiOperatorInformation siddhiPlan) {
+	public AbstractSiddhiOperator(SiddhiOperatorContext siddhiPlan) {
 		this.siddhiPlan = siddhiPlan;
 		this.executionExpression = siddhiPlan.getFinalExecutionPlan();
 		this.isProcessingTime = this.siddhiPlan.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
@@ -115,7 +115,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		return inputStreamHandlers.get(streamId);
 	}
 
-	protected SiddhiOperatorInformation getSiddhiPlan() {
+	protected SiddhiOperatorContext getSiddhiPlan() {
 		return this.siddhiPlan;
 	}
 
@@ -143,8 +143,8 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	/**
 	 * Validate execution plan during building DAG before submitting to execution environment and fail-fast.
 	 */
-	private static void validate(final String executionPlan) {
-		SiddhiManager siddhiManager = new SiddhiManager();
+	private void validate(final String executionPlan) {
+		SiddhiManager siddhiManager = newSiddhiManager();
 		try {
 			siddhiManager.validateExecutionPlan(executionPlan);
 		} finally {
@@ -152,12 +152,22 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		}
 	}
 
+	private SiddhiManager newSiddhiManager(){
+		SiddhiManager siddhiManager = new SiddhiManager();
+		for(Map.Entry<String,Class<?>> entry:this.siddhiPlan.getExtensions().entrySet()) {
+			siddhiManager.setExtension(entry.getKey(),entry.getValue());
+		}
+		return siddhiManager;
+	}
 	/**
 	 * Create and start execution runtime
 	 */
 	protected void startSiddhiRuntime() {
 		if (this.siddhiRuntime == null) {
-			this.siddhiManager = new SiddhiManager();
+			this.siddhiManager = newSiddhiManager();
+			for(Map.Entry<String,Class<?>> entry:this.siddhiPlan.getExtensions().entrySet()) {
+				this.siddhiManager.setExtension(entry.getKey(),entry.getValue());
+			}
 			this.siddhiRuntime = siddhiManager.createExecutionPlanRuntime(executionExpression);
 			this.siddhiRuntime.start();
 			registerInputAndOutput(this.siddhiRuntime);

@@ -26,7 +26,7 @@ import org.apache.flink.contrib.siddhi.schema.StreamSchema;
 
 public class TupleStreamSiddhiOperator<IN, OUT> extends AbstractSiddhiOperator<Tuple2<String, IN>, OUT> {
 
-	public TupleStreamSiddhiOperator(SiddhiOperatorInformation siddhiPlan) {
+	public TupleStreamSiddhiOperator(SiddhiOperatorContext siddhiPlan) {
 		super(siddhiPlan);
 	}
 

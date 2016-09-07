@@ -18,7 +18,7 @@
 package org.apache.flink.contrib.siddhi.utils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorInformation;
+import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorContext;
 import org.apache.flink.contrib.siddhi.operator.TupleStreamSiddhiOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
  */
 public class SiddhiOperatorUtils {
 	@SuppressWarnings("unchecked")
-	public static <OUT> DataStream<OUT> createDataStream(SiddhiOperatorInformation context, DataStream<Tuple2<String,Object>> namedStream) {
+	public static <OUT> DataStream<OUT> createDataStream(SiddhiOperatorContext context, DataStream<Tuple2<String,Object>> namedStream) {
 		return namedStream.transform(context.getName(),context.getOutputStreamType(), new TupleStreamSiddhiOperator(context));
 	}
 }

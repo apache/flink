@@ -25,6 +25,6 @@
  * 3) Test complex siddhi query cases [done]
  * 4) Sorting buffer state persistence
  * 5) Object reusing
- * 6) UDF
+ * 6) Support extension [done]
  */
 package org.apache.flink.contrib.siddhi;

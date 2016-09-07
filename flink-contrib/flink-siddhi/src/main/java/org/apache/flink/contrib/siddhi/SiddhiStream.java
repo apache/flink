@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorInformation;
+import org.apache.flink.contrib.siddhi.operator.SiddhiOperatorContext;
 import org.apache.flink.contrib.siddhi.schema.SiddhiStreamSchema;
 import org.apache.flink.contrib.siddhi.utils.SiddhiTypeUtils;
 import org.apache.flink.contrib.siddhi.utils.SiddhiOperatorUtils;
@@ -40,10 +40,11 @@ import java.util.Map;
 public class SiddhiStream {
 	private final StreamExecutionEnvironment executionEnvironment;
 
-	private DataStream<Tuple2<String, Object>> previousStream;
 	private DataStream<Tuple2<String, Object>> delegateStream;
 	private final Map<String, DataStream<?>> inputStreams;
 	private final Map<String, SiddhiStreamSchema<?>> inputStreamSchemas;
+
+	private static final Map<String,Class<?>> extensionRepository = new HashMap<>();
 
 	public SiddhiStream(StreamExecutionEnvironment streamExecutionEnvironment) {
 		this.executionEnvironment = streamExecutionEnvironment;
@@ -79,12 +80,18 @@ public class SiddhiStream {
 	}
 
 	private void delegate(DataStream<Tuple2<String, Object>> dataStream){
-		this.previousStream = delegateStream;
 		this.delegateStream = dataStream;
 	}
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return executionEnvironment;
+	}
+
+	public static void registerExtension(String extensionName, Class<?> extensionClass) {
+		if(extensionRepository.containsKey(extensionName)){
+			throw new IllegalArgumentException("Extension named "+extensionName+" already registered");
+		}
+		extensionRepository.put(extensionName,extensionClass);
 	}
 
 	public static class DefinedStream {
@@ -117,14 +124,14 @@ public class SiddhiStream {
 	}
 
 	public static class ExecutedStream {
-		private SiddhiOperatorInformation siddhiOperatorInformation;
+		private SiddhiOperatorContext siddhiOperatorContext;
 		private SiddhiStream siddhiStream;
 
 		public ExecutedStream(String executionPlan, SiddhiStream environment) {
-			siddhiOperatorInformation = new SiddhiOperatorInformation();
-			siddhiOperatorInformation.setExecutionPlan(executionPlan);
-			siddhiOperatorInformation.setInputStreamSchemas(environment.inputStreamSchemas);
-			siddhiOperatorInformation.setTimeCharacteristic(environment.getExecutionEnvironment().getStreamTimeCharacteristic());
+			siddhiOperatorContext = new SiddhiOperatorContext();
+			siddhiOperatorContext.setExecutionPlan(executionPlan);
+			siddhiOperatorContext.setInputStreamSchemas(environment.inputStreamSchemas);
+			siddhiOperatorContext.setTimeCharacteristic(environment.getExecutionEnvironment().getStreamTimeCharacteristic());
 			this.siddhiStream = environment;
 		}
 
@@ -132,7 +139,7 @@ public class SiddhiStream {
 		 * Return output stream as Tuple
          */
 		public <T extends Tuple> DataStream<T> returns(String outStreamId) {
-			return returnsInternal(outStreamId, SiddhiTypeUtils.<T>getTupleTypeInformation(siddhiOperatorInformation.getFinalExecutionPlan(),outStreamId));
+			return returnsInternal(outStreamId, SiddhiTypeUtils.<T>getTupleTypeInformation(siddhiOperatorContext.getFinalExecutionPlan(),outStreamId));
 		}
 
 		/**
@@ -151,9 +158,10 @@ public class SiddhiStream {
 		}
 
 		private  <T> DataStream<T> returnsInternal(String outStreamId, TypeInformation<T> typeInformation) {
-			SiddhiOperatorInformation context = siddhiOperatorInformation.copy();
+			SiddhiOperatorContext context = siddhiOperatorContext.copy();
 			context.setOutputStreamId(outStreamId);
 			context.setOutputStreamType(typeInformation);
+			context.setExtensions(extensionRepository);
 			return SiddhiOperatorUtils.createDataStream(context, siddhiStream.delegateStream);
 		}
 	}

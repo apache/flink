@@ -18,6 +18,7 @@
 package org.apache.flink.contrib.siddhi;
 
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.contrib.siddhi.extension.CustomPlusFunctionExtension;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -119,6 +120,7 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		env.execute();
 		assertEquals(5, getLineCount(resultPath));
 	}
+
 
 	@Test
 	public void testMultipleUnboundedPojoStreamSimpleUnion() throws Exception {
@@ -235,5 +237,25 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		List<String> result = new LinkedList<>();
 		readAllResultLines(result, resPath);
 		return result.size();
+	}
+
+	@Test
+	public void testSiddhiFunctionExtension() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Event> input = env.addSource(new RandomEventSource(5));
+
+		SiddhiStream.registerExtension("custom:plus",CustomPlusFunctionExtension.class);
+
+		DataStream<Map> output = SiddhiStream
+			.from("inputStream", input, "id", "name", "price","timestamp")
+			.query("from inputStream select timestamp, id, name, custom:plus(price,price) as doubled_price insert into  outputStream")
+			.returnAsMap("outputStream");
+
+		output.printToErr();
+
+		String resultPath = tempFolder.newFile().toURI().toString();
+		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		env.execute();
+		assertEquals(5, getLineCount(resultPath));
 	}
 }
