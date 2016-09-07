@@ -19,9 +19,6 @@
 
 package org.apache.flink.client;
 
-import static org.apache.flink.client.CliFrontendTestUtils.*;
-import static org.junit.Assert.*;
-
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.RunOptions;
@@ -29,6 +26,9 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
+import static org.junit.Assert.*;
 
 
 public class CliFrontendRunTest {
@@ -110,8 +110,6 @@ public class CliFrontendRunTest {
 				assertEquals("--arg2", options.getProgramArgs()[3]);
 				assertEquals("value2", options.getProgramArgs()[4]);
 			}
-
-
 		}
 		catch (Exception e) {
 			e.printStackTrace();
