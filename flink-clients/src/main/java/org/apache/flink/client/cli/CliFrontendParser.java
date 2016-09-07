@@ -17,18 +17,10 @@
  */
 package org.apache.flink.client.cli;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import org.apache.flink.client.CliFrontend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Arrays;
-import java.util.List;
 
 
 /**
@@ -481,19 +473,9 @@ public class CliFrontendParser {
 
 	public static MainOptions parseMainCommand(String[] args) throws CliArgsException {
 
-		// drop all arguments after an action
-		final List<String> params= Arrays.asList(args);
-		for (String action: CliFrontend.ACTIONS) {
-			int index = params.indexOf(action);
-			if(index != -1) {
-				args = Arrays.copyOfRange(args, 0, index);
-				break;
-			}
-		}
-
 		try {
 			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(MAIN_OPTIONS, args, false);
+			CommandLine line = parser.parse(MAIN_OPTIONS, args, true);
 			return new MainOptions(line);
 		} catch (ParseException e){
 			throw new CliArgsException(e.getMessage());
