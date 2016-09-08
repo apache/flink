@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -52,12 +51,9 @@ public class TaskExecutorConfiguration implements Serializable {
 
 	private final NetworkEnvironmentConfiguration networkConfig;
 
-	private final InstanceConnectionInfo connectionInfo;
-
 	public TaskExecutorConfiguration(
 			String[] tmpDirPaths,
 			long cleanupInterval,
-			InstanceConnectionInfo connectionInfo,
 			NetworkEnvironmentConfiguration networkConfig,
 			FiniteDuration timeout,
 			FiniteDuration maxRegistrationDuration,
@@ -66,7 +62,6 @@ public class TaskExecutorConfiguration implements Serializable {
 
 		this (tmpDirPaths,
 			cleanupInterval,
-			connectionInfo,
 			networkConfig,
 			timeout,
 			maxRegistrationDuration,
@@ -80,7 +75,6 @@ public class TaskExecutorConfiguration implements Serializable {
 	public TaskExecutorConfiguration(
 			String[] tmpDirPaths,
 			long cleanupInterval,
-			InstanceConnectionInfo connectionInfo,
 			NetworkEnvironmentConfiguration networkConfig,
 			FiniteDuration timeout,
 			FiniteDuration maxRegistrationDuration,
@@ -92,7 +86,6 @@ public class TaskExecutorConfiguration implements Serializable {
 
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.cleanupInterval = checkNotNull(cleanupInterval);
-		this.connectionInfo = checkNotNull(connectionInfo);
 		this.networkConfig = checkNotNull(networkConfig);
 		this.timeout = checkNotNull(timeout);
 		this.maxRegistrationDuration = maxRegistrationDuration;
@@ -114,8 +107,6 @@ public class TaskExecutorConfiguration implements Serializable {
 	public long getCleanupInterval() {
 		return cleanupInterval;
 	}
-
-	public InstanceConnectionInfo getConnectionInfo() { return connectionInfo; }
 
 	public NetworkEnvironmentConfiguration getNetworkConfig() { return networkConfig; }
 
