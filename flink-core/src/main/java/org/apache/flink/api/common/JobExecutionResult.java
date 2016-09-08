@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 @Public
 public class JobExecutionResult extends JobSubmissionResult {
 
-	private long netRuntime;
+	private final long netRuntime;
 
 	private final Map<String, Object> accumulatorResults;
 
