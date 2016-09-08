@@ -29,6 +29,19 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 public interface JobMasterGateway extends RpcGateway {
 
 	/**
+	 * Making this job begins to run.
+	 */
+	void startJob();
+
+	/**
+	 * Suspending job, all the running tasks will be cancelled, and runtime status will be cleared. Should re-submit
+	 * the job before restarting it.
+	 *
+	 * @param cause The reason of why this job been suspended.
+	 */
+	void suspendJob(final Throwable cause);
+
+	/**
 	 * Updates the task execution state for a given task.
 	 *
 	 * @param taskExecutionState New task execution state for a given task
