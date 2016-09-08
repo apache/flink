@@ -50,6 +50,32 @@ public abstract class SiddhiStream {
 
 	protected abstract DataStream<Tuple2<String, Object>> toDataStream();
 
+	/**
+	 * Convert DataStream&lt;T&gt; to DataStream&lt;Tuple2&lt;String,T&gt;&gt;.
+	 * If it's KeyedStream. pass through original keySelector
+     */
+	protected <T> DataStream<Tuple2<String, Object>> convertDataStream(DataStream<T> dataStream, String streamId){
+		final String streamIdInClosure = streamId;
+		DataStream<Tuple2<String, Object>> resultStream = dataStream.map(new MapFunction<T, Tuple2<String, Object>>() {
+			@Override
+			public Tuple2<String, Object> map(T value) throws Exception {
+				return Tuple2.of(streamIdInClosure,(Object) value);
+			}
+		});
+		if(dataStream instanceof KeyedStream){
+			final KeySelector<T, Object> keySelector = ((KeyedStream<T, Object>) dataStream).getKeySelector();
+			final KeySelector<Tuple2<String,Object>, Object> keySelectorInClosure = new KeySelector<Tuple2<String,Object>, Object>() {
+				@Override
+				public Object getKey(Tuple2<String, Object> value) throws Exception {
+					return keySelector.getKey((T) value.f1);
+				}
+			};
+			return resultStream.keyBy(keySelectorInClosure);
+		} else {
+			return resultStream;
+		}
+	}
+
 	public static abstract class ExecutableStream extends SiddhiStream {
 		public ExecutableStream(SiddhiCEP environment) {
 			super(environment);
@@ -80,25 +106,7 @@ public abstract class SiddhiStream {
 
 		@Override
 		protected DataStream<Tuple2<String, Object>> toDataStream() {
-			final String localStreamId = this.streamId;
-			DataStream<T> inputStream = getEnvironment().getDataStream(localStreamId);
-			DataStream<Tuple2<String, Object>> outputStream = inputStream.map(new MapFunction<T, Tuple2<String, Object>>() {
-				@Override
-				public Tuple2<String, Object> map(T value) throws Exception {
-					return Tuple2.of(localStreamId,(Object) value);
-				}
-			});
-			if(inputStream instanceof KeyedStream){
-				final KeySelector<T, Object> keySelector = ((KeyedStream<T, Object>) inputStream).getKeySelector();
-				return outputStream.keyBy(new KeySelector<Tuple2<String,Object>, Object>() {
-					@Override
-					public Object getKey(Tuple2<String, Object> value) throws Exception {
-						return keySelector.getKey((T) value.f1);
-					}
-				});
-			} else {
-				return outputStream;
-			}
+			return convertDataStream(getEnvironment().getDataStream(this.streamId),this.streamId);
 		}
 	}
 
@@ -106,7 +114,7 @@ public abstract class SiddhiStream {
 		private String firstStreamId;
 		private List<String> unionStreamIds;
 
-		public UnionSiddhiStream(String firstStreamId,List<String> unionStreamIds,SiddhiCEP environment) {
+		public UnionSiddhiStream(String firstStreamId, List<String> unionStreamIds, SiddhiCEP environment) {
 			super(environment);
 			environment.checkStreamDefined(firstStreamId);
 			for(String unionStreamId:unionStreamIds){
@@ -132,19 +140,9 @@ public abstract class SiddhiStream {
 		protected DataStream<Tuple2<String, Object>> toDataStream() {
 			final String localFirstStreamId = firstStreamId;
 			final List<String> localUnionStreamIds = this.unionStreamIds;
-			DataStream<Tuple2<String, Object>> dataStream = getEnvironment().<T>getDataStream(localFirstStreamId).map(new MapFunction<T, Tuple2<String,Object>>() {
-				@Override
-				public Tuple2<String, Object> map(T value) throws Exception {
-					return Tuple2.of(localFirstStreamId,(Object) value);
-				}
-			});
-			for(final String unionStreamId:localUnionStreamIds){
-				dataStream = dataStream.union(getEnvironment().<T>getDataStream(unionStreamId).map(new MapFunction<T, Tuple2<String,Object>>() {
-					@Override
-					public Tuple2<String, Object> map(T value) throws Exception {
-						return Tuple2.of(unionStreamId,(Object) value);
-					}
-				}));
+			DataStream<Tuple2<String, Object>> dataStream = convertDataStream(getEnvironment().<T>getDataStream(localFirstStreamId),this.firstStreamId);
+			for(String unionStreamId:localUnionStreamIds){
+				dataStream = dataStream.union(convertDataStream(getEnvironment().<T>getDataStream(unionStreamId),unionStreamId));
 			}
 			return dataStream;
 		}

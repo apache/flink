@@ -16,16 +16,15 @@
  */
 
 /**
- * TODO
- * <p/>
- * 1) Support Timestamp [done]
- * 1) Support Multiple input streams [done]
- * 2) More data type support (Tuple/PrimitiveType/Array)
- * 2) Support keyedStream [done]
- * 3) Test complex siddhi sql cases [done]
- * 4) Sorting buffer state persistence
- * 5) Object reusing
- * 6) Support extension [done]
- * 7) Decouple API into object instance level instead of static method. [done]
+ * 1) [todo] Support Timestamp
+ * 1) [done] Support Multiple input streams
+ * 2) [todo] More data type support (Tuple/PrimitiveType/Array)
+ * 2) [todo] Support keyedStream
+ * 3) [done] Test complex siddhi sql cases
+ * 4) [todo] Sorting buffer state persistence
+ * 5) [todo] Object reusing
+ * 6) [done] Support extension
+ * 7) [done] Decouple API into object instance level instead of static method.
+ * 8) [todo] Support timestamp and watermark
  */
 package org.apache.flink.contrib.siddhi;
