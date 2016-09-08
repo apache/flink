@@ -26,6 +26,7 @@ import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.StringValueParser;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,7 +110,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 	protected GenericCsvInputFormat(Path filePath, Charset charset) {
 		super(filePath);
-		this.charset = charset != null ? charset : Charset.forName("UTF-8");
+		this.charset = Preconditions.checkNotNull(charset);
 	}
 	
 	// --------------------------------------------------------------------------------------------
