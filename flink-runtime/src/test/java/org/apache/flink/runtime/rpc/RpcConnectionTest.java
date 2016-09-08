@@ -19,23 +19,21 @@
 package org.apache.flink.runtime.rpc;
 
 import akka.actor.ActorSystem;
-import akka.util.Timeout;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 
-import org.junit.AfterClass;
 import org.junit.Test;
 
 import scala.Option;
 import scala.Tuple2;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -57,19 +55,20 @@ public class RpcConnectionTest {
 
 			// we start the RPC service with a very long timeout to ensure that the test
 			// can only pass if the connection problem is not recognized merely via a timeout
-			rpcService = new AkkaRpcService(actorSystem, new Timeout(10000000, TimeUnit.SECONDS));
+			rpcService = new AkkaRpcService(actorSystem, Time.of(10000000, TimeUnit.SECONDS));
 
 			Future<TaskExecutorGateway> future = rpcService.connect("foo.bar.com.test.invalid", TaskExecutorGateway.class);
 
-			Await.result(future, new FiniteDuration(10000000, TimeUnit.SECONDS));
+			future.get(10000000, TimeUnit.SECONDS);
 			fail("should never complete normally");
 		}
 		catch (TimeoutException e) {
 			fail("should not fail with a generic timeout exception");
 		}
-		catch (RpcConnectionException e) {
+		catch (ExecutionException e) {
 			// that is what we want
-			assertTrue("wrong error message", e.getMessage().contains("foo.bar.com.test.invalid"));
+			assertTrue(e.getCause() instanceof RpcConnectionException);
+			assertTrue("wrong error message", e.getCause().getMessage().contains("foo.bar.com.test.invalid"));
 		}
 		catch (Throwable t) {
 			fail("wrong exception: " + t);
