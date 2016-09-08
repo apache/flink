@@ -21,12 +21,14 @@ package org.apache.flink.runtime.taskexecutor;
 import akka.actor.ActorSystem;
 import akka.util.Timeout;
 import com.typesafe.config.Config;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateServer;
@@ -316,6 +318,16 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 			@Override
 			public LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception {
+				return null;
+			}
+
+			@Override
+			public CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception {
+				return null;
+			}
+
+			@Override
+			public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
 				return null;
 			}
 		};

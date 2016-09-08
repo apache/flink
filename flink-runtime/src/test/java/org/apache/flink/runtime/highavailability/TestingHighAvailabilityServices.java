@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
@@ -34,6 +36,9 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderElectionService resourceManagerLeaderElectionService;
 
+	private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
+
+	private volatile SubmittedJobGraphStore submittedJobGraphStore;
 
 	// ------------------------------------------------------------------------
 	//  Setters for mock / testing implementations
@@ -49,6 +54,14 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	public void setResourceManagerLeaderElectionService(LeaderElectionService leaderElectionService) {
 		this.resourceManagerLeaderElectionService = leaderElectionService;
+	}
+
+	public void setCheckpointRecoveryFactory(CheckpointRecoveryFactory checkpointRecoveryFactory) {
+		this.checkpointRecoveryFactory = checkpointRecoveryFactory;
+	}
+
+	public void setSubmittedJobGraphStore(SubmittedJobGraphStore submittedJobGraphStore) {
+		this.submittedJobGraphStore = submittedJobGraphStore;
 	}
 
 	// ------------------------------------------------------------------------
@@ -84,6 +97,29 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 			return service;
 		} else {
 			throw new IllegalStateException("ResourceManagerLeaderElectionService has not been set");
+		}
+	}
+
+	@Override
+	public CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception {
+		CheckpointRecoveryFactory factory = checkpointRecoveryFactory;
+
+		if (factory != null) {
+			return factory;
+		} else {
+			throw new IllegalStateException("CheckpointRecoveryFactory has not been set");
+		}
+	}
+
+	@Override
+	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
+		SubmittedJobGraphStore store = submittedJobGraphStore;
+
+		if (store != null) {
+			return store;
+		} else {
+			throw new IllegalStateException("SubmittedJobGraphStore has not been set");
+
 		}
 	}
 }
