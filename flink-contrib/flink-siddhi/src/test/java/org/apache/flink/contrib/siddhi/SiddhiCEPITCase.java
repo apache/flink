@@ -38,7 +38,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * flink-siddhi integration test cases
  */
-public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
+public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -55,9 +55,9 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 			Event.of(6, "end", 6.0)
 		);
 
-		DataStream<Event> output = SiddhiStream
+		DataStream<Event> output = SiddhiCEP
 			.from("inputStream", input, "id", "name", "price")
-			.query("from inputStream insert into  outputStream")
+			.sql("from inputStream insert into  outputStream")
 			.returns("outputStream", Event.class);
 		String path = tempFolder.newFile().toURI().toString();
 		output.writeAsText(path);
@@ -69,12 +69,12 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
 
-		DataStream<Tuple4<Long,Integer,String,Double>> output = SiddhiStream
+		DataStream<Tuple4<Long,Integer,String,Double>> output = SiddhiCEP
 			.from("inputStream", input, "id", "name", "price","timestamp")
-			.query("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
 
-		output.printToErr();
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -90,12 +90,12 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		env.setBufferTimeout(5000);
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
 
-		DataStream<Map> output = SiddhiStream
+		DataStream<Map> output = SiddhiCEP
 			.from("inputStream", input, "id", "name", "price","timestamp")
-			.query("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returnAsMap("outputStream");
 
-		output.printToErr();
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -108,12 +108,12 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
 
-		DataStream<Event> output = SiddhiStream
+		DataStream<Event> output = SiddhiCEP
 			.from("inputStream", input, "id", "name", "price","timestamp")
-			.query("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream",Event.class);
 
-		output.printToErr();
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -128,18 +128,18 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
 		DataStream<Event> input2 = env.addSource(new RandomEventSource(5),"input2");
 		DataStream<Event> input3 = env.addSource(new RandomEventSource(5),"input2");
-		DataStream<Event> output = SiddhiStream
+		DataStream<Event> output = SiddhiCEP
 			.from("inputStream1", input1, "id", "name", "price","timestamp")
 			.union("inputStream2", input2, "id", "name", "price","timestamp")
 			.union("inputStream3", input3, "id", "name", "price","timestamp")
-			.query(
+			.sql(
 				"from inputStream1 select timestamp, id, name, price insert into outputStream;"
 				+ "from inputStream2 select timestamp, id, name, price insert into outputStream;"
 				+ "from inputStream3 select timestamp, id, name, price insert into outputStream;"
 			)
 			.returns("outputStream",Event.class);
 
-		output.printToErr();
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -156,10 +156,10 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
 		DataStream<Event> input2 = env.addSource(new RandomEventSource(5),"input2");
 
-		DataStream<Map> output = SiddhiStream
+		DataStream<Map> output = SiddhiCEP
 			.from("inputStream1", input1.keyBy("id"), "id", "name", "price","timestamp")
 			.union("inputStream2", input2.keyBy("id"), "id", "name", "price","timestamp")
-			.query(
+			.sql(
 				"from inputStream1#window.length(5) as s1 "
 				+ "join inputStream2#window.time(500) as s2 "
 				+ "on s1.id == s2.id "
@@ -168,7 +168,7 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 			)
 			.returnAsMap("JoinStream");
 
-		output.printToErr();
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -185,10 +185,10 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
 		DataStream<Event> input2 = env.addSource(new RandomEventSource(5),"input2");
 
-		DataStream<Map> output = SiddhiStream
+		DataStream<Map> output = SiddhiCEP
 			.from("inputStream1", input1.keyBy("name"), "id", "name", "price","timestamp")
 			.union("inputStream2", input2.keyBy("name"), "id", "name", "price","timestamp")
-			.query(
+			.sql(
 				"from every s1 = inputStream1[id == 2] "
 				+ " -> s2 = inputStream2[id == 3] "
 				+ "select s1.id as id_1, s1.name as name_1, s2.id as id_2, s2.name as name_2 "
@@ -196,7 +196,7 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 			)
 			.returnAsMap("outputStream");
 
-		output.printToErr();
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -212,11 +212,10 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 	public void testUnboundedPojoStreamSimpleSequences() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
-		
-		DataStream<Map> output = SiddhiStream
+		DataStream<Map> output = SiddhiCEP
 			.from("inputStream1", input1.keyBy("name"), "id", "name", "price","timestamp")
 			.union("inputStream2", input1.keyBy("name"), "id", "name", "price","timestamp")
-			.query(
+			.sql(
 				"from every s1 = inputStream1[id == 2]+ , "
 				+ "s2 = inputStream2[id == 3]? "
 				+ "within 1000 second "
@@ -225,7 +224,7 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 			)
 			.returnAsMap("outputStream");
 
-		output.printToErr();
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -244,14 +243,15 @@ public class SiddhiStreamITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
 
-		SiddhiStream.registerExtension("custom:plus",CustomPlusFunctionExtension.class);
+		SiddhiCEP cep = SiddhiCEP.getSiddhiEnvironment(env);
+		cep.registerExtension("custom:plus",CustomPlusFunctionExtension.class);
 
-		DataStream<Map> output = SiddhiStream
-			.from("inputStream", input, "id", "name", "price","timestamp")
-			.query("from inputStream select timestamp, id, name, custom:plus(price,price) as doubled_price insert into  outputStream")
+		DataStream<Map> output = cep
+			.define("inputStream", input, "id", "name", "price","timestamp")
+			.sql("from inputStream select timestamp, id, name, custom:plus(price,price) as doubled_price insert into  outputStream")
 			.returnAsMap("outputStream");
 
-		output.printToErr();
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);

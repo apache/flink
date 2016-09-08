@@ -37,32 +37,32 @@ import java.util.Map;
  * Siddhi CEP Environment Context
  */
 @Public
-public class SiddhiStream {
+public class SiddhiCEP {
 	private final StreamExecutionEnvironment executionEnvironment;
 
 	private DataStream<Tuple2<String, Object>> delegateStream;
 	private final Map<String, DataStream<?>> inputStreams;
 	private final Map<String, SiddhiStreamSchema<?>> inputStreamSchemas;
 
-	private static final Map<String,Class<?>> extensionRepository = new HashMap<>();
+	private final Map<String,Class<?>> extensionRepository = new HashMap<>();
 
-	public SiddhiStream(StreamExecutionEnvironment streamExecutionEnvironment) {
+	public SiddhiCEP(StreamExecutionEnvironment streamExecutionEnvironment) {
 		this.executionEnvironment = streamExecutionEnvironment;
 		this.inputStreams = new HashMap<>();
 		this.inputStreamSchemas = new HashMap<>();
 	}
 
-	public static <T> DefinedStream from(String streamId, DataStream<T> inStream, String... fieldNames) {
-		SiddhiStream siddhiStream = SiddhiStream.newStream(inStream.getExecutionEnvironment());
-		return siddhiStream.define(streamId, inStream, fieldNames);
+	public static <T> SiddhiStream from(String streamId, DataStream<T> inStream, String... fieldNames) {
+		SiddhiCEP siddhiCEP = SiddhiCEP.getSiddhiEnvironment(inStream.getExecutionEnvironment());
+		return siddhiCEP.define(streamId, inStream, fieldNames);
 	}
 
-	public <T> DefinedStream define(String streamId, DataStream<T> inStream, String... fieldNames){
-		this.register(streamId,inStream,fieldNames);
-		return new DefinedStream(this);
+	public <T> SiddhiStream define(String streamId, DataStream<T> inStream, String... fieldNames){
+		this.registerStream(streamId,inStream,fieldNames);
+		return new SiddhiStream(this);
 	}
 
-	public <T> void register(final String streamId, DataStream<T> inStream, String... fieldNames) {
+	public  <T> void registerStream(final String streamId, DataStream<T> inStream, String... fieldNames) {
 		if(inputStreams.isEmpty()){
 			delegateStream = inStream.map(new MapFunction<T, Tuple2<String, Object>>() {
 				@Override
@@ -87,22 +87,22 @@ public class SiddhiStream {
 		return executionEnvironment;
 	}
 
-	public static void registerExtension(String extensionName, Class<?> extensionClass) {
+	public void registerExtension(String extensionName, Class<?> extensionClass) {
 		if(extensionRepository.containsKey(extensionName)){
 			throw new IllegalArgumentException("Extension named "+extensionName+" already registered");
 		}
 		extensionRepository.put(extensionName,extensionClass);
 	}
 
-	public static class DefinedStream {
-		private final SiddhiStream environment;
+	public static class SiddhiStream {
+		private final SiddhiCEP environment;
 
-		public DefinedStream(SiddhiStream environment) {
+		public SiddhiStream(SiddhiCEP environment) {
 			this.environment = environment;
 		}
 
 		public <T> UnionedStream union(final String streamId, DataStream<T> stream, String... fieldNames){
-			environment.register(streamId,stream,fieldNames);
+			environment.registerStream(streamId,stream,fieldNames);
 			environment.delegate(this.environment.delegateStream.union(stream.map(new MapFunction<T, Tuple2<String, Object>>() {
 				@Override
 				public Tuple2<String, Object> map(T value) throws Exception {
@@ -112,27 +112,27 @@ public class SiddhiStream {
 			return new UnionedStream(environment);
 		}
 
-		public ExecutedStream query(String executionPlan) {
+		public ExecutedStream sql(String executionPlan) {
 			return new ExecutedStream(executionPlan, environment);
 		}
 	}
 
-	public static class UnionedStream extends DefinedStream {
-		public <T> UnionedStream(SiddhiStream environment) {
+	public static class UnionedStream extends SiddhiStream {
+		public <T> UnionedStream(SiddhiCEP environment) {
 			super(environment);
 		}
 	}
 
 	public static class ExecutedStream {
 		private SiddhiOperatorContext siddhiOperatorContext;
-		private SiddhiStream siddhiStream;
+		private SiddhiCEP siddhiCEP;
 
-		public ExecutedStream(String executionPlan, SiddhiStream environment) {
+		public ExecutedStream(String executionPlan, SiddhiCEP environment) {
 			siddhiOperatorContext = new SiddhiOperatorContext();
 			siddhiOperatorContext.setExecutionPlan(executionPlan);
 			siddhiOperatorContext.setInputStreamSchemas(environment.inputStreamSchemas);
 			siddhiOperatorContext.setTimeCharacteristic(environment.getExecutionEnvironment().getStreamTimeCharacteristic());
-			this.siddhiStream = environment;
+			this.siddhiCEP = environment;
 		}
 
 		/**
@@ -161,12 +161,12 @@ public class SiddhiStream {
 			SiddhiOperatorContext context = siddhiOperatorContext.copy();
 			context.setOutputStreamId(outStreamId);
 			context.setOutputStreamType(typeInformation);
-			context.setExtensions(extensionRepository);
-			return SiddhiOperatorUtils.createDataStream(context, siddhiStream.delegateStream);
+			context.setExtensions(siddhiCEP.extensionRepository);
+			return SiddhiOperatorUtils.createDataStream(context, siddhiCEP.delegateStream);
 		}
 	}
 
-	public static SiddhiStream newStream(StreamExecutionEnvironment streamExecutionEnvironment) {
-		return new SiddhiStream(streamExecutionEnvironment);
+	public static SiddhiCEP getSiddhiEnvironment(StreamExecutionEnvironment streamExecutionEnvironment) {
+		return new SiddhiCEP(streamExecutionEnvironment);
 	}
 }
