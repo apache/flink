@@ -15,17 +15,10 @@
  * limitations under the License.
  */
 
-/**
- * TODO
- * <p/>
- * 1) Support Timestamp [done]
- * 1) Support Multiple input streams [done]
- * 2) More data type support (Tuple/PrimitiveType/Array)
- * 2) Support keyedStream [done]
- * 3) Test complex siddhi sql cases [done]
- * 4) Sorting buffer state persistence
- * 5) Object reusing
- * 6) Support extension [done]
- * 7) Decouple API into object instance level instead of static method. [done]
- */
-package org.apache.flink.contrib.siddhi;
+package org.apache.flink.contrib.siddhi.exception;
+
+public class UndefinedStreamException extends RuntimeException {
+	public UndefinedStreamException(String message) {
+		super(message);
+	}
+}
