@@ -31,6 +31,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import akka.dispatch.Futures;
@@ -57,6 +58,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContext;
+import scala.concurrent.ExecutionContext$;
 
 /**
  * The scheduler is responsible for distributing the ready-to-run tasks among instances and slots.
@@ -107,6 +109,13 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Creates a new scheduler.
+	 */
+	public Scheduler(ExecutorService executor) {
+		this(ExecutionContext$.MODULE$.fromExecutor(executor));
+	}
+	
 	/**
 	 * Creates a new scheduler.
 	 */

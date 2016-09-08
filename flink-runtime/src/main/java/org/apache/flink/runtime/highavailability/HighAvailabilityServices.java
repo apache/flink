@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
@@ -61,4 +63,14 @@ public interface HighAvailabilityServices {
 	 * @param jobID The identifier of the job running the election.
 	 */
 	LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception;
+
+	/**
+	 * Gets the checkpoint recovery factory for the job manager
+	 */
+	CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception;
+
+	/**
+	 * Gets the submitted job graph store for the job manager
+	 */
+	SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception;
 }
