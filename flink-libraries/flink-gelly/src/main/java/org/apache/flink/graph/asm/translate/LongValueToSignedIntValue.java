@@ -20,13 +20,14 @@ package org.apache.flink.graph.asm.translate;
 
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.util.MathUtils;
 
 /**
  * Translate {@link LongValue} to {@link IntValue}.
  *
  * Throws {@link RuntimeException} for integer overflow.
  */
-public class LongValueToIntValue
+public class LongValueToSignedIntValue
 implements TranslateFunction<LongValue, IntValue> {
 
 	@Override
@@ -36,13 +37,7 @@ implements TranslateFunction<LongValue, IntValue> {
 			reuse = new IntValue();
 		}
 
-		long l = value.getValue();
-
-		if (l >= (1L << 32) || l <= (-1L << 32)) {
-			throw new IllegalArgumentException("Cannot cast long value " + value + " to integer.");
-		} else {
-			reuse.setValue((int)(l & 0xffffffffL));
-		}
+		reuse.setValue(MathUtils.checkedDownCast(value.getValue()));
 
 		return reuse;
 	}
