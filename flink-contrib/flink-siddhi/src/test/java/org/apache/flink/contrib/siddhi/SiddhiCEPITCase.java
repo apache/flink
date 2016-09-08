@@ -18,6 +18,7 @@
 package org.apache.flink.contrib.siddhi;
 
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.contrib.siddhi.exception.UndefinedStreamException;
 import org.apache.flink.contrib.siddhi.extension.CustomPlusFunctionExtension;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -288,5 +289,27 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
 		assertEquals(5, getLineCount(resultPath));
+	}
+
+	@Test(expected = UndefinedStreamException.class)
+	public void testTriggerUndefinedStreamException() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
+
+		SiddhiCEP cep = SiddhiCEP.getSiddhiEnvironment(env);
+		cep.registerStream("inputStream1", input1.keyBy("id"), "id", "name", "price","timestamp");
+
+		DataStream<Map> output = cep
+			.from("inputStream1").union("inputStream2")
+			.sql(
+				"from inputStream1#window.length(5) as s1 "
+					+ "join inputStream2#window.time(500) as s2 "
+					+ "on s1.id == s2.id "
+					+ "select s1.timestamp as t, s1.name as n, s1.price as p1, s2.price as p2 "
+					+ "insert into JoinStream;"
+			)
+			.returnAsMap("JoinStream");
+		output.print();
+		env.execute();
 	}
 }

@@ -55,7 +55,7 @@ public class SiddhiCEP {
 
 	public void checkStreamDefined(String streamId) throws UndefinedStreamException {
 		if(!isStreamDefined(streamId)){
-			throw new UndefinedStreamException("No stream defined with streamId: "+streamId);
+			throw new UndefinedStreamException("Stream (streamId: "+streamId+") not defined");
 		}
 	}
 
