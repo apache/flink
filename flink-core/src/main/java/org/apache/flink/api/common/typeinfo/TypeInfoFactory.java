@@ -36,10 +36,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 @Public
 public abstract class TypeInfoFactory<T> {
 
-	public TypeInfoFactory() {
-		// default constructor
-	}
-
 	/**
 	 * Creates type information for the type the factory is targeted for. The parameters provide
 	 * additional information about the type itself as well as the type's generic type parameters.

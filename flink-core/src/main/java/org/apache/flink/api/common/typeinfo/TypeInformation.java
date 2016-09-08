@@ -135,7 +135,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * return m;
 	 * </code>
 	 *
-	 * @return map of inferred subtypes; it must not contain all generic parameters as key;
+	 * @return map of inferred subtypes; it does not have to contain all generic parameters as key;
 	 *         values may be null if type could not be inferred
 	 */
 	@PublicEvolving
