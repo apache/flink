@@ -1460,6 +1460,29 @@ STRING.similar(STRING)
     <tr>
       <td>
         {% highlight java %}
+STRING.position(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the position of string in an other string starting at 1. Returns 0 if string could not be found. E.g. <code>'a'.position('bbbbba')</code> leads to 6.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.overlay(STRING, INT)
+STRING.overlay(STRING, INT, INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Replaces a substring of string with a string starting at a position (starting at 1). An optional length specifies how many characters should be removed. E.g. <code>'xxxxxtest'.overlay('xxxx', 6)</code> leads to "xxxxxxxxx", <code>'xxxxxtest'.overlay('xxxx', 6, 2)</code> leads to "xxxxxxxxxst".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 STRING.toDate()
 {% endhighlight %}
       </td>
@@ -1816,6 +1839,29 @@ STRING.similar(STRING)
       </td>
       <td>
         <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.position(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the position of string in an other string starting at 1. Returns 0 if string could not be found. E.g. <code>"a".position("bbbbba")</code> leads to 6.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.overlay(STRING, INT)
+STRING.overlay(STRING, INT, INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Replaces a substring of string with a string starting at a position (starting at 1). An optional length specifies how many characters should be removed. E.g. <code>"xxxxxtest".overlay("xxxx", 6)</code> leads to "xxxxxxxxx", <code>"xxxxxtest".overlay('xxxx', 6, 2)</code> leads to "xxxxxxxxxst".</p>
       </td>
     </tr>
 

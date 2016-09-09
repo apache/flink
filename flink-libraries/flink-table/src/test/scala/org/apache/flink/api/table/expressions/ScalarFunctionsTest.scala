@@ -34,6 +34,36 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test
+  def testOverlay(): Unit = {
+    testAllApis(
+      "xxxxxtest".overlay("xxxx", 6),
+      "'xxxxxtest'.overlay('xxxx', 6)",
+      "OVERLAY('xxxxxtest' PLACING 'xxxx' FROM 6)",
+      "xxxxxxxxx")
+
+    testAllApis(
+      "xxxxxtest".overlay("xxxx", 6, 2),
+      "'xxxxxtest'.overlay('xxxx', 6, 2)",
+      "OVERLAY('xxxxxtest' PLACING 'xxxx' FROM 6 FOR 2)",
+      "xxxxxxxxxst")
+  }
+
+  @Test
+  def testPosition(): Unit = {
+    testAllApis(
+      "test".position("xxxtest"),
+      "'test'.position('xxxtest')",
+      "POSITION('test' IN 'xxxtest')",
+      "4")
+
+    testAllApis(
+      "testx".position("xxxtest"),
+      "'testx'.position('xxxtest')",
+      "POSITION('testx' IN 'xxxtest')",
+      "0")
+  }
+
+  @Test
   def testSubstring(): Unit = {
     testAllApis(
       'f0.substring(2),
