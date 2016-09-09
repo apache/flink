@@ -20,8 +20,6 @@ package org.apache.flink.contrib.siddhi.operator;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.contrib.siddhi.schema.StreamSchema;
 import org.apache.flink.contrib.siddhi.utils.SiddhiTypeFactory;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -45,7 +43,7 @@ public class TupleStreamSiddhiOperator<IN, OUT> extends AbstractSiddhiOperator<T
 
 	@Override
 	protected MultiplexingStreamRecordSerializer<Tuple2<String, IN>> createStreamRecordSerializer(StreamSchema streamSchema, ExecutionConfig executionConfig) {
-		TypeInformation<Tuple2<String,IN>> tuple2TypeInformation = SiddhiTypeFactory.getStreamTupleTypeInformation((TypeInformation<IN>) streamSchema.getTypeInfo());
+		TypeInformation<Tuple2<String, IN>> tuple2TypeInformation = SiddhiTypeFactory.getStreamTupleTypeInformation((TypeInformation<IN>) streamSchema.getTypeInfo());
 		return new MultiplexingStreamRecordSerializer<>(tuple2TypeInformation.createSerializer(executionConfig));
 	}
 
@@ -62,10 +60,10 @@ public class TupleStreamSiddhiOperator<IN, OUT> extends AbstractSiddhiOperator<T
 	@Override
 	protected void snapshotQueuerState(PriorityQueue<StreamRecord<Tuple2<String, IN>>> queue, AbstractStateBackend.CheckpointStateOutputView stateOutputView) throws IOException {
 		stateOutputView.writeInt(queue.size());
-		for(StreamRecord<Tuple2<String,IN>> record:queue){
+		for (StreamRecord<Tuple2<String, IN>> record : queue) {
 			String streamId = record.getValue().f0;
 			stateOutputView.writeUTF(streamId);
-			this.getStreamRecordSerializer(streamId).serialize(record,stateOutputView);
+			this.getStreamRecordSerializer(streamId).serialize(record, stateOutputView);
 		}
 	}
 
@@ -73,10 +71,10 @@ public class TupleStreamSiddhiOperator<IN, OUT> extends AbstractSiddhiOperator<T
 	protected PriorityQueue<StreamRecord<Tuple2<String, IN>>> restoreQueuerState(DataInputViewStreamWrapper dataInputView) throws IOException {
 		int sizeOfQueue = dataInputView.readInt();
 		PriorityQueue<StreamRecord<Tuple2<String, IN>>> priorityQueue = new PriorityQueue<>(sizeOfQueue);
-		for(int i = 0; i< sizeOfQueue;i++){
+		for (int i = 0; i < sizeOfQueue; i++) {
 			String streamId = dataInputView.readUTF();
 			StreamElement streamElement = getStreamRecordSerializer(streamId).deserialize(dataInputView);
-			priorityQueue.offer(streamElement.<Tuple2<String,IN>>asRecord());
+			priorityQueue.offer(streamElement.<Tuple2<String, IN>>asRecord());
 		}
 		return priorityQueue;
 	}
