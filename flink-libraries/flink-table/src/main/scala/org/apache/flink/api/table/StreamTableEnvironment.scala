@@ -271,5 +271,21 @@ abstract class StreamTableEnvironment(
     }
 
   }
+  /*
+  * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+    * the result of the given [[Table]].
+  *
+  * @param table The table for which the AST and execution plan will be returned.
+    * @param extended Flag to include detailed optimizer estimates.
+  */
+   def explain(table: Table): String = {
+
+    val ast = RelOptUtil.toString(table.getRelNode)
+
+    s"== Abstract Syntax Tree ==" +
+      System.lineSeparator +
+      s"$ast"
+
+  }
 
 }
