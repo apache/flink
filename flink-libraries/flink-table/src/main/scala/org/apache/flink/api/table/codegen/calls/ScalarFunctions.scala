@@ -199,6 +199,12 @@ object ScalarFunctions {
     LONG_TYPE_INFO,
     BuiltInMethod.UNIX_DATE_EXTRACT.method)
 
+  addSqlFunctionMethod(
+    EXTRACT_DATE,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.DATE),
+    LONG_TYPE_INFO,
+    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+
   addSqlFunction(
     FLOOR,
     Seq(SqlTimeTypeInfo.DATE, new GenericTypeInfo(classOf[TimeUnitRange])),

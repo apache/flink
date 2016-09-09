@@ -277,6 +277,13 @@ trait ImplicitExpressionOperations {
   def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
 
   /**
+    * Returns the quarter of a year from a SQL date.
+    *
+    * e.g. "1994-09-27".toDate.quarter() leads to 3
+    */
+  def quarter() = Quarter(expr)
+
+  /**
     * Rounds down a time point to the given unit.
     *
     * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
