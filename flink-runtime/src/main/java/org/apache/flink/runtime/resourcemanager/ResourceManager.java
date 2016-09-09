@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 
 import org.apache.flink.annotation.VisibleForTesting;
@@ -31,8 +32,10 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.rpc.exceptions.LeaderSessionIDException;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
-
+import org.apache.flink.runtime.registration.RegistrationResponse;
 import scala.concurrent.Future;
 
 import java.util.HashMap;
@@ -53,6 +56,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	private final Map<JobMasterGateway, InstanceID> jobMasterGateways;
+
+	/** ResourceID and TaskExecutorRegistration mapping relationship of registered taskExecutors */
+	private final Map<ResourceID, TaskExecutorRegistration>  startedTaskExecutorGateways;
+
 	private final HighAvailabilityServices highAvailabilityServices;
 	private LeaderElectionService leaderElectionService = null;
 	private UUID leaderSessionID = null;
@@ -60,7 +67,8 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	public ResourceManager(RpcService rpcService, HighAvailabilityServices highAvailabilityServices) {
 		super(rpcService);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
-		this.jobMasterGateways = new HashMap<>();
+		this.jobMasterGateways = new HashMap<>(16);
+		this.startedTaskExecutorGateways = new HashMap<>(16);
 	}
 
 	@Override
@@ -119,7 +127,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 					jobMasterGateways.put(jobMasterGateway, instanceID);
 				}
 
-				return new RegistrationResponse(true, instanceID);
+				return new TaskExecutorRegistrationSuccess(instanceID, 5000);
 			}
 		}, getMainThreadExecutionContext());
 	}
@@ -138,21 +146,47 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 
 
 	/**
+	 * Register a {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} at the resource manager
 	 *
-	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader 
+	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
 	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
 	 * @param resourceID               The resource ID of the TaskExecutor that registers
 	 *
 	 * @return The response by the ResourceManager.
 	 */
 	@RpcMethod
-	public org.apache.flink.runtime.registration.RegistrationResponse registerTaskExecutor(
-			UUID resourceManagerLeaderId,
-			String taskExecutorAddress,
-			ResourceID resourceID) {
+	public Future<RegistrationResponse> registerTaskExecutor(
+		final UUID resourceManagerLeaderId,
+		final String taskExecutorAddress,
+		final ResourceID resourceID) {
 
-		return new TaskExecutorRegistrationSuccess(new InstanceID(), 5000);
+		if(!leaderSessionID.equals(resourceManagerLeaderId)) {
+			log.warn("Discard registration from TaskExecutor {} at ({}) because the expected leader session ID {} did not equal the received leader session ID  {}",
+				resourceID, taskExecutorAddress, leaderSessionID, resourceManagerLeaderId);
+			return Futures.failed(new LeaderSessionIDException(leaderSessionID, resourceManagerLeaderId));
+		}
+
+		Future<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
+
+		return taskExecutorGatewayFuture.map(new Mapper<TaskExecutorGateway, RegistrationResponse>() {
+
+			@Override
+			public RegistrationResponse apply(final TaskExecutorGateway taskExecutorGateway) {
+				InstanceID instanceID = null;
+				TaskExecutorRegistration taskExecutorRegistration = startedTaskExecutorGateways.get(resourceID);
+				if(taskExecutorRegistration != null) {
+					log.warn("Receive a duplicate registration from TaskExecutor {} at ({})", resourceID, taskExecutorAddress);
+					instanceID = taskExecutorRegistration.getInstanceID();
+				} else {
+					instanceID = new InstanceID();
+					startedTaskExecutorGateways.put(resourceID, new TaskExecutorRegistration(taskExecutorGateway, instanceID));
+				}
+
+				return new TaskExecutorRegistrationSuccess(instanceID, 5000);
+			}
+		}, getMainThreadExecutionContext());
 	}
+
 
 	private class ResourceManagerLeaderContender implements LeaderContender {
 
@@ -184,6 +218,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 				public void run() {
 					log.info("ResourceManager {} was revoked leadership.", getAddress());
 					jobMasterGateways.clear();
+					startedTaskExecutorGateways.clear();
 					leaderSessionID = null;
 				}
 			});
