@@ -251,11 +251,12 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			cassandra.destroy();
 		}
 
-
-		try {
-			FileUtils.deleteDirectory(tmpDir);
-		} catch (IOException e) {
-			LOG.error("Failed to delete tmp directory.", e);
+		if (tmpDir != null) {
+			try {
+				FileUtils.deleteDirectory(tmpDir);
+			} catch (IOException e) {
+				LOG.error("Failed to delete tmp directory.", e);
+			}
 		}
 		if (sw != null) {
 			//System.out.println(sw.toString());
