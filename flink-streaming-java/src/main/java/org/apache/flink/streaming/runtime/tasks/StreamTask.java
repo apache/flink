@@ -726,8 +726,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				backendName = "jobmanager";
 			}
 
-			backendName = backendName.toLowerCase();
-			switch (backendName) {
+			switch (backendName.toLowerCase()) {
 				case "jobmanager":
 					LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
 					stateBackend = new MemoryStateBackend();
@@ -747,6 +746,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 								Class.forName(backendName, false, getUserCodeClassLoader()).asSubclass(StateBackendFactory.class);
 
 						stateBackend = ((StateBackendFactory<?>) clazz.newInstance()).createFromConfig(flinkConfig);
+
+						LOG.info("State backend is set to " + backendName);
 					} catch (ClassNotFoundException e) {
 						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
 					} catch (ClassCastException e) {
