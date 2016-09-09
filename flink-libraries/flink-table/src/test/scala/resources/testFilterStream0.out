@@ -1,0 +1,3 @@
+== Abstract Syntax Tree ==
+LogicalFilter(condition=[=(MOD($0, 2), 0)])
+  LogicalTableScan(table=[[_DataStreamTable_0]])
