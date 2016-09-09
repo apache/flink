@@ -310,6 +310,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			}
 
 			@Override
+			public LeaderRetrievalService getJobMasterLeaderRetriever(JobID jobID) throws Exception {
+				return null;
+			}
+
+			@Override
 			public LeaderElectionService getResourceManagerLeaderElectionService() throws Exception {
 				return null;
 			}

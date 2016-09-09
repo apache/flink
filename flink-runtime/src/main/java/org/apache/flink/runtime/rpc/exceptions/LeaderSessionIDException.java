@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.runtime.rpc.exceptions;
 
 import java.util.UUID;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An exception specifying that received leader session ID is not as same as expected.
+ * An exception specifying that the received leader session ID is not the same as expected.
  */
-public class UnmatchedLeaderSessionIDException extends Exception {
+public class LeaderSessionIDException extends Exception {
 
 	private static final long serialVersionUID = -3276145308053264636L;
 
@@ -33,14 +34,14 @@ public class UnmatchedLeaderSessionIDException extends Exception {
 	/** actual leader session id */
 	private final UUID actualLeaderSessionID;
 
-	public UnmatchedLeaderSessionIDException(UUID expectedLeaderSessionID, UUID actualLeaderSessionID) {
+	public LeaderSessionIDException(UUID expectedLeaderSessionID, UUID actualLeaderSessionID) {
 		super("Unmatched leader session ID : expected " + expectedLeaderSessionID + ", actual " + actualLeaderSessionID);
-		this.expectedLeaderSessionID = expectedLeaderSessionID;
-		this.actualLeaderSessionID = actualLeaderSessionID;
+		this.expectedLeaderSessionID =  checkNotNull(expectedLeaderSessionID);
+		this.actualLeaderSessionID = checkNotNull(actualLeaderSessionID);
 	}
 
 	/**
-	 * Get expect leader session id
+	 * Get expected leader session id
 	 *
 	 * @return expect leader session id
 	 */
