@@ -548,7 +548,7 @@ public class UdfAnalyzerExamplesTest {
 				if (i == 42 - 1) {
 					p.setLabel(new Integer(split[i].trim().substring(0, 1)));
 				} else {
-					if (a < 42 && split[i].trim() != "") {
+					if (a < 42 && !split[i].trim().isEmpty()) {
 						features[a++] = Double.parseDouble(split[i].trim());
 					}
 				}
