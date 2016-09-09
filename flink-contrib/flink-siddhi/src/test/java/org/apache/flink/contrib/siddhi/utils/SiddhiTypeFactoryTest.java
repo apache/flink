@@ -25,7 +25,7 @@ import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class SiddhiTypeUtilsTest {
+public class SiddhiTypeFactoryTest {
 	@Test
 	public void testTypeInfoParser(){
 		TypeInformation<Tuple3<String,Long,Object>> type1 = TypeInfoParser.parse("Tuple3<String,Long,java.lang.Object>");
@@ -40,8 +40,8 @@ public class SiddhiTypeUtilsTest {
 	public void testBuildTypeInformationForSiddhiStream(){
 		String query = "define stream inputStream (timestamp long, name string, value double);"
 			+ "from inputStream select name, value insert into outputStream;";
-		TypeInformation<Tuple3<Long,String,Double>> inputStreamType = SiddhiTypeUtils.getTupleTypeInformation(query,"inputStream");
-		TypeInformation<Tuple2<String,Double>> outputStreamType = SiddhiTypeUtils.getTupleTypeInformation(query,"outputStream");
+		TypeInformation<Tuple3<Long,String,Double>> inputStreamType = SiddhiTypeFactory.getTupleTypeInformation(query,"inputStream");
+		TypeInformation<Tuple2<String,Double>> outputStreamType = SiddhiTypeFactory.getTupleTypeInformation(query,"outputStream");
 
 		Assert.assertNotNull(inputStreamType);
 		Assert.assertNotNull(outputStreamType);

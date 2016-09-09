@@ -17,7 +17,10 @@
 
 package org.apache.flink.contrib.siddhi;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.contrib.siddhi.exception.DuplicatedStreamException;
 import org.apache.flink.contrib.siddhi.exception.UndefinedStreamException;
 import org.apache.flink.contrib.siddhi.schema.SiddhiStreamSchema;
@@ -30,7 +33,7 @@ import java.util.Map;
 /**
  * Siddhi CEP Execution Environment
  */
-@Public
+@PublicEvolving
 public class SiddhiCEP {
 	private final StreamExecutionEnvironment executionEnvironment;
 	private final Map<String, DataStream<?>> dataStreams;
@@ -83,13 +86,13 @@ public class SiddhiCEP {
 		return new SiddhiStream.SingleSiddhiStream<T>(firstStreamId,this).union(unionStreamIds);
 	}
 
-	public  <T> void registerStream(final String streamId, DataStream<T> inStream, String... fieldNames) {
+	public  <T> void registerStream(final String streamId, DataStream<T> dataStream, String... fieldNames) {
 		if (isStreamDefined(streamId)) {
 			throw new DuplicatedStreamException("Input stream: " + streamId + " already exists");
 		}
-		dataStreams.put(streamId, inStream);
-		SiddhiStreamSchema<T> schema = new SiddhiStreamSchema<>(inStream.getType(), fieldNames);
-		schema.setTypeSerializer(schema.getTypeInfo().createSerializer(inStream.getExecutionConfig()));
+		dataStreams.put(streamId, dataStream);
+		SiddhiStreamSchema<T> schema = new SiddhiStreamSchema<>(dataStream.getType(), fieldNames);
+		schema.setTypeSerializer(schema.getTypeInfo().createSerializer(dataStream.getExecutionConfig()));
 		dataStreamSchemas.put(streamId, schema);
 	}
 

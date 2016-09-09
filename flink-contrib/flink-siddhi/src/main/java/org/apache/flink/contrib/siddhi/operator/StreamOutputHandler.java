@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.contrib.siddhi.utils.SiddhiTupleUtils;
+import org.apache.flink.contrib.siddhi.utils.SiddhiTupleFactory;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
@@ -53,7 +53,7 @@ public class StreamOutputHandler<R> extends StreamCallback {
 	@Override
 	public void receive(Event[] events) {
 		for (Event event : events) {
-			if (typeInfo == null  || typeInfo.getTypeClass().equals(Map.class)) {
+			if (typeInfo == null  || Map.class.isAssignableFrom(typeInfo.getTypeClass())) {
 				StreamRecord<R> record = (StreamRecord<R>) new StreamRecord<>(toMap(event));
 				record.setTimestamp(event.getTimestamp());
 				output.collect(record);
@@ -88,6 +88,6 @@ public class StreamOutputHandler<R> extends StreamCallback {
 	}
 
 	private <T extends Tuple> T toTuple(Event event) {
-		return SiddhiTupleUtils.newTuple(event.getData());
+		return SiddhiTupleFactory.newTuple(event.getData());
 	}
 }

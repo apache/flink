@@ -17,6 +17,8 @@
 
 package org.apache.flink.contrib.siddhi.operator;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.contrib.siddhi.exception.UndefinedStreamException;
 import org.apache.flink.contrib.siddhi.schema.StreamSchema;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -27,6 +29,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
@@ -37,6 +40,7 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.query.api.definition.AbstractDefinition;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,11 +48,12 @@ import java.util.PriorityQueue;
 
 public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOperator<OUT> implements OneInputStreamOperator<IN, OUT> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSiddhiOperator.class);
-	protected static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
+	private static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
 
 	private final SiddhiOperatorContext siddhiPlan;
 	private final String executionExpression;
 	private final boolean isProcessingTime;
+	private final Map<String,MultiplexingStreamRecordSerializer<IN>> streamRecordSerializers;
 
 	private transient SiddhiManager siddhiManager;
 	private transient ExecutionPlanRuntime siddhiRuntime;
@@ -61,10 +66,25 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	 * @param siddhiPlan Siddhi CEP  Execution Plan
 	 */
 	public AbstractSiddhiOperator(SiddhiOperatorContext siddhiPlan) {
-		this.siddhiPlan = siddhiPlan;
+		validate(siddhiPlan);
 		this.executionExpression = siddhiPlan.getFinalExecutionPlan();
+		this.siddhiPlan = siddhiPlan;
 		this.isProcessingTime = this.siddhiPlan.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
-		validate(executionExpression);
+		this.streamRecordSerializers = new HashMap<>();
+
+		for(String streamId:this.siddhiPlan.getInputStreams()){
+			streamRecordSerializers.put(streamId, createStreamRecordSerializer(this.siddhiPlan.getInputStreamSchema(streamId),this.siddhiPlan.getExecutionConfig()));
+		}
+	}
+
+	protected abstract MultiplexingStreamRecordSerializer<IN> createStreamRecordSerializer(StreamSchema streamSchema, ExecutionConfig executionConfig);
+
+	protected MultiplexingStreamRecordSerializer<IN> getStreamRecordSerializer(String streamId){
+		if(streamRecordSerializers.containsKey(streamId)){
+			return streamRecordSerializers.get(streamId);
+		} else {
+			throw new UndefinedStreamException("Stream "+streamId+" not defined");
+		}
 	}
 
 	@Override
@@ -143,28 +163,21 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	/**
 	 * Validate execution plan during building DAG before submitting to execution environment and fail-fast.
 	 */
-	private void validate(final String executionPlan) {
-		SiddhiManager siddhiManager = newSiddhiManager();
+	private static void validate(final SiddhiOperatorContext siddhiPlan) {
+		SiddhiManager siddhiManager = siddhiPlan.createSiddhiManager();
 		try {
-			siddhiManager.validateExecutionPlan(executionPlan);
+			siddhiManager.validateExecutionPlan(siddhiPlan.getFinalExecutionPlan());
 		} finally {
 			siddhiManager.shutdown();
 		}
 	}
 
-	private SiddhiManager newSiddhiManager(){
-		SiddhiManager siddhiManager = new SiddhiManager();
-		for(Map.Entry<String,Class<?>> entry:this.siddhiPlan.getExtensions().entrySet()) {
-			siddhiManager.setExtension(entry.getKey(),entry.getValue());
-		}
-		return siddhiManager;
-	}
 	/**
 	 * Create and start execution runtime
 	 */
-	protected void startSiddhiRuntime() {
+	private void startSiddhiRuntime() {
 		if (this.siddhiRuntime == null) {
-			this.siddhiManager = newSiddhiManager();
+			this.siddhiManager = this.siddhiPlan.createSiddhiManager();
 			for(Map.Entry<String,Class<?>> entry:this.siddhiPlan.getExtensions().entrySet()) {
 				this.siddhiManager.setExtension(entry.getKey(),entry.getValue());
 			}
@@ -177,7 +190,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		}
 	}
 
-	protected void shutdownSiddhiRuntime() {
+	private void shutdownSiddhiRuntime() {
 		if (this.siddhiRuntime != null) {
 			this.siddhiRuntime.shutdown();
 			LOGGER.info("Siddhi runtime {} shutdown", this.siddhiRuntime.getName());
@@ -190,6 +203,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private void registerInputAndOutput(ExecutionPlanRuntime runtime) {
 		AbstractDefinition definition = this.siddhiRuntime.getStreamDefinitionMap().get(this.siddhiPlan.getOutputStreamId());
 		runtime.addCallback(this.siddhiPlan.getOutputStreamId(), new StreamOutputHandler<>(this.siddhiPlan.getOutputStreamType(), definition, this.output));
@@ -214,13 +228,25 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 			checkpointId,
 			timestamp);
 		final AbstractStateBackend.CheckpointStateOutputView ov = new AbstractStateBackend.CheckpointStateOutputView(os);
+
+
+		// Write siddhi snapshot
 		byte[] siddhiRuntimeSnapshot = this.siddhiRuntime.snapshot();
 		int siddhiRuntimeSnapshotLength = siddhiRuntimeSnapshot.length;
 		ov.writeInt(siddhiRuntimeSnapshotLength);
 		ov.write(siddhiRuntimeSnapshot, 0, siddhiRuntimeSnapshotLength);
+
+		// Write queue buffer snapshot
+		this.snapshotQueuerState(this.priorityQueue,ov);
+
 		taskState.setOperatorState(os.closeAndGetHandle());
 		return taskState;
 	}
+
+	protected abstract void snapshotQueuerState(PriorityQueue<StreamRecord<IN>> queue,
+												AbstractStateBackend.CheckpointStateOutputView stateOutputView) throws IOException;
+
+	protected abstract PriorityQueue<StreamRecord<IN>> restoreQueuerState(DataInputViewStreamWrapper dataInputView) throws IOException;
 
 	@Override
 	public void restoreState(StreamTaskState state) throws Exception {
@@ -228,13 +254,19 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		StreamStateHandle stream = (StreamStateHandle) state.getOperatorState();
 		final InputStream is = stream.getState(getUserCodeClassloader());
 		final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(is);
+
+
+		// Restore siddhi snapshot
 		startSiddhiRuntime();
 		int siddhiRuntimeSnapshotLength = div.readInt();
 		byte[] siddhiRuntimeSnapshot = new byte[siddhiRuntimeSnapshotLength];
 		int readLength = div.read(siddhiRuntimeSnapshot, 0, siddhiRuntimeSnapshotLength);
 		assert readLength == siddhiRuntimeSnapshotLength;
 		this.siddhiRuntime.restore(siddhiRuntimeSnapshot);
+
+		// Restore queue buffer snapshot
+		this.priorityQueue = restoreQueuerState(div);
+
 		div.close();
 	}
-
 }

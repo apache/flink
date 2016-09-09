@@ -20,6 +20,7 @@ package org.apache.flink.contrib.siddhi.utils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.wso2.siddhi.core.ExecutionPlanRuntime;
@@ -35,7 +36,7 @@ import java.util.Map;
 /**
  * Siddhi Type Utils for conversion between Java Type, Siddhi Field Type, Stream Definition, and Flink Type Information.
  */
-public class SiddhiTypeUtils {
+public class SiddhiTypeFactory {
 	private final static Map<Class<?>, Attribute.Type> JAVA_TO_SIDDHI_TYPE = new HashMap<>();
 	private final static Map<Attribute.Type,Class<?>> SIDDHI_TO_JAVA_TYPE = new HashMap<>();
 
@@ -105,9 +106,11 @@ public class SiddhiTypeUtils {
 		return getTupleTypeInformation(getStreamDefinition(executionPlan,streamId));
 	}
 
-	private static final TypeInformation<Map> MAP_TYPE_INFORMATION = TypeExtractor.createTypeInfo(Map.class);
-	public static TypeInformation<Map> getMapTypeInformation(){
-		return MAP_TYPE_INFORMATION;
+	@SuppressWarnings("unchecked")
+	private static final TypeInformation<?> MAP_TYPE_INFORMATION = TypeExtractor.createTypeInfo(new HashMap<String,Object>().getClass());
+
+	public static TypeInformation<Map<String, Object>> getMapTypeInformation(){
+		return (TypeInformation<Map<String, Object>>) MAP_TYPE_INFORMATION;
 	}
 
 	public static <F> Attribute.Type getAttributeType(TypeInformation<F> fieldType) {
@@ -123,5 +126,9 @@ public class SiddhiTypeUtils {
 			throw new IllegalArgumentException("Unable to get java type for siddhi attribute type: "+attributeType);
 		}
 		return SIDDHI_TO_JAVA_TYPE.get(attributeType);
+	}
+
+	public static <T> TypeInformation<Tuple2<String,T>> getStreamTupleTypeInformation(TypeInformation<T> typeInformation){
+		return TypeInfoParser.parse("Tuple2<String,"+typeInformation.getTypeClass().getName()+">");
 	}
 }

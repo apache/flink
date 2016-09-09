@@ -21,11 +21,11 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
-public class SiddhiTupleUtilsTest {
+public class SiddhiTupleFactoryTest {
 	@Test
 	public void testConvertObjectArrayToTuple(){
 		Object[] row = new Object[]{1,"message",1234567L,true,new Object()};
-		Tuple5 tuple5 = SiddhiTupleUtils.newTuple(row);
+		Tuple5 tuple5 = SiddhiTupleFactory.newTuple(row);
 		assertEquals(5,tuple5.getArity());
 		assertArrayEquals(row,new Object[]{
 			tuple5.f0,
@@ -39,6 +39,6 @@ public class SiddhiTupleUtilsTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testConvertTooLongObjectArrayToTuple(){
 		Object[] row = new Object[26];
-		SiddhiTupleUtils.newTuple(row);
+		SiddhiTupleFactory.newTuple(row);
 	}
 }

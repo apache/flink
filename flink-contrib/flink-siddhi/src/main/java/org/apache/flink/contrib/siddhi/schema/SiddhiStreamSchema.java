@@ -19,7 +19,7 @@ package org.apache.flink.contrib.siddhi.schema;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.contrib.siddhi.utils.SiddhiTypeUtils;
+import org.apache.flink.contrib.siddhi.utils.SiddhiTypeFactory;
 import org.apache.flink.util.Preconditions;
 import org.wso2.siddhi.query.api.definition.Attribute;
 import org.wso2.siddhi.query.api.definition.StreamDefinition;
@@ -41,7 +41,7 @@ public class SiddhiStreamSchema<T> extends StreamSchema<T> {
 	public StreamDefinition getStreamDefinition(String streamId) {
 		StreamDefinition streamDefinition = StreamDefinition.id(streamId);
 		for (int i = 0; i < getFieldNames().length; i++) {
-			streamDefinition.attribute(getFieldNames()[i], SiddhiTypeUtils.getAttributeType(getFieldTypes()[i]));
+			streamDefinition.attribute(getFieldNames()[i], SiddhiTypeFactory.getAttributeType(getFieldTypes()[i]));
 		}
 		return streamDefinition;
 	}

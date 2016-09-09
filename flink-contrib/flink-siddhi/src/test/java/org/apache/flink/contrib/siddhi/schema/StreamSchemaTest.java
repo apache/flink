@@ -18,8 +18,12 @@
 package org.apache.flink.contrib.siddhi.schema;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.scala.typeutils.TypeUtils;
 import org.apache.flink.contrib.siddhi.Event;
 import org.junit.Test;
 
@@ -36,6 +40,7 @@ public class StreamSchemaTest {
 		assertTrue("Type information should be PojoTypeInfo", typeInfo instanceof PojoTypeInfo);
 		StreamSchema<Event> schema = new StreamSchema<>(typeInfo, "id", "timestamp", "name", "price");
 		assertEquals(4, schema.getFieldIndexes().length);
+		assertEquals(Event.class,schema.getTypeInfo().getTypeClass());
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -44,4 +49,14 @@ public class StreamSchemaTest {
 		new StreamSchema<>(typeInfo, "id", "timestamp", "name", "price", "unknown");
 	}
 
+	@Test
+	public void testStreamTupleSerializerWithPojo() {
+		TypeInformation<Event> typeInfo = TypeExtractor.createTypeInfo(Event.class);
+		assertTrue("Type information should be PojoTypeInfo", typeInfo instanceof PojoTypeInfo);
+		StreamSchema<Event> schema = new StreamSchema<>(typeInfo, "id", "timestamp", "name", "price");
+		assertEquals(Event.class,schema.getTypeInfo().getTypeClass());
+
+		TypeInformation<Tuple2<String, Event>> tuple2TypeInformation = TypeInfoParser.parse("Tuple2<String,"+schema.getTypeInfo().getTypeClass().getName()+">");
+		assertEquals("Java Tuple2<String, GenericType<org.apache.flink.contrib.siddhi.Event>>",tuple2TypeInformation.toString());
+	}
 }

@@ -17,11 +17,13 @@
 
 package org.apache.flink.contrib.siddhi.operator;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.contrib.siddhi.schema.SiddhiStreamSchema;
 import org.apache.flink.contrib.siddhi.schema.StreamSchema;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.util.Preconditions;
+import org.wso2.siddhi.core.SiddhiManager;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -30,9 +32,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * SiddhiCEP Operator Context
+ * SiddhiCEP Operator Execution Context
  */
 public class SiddhiOperatorContext implements Serializable {
+	private ExecutionConfig executionConfig;
 	private Map<String, SiddhiStreamSchema<?>> inputStreamSchemas;
 	private final Map<String,Class<?>> siddhiExtensions;
 	private String outputStreamId;
@@ -141,10 +144,19 @@ public class SiddhiOperatorContext implements Serializable {
 		this.name = name;
 	}
 
-	/**
-	 * TODO: implement copy method
-     */
-	public SiddhiOperatorContext copy(){
-		return this;
+	public SiddhiManager createSiddhiManager(){
+		SiddhiManager siddhiManager = new SiddhiManager();
+		for(Map.Entry<String,Class<?>> entry:getExtensions().entrySet()) {
+			siddhiManager.setExtension(entry.getKey(),entry.getValue());
+		}
+		return siddhiManager;
+	}
+
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
+	}
+
+	public void setExecutionConfig(ExecutionConfig executionConfig) {
+		this.executionConfig = executionConfig;
 	}
 }

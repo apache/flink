@@ -21,7 +21,7 @@
  * 2) [todo] More data type support (Tuple/PrimitiveType/Array)
  * 2) [todo] Support keyedStream
  * 3) [done] Test complex siddhi sql cases
- * 4) [todo] Sorting buffer state persistence
+ * 4) [done] Sorting buffer state persistence
  * 5) [todo] Object reusing
  * 6) [done] Support extension
  * 7) [done] Decouple API into object instance level instead of static method.

@@ -46,7 +46,7 @@ import org.apache.flink.api.java.tuple.Tuple24;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.util.Preconditions;
 
-public class SiddhiTupleUtils {
+public class SiddhiTupleFactory {
 	/**
 	 * Convert object array to type of Tuple{N} where N is between 0 to 25.
      */
