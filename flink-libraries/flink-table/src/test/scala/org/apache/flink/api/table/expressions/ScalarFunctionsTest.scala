@@ -791,34 +791,34 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     // manual test can be found in NonDeterministicTests
 
     testAllApis(
-      currentDate().cast(Types.STRING).charLength(),
-      "currentDate().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR))",
-      "10")
-
-    testAllApis(
-      currentTime().cast(Types.STRING).charLength(),
-      "currentTime().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR))",
-      "8")
-
-    testAllApis(
-      currentTimestamp().cast(Types.STRING).charLength() >= 22,
-      "currentTimestamp().cast(STRING).charLength() >= 22",
-      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 22",
+      currentDate().cast(Types.STRING).charLength() >= 5,
+      "currentDate().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR)) >= 5",
       "true")
 
     testAllApis(
-      localTimestamp().cast(Types.STRING).charLength() >= 22,
-      "localTimestamp().cast(STRING).charLength() >= 22",
-      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 22",
+      currentTime().cast(Types.STRING).charLength() >= 5,
+      "currentTime().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR)) >= 5",
       "true")
 
     testAllApis(
-      localTime().cast(Types.STRING).charLength(),
-      "localTime().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR))",
-      "8")
+      currentTimestamp().cast(Types.STRING).charLength() >= 12,
+      "currentTimestamp().cast(STRING).charLength() >= 12",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 12",
+      "true")
+
+    testAllApis(
+      localTimestamp().cast(Types.STRING).charLength() >= 12,
+      "localTimestamp().cast(STRING).charLength() >= 12",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 12",
+      "true")
+
+    testAllApis(
+      localTime().cast(Types.STRING).charLength() >= 5,
+      "localTime().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR)) >= 5",
+      "true")
 
     // comparisons are deterministic
     testAllApis(
