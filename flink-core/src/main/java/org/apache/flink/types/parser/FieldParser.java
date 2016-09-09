@@ -77,30 +77,10 @@ public abstract class FieldParser<T> {
 		BOOLEAN_INVALID
 	}
 
-	private Charset charset = Charset.forName("US-ASCII");
+	private Charset charset = Charset.forName("UTF-8");
 
 	private ParseErrorState errorState = ParseErrorState.NONE;
 
-	/**
-	 * Parses the value of a field from the byte array.
-	 * The start position within the byte array and the array's valid length is given.
-	 * The content of the value is delimited by a field delimiter.
-	 *
-	 * @param bytes The byte array that holds the value.
-	 * @param startPos The index where the field starts
-	 * @param limit The limit unto which the byte contents is valid for the parser. The limit is the
-	 *              position one after the last valid byte.
-	 * @param delim The field delimiter character
-	 * @param reuse An optional reusable field to hold the value
-	 * @param charset The charset to parse with
-	 *
-	 * @return The index of the next delimiter, if the field was parsed correctly. A value less than 0 otherwise.
-	 */
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delim, T reuse, Charset charset){
-		this.charset = charset;
-		return parseField(bytes, startPos, limit, delim, reuse);
-	}
-	
 	/**
 	 * Parses the value of a field from the byte array.
 	 * The start position within the byte array and the array's valid length is given. 
@@ -191,7 +171,7 @@ public abstract class FieldParser<T> {
 	 *
 	 * @param charset The charset  to set.
 	 */
-	protected void setCharset(Charset charset){
+	public void setCharset(Charset charset) {
 		this.charset = charset;
 	}
 

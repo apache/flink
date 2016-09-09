@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
-import org.apache.flink.types.parser.StringValueParser;
 import org.junit.Test;
 
 import java.nio.charset.Charset;
@@ -210,7 +209,8 @@ public class VarLengthStringParserTest {
 		StringValue s = new StringValue();
 
 		int startPos = 0;
-		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[]{'|'}, s, charset);
+		parser.setCharset(charset);
+		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[]{'|'}, s);
 		assertTrue(startPos == 11);
 		assertTrue(s.getValue().equals("abcde|gh"));
 	}

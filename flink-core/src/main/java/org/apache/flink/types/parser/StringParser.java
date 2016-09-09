@@ -51,7 +51,7 @@ public class StringParser extends FieldParser<String> {
 			i++;
 
 			// search for ending quote character, continue when it is escaped
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
+			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)) {
 				i++;
 			}
 

@@ -321,7 +321,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	}
 
 	/**
-	 * Gets the Charset for the parser.Default is set to UTF-8
+	 * Gets the character set for the parser. Default is set to UTF-8.
 	 *
 	 * @return The charset for the parser.
 	 */
@@ -333,10 +333,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	 * Sets the charset of the parser. Called by subclasses of the parser to set the type of charset
 	 * when doing a parse.
 	 *
-	 * @param charset The charset  to set.
+	 * @param charset The character set to set.
 	 */
-	protected void setCharset(Charset charset){
-		this.charset = charset != null ? charset : Charset.forName("UTF-8");
+	protected void setCharset(Charset charset) {
+		this.charset = Preconditions.checkNotNull(charset);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -359,6 +359,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 				FieldParser<?> p = InstantiationUtil.instantiate(parserType, FieldParser.class);
 
+				p.setCharset(this.getCharset());
 				if (this.quotedStringParsing) {
 					if (p instanceof StringParser) {
 						((StringParser)p).enableQuotedStringParsing(this.quoteCharacter);
@@ -417,7 +418,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				@SuppressWarnings("unchecked")
 				FieldParser<Object> parser = (FieldParser<Object>) this.fieldParsers[output];
 				Object reuse = holders[output];
-				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, reuse, charset);
+				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, reuse);
 				holders[output] = parser.getLastResult();
 				
 				// check parse result
@@ -474,7 +475,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			// search for ending quote character, continue when it is escaped
 			i++;
 
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
+			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)) {
 				i++;
 			}
 			i++;
