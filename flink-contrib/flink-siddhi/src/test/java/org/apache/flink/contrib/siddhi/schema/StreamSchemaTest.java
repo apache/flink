@@ -18,13 +18,11 @@
 package org.apache.flink.contrib.siddhi.schema;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.api.scala.typeutils.TypeUtils;
-import org.apache.flink.contrib.siddhi.Event;
+import org.apache.flink.contrib.siddhi.source.Event;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -57,6 +55,6 @@ public class StreamSchemaTest {
 		assertEquals(Event.class,schema.getTypeInfo().getTypeClass());
 
 		TypeInformation<Tuple2<String, Event>> tuple2TypeInformation = TypeInfoParser.parse("Tuple2<String,"+schema.getTypeInfo().getTypeClass().getName()+">");
-		assertEquals("Java Tuple2<String, GenericType<org.apache.flink.contrib.siddhi.Event>>",tuple2TypeInformation.toString());
+		assertEquals("Java Tuple2<String, GenericType<"+Event.class.getName()+">>",tuple2TypeInformation.toString());
 	}
 }

@@ -19,14 +19,20 @@ package org.apache.flink.contrib.siddhi;
 
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.contrib.siddhi.exception.UndefinedStreamException;
 import org.apache.flink.contrib.siddhi.extension.CustomPlusFunctionExtension;
+import org.apache.flink.contrib.siddhi.source.Event;
+import org.apache.flink.contrib.siddhi.source.RandomEventSource;
+import org.apache.flink.contrib.siddhi.source.RandomTupleSource;
+import org.apache.flink.contrib.siddhi.source.RandomWordSource;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.junit.Rule;
 import org.junit.Test;
@@ -78,7 +84,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
 
-
 		DataStream<Integer> following = output.map(new MapFunction<Tuple4<Long,Integer,String,Double>, Integer>() {
 			@Override
 			public Integer map(Tuple4<Long, Integer, String, Double> value) throws Exception {
@@ -87,6 +92,42 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		});
 
 		following.print();
+
+		String resultPath = tempFolder.newFile().toURI().toString();
+		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		env.execute();
+		assertEquals(5, getLineCount(resultPath));
+	}
+
+	@Test
+	public void testUnboundedTupleSourceAndReturnTuple() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Tuple4<Integer,String,Double,Long>> input = env.addSource(new RandomTupleSource(5));
+
+		DataStream<Tuple4<Long,Integer,String,Double>> output = SiddhiCEP
+			.define("inputStream", input, "id", "name", "price","timestamp")
+			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
+			.returns("outputStream");
+
+		output.print();
+
+		String resultPath = tempFolder.newFile().toURI().toString();
+		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		env.execute();
+		assertEquals(5, getLineCount(resultPath));
+	}
+
+	@Test
+	public void testUnboundedPrimitiveTypeSourceAndReturnTuple() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<String> input = env.addSource(new RandomWordSource(5));
+
+		DataStream<Tuple1<String>> output = SiddhiCEP
+			.define("wordStream", input, "words")
+			.sql("from wordStream select words insert into  outputStream")
+			.returns("outputStream");
+
+		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -120,7 +161,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		env.setBufferTimeout(5000);
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
 
 		DataStream<Map<String, Object>> output = SiddhiCEP
@@ -140,6 +180,12 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	public void testUnboundedPojoStreamAndReturnPojo() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
+		input.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Event>() {
+			@Override
+			public long extractAscendingTimestamp(Event element) {
+				return element.getTimestamp();
+			}
+		});
 
 		DataStream<Event> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price","timestamp")

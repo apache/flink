@@ -18,7 +18,7 @@
 package org.apache.flink.contrib.siddhi.schema;
 
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.contrib.siddhi.Event;
+import org.apache.flink.contrib.siddhi.source.Event;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.siddhi;
+package org.apache.flink.contrib.siddhi.source;
 
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.Random;
 
-public class RandomEventSource implements SourceFunction<Event> {
+public class RandomTupleSource implements SourceFunction<Tuple4<Integer,String,Double,Long>> {
 	private final int count;
 	private final Random random;
 	private final long initialTimestamp;
@@ -29,24 +30,24 @@ public class RandomEventSource implements SourceFunction<Event> {
 	private volatile boolean isRunning = true;
 	private volatile int number = 0;
 
-	public RandomEventSource(int count,long initialTimestamp) {
+	public RandomTupleSource(int count, long initialTimestamp) {
 		this.count = count;
 		this.random = new Random();
 		this.initialTimestamp = initialTimestamp;
 	}
 
-	public RandomEventSource() {
+	public RandomTupleSource() {
 		this(Integer.MAX_VALUE,System.currentTimeMillis());
 	}
-	public RandomEventSource(int count) {
+
+	public RandomTupleSource(int count) {
 		this(count,System.currentTimeMillis());
 	}
 
 	@Override
-	public void run(SourceContext<Event> ctx) throws Exception {
+	public void run(SourceContext<Tuple4<Integer, String, Double, Long>> ctx) throws Exception {
 		while (isRunning) {
-			Thread.sleep(500);
-			ctx.collect(Event.of(number, "test_event", random.nextDouble(),initialTimestamp+1000));
+			ctx.collect(Tuple4.of(number,"test_tuple", random.nextDouble(),initialTimestamp+1000*number));
 			number++;
 			if (number >= this.count) {
 				cancel();
@@ -56,11 +57,11 @@ public class RandomEventSource implements SourceFunction<Event> {
 
 	@Override
 	public void cancel() {
+		this.isRunning = false;
 		try {
-			Thread.sleep(3000);
+			Thread.sleep(1000);
 		} catch (InterruptedException e) {
 			// ignored
 		}
-		this.isRunning = false;
 	}
 }

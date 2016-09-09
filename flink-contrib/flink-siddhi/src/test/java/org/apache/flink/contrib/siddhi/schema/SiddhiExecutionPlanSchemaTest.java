@@ -20,7 +20,7 @@ package org.apache.flink.contrib.siddhi.schema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.contrib.siddhi.Event;
+import org.apache.flink.contrib.siddhi.source.Event;
 import org.junit.Test;
 import org.wso2.siddhi.query.api.definition.Attribute;
 import org.wso2.siddhi.query.api.definition.StreamDefinition;
