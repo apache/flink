@@ -79,7 +79,7 @@ jobmanager.web.port: 8081
 # The backend that will be used to store operator state checkpoints if
 # checkpointing is enabled.
 #
-# Supported backends: jobmanager, filesystem, <class-name-of-factory>
+# Supported backends: jobmanager, filesystem, rocksdb, <class-name-of-factory>
 #
 #state.backend: filesystem
 

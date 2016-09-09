@@ -98,21 +98,6 @@ This allows keeping very large state, compared to the FsStateBackend that keeps 
 This also means, however, that the maximum throughput that can be achieved will be lower with
 this state backend.
 
-**NOTE:** To use the RocksDBStateBackend you also have to add the correct maven dependency to your
-project:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-{% endhighlight %}
-
-The backend is currently not part of the binary distribution. See
-[here]({{ site.baseurl}}/dev/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
-for an explanation of how to include it for cluster execution.
-
 ## Configuring a State Backend
 
 State backends can be configured per job. In addition, you can define a default state backend to be used when the
@@ -144,7 +129,8 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 A default state backend can be configured in the `flink-conf.yaml`, using the configuration key `state.backend`.
 
 Possible values for the config entry are *jobmanager* (MemoryStateBackend), *filesystem* (FsStateBackend), or the fully qualified class
-name of the class that implements the state backend factory [FsStateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/filesystem/FsStateBackendFactory.java).
+name of the class that implements the state backend factory [FsStateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/filesystem/FsStateBackendFactory.java),
+such as `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory` for RocksDBStateBackend.
 
 In the case where the default state backend is set to *filesystem*, the entry `state.backend.fs.checkpointdir` defines the directory where the checkpoint data will be stored.
 

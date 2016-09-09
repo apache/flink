@@ -664,6 +664,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					stateBackend = backend;
 					break;
 
+				case "rocksdb":
+					backendName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
+					// fall through to the 'default' case that uses reflection to load the backend
+					// that way we can keep RocksDB in a separate module
+
 				default:
 					try {
 						@SuppressWarnings("rawtypes")
