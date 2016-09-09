@@ -136,9 +136,11 @@ object FunctionCatalog {
     "like" -> classOf[Like],
     "lowerCase" -> classOf[Lower],
     "similar" -> classOf[Similar],
-    "subString" -> classOf[SubString],
+    "substring" -> classOf[Substring],
     "trim" -> classOf[Trim],
     "upperCase" -> classOf[Upper],
+    "position" -> classOf[Position],
+    "overlay" -> classOf[Overlay],
 
     // math functions
     "abs" -> classOf[Abs],
