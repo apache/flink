@@ -1,4 +1,4 @@
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
@@ -11,39 +11,47 @@ import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.ConnectionManager;
+import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
+import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
 
 import akka.actor.ActorSystem;
-import akka.dispatch.ExecutionContexts$;
 import akka.util.Timeout;
 import com.typesafe.config.Config;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
-import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.concurrent.ForkJoinPool;
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -53,9 +61,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * It constructs the related components (network, I/O manager, memory manager, RPC service, HA service)
  * and starts them.
  */
-public class TaskExecutorRunner {
+public class TaskManagerRunner {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorRunner.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerRunner.class);
 
 	/**
 	 * Constructs related components of the TaskManager and starts them.
@@ -70,7 +78,7 @@ public class TaskExecutorRunner {
 	 * @param haServices                    Optionally, a high availability service can be provided. If none is given,
 	 *                                                 then a HighAvailabilityServices is constructed from the configuration.
 	 */
-	public static void startComponents(
+	public static void createAndStartComponents(
 		final Configuration configuration,
 		final ResourceID resourceID,
 		RpcService rpcService,
@@ -117,7 +125,7 @@ public class TaskExecutorRunner {
 			};
 		}
 
-		startTaskManagerComponents(
+		createAndStartTaskManagerComponents(
 			configuration,
 			resourceID,
 			rpcService,
@@ -213,7 +221,7 @@ public class TaskExecutorRunner {
 	 * @throws java.lang.Exception      Thrown is some other error occurs while parsing the configuration or
 	 *                                              starting the TaskManager components.
 	 */
-	private static void startTaskManagerComponents(
+	private static void createAndStartTaskManagerComponents(
 		Configuration configuration,
 		ResourceID resourceID,
 		RpcService rpcService,
@@ -221,22 +229,109 @@ public class TaskExecutorRunner {
 		HighAvailabilityServices haServices,
 		boolean localTaskManagerCommunication) throws Exception {
 
-		final TaskExecutorConfiguration taskExecutorConfig = parseTaskManagerConfiguration(
+		final TaskExecutorConfiguration taskManagerConfig = parseTaskManagerConfiguration(
 			configuration, taskManagerHostname, localTaskManagerCommunication);
+
+		TaskManagerComponents taskManagerComponents = createTaskManagerComponents(
+			resourceID,
+			InetAddress.getByName(taskManagerHostname),
+			taskManagerConfig,
+			configuration);
+
+		final TaskExecutor taskExecutor = new TaskExecutor(
+			taskManagerConfig,
+			resourceID,
+			taskManagerComponents.getTaskManagerLocation(),
+			taskManagerComponents.getMemoryManager(),
+			taskManagerComponents.getIOManager(),
+			taskManagerComponents.getNetworkEnvironment(),
+			rpcService,
+			haServices);
+
+		taskExecutor.start();
+	}
+
+	/**
+	 * Creates and returns the task manager components.
+	 *
+	 * @param resourceID resource ID of the task manager
+	 * @param taskManagerAddress address of the task manager
+	 * @param taskExecutorConfig task manager configuration
+	 * @param configuration of Flink
+	 * @return task manager components
+	 * @throws Exception
+	 */
+	private static TaskManagerComponents createTaskManagerComponents(
+		ResourceID resourceID,
+		InetAddress taskManagerAddress,
+		TaskExecutorConfiguration taskExecutorConfig,
+		Configuration configuration) throws Exception {
 
 		MemoryType memType = taskExecutorConfig.getNetworkConfig().memoryType();
 
 		// pre-start checks
 		checkTempDirs(taskExecutorConfig.getTmpDirPaths());
 
-		ExecutionContext executionContext = ExecutionContexts$.MODULE$.fromExecutor(new ForkJoinPool());
+		NetworkEnvironmentConfiguration networkEnvironmentConfiguration = taskExecutorConfig.getNetworkConfig();
+
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
+			networkEnvironmentConfiguration.numNetworkBuffers(),
+			networkEnvironmentConfiguration.networkBufferSize(),
+			networkEnvironmentConfiguration.memoryType());
+
+		ConnectionManager connectionManager;
+
+		if (networkEnvironmentConfiguration.nettyConfig().isDefined()) {
+			connectionManager = new NettyConnectionManager(networkEnvironmentConfiguration.nettyConfig().get());
+		} else {
+			connectionManager = new LocalConnectionManager();
+		}
+
+		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
+		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
+
+		KvStateRegistry kvStateRegistry = new KvStateRegistry();
+
+		KvStateServer kvStateServer;
+
+		if (networkEnvironmentConfiguration.nettyConfig().isDefined()) {
+			NettyConfig nettyConfig = networkEnvironmentConfiguration.nettyConfig().get();
+
+			int numNetworkThreads = networkEnvironmentConfiguration.queryServerNetworkThreads() == 0 ?
+				nettyConfig.getNumberOfSlots() : networkEnvironmentConfiguration.queryServerNetworkThreads();
+
+			int numQueryThreads = networkEnvironmentConfiguration.queryServerQueryThreads() == 0 ?
+				nettyConfig.getNumberOfSlots() : networkEnvironmentConfiguration.queryServerQueryThreads();
+
+			kvStateServer = new KvStateServer(
+				taskManagerAddress,
+				networkEnvironmentConfiguration.queryServerPort(),
+				numNetworkThreads,
+				numQueryThreads,
+				kvStateRegistry,
+				new DisabledKvStateRequestStats());
+		} else {
+			kvStateServer = null;
+		}
 
 		// we start the network first, to make sure it can allocate its buffers first
 		final NetworkEnvironment network = new NetworkEnvironment(
-			executionContext,
-			taskExecutorConfig.getTimeout(),
-			taskExecutorConfig.getNetworkConfig(),
-			taskExecutorConfig.getConnectionInfo());
+			networkBufferPool,
+			connectionManager,
+			resultPartitionManager,
+			taskEventDispatcher,
+			kvStateRegistry,
+			kvStateServer,
+			networkEnvironmentConfiguration.ioMode(),
+			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
+			networkEnvironmentConfiguration.partitinRequestMaxBackoff());
+
+		network.start();
+
+		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(
+			resourceID,
+			taskManagerAddress,
+			network.getConnectionManager().getDataPort());
 
 		// computing the amount of memory to use depends on how much memory is available
 		// it strictly needs to happen AFTER the network stack has been initialized
@@ -320,17 +415,7 @@ public class TaskExecutorRunner {
 		// start the I/O manager, it will create some temp directories.
 		final IOManager ioManager = new IOManagerAsync(taskExecutorConfig.getTmpDirPaths());
 
-		final TaskExecutor taskExecutor = new TaskExecutor(
-			taskExecutorConfig,
-			resourceID,
-			memoryManager,
-			ioManager,
-			network,
-			taskExecutorConfig.getNumberOfSlots(),
-			rpcService,
-			haServices);
-
-		taskExecutor.start();
+		return new TaskManagerComponents(taskManagerLocation, memoryManager, ioManager, network);
 	}
 
 	// --------------------------------------------------------------------------
@@ -359,14 +444,12 @@ public class TaskExecutorRunner {
 
 		int dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
-		if (dataport == 0) {
-			dataport = NetUtils.getAvailablePort();
-		}
+
 		checkConfigParameter(dataport > 0, dataport, ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
 			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
 
 		InetAddress taskManagerAddress = InetAddress.getByName(taskManagerHostname);
-		final InstanceConnectionInfo connectionInfo = new InstanceConnectionInfo(taskManagerAddress, dataport);
+		final InetSocketAddress taskManagerInetSocketAddress = new InetSocketAddress(taskManagerAddress, dataport);
 
 		// ----> memory / network stack (shuffles/broadcasts), task slots, temp directories
 
@@ -375,22 +458,26 @@ public class TaskExecutorRunner {
 		if (slots == -1) {
 			slots = 1;
 		}
+
 		checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
 			"Number of task slots must be at least one.");
 
 		final int numNetworkBuffers = configuration.getInteger(
 			ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
+
 		checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
 			ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, "");
 
 		final int pageSize = configuration.getInteger(
 			ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE);
+
 		// check page size of for minimum size
 		checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
 			ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
 			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
+
 		// check page size for power of two
 		checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
 			ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
@@ -423,7 +510,8 @@ public class TaskExecutorRunner {
 
 		final NettyConfig nettyConfig;
 		if (!localTaskManagerCommunication) {
-			nettyConfig = new NettyConfig(connectionInfo.address(), connectionInfo.dataPort(), pageSize, slots, configuration);
+			nettyConfig = new NettyConfig(taskManagerInetSocketAddress.getAddress(),
+				taskManagerInetSocketAddress.getPort(), pageSize, slots, configuration);
 		} else {
 			nettyConfig = null;
 		}
@@ -460,8 +548,9 @@ public class TaskExecutorRunner {
 			queryServerPort,
 			queryServerNetworkThreads,
 			queryServerQueryThreads,
-			localTaskManagerCommunication ? Option.<NettyConfig>empty() : new Some<>(nettyConfig),
-			new Tuple2<>(500, 3000));
+			Option.apply(nettyConfig),
+			500,
+			3000);
 
 		// ----> timeouts, library caching, profiling
 
@@ -542,7 +631,6 @@ public class TaskExecutorRunner {
 		return new TaskExecutorConfiguration(
 			tmpDirs,
 			cleanupInterval,
-			connectionInfo,
 			networkConfig,
 			timeout,
 			finiteRegistrationDuration,
@@ -605,6 +693,41 @@ public class TaskExecutorRunner {
 			} else {
 				throw new IllegalArgumentException("Temporary file directory #$id is null.");
 			}
+		}
+	}
+
+	private static class TaskManagerComponents {
+		private final TaskManagerLocation taskManagerLocation;
+		private final MemoryManager memoryManager;
+		private final IOManager ioManager;
+		private final NetworkEnvironment networkEnvironment;
+
+		private TaskManagerComponents(
+			TaskManagerLocation taskManagerLocation,
+			MemoryManager memoryManager,
+			IOManager ioManager,
+			NetworkEnvironment networkEnvironment) {
+
+			this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
+			this.memoryManager = Preconditions.checkNotNull(memoryManager);
+			this.ioManager = Preconditions.checkNotNull(ioManager);
+			this.networkEnvironment = Preconditions.checkNotNull(networkEnvironment);
+		}
+
+		public MemoryManager getMemoryManager() {
+			return memoryManager;
+		}
+
+		public IOManager getIOManager() {
+			return ioManager;
+		}
+
+		public NetworkEnvironment getNetworkEnvironment() {
+			return networkEnvironment;
+		}
+
+		public TaskManagerLocation getTaskManagerLocation() {
+			return taskManagerLocation;
 		}
 	}
 }

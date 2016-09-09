@@ -18,11 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.UUID;
-
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -33,6 +29,12 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.util.UUID;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -45,6 +47,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	/** The unique resource ID of this task manager */
 	private final ResourceID resourceID;
+
+	/** The connection information of this task manager */
+	private final TaskManagerLocation taskManagerLocation;
 
 	/** The access to the leader election and retrieval services */
 	private final HighAvailabilityServices haServices;
@@ -73,22 +78,26 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	public TaskExecutor(
 		TaskExecutorConfiguration taskExecutorConfig,
 		ResourceID resourceID,
+		TaskManagerLocation taskManagerLocation,
 		MemoryManager memoryManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
-		int numberOfSlots,
 		RpcService rpcService,
 		HighAvailabilityServices haServices) {
 
 		super(rpcService);
 
+		checkArgument(taskExecutorConfig.getNumberOfSlots() > 0, "The number of slots has to be larger than 0.");
+
 		this.taskExecutorConfig = checkNotNull(taskExecutorConfig);
 		this.resourceID = checkNotNull(resourceID);
+		this.taskManagerLocation = checkNotNull(taskManagerLocation);
 		this.memoryManager = checkNotNull(memoryManager);
 		this.ioManager = checkNotNull(ioManager);
 		this.networkEnvironment = checkNotNull(networkEnvironment);
-		this.numberOfSlots = checkNotNull(numberOfSlots);
 		this.haServices = checkNotNull(haServices);
+
+		this.numberOfSlots =  taskExecutorConfig.getNumberOfSlots();
 	}
 
 	// ------------------------------------------------------------------------
@@ -214,4 +223,5 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			onFatalErrorAsync(exception);
 		}
 	}
+
 }

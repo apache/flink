@@ -27,10 +27,12 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import org.powermock.api.mockito.PowerMockito;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
@@ -49,16 +51,18 @@ public class TaskExecutorTest extends TestLogger {
 		try {
 			// register a mock resource manager gateway
 			ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
+			TaskExecutorConfiguration taskExecutorConfiguration = mock(TaskExecutorConfiguration.class);
+			PowerMockito.when(taskExecutorConfiguration.getNumberOfSlots()).thenReturn(1);
 			rpc.registerGateway(resourceManagerAddress, rmGateway);
 
 			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
 			TaskExecutor taskManager = new TaskExecutor(
-				mock(TaskExecutorConfiguration.class),
+				taskExecutorConfiguration,
 				resourceID,
+				mock(TaskManagerLocation.class),
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
-				1,
 				rpc,
 				haServices);
 
@@ -95,13 +99,16 @@ public class TaskExecutorTest extends TestLogger {
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setResourceManagerLeaderRetriever(testLeaderService);
 
+			TaskExecutorConfiguration taskExecutorConfiguration = mock(TaskExecutorConfiguration.class);
+			PowerMockito.when(taskExecutorConfiguration.getNumberOfSlots()).thenReturn(1);
+
 			TaskExecutor taskManager = new TaskExecutor(
-				mock(TaskExecutorConfiguration.class),
+				taskExecutorConfiguration,
 				resourceID,
+				mock(TaskManagerLocation.class),
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
-				1,
 				rpc,
 				haServices);
 
