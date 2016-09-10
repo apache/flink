@@ -28,6 +28,7 @@ public class RandomEventSource implements SourceFunction<Event> {
 
 	private volatile boolean isRunning = true;
 	private volatile int number = 0;
+	private volatile long closeDelayTimestamp = 1000;
 
 	public RandomEventSource(int count,long initialTimestamp) {
 		this.count = count;
@@ -40,6 +41,11 @@ public class RandomEventSource implements SourceFunction<Event> {
 	}
 	public RandomEventSource(int count) {
 		this(count,System.currentTimeMillis());
+	}
+
+	public RandomEventSource closeDelay(long delayTimestamp){
+		this.closeDelayTimestamp = delayTimestamp;
+		return this;
 	}
 
 	@Override
@@ -57,7 +63,7 @@ public class RandomEventSource implements SourceFunction<Event> {
 	public void cancel() {
 		this.isRunning = false;
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(closeDelayTimestamp);
 		} catch (InterruptedException e) {
 			// ignored
 		}
