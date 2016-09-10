@@ -66,6 +66,7 @@ public class RandomWordSource implements SourceFunction<String> {
 
 	private volatile boolean isRunning = true;
 	private volatile int number = 0;
+	private long closeDelayTimestamp;
 
 	public RandomWordSource(int count, long initialTimestamp) {
 		this.count = count;
@@ -80,6 +81,13 @@ public class RandomWordSource implements SourceFunction<String> {
 	public RandomWordSource(int count) {
 		this(count,System.currentTimeMillis());
 	}
+
+
+	public RandomWordSource closeDelay(long delayTimestamp){
+		this.closeDelayTimestamp = delayTimestamp;
+		return this;
+	}
+
 	@Override
 	public void run(SourceContext<String> ctx) throws Exception {
 		while (isRunning) {
@@ -95,7 +103,7 @@ public class RandomWordSource implements SourceFunction<String> {
 	public void cancel() {
 		this.isRunning = false;
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(this.closeDelayTimestamp);
 		} catch (InterruptedException e) {
 			// ignored
 		}

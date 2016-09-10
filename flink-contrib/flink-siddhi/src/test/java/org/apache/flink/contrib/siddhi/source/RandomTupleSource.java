@@ -29,6 +29,7 @@ public class RandomTupleSource implements SourceFunction<Tuple4<Integer,String,D
 
 	private volatile boolean isRunning = true;
 	private volatile int number = 0;
+	private long closeDelayTimestamp;
 
 	public RandomTupleSource(int count, long initialTimestamp) {
 		this.count = count;
@@ -42,6 +43,12 @@ public class RandomTupleSource implements SourceFunction<Tuple4<Integer,String,D
 
 	public RandomTupleSource(int count) {
 		this(count,System.currentTimeMillis());
+	}
+
+
+	public RandomTupleSource closeDelay(long delayTimestamp){
+		this.closeDelayTimestamp = delayTimestamp;
+		return this;
 	}
 
 	@Override
@@ -59,7 +66,7 @@ public class RandomTupleSource implements SourceFunction<Tuple4<Integer,String,D
 	public void cancel() {
 		this.isRunning = false;
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(this.closeDelayTimestamp);
 		} catch (InterruptedException e) {
 			// ignored
 		}

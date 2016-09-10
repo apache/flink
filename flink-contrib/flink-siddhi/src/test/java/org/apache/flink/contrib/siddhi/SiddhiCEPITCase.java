@@ -90,11 +90,8 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 				return value.f1;
 			}
 		});
-
-		following.print();
-
 		String resultPath = tempFolder.newFile().toURI().toString();
-		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		following.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
 		assertEquals(5, getLineCount(resultPath));
 	}
@@ -102,14 +99,12 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testUnboundedTupleSourceAndReturnTuple() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Tuple4<Integer,String,Double,Long>> input = env.addSource(new RandomTupleSource(5));
+		DataStream<Tuple4<Integer,String,Double,Long>> input = env.addSource(new RandomTupleSource(5).closeDelay(1500));
 
 		DataStream<Tuple4<Long,Integer,String,Double>> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price","timestamp")
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
-
-		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -120,14 +115,12 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testUnboundedPrimitiveTypeSourceAndReturnTuple() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<String> input = env.addSource(new RandomWordSource(5));
+		DataStream<String> input = env.addSource(new RandomWordSource(5).closeDelay(1500));
 
 		DataStream<Tuple1<String>> output = SiddhiCEP
 			.define("wordStream", input, "words")
 			.sql("from wordStream select words insert into  outputStream")
 			.returns("outputStream");
-
-		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -138,7 +131,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test(expected = InvalidTypesException.class)
 	public void testUnboundedPojoSourceButReturnInvalidTupleType() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input = env.addSource(new RandomEventSource(5));
+		DataStream<Event> input = env.addSource(new RandomEventSource(5).closeDelay(1500));
 
 		DataStream<Tuple5<Long,Integer,String,Double,Long>> output = SiddhiCEP
 			.define("inputStream", input, "id", "name", "price","timestamp")
@@ -152,7 +145,10 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		following.print();
+		String resultPath = tempFolder.newFile().toURI().toString();
+		following.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		env.execute();
+		assertEquals(5, getLineCount(resultPath));
 		env.execute();
 	}
 
@@ -167,8 +163,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			.define("inputStream", input, "id", "name", "price","timestamp")
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returnAsMap("outputStream");
-
-		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -192,8 +186,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream",Event.class);
 
-		output.print();
-
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
@@ -204,9 +196,9 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testMultipleUnboundedPojoStreamSimpleUnion() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
-		DataStream<Event> input2 = env.addSource(new RandomEventSource(5),"input2");
-		DataStream<Event> input3 = env.addSource(new RandomEventSource(5),"input2");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(2),"input1");
+		DataStream<Event> input2 = env.addSource(new RandomEventSource(2),"input2");
+		DataStream<Event> input3 = env.addSource(new RandomEventSource(2),"input2");
 		DataStream<Event> output = SiddhiCEP
 			.define("inputStream1", input1, "id", "name", "price","timestamp")
 			.union("inputStream2", input2, "id", "name", "price","timestamp")
@@ -218,12 +210,10 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			)
 			.returns("outputStream",Event.class);
 
-		output.print();
-
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
-		assertEquals(15, getLineCount(resultPath));
+		assertEquals(6, getLineCount(resultPath));
 	}
 
 	/**
@@ -247,8 +237,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			)
 			.returnAsMap("JoinStream");
 
-		output.print();
-
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
@@ -261,8 +249,8 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testUnboundedPojoStreamSimplePatternMatch() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
-		DataStream<Event> input2 = env.addSource(new RandomEventSource(5),"input2");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(5).closeDelay(1500),"input1");
+		DataStream<Event> input2 = env.addSource(new RandomEventSource(5).closeDelay(1500),"input2");
 
 		DataStream<Map<String, Object>> output = SiddhiCEP
 			.define("inputStream1", input1.keyBy("name"), "id", "name", "price","timestamp")
@@ -274,8 +262,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 				+ "insert into outputStream"
 			)
 			.returnAsMap("outputStream");
-
-		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -290,7 +276,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testUnboundedPojoStreamSimpleSequences() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(5).closeDelay(1500),"input1");
 		DataStream<Map<String, Object>> output = SiddhiCEP
 			.define("inputStream1", input1.keyBy("name"), "id", "name", "price","timestamp")
 			.union("inputStream2", input1.keyBy("name"), "id", "name", "price","timestamp")
@@ -302,8 +288,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 				+ "insert into outputStream"
 			)
 			.returnAsMap("outputStream");
-
-		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -329,8 +313,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			.from("inputStream", input, "id", "name", "price","timestamp")
 			.sql("from inputStream select timestamp, id, name, custom:plus(price,price) as doubled_price insert into  outputStream")
 			.returnAsMap("outputStream");
-
-		output.print();
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -361,8 +343,6 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 			)
 			.returns("JoinStream");
 
-		output.print();
-
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
@@ -387,7 +367,9 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 					+ "insert into JoinStream;"
 			)
 			.returnAsMap("JoinStream");
-		output.print();
+
+		String resultPath = tempFolder.newFile().toURI().toString();
+		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
 	}
 }

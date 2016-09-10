@@ -60,10 +60,10 @@ public class SiddhiOperatorContext implements Serializable {
 
 	public String getName() {
 		if (this.name == null) {
-			if (executionPlan.length() > 50) {
-				return "Siddhi: " + executionPlan.substring(0, 50) + " ...";
+			if (executionPlan.length() > 100) {
+				return String.format("Siddhi: %s ... (%s)", executionPlan.substring(0, 100), executionPlan.length() - 100);
 			} else {
-				return "Siddhi: " + executionPlan;
+				return String.format("Siddhi: %s",executionPlan);
 			}
 		} else {
 			return this.name;
