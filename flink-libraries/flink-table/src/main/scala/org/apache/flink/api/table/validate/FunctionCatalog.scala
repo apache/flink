@@ -117,6 +117,12 @@ class FunctionCatalog {
 object FunctionCatalog {
 
   val buildInFunctions: Map[String, Class[_]] = Map(
+    // logic
+    "isNull" -> classOf[IsNull],
+    "isNotNull" -> classOf[IsNotNull],
+    "isTrue" -> classOf[IsTrue],
+    "isFalse" -> classOf[IsFalse],
+
     // aggregate functions
     "avg" -> classOf[Avg],
     "count" -> classOf[Count],
@@ -130,9 +136,11 @@ object FunctionCatalog {
     "like" -> classOf[Like],
     "lowerCase" -> classOf[Lower],
     "similar" -> classOf[Similar],
-    "subString" -> classOf[SubString],
+    "substring" -> classOf[Substring],
     "trim" -> classOf[Trim],
     "upperCase" -> classOf[Upper],
+    "position" -> classOf[Position],
+    "overlay" -> classOf[Overlay],
 
     // math functions
     "abs" -> classOf[Abs],
@@ -145,7 +153,17 @@ object FunctionCatalog {
     "mod" -> classOf[Mod],
 
     // temporal functions
-    "extract" -> classOf[Extract]
+    "extract" -> classOf[Extract],
+    "currentDate" -> classOf[CurrentDate],
+    "currentTime" -> classOf[CurrentTime],
+    "currentTimestamp" -> classOf[CurrentTimestamp],
+    "localTime" -> classOf[LocalTime],
+    "localTimestamp" -> classOf[LocalTimestamp],
+    "quarter" -> classOf[Quarter]
+
+    // TODO implement function overloading here
+    // "floor" -> classOf[TemporalFloor]
+    // "ceil" -> classOf[TemporalCeil]
   )
 
   /**

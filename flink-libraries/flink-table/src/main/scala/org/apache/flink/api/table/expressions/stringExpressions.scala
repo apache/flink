@@ -144,9 +144,9 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
 }
 
 /**
-  * Returns subString of `str` from `begin`(inclusive) for `length`.
+  * Returns substring of `str` from `begin`(inclusive) for `length`.
   */
-case class SubString(
+case class Substring(
     str: Expression,
     begin: Expression,
     length: Expression) extends Expression with InputTypeSpec {
@@ -160,7 +160,7 @@ case class SubString(
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
-  override def toString: String = s"$str.subString($begin, $length)"
+  override def toString: String = s"($str).substring($begin, $length)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.SUBSTRING, children.map(_.toRexNode))
@@ -193,7 +193,7 @@ case class Trim(
     }
   }
 
-  override def toString: String = s"trim($trimMode, $trimString, $str)"
+  override def toString: String = s"($str).trim($trimMode, $trimString)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.TRIM, children.map(_.toRexNode))
@@ -210,21 +210,70 @@ object TrimConstants {
 /**
   * Returns str with all characters changed to uppercase.
   */
-case class Upper(child: Expression) extends UnaryExpression {
+case class Upper(child: Expression) extends UnaryExpression with InputTypeSpec {
+
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override private[flink] def validateInput(): ExprValidationResult = {
-    if (child.resultType == STRING_TYPE_INFO) {
-      ValidationSuccess
-    } else {
-      ValidationFailure(s"Upper operator requires String input, " +
-        s"but $child is of type ${child.resultType}")
-    }
-  }
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(STRING_TYPE_INFO)
 
-  override def toString: String = s"($child).toUpperCase()"
+  override def toString: String = s"($child).upperCase()"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.UPPER, child.toRexNode)
+  }
+}
+
+/**
+  * Returns the position of string needle in string haystack.
+  */
+case class Position(needle: Expression, haystack: Expression)
+    extends Expression with InputTypeSpec {
+
+  override private[flink] def children: Seq[Expression] = Seq(needle, haystack)
+
+  override private[flink] def resultType: TypeInformation[_] = INT_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO)
+
+  override def toString: String = s"($needle).position($haystack)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.POSITION, needle.toRexNode, haystack.toRexNode)
+  }
+}
+
+/**
+  * Replaces a substring of a string with a replacement string.
+  * Starting at a position for a given length.
+  */
+case class Overlay(
+    str: Expression,
+    replacement: Expression,
+    starting: Expression,
+    position: Expression)
+  extends Expression with InputTypeSpec {
+
+  def this(str: Expression, replacement: Expression, starting: Expression) =
+    this(str, replacement, starting, CharLength(replacement))
+
+  override private[flink] def children: Seq[Expression] =
+    Seq(str, replacement, starting, position)
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
+
+  override def toString: String = s"($str).overlay($replacement, $starting, $position)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(
+      SqlStdOperatorTable.OVERLAY,
+      str.toRexNode,
+      replacement.toRexNode,
+      starting.toRexNode,
+      position.toRexNode)
   }
 }

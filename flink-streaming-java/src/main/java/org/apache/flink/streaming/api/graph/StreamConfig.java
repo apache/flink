@@ -74,6 +74,9 @@ public class StreamConfig implements Serializable {
 	
 	private static final String STATE_BACKEND = "statebackend";
 	private static final String STATE_PARTITIONER = "statePartitioner";
+
+	private static final String NUMBER_OF_KEY_GROUPS = "numberOfKeyGroups";
+
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
 	
 	private static final String TIME_CHARACTERISTIC = "timechar";
@@ -402,10 +405,12 @@ public class StreamConfig implements Serializable {
 	// ------------------------------------------------------------------------
 	
 	public void setStateBackend(AbstractStateBackend backend) {
-		try {
-			InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not serialize stateHandle provider.", e);
+		if (backend != null) {
+			try {
+				InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
+			} catch (Exception e) {
+				throw new StreamTaskException("Could not serialize stateHandle provider.", e);
+			}
 		}
 	}
 	
@@ -415,6 +420,10 @@ public class StreamConfig implements Serializable {
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
 		}
+	}
+
+	public byte[] getSerializedStateBackend() {
+		return this.config.getBytes(STATE_BACKEND, null);
 	}
 	
 	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
@@ -430,6 +439,32 @@ public class StreamConfig implements Serializable {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate state partitioner.", e);
+		}
+	}
+
+	/**
+	 * Sets the number of key-groups to be used for the current {@link StreamOperator}.
+	 *
+	 * @param numberOfKeyGroups Number of key-groups to be used
+	 */
+	public void setNumberOfKeyGroups(int numberOfKeyGroups) {
+		try {
+			InstantiationUtil.writeObjectToConfig(numberOfKeyGroups, this.config, NUMBER_OF_KEY_GROUPS);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not serialize virtual state partitioner.", e);
+		}
+	}
+
+	/**
+	 * Gets the number of key-groups for the {@link StreamOperator}.
+	 *
+	 * @return the number of key-groups
+	 */
+	public Integer getNumberOfKeyGroups(ClassLoader cl) {
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, NUMBER_OF_KEY_GROUPS, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate virtual state partitioner.", e);
 		}
 	}
 	
@@ -448,6 +483,8 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not instantiate state key serializer from task config.", e);
 		}
 	}
+
+
 	
 	// ------------------------------------------------------------------------
 	//  Miscellansous

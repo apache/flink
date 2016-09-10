@@ -30,18 +30,24 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.netty.message.KvStateRequest;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.memory.MemValueState;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.NetUtils;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -526,6 +532,22 @@ public class KvStateClientTest {
 
 		final int batchSize = 16;
 
+		final int numKeyGroups = 1;
+
+		AbstractStateBackend abstractBackend = new MemoryStateBackend();
+		KvStateRegistry dummyRegistry = new KvStateRegistry();
+		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
+		dummyEnv.setKvStateRegistry(dummyRegistry);
+		KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
+				dummyEnv,
+				new JobID(),
+				"test_op",
+				IntSerializer.INSTANCE,
+				numKeyGroups,
+				new KeyGroupRange(0, 0),
+				dummyRegistry.createTaskRegistry(new JobID(), new JobVertexID()));
+
+
 		final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
 		AtomicKvStateRequestStats clientStats = new AtomicKvStateRequestStats();
@@ -541,11 +563,6 @@ public class KvStateClientTest {
 			// Create state
 			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
 			desc.setQueryable("any");
-
-			MemValueState<Integer, VoidNamespace, Integer> kvState = new MemValueState<>(
-					IntSerializer.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					desc);
 
 			// Create servers
 			KvStateRegistry[] registry = new KvStateRegistry[numServers];
@@ -565,10 +582,17 @@ public class KvStateClientTest {
 
 				server[i].start();
 
+				backend.setCurrentKey(1010 + i);
+
 				// Value per server
-				kvState.setCurrentKey(1010 + i);
-				kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-				kvState.update(201 + i);
+				ValueState<Integer> state = backend.getPartitionedState(VoidNamespace.INSTANCE,
+						VoidNamespaceSerializer.INSTANCE,
+						desc);
+
+				state.update(201 + i);
+
+				// we know it must be a KvStat but this is not exposed to the user via State
+				KvState<?> kvState = (KvState<?>) state;
 
 				// Register KvState (one state instance for all server)
 				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), 0, "any", kvState);

@@ -20,25 +20,18 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-
-import java.io.IOException;
 
 /**
  * Generic implementation of {@link FoldingState} based on a wrapped {@link ValueState}.
  *
- * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
- * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  * @param <W> Generic type that extends both the underlying {@code ValueState} and {@code KvState}.
  */
-public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBackend, W extends ValueState<ACC> & KvState<K, N, ValueState<ACC>, ValueStateDescriptor<ACC>, Backend>>
-	implements FoldingState<T, ACC>, KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> {
+public class GenericFoldingState<N, T, ACC, W extends ValueState<ACC> & KvState<N>>
+	implements FoldingState<T, ACC>, KvState<N> {
 
 	private final W wrappedState;
 	private final FoldFunction<T, ACC> foldFunction;
@@ -60,11 +53,6 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	}
 
 	@Override
-	public void setCurrentKey(K key) {
-		wrappedState.setCurrentKey(key);
-	}
-
-	@Override
 	public void setCurrentNamespace(N namespace) {
 		wrappedState.setCurrentNamespace(namespace);
 	}
@@ -72,26 +60,6 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	@Override
 	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
 		return wrappedState.getSerializedValue(serializedKeyAndNamespace);
-	}
-
-	@Override
-	public KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> snapshot(
-		long checkpointId,
-		long timestamp) throws Exception {
-		KvStateSnapshot<K, N, ValueState<ACC>, ValueStateDescriptor<ACC>, Backend> wrappedSnapshot = wrappedState.snapshot(
-			checkpointId,
-			timestamp);
-		return new Snapshot<>(wrappedSnapshot, foldFunction);
-	}
-
-	@Override
-	public void dispose() {
-		wrappedState.dispose();
-	}
-
-	@Override
-	public FoldingStateDescriptor<T, ACC> getStateDescriptor() {
-		throw new UnsupportedOperationException("Not supported by generic state type");
 	}
 
 	@Override
@@ -108,43 +76,5 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	@Override
 	public void clear() {
 		wrappedState.clear();
-	}
-
-	private static class Snapshot<K, N, T, ACC, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> {
-		private static final long serialVersionUID = 1L;
-
-		private final KvStateSnapshot<K, N, ValueState<ACC>, ValueStateDescriptor<ACC>, Backend> wrappedSnapshot;
-
-		private final FoldFunction<T, ACC> foldFunction;
-
-		public Snapshot(KvStateSnapshot<K, N, ValueState<ACC>, ValueStateDescriptor<ACC>, Backend> wrappedSnapshot,
-			FoldFunction<T, ACC> foldFunction) {
-			this.wrappedSnapshot = wrappedSnapshot;
-			this.foldFunction = foldFunction;
-		}
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> restoreState(
-				Backend stateBackend,
-				TypeSerializer<K> keySerializer,
-				ClassLoader classLoader) throws Exception {
-			return new GenericFoldingState((ValueState<ACC>) wrappedSnapshot.restoreState(stateBackend, keySerializer, classLoader), foldFunction);
-		}
-
-		@Override
-		public void discardState() throws Exception {
-			wrappedSnapshot.discardState();
-		}
-
-		@Override
-		public long getStateSize() throws Exception {
-			return wrappedSnapshot.getStateSize();
-		}
-
-		@Override
-		public void close() throws IOException {
-			wrappedSnapshot.close();
-		}
 	}
 }

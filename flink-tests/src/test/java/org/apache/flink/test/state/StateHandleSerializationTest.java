@@ -18,9 +18,7 @@
 
 package org.apache.flink.test.state;
 
-import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.state.StateHandle;
-
+import org.apache.flink.runtime.state.StateObject;
 import org.junit.Test;
 
 import org.reflections.Reflections;
@@ -34,7 +32,7 @@ import static org.junit.Assert.*;
 public class StateHandleSerializationTest {
 
 	/**
-	 * This test validates that all subclasses of {@link StateHandle} have a proper
+	 * This test validates that all subclasses of {@link StateObject} have a proper
 	 * serial version UID.
 	 */
 	@Test
@@ -46,21 +44,9 @@ public class StateHandleSerializationTest {
 
 			@SuppressWarnings("unchecked")
 			Set<Class<?>> stateHandleImplementations = (Set<Class<?>>) (Set<?>)
-					reflections.getSubTypesOf(StateHandle.class);
+					reflections.getSubTypesOf(StateObject.class);
 
 			for (Class<?> clazz : stateHandleImplementations) {
-				validataSerialVersionUID(clazz);
-			}
-
-			// check all key/value snapshots
-
-			@SuppressWarnings("unchecked")
-			Set<Class<?>> kvStateSnapshotImplementations = (Set<Class<?>>) (Set<?>)
-					reflections.getSubTypesOf(KvStateSnapshot.class);
-
-			System.out.println(kvStateSnapshotImplementations);
-			
-			for (Class<?> clazz : kvStateSnapshotImplementations) {
 				validataSerialVersionUID(clazz);
 			}
 		}
@@ -73,7 +59,7 @@ public class StateHandleSerializationTest {
 	private static void validataSerialVersionUID(Class<?> clazz) {
 		// all non-interface types must have a serial version UID
 		if (!clazz.isInterface()) {
-			assertFalse("Anonymous state handle classes have problematic serialization behavior",
+			assertFalse("Anonymous state handle classes have problematic serialization behavior: " + clazz,
 					clazz.isAnonymousClass());
 
 			try {

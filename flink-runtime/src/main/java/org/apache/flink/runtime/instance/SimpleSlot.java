@@ -21,15 +21,18 @@ package org.apache.flink.runtime.instance;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 
+import javax.annotation.Nullable;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * A SimpleSlot represents a single slot on a TaskManager instance, or a slot within a shared slot.
  *
  * <p>If this slot is part of a {@link SharedSlot}, then the parent attribute will point to that shared slot.
- * If not, then the parent attribute is null.</p>
+ * If not, then the parent attribute is null.
  */
 public class SimpleSlot extends Slot {
 
@@ -43,18 +46,22 @@ public class SimpleSlot extends Slot {
 	private volatile Execution executedTask;
 
 	/** The locality attached to the slot, defining whether the slot was allocated at the desired location. */
-	private Locality locality = Locality.UNCONSTRAINED;
+	private volatile Locality locality = Locality.UNCONSTRAINED;
 
 
 	/**
 	 * Creates a new simple slot that stands alone and does not belong to shared slot.
 	 * 
 	 * @param jobID The ID of the job that the slot is allocated for.
-	 * @param instance The instance that the slot belongs to.
+	 * @param owner The component from which this slot is allocated.
+	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the task slot on the instance.
+	 * @param taskManagerActorGateway The actor gateway to communicate with the TaskManager of this slot   
 	 */
-	public SimpleSlot(JobID jobID, Instance instance, int slotNumber) {
-		super(jobID, instance, slotNumber, null, null);
+	public SimpleSlot(
+			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
+			ActorGateway taskManagerActorGateway) {
+		this(jobID, owner, location, slotNumber, taskManagerActorGateway, null, null);
 	}
 
 	/**
@@ -62,13 +69,18 @@ public class SimpleSlot extends Slot {
 	 * is identified by the given ID..
 	 *
 	 * @param jobID The ID of the job that the slot is allocated for.
-	 * @param instance The instance that the slot belongs to.
+	 * @param owner The component from which this slot is allocated.
+	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the simple slot in its parent shared slot.
 	 * @param parent The parent shared slot.
 	 * @param groupID The ID that identifies the group that the slot belongs to.
 	 */
-	public SimpleSlot(JobID jobID, Instance instance, int slotNumber, SharedSlot parent, AbstractID groupID) {
-		super(jobID, instance, slotNumber, parent, groupID);
+	public SimpleSlot(
+			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
+			ActorGateway taskManagerActorGateway,
+			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
+
+		super(jobID, owner, location, slotNumber, taskManagerActorGateway, parent, groupID);
 	}
 
 	// ------------------------------------------------------------------------
@@ -142,15 +154,12 @@ public class SimpleSlot extends Slot {
 
 	@Override
 	public void releaseSlot() {
-
 		if (!isCanceled()) {
 
 			// kill all tasks currently running in this slot
 			Execution exec = this.executedTask;
 			if (exec != null && !exec.isFinished()) {
-				exec.fail(new Exception(
-						"The slot in which the task was executed has been released. Probably loss of TaskManager "
-								+ getInstance()));
+				exec.fail(new Exception("TaskManager was lost/killed: " + getTaskManagerLocation()));
 			}
 
 			// release directly (if we are directly allocated),
@@ -158,7 +167,7 @@ public class SimpleSlot extends Slot {
 			if (getParent() == null) {
 				// we have to give back the slot to the owning instance
 				if (markCancelled()) {
-					getInstance().returnAllocatedSlot(this);
+					getOwner().returnAllocatedSlot(this);
 				}
 			} else {
 				// we have to ask our parent to dispose us

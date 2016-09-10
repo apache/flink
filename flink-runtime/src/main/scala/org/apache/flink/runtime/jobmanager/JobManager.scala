@@ -49,7 +49,7 @@ import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceMa
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
-import org.apache.flink.runtime.executiongraph.{StatusListenerMessenger, ExecutionGraph, ExecutionJobVertex}
+import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex, StatusListenerMessenger}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
@@ -349,7 +349,7 @@ class JobManager(
       currentResourceManager = Option(msg.resourceManager())
 
       val taskManagerResources = instanceManager.getAllRegisteredInstances.asScala.map(
-        instance => instance.getResourceId).toList.asJava
+        instance => instance.getTaskManagerID).toList.asJava
 
       // confirm registration and send known task managers with their resource ids
       sender ! decorateMessage(new RegisterResourceManagerSuccessful(self, taskManagerResources))
@@ -425,7 +425,6 @@ class JobManager(
         try {
           val instanceID = instanceManager.registerTaskManager(
             taskManager,
-            resourceId,
             connectionInfo,
             hardwareInformation,
             numberOfSlots,
@@ -449,6 +448,7 @@ class JobManager(
 
     case msg: ResourceRemoved =>
       // we're being informed by the resource manager that a resource has become unavailable
+      // note: a Terminated event may already have removed the instance.
       val resourceID = msg.resourceId()
       log.debug(s"Resource has been removed: $resourceID")
 
@@ -478,7 +478,7 @@ class JobManager(
       val client = sender()
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) =>
-          log.info("Registering client for job $jobID")
+          log.info(s"Registering client for job $jobID")
           jobInfo.clients += ((client, listeningBehaviour))
           val listener = new StatusListenerMessenger(client, leaderSessionID.orNull)
           executionGraph.registerJobStatusListener(listener)
@@ -649,7 +649,7 @@ class JobManager(
             val taskId = execution.getVertex.getParallelSubtaskIndex
 
             val host = if (slot != null) {
-              slot.getInstance().getInstanceConnectionInfo.getHostname
+              slot.getTaskManagerLocation().getHostname()
             } else {
               null
             }
@@ -737,29 +737,18 @@ class JobManager(
           sender() ! TriggerSavepointFailure(jobId, new IllegalArgumentException("Unknown job."))
       }
 
-    case DisposeSavepoint(savepointPath, blobKeys) =>
+    case DisposeSavepoint(savepointPath) =>
       val senderRef = sender()
       future {
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
 
-          if (blobKeys.isDefined) {
-            // We don't need a real ID here for the library cache manager
-            val jid = new JobID()
+          val savepoint = savepointStore.loadSavepoint(savepointPath)
 
-            try {
-              libraryCacheManager.registerJob(jid, blobKeys.get, java.util.Collections.emptyList())
-              val classLoader = libraryCacheManager.getClassLoader(jid)
+          log.debug(s"$savepoint")
 
-              // Discard with user code loader
-              savepointStore.disposeSavepoint(savepointPath, classLoader)
-            } finally {
-              libraryCacheManager.unregisterJob(jid)
-            }
-          } else {
-            // Discard with system class loader
-            savepointStore.disposeSavepoint(savepointPath, getClass.getClassLoader)
-          }
+          // Dispose the savepoint
+          savepointStore.disposeSavepoint(savepointPath)
 
           senderRef ! DisposeSavepointSuccess
         } catch {
@@ -1054,7 +1043,7 @@ class JobManager(
 
   /**
     * Handler to be executed when a task manager terminates.
-    * (Akka Deathwatch or notifiction from ResourceManager)
+    * (Akka Deathwatch or notification from ResourceManager)
     *
     * @param taskManager The ActorRef of the taskManager
     */
@@ -1270,7 +1259,6 @@ class JobManager(
             snapshotSettings.getCheckpointTimeout,
             snapshotSettings.getMinPauseBetweenCheckpoints,
             snapshotSettings.getMaxConcurrentCheckpoints,
-            parallelism,
             triggerVertices,
             ackVertices,
             confirmVertices,
@@ -1483,6 +1471,9 @@ class JobManager(
         currentJobs.get(msg.getJobId) match {
           case Some((graph, _)) =>
             try {
+              log.debug(s"Lookup key-value state for job ${msg.getJobId} with registration " +
+                         s"name ${msg.getRegistrationName}.")
+
               val registry = graph.getKvStateLocationRegistry
               val location = registry.getKvStateLocation(msg.getRegistrationName)
               if (location == null) {
@@ -1504,6 +1495,9 @@ class JobManager(
         currentJobs.get(msg.getJobId) match {
           case Some((graph, _)) =>
             try {
+              log.debug(s"Key value state registered for job ${msg.getJobId} under " +
+                         s"name ${msg.getRegistrationName}.")
+
               graph.getKvStateLocationRegistry.notifyKvStateRegistered(
                 msg.getJobVertexId,
                 msg.getKeyGroupIndex,
@@ -2727,7 +2721,7 @@ object JobManager {
       configuration,
       None)
 
-    val archiveProps = Props(archiveClass, archiveCount)
+    val archiveProps = getArchiveProps(archiveClass, archiveCount)
 
     // start the archiver with the given name, or without (avoid name conflicts)
     val archive: ActorRef = archiveActorName match {
@@ -2735,7 +2729,7 @@ object JobManager {
       case None => actorSystem.actorOf(archiveProps)
     }
 
-    val jobManagerProps = Props(
+    val jobManagerProps = getJobManagerProps(
       jobManagerClass,
       configuration,
       executorService,
@@ -2758,6 +2752,45 @@ object JobManager {
     }
 
     (jobManager, archive)
+  }
+
+  def getArchiveProps(archiveClass: Class[_ <: MemoryArchivist], archiveCount: Int): Props = {
+    Props(archiveClass, archiveCount)
+  }
+
+  def getJobManagerProps(
+    jobManagerClass: Class[_ <: JobManager],
+    configuration: Configuration,
+    executorService: ExecutorService,
+    instanceManager: InstanceManager,
+    scheduler: FlinkScheduler,
+    libraryCacheManager: BlobLibraryCacheManager,
+    archive: ActorRef,
+    restartStrategyFactory: RestartStrategyFactory,
+    timeout: FiniteDuration,
+    leaderElectionService: LeaderElectionService,
+    submittedJobGraphStore: SubmittedJobGraphStore,
+    checkpointRecoveryFactory: CheckpointRecoveryFactory,
+    savepointStore: SavepointStore,
+    jobRecoveryTimeout: FiniteDuration,
+    metricsRegistry: Option[FlinkMetricRegistry]): Props = {
+
+    Props(
+      jobManagerClass,
+      configuration,
+      executorService,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      archive,
+      restartStrategyFactory,
+      timeout,
+      leaderElectionService,
+      submittedJobGraphStore,
+      checkpointRecoveryFactory,
+      savepointStore,
+      jobRecoveryTimeout,
+      metricsRegistry)
   }
 
   // --------------------------------------------------------------------------

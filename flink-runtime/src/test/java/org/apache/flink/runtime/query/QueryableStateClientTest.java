@@ -26,14 +26,19 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.netty.AtomicKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateClient;
 import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.query.netty.UnknownKvStateID;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.memory.MemValueState;
+import org.apache.flink.runtime.state.heap.HeapValueState;
+import org.apache.flink.runtime.state.heap.StateTable;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.MathUtils;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -226,6 +231,7 @@ public class QueryableStateClientTest {
 		// Config
 		int numServers = 2;
 		int numKeys = 1024;
+		int numKeyGroups = 1;
 
 		JobID jobId = new JobID();
 		JobVertexID jobVertexId = new JobVertexID();
@@ -237,10 +243,22 @@ public class QueryableStateClientTest {
 		KvStateClient networkClient = null;
 		AtomicKvStateRequestStats networkClientStats = new AtomicKvStateRequestStats();
 
+		MemoryStateBackend backend = new MemoryStateBackend();
+		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
+
+		KeyedStateBackend<Integer> keyedStateBackend = backend.createKeyedStateBackend(dummyEnv,
+				new JobID(),
+				"test_op",
+				IntSerializer.INSTANCE,
+				numKeyGroups,
+				new KeyGroupRange(0, 0),
+				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+
+
 		try {
 			KvStateRegistry[] registries = new KvStateRegistry[numServers];
 			KvStateID[] kvStateIds = new KvStateID[numServers];
-			List<MemValueState<Integer, VoidNamespace, Integer>> kvStates = new ArrayList<>();
+			List<HeapValueState<Integer, VoidNamespace, Integer>> kvStates = new ArrayList<>();
 
 			// Start the servers
 			for (int i = 0; i < numServers; i++) {
@@ -249,11 +267,14 @@ public class QueryableStateClientTest {
 				servers[i] = new KvStateServer(InetAddress.getLocalHost(), 0, 1, 1, registries[i], serverStats[i]);
 				servers[i].start();
 
+
 				// Register state
-				MemValueState<Integer, VoidNamespace, Integer> kvState = new MemValueState<>(
+				HeapValueState<Integer, VoidNamespace, Integer> kvState = new HeapValueState<>(
+						keyedStateBackend,
+						new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null),
+						new StateTable<Integer, VoidNamespace, Integer>(IntSerializer.INSTANCE, VoidNamespaceSerializer.INSTANCE,  new KeyGroupRange(0, 1)),
 						IntSerializer.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE,
-						new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null));
+						VoidNamespaceSerializer.INSTANCE);
 
 				kvStates.add(kvState);
 
@@ -271,9 +292,9 @@ public class QueryableStateClientTest {
 				int targetKeyGroupIndex = MathUtils.murmurHash(key) % numServers;
 				expectedRequests[targetKeyGroupIndex]++;
 
-				MemValueState<Integer, VoidNamespace, Integer> kvState = kvStates.get(targetKeyGroupIndex);
+				HeapValueState<Integer, VoidNamespace, Integer> kvState = kvStates.get(targetKeyGroupIndex);
 
-				kvState.setCurrentKey(key);
+				keyedStateBackend.setCurrentKey(key);
 				kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
 				kvState.update(1337 + key);
 			}

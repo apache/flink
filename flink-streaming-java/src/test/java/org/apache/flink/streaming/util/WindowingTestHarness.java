@@ -22,6 +22,9 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -30,7 +33,6 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -83,8 +85,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 		operator.setInputType(inputType, executionConfig);
 
 		timeServiceProvider = new TestTimeServiceProvider();
-		testHarness = new OneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider);
-		testHarness.configureForKeyedStream(keySelector, keyType);
+		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider, keySelector, keyType);
 	}
 
 	/**
@@ -167,20 +168,20 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 	/**
 	 * Takes a snapshot of the current state of the operator. This can be used to test fault-tolerance.
 	 */
-	public StreamTaskState snapshot(long checkpointId, long timestamp) throws Exception {
+	public StreamStateHandle snapshot(long checkpointId, long timestamp) throws Exception {
 		return testHarness.snapshot(checkpointId, timestamp);
 	}
 
 	/**
-	 * Resumes execution from a provided {@link StreamTaskState}. This is used to test recovery after a failure.
+	 * Resumes execution from a provided {@link StreamStateHandle}. This is used to test recovery after a failure.
 	 */
-	public void restore(StreamTaskState snapshot, long recoveryTime) throws Exception {
+	public void restore(StreamStateHandle stateHandle) throws Exception {
 		Preconditions.checkArgument(!isOpen,
 			"You are trying to restore() while the operator is still open. " +
 				"Please call close() first.");
 
 		testHarness.setup();
-		testHarness.restore(snapshot, recoveryTime);
+		testHarness.restore(stateHandle);
 		openOperator();
 	}
 

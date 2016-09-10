@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV0;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.util.ExceptionUtils;
@@ -53,10 +53,9 @@ public class PendingSavepoint extends PendingCheckpoint {
 			long checkpointId,
 			long checkpointTimestamp,
 			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
-			ClassLoader userCodeClassLoader,
 			SavepointStore store)
 	{
-		super(jobId, checkpointId, checkpointTimestamp, verticesToConfirm, userCodeClassLoader, false);
+		super(jobId, checkpointId, checkpointTimestamp, verticesToConfirm, false);
 
 		this.store = checkNotNull(store);
 		this.onCompletionPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
@@ -77,7 +76,7 @@ public class PendingSavepoint extends PendingCheckpoint {
 
 		// now store the checkpoint externally as a savepoint
 		try {
-			Savepoint savepoint = new SavepointV0(
+			Savepoint savepoint = new SavepointV1(
 					completedCheckpoint.getCheckpointID(),
 					completedCheckpoint.getTaskStates().values());
 			

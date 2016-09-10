@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.io;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
@@ -38,6 +37,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.junit.Assert.*;
@@ -359,7 +359,7 @@ public class FileInputFormatTest {
 			format.configure(configuration);
 			format.setFilesFilter(new GlobFilePathFilter(
 				Collections.singletonList("**"),
-				Lists.newArrayList("**/another_file.bin", "**/dataFile1.txt")
+				Arrays.asList(new String[] {"**/another_file.bin", "**/dataFile1.txt"})
 			));
 			FileInputSplit[] splits = format.createInputSplits(1);
 

@@ -51,6 +51,11 @@ public class HadoopDataOutputStream extends FSDataOutputStream {
 	}
 
 	@Override
+	public long getPos() throws IOException {
+		return fdos.getPos();
+	}
+
+	@Override
 	public void flush() throws IOException {
 		if (HFLUSH_METHOD != null) {
 			try {

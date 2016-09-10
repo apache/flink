@@ -265,6 +265,11 @@ abstract class TableEnvironment(val config: TableConfig) {
         throw new TableException(s"Type $tpe lacks explicit field naming")
     }
     val fieldIndexes = fieldNames.indices.toArray
+
+    if (fieldNames.contains("*")) {
+      throw new ValidationException("Field name can not be '*'.")
+    }
+
     (fieldNames, fieldIndexes)
   }
 
@@ -336,6 +341,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     val (fieldIndexes, fieldNames) = indexedNames.unzip
+
+    if (fieldNames.contains("*")) {
+      throw new ValidationException("Field name can not be '*'.")
+    }
+
     (fieldNames.toArray, fieldIndexes.toArray)
   }
 

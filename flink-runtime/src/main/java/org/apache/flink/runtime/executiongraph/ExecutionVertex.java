@@ -27,8 +27,8 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -41,9 +41,10 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import org.slf4j.Logger;
 
@@ -95,8 +96,6 @@ public class ExecutionVertex {
 	private volatile CoLocationConstraint locationConstraint;
 
 	private volatile Execution currentExecution;	// this field must never be null
-
-	private volatile List<Instance> locationConstraintInstances;
 
 	private volatile boolean scheduleLocalOnly;
 
@@ -183,6 +182,10 @@ public class ExecutionVertex {
 		return this.jobVertex.getParallelism();
 	}
 
+	public int getMaxParallelism() {
+		return this.jobVertex.getMaxParallelism();
+	}
+
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
 	}
@@ -222,10 +225,10 @@ public class ExecutionVertex {
 		return currentExecution.getAssignedResource();
 	}
 
-	public InstanceConnectionInfo getCurrentAssignedResourceLocation() {
+	public TaskManagerLocation getCurrentAssignedResourceLocation() {
 		return currentExecution.getAssignedResourceLocation();
 	}
-	
+
 	public Execution getPriorExecutionAttempt(int attemptNumber) {
 		if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
 			return priorExecutions.get(attemptNumber);
@@ -234,7 +237,7 @@ public class ExecutionVertex {
 			throw new IllegalArgumentException("attempt does not exist");
 		}
 	}
-	
+
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}
@@ -271,7 +274,7 @@ public class ExecutionVertex {
 		this.inputEdges[inputNumber] = edges;
 
 		// add the consumers to the source
-		// for now (until the receiver initiated handshake is in place), we need to register the 
+		// for now (until the receiver initiated handshake is in place), we need to register the
 		// edges as the execution graph
 		for (ExecutionEdge ee : edges) {
 			ee.getSource().addConsumer(ee, consumerNumber);
@@ -346,10 +349,6 @@ public class ExecutionVertex {
 		}
 	}
 
-	public void setLocationConstraintHosts(List<Instance> instances) {
-		this.locationConstraintInstances = instances;
-	}
-
 	public void setScheduleLocalOnly(boolean scheduleLocalOnly) {
 		if (scheduleLocalOnly && inputEdges != null && inputEdges.length > 0) {
 			throw new IllegalArgumentException("Strictly local scheduling is only supported for sources.");
@@ -370,20 +369,14 @@ public class ExecutionVertex {
 	 *
 	 * @return The preferred locations for this vertex execution, or null, if there is no preference.
 	 */
-	public Iterable<Instance> getPreferredLocations() {
-		// if we have hard location constraints, use those
-		List<Instance> constraintInstances = this.locationConstraintInstances;
-		if (constraintInstances != null && !constraintInstances.isEmpty()) {
-			return constraintInstances;
-		}
-
+	public Iterable<TaskManagerLocation> getPreferredLocations() {
 		// otherwise, base the preferred locations on the input connections
 		if (inputEdges == null) {
 			return Collections.emptySet();
 		}
 		else {
-			Set<Instance> locations = new HashSet<Instance>();
-			Set<Instance> inputLocations = new HashSet<Instance>();
+			Set<TaskManagerLocation> locations = new HashSet<>();
+			Set<TaskManagerLocation> inputLocations = new HashSet<>();
 
 			// go over all inputs
 			for (int i = 0; i < inputEdges.length; i++) {
@@ -396,7 +389,7 @@ public class ExecutionVertex {
 						SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
 						if (sourceSlot != null) {
 							// add input location
-							inputLocations.add(sourceSlot.getInstance());
+							inputLocations.add(sourceSlot.getTaskManagerLocation());
 							// inputs which have too many distinct sources are not considered
 							if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
 								inputLocations.clear();
@@ -450,8 +443,8 @@ public class ExecutionVertex {
 		}
 	}
 
-	public boolean scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
-		return this.currentExecution.scheduleForExecution(scheduler, queued);
+	public boolean scheduleForExecution(SlotProvider slotProvider, boolean queued) throws NoResourceAvailableException {
+		return this.currentExecution.scheduleForExecution(slotProvider, queued);
 	}
 
 	public void deployToSlot(SimpleSlot slot) throws JobException {
@@ -482,14 +475,14 @@ public class ExecutionVertex {
 			ExecutionAttemptID attemptID,
 			ActorGateway sender) {
 		Execution exec = getCurrentExecutionAttempt();
-		
+
 		// check that this is for the correct execution attempt
 		if (exec != null && exec.getAttemptId().equals(attemptID)) {
 			SimpleSlot slot = exec.getAssignedResource();
-			
+
 			// send only if we actually have a target
 			if (slot != null) {
-				ActorGateway gateway = slot.getInstance().getActorGateway();
+				ActorGateway gateway = slot.getTaskManagerActorGateway();
 				if (gateway != null) {
 					if (sender == null) {
 						gateway.tell(message);
@@ -513,7 +506,7 @@ public class ExecutionVertex {
 			return false;
 		}
 	}
-	
+
 	/**
 	 * Schedules or updates the consumer tasks of the result partition with the given ID.
 	 */
@@ -565,7 +558,6 @@ public class ExecutionVertex {
 		this.resultPartitions = null;
 		this.inputEdges = null;
 		this.locationConstraint = null;
-		this.locationConstraintInstances = null;
 	}
 
 	public void cachePartitionInfo(PartialInputChannelDeploymentDescriptor partitionInfo){
@@ -629,13 +621,14 @@ public class ExecutionVertex {
 
 	/**
 	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
-	 * 
+	 *
 	 * TODO: This should actually be in the EXECUTION
 	 */
 	TaskDeploymentDescriptor createDeploymentDescriptor(
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
-			SerializedValue<StateHandle<?>> operatorState,
+			ChainedStateHandle<StreamStateHandle> operatorState,
+			List<KeyGroupsStateHandle> keyGroupStates,
 			int attemptNumber) {
 
 		// Produced intermediate results
@@ -675,6 +668,7 @@ public class ExecutionVertex {
 			executionId,
 			serializedConfig,
 			getTaskName(),
+			getMaxParallelism(),
 			subTaskIndex,
 			getTotalNumberOfParallelSubtasks(),
 			attemptNumber,
@@ -686,7 +680,8 @@ public class ExecutionVertex {
 			jarFiles,
 			classpaths,
 			targetSlot.getRoot().getSlotNumber(),
-			operatorState);
+			operatorState,
+			keyGroupStates);
 	}
 
 	// --------------------------------------------------------------------------------------------

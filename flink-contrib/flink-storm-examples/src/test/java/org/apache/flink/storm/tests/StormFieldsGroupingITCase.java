@@ -20,8 +20,6 @@ package org.apache.flink.storm.tests;
 import backtype.storm.Config;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.tests.operators.FiniteRandomSpout;
@@ -29,6 +27,13 @@ import org.apache.flink.storm.tests.operators.TaskIdBolt;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.util.MathUtils;
+import org.junit.Assert;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * This test relies on the hash function used by the {@link DataStream#keyBy}, which is
@@ -49,9 +54,30 @@ public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory("4> -1155484576\n" + "3> 1033096058\n" + "3> -1930858313\n" +
-			"4> 1431162155\n" + "3> -1557280266\n" + "4> -1728529858\n" + "3> 1654374947\n" +
-			"3> -65105105\n" + "3> -518907128\n" + "4> -252332814\n", this.resultPath);
+		List<String> expectedResults = Arrays.asList(
+				"-1155484576", "1033096058", "-1930858313", "1431162155", "-1557280266", "-1728529858", "1654374947",
+				"-65105105", "-518907128", "-252332814");
+
+		List<String> actualResults = new ArrayList<>();
+		readAllResultLines(actualResults, resultPath, new String[0], false);
+
+		//remove potential operator id prefix
+		for(int i = 0; i < actualResults.size(); ++i) {
+			String s = actualResults.get(i);
+			if(s.contains(">")) {
+				s = s.substring(s.indexOf(">") + 2);
+				actualResults.set(i, s);
+			}
+		}
+
+		Assert.assertEquals(expectedResults.size(),actualResults.size());
+		Collections.sort(actualResults);
+		Collections.sort(expectedResults);
+		System.out.println(actualResults);
+		for(int i=0; i< actualResults.size(); ++i) {
+			//compare against actual results with removed prefex (as it depends e.g. on the hash function used)
+			Assert.assertEquals(expectedResults.get(i), actualResults.get(i));
+		}
 	}
 
 	@Override

@@ -58,7 +58,7 @@ public class TaskKvStateRegistry {
 	 *                         descriptor used to create the KvState instance)
 	 * @param kvState          The
 	 */
-	public void registerKvState(int keyGroupIndex, String registrationName, KvState<?, ?, ?, ?, ?> kvState) {
+	public void registerKvState(int keyGroupIndex, String registrationName, KvState<?> kvState) {
 		KvStateID kvStateId = registry.registerKvState(jobId, jobVertexId, keyGroupIndex, registrationName, kvState);
 		registeredKvStates.add(new KvStateInfo(keyGroupIndex, registrationName, kvStateId));
 	}

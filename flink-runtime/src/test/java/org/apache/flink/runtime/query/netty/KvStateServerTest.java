@@ -31,18 +31,22 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.KvStateID;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestResult;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.memory.MemValueState;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -52,6 +56,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class KvStateServerTest {
 
@@ -74,7 +79,6 @@ public class KvStateServerTest {
 	public void testSimpleRequest() throws Exception {
 		KvStateServer server = null;
 		Bootstrap bootstrap = null;
-
 		try {
 			KvStateRegistry registry = new KvStateRegistry();
 			KvStateRequestStats stats = new AtomicKvStateRequestStats();
@@ -83,27 +87,38 @@ public class KvStateServerTest {
 			server.start();
 
 			KvStateServerAddress serverAddress = server.getAddress();
-
-			// Register state
-			MemValueState<Integer, VoidNamespace, Integer> kvState = new MemValueState<>(
-					IntSerializer.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null));
-
-			KvStateID kvStateId = registry.registerKvState(
+			int numKeyGroups = 1;
+			AbstractStateBackend abstractBackend = new MemoryStateBackend();
+			DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
+			dummyEnv.setKvStateRegistry(registry);
+			KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
+					dummyEnv,
 					new JobID(),
-					new JobVertexID(),
-					0,
-					"vanilla",
-					kvState);
+					"test_op",
+					IntSerializer.INSTANCE,
+					numKeyGroups,
+					new KeyGroupRange(0, 0),
+					registry.createTaskRegistry(new JobID(), new JobVertexID()));
+
+			final KvStateServerHandlerTest.TestRegistryListener registryListener =
+					new KvStateServerHandlerTest.TestRegistryListener();
+
+			registry.registerListener(registryListener);
+
+			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
+			desc.setQueryable("vanilla");
+
+			ValueState<Integer> state = backend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					desc);
 
 			// Update KvState
 			int expectedValue = 712828289;
 
 			int key = 99812822;
-			kvState.setCurrentKey(key);
-			kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-			kvState.update(expectedValue);
+			backend.setCurrentKey(key);
+			state.update(expectedValue);
 
 			// Request
 			byte[] serializedKeyAndNamespace = KvStateRequestSerializer.serializeKeyAndNamespace(
@@ -128,10 +143,12 @@ public class KvStateServerTest {
 					.sync().channel();
 
 			long requestId = Integer.MAX_VALUE + 182828L;
+
+			assertTrue(registryListener.registrationName.equals("vanilla"));
 			ByteBuf request = KvStateRequestSerializer.serializeKvStateRequest(
 					channel.alloc(),
 					requestId,
-					kvStateId,
+					registryListener.kvStateId,
 					serializedKeyAndNamespace);
 
 			channel.writeAndFlush(request);

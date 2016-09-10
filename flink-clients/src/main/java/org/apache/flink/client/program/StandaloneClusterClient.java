@@ -41,6 +41,9 @@ public class StandaloneClusterClient extends ClusterClient {
 		super(config);
 	}
 
+	@Override
+	public void waitForClusterToBeReady() {}
+
 
 	@Override
 	public String getWebInterfaceURL() {

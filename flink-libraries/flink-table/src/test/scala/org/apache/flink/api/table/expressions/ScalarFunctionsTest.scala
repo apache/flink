@@ -34,6 +34,36 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test
+  def testOverlay(): Unit = {
+    testAllApis(
+      "xxxxxtest".overlay("xxxx", 6),
+      "'xxxxxtest'.overlay('xxxx', 6)",
+      "OVERLAY('xxxxxtest' PLACING 'xxxx' FROM 6)",
+      "xxxxxxxxx")
+
+    testAllApis(
+      "xxxxxtest".overlay("xxxx", 6, 2),
+      "'xxxxxtest'.overlay('xxxx', 6, 2)",
+      "OVERLAY('xxxxxtest' PLACING 'xxxx' FROM 6 FOR 2)",
+      "xxxxxxxxxst")
+  }
+
+  @Test
+  def testPosition(): Unit = {
+    testAllApis(
+      "test".position("xxxtest"),
+      "'test'.position('xxxtest')",
+      "POSITION('test' IN 'xxxtest')",
+      "4")
+
+    testAllApis(
+      "testx".position("xxxtest"),
+      "'testx'.position('xxxtest')",
+      "POSITION('testx' IN 'xxxtest')",
+      "0")
+  }
+
+  @Test
   def testSubstring(): Unit = {
     testAllApis(
       'f0.substring(2),
@@ -579,10 +609,250 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "2")
   }
 
+  @Test
+  def testTemporalFloor(): Unit = {
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.YEAR),
+      "f18.floor(YEAR)",
+      "FLOOR(f18 TO YEAR)",
+      "1996-01-01 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.MONTH),
+      "f18.floor(MONTH)",
+      "FLOOR(f18 TO MONTH)",
+      "1996-11-01 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.DAY),
+      "f18.floor(DAY)",
+      "FLOOR(f18 TO DAY)",
+      "1996-11-10 00:00:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.MINUTE),
+      "f18.floor(MINUTE)",
+      "FLOOR(f18 TO MINUTE)",
+      "1996-11-10 06:55:00.0")
+
+    testAllApis(
+      'f18.floor(TimeIntervalUnit.SECOND),
+      "f18.floor(SECOND)",
+      "FLOOR(f18 TO SECOND)",
+      "1996-11-10 06:55:44.0")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.HOUR),
+      "f17.floor(HOUR)",
+      "FLOOR(f17 TO HOUR)",
+      "06:00:00")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.MINUTE),
+      "f17.floor(MINUTE)",
+      "FLOOR(f17 TO MINUTE)",
+      "06:55:00")
+
+    testAllApis(
+      'f17.floor(TimeIntervalUnit.SECOND),
+      "f17.floor(SECOND)",
+      "FLOOR(f17 TO SECOND)",
+      "06:55:44")
+
+    testAllApis(
+      'f16.floor(TimeIntervalUnit.YEAR),
+      "f16.floor(YEAR)",
+      "FLOOR(f16 TO YEAR)",
+      "1996-01-01")
+
+    testAllApis(
+      'f16.floor(TimeIntervalUnit.MONTH),
+      "f16.floor(MONTH)",
+      "FLOOR(f16 TO MONTH)",
+      "1996-11-01")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.YEAR),
+      "f18.ceil(YEAR)",
+      "CEIL(f18 TO YEAR)",
+      "1997-01-01 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.MONTH),
+      "f18.ceil(MONTH)",
+      "CEIL(f18 TO MONTH)",
+      "1996-12-01 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.DAY),
+      "f18.ceil(DAY)",
+      "CEIL(f18 TO DAY)",
+      "1996-11-11 00:00:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.MINUTE),
+      "f18.ceil(MINUTE)",
+      "CEIL(f18 TO MINUTE)",
+      "1996-11-10 06:56:00.0")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.SECOND),
+      "f18.ceil(SECOND)",
+      "CEIL(f18 TO SECOND)",
+      "1996-11-10 06:55:45.0")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.HOUR),
+      "f17.ceil(HOUR)",
+      "CEIL(f17 TO HOUR)",
+      "07:00:00")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.MINUTE),
+      "f17.ceil(MINUTE)",
+      "CEIL(f17 TO MINUTE)",
+      "06:56:00")
+
+    testAllApis(
+      'f17.ceil(TimeIntervalUnit.SECOND),
+      "f17.ceil(SECOND)",
+      "CEIL(f17 TO SECOND)",
+      "06:55:44")
+
+    testAllApis(
+      'f16.ceil(TimeIntervalUnit.YEAR),
+      "f16.ceil(YEAR)",
+      "CEIL(f16 TO YEAR)",
+      "1996-01-01")
+
+    testAllApis(
+      'f16.ceil(TimeIntervalUnit.MONTH),
+      "f16.ceil(MONTH)",
+      "CEIL(f16 TO MONTH)",
+      "1996-11-01")
+  }
+
+  @Test
+  def testIsTrueIsFalse(): Unit = {
+    testAllApis(
+      'f1.isTrue,
+      "f1.isTrue",
+      "f1 IS TRUE",
+      "true")
+
+    testAllApis(
+      'f21.isTrue,
+      "f21.isTrue",
+      "f21 IS TRUE",
+      "false")
+
+    testAllApis(
+      false.isFalse,
+      "false.isFalse",
+      "FALSE IS FALSE",
+      "true")
+
+    testAllApis(
+      'f21.isFalse,
+      "f21.isFalse",
+      "f21 IS FALSE",
+      "false")
+
+    testAllApis(
+      !'f1.isTrue,
+      "!f1.isTrue",
+      "f1 IS NOT TRUE",
+      "false")
+
+    testAllApis(
+      !'f21.isTrue,
+      "!f21.isTrue",
+      "f21 IS NOT TRUE",
+      "true")
+
+    testAllApis(
+      !false.isFalse,
+      "!false.isFalse",
+      "FALSE IS NOT FALSE",
+      "false")
+
+    testAllApis(
+      !'f21.isFalse,
+      "!f21.isFalse",
+      "f21 IS NOT FALSE",
+      "true")
+  }
+
+  @Test
+  def testCurrentTimePoint(): Unit = {
+
+    // current time points are non-deterministic
+    // we just test the format of the output
+    // manual test can be found in NonDeterministicTests
+
+    testAllApis(
+      currentDate().cast(Types.STRING).charLength() >= 5,
+      "currentDate().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR)) >= 5",
+      "true")
+
+    testAllApis(
+      currentTime().cast(Types.STRING).charLength() >= 5,
+      "currentTime().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR)) >= 5",
+      "true")
+
+    testAllApis(
+      currentTimestamp().cast(Types.STRING).charLength() >= 12,
+      "currentTimestamp().cast(STRING).charLength() >= 12",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 12",
+      "true")
+
+    testAllApis(
+      localTimestamp().cast(Types.STRING).charLength() >= 12,
+      "localTimestamp().cast(STRING).charLength() >= 12",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 12",
+      "true")
+
+    testAllApis(
+      localTime().cast(Types.STRING).charLength() >= 5,
+      "localTime().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR)) >= 5",
+      "true")
+
+    // comparisons are deterministic
+    testAllApis(
+      localTimestamp() === localTimestamp(),
+      "localTimestamp() === localTimestamp()",
+      "LOCALTIMESTAMP = LOCALTIMESTAMP",
+      "true")
+  }
+
+  @Test
+  def testQuarter(): Unit = {
+    testAllApis(
+      "1997-01-27".toDate.quarter(),
+      "'1997-01-27'.toDate.quarter()",
+      "QUARTER(DATE '1997-01-27')",
+      "1")
+
+    testAllApis(
+      "1997-04-27".toDate.quarter(),
+      "'1997-04-27'.toDate.quarter()",
+      "QUARTER(DATE '1997-04-27')",
+      "2")
+
+    testAllApis(
+      "1997-12-31".toDate.quarter(),
+      "'1997-12-31'.toDate.quarter()",
+      "QUARTER(DATE '1997-12-31')",
+      "4")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(21)
+    val testData = new Row(22)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -604,6 +874,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(18, Timestamp.valueOf("1996-11-10 06:55:44.333"))
     testData.setField(19, 1467012213000L) // +16979 07:23:33.000
     testData.setField(20, 25) // +2-01
+    testData.setField(21, null)
     testData
   }
 
@@ -629,6 +900,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.TIME,
       Types.TIMESTAMP,
       Types.INTERVAL_MILLIS,
-      Types.INTERVAL_MONTHS)).asInstanceOf[TypeInformation[Any]]
+      Types.INTERVAL_MONTHS,
+      Types.BOOLEAN)).asInstanceOf[TypeInformation[Any]]
   }
 }

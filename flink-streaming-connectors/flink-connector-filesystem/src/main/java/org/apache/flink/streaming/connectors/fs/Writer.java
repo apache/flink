@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -25,7 +26,7 @@ import java.io.Serializable;
 
 /**
  * An implementation of {@code Writer} is used in conjunction with a
- * {@link RollingSink} to perform the actual
+ * {@link BucketingSink} to perform the actual
  * writing to the bucket files.
  *
  * @param <T> The type of the elements that are being written by the sink.

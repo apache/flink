@@ -48,7 +48,6 @@ class ApplicationClient(
   with LeaderSessionMessageFilter
   with LogMessages
   with LeaderRetrievalListener{
-  import context._
 
   val log = Logger(getClass)
 
@@ -60,7 +59,6 @@ class ApplicationClient(
   var pollingTimer: Option[Cancellable] = None
   var running = false
   var messagesQueue : mutable.Queue[InfoMessage] = mutable.Queue[InfoMessage]()
-  var latestClusterStatus : Option[GetClusterStatusResponse] = None
   var stopMessageReceiver : Option[ActorRef] = None
 
   var leaderSessionID: Option[UUID] = None
@@ -136,18 +134,7 @@ class ApplicationClient(
       // The job manager acts as a proxy between the client and the resource managert
       val jm = sender()
       log.info(s"Successfully registered at the ResourceManager using JobManager $jm")
-
       yarnJobManager = Some(jm)
-
-      // schedule a periodic status report from the JobManager
-      // request the number of task managers and slots from the job manager
-      pollingTimer = Some(
-        context.system.scheduler.schedule(
-          INITIAL_POLLING_DELAY,
-          WAIT_FOR_YARN_INTERVAL,
-          yarnJobManager.get,
-          decorateMessage(GetClusterStatus.getInstance()))
-      )
 
     case JobManagerLeaderAddress(jobManagerAkkaURL, newLeaderSessionID) =>
       log.info(s"Received address of new leader $jobManagerAkkaURL with session ID" +
@@ -190,20 +177,6 @@ class ApplicationClient(
             // try once more; we might have been connected in the meantime
             self.tell(msg, originalSender)
           }(context.dispatcher)
-      }
-
-    // handle the responses from the PollYarnClusterStatus messages to the yarn job mgr
-    case status: GetClusterStatusResponse =>
-      latestClusterStatus = Some(status)
-
-    // locally get cluster status
-    case LocalGetYarnClusterStatus =>
-      sender() ! decorateMessage(latestClusterStatus)
-
-    // Forward message to Application Master
-    case LocalStopAMAfterJob(jobID) =>
-      yarnJobManager foreach {
-        _ forward decorateMessage(new ShutdownClusterAfterJob(jobID))
       }
 
     // -----------------  handle messages from the cluster -------------------

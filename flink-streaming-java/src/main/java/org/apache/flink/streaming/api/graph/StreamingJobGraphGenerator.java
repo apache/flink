@@ -289,6 +289,21 @@ public class StreamingJobGraphGenerator {
 
 		if (parallelism > 0) {
 			jobVertex.setParallelism(parallelism);
+		} else {
+			parallelism = jobVertex.getParallelism();
+		}
+
+		int maxParallelism = streamNode.getMaxParallelism();
+
+		// the maximum parallelism specifies the upper bound for the parallelism
+		if (parallelism > maxParallelism) {
+			// the parallelism should always be smaller or equal than the max parallelism
+			throw new IllegalStateException("The maximum parallelism (" + maxParallelism + ") of " +
+				"the stream node " + streamNode + " is smaller than the parallelism (" +
+				parallelism + "). Increase the maximum parallelism or decrease the parallelism of" +
+				"this operator.");
+		} else {
+			jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -325,7 +340,7 @@ public class StreamingJobGraphGenerator {
 		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
 		
 		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
-		
+
 		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
 		if (ceckpointCfg.isCheckpointingEnabled()) {
@@ -339,7 +354,12 @@ public class StreamingJobGraphGenerator {
 		config.setStatePartitioner(0, vertex.getStatePartitioner1());
 		config.setStatePartitioner(1, vertex.getStatePartitioner2());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
-		
+
+		// only set the max parallelism if the vertex uses partitioned state (= KeyedStream).
+		if (vertex.getStatePartitioner1() != null) {
+			config.setNumberOfKeyGroups(vertex.getMaxParallelism());
+		}
+
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
 		if (vertexClass.equals(StreamIterationHead.class)
@@ -724,8 +744,6 @@ public class StreamingJobGraphGenerator {
 		// the generated hash codes depend on the ordering of the nodes in the
 		// stream graph.
 		hasher.putInt(id);
-
-		hasher.putInt(node.getParallelism());
 
 		if (node.getOperator() instanceof AbstractUdfStreamOperator) {
 			String udfClassName = ((AbstractUdfStreamOperator<?, ?>) node.getOperator())

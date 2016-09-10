@@ -23,14 +23,17 @@ import com.codahale.metrics.Reporter;
 import com.codahale.metrics.ScheduledReporter;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkCounterWrapper;
 import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkGaugeWrapper;
 import org.apache.flink.dropwizard.metrics.FlinkHistogramWrapper;
+import org.apache.flink.dropwizard.metrics.FlinkMeterWrapper;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
@@ -67,6 +70,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	private final Map<Gauge<?>, String> gauges = new HashMap<>();
 	private final Map<Counter, String> counters = new HashMap<>();
 	private final Map<Histogram, String> histograms = new HashMap<>();
+	private final Map<Meter, String> meters = new HashMap<>();
 
 	// ------------------------------------------------------------------------
 
@@ -81,6 +85,10 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	// used for testing purposes
 	Map<Counter, String> getCounters() {
 		return counters;
+	}
+
+	Map<Meter, String> getMeters() {
+		return meters;
 	}
 
 	// ------------------------------------------------------------------------
@@ -118,9 +126,18 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 				histograms.put(histogram, fullName);
 
 				if (histogram instanceof DropwizardHistogramWrapper) {
-					registry.register(fullName, ((DropwizardHistogramWrapper) histogram).getDropwizarHistogram());
+					registry.register(fullName, ((DropwizardHistogramWrapper) histogram).getDropwizardHistogram());
 				} else {
 					registry.register(fullName, new FlinkHistogramWrapper(histogram));
+				}
+			} else if (metric instanceof Meter) {
+				Meter meter = (Meter) metric;
+				meters.put(meter, fullName);
+
+				if (meter instanceof DropwizardMeterWrapper) {
+					registry.register(fullName, ((DropwizardMeterWrapper) meter).getDropwizardMeter());
+				} else {
+					registry.register(fullName, new FlinkMeterWrapper(meter));
 				}
 			} else {
 				log.warn("Cannot add metric of type {}. This indicates that the reporter " +

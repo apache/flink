@@ -44,6 +44,7 @@ import static java.util.Objects.requireNonNull;
  * <p>Subclasses must correctly implement {@link #equals(Object)} and {@link #hashCode()}.
  *
  * @param <S> The type of the State objects created from this {@code StateDescriptor}.
+ * @param <T> The type of the value of the state object described by this state descriptor.
  */
 @PublicEvolving
 public abstract class StateDescriptor<S extends State, T> implements Serializable {

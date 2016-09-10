@@ -628,6 +628,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 						"yarn application -kill " + yarnCluster.getApplicationId() + System.lineSeparator() +
 						"Please also note that the temporary files of the YARN session in {} will not be removed.",
 						yarnDescriptor.getSessionFilesDir());
+				yarnCluster.waitForClusterToBeReady();
 				yarnCluster.disconnect();
 			} else {
 				runInteractiveCli(yarnCluster, acceptInteractiveInput);

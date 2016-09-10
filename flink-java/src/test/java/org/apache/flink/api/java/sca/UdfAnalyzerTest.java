@@ -1101,7 +1101,7 @@ public class UdfAnalyzerTest {
 	public static class Reduce2 implements ReduceFunction<MyPojo> {
 		@Override
 		public MyPojo reduce(MyPojo value1, MyPojo value2) throws Exception {
-			if (value1.field == "") {
+			if (value1.field != null && value1.field.isEmpty()) {
 				return value2;
 			}
 			return value1;

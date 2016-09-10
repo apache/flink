@@ -23,7 +23,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.io.StringWriter;
@@ -70,7 +70,7 @@ public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler {
 			gen.writeStartObject();
 			gen.writeNumberField("subtask", num++);
 
-			InstanceConnectionInfo location = vertex.getCurrentAssignedResourceLocation();
+			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname();
 			gen.writeStringField("host", locationString);
 

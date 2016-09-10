@@ -25,13 +25,12 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.runtime.client.JobRetrievalException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -42,7 +41,6 @@ import java.util.concurrent.Semaphore;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-
 
 /**
  * Tests retrieval of a job from a running Flink cluster
@@ -55,7 +53,7 @@ public class JobRetrievalITCase extends TestLogger {
 
 	@BeforeClass
 	public static void before() {
-		cluster = new ForkableFlinkMiniCluster(new Configuration(), false);
+		cluster = new TestingCluster(new Configuration(), false);
 		cluster.start();
 	}
 
@@ -86,7 +84,7 @@ public class JobRetrievalITCase extends TestLogger {
 			public void run() {
 				try {
 					assertNotNull(client.retrieveJob(jobID));
-				} catch (JobExecutionException e) {
+				} catch (Throwable e) {
 					fail(e.getMessage());
 				}
 			}
@@ -106,7 +104,10 @@ public class JobRetrievalITCase extends TestLogger {
 		resumingThread.start();
 
 		// wait for client to connect
-		testkit.expectMsgEquals(true);
+		testkit.expectMsgAllOf(
+			TestingJobManagerMessages.getClientConnected(),
+			TestingJobManagerMessages.getClassLoadingPropsDelivered());
+
 		// client has connected, we can release the lock
 		lock.release();
 

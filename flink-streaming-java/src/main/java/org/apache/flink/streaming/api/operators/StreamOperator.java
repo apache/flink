@@ -20,11 +20,12 @@ package org.apache.flink.streaming.api.operators;
 import java.io.Serializable;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 /**
  * Basic interface for stream operators. Implementers would implement one of
@@ -83,7 +84,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * This method is expected to make a thorough effort to release all resources
 	 * that the operator has acquired.
 	 */
-	void dispose();
+	void dispose() throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  state snapshots
@@ -91,20 +92,17 @@ public interface StreamOperator<OUT> extends Serializable {
 
 	/**
 	 * Called to draw a state snapshot from the operator. This method snapshots the operator state
-	 * (if the operator is stateful) and the key/value state (if it is being used and has been
-	 * initialized).
+	 * (if the operator is stateful).
 	 *
+	 * @param out The stream to which we have to write our state.
 	 * @param checkpointId The ID of the checkpoint.
 	 * @param timestamp The timestamp of the checkpoint.
-	 *
-	 * @return The StreamTaskState object, possibly containing the snapshots for the
-	 *         operator and key/value state.
 	 *
 	 * @throws Exception Forwards exceptions that occur while drawing snapshots from the operator
 	 *                   and the key/value state.
 	 */
-	StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception;
-	
+	void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception;
+
 	/**
 	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
 	 * This method restores the operator state (if the operator is stateful) and the key/value state
@@ -113,13 +111,12 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * <p>This method is called after {@link #setup(StreamTask, StreamConfig, Output)}
 	 * and before {@link #open()}.
 	 *
-	 * @param state The state of operator that was snapshotted as part of checkpoint
-	 *              from which the execution is restored.
+	 * @param in The stream from which we have to restore our state.
 	 *
 	 * @throws Exception Exceptions during state restore should be forwarded, so that the system can
 	 *                   properly react to failed state restore and fail the execution attempt.
 	 */
-	void restoreState(StreamTaskState state) throws Exception;
+	void restoreState(FSDataInputStream in) throws Exception;
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.

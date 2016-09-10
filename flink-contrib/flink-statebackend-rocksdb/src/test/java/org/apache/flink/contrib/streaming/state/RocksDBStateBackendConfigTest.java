@@ -21,37 +21,43 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.query.KvStateRegistry;
 
-import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 
 import java.io.File;
-import java.util.UUID;
 
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+
 /**
- * Tests for configuring the RocksDB State Backend 
+ * Tests for configuring the RocksDB State Backend
  */
 @SuppressWarnings("serial")
 public class RocksDBStateBackendConfigTest {
-	
-	private static final String TEMP_URI = new File(System.getProperty("java.io.tmpdir")).toURI().toString();
+
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
 	public void checkOperatingSystem() {
@@ -61,21 +67,38 @@ public class RocksDBStateBackendConfigTest {
 	// ------------------------------------------------------------------------
 	//  RocksDB local file directory
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void testSetDbPath() throws Exception {
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
-		
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		File testDir1 = tempFolder.newFolder();
+		File testDir2 = tempFolder.newFolder();
+
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+
 		assertNull(rocksDbBackend.getDbStoragePaths());
-		
-		rocksDbBackend.setDbStoragePath("/abc/def");
-		assertArrayEquals(new String[] { "/abc/def" }, rocksDbBackend.getDbStoragePaths());
+
+		rocksDbBackend.setDbStoragePath(testDir1.getAbsolutePath());
+		assertArrayEquals(new String[] { testDir1.getAbsolutePath() }, rocksDbBackend.getDbStoragePaths());
 
 		rocksDbBackend.setDbStoragePath(null);
 		assertNull(rocksDbBackend.getDbStoragePaths());
 
-		rocksDbBackend.setDbStoragePaths("/abc/def", "/uvw/xyz");
-		assertArrayEquals(new String[] { "/abc/def", "/uvw/xyz" }, rocksDbBackend.getDbStoragePaths());
+		rocksDbBackend.setDbStoragePaths(testDir1.getAbsolutePath(), testDir2.getAbsolutePath());
+		assertArrayEquals(new String[] { testDir1.getAbsolutePath(), testDir2.getAbsolutePath() }, rocksDbBackend.getDbStoragePaths());
+
+		Environment env = getMockEnvironment(new File[] {});
+		RocksDBKeyedStateBackend<Integer> keyedBackend = (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.createKeyedStateBackend(env,
+				env.getJobID(),
+				"test_op",
+				IntSerializer.INSTANCE,
+				1,
+				new KeyGroupRange(0, 0),
+				env.getTaskKvStateRegistry());
+
+
+		File instanceBasePath = keyedBackend.getInstanceBasePath();
+		assertThat(instanceBasePath.getAbsolutePath(), anyOf(startsWith(testDir1.getAbsolutePath()), startsWith(testDir2.getAbsolutePath())));
 
 		//noinspection NullArgumentToVariableArgMethod
 		rocksDbBackend.setDbStoragePaths(null);
@@ -84,64 +107,83 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testSetNullPaths() throws Exception {
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 		rocksDbBackend.setDbStoragePaths();
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testNonFileSchemePath() throws Exception {
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 		rocksDbBackend.setDbStoragePath("hdfs:///some/path/to/perdition");
 	}
 
 	// ------------------------------------------------------------------------
 	//  RocksDB local file automatic from temp directories
 	// ------------------------------------------------------------------------
-	
+
+	/**
+	 * This tests whether the RocksDB backends uses the temp directories that are provided
+	 * from the {@link Environment} when no db storage path is set.
+	 *
+	 * @throws Exception
+	 */
 	@Test
 	public void testUseTempDirectories() throws Exception {
-		File dir1 = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-		File dir2 = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+
+		File dir1 = tempFolder.newFolder();
+		File dir2 = tempFolder.newFolder();
 
 		File[] tempDirs = new File[] { dir1, dir2 };
-		
-		try {
-			assertTrue(dir1.mkdirs());
-			assertTrue(dir2.mkdirs());
 
-			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
-			assertNull(rocksDbBackend.getDbStoragePaths());
-			
-			rocksDbBackend.initializeForJob(getMockEnvironment(tempDirs), "foobar", IntSerializer.INSTANCE);
-			assertArrayEquals(tempDirs, rocksDbBackend.getStoragePaths());
-		}
-		finally {
-			FileUtils.deleteDirectory(dir1);
-			FileUtils.deleteDirectory(dir2);
-		}
+		assertNull(rocksDbBackend.getDbStoragePaths());
+
+		Environment env = getMockEnvironment(tempDirs);
+		RocksDBKeyedStateBackend<Integer> keyedBackend = (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.createKeyedStateBackend(env,
+				env.getJobID(),
+				"test_op",
+				IntSerializer.INSTANCE,
+				1,
+				new KeyGroupRange(0, 0),
+				env.getTaskKvStateRegistry());
+
+
+		File instanceBasePath = keyedBackend.getInstanceBasePath();
+		assertThat(instanceBasePath.getAbsolutePath(), anyOf(startsWith(dir1.getAbsolutePath()), startsWith(dir2.getAbsolutePath())));
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  RocksDB local file directory initialization
 	// ------------------------------------------------------------------------
 
 	@Test
 	public void testFailWhenNoLocalStorageDir() throws Exception {
-		File targetDir = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+		File targetDir = tempFolder.newFolder();
+
 		try {
-			assertTrue(targetDir.mkdirs());
-			
 			if (!targetDir.setWritable(false, false)) {
 				System.err.println("Cannot execute 'testFailWhenNoLocalStorageDir' because cannot mark directory non-writable");
 				return;
 			}
-			
-			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
+
 			rocksDbBackend.setDbStoragePath(targetDir.getAbsolutePath());
 
 			boolean hasFailure = false;
 			try {
-				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar", IntSerializer.INSTANCE);
+				Environment env = getMockEnvironment();
+				rocksDbBackend.createKeyedStateBackend(
+						env,
+						env.getJobID(),
+						"foobar",
+						IntSerializer.INSTANCE,
+						1,
+						new KeyGroupRange(0, 0),
+						new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()));
 			}
 			catch (Exception e) {
 				assertTrue(e.getMessage().contains("No local storage directories available"));
@@ -159,29 +201,31 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test
 	public void testContinueOnSomeDbDirectoriesMissing() throws Exception {
-		File targetDir1 = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-		File targetDir2 = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-		
+		File targetDir1 = tempFolder.newFolder();
+		File targetDir2 = tempFolder.newFolder();
+
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+
 		try {
-			assertTrue(targetDir1.mkdirs());
-			assertTrue(targetDir2.mkdirs());
 
 			if (!targetDir1.setWritable(false, false)) {
 				System.err.println("Cannot execute 'testContinueOnSomeDbDirectoriesMissing' because cannot mark directory non-writable");
 				return;
 			}
-	
-			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
-			rocksDbBackend.setDbStoragePaths(targetDir1.getAbsolutePath(), targetDir2.getAbsolutePath());
-	
-			try {
-				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar", IntSerializer.INSTANCE);
 
-				// actually get a state to see whether we can write to the storage directory
-				rocksDbBackend.getPartitionedState(
-						VoidNamespace.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE,
-						new ValueStateDescriptor<>("test", String.class, ""));
+			rocksDbBackend.setDbStoragePaths(targetDir1.getAbsolutePath(), targetDir2.getAbsolutePath());
+
+			try {
+				Environment env = getMockEnvironment();
+				rocksDbBackend.createKeyedStateBackend(
+						env,
+						env.getJobID(),
+						"foobar",
+						IntSerializer.INSTANCE,
+						1,
+						new KeyGroupRange(0, 0),
+						new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()));
 			}
 			catch (Exception e) {
 				e.printStackTrace();
@@ -194,23 +238,24 @@ public class RocksDBStateBackendConfigTest {
 			FileUtils.deleteDirectory(targetDir2);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  RocksDB Options
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void testPredefinedOptions() throws Exception {
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
-		
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+
 		assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
-		
+
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 
 		DBOptions opt1 = rocksDbBackend.getDbOptions();
 		DBOptions opt2 = rocksDbBackend.getDbOptions();
-		
+
 		assertEquals(opt1, opt2);
 
 		ColumnFamilyOptions columnOpt1 = rocksDbBackend.getColumnOptions();
@@ -223,8 +268,9 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test
 	public void testOptionsFactory() throws Exception {
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
-		
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+
 		rocksDbBackend.setOptions(new OptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions) {
@@ -236,14 +282,15 @@ public class RocksDBStateBackendConfigTest {
 				return currentOptions.setCompactionStyle(CompactionStyle.FIFO);
 			}
 		});
-		
+
 		assertNotNull(rocksDbBackend.getOptions());
 		assertEquals(CompactionStyle.FIFO, rocksDbBackend.getColumnOptions().compactionStyle());
 	}
 
 	@Test
 	public void testPredefinedAndOptionsFactory() throws Exception {
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
 		assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
 
@@ -259,7 +306,7 @@ public class RocksDBStateBackendConfigTest {
 				return currentOptions.setCompactionStyle(CompactionStyle.UNIVERSAL);
 			}
 		});
-		
+
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 		assertNotNull(rocksDbBackend.getOptions());
 		assertEquals(CompactionStyle.UNIVERSAL, rocksDbBackend.getColumnOptions().compactionStyle());
@@ -280,22 +327,19 @@ public class RocksDBStateBackendConfigTest {
 	// ------------------------------------------------------------------------
 	//  Contained Non-partitioned State Backend
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void testCallsForwardedToNonPartitionedBackend() throws Exception {
 		AbstractStateBackend nonPartBackend = mock(AbstractStateBackend.class);
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI, nonPartBackend);
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath, nonPartBackend);
 
-		rocksDbBackend.initializeForJob(getMockEnvironment(), "foo", IntSerializer.INSTANCE);
-		verify(nonPartBackend, times(1)).initializeForJob(any(Environment.class), anyString(), any(TypeSerializer.class));
+		Environment env = getMockEnvironment();
+		rocksDbBackend.createStreamFactory(env.getJobID(), "foobar");
 
-		rocksDbBackend.disposeAllStateForCurrentJob();
-		verify(nonPartBackend, times(1)).disposeAllStateForCurrentJob();
-		
-		rocksDbBackend.close();
-		verify(nonPartBackend, times(1)).close();
+		verify(nonPartBackend, times(1)).createStreamFactory(any(JobID.class), anyString());
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -303,15 +347,16 @@ public class RocksDBStateBackendConfigTest {
 	private static Environment getMockEnvironment() {
 		return getMockEnvironment(new File[] { new File(System.getProperty("java.io.tmpdir")) });
 	}
-	
+
 	private static Environment getMockEnvironment(File[] tempDirs) {
 		IOManager ioMan = mock(IOManager.class);
 		when(ioMan.getSpillingDirectories()).thenReturn(tempDirs);
-		
+
 		Environment env = mock(Environment.class);
 		when(env.getJobID()).thenReturn(new JobID());
 		when(env.getUserClassLoader()).thenReturn(RocksDBStateBackendConfigTest.class.getClassLoader());
 		when(env.getIOManager()).thenReturn(ioMan);
+		when(env.getTaskKvStateRegistry()).thenReturn(new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
 
 		TaskInfo taskInfo = mock(TaskInfo.class);
 		when(env.getTaskInfo()).thenReturn(taskInfo);

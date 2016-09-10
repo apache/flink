@@ -93,7 +93,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
 			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-			final TaskInfo taskInfo = new TaskInfo("test_sink", 0, 1, 0);
+			final TaskInfo taskInfo = new TaskInfo("test_sink", 1, 0, 1, 0);
 			executionConfig.disableObjectReuse();
 			in.reset();
 			

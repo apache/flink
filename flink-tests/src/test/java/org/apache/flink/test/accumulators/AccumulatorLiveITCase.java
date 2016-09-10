@@ -234,7 +234,6 @@ public class AccumulatorLiveITCase {
 				fail("Wrong accumulator results when map task begins execution.");
 			}
 
-
 			int expectedAccVal = 0;
 
 			/* for mapper task */

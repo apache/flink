@@ -20,10 +20,13 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -31,7 +34,6 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -46,7 +48,7 @@ import java.io.IOException;
  * @param <SD> The type of {@link StateDescriptor}.
  */
 public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, V>, V>
-		implements KvState<K, N, S, SD, RocksDBStateBackend>, State {
+		implements KvState<N>, State {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
 
@@ -57,7 +59,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	private N currentNamespace;
 
 	/** Backend that holds the actual RocksDB instance where we store state */
-	protected RocksDBStateBackend backend;
+	protected RocksDBKeyedStateBackend<K> backend;
 
 	/** The column family of this particular instance of state */
 	protected ColumnFamilyHandle columnFamily;
@@ -70,14 +72,20 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	 */
 	private final WriteOptions writeOptions;
 
+	protected final ByteArrayOutputStreamWithPos keySerializationStream;
+	protected final DataOutputView keySerializationDateDataOutputView;
+
+	private final boolean ambiguousKeyPossible;
+
 	/**
 	 * Creates a new RocksDB backed state.
 	 *  @param namespaceSerializer The serializer for the namespace.
 	 */
-	protected AbstractRocksDBState(ColumnFamilyHandle columnFamily,
+	protected AbstractRocksDBState(
+			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			SD stateDesc,
-			RocksDBStateBackend backend) {
+			RocksDBKeyedStateBackend<K> backend) {
 
 		this.namespaceSerializer = namespaceSerializer;
 		this.backend = backend;
@@ -86,29 +94,25 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 		writeOptions = new WriteOptions();
 		writeOptions.setDisableWAL(true);
-
 		this.stateDesc = Preconditions.checkNotNull(stateDesc, "State Descriptor");
+
+		this.keySerializationStream = new ByteArrayOutputStreamWithPos(128);
+		this.keySerializationDateDataOutputView = new DataOutputViewStreamWrapper(keySerializationStream);
+		this.ambiguousKeyPossible = (backend.getKeySerializer().getLength() < 0)
+				&& (namespaceSerializer.getLength() < 0);
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public void clear() {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
 			backend.db.remove(columnFamily, writeOptions, key);
 		} catch (IOException|RocksDBException e) {
 			throw new RuntimeException("Error while removing entry from RocksDB", e);
 		}
-	}
-
-	protected void writeKeyAndNamespace(DataOutputView out) throws IOException {
-		backend.keySerializer().serialize(backend.currentKey(), out);
-		out.writeByte(42);
-		namespaceSerializer.serialize(currentNamespace, out);
 	}
 
 	@Override
@@ -117,40 +121,69 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 
 	@Override
-	public void dispose() {
-		// ignore because we don't hold any state ourselves
-	}
-
-	@Override
-	public SD getStateDescriptor() {
-		return stateDesc;
-	}
-
-	@Override
-	public void setCurrentKey(K key) {
-		// ignore because we don't hold any state ourselves
-	}
-
-	@Override
-	public KvStateSnapshot<K, N, S, SD, RocksDBStateBackend> snapshot(long checkpointId,
-			long timestamp) throws Exception {
-		throw new RuntimeException("Should not be called. Backups happen in RocksDBStateBackend.");
-	}
-
-	@Override
 	@SuppressWarnings("unchecked")
 	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
-		// Serialized key and namespace is expected to be of the same format
-		// as writeKeyAndNamespace()
 		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
 
-		byte[] value = backend.db.get(columnFamily, serializedKeyAndNamespace);
+		//TODO make KvStateRequestSerializer key-group aware to save this round trip and key-group computation
+		Tuple2<K, N> des = KvStateRequestSerializer.<K, N>deserializeKeyAndNamespace(
+				serializedKeyAndNamespace,
+				backend.getKeySerializer(),
+				namespaceSerializer);
 
-		if (value != null) {
-			return value;
-		} else {
-			return null;
+		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(des.f0, backend.getNumberOfKeyGroups());
+		writeKeyWithGroupAndNamespace(keyGroup, des.f0, des.f1);
+		return backend.db.get(columnFamily, keySerializationStream.toByteArray());
+
+	}
+
+	protected void writeCurrentKeyWithGroupAndNamespace() throws IOException {
+		writeKeyWithGroupAndNamespace(backend.getCurrentKeyGroupIndex(), backend.getCurrentKey(), currentNamespace);
+	}
+
+	protected void writeKeyWithGroupAndNamespace(int keyGroup, K key, N namespace) throws IOException {
+		keySerializationStream.reset();
+		writeKeyGroup(keyGroup);
+		writeKey(key);
+		writeNameSpace(namespace);
+	}
+
+	private void writeKeyGroup(int keyGroup) throws IOException {
+		for (int i = backend.getKeyGroupPrefixBytes(); --i >= 0;) {
+			keySerializationDateDataOutputView.writeByte(keyGroup >>> (i << 3));
 		}
 	}
 
+	private void writeKey(K key) throws IOException {
+		//write key
+		int beforeWrite = (int) keySerializationStream.getPosition();
+		backend.getKeySerializer().serialize(key, keySerializationDateDataOutputView);
+
+		if (ambiguousKeyPossible) {
+			//write size of key
+			writeLengthFrom(beforeWrite);
+		}
+	}
+
+	private void writeNameSpace(N namespace) throws IOException {
+		int beforeWrite = (int) keySerializationStream.getPosition();
+		namespaceSerializer.serialize(namespace, keySerializationDateDataOutputView);
+
+		if (ambiguousKeyPossible) {
+			//write length of namespace
+			writeLengthFrom(beforeWrite);
+		}
+	}
+
+	private void writeLengthFrom(int fromPosition) throws IOException {
+		int length = (int) (keySerializationStream.getPosition() - fromPosition);
+		writeVariableIntBytes(length);
+	}
+
+	private void writeVariableIntBytes(int value) throws IOException {
+		do {
+			keySerializationDateDataOutputView.writeByte(value);
+			value >>>= 8;
+		} while (value != 0);
+	}
 }

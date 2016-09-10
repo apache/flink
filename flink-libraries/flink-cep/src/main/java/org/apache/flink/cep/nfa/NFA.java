@@ -520,7 +520,7 @@ public class NFA<T> implements Serializable {
 		public void serialize(NFA<T> record, DataOutputView target) throws IOException {
 			ObjectOutputStream oos = new ObjectOutputStream(new DataOutputViewStream(target));
 			oos.writeObject(record);
-			oos.close();
+			oos.flush();
 		}
 
 		@Override

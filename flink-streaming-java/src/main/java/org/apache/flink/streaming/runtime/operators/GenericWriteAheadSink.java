@@ -19,17 +19,19 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.ReusingMutableToRegularIteratorWrapper;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,9 +56,10 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 	protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
 	private final CheckpointCommitter committer;
-	private transient AbstractStateBackend.CheckpointStateOutputView out;
+	private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
 	protected final TypeSerializer<IN> serializer;
 	private final String id;
+	private transient CheckpointStreamFactory checkpointStreamFactory;
 
 	private ExactlyOnceState state = new ExactlyOnceState();
 
@@ -74,6 +77,8 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		committer.setOperatorSubtaskId(getRuntimeContext().getIndexOfThisSubtask());
 		committer.open();
 		cleanState();
+		checkpointStreamFactory =
+				getContainingTask().createCheckpointStreamFactory(this);
 	}
 
 	public void close() throws Exception {
@@ -89,7 +94,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	private void saveHandleInState(final long checkpointId, final long timestamp) throws Exception {
 		//only add handle if a new OperatorState was created since the last snapshot
 		if (out != null) {
-			StateHandle<DataInputView> handle = out.closeAndGetHandle();
+			StreamStateHandle handle = out.closeAndGetHandle();
 			if (state.pendingHandles.containsKey(checkpointId)) {
 				//we already have a checkpoint stored for that ID that may have been partially written,
 				//so we discard this "alternate version" and use the stored checkpoint
@@ -102,18 +107,21 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	}
 
 	@Override
-	public StreamTaskState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+	public void snapshotState(FSDataOutputStream out,
+			long checkpointId,
+			long timestamp) throws Exception {
+		super.snapshotState(out, checkpointId, timestamp);
+
 		saveHandleInState(checkpointId, timestamp);
-		taskState.setFunctionState(state);
-		return taskState;
+
+		InstantiationUtil.serializeObject(out, state);
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state) throws Exception {
-		super.restoreState(state);
-		this.state = (ExactlyOnceState) state.getFunctionState();
-		out = null;
+	public void restoreState(FSDataInputStream in) throws Exception {
+		super.restoreState(in);
+
+		this.state = InstantiationUtil.deserializeObject(in, getUserCodeClassloader());
 	}
 
 	private void cleanState() throws Exception {
@@ -142,9 +150,9 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 				if (pastCheckpointId <= checkpointId) {
 					try {
 						if (!committer.isCheckpointCommitted(pastCheckpointId)) {
-							Tuple2<Long, StateHandle<DataInputView>> handle = state.pendingHandles.get(pastCheckpointId);
-							DataInputView in = handle.f1.getState(getUserCodeClassloader());
-							boolean success = sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
+							Tuple2<Long, StreamStateHandle> handle = state.pendingHandles.get(pastCheckpointId);
+							FSDataInputStream in = handle.f1.openInputStream();
+							boolean success = sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(new DataInputViewStreamWrapper(in), serializer), serializer), handle.f0);
 							if (success) { //if the sending has failed we will retry on the next notify
 								committer.commitCheckpoint(pastCheckpointId);
 								checkpointsToRemove.add(pastCheckpointId);
@@ -159,7 +167,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 				}
 			}
 			for (Long toRemove : checkpointsToRemove) {
-				Tuple2<Long, StateHandle<DataInputView>> handle = state.pendingHandles.get(toRemove);
+				Tuple2<Long, StreamStateHandle> handle = state.pendingHandles.get(toRemove);
 				state.pendingHandles.remove(toRemove);
 				handle.f1.discardState();
 			}
@@ -179,11 +187,11 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
-		//generate initial operator state
+		// generate initial operator state
 		if (out == null) {
-			out = getStateBackend().createCheckpointStateOutputView(0, 0);
+			out = checkpointStreamFactory.createCheckpointStateOutputStream(0, 0);
 		}
-		serializer.serialize(value, out);
+		serializer.serialize(value, new DataOutputViewStreamWrapper(out));
 	}
 
 	@Override
@@ -195,56 +203,18 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	 * This state is used to keep a list of all StateHandles (essentially references to past OperatorStates) that were
 	 * used since the last completed checkpoint.
 	 **/
-	public static class ExactlyOnceState implements StateHandle<Serializable> {
+	public static class ExactlyOnceState implements Serializable {
 
 		private static final long serialVersionUID = -3571063495273460743L;
 
-		protected TreeMap<Long, Tuple2<Long, StateHandle<DataInputView>>> pendingHandles;
+		protected TreeMap<Long, Tuple2<Long, StreamStateHandle>> pendingHandles;
 
 		public ExactlyOnceState() {
 			pendingHandles = new TreeMap<>();
 		}
 
-		@Override
-		public TreeMap<Long, Tuple2<Long, StateHandle<DataInputView>>> getState(ClassLoader userCodeClassLoader) throws Exception {
+		public TreeMap<Long, Tuple2<Long, StreamStateHandle>> getState(ClassLoader userCodeClassLoader) throws Exception {
 			return pendingHandles;
-		}
-
-		@Override
-		public void discardState() throws Exception {
-			//we specifically want the state to survive failed jobs, so we don't discard anything
-		}
-
-		@Override
-		public long getStateSize() throws Exception {
-			int stateSize = 0;
-			for (Tuple2<Long, StateHandle<DataInputView>> pair : pendingHandles.values()) {
-				stateSize += pair.f1.getStateSize();
-			}
-			return stateSize;
-		}
-
-		@Override
-		public void close() throws IOException {
-			Throwable exception = null;
-
-			for (Tuple2<Long, StateHandle<DataInputView>> pair : pendingHandles.values()) {
-				StateHandle<DataInputView> handle = pair.f1;
-				if (handle != null) {
-					try {
-						handle.close();
-					}
-					catch (Throwable t) {
-						if (exception != null) {
-							exception = t;
-						}
-					}
-				}
-			}
-
-			if (exception != null) {
-				ExceptionUtils.rethrowIOException(exception);
-			}
 		}
 
 		@Override

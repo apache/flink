@@ -63,6 +63,16 @@ trait ImplicitExpressionOperations {
   def isNull = IsNull(expr)
   def isNotNull = IsNotNull(expr)
 
+  /**
+    * Returns true if given boolean expression is true. False otherwise (for null and false).
+    */
+  def isTrue = IsTrue(expr)
+
+  /**
+    * Returns true if given boolean expression is false. False otherwise (for null and true).
+    */
+  def isFalse = IsFalse(expr)
+
   def + (other: Expression) = Plus(expr, other)
   def - (other: Expression) = Minus(expr, other)
   def / (other: Expression) = Div(expr, other)
@@ -137,6 +147,8 @@ trait ImplicitExpressionOperations {
     */
   def ceil() = Ceil(expr)
 
+  // String operations
+
   /**
     * Creates a substring of the given string at given index for a given length.
     *
@@ -145,7 +157,7 @@ trait ImplicitExpressionOperations {
     * @return substring
     */
   def substring(beginIndex: Expression, length: Expression) =
-    SubString(expr, beginIndex, length)
+    Substring(expr, beginIndex, length)
 
   /**
     * Creates a substring of the given string beginning at the given index to the end.
@@ -154,14 +166,14 @@ trait ImplicitExpressionOperations {
     * @return substring
     */
   def substring(beginIndex: Expression) =
-    new SubString(expr, beginIndex)
+    new Substring(expr, beginIndex)
 
   /**
     * Removes leading and/or trailing characters from the given string.
     *
     * @param removeLeading if true, remove leading characters (default: true)
     * @param removeTrailing if true, remove trailing characters (default: true)
-    * @param character String containing the character (default: " ")
+    * @param character string containing the character (default: " ")
     * @return trimmed string
     */
   def trim(
@@ -180,54 +192,80 @@ trait ImplicitExpressionOperations {
   }
 
   /**
-    * Returns the length of a String.
+    * Returns the length of a string.
     */
   def charLength() = CharLength(expr)
 
   /**
-    * Returns all of the characters in a String in upper case using the rules of
+    * Returns all of the characters in a string in upper case using the rules of
     * the default locale.
     */
   def upperCase() = Upper(expr)
 
   /**
-    * Returns all of the characters in a String in lower case using the rules of
+    * Returns all of the characters in a string in lower case using the rules of
     * the default locale.
     */
   def lowerCase() = Lower(expr)
 
   /**
-    * Converts the initial letter of each word in a String to uppercase.
-    * Assumes a String containing only [A-Za-z0-9], everything else is treated as whitespace.
+    * Converts the initial letter of each word in a string to uppercase.
+    * Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.
     */
   def initCap() = InitCap(expr)
 
   /**
-    * Returns true, if a String matches the specified LIKE pattern.
+    * Returns true, if a string matches the specified LIKE pattern.
     *
-    * e.g. "Jo_n%" matches all Strings that start with "Jo(arbitrary letter)n"
+    * e.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n"
     */
   def like(pattern: Expression) = Like(expr, pattern)
 
   /**
-    * Returns true, if a String matches the specified SQL regex pattern.
+    * Returns true, if a string matches the specified SQL regex pattern.
     *
-    * e.g. "A+" matches all Strings that consist of at least one A
+    * e.g. "A+" matches all strings that consist of at least one A
     */
   def similar(pattern: Expression) = Similar(expr, pattern)
 
   /**
-    * Parses a date String in the form "yy-mm-dd" to a SQL Date.
+    * Returns the position of string in an other string starting at 1.
+    * Returns 0 if string could not be found.
+    *
+    * e.g. "a".position("bbbbba") leads to 6
+    */
+  def position(haystack: Expression) = Position(expr, haystack)
+
+  /**
+    * Replaces a substring of string with a string starting at a position (starting at 1).
+    *
+    * e.g. "xxxxxtest".overlay("xxxx", 6) leads to "xxxxxxxxx"
+    */
+  def overlay(newString: Expression, starting: Expression) = new Overlay(expr, newString, starting)
+
+  /**
+    * Replaces a substring of string with a string starting at a position (starting at 1).
+    * The length specifies how many characters should be removed.
+    *
+    * e.g. "xxxxxtest".overlay("xxxx", 6, 2) leads to "xxxxxxxxxst"
+    */
+  def overlay(newString: Expression, starting: Expression, length: Expression) =
+    Overlay(expr, newString, starting, length)
+
+  // Temporal operations
+
+  /**
+    * Parses a date string in the form "yy-mm-dd" to a SQL Date.
     */
   def toDate = Cast(expr, SqlTimeTypeInfo.DATE)
 
   /**
-    * Parses a time String in the form "hh:mm:ss" to a SQL Time.
+    * Parses a time string in the form "hh:mm:ss" to a SQL Time.
     */
   def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
 
   /**
-    * Parses a timestamp String in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
+    * Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
     */
   def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
 
@@ -238,7 +276,28 @@ trait ImplicitExpressionOperations {
     */
   def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
 
-  // interval types
+  /**
+    * Returns the quarter of a year from a SQL date.
+    *
+    * e.g. "1994-09-27".toDate.quarter() leads to 3
+    */
+  def quarter() = Quarter(expr)
+
+  /**
+    * Rounds down a time point to the given unit.
+    *
+    * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
+    */
+  def floor(timeIntervalUnit: TimeIntervalUnit) = TemporalFloor(timeIntervalUnit, expr)
+
+  /**
+    * Rounds up a time point to the given unit.
+    *
+    * e.g. "12:44:31".toDate.ceil(MINUTE) leads to 12:45:00
+    */
+  def ceil(timeIntervalUnit: TimeIntervalUnit) = TemporalCeil(timeIntervalUnit, expr)
+
+  // Interval types
 
   /**
     * Creates an interval of the given number of years.
@@ -374,3 +433,75 @@ trait ImplicitExpressionConversions {
   implicit def sqlTime2Literal(sqlTime: Time): Expression = Literal(sqlTime)
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression = Literal(sqlTimestamp)
 }
+
+// ------------------------------------------------------------------------------------------------
+// Expressions with no parameters
+// ------------------------------------------------------------------------------------------------
+
+/**
+  * Returns the current SQL date in UTC time zone.
+  */
+object currentDate {
+
+  /**
+    * Returns the current SQL date in UTC time zone.
+    */
+  def apply(): Expression = {
+    CurrentDate()
+  }
+}
+
+/**
+  * Returns the current SQL time in UTC time zone.
+  */
+object currentTime {
+
+  /**
+    * Returns the current SQL time in UTC time zone.
+    */
+  def apply(): Expression = {
+    CurrentTime()
+  }
+}
+
+/**
+  * Returns the current SQL timestamp in UTC time zone.
+  */
+object currentTimestamp {
+
+  /**
+    * Returns the current SQL timestamp in UTC time zone.
+    */
+  def apply(): Expression = {
+    CurrentTimestamp()
+  }
+}
+
+/**
+  * Returns the current SQL time in local time zone.
+  */
+object localTime {
+
+  /**
+    * Returns the current SQL time in local time zone.
+    */
+  def apply(): Expression = {
+    LocalTime()
+  }
+}
+
+/**
+  * Returns the current SQL timestamp in local time zone.
+  */
+object localTimestamp {
+
+  /**
+    * Returns the current SQL timestamp in local time zone.
+    */
+  def apply(): Expression = {
+    LocalTimestamp()
+  }
+}
+
+
+

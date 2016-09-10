@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Map;
 import java.util.Properties;
 
@@ -118,7 +119,9 @@ public class ParameterToolTest {
 		Properties props = new Properties();
 		props.setProperty("input", "myInput");
 		props.setProperty("expectedCount", "15");
-		props.store(new FileOutputStream(propertiesFile), "Test properties");
+		try (final OutputStream out = new FileOutputStream(propertiesFile)) {
+			props.store(out, "Test properties");
+		}
 		ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile.getAbsolutePath());
 		Assert.assertEquals(2, parameter.getNumberOfParameters());
 		validate(parameter);

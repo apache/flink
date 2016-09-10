@@ -18,32 +18,28 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
+import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Simple bean to describe the state belonging to a parallel operator. It is part of the
+ * Container for the chained state of one parallel subtask of an operator/task. This is part of the
  * {@link TaskState}.
- * 
- * The state itself is kept in serialized form, since the checkpoint coordinator itself
- * is never looking at it anyways and only sends it back out in case of a recovery.
- * Furthermore, the state may involve user-defined classes that are not accessible without
- * the respective classloader.
  */
-public class SubtaskState implements Serializable {
+public class SubtaskState implements StateObject {
 
 	private static final long serialVersionUID = -2394696997971923995L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(SubtaskState.class);
 
 	/** The state of the parallel operator */
-	private final SerializedValue<StateHandle<?>> state;
+	private final ChainedStateHandle<StreamStateHandle> chainedStateHandle;
 
 	/**
 	 * The state size. This is also part of the deserialized state handle.
@@ -52,27 +48,29 @@ public class SubtaskState implements Serializable {
 	 */
 	private final long stateSize;
 
-	/** The duration of the acknowledged (ack timestamp - trigger timestamp). */
+	/** The duration of the checkpoint (ack timestamp - trigger timestamp). */
 	private final long duration;
 	
 	public SubtaskState(
-			SerializedValue<StateHandle<?>> state,
-			long stateSize,
+			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
 			long duration) {
 
-		this.state = checkNotNull(state, "State");
-		// Sanity check and don't fail checkpoint because of this.
-		this.stateSize = stateSize >= 0 ? stateSize : 0;
-
+		this.chainedStateHandle = checkNotNull(chainedStateHandle, "State");
 		this.duration = duration;
+		try {
+			stateSize = chainedStateHandle.getStateSize();
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to get state size.", e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	public SerializedValue<StateHandle<?>> getState() {
-		return state;
+	public ChainedStateHandle<StreamStateHandle> getChainedStateHandle() {
+		return chainedStateHandle;
 	}
 
+	@Override
 	public long getStateSize() {
 		return stateSize;
 	}
@@ -81,8 +79,9 @@ public class SubtaskState implements Serializable {
 		return duration;
 	}
 
-	public void discard(ClassLoader userClassLoader) throws Exception {
-		state.deserializeValue(userClassLoader).discardState();
+	@Override
+	public void discardState() throws Exception {
+		chainedStateHandle.discardState();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -94,7 +93,7 @@ public class SubtaskState implements Serializable {
 		}
 		else if (o instanceof SubtaskState) {
 			SubtaskState that = (SubtaskState) o;
-			return this.state.equals(that.state) && stateSize == that.stateSize &&
+			return this.chainedStateHandle.equals(that.chainedStateHandle) && stateSize == that.stateSize &&
 				duration == that.duration;
 		}
 		else {
@@ -106,11 +105,18 @@ public class SubtaskState implements Serializable {
 	public int hashCode() {
 		return (int) (this.stateSize ^ this.stateSize >>> 32) +
 			31 * ((int) (this.duration ^ this.duration >>> 32) +
-				31 * state.hashCode());
+				31 * chainedStateHandle.hashCode());
 	}
 
 	@Override
 	public String toString() {
-		return String.format("SubtaskState(Size: %d, Duration: %d, State: %s)", stateSize, duration, state);
+		return String.format("SubtaskState(Size: %d, Duration: %d, State: %s)", stateSize, duration, chainedStateHandle);
 	}
+
+	@Override
+	public void close() throws IOException {
+		chainedStateHandle.close();
+	}
+
+
 }

@@ -22,8 +22,8 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import scala.Option;
 
@@ -140,7 +140,12 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		}
 
 		synchronized (statsLock) {
-			long overallStateSize = checkpoint.getStateSize();
+			long overallStateSize;
+			try {
+				overallStateSize = checkpoint.getStateSize();
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
 
 			// Operator stats
 			Map<JobVertexID, long[][]> statsForSubTasks = new HashMap<>();
@@ -421,7 +426,11 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 	private class CheckpointSizeGauge implements Gauge<Long> {
 		@Override
 		public Long getValue() {
-			return latestCompletedCheckpoint == null ? -1 : latestCompletedCheckpoint.getStateSize();
+			try {
+				return latestCompletedCheckpoint == null ? -1 : latestCompletedCheckpoint.getStateSize();
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
 		}
 	}
 

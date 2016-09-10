@@ -66,7 +66,7 @@ public class PendingCheckpointTest {
 		setTaskState(pending, state);
 
 		pending.abortDeclined();
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		verify(state, times(1)).discardState();
 
 		// Abort error
 		Mockito.reset(state);
@@ -75,7 +75,7 @@ public class PendingCheckpointTest {
 		setTaskState(pending, state);
 
 		pending.abortError(new Exception("Expected Test Exception"));
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		verify(state, times(1)).discardState();
 
 		// Abort expired
 		Mockito.reset(state);
@@ -84,7 +84,7 @@ public class PendingCheckpointTest {
 		setTaskState(pending, state);
 
 		pending.abortExpired();
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		verify(state, times(1)).discardState();
 
 		// Abort subsumed
 		Mockito.reset(state);
@@ -93,7 +93,7 @@ public class PendingCheckpointTest {
 		setTaskState(pending, state);
 
 		pending.abortSubsumed();
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		verify(state, times(1)).discardState();
 	}
 
 	/**
@@ -106,21 +106,20 @@ public class PendingCheckpointTest {
 		PendingCheckpoint pending = createPendingCheckpoint();
 		PendingCheckpointTest.setTaskState(pending, state);
 
-		pending.acknowledgeTask(ATTEMPT_ID, null, 0, null);
+		pending.acknowledgeTask(ATTEMPT_ID, null, null);
 
 		CompletedCheckpoint checkpoint = pending.finalizeCheckpoint();
 
 		// Does discard state
-		checkpoint.discard(ClassLoader.getSystemClassLoader());
-		verify(state, times(1)).discard(Matchers.any(ClassLoader.class));
+		checkpoint.discardState();
+		verify(state, times(1)).discardState();
 	}
 
 	// ------------------------------------------------------------------------
 
 	private static PendingCheckpoint createPendingCheckpoint() {
-		ClassLoader classLoader = ClassLoader.getSystemClassLoader();
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
-		return new PendingCheckpoint(new JobID(), 0, 1, ackTasks, classLoader);
+		return new PendingCheckpoint(new JobID(), 0, 1, ackTasks);
 	}
 
 	@SuppressWarnings("unchecked")

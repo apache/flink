@@ -29,6 +29,8 @@ import java.io.OutputStream;
 @Public
 public abstract class FSDataOutputStream extends OutputStream {
 
+	public abstract long getPos() throws IOException;
+
 	public abstract void flush() throws IOException;
 
 	public abstract void sync() throws IOException;

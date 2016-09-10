@@ -25,13 +25,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
+
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -55,6 +58,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The task's name. */
 	private final String taskName;
+
+	/** The number of key groups aka the max parallelism aka the max number of subtasks. */
+	private final int numberOfKeyGroups;
 
 	/** The task's index in the subtask group. */
 	private final int indexInSubtaskGroup;
@@ -88,7 +94,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** The list of classpaths required to run this task. */
 	private final List<URL> requiredClasspaths;
 
-	private final SerializedValue<StateHandle<?>> operatorState;
+	/** Handle to the non-partitioned state of the operator chain */
+	private final ChainedStateHandle<StreamStateHandle> operatorState;
+
+	/** Handle to the key-grouped state of the head operator in the chain */
+	private final List<KeyGroupsStateHandle> keyGroupState;
 
 	/** The execution configuration (see {@link ExecutionConfig}) related to the specific job. */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
@@ -103,6 +113,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			ExecutionAttemptID executionId,
 			SerializedValue<ExecutionConfig> serializedExecutionConfig,
 			String taskName,
+			int numberOfKeyGroups,
 			int indexInSubtaskGroup,
 			int numberOfSubtasks,
 			int attemptNumber,
@@ -114,7 +125,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			int targetSlotNumber,
-			SerializedValue<StateHandle<?>> operatorState) {
+			ChainedStateHandle<StreamStateHandle> operatorState,
+			List<KeyGroupsStateHandle> keyGroupState) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
@@ -127,6 +139,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.executionId = checkNotNull(executionId);
 		this.serializedExecutionConfig = checkNotNull(serializedExecutionConfig);
 		this.taskName = checkNotNull(taskName);
+		this.numberOfKeyGroups = numberOfKeyGroups;
 		this.indexInSubtaskGroup = indexInSubtaskGroup;
 		this.numberOfSubtasks = numberOfSubtasks;
 		this.attemptNumber = attemptNumber;
@@ -139,6 +152,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.requiredClasspaths = checkNotNull(requiredClasspaths);
 		this.targetSlotNumber = targetSlotNumber;
 		this.operatorState = operatorState;
+		this.keyGroupState = keyGroupState;
 	}
 
 	public TaskDeploymentDescriptor(
@@ -148,6 +162,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		ExecutionAttemptID executionId,
 		SerializedValue<ExecutionConfig> serializedExecutionConfig,
 		String taskName,
+		int numberOfKeyGroups,
 		int indexInSubtaskGroup,
 		int numberOfSubtasks,
 		int attemptNumber,
@@ -167,6 +182,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			executionId,
 			serializedExecutionConfig,
 			taskName,
+			numberOfKeyGroups,
 			indexInSubtaskGroup,
 			numberOfSubtasks,
 			attemptNumber,
@@ -178,6 +194,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			requiredJarFiles,
 			requiredClasspaths,
 			targetSlotNumber,
+			null,
 			null);
 	}
 
@@ -217,6 +234,13 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	}
 
 	/**
+	 * Returns the task's number of key groups.
+	 */
+	public int getNumberOfKeyGroups() {
+		return numberOfKeyGroups;
+	}
+
+	/**
 	 * Returns the task's index in the subtask group.
 	 *
 	 * @return the task's index in the subtask group
@@ -243,7 +267,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 * Returns the {@link TaskInfo} object for the subtask
 	 */
 	public TaskInfo getTaskInfo() {
-		return new TaskInfo(taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber);
+		return new TaskInfo(taskName, numberOfKeyGroups, indexInSubtaskGroup, numberOfSubtasks, attemptNumber);
 	}
 
 	/**
@@ -316,7 +340,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return strBuilder.toString();
 	}
 
-	public SerializedValue<StateHandle<?>> getOperatorState() {
+	public ChainedStateHandle<StreamStateHandle> getOperatorState() {
 		return operatorState;
+	}
+
+	public List<KeyGroupsStateHandle> getKeyGroupState() {
+		return keyGroupState;
 	}
 }

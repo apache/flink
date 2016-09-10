@@ -48,5 +48,10 @@ public class LocalConnectionManager implements ConnectionManager {
 	}
 
 	@Override
+	public int getDataPort() {
+		return -1;
+	}
+
+	@Override
 	public void shutdown() {}
 }

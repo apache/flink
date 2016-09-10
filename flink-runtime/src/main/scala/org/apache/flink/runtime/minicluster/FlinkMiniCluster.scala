@@ -69,7 +69,7 @@ abstract class FlinkMiniCluster(
     ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
     InetAddress.getByName("localhost").getHostAddress())
 
-  val configuration = generateConfiguration(userConfiguration)
+  protected val originalConfiguration = generateConfiguration(userConfiguration)
 
   /** Future to the [[ActorGateway]] of the current leader */
   var leaderGateway: Promise[ActorGateway] = Promise()
@@ -79,16 +79,16 @@ abstract class FlinkMiniCluster(
 
   /** Future lock */
   val futureLock = new Object()
-  
+
   implicit val executionContext = ExecutionContext.global
 
-  implicit val timeout = AkkaUtils.getTimeout(configuration)
+  implicit val timeout = AkkaUtils.getTimeout(originalConfiguration)
 
-  val haMode = HighAvailabilityMode.fromConfig(configuration)
+  val haMode = HighAvailabilityMode.fromConfig(originalConfiguration)
 
   val numJobManagers = getNumberOfJobManagers
 
-  var numTaskManagers = configuration.getInteger(
+  var numTaskManagers = originalConfiguration.getInteger(
     ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
     ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
 
@@ -104,6 +104,22 @@ abstract class FlinkMiniCluster(
   protected var jobManagerLeaderRetrievalService: Option[LeaderRetrievalService] = None
 
   private var isRunning = false
+
+  def configuration: Configuration = {
+    if (originalConfiguration.getInteger(
+      ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT) == 0) {
+      val leaderConfiguration = new Configuration(originalConfiguration)
+
+      val leaderPort = getLeaderRPCPort
+
+      leaderConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, leaderPort)
+
+      leaderConfiguration
+    } else {
+      originalConfiguration
+    }
+  }
 
   // --------------------------------------------------------------------------
   //                           Abstract Methods
@@ -125,7 +141,7 @@ abstract class FlinkMiniCluster(
     if(haMode == HighAvailabilityMode.NONE) {
       1
     } else {
-      configuration.getInteger(
+      originalConfiguration.getInteger(
         ConfigConstants.LOCAL_NUMBER_JOB_MANAGER,
         ConfigConstants.DEFAULT_LOCAL_NUMBER_JOB_MANAGER
       )
@@ -136,7 +152,7 @@ abstract class FlinkMiniCluster(
     if(haMode == HighAvailabilityMode.NONE) {
       1
     } else {
-      configuration.getInteger(
+      originalConfiguration.getInteger(
         ConfigConstants.LOCAL_NUMBER_RESOURCE_MANAGER,
         ConfigConstants.DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER
       )
@@ -177,40 +193,55 @@ abstract class FlinkMiniCluster(
     Await.result(indexFuture, timeout)
   }
 
+  def getLeaderRPCPort: Int = {
+    val index = getLeaderIndex(timeout)
+
+    jobManagerActorSystems match {
+      case Some(jmActorSystems) =>
+        AkkaUtils.getAddress(jmActorSystems(index)).port match {
+          case Some(p) => p
+          case None => -1
+        }
+
+      case None => throw new Exception("The JobManager of the LocalFlinkMiniCluster has not been " +
+                                         "started properly.")
+    }
+  }
+
   def getResourceManagerAkkaConfig(index: Int): Config = {
     if (useSingleActorSystem) {
-      AkkaUtils.getAkkaConfig(configuration, None)
+      AkkaUtils.getAkkaConfig(originalConfiguration, None)
     } else {
-      val port = configuration.getInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
-        ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+      val port = originalConfiguration.getInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+                                                  ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
 
       val resolvedPort = if(port != 0) port + index else port
 
-      AkkaUtils.getAkkaConfig(configuration, Some((hostname, resolvedPort)))
+      AkkaUtils.getAkkaConfig(originalConfiguration, Some((hostname, resolvedPort)))
     }
   }
 
   def getJobManagerAkkaConfig(index: Int): Config = {
     if (useSingleActorSystem) {
-      AkkaUtils.getAkkaConfig(configuration, None)
+      AkkaUtils.getAkkaConfig(originalConfiguration, None)
     }
     else {
-      val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-        ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+      val port = originalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+                                                  ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
       val resolvedPort = if(port != 0) port + index else port
 
-      AkkaUtils.getAkkaConfig(configuration, Some((hostname, resolvedPort)))
+      AkkaUtils.getAkkaConfig(originalConfiguration, Some((hostname, resolvedPort)))
     }
   }
 
   def getTaskManagerAkkaConfig(index: Int): Config = {
-    val port = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
+    val port = originalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
+                                                ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
 
     val resolvedPort = if(port != 0) port + index else port
 
-    AkkaUtils.getAkkaConfig(configuration, Some((hostname, resolvedPort)))
+    AkkaUtils.getAkkaConfig(originalConfiguration, Some((hostname, resolvedPort)))
   }
 
   /**
@@ -257,7 +288,7 @@ abstract class FlinkMiniCluster(
           "The FlinkMiniCluster has not been started yet.")
       }
     } else {
-      JobClient.startJobClientActorSystem(configuration)
+      JobClient.startJobClientActorSystem(originalConfiguration)
     }
   }
 
@@ -320,7 +351,7 @@ abstract class FlinkMiniCluster(
 
     val jobManagerAkkaURL = AkkaUtils.getAkkaURL(jmActorSystems(0), jmActors(0))
 
-    webMonitor = startWebServer(configuration, jmActorSystems(0), jobManagerAkkaURL)
+    webMonitor = startWebServer(originalConfiguration, jmActorSystems(0), jobManagerAkkaURL)
 
     if(waitForTaskManagerRegistration) {
       waitForTaskManagersToBeRegistered()
@@ -528,7 +559,7 @@ abstract class FlinkMiniCluster(
           new StandaloneLeaderRetrievalService(
             AkkaUtils.getAkkaURL(jmActorSystems(0), jmActors(0)))
         } else {
-          ZooKeeperUtils.createLeaderRetrievalService(configuration)
+          ZooKeeperUtils.createLeaderRetrievalService(originalConfiguration)
         }
 
       case _ => throw new Exception("The FlinkMiniCluster has not been started properly.")

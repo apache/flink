@@ -30,6 +30,7 @@ import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwardingActor
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation
 
 import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
@@ -63,8 +64,11 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val tm1 = _system.actorOf(Props(new PlainForwardingActor(testActor)))
       val tm2 = _system.actorOf(Props(new PlainForwardingActor(testActor)))
 
-      val connectionInfo1 = new InstanceConnectionInfo(InetAddress.getLocalHost, 10000)
-      val connectionInfo2 = new InstanceConnectionInfo(InetAddress.getLocalHost, 10001)
+      val resourceId1 = ResourceID.generate()
+      val resourceId2 = ResourceID.generate()
+      
+      val connectionInfo1 = new TaskManagerLocation(resourceId1, InetAddress.getLocalHost, 10000)
+      val connectionInfo2 = new TaskManagerLocation(resourceId2, InetAddress.getLocalHost, 10001)
 
       val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
@@ -75,7 +79,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       within(10 seconds) {
         jm.tell(
           RegisterTaskManager(
-            ResourceID.generate(),
+            resourceId1,
             connectionInfo1,
             hardwareDescription,
             1),
@@ -92,7 +96,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       within(10 seconds) {
         jm.tell(
           RegisterTaskManager(
-            ResourceID.generate(),
+            resourceId2,
             connectionInfo2,
             hardwareDescription,
             1),
@@ -118,7 +122,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val selfGateway = new AkkaActorGateway(testActor, null)
 
       val resourceID = ResourceID.generate()
-      val connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost,1)
+      val connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost, 1)
       val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
       within(20 seconds) {

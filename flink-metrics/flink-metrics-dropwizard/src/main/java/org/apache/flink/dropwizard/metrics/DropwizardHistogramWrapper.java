@@ -26,28 +26,28 @@ import org.apache.flink.metrics.HistogramStatistics;
  */
 public class DropwizardHistogramWrapper implements Histogram {
 
-	private final com.codahale.metrics.Histogram dropwizarHistogram;
+	private final com.codahale.metrics.Histogram dropwizardHistogram;
 
 	public DropwizardHistogramWrapper(com.codahale.metrics.Histogram dropwizardHistogram) {
-		this.dropwizarHistogram = dropwizardHistogram;
+		this.dropwizardHistogram = dropwizardHistogram;
 	}
 
-	public com.codahale.metrics.Histogram getDropwizarHistogram() {
-		return dropwizarHistogram;
+	public com.codahale.metrics.Histogram getDropwizardHistogram() {
+		return dropwizardHistogram;
 	}
 
 	@Override
 	public void update(long value) {
-		dropwizarHistogram.update(value);
+		dropwizardHistogram.update(value);
 	}
 
 	@Override
 	public long getCount() {
-		return dropwizarHistogram.getCount();
+		return dropwizardHistogram.getCount();
 	}
 
 	@Override
 	public HistogramStatistics getStatistics() {
-		return new DropwizardHistogramStatistics(dropwizarHistogram.getSnapshot());
+		return new DropwizardHistogramStatistics(dropwizardHistogram.getSnapshot());
 	}
 }
