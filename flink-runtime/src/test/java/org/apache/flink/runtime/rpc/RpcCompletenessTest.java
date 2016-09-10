@@ -29,6 +29,7 @@ import org.reflections.Reflections;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -56,8 +57,12 @@ public class RpcCompletenessTest extends TestLogger {
 		Class<? extends RpcEndpoint> c;
 
 		for (Class<? extends RpcEndpoint> rpcEndpoint :classes){
+			// ignore abstract class
+			if(Modifier.isAbstract(rpcEndpoint.getModifiers())) {
+				continue;
+			}
 			c = rpcEndpoint;
-
+			
 			Class<?> rpcGatewayType = ReflectionUtil.getTemplateType1(c);
 
 			if (rpcGatewayType != null) {

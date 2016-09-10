@@ -55,7 +55,7 @@ public class ResourceManagerHATest {
 		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
 
 		SlotManager slotManager = mock(SlotManager.class);
-		final ResourceManager resourceManager = new ResourceManager(rpcService, highAvailabilityServices, slotManager);
+		final ResourceManager resourceManager = new StandaloneResourceManager(rpcService, highAvailabilityServices, slotManager);
 		resourceManager.start();
 		// before grant leadership, resourceManager's leaderId is null
 		Assert.assertNull(resourceManager.getLeaderSessionID());

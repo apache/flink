@@ -33,7 +33,9 @@ import org.junit.AfterClass;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -133,7 +135,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		Future<WrongRpcGateway> futureGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), WrongRpcGateway.class);
 
-		WrongRpcGateway gateway = Await.result(futureGateway, timeout.duration());
+		WrongRpcGateway gateway = futureGateway.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 		// since it is a tell operation we won't receive a RpcConnectionException, it's only logged
 		gateway.tell("foobar");
@@ -141,10 +143,10 @@ public class AkkaRpcActorTest extends TestLogger {
 		Future<Boolean> result = gateway.barfoo();
 
 		try {
-			Await.result(result, timeout.duration());
+			result.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			fail("We expected a RpcConnectionException.");
-		} catch (RpcConnectionException rpcConnectionException) {
-			// we expect this exception here
+		} catch (ExecutionException executionException) {
+			checkArgument(executionException.getCause() instanceof  RpcConnectionException);
 		}
 	}
 

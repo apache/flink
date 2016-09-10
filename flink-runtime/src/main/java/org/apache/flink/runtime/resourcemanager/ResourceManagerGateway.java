@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -75,4 +76,26 @@ public interface ResourceManagerGateway extends RpcGateway {
 		String taskExecutorAddress,
 		ResourceID resourceID,
 		@RpcTimeout Time timeout);
+
+	/**
+	 * Registers an infoMessage listener
+	 *
+	 * @param infoMessageListenerAddress address of infoMessage listener to register to this resource manager
+	 */
+	void registerInfoMessageListener(String infoMessageListenerAddress);
+
+	/**
+	 * Unregisters an infoMessage listener
+	 *
+	 * @param infoMessageListenerAddress address of infoMessage listener to unregister from this resource manager
+	 *
+	 */
+	void unRegisterInfoMessageListener(String infoMessageListenerAddress);
+
+	/**
+	 * shutdown cluster
+	 * @param finalStatus
+	 * @param optionalDiagnostics
+	 */
+	void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics);
 }
