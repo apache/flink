@@ -98,7 +98,7 @@ public abstract class MinAggregationFunction<T extends Comparable<T>> extends Ag
 		@Override
 		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
 			if (Comparable.class.isAssignableFrom(type)) {
-				if (ResettableValue.class.isAssignableFrom(type) & CopyableValue.class.isAssignableFrom(type)) {
+				if (ResettableValue.class.isAssignableFrom(type) && CopyableValue.class.isAssignableFrom(type)) {
 					return (AggregationFunction<T>) new MutableMinAgg();
 				} else {
 					return (AggregationFunction<T>) new ImmutableMinAgg();
