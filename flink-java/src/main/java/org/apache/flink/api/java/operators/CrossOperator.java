@@ -20,9 +20,9 @@ package org.apache.flink.api.java.operators;
 
 import java.util.Arrays;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -124,21 +124,12 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	@Public
 	public static final class DefaultCross<I1, I2> extends CrossOperator<I1, I2, Tuple2<I1, I2>>  {
 
-		private final DataSet<I1> input1;
-		private final DataSet<I2> input2;
-
 		public DefaultCross(DataSet<I1> input1, DataSet<I2> input2, CrossHint hint, String defaultName) {
-			
 			super(input1, input2, new DefaultCrossFunction<I1, I2>(),
-					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()),
-					hint, defaultName);
-
-			if (input1 == null || input2 == null) {
-				throw new NullPointerException();
-			}
-
-			this.input1 = input1;
-			this.input2 = input2;
+				new TupleTypeInfo<Tuple2<I1, I2>>(
+					Preconditions.checkNotNull(input1, "input1 is null").getType(),
+					Preconditions.checkNotNull(input2, "input2 is null").getType()),
+				hint, defaultName);
 		}
 
 		/**
@@ -155,9 +146,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if (function == null) {
 				throw new NullPointerException("Cross function must not be null.");
 			}
-			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType(),
+			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, getInput1().getType(), getInput2().getType(),
 					super.getDefaultName(), true);
-			return new CrossOperator<I1, I2, R>(input1, input2, clean(function), returnType, 
+			return new CrossOperator<I1, I2, R>(getInput1(), getInput2(), clean(function), returnType,
 					getCrossHint(), Utils.getCallLocationName());
 		}
 		
