@@ -185,7 +185,9 @@ public class ParameterToolTest {
 			String pathToFile = tmp.newFile().getAbsolutePath();
 			parameter.createPropertiesFile(pathToFile);
 			Properties defaultProps = new Properties();
-			defaultProps.load(new FileInputStream(pathToFile));
+			try (FileInputStream fis = new FileInputStream(pathToFile)) {
+				defaultProps.load(fis);
+			}
 
 			Assert.assertEquals("myDefaultValue", defaultProps.get("output"));
 			Assert.assertEquals("-1", defaultProps.get("expectedCount"));
