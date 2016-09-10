@@ -44,5 +44,6 @@ under the License.
 		<module>flink-operator-stats</module>
 		<module>flink-connector-wikiedits</module>
 		<module>flink-statebackend-rocksdb</module>
+		<module>flink-siddhi</module>
 	</modules>
 </project>
