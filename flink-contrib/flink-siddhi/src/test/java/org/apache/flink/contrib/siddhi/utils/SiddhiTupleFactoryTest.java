@@ -18,16 +18,18 @@
 package org.apache.flink.contrib.siddhi.utils;
 
 import org.apache.flink.api.java.tuple.Tuple5;
-import static org.junit.Assert.*;
 import org.junit.Test;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 public class SiddhiTupleFactoryTest {
 	@Test
-	public void testConvertObjectArrayToTuple(){
-		Object[] row = new Object[]{1,"message",1234567L,true,new Object()};
+	public void testConvertObjectArrayToTuple() {
+		Object[] row = new Object[]{1, "message", 1234567L, true, new Object()};
 		Tuple5 tuple5 = SiddhiTupleFactory.newTuple(row);
-		assertEquals(5,tuple5.getArity());
-		assertArrayEquals(row,new Object[]{
+		assertEquals(5, tuple5.getArity());
+		assertArrayEquals(row, new Object[]{
 			tuple5.f0,
 			tuple5.f1,
 			tuple5.f2,
@@ -37,7 +39,7 @@ public class SiddhiTupleFactoryTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testConvertTooLongObjectArrayToTuple(){
+	public void testConvertTooLongObjectArrayToTuple() {
 		Object[] row = new Object[26];
 		SiddhiTupleFactory.newTuple(row);
 	}

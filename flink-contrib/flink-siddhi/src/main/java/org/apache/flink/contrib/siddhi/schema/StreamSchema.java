@@ -79,7 +79,7 @@ public class StreamSchema<T> implements Serializable {
 	private <E> int[] getFieldIndexes(TypeInformation<E> typeInfo, String... fieldNames) {
 		int[] result;
 		if (isAtomicType()) {
-			result = new int[] {0};
+			result = new int[]{0};
 		} else if (isTupleType()) {
 			result = new int[fieldNames.length];
 			for (int i = 0; i < fieldNames.length; i++) {
@@ -129,7 +129,7 @@ public class StreamSchema<T> implements Serializable {
 				throw new IllegalArgumentException(
 					"Non-composite input type may have only a single field and its index must be 0.");
 			}
-			fieldTypes = new TypeInformation[] {typeInfo};
+			fieldTypes = new TypeInformation[]{typeInfo};
 		} else {
 			throw new IllegalArgumentException(
 				"Illegal input type info"

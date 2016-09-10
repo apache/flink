@@ -30,20 +30,21 @@ public class RandomEventSource implements SourceFunction<Event> {
 	private volatile int number = 0;
 	private volatile long closeDelayTimestamp = 1000;
 
-	public RandomEventSource(int count,long initialTimestamp) {
+	public RandomEventSource(int count, long initialTimestamp) {
 		this.count = count;
 		this.random = new Random();
 		this.initialTimestamp = initialTimestamp;
 	}
 
 	public RandomEventSource() {
-		this(Integer.MAX_VALUE,System.currentTimeMillis());
-	}
-	public RandomEventSource(int count) {
-		this(count,System.currentTimeMillis());
+		this(Integer.MAX_VALUE, System.currentTimeMillis());
 	}
 
-	public RandomEventSource closeDelay(long delayTimestamp){
+	public RandomEventSource(int count) {
+		this(count, System.currentTimeMillis());
+	}
+
+	public RandomEventSource closeDelay(long delayTimestamp) {
 		this.closeDelayTimestamp = delayTimestamp;
 		return this;
 	}
@@ -51,7 +52,7 @@ public class RandomEventSource implements SourceFunction<Event> {
 	@Override
 	public void run(SourceContext<Event> ctx) throws Exception {
 		while (isRunning) {
-			ctx.collect(Event.of(number, "test_event", random.nextDouble(),initialTimestamp+1000*number));
+			ctx.collect(Event.of(number, "test_event", random.nextDouble(), initialTimestamp + 1000 * number));
 			number++;
 			if (number >= this.count) {
 				cancel();

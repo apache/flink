@@ -33,57 +33,55 @@ import java.util.Map;
 @PublicEvolving
 public class SiddhiCEP {
 	private final StreamExecutionEnvironment executionEnvironment;
-	private final Map<String, DataStream<?>> dataStreams;
-	private final Map<String, SiddhiStreamSchema<?>> dataStreamSchemas;
-	private final Map<String,Class<?>> extensions = new HashMap<>();
+	private final Map<String, DataStream<?>> dataStreams = new HashMap<>();
+	private final Map<String, SiddhiStreamSchema<?>> dataStreamSchemas = new HashMap<>();
+	private final Map<String, Class<?>> extensions = new HashMap<>();
 
-	public Map<String, DataStream<?>> getDataStreams(){
+	public Map<String, DataStream<?>> getDataStreams() {
 		return this.dataStreams;
 	}
 
-	public Map<String, SiddhiStreamSchema<?>> getDataStreamSchemas(){
+	public Map<String, SiddhiStreamSchema<?>> getDataStreamSchemas() {
 		return this.dataStreamSchemas;
 	}
 
-	public boolean isStreamDefined(String streamId){
+	public boolean isStreamDefined(String streamId) {
 		return dataStreams.containsKey(streamId);
 	}
 
-	public Map<String,Class<?>> getExtensions(){
+	public Map<String, Class<?>> getExtensions() {
 		return this.extensions;
 	}
 
 	public void checkStreamDefined(String streamId) throws UndefinedStreamException {
-		if(!isStreamDefined(streamId)){
-			throw new UndefinedStreamException("Stream (streamId: "+streamId+") not defined");
+		if (!isStreamDefined(streamId)) {
+			throw new UndefinedStreamException("Stream (streamId: " + streamId + ") not defined");
 		}
 	}
 
 	public SiddhiCEP(StreamExecutionEnvironment streamExecutionEnvironment) {
 		this.executionEnvironment = streamExecutionEnvironment;
-		this.dataStreams = new HashMap<>();
-		this.dataStreamSchemas = new HashMap<>();
 	}
 
 	public static <T> SiddhiStream.SingleSiddhiStream<T> define(String streamId, DataStream<T> inStream, String... fieldNames) {
 		SiddhiCEP environment = SiddhiCEP.getSiddhiEnvironment(inStream.getExecutionEnvironment());
-		return environment.from(streamId,inStream,fieldNames);
+		return environment.from(streamId, inStream, fieldNames);
 	}
 
-	public <T> SiddhiStream.SingleSiddhiStream<T> from(String streamId, DataStream<T> inStream, String... fieldNames){
-		this.registerStream(streamId,inStream,fieldNames);
+	public <T> SiddhiStream.SingleSiddhiStream<T> from(String streamId, DataStream<T> inStream, String... fieldNames) {
+		this.registerStream(streamId, inStream, fieldNames);
 		return new SiddhiStream.SingleSiddhiStream<>(streamId, this);
 	}
 
-	public <T> SiddhiStream.SingleSiddhiStream<T> from(String streamId){
+	public <T> SiddhiStream.SingleSiddhiStream<T> from(String streamId) {
 		return new SiddhiStream.SingleSiddhiStream<>(streamId, this);
 	}
 
-	public <T> SiddhiStream.UnionSiddhiStream<T> union(String firstStreamId,String ... unionStreamIds){
-		return new SiddhiStream.SingleSiddhiStream<T>(firstStreamId,this).union(unionStreamIds);
+	public <T> SiddhiStream.UnionSiddhiStream<T> union(String firstStreamId, String... unionStreamIds) {
+		return new SiddhiStream.SingleSiddhiStream<T>(firstStreamId, this).union(unionStreamIds);
 	}
 
-	public  <T> void registerStream(final String streamId, DataStream<T> dataStream, String... fieldNames) {
+	public <T> void registerStream(final String streamId, DataStream<T> dataStream, String... fieldNames) {
 		if (isStreamDefined(streamId)) {
 			throw new DuplicatedStreamException("Input stream: " + streamId + " already exists");
 		}
@@ -98,17 +96,17 @@ public class SiddhiCEP {
 	}
 
 	public void registerExtension(String extensionName, Class<?> extensionClass) {
-		if(extensions.containsKey(extensionName)){
-			throw new IllegalArgumentException("Extension named "+extensionName+" already registered");
+		if (extensions.containsKey(extensionName)) {
+			throw new IllegalArgumentException("Extension named " + extensionName + " already registered");
 		}
-		extensions.put(extensionName,extensionClass);
+		extensions.put(extensionName, extensionClass);
 	}
 
 	public <T> DataStream<T> getDataStream(String streamId) {
-		if(this.dataStreams.containsKey(streamId)){
+		if (this.dataStreams.containsKey(streamId)) {
 			return (DataStream<T>) this.dataStreams.get(streamId);
-		}else{
-			throw new UndefinedStreamException("Undefined stream "+streamId);
+		} else {
+			throw new UndefinedStreamException("Undefined stream " + streamId);
 		}
 	}
 

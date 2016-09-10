@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import java.util.Random;
 
 public class RandomWordSource implements SourceFunction<String> {
-	private static final String[] WORDS = new String[] {
+	private static final String[] WORDS = new String[]{
 		"To be, or not to be,--that is the question:--",
 		"Whether 'tis nobler in the mind to suffer",
 		"The slings and arrows of outrageous fortune",
@@ -75,15 +75,15 @@ public class RandomWordSource implements SourceFunction<String> {
 	}
 
 	public RandomWordSource() {
-		this(Integer.MAX_VALUE,System.currentTimeMillis());
+		this(Integer.MAX_VALUE, System.currentTimeMillis());
 	}
 
 	public RandomWordSource(int count) {
-		this(count,System.currentTimeMillis());
+		this(count, System.currentTimeMillis());
 	}
 
 
-	public RandomWordSource closeDelay(long delayTimestamp){
+	public RandomWordSource closeDelay(long delayTimestamp) {
 		this.closeDelayTimestamp = delayTimestamp;
 		return this;
 	}
@@ -91,7 +91,7 @@ public class RandomWordSource implements SourceFunction<String> {
 	@Override
 	public void run(SourceContext<String> ctx) throws Exception {
 		while (isRunning) {
-			ctx.collectWithTimestamp(WORDS[random.nextInt(WORDS.length)],initialTimestamp+1000*number);
+			ctx.collectWithTimestamp(WORDS[random.nextInt(WORDS.length)], initialTimestamp + 1000 * number);
 			number++;
 			if (number >= this.count) {
 				cancel();

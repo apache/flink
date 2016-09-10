@@ -54,12 +54,12 @@ public class StreamOutputHandler<R> extends StreamCallback {
 	public void receive(Event[] events) {
 		StreamRecord<R> reusableRecord = new StreamRecord<>(null, 0L);
 		for (Event event : events) {
-			if (typeInfo == null  || Map.class.isAssignableFrom(typeInfo.getTypeClass())) {
-				reusableRecord.replace(toMap(event),event.getTimestamp());
+			if (typeInfo == null || Map.class.isAssignableFrom(typeInfo.getTypeClass())) {
+				reusableRecord.replace(toMap(event), event.getTimestamp());
 				output.collect(reusableRecord);
 			} else if (typeInfo.isTupleType()) {
 				Tuple tuple = this.toTuple(event);
-				reusableRecord.replace(tuple,event.getTimestamp());
+				reusableRecord.replace(tuple, event.getTimestamp());
 				output.collect(reusableRecord);
 			} else if (typeInfo instanceof PojoTypeInfo) {
 				R obj;
@@ -69,7 +69,7 @@ public class StreamOutputHandler<R> extends StreamCallback {
 					LOGGER.error("Failed to map event: " + event + " into type: " + typeInfo, ex);
 					throw ex;
 				}
-				reusableRecord.replace(obj,event.getTimestamp());
+				reusableRecord.replace(obj, event.getTimestamp());
 				output.collect(reusableRecord);
 			} else {
 				throw new IllegalArgumentException("Unable to format " + event + " as type " + typeInfo);

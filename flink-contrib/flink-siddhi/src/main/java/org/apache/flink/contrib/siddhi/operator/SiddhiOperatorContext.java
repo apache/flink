@@ -37,7 +37,7 @@ import java.util.Map;
 public class SiddhiOperatorContext implements Serializable {
 	private ExecutionConfig executionConfig;
 	private Map<String, SiddhiStreamSchema<?>> inputStreamSchemas;
-	private final Map<String,Class<?>> siddhiExtensions;
+	private final Map<String, Class<?>> siddhiExtensions;
 	private String outputStreamId;
 	private TypeInformation outputStreamType;
 	private TimeCharacteristic timeCharacteristic;
@@ -49,12 +49,12 @@ public class SiddhiOperatorContext implements Serializable {
 		siddhiExtensions = new HashMap<>();
 	}
 
-	public void setExtensions(Map<String,Class<?>> extensions){
+	public void setExtensions(Map<String, Class<?>> extensions) {
 		Preconditions.checkNotNull(extensions);
 		siddhiExtensions.putAll(extensions);
 	}
 
-	public Map<String,Class<?>> getExtensions(){
+	public Map<String, Class<?>> getExtensions() {
 		return siddhiExtensions;
 	}
 
@@ -63,7 +63,7 @@ public class SiddhiOperatorContext implements Serializable {
 			if (executionPlan.length() > 100) {
 				return String.format("Siddhi: %s ... (%s)", executionPlan.substring(0, 100), executionPlan.length() - 100);
 			} else {
-				return String.format("Siddhi: %s",executionPlan);
+				return String.format("Siddhi: %s", executionPlan);
 			}
 		} else {
 			return this.name;
@@ -87,7 +87,7 @@ public class SiddhiOperatorContext implements Serializable {
 	 * Stream definition + execution expression
 	 */
 	public String getFinalExecutionPlan() {
-		Preconditions.checkNotNull(executionPlan,"Execution plan is not set");
+		Preconditions.checkNotNull(executionPlan, "Execution plan is not set");
 		StringBuilder sb = new StringBuilder();
 		for (Map.Entry<String, SiddhiStreamSchema<?>> entry : inputStreamSchemas.entrySet()) {
 			sb.append(entry.getValue().getStreamDefinitionExpression(entry.getKey()));
@@ -144,10 +144,10 @@ public class SiddhiOperatorContext implements Serializable {
 		this.name = name;
 	}
 
-	public SiddhiManager createSiddhiManager(){
+	public SiddhiManager createSiddhiManager() {
 		SiddhiManager siddhiManager = new SiddhiManager();
-		for(Map.Entry<String,Class<?>> entry:getExtensions().entrySet()) {
-			siddhiManager.setExtension(entry.getKey(),entry.getValue());
+		for (Map.Entry<String, Class<?>> entry : getExtensions().entrySet()) {
+			siddhiManager.setExtension(entry.getKey(), entry.getValue());
 		}
 		return siddhiManager;
 	}

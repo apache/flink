@@ -68,7 +68,7 @@ public class Event {
 		return event;
 	}
 
-	public static Event of(int id, String name, double price,long timestamp) {
+	public static Event of(int id, String name, double price, long timestamp) {
 		Event event = new Event();
 		event.setId(id);
 		event.setName(name);

@@ -42,11 +42,12 @@ import java.util.Map;
 @PublicEvolving
 public abstract class SiddhiStream {
 	private final SiddhiCEP environment;
-	public SiddhiStream(SiddhiCEP environment){
+
+	public SiddhiStream(SiddhiCEP environment) {
 		this.environment = environment;
 	}
 
-	protected SiddhiCEP getEnvironment(){
+	protected SiddhiCEP getEnvironment() {
 		return this.environment;
 	}
 
@@ -55,18 +56,18 @@ public abstract class SiddhiStream {
 	/**
 	 * Convert DataStream&lt;T&gt; to DataStream&lt;Tuple2&lt;String,T&gt;&gt;.
 	 * If it's KeyedStream. pass through original keySelector
-     */
-	protected <T> DataStream<Tuple2<String, Object>> convertDataStream(DataStream<T> dataStream, String streamId){
+	 */
+	protected <T> DataStream<Tuple2<String, Object>> convertDataStream(DataStream<T> dataStream, String streamId) {
 		final String streamIdInClosure = streamId;
 		DataStream<Tuple2<String, Object>> resultStream = dataStream.map(new MapFunction<T, Tuple2<String, Object>>() {
 			@Override
 			public Tuple2<String, Object> map(T value) throws Exception {
-				return Tuple2.of(streamIdInClosure,(Object) value);
+				return Tuple2.of(streamIdInClosure, (Object) value);
 			}
 		});
-		if(dataStream instanceof KeyedStream){
+		if (dataStream instanceof KeyedStream) {
 			final KeySelector<T, Object> keySelector = ((KeyedStream<T, Object>) dataStream).getKeySelector();
-			final KeySelector<Tuple2<String,Object>, Object> keySelectorInClosure = new KeySelector<Tuple2<String,Object>, Object>() {
+			final KeySelector<Tuple2<String, Object>, Object> keySelectorInClosure = new KeySelector<Tuple2<String, Object>, Object>() {
 				@Override
 				public Object getKey(Tuple2<String, Object> value) throws Exception {
 					return keySelector.getKey((T) value.f1);
@@ -83,68 +84,69 @@ public abstract class SiddhiStream {
 			super(environment);
 		}
 
-		public ExecutionSiddhiStream sql(String executionPlan){
-			return new ExecutionSiddhiStream(this.toDataStream(),executionPlan,getEnvironment());
+		public ExecutionSiddhiStream sql(String executionPlan) {
+			return new ExecutionSiddhiStream(this.toDataStream(), executionPlan, getEnvironment());
 		}
 	}
 
 	public static class SingleSiddhiStream<T> extends ExecutableStream {
 		private final String streamId;
-		public SingleSiddhiStream(String streamId,SiddhiCEP environment) {
+
+		public SingleSiddhiStream(String streamId, SiddhiCEP environment) {
 			super(environment);
 			environment.checkStreamDefined(streamId);
 			this.streamId = streamId;
 		}
 
-		public UnionSiddhiStream<T> union(String streamId, DataStream<T> dataStream, String... fieldNames){
-			getEnvironment().registerStream(streamId,dataStream,fieldNames);
+		public UnionSiddhiStream<T> union(String streamId, DataStream<T> dataStream, String... fieldNames) {
+			getEnvironment().registerStream(streamId, dataStream, fieldNames);
 			return union(streamId);
 		}
 
-		public UnionSiddhiStream<T> union(String ... streamIds){
+		public UnionSiddhiStream<T> union(String... streamIds) {
 			Preconditions.checkNotNull(streamIds);
-			return new UnionSiddhiStream<T>(this.streamId, Arrays.asList(streamIds),this.getEnvironment());
+			return new UnionSiddhiStream<T>(this.streamId, Arrays.asList(streamIds), this.getEnvironment());
 		}
 
 		@Override
 		protected DataStream<Tuple2<String, Object>> toDataStream() {
-			return convertDataStream(getEnvironment().getDataStream(this.streamId),this.streamId);
+			return convertDataStream(getEnvironment().getDataStream(this.streamId), this.streamId);
 		}
 	}
 
-	public static class UnionSiddhiStream<T> extends ExecutableStream{
+	public static class UnionSiddhiStream<T> extends ExecutableStream {
 		private String firstStreamId;
 		private List<String> unionStreamIds;
 
 		public UnionSiddhiStream(String firstStreamId, List<String> unionStreamIds, SiddhiCEP environment) {
 			super(environment);
 			environment.checkStreamDefined(firstStreamId);
-			for(String unionStreamId:unionStreamIds){
+			for (String unionStreamId : unionStreamIds) {
 				environment.checkStreamDefined(unionStreamId);
 			}
 			this.firstStreamId = firstStreamId;
 			this.unionStreamIds = unionStreamIds;
 		}
 
-		public UnionSiddhiStream<T> union(String streamId, DataStream<T> dataStream, String... fieldNames){
-			getEnvironment().registerStream(streamId,dataStream,fieldNames);
+		public UnionSiddhiStream<T> union(String streamId, DataStream<T> dataStream, String... fieldNames) {
+			getEnvironment().registerStream(streamId, dataStream, fieldNames);
 			return union(streamId);
 		}
 
-		public UnionSiddhiStream<T> union(String ... streamId){
+		public UnionSiddhiStream<T> union(String... streamId) {
 			List<String> newUnionStreamIds = new LinkedList<>();
 			newUnionStreamIds.addAll(unionStreamIds);
 			newUnionStreamIds.addAll(Arrays.asList(streamId));
-			return new UnionSiddhiStream<T>(this.firstStreamId, newUnionStreamIds,this.getEnvironment());
+			return new UnionSiddhiStream<T>(this.firstStreamId, newUnionStreamIds, this.getEnvironment());
 		}
 
 		@Override
 		protected DataStream<Tuple2<String, Object>> toDataStream() {
 			final String localFirstStreamId = firstStreamId;
 			final List<String> localUnionStreamIds = this.unionStreamIds;
-			DataStream<Tuple2<String, Object>> dataStream = convertDataStream(getEnvironment().<T>getDataStream(localFirstStreamId),this.firstStreamId);
-			for(String unionStreamId:localUnionStreamIds){
-				dataStream = dataStream.union(convertDataStream(getEnvironment().<T>getDataStream(unionStreamId),unionStreamId));
+			DataStream<Tuple2<String, Object>> dataStream = convertDataStream(getEnvironment().<T>getDataStream(localFirstStreamId), this.firstStreamId);
+			for (String unionStreamId : localUnionStreamIds) {
+				dataStream = dataStream.union(convertDataStream(getEnvironment().<T>getDataStream(unionStreamId), unionStreamId));
 			}
 			return dataStream;
 		}
@@ -156,17 +158,16 @@ public abstract class SiddhiStream {
 		private final String executionPlan;
 
 		public ExecutionSiddhiStream(DataStream<Tuple2<String, Object>> dataStream, String executionPlan, SiddhiCEP environment) {
-			this.executionPlan=executionPlan;
+			this.executionPlan = executionPlan;
 			this.dataStream = dataStream;
 			this.environment = environment;
 		}
 
 		/**
 		 * @param outStreamId The <code>streamId</code> to return as data stream.
-		 * @param <T> Type information should match with stream definition.
-		 *             During execution phase, it will automatically build type information based on stream definition.
+		 * @param <T>         Type information should match with stream definition.
+		 *                    During execution phase, it will automatically build type information based on stream definition.
 		 * @return Return output stream as Tuple
-		 *
 		 * @see SiddhiTypeFactory
 		 */
 		public <T extends Tuple> DataStream<T> returns(String outStreamId) {
@@ -178,16 +179,15 @@ public abstract class SiddhiStream {
 			siddhiContext.setExtensions(environment.getExtensions());
 			siddhiContext.setExecutionConfig(environment.getExecutionEnvironment().getConfig());
 			TypeInformation<T> typeInformation =
-				SiddhiTypeFactory.getTupleTypeInformation(siddhiContext.getFinalExecutionPlan(),outStreamId);
+				SiddhiTypeFactory.getTupleTypeInformation(siddhiContext.getFinalExecutionPlan(), outStreamId);
 			siddhiContext.setOutputStreamType(typeInformation);
 			return returnsInternal(siddhiContext);
 		}
 
 		/**
 		 * @return Return output stream as <code>DataStream&lt;Map&lt;String,Object&gt;&gt;</code>,
-		 * 		   out type is <code>LinkedHashMap&lt;String,Object&gt;</code> and guarantee field order
-		 * 		   as defined in siddhi execution plan
-		 *
+		 * out type is <code>LinkedHashMap&lt;String,Object&gt;</code> and guarantee field order
+		 * as defined in siddhi execution plan
 		 * @see java.util.LinkedHashMap
 		 */
 		public DataStream<Map<String, Object>> returnAsMap(String outStreamId) {
@@ -196,16 +196,16 @@ public abstract class SiddhiStream {
 
 		/**
 		 * @param outStreamId OutStreamId
-		 * @param outType Output type class
-		 * @param <T> Output type
+		 * @param outType     Output type class
+		 * @param <T>         Output type
 		 * @return Return output stream as POJO class.
 		 */
 		public <T> DataStream<T> returns(String outStreamId, Class<T> outType) {
 			TypeInformation<T> typeInformation = TypeExtractor.getForClass(outType);
-			return returnsInternal(outStreamId,typeInformation);
+			return returnsInternal(outStreamId, typeInformation);
 		}
 
-		private  <T> DataStream<T> returnsInternal(String outStreamId, TypeInformation<T> typeInformation) {
+		private <T> DataStream<T> returnsInternal(String outStreamId, TypeInformation<T> typeInformation) {
 			SiddhiOperatorContext siddhiContext = new SiddhiOperatorContext();
 			siddhiContext.setExecutionPlan(executionPlan);
 			siddhiContext.setInputStreamSchemas(environment.getDataStreamSchemas());
@@ -217,7 +217,7 @@ public abstract class SiddhiStream {
 			return returnsInternal(siddhiContext);
 		}
 
-		private  <T> DataStream<T> returnsInternal(SiddhiOperatorContext siddhiContext){
+		private <T> DataStream<T> returnsInternal(SiddhiOperatorContext siddhiContext) {
 			return SiddhiStreamFactory.createDataStream(siddhiContext, this.dataStream);
 		}
 	}

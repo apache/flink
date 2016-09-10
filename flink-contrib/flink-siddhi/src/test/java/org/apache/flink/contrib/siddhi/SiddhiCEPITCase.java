@@ -79,12 +79,12 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
 
-		DataStream<Tuple4<Long,Integer,String,Double>> output = SiddhiCEP
-			.define("inputStream", input, "id", "name", "price","timestamp")
+		DataStream<Tuple4<Long, Integer, String, Double>> output = SiddhiCEP
+			.define("inputStream", input, "id", "name", "price", "timestamp")
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
 
-		DataStream<Integer> following = output.map(new MapFunction<Tuple4<Long,Integer,String,Double>, Integer>() {
+		DataStream<Integer> following = output.map(new MapFunction<Tuple4<Long, Integer, String, Double>, Integer>() {
 			@Override
 			public Integer map(Tuple4<Long, Integer, String, Double> value) throws Exception {
 				return value.f1;
@@ -99,10 +99,10 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testUnboundedTupleSourceAndReturnTuple() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Tuple4<Integer,String,Double,Long>> input = env.addSource(new RandomTupleSource(5).closeDelay(1500));
+		DataStream<Tuple4<Integer, String, Double, Long>> input = env.addSource(new RandomTupleSource(5).closeDelay(1500));
 
-		DataStream<Tuple4<Long,Integer,String,Double>> output = SiddhiCEP
-			.define("inputStream", input, "id", "name", "price","timestamp")
+		DataStream<Tuple4<Long, Integer, String, Double>> output = SiddhiCEP
+			.define("inputStream", input, "id", "name", "price", "timestamp")
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
 
@@ -133,12 +133,12 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Event> input = env.addSource(new RandomEventSource(5).closeDelay(1500));
 
-		DataStream<Tuple5<Long,Integer,String,Double,Long>> output = SiddhiCEP
-			.define("inputStream", input, "id", "name", "price","timestamp")
+		DataStream<Tuple5<Long, Integer, String, Double, Long>> output = SiddhiCEP
+			.define("inputStream", input, "id", "name", "price", "timestamp")
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returns("outputStream");
 
-		DataStream<Long> following = output.map(new MapFunction<Tuple5<Long,Integer,String,Double,Long>, Long>() {
+		DataStream<Long> following = output.map(new MapFunction<Tuple5<Long, Integer, String, Double, Long>, Long>() {
 			@Override
 			public Long map(Tuple5<Long, Integer, String, Double, Long> value) throws Exception {
 				return value.f0;
@@ -160,7 +160,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
 
 		DataStream<Map<String, Object>> output = SiddhiCEP
-			.define("inputStream", input, "id", "name", "price","timestamp")
+			.define("inputStream", input, "id", "name", "price", "timestamp")
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
 			.returnAsMap("outputStream");
 
@@ -182,9 +182,9 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		});
 
 		DataStream<Event> output = SiddhiCEP
-			.define("inputStream", input, "id", "name", "price","timestamp")
+			.define("inputStream", input, "id", "name", "price", "timestamp")
 			.sql("from inputStream select timestamp, id, name, price insert into  outputStream")
-			.returns("outputStream",Event.class);
+			.returns("outputStream", Event.class);
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -196,19 +196,19 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testMultipleUnboundedPojoStreamSimpleUnion() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(2),"input1");
-		DataStream<Event> input2 = env.addSource(new RandomEventSource(2),"input2");
-		DataStream<Event> input3 = env.addSource(new RandomEventSource(2),"input2");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(2), "input1");
+		DataStream<Event> input2 = env.addSource(new RandomEventSource(2), "input2");
+		DataStream<Event> input3 = env.addSource(new RandomEventSource(2), "input2");
 		DataStream<Event> output = SiddhiCEP
-			.define("inputStream1", input1, "id", "name", "price","timestamp")
-			.union("inputStream2", input2, "id", "name", "price","timestamp")
-			.union("inputStream3", input3, "id", "name", "price","timestamp")
+			.define("inputStream1", input1, "id", "name", "price", "timestamp")
+			.union("inputStream2", input2, "id", "name", "price", "timestamp")
+			.union("inputStream3", input3, "id", "name", "price", "timestamp")
 			.sql(
 				"from inputStream1 select timestamp, id, name, price insert into outputStream;"
-				+ "from inputStream2 select timestamp, id, name, price insert into outputStream;"
-				+ "from inputStream3 select timestamp, id, name, price insert into outputStream;"
+					+ "from inputStream2 select timestamp, id, name, price insert into outputStream;"
+					+ "from inputStream3 select timestamp, id, name, price insert into outputStream;"
 			)
-			.returns("outputStream",Event.class);
+			.returns("outputStream", Event.class);
 
 		String resultPath = tempFolder.newFile().toURI().toString();
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -218,22 +218,22 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 
 	/**
 	 * @see <a href="https://docs.wso2.com/display/CEP300/Joins">https://docs.wso2.com/display/CEP300/Joins</a>
-     */
+	 */
 	@Test
 	public void testMultipleUnboundedPojoStreamUnionAndJoinWithWindow() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
-		DataStream<Event> input2 = env.addSource(new RandomEventSource(5),"input2");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(5), "input1");
+		DataStream<Event> input2 = env.addSource(new RandomEventSource(5), "input2");
 
 		DataStream<? extends Map> output = SiddhiCEP
-			.define("inputStream1", input1.keyBy("id"), "id", "name", "price","timestamp")
-			.union("inputStream2", input2.keyBy("id"), "id", "name", "price","timestamp")
+			.define("inputStream1", input1.keyBy("id"), "id", "name", "price", "timestamp")
+			.union("inputStream2", input2.keyBy("id"), "id", "name", "price", "timestamp")
 			.sql(
 				"from inputStream1#window.length(5) as s1 "
-				+ "join inputStream2#window.time(500) as s2 "
-				+ "on s1.id == s2.id "
-				+ "select s1.timestamp as t, s1.name as n, s1.price as p1, s2.price as p2 "
-				+ "insert into JoinStream;"
+					+ "join inputStream2#window.time(500) as s2 "
+					+ "on s1.id == s2.id "
+					+ "select s1.timestamp as t, s1.name as n, s1.price as p1, s2.price as p2 "
+					+ "insert into JoinStream;"
 			)
 			.returnAsMap("JoinStream");
 
@@ -249,17 +249,17 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testUnboundedPojoStreamSimplePatternMatch() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(5).closeDelay(1500),"input1");
-		DataStream<Event> input2 = env.addSource(new RandomEventSource(5).closeDelay(1500),"input2");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(5).closeDelay(1500), "input1");
+		DataStream<Event> input2 = env.addSource(new RandomEventSource(5).closeDelay(1500), "input2");
 
 		DataStream<Map<String, Object>> output = SiddhiCEP
-			.define("inputStream1", input1.keyBy("name"), "id", "name", "price","timestamp")
-			.union("inputStream2", input2.keyBy("name"), "id", "name", "price","timestamp")
+			.define("inputStream1", input1.keyBy("name"), "id", "name", "price", "timestamp")
+			.union("inputStream2", input2.keyBy("name"), "id", "name", "price", "timestamp")
 			.sql(
 				"from every s1 = inputStream1[id == 2] "
-				+ " -> s2 = inputStream2[id == 3] "
-				+ "select s1.id as id_1, s1.name as name_1, s2.id as id_2, s2.name as name_2 "
-				+ "insert into outputStream"
+					+ " -> s2 = inputStream2[id == 3] "
+					+ "select s1.id as id_1, s1.name as name_1, s2.id as id_2, s2.name as name_2 "
+					+ "insert into outputStream"
 			)
 			.returnAsMap("outputStream");
 
@@ -267,7 +267,7 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		output.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 		env.execute();
 		assertEquals(1, getLineCount(resultPath));
-		compareResultsByLinesInMemory("{id_1=2, name_1=test_event, id_2=3, name_2=test_event}",resultPath);
+		compareResultsByLinesInMemory("{id_1=2, name_1=test_event, id_2=3, name_2=test_event}", resultPath);
 	}
 
 	/**
@@ -276,16 +276,16 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testUnboundedPojoStreamSimpleSequences() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(5).closeDelay(1500),"input1");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(5).closeDelay(1500), "input1");
 		DataStream<Map<String, Object>> output = SiddhiCEP
-			.define("inputStream1", input1.keyBy("name"), "id", "name", "price","timestamp")
-			.union("inputStream2", input1.keyBy("name"), "id", "name", "price","timestamp")
+			.define("inputStream1", input1.keyBy("name"), "id", "name", "price", "timestamp")
+			.union("inputStream2", input1.keyBy("name"), "id", "name", "price", "timestamp")
 			.sql(
 				"from every s1 = inputStream1[id == 2]+ , "
-				+ "s2 = inputStream2[id == 3]? "
-				+ "within 1000 second "
-				+ "select s1[0].name as n1, s2.name as n2 "
-				+ "insert into outputStream"
+					+ "s2 = inputStream2[id == 3]? "
+					+ "within 1000 second "
+					+ "select s1[0].name as n1, s2.name as n2 "
+					+ "insert into outputStream"
 			)
 			.returnAsMap("outputStream");
 
@@ -307,10 +307,10 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Event> input = env.addSource(new RandomEventSource(5));
 
 		SiddhiCEP cep = SiddhiCEP.getSiddhiEnvironment(env);
-		cep.registerExtension("custom:plus",CustomPlusFunctionExtension.class);
+		cep.registerExtension("custom:plus", CustomPlusFunctionExtension.class);
 
 		DataStream<Map<String, Object>> output = cep
-			.from("inputStream", input, "id", "name", "price","timestamp")
+			.from("inputStream", input, "id", "name", "price", "timestamp")
 			.sql("from inputStream select timestamp, id, name, custom:plus(price,price) as doubled_price insert into  outputStream")
 			.returnAsMap("outputStream");
 
@@ -323,16 +323,16 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testRegisterStreamAndExtensionWithSiddhiCEPEnvironment() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
-		DataStream<Event> input2 = env.addSource(new RandomEventSource(5),"input2");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(5), "input1");
+		DataStream<Event> input2 = env.addSource(new RandomEventSource(5), "input2");
 
 		SiddhiCEP cep = SiddhiCEP.getSiddhiEnvironment(env);
-		cep.registerExtension("custom:plus",CustomPlusFunctionExtension.class);
+		cep.registerExtension("custom:plus", CustomPlusFunctionExtension.class);
 
-		cep.registerStream("inputStream1", input1.keyBy("id"), "id", "name", "price","timestamp");
-		cep.registerStream("inputStream2", input2.keyBy("id"), "id", "name", "price","timestamp");
+		cep.registerStream("inputStream1", input1.keyBy("id"), "id", "name", "price", "timestamp");
+		cep.registerStream("inputStream2", input2.keyBy("id"), "id", "name", "price", "timestamp");
 
-		DataStream<Tuple4<Long,String,Double,Double>> output = cep
+		DataStream<Tuple4<Long, String, Double, Double>> output = cep
 			.from("inputStream1").union("inputStream2")
 			.sql(
 				"from inputStream1#window.length(5) as s1 "
@@ -352,10 +352,10 @@ public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test(expected = UndefinedStreamException.class)
 	public void testTriggerUndefinedStreamException() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Event> input1 = env.addSource(new RandomEventSource(5),"input1");
+		DataStream<Event> input1 = env.addSource(new RandomEventSource(5), "input1");
 
 		SiddhiCEP cep = SiddhiCEP.getSiddhiEnvironment(env);
-		cep.registerStream("inputStream1", input1.keyBy("id"), "id", "name", "price","timestamp");
+		cep.registerStream("inputStream1", input1.keyBy("id"), "id", "name", "price", "timestamp");
 
 		DataStream<Map<String, Object>> output = cep
 			.from("inputStream1").union("inputStream2")

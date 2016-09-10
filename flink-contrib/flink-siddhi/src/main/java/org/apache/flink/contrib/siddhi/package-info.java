@@ -17,40 +17,39 @@
 
 /**
  * <h1> Features </h1>
- *
  * <ul>
- *   <li>
- *       Integrate Siddhi CEP as an  stream operator (i.e. `TupleStreamSiddhiOperator`), supporting rich CEP features like
- *       <ul>
- *           <li>Filter</li>
- *           <li>Join</li>
- *           <li>Aggregation</li>
- *           <li>Group by</li>
- *           <li>Having</li>
- *           <li>Window</li>
- *           <li>Conditions and Expressions</li>
- *           <li>Pattern processing</li>
- *           <li>Sequence processing</li>
- *           <li>Event Tables</li>
- *           <li>...</li>
- *       </ul>
- *   </li>
- *   <li>
- *       Provide easy-to-use Siddhi CEP API to integrate Flink DataStream API (See `SiddhiCEP` and `SiddhiStream`)
- *       <ul>
- *           <li>Register Flink DataStream associating native type information with Siddhi Stream Schema, supporting POJO,Tuple, Primitive Type, etc.</li>
- *           <li>Connect with single or multiple Flink DataStreams with Siddhi CEP Execution Plan</li>
- *           <li>Return output stream as DataStream with type intelligently inferred from Siddhi Stream Schema</li>
- *       </ul>
- *   </li>
- *   <li>
- *       Integrate siddhi runtime state management with Flink state (See `AbstractSiddhiOperator`)
- *   </li>
- *   <li>
- *		Support siddhi plugin management to extend CEP functions. (See `SiddhiCEP#registerExtension`)
- *   </li>
+ * <li>
+ * Integrate Siddhi CEP as an  stream operator (i.e. `TupleStreamSiddhiOperator`), supporting rich CEP features like
+ * <ul>
+ * <li>Filter</li>
+ * <li>Join</li>
+ * <li>Aggregation</li>
+ * <li>Group by</li>
+ * <li>Having</li>
+ * <li>Window</li>
+ * <li>Conditions and Expressions</li>
+ * <li>Pattern processing</li>
+ * <li>Sequence processing</li>
+ * <li>Event Tables</li>
+ * <li>...</li>
  * </ul>
- *
+ * </li>
+ * <li>
+ * Provide easy-to-use Siddhi CEP API to integrate Flink DataStream API (See `SiddhiCEP` and `SiddhiStream`)
+ * <ul>
+ * <li>Register Flink DataStream associating native type information with Siddhi Stream Schema, supporting POJO,Tuple, Primitive Type, etc.</li>
+ * <li>Connect with single or multiple Flink DataStreams with Siddhi CEP Execution Plan</li>
+ * <li>Return output stream as DataStream with type intelligently inferred from Siddhi Stream Schema</li>
+ * </ul>
+ * </li>
+ * <li>
+ * Integrate siddhi runtime state management with Flink state (See `AbstractSiddhiOperator`)
+ * </li>
+ * <li>
+ * Support siddhi plugin management to extend CEP functions. (See `SiddhiCEP#registerExtension`)
+ * </li>
+ * </ul>
+ * <p/>
  * <h1>Example</h1>
  * <pre>
  * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -64,12 +63,12 @@
  * DataStream&lt;Tuple4&lt;Integer,String,Integer,String&gt;&gt; output = cep
  * 	.from("inputStream1").union("inputStream2")
  * 	.sql(
- *		"from every s1 = inputStream1[id == 2] "
- *		 + " -> s2 = inputStream2[id == 3] "
- *		 + "select s1.id as id_1, s1.name as name_1, s2.id as id_2, s2.name as name_2 "
- *		 + "insert into outputStream"
- *	)
- *	.returns("outputStream");
+ * 		"from every s1 = inputStream1[id == 2] "
+ * 		 + " -> s2 = inputStream2[id == 3] "
+ * 		 + "select s1.id as id_1, s1.name as name_1, s2.id as id_2, s2.name as name_2 "
+ * 		 + "insert into outputStream"
+ * 	)
+ * 	.returns("outputStream");
  *
  * env.execute();
  * </pre>

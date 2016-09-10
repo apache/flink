@@ -49,7 +49,7 @@ import org.apache.flink.util.Preconditions;
 public class SiddhiTupleFactory {
 	/**
 	 * Convert object array to type of Tuple{N} where N is between 0 to 25.
-     */
+	 */
 	public static <T extends Tuple> T newTuple(Object[] row) {
 		Preconditions.checkNotNull(row, "Tuple row is null");
 		switch (row.length) {

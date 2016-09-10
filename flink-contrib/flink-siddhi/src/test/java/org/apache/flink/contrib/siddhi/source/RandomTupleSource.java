@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.Random;
 
-public class RandomTupleSource implements SourceFunction<Tuple4<Integer,String,Double,Long>> {
+public class RandomTupleSource implements SourceFunction<Tuple4<Integer, String, Double, Long>> {
 	private final int count;
 	private final Random random;
 	private final long initialTimestamp;
@@ -38,15 +38,15 @@ public class RandomTupleSource implements SourceFunction<Tuple4<Integer,String,D
 	}
 
 	public RandomTupleSource() {
-		this(Integer.MAX_VALUE,System.currentTimeMillis());
+		this(Integer.MAX_VALUE, System.currentTimeMillis());
 	}
 
 	public RandomTupleSource(int count) {
-		this(count,System.currentTimeMillis());
+		this(count, System.currentTimeMillis());
 	}
 
 
-	public RandomTupleSource closeDelay(long delayTimestamp){
+	public RandomTupleSource closeDelay(long delayTimestamp) {
 		this.closeDelayTimestamp = delayTimestamp;
 		return this;
 	}
@@ -54,7 +54,7 @@ public class RandomTupleSource implements SourceFunction<Tuple4<Integer,String,D
 	@Override
 	public void run(SourceContext<Tuple4<Integer, String, Double, Long>> ctx) throws Exception {
 		while (isRunning) {
-			ctx.collect(Tuple4.of(number,"test_tuple", random.nextDouble(),initialTimestamp+1000*number));
+			ctx.collect(Tuple4.of(number, "test_tuple", random.nextDouble(), initialTimestamp + 1000 * number));
 			number++;
 			if (number >= this.count) {
 				cancel();

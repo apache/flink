@@ -56,7 +56,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	private final SiddhiOperatorContext siddhiPlan;
 	private final String executionExpression;
 	private final boolean isProcessingTime;
-	private final Map<String,MultiplexingStreamRecordSerializer<IN>> streamRecordSerializers;
+	private final Map<String, MultiplexingStreamRecordSerializer<IN>> streamRecordSerializers;
 
 	private transient SiddhiManager siddhiManager;
 	private transient ExecutionPlanRuntime siddhiRuntime;
@@ -75,18 +75,18 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		this.isProcessingTime = this.siddhiPlan.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 		this.streamRecordSerializers = new HashMap<>();
 
-		for(String streamId:this.siddhiPlan.getInputStreams()){
-			streamRecordSerializers.put(streamId, createStreamRecordSerializer(this.siddhiPlan.getInputStreamSchema(streamId),this.siddhiPlan.getExecutionConfig()));
+		for (String streamId : this.siddhiPlan.getInputStreams()) {
+			streamRecordSerializers.put(streamId, createStreamRecordSerializer(this.siddhiPlan.getInputStreamSchema(streamId), this.siddhiPlan.getExecutionConfig()));
 		}
 	}
 
 	protected abstract MultiplexingStreamRecordSerializer<IN> createStreamRecordSerializer(StreamSchema streamSchema, ExecutionConfig executionConfig);
 
-	protected MultiplexingStreamRecordSerializer<IN> getStreamRecordSerializer(String streamId){
-		if(streamRecordSerializers.containsKey(streamId)){
+	protected MultiplexingStreamRecordSerializer<IN> getStreamRecordSerializer(String streamId) {
+		if (streamRecordSerializers.containsKey(streamId)) {
 			return streamRecordSerializers.get(streamId);
 		} else {
-			throw new UndefinedStreamException("Stream "+streamId+" not defined");
+			throw new UndefinedStreamException("Stream " + streamId + " not defined");
 		}
 	}
 
@@ -181,8 +181,8 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 	private void startSiddhiRuntime() {
 		if (this.siddhiRuntime == null) {
 			this.siddhiManager = this.siddhiPlan.createSiddhiManager();
-			for(Map.Entry<String,Class<?>> entry:this.siddhiPlan.getExtensions().entrySet()) {
-				this.siddhiManager.setExtension(entry.getKey(),entry.getValue());
+			for (Map.Entry<String, Class<?>> entry : this.siddhiPlan.getExtensions().entrySet()) {
+				this.siddhiManager.setExtension(entry.getKey(), entry.getValue());
 			}
 			this.siddhiRuntime = siddhiManager.createExecutionPlanRuntime(executionExpression);
 			this.siddhiRuntime.start();
@@ -236,7 +236,7 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		out.write(siddhiRuntimeSnapshot, 0, siddhiRuntimeSnapshotLength);
 
 		// Write queue buffer snapshot
-		this.snapshotQueuerState(this.priorityQueue,new DataOutputViewStreamWrapper(oos));
+		this.snapshotQueuerState(this.priorityQueue, new DataOutputViewStreamWrapper(oos));
 
 		oos.flush();
 	}

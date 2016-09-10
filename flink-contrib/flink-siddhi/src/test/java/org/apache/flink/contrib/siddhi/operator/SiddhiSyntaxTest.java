@@ -30,7 +30,7 @@ import org.wso2.siddhi.core.stream.output.StreamCallback;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SiddhiTest {
+public class SiddhiSyntaxTest {
 
 	private SiddhiManager siddhiManager;
 
