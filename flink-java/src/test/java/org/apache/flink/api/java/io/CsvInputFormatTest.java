@@ -78,9 +78,9 @@ public class CsvInputFormatTest {
 		final File tempFile = File.createTempFile("input-stream-decoration-test", "tmp");
 		tempFile.deleteOnExit();
 
-		FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
-		fileOutputStream.write(fileContent.getBytes());
-		fileOutputStream.close();
+		try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile)) {
+			fileOutputStream.write(fileContent.getBytes());
+		}
 
 		// fix the number of blocks and the size of each one.
 		final int noOfBlocks = 3;

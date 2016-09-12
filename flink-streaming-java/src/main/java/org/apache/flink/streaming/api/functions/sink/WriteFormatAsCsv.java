@@ -37,13 +37,11 @@ public class WriteFormatAsCsv<IN> extends WriteFormat<IN> {
 
 	@Override
 	protected void write(String path, ArrayList<IN> tupleList) {
-		try {
-			PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)));
+		try (PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)))) {
 			for (IN tupleToWrite : tupleList) {
 				String strTuple = tupleToWrite.toString();
 				outStream.println(strTuple.substring(1, strTuple.length() - 1));
 			}
-			outStream.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Exception occured while writing file " + path, e);
 		}

@@ -179,9 +179,9 @@ public class PrimitiveInputFormatTest {
 		File tempFile = File.createTempFile("test_contents", "tmp");
 		tempFile.deleteOnExit();
 
-		FileWriter wrt = new FileWriter(tempFile);
-		wrt.write(content);
-		wrt.close();
+		try (FileWriter wrt = new FileWriter(tempFile)) {
+			wrt.write(content);
+		}
 
 		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}

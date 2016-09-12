@@ -46,9 +46,9 @@ public class LocalExecutorITCase {
 			inFile.deleteOnExit();
 			outFile.deleteOnExit();
 			
-			FileWriter fw = new FileWriter(inFile);
-			fw.write(WordCountData.TEXT);
-			fw.close();
+			try (FileWriter fw = new FileWriter(inFile)) {
+				fw.write(WordCountData.TEXT);
+			}
 
 			LocalExecutor executor = new LocalExecutor();
 			executor.setDefaultOverwriteFiles(true);

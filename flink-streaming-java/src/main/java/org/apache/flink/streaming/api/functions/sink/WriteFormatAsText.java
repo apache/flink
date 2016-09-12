@@ -37,12 +37,10 @@ public class WriteFormatAsText<IN> extends WriteFormat<IN> {
 
 	@Override
 	public void write(String path, ArrayList<IN> tupleList) {
-		try {
-			PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)));
+		try (PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)))) {
 			for (IN tupleToWrite : tupleList) {
 				outStream.println(tupleToWrite);
 			}
-			outStream.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Exception occured while writing file " + path, e);
 		}

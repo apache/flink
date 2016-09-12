@@ -166,17 +166,20 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
 		
 		assertTrue(tmp.createNewFile());
-		BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
 
-		//copy cassandra.yaml; inject absolute paths into cassandra.yaml
-		Scanner scanner = new Scanner(file);
-		while (scanner.hasNextLine()) {
-			String line = scanner.nextLine();
-			line = line.replace("$PATH", "'" + tmp.getParentFile());
-			b.write(line + "\n");
-			b.flush();
+		try (
+			BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
+
+			//copy cassandra.yaml; inject absolute paths into cassandra.yaml
+			Scanner scanner = new Scanner(file);
+		) {
+			while (scanner.hasNextLine()) {
+				String line = scanner.nextLine();
+				line = line.replace("$PATH", "'" + tmp.getParentFile());
+				b.write(line + "\n");
+				b.flush();
+			}
 		}
-		scanner.close();
 
 
 		// Tell cassandra where the configuration files are.
