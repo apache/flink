@@ -28,10 +28,13 @@ import org.apache.flink.ml.common._
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner, GroupReduceFunction, CoGroupFunction}
+import org.apache.flink.api.common.functions.{CoGroupFunction, GroupReduceFunction,
+  RichCoGroupFunction, Partitioner => FlinkPartitioner}
 
 import com.github.fommil.netlib.BLAS.{ getInstance => blas }
 import com.github.fommil.netlib.LAPACK.{ getInstance => lapack }
+
+import org.apache.flink.configuration.Configuration
 import org.netlib.util.intW
 
 import scala.collection.mutable
@@ -94,6 +97,15 @@ import scala.util.Random
   *  - [[org.apache.flink.ml.regression.MultipleLinearRegression.Iterations]]:
   *  The number of iterations to perform. (Default value: '''10''')
   *
+  *  - [[org.apache.flink.ml.recommendation.ALS.ImplicitPrefs]]:
+  *  Implicit property of the observations, meaning that they do not represent an explicit
+  *  preference of the user, just the implicit information how many times the user consumed the
+  *  item (Default value: '''false''')
+  *
+  *  - [[org.apache.flink.ml.recommendation.ALS.Alpha]]:
+  *  Weight of the positive implicit observations. Should be non-negative.
+  *  (Default value: '''1''')
+  *
   *  - [[org.apache.flink.ml.recommendation.ALS.Blocks]]:
   *  The number of blocks into which the user and item matrix a grouped. The fewer
   *  blocks one uses, the less data is sent redundantly. However, bigger blocks entail bigger
@@ -153,6 +165,26 @@ class ALS extends Predictor[ALS] {
     */
   def setIterations(iterations: Int): ALS = {
     parameters.add(Iterations, iterations)
+    this
+  }
+
+  /** Sets the input observations to be implicit, thus using the iALS algorithm for learning.
+    *
+    * @param implicitPrefs
+    * @return
+    */
+  def setImplicit(implicitPrefs: Boolean): ALS = {
+    parameters.add(ImplicitPrefs, implicitPrefs)
+    this
+  }
+
+  /** Sets the weight of the positive implicit observations. Only affects the implicit learner.
+    *
+    * @param alpha
+    * @return
+    */
+  def setAlpha(alpha: Double): ALS = {
+    parameters.add(Alpha, alpha)
     this
   }
 
@@ -271,6 +303,14 @@ object ALS {
 
   case object Iterations extends Parameter[Int] {
     val defaultValue: Option[Int] = Some(10)
+  }
+
+  case object ImplicitPrefs extends Parameter[Boolean] {
+    val defaultValue: Option[Boolean] = Some(false)
+  }
+
+  case object Alpha extends Parameter[Double] {
+    val defaultValue: Option[Double] = Some(1.0)
   }
 
   case object Blocks extends Parameter[Int] {
@@ -445,6 +485,8 @@ object ALS {
       val factors = resultParameters(NumFactors)
       val iterations = resultParameters(Iterations)
       val lambda = resultParameters(Lambda)
+      val implicitPrefs = resultParameters(ImplicitPrefs)
+      val alpha = resultParameters(Alpha)
 
       val ratings = input.map {
         entry => {
@@ -498,8 +540,9 @@ object ALS {
       val items = initialItems.iterate(iterations) {
         items => {
           val users = updateFactors(userBlocks, items, itemOut, userIn, factors, lambda,
-            blockIDPartitioner)
-          updateFactors(itemBlocks, users, userOut, itemIn, factors, lambda, blockIDPartitioner)
+            blockIDPartitioner, implicitPrefs, alpha)
+          updateFactors(itemBlocks, users, userOut, itemIn, factors, lambda, blockIDPartitioner,
+            implicitPrefs, alpha)
         }
       }
 
@@ -510,7 +553,7 @@ object ALS {
 
       // perform last half-step to calculate the user matrix
       val users = updateFactors(userBlocks, pItems, itemOut, userIn, factors, lambda,
-        blockIDPartitioner)
+        blockIDPartitioner, implicitPrefs, alpha)
 
       instance.factorsOption = Some((
         unblock(users, userOut, blockIDPartitioner),
@@ -535,8 +578,17 @@ object ALS {
     itemOut: DataSet[(Int, OutBlockInformation)],
     userIn: DataSet[(Int, InBlockInformation)],
     factors: Int,
-    lambda: Double, blockIDPartitioner: FlinkPartitioner[Int]):
+    lambda: Double, blockIDPartitioner: FlinkPartitioner[Int],
+    implicitPrefs: Boolean,
+    alpha: Double):
   DataSet[(Int, Array[Array[Double]])] = {
+    // retrieve broadcast XtX matrix in implicit case
+    val XtXtoBroadcast = if (implicitPrefs) {
+      Some(computeXtX(items, factors))
+    } else {
+      None
+    }
+
     // send the item vectors to the blocks whose users have rated the items
     val partialBlockMsgs = itemOut.join(items).where(0).equalTo(0).
       withPartitioner(blockIDPartitioner).apply {
@@ -568,9 +620,10 @@ object ALS {
     }
 
     // collect the partial update messages and calculate for each user block the new user vectors
-    partialBlockMsgs.coGroup(userIn).where(0).equalTo(0).sortFirstGroup(1, Order.ASCENDING).
+    val newMatrix = partialBlockMsgs
+      .coGroup(userIn).where(0).equalTo(0).sortFirstGroup(1, Order.ASCENDING).
       withPartitioner(blockIDPartitioner).apply{
-      new CoGroupFunction[(Int, Int, Array[Array[Double]]), (Int,
+      new RichCoGroupFunction[(Int, Int, Array[Array[Double]]), (Int,
         InBlockInformation), (Int, Array[Array[Double]])](){
 
         // in order to save space, store only the upper triangle of the XtX matrix
@@ -580,6 +633,16 @@ object ALS {
         val userXtX = new ArrayBuffer[Array[Double]]()
         val userXy = new ArrayBuffer[Array[Double]]()
         val numRatings = new ArrayBuffer[Int]()
+
+        var precomputedXtX: Array[Double] = null
+
+        override def open(config: Configuration): Unit = {
+          // retrieve broadcasted precomputed XtX if using implicit feedback
+          if (implicitPrefs) {
+            precomputedXtX = getRuntimeContext.getBroadcastVariable[Array[Double]]("XtX")
+              .iterator().next()
+          }
+        }
 
         override def coGroup(left: lang.Iterable[(Int, Int, Array[Array[Double]])],
           right: lang.Iterable[(Int, InBlockInformation)],
@@ -638,9 +701,19 @@ object ALS {
 
               var i = 0
               while (i < users.length) {
-                numRatings(users(i)) += 1
-                blas.daxpy(matrix.length, 1, matrix, 1, userXtX(users(i)), 1)
-                blas.daxpy(vector.length, ratings(i), vector, 1, userXy(users(i)), 1)
+                if (implicitPrefs) {
+                  // c1 is confidence - 1.0
+                  if (ratings(i) > 0) {
+                    numRatings(users(i)) += 1
+                    val c1 = alpha * ratings(i)
+                    blas.daxpy(matrix.length, c1, matrix, 1, userXtX(users(i)), 1)
+                    blas.daxpy(vector.length, c1 + 1.0, vector, 1, userXy(users(i)), 1)
+                  }
+                } else {
+                  numRatings(users(i)) += 1
+                  blas.daxpy(matrix.length, 1, matrix, 1, userXtX(users(i)), 1)
+                  blas.daxpy(vector.length, ratings(i), vector, 1, userXy(users(i)), 1)
+                }
 
                 i += 1
               }
@@ -654,6 +727,11 @@ object ALS {
 
           i = 0
           while(i < numUsers){
+            // adding precomputed XtX to Xt*(I-C(i))*X for all users in implicit case
+            if (implicitPrefs) {
+              blas.daxpy(precomputedXtX.length, 1.0, precomputedXtX, 1, userXtX(i), 1)
+            }
+
             generateFullMatrix(userXtX(i), fullMatrix, factors)
 
             var f = 0
@@ -675,7 +753,22 @@ object ALS {
           collector.collect((blockID, array))
         }
       }
-    }.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0")
+    }
+
+    // broadcasting XtX matrix in the implicit case
+    val updatedFactorMatrix = if (implicitPrefs) {
+      newMatrix.withBroadcastSet(XtXtoBroadcast.get, "XtX")
+    } else {
+      newMatrix
+    }
+
+    updatedFactorMatrix.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0")
+  }
+
+  def computeXtX(x: DataSet[(Int, Array[Array[Double]])], factors: Int):
+  DataSet[Array[Double]] = {
+    // todo compute XtX
+    null
   }
 
   /** Creates the meta information needed to route the item and user vectors to the respective user
