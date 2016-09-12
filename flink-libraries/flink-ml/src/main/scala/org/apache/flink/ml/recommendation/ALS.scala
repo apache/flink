@@ -18,6 +18,7 @@
 
 package org.apache.flink.ml.recommendation
 
+import java.lang.Iterable
 import java.{util, lang}
 
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
@@ -29,7 +30,7 @@ import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Pred
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{CoGroupFunction, GroupReduceFunction,
-  RichCoGroupFunction, Partitioner => FlinkPartitioner}
+  MapPartitionFunction, RichCoGroupFunction, Partitioner => FlinkPartitioner}
 
 import com.github.fommil.netlib.BLAS.{ getInstance => blas }
 import com.github.fommil.netlib.LAPACK.{ getInstance => lapack }
@@ -104,6 +105,8 @@ import scala.util.Random
   *
   *  - [[org.apache.flink.ml.recommendation.ALS.Alpha]]:
   *  Weight of the positive implicit observations. Should be non-negative.
+  *  Only relevant when [[org.apache.flink.ml.recommendation.ALS.ImplicitPrefs]]
+  *  is set to '''true'''.
   *  (Default value: '''1''')
   *
   *  - [[org.apache.flink.ml.recommendation.ALS.Blocks]]:
@@ -765,10 +768,57 @@ object ALS {
     updatedFactorMatrix.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0")
   }
 
-  def computeXtX(x: DataSet[(Int, Array[Array[Double]])], factors: Int):
+  /**
+    * Computes the XtX matrix for the implicit version before updating the factors.
+    * This matrix is intended to be broadcast, but as we cannot use a sink inside a Flink
+    * iteration, so we represent it as a [[DataSet]] with a single element containing the matrix.
+    *
+    * The algorithm computes `X_i^T * X_i` for every block `X_i` of `X`,
+    * then sums all these computed matrices to get `X^T * X`.
+    */
+  private[recommendation] def computeXtX(x: DataSet[(Int, Array[Array[Double]])], factors: Int):
   DataSet[Array[Double]] = {
-    // todo compute XtX
-    null
+    val triangleSize = factors * (factors - 1) / 2 + factors
+
+    type MtxBlock = (Int, Array[Array[Double]])
+    // construct XtX for all blocks
+    val xtx = x
+      .mapPartition(new MapPartitionFunction[MtxBlock, Array[Double]]() {
+        var xtxForBlock: Array[Double] = null
+
+        override def mapPartition(blocks: Iterable[(Int, Array[Array[Double]])],
+                                  out: Collector[Array[Double]]): Unit = {
+
+          if (xtxForBlock == null) {
+            // creating the matrix if not yet created
+            xtxForBlock = Array.fill(triangleSize)(0.0)
+          } else {
+            // erasing the matrix
+            var i = 0
+            while (i < xtxForBlock.length) {
+              xtxForBlock(i) = 0
+              i = i + 1
+            }
+          }
+
+          val it = blocks.iterator()
+          while (it.hasNext) {
+            val xBlock = it.next()._2
+            xBlock.foreach(row => {
+              blas.dspr("U", row.length, 1, row, 1, xtxForBlock)
+            })
+          }
+
+          out.collect(xtxForBlock)
+        }
+      })
+      .reduce((bxtx1: Array[Double], bxtx2: Array[Double]) => {
+        // aggregating the XtXs computed for blocks
+        blas.daxpy(bxtx1.length, 1, bxtx1, 1, bxtx2, 1)
+        bxtx2
+      })
+
+    xtx
   }
 
   /** Creates the meta information needed to route the item and user vectors to the respective user
