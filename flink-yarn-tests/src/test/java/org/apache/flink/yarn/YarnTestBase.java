@@ -246,10 +246,10 @@ public abstract class YarnTestBase extends TestLogger {
 		tmp.create();
 		File yarnSiteXML = new File(tmp.newFolder().getAbsolutePath() + "/yarn-site.xml");
 
-		FileWriter writer = new FileWriter(yarnSiteXML);
-		yarnConf.writeXml(writer);
-		writer.flush();
-		writer.close();
+		try (FileWriter writer = new FileWriter(yarnSiteXML)) {
+			yarnConf.writeXml(writer);
+			writer.flush();
+		}
 		return yarnSiteXML;
 	}
 
