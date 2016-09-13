@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.types.Value;
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -126,11 +127,13 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
 		CombiningUnilateralSortMerger<Record> sorter = null;
+		SorterMemoryAllocator sorterMemoryAllocator = null;
 		try {
+			sorterMemoryAllocator = new SorterMemoryAllocator(getMemoryManager(), getContainingTask(), this.perSortFractionMem, 4, true /* use large record handler */);
 			sorter = new CombiningUnilateralSortMerger<>(new MockCombiningReduceStub(),
-				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
-				getContainingTask(), RecordSerializerFactory.get(), this.comparator.duplicate(), this.perSortFractionMem,
-					4, 0.8f, true /* use large record handler */, true);
+				getMemoryManager(), getIOManager(), sorterMemoryAllocator, new UniformRecordGenerator(keyCnt, valCnt, false),
+				RecordSerializerFactory.get(), this.comparator.duplicate(), this.perSortFractionMem,
+					4, 0.8f, true);
 			addInput(sorter.getIterator());
 			
 			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();
@@ -140,6 +143,9 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 			LOG.debug("Exception while running the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		} finally {
+			if(sorterMemoryAllocator != null) {
+				sorterMemoryAllocator.close();
+			}
 			if (sorter != null) {
 				sorter.close();
 			}

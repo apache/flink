@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MathUtils;
@@ -49,6 +50,8 @@ public class SeekableFileChannelInputView extends AbstractPagedInputView {
 	private final MemoryManager memManager;
 	
 	private final List<MemorySegment> memory;
+
+	private final SorterMemoryAllocator sorterMemoryAllocator;
 	
 	private final int sizeOfLastBlock;
 	
@@ -62,7 +65,7 @@ public class SeekableFileChannelInputView extends AbstractPagedInputView {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public SeekableFileChannelInputView(IOManager ioManager, FileIOChannel.ID channelId, MemoryManager memManager, List<MemorySegment> memory, int sizeOfLastBlock) throws IOException {
+	public SeekableFileChannelInputView(IOManager ioManager, FileIOChannel.ID channelId, MemoryManager memManager, SorterMemoryAllocator sorterMemoryAllocator, List<MemorySegment> memory, int sizeOfLastBlock) throws IOException {
 		super(0);
 		
 		checkNotNull(ioManager);
@@ -73,6 +76,7 @@ public class SeekableFileChannelInputView extends AbstractPagedInputView {
 		this.ioManager = ioManager;
 		this.channelId = channelId;
 		this.memManager = memManager;
+		this.sorterMemoryAllocator = sorterMemoryAllocator;
 		this.memory = memory;
 		this.sizeOfLastBlock = sizeOfLastBlock;
 		this.segmentSize = memManager.getPageSize();
@@ -148,8 +152,15 @@ public class SeekableFileChannelInputView extends AbstractPagedInputView {
 			}
 		} finally {
 			synchronized (memory) {
-				memManager.release(memory);
-				memory.clear();
+				// for test cases
+				if(sorterMemoryAllocator == null) {
+					memManager.release(memory);
+					memory.clear();
+				} else {
+					if(sorterMemoryAllocator != null) {
+						sorterMemoryAllocator.releaseToSortBufferMemory(memory);
+					}
+				}
 			}
 		}
 	}

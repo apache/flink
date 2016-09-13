@@ -31,6 +31,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -124,11 +125,12 @@ public class ExternalSortLargeRecordsITCase {
 					};
 			
 			@SuppressWarnings("unchecked")
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, 1.0, 128, true /*use large record handler*/);
 			Sorter<Tuple2<Long, SomeMaybeLongValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SomeMaybeLongValue>>(
-					this.memoryManager, this.ioManager, 
-					source, this.parentTask,
+					this.memoryManager, this.ioManager, allocator,
+					source,
 					new RuntimeSerializerFactory<Tuple2<Long, SomeMaybeLongValue>>(serializer, (Class<Tuple2<Long, SomeMaybeLongValue>>) (Class<?>) Tuple2.class),
-					comparator, 1.0, 1, 128, 0.7f, true /* use large record handler */ , false);
+					comparator, 1.0, 1, 128, 0.7f , true /*use large record handler*/, false);
 			
 			// check order
 			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> iterator = sorter.getIterator();
@@ -194,9 +196,10 @@ public class ExternalSortLargeRecordsITCase {
 					};
 			
 			@SuppressWarnings("unchecked")
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, 1.0, 128, true /*use large record handler*/);
 			Sorter<Tuple2<Long, SomeMaybeLongValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SomeMaybeLongValue>>(
-					this.memoryManager, this.ioManager, 
-					source, this.parentTask,
+					this.memoryManager, this.ioManager, allocator,
+					source,
 					new RuntimeSerializerFactory<Tuple2<Long, SomeMaybeLongValue>>(serializer, (Class<Tuple2<Long, SomeMaybeLongValue>>) (Class<?>) Tuple2.class),
 					comparator, 1.0, 1, 128, 0.7f, true /*use large record handler*/, true);
 			
@@ -279,9 +282,10 @@ public class ExternalSortLargeRecordsITCase {
 					};
 			
 			@SuppressWarnings("unchecked")
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, 1.0, 128, true /*use large record handler*/);
 			Sorter<Tuple2<Long, SmallOrMediumOrLargeValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SmallOrMediumOrLargeValue>>(
-					this.memoryManager, this.ioManager, 
-					source, this.parentTask,
+					this.memoryManager, this.ioManager, allocator,
+					source,
 					new RuntimeSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>>(serializer, (Class<Tuple2<Long, SmallOrMediumOrLargeValue>>) (Class<?>) Tuple2.class),
 					comparator, 1.0, 1, 128, 0.7f, true /*use large record handler*/, false);
 			
@@ -350,9 +354,10 @@ public class ExternalSortLargeRecordsITCase {
 					};
 			
 			@SuppressWarnings("unchecked")
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, 1.0, 128, true /*use large record handler*/);
 			Sorter<Tuple2<Long, SmallOrMediumOrLargeValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SmallOrMediumOrLargeValue>>(
-					this.memoryManager, this.ioManager, 
-					source, this.parentTask,
+					this.memoryManager, this.ioManager, allocator,
+					source,
 					new RuntimeSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>>(serializer, (Class<Tuple2<Long, SmallOrMediumOrLargeValue>>) (Class<?>) Tuple2.class),
 					comparator, 1.0, 1, 128, 0.7f, true /*use large record handler*/, true);
 			

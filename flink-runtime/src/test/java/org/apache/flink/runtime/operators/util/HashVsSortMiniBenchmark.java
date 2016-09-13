@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashJoinIterator;
@@ -127,16 +128,17 @@ public class HashVsSortMiniBenchmark {
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 			
 			long start = System.nanoTime();
-			
+
+			SorterMemoryAllocator allocator1 = new SorterMemoryAllocator(this.memoryManager, this.parentTask, (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, true /*use large record handler*/);
 			final UnilateralSortMerger<Tuple2<Integer, String>> sorter1 = new UnilateralSortMerger<>(
-					this.memoryManager, this.ioManager, input1, this.parentTask, this.serializer1, 
-					this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f,
-					true /*use large record handler*/, true);
-			
+					this.memoryManager, this.ioManager, allocator1, input1, this.serializer1,
+					this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f, true /*use large record handler*/, true);
+
+			SorterMemoryAllocator allocator2 =
+				new SorterMemoryAllocator(this.memoryManager, this.parentTask, (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, true /*use large record handler*/);
 			final UnilateralSortMerger<Tuple2<Integer, String>> sorter2 = new UnilateralSortMerger<>(
-					this.memoryManager, this.ioManager, input2, this.parentTask, this.serializer2, 
-					this.comparator2.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f,
-					true /*use large record handler*/, true);
+					this.memoryManager, this.ioManager, allocator2, input2, this.serializer2,
+					this.comparator2.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f, true /*use large record handler*/, true);
 			
 			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput1 = sorter1.getIterator();
 			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput2 = sorter2.getIterator();

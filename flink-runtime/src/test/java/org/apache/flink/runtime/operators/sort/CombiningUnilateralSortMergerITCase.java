@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,10 +115,10 @@ public class CombiningUnilateralSortMergerITCase {
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner comb = new TestCountCombiner();
-		
+		SorterMemoryAllocator sorterMemoryAllocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, 0.25, 64, true /* use large record handler */);
 		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.25, 64, 0.7f, true /* use large record handler */, false);
+				this.memoryManager, this.ioManager, sorterMemoryAllocator, reader, this.serializerFactory2, this.comparator2,
+				0.25, 64, 0.7f, false);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -153,10 +154,10 @@ public class CombiningUnilateralSortMergerITCase {
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner comb = new TestCountCombiner();
-		
+		SorterMemoryAllocator sorterMemoryAllocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, 0.01, 64, true /* use large record handler */);
 		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.01, 64, 0.005f, true /* use large record handler */, true);
+				this.memoryManager, this.ioManager, sorterMemoryAllocator, reader, this.serializerFactory2, this.comparator2,
+				0.01, 64, 0.005f, true);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -200,10 +201,10 @@ public class CombiningUnilateralSortMergerITCase {
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner2 comb = new TestCountCombiner2();
-		
+		SorterMemoryAllocator sorterMemoryAllocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, 0.25, 2, true /* use large record handler */);
 		Sorter<Tuple2<Integer, String>> merger = new CombiningUnilateralSortMerger<>(comb,
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory1, this.comparator1,
-				0.25, 2, 0.7f, true /* use large record handler */, false);
+				this.memoryManager, this.ioManager, sorterMemoryAllocator, reader, this.serializerFactory1, this.comparator1,
+				0.25, 2, 0.7f, false);
 
 		// emit data
 		LOG.debug("emitting data");

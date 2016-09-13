@@ -35,6 +35,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
@@ -136,16 +137,16 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 					if (compFact == null) {
 						throw new Exception("Missing comparator factory for local strategy on input " + 0);
 					}
-					
+					SorterMemoryAllocator sorterMemoryAllocator =
+						new SorterMemoryAllocator(getEnvironment().getMemoryManager(), this, this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0), this.config.getUseLargeRecordHandler());
 					// initialize sorter
 					UnilateralSortMerger<IT> sorter = new UnilateralSortMerger<IT>(
-							getEnvironment().getMemoryManager(), 
-							getEnvironment().getIOManager(),
-							this.reader, this, this.inputTypeSerializerFactory, compFact.createComparator(),
-							this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0),
-							this.config.getSpillingThresholdInput(0),
-							this.config.getUseLargeRecordHandler(),
-							this.getExecutionConfig().isObjectReuseEnabled());
+						getEnvironment().getMemoryManager(),
+						getEnvironment().getIOManager(), sorterMemoryAllocator,
+						this.reader, this.inputTypeSerializerFactory, compFact.createComparator(),
+						this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0),
+						this.config.getSpillingThresholdInput(0), this.config.getUseLargeRecordHandler(),
+						this.getExecutionConfig().isObjectReuseEnabled());
 					
 					this.localStrategy = sorter;
 					input1 = sorter.getIterator();

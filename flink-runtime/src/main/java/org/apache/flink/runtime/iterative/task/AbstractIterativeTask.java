@@ -23,6 +23,7 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -283,6 +284,12 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	public void cancel() throws Exception {
 		requestTermination();
 		super.cancel();
+	}
+
+	@Override
+	protected void createMemoryAllocator(int inputNum) throws MemoryAllocationException {
+		sorterMemoryAllocator[inputNum] =
+			new SorterMemoryAllocator(getMemoryManager(), this, this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum), this.config.getUseLargeRecordHandler(), true);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

@@ -42,7 +42,9 @@ import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
@@ -214,6 +216,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 */
 	protected Map<String, Accumulator<?,?>> accumulatorMap;
 	private MetricGroup metrics;
+
+	protected SorterMemoryAllocator[] sorterMemoryAllocator;
 
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface
@@ -582,6 +586,17 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				}
 			}
 		}
+		try {
+			if (this.sorterMemoryAllocator != null) {
+				for (SorterMemoryAllocator sorterMemoryAllocator : this.sorterMemoryAllocator) {
+					if (sorterMemoryAllocator != null) {
+						sorterMemoryAllocator.close();
+					}
+				}
+			}
+		} catch (Throwable t) {
+			// Ignore
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -784,7 +799,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		this.inputIsCached = new boolean[numInputs];
 		this.inputIsAsyncMaterialized = new boolean[numInputs];
 		this.materializationMemory = new int[numInputs];
-
+		this.sorterMemoryAllocator = new SorterMemoryAllocator[numInputs];
 		// set up the local strategies first, such that the can work before any temp barrier is created
 		for (int i = 0; i < numInputs; i++) {
 			initInputLocalStrategy(i);
@@ -922,12 +937,16 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				this.inputs[inputNum] = this.inputIterators[inputNum];
 				break;
 			case SORT:
-				@SuppressWarnings({ "rawtypes", "unchecked" })
-				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
-					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
+				if (sorterMemoryAllocator[inputNum] == null) {
+					createMemoryAllocator(inputNum);
+				}
+				@SuppressWarnings({"rawtypes", "unchecked"})
+				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(), sorterMemoryAllocator[inputNum],
+					this.inputIterators[inputNum], this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum), this.config.getUseLargeRecordHandler(),
 					this.getExecutionConfig().isObjectReuseEnabled());
+
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
 				this.localStrategies[inputNum] = sorter;
@@ -957,13 +976,15 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				if (!(localStub instanceof GroupCombineFunction)) {
 					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
-
-				@SuppressWarnings({ "rawtypes", "unchecked" })
+				if (sorterMemoryAllocator[inputNum] == null) {
+					createMemoryAllocator(inputNum);
+				}
+				@SuppressWarnings({"rawtypes", "unchecked"})
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
-					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
+					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), sorterMemoryAllocator[inputNum], this.inputIterators[inputNum],
+					this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.getTaskConfig().getUseLargeRecordHandler(),
+					this.config.getSpillingThresholdInput(inputNum),
 					this.getExecutionConfig().isObjectReuseEnabled());
 				cSorter.setUdfConfiguration(this.config.getStubParameters());
 
@@ -1464,5 +1485,10 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		for (MutableReader<?> reader : readers) {
 			reader.clearBuffers();
 		}
+	}
+
+	protected void createMemoryAllocator(int inputNum) throws MemoryAllocationException {
+		sorterMemoryAllocator[inputNum] =
+			new SorterMemoryAllocator(getMemoryManager(), this, this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum), this.config.getUseLargeRecordHandler());
 	}
 }

@@ -92,7 +92,7 @@ public class FileChannelStreamsTest {
 			}
 			
 			BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
-			FileChannelInputView in = new FileChannelInputView(reader, memMan, memory, 9);
+			FileChannelInputView in = new FileChannelInputView(reader, memMan, null, memory, 9);
 			
 			// read just something
 			in.readInt();

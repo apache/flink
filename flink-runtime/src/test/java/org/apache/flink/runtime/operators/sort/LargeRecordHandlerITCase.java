@@ -45,6 +45,7 @@ import org.apache.flink.runtime.io.disk.SeekableFileChannelInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -82,9 +83,9 @@ public class LargeRecordHandlerITCase {
 			final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple3<Long, SomeVeryLongValue, Byte>> comparator = typeInfo.createComparator(
 					new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());
-			
+			SorterMemoryAllocator sorterMemoryAllocator = new SorterMemoryAllocator(memMan, initialMemory, owner, 128, true, false) ;
 			LargeRecordHandler<Tuple3<Long, SomeVeryLongValue, Byte>> handler = new LargeRecordHandler<Tuple3<Long, SomeVeryLongValue, Byte>>(
-					serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
+					serializer, comparator, ioMan, memMan, sorterMemoryAllocator, 128);
 			
 			assertFalse(handler.hasData());
 			
@@ -137,7 +138,7 @@ public class LargeRecordHandlerITCase {
 			catch (IllegalStateException e) {
 				// expected
 			}
-			
+			sorterMemoryAllocator.close();
 			assertTrue(memMan.verifyEmpty());
 		}
 		catch (Exception e) {
@@ -240,9 +241,9 @@ public class LargeRecordHandlerITCase {
 			}
 
 			memMan.allocatePages(owner, memory, NUM_PAGES);
-			
+
 			SeekableFileChannelInputView in = new SeekableFileChannelInputView(ioMan, 
-					channel, memMan, memory, out.getBytesInLatestSegment());
+					channel, memMan, null, memory, out.getBytesInLatestSegment());
 			
 			for (int i = 0; i < NUM_RECORDS; i++) {
 				in.seek(offsets.get(i));

@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MathUtils;
@@ -42,6 +43,8 @@ public class FileChannelInputView extends AbstractPagedInputView {
 	private final BlockChannelReader<MemorySegment> reader;
 	
 	private final MemoryManager memManager;
+
+	private final SorterMemoryAllocator sorterMemoryAllocator;
 	
 	private final List<MemorySegment> memory;
 	
@@ -53,7 +56,7 @@ public class FileChannelInputView extends AbstractPagedInputView {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public FileChannelInputView(BlockChannelReader<MemorySegment> reader, MemoryManager memManager, List<MemorySegment> memory, int sizeOfLastBlock) throws IOException {
+	public FileChannelInputView(BlockChannelReader<MemorySegment> reader, MemoryManager memManager, SorterMemoryAllocator sorterMemoryAllocator, List<MemorySegment> memory, int sizeOfLastBlock) throws IOException {
 		super(0);
 		
 		checkNotNull(reader);
@@ -64,6 +67,7 @@ public class FileChannelInputView extends AbstractPagedInputView {
 		
 		this.reader = reader;
 		this.memManager = memManager;
+		this.sorterMemoryAllocator = sorterMemoryAllocator;
 		this.memory = memory;
 		this.sizeOfLastBlock = sizeOfLastBlock;
 		
@@ -108,8 +112,15 @@ public class FileChannelInputView extends AbstractPagedInputView {
 			}
 		} finally {
 			synchronized (memory) {
-				memManager.release(memory);
-				memory.clear();
+				// for test purposes we add the first condition
+				if (sorterMemoryAllocator == null) {
+					memManager.release(memory);
+					memory.clear();
+				} else {
+					if (sorterMemoryAllocator != null) {
+						sorterMemoryAllocator.releaseToSortBufferMemory(memory);
+					}
+				}
 			}
 		}
 	}

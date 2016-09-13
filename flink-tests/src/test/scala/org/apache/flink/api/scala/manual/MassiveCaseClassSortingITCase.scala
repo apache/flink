@@ -33,8 +33,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory
+import org.apache.flink.runtime.iterative.task.{SorterMemoryAllocator}
 import org.junit.Assert._
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
+import org.apache.flink.runtime.operators.testutils.DummyInvokable
 
 /**
  * This test is wrote as manual test.
@@ -94,9 +96,9 @@ class MassiveCaseClassSortingITCase {
         
         val mm = new MemoryManager(1024 * 1024, 1)
         val ioMan = new IOManagerAsync()
-        
-        sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, inputIterator,
-              new DummyInvokable(), 
+        val  invokable = new DummyInvokable();
+        val allocator = new SorterMemoryAllocator(mm, invokable, 1.0, 4, true /*use large record handler*/);
+        sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, allocator, inputIterator,
               new RuntimeSerializerFactory[StringTuple](serializer, classOf[StringTuple]),
               comparator, 1.0, 4, 0.8f, true /*use large record handler*/, false)
             

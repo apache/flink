@@ -34,13 +34,14 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Test;
 
-public class LargeRecordHandlerTest {
+	public class LargeRecordHandlerTest {
 
 	@Test
 	public void testEmptyRecordHandler() {
@@ -60,9 +61,9 @@ public class LargeRecordHandlerTest {
 			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple2<Long, String>> comparator = typeInfo.createComparator(
 					new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
-			
+			SorterMemoryAllocator sorterMemoryAllocator = new SorterMemoryAllocator(memMan, memory, owner, 128, true, false) ;
 			LargeRecordHandler<Tuple2<Long, String>> handler = new LargeRecordHandler<Tuple2<Long, String>>(
-					serializer, comparator, ioMan, memMan, memory, owner, 128);
+					serializer, comparator, ioMan, memMan, sorterMemoryAllocator, 128);
 			
 			assertFalse(handler.hasData());
 			
@@ -79,7 +80,7 @@ public class LargeRecordHandlerTest {
 			catch (IllegalStateException e) {
 				// expected
 			}
-			
+			sorterMemoryAllocator.close();
 			assertTrue(memMan.verifyEmpty());
 		}
 		catch (Exception e) {
@@ -112,9 +113,9 @@ public class LargeRecordHandlerTest {
 			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple2<Long, String>> comparator = typeInfo.createComparator(
 					new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
-			
+			SorterMemoryAllocator sorterMemoryAllocator = new SorterMemoryAllocator(memMan, initialMemory, owner, 128, true, false) ;
 			LargeRecordHandler<Tuple2<Long, String>> handler = new LargeRecordHandler<Tuple2<Long, String>>(
-					serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
+					serializer, comparator, ioMan, memMan, sorterMemoryAllocator, 128);
 			
 			assertFalse(handler.hasData());
 			
@@ -165,7 +166,7 @@ public class LargeRecordHandlerTest {
 			catch (IllegalStateException e) {
 				// expected
 			}
-			
+			sorterMemoryAllocator.close();
 			assertTrue(memMan.verifyEmpty());
 		}
 		catch (Exception e) {
@@ -176,7 +177,7 @@ public class LargeRecordHandlerTest {
 			ioMan.shutdown();
 		}
 	}
-	
+
 	@Test
 	public void testRecordHandlerCompositeKey() {
 		
@@ -198,9 +199,9 @@ public class LargeRecordHandlerTest {
 			final TypeSerializer<Tuple3<Long, String, Byte>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple3<Long, String, Byte>> comparator = typeInfo.createComparator(
 					new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());
-			
+			SorterMemoryAllocator sorterMemoryAllocator = new SorterMemoryAllocator(memMan, initialMemory, owner, 128, true, false) ;
 			LargeRecordHandler<Tuple3<Long, String, Byte>> handler = new LargeRecordHandler<Tuple3<Long, String, Byte>>(
-					serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
+					serializer, comparator, ioMan, memMan, sorterMemoryAllocator, 128);
 			
 			assertFalse(handler.hasData());
 			
@@ -245,6 +246,8 @@ public class LargeRecordHandlerTest {
 			assertFalse(handler.hasData());
 			
 			handler.close();
+
+			sorterMemoryAllocator.close();
 			
 			try {
 				handler.addRecord(new Tuple3<Long, String, Byte>(92L, "peter pepper", (byte) 1));

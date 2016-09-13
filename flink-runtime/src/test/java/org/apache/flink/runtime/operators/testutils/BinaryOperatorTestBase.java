@@ -30,6 +30,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.Driver;
@@ -141,18 +142,18 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 	@SuppressWarnings("unchecked")
 	public void addInputSorted(MutableObjectIterator<IN> input, TypeSerializer<IN> serializer, TypeComparator<IN> comp) throws Exception {
 		this.inputSerializers.add(serializer);
+		SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memManager, this.owner, this.perSortFractionMem, 32, true /*use large record handler*/);
 		UnilateralSortMerger<IN> sorter = new UnilateralSortMerger<>(
-				this.memManager,
-				this.ioManager,
-				input,
-				this.owner,
-				new RuntimeSerializerFactory<>(serializer, (Class<IN>) serializer.createInstance().getClass()),
-				comp,
-				this.perSortFractionMem,
-				32,
-				0.8f,
-				true /*use large record handler*/,
-				false
+			this.memManager,
+			this.ioManager, allocator,
+			input,
+			new RuntimeSerializerFactory<>(serializer, (Class<IN>) serializer.createInstance().getClass()),
+			comp,
+			this.perSortFractionMem,
+			32,
+			0.8f,
+			true /*use large record handler*/,
+			false
 		);
 		this.sorters.add(sorter);
 		this.inputs.add(null);

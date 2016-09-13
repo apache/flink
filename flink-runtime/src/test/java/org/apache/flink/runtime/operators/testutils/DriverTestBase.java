@@ -28,6 +28,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.Driver;
@@ -69,7 +70,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 	private final List<TypeComparator<Record>> comparators;
 	
 	private final List<UnilateralSortMerger<Record>> sorters;
-	
+
 	private final AbstractInvokable owner;
 
 	private final TaskConfig taskConfig;
@@ -144,8 +145,9 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 	}
 	
 	public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp) throws Exception {
+		SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memManager, this.owner, this.perSortFractionMem, 32, true /*use large record handler*/);
 		UnilateralSortMerger<Record> sorter = new UnilateralSortMerger<Record>(
-				this.memManager, this.ioManager, input, this.owner, RecordSerializerFactory.get(), comp,
+				this.memManager, this.ioManager, allocator, input, RecordSerializerFactory.get(), comp,
 				this.perSortFractionMem, 32, 0.8f, true /*use large record handler*/, true);
 		this.sorters.add(sorter);
 		this.inputs.add(null);
@@ -379,6 +381,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 		// 1st, shutdown sorters
 		for (UnilateralSortMerger<?> sorter : this.sorters) {
 			if (sorter != null) {
+
 				sorter.close();
 			}
 		}

@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.disk.InputViewIterator;
 import org.apache.flink.runtime.io.disk.SeekableFileChannelInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.types.NullKeyFieldException;
@@ -87,7 +88,7 @@ public class LargeRecordHandler<T> {
 	
 	private final MemoryManager memManager;
 	
-	private final List<MemorySegment> memory;
+	private final List<MemorySegment> largeBufferMemory;
 	
 	private TypeSerializerFactory<Tuple> keySerializerFactory;
 	
@@ -105,19 +106,19 @@ public class LargeRecordHandler<T> {
 
 	private final ExecutionConfig executionConfig;
 
+	private final SorterMemoryAllocator sorterMemoryAllocator;
+
 	// --------------------------------------------------------------------------------------------
-	
-	public LargeRecordHandler(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
-			IOManager ioManager, MemoryManager memManager, List<MemorySegment> memory,
-			AbstractInvokable memoryOwner, int maxFilehandles)
-	{
+
+	public LargeRecordHandler(TypeSerializer<T> serializer, TypeComparator<T> comparator, IOManager ioManager, MemoryManager memManager, SorterMemoryAllocator sorterMemoryAllocator, int maxFilehandles) {
 		this.serializer = checkNotNull(serializer);
 		this.comparator = checkNotNull(comparator);
 		this.ioManager = checkNotNull(ioManager);
 		this.memManager = checkNotNull(memManager);
-		this.memory = checkNotNull(memory);
-		this.memoryOwner = checkNotNull(memoryOwner);
+		this.largeBufferMemory = checkNotNull(sorterMemoryAllocator.getLargeBufferMemory());
+		this.memoryOwner = checkNotNull(sorterMemoryAllocator.getParentTask());
 		this.maxFilehandles = maxFilehandles;
+		this.sorterMemoryAllocator = sorterMemoryAllocator;
 
 		this.executionConfig = memoryOwner.getExecutionConfig();
 
@@ -171,7 +172,7 @@ public class LargeRecordHandler<T> {
 			}
 			
 			// initialize the spilling
-			final int totalNumSegments = memory.size();
+			final int totalNumSegments = largeBufferMemory.size();
 			final int segmentsForKeys = (totalNumSegments >= 2*MAX_SEGMENTS_FOR_KEY_SPILLING) ? MAX_SEGMENTS_FOR_KEY_SPILLING : 
 				Math.max(MIN_SEGMENTS_FOR_KEY_SPILLING, totalNumSegments - MAX_SEGMENTS_FOR_KEY_SPILLING);
 				
@@ -179,10 +180,10 @@ public class LargeRecordHandler<T> {
 			List<MemorySegment> keysMemory = new ArrayList<MemorySegment>();
 			
 			for (int i = 0; i < segmentsForKeys; i++) {
-				keysMemory.add(memory.get(i));
+				keysMemory.add(largeBufferMemory.get(i));
 			}
 			for (int i = segmentsForKeys; i < totalNumSegments; i++) {
-				recordsMemory.add(memory.get(i));
+				recordsMemory.add(largeBufferMemory.get(i));
 			}
 			
 			recordsChannel = ioManager.createChannel();
@@ -238,10 +239,10 @@ public class LargeRecordHandler<T> {
 		final int pagesForKeyReader = Math.min(pagesForReaders - MIN_SEGMENTS_FOR_KEY_SPILLING, MAX_SEGMENTS_FOR_KEY_SPILLING);
 		final int pagesForRecordReader = pagesForReaders - pagesForKeyReader;
 		
-		// grab memory for the record reader
+		// grab largeBufferMemory for the record reader
 		ArrayList<MemorySegment> memForRecordReader = new ArrayList<MemorySegment>();
 		ArrayList<MemorySegment> memForKeysReader = new ArrayList<MemorySegment>();
-		
+
 		for (int i = 0; i < pagesForRecordReader; i++) {
 			memForRecordReader.add(memory.remove(memory.size() - 1));
 		}
@@ -250,12 +251,13 @@ public class LargeRecordHandler<T> {
 		}
 		
 		keysReader = new FileChannelInputView(ioManager.createBlockChannelReader(keysChannel),
-				memManager, memForKeysReader, lastBlockBytesKeys);
+				memManager, this.sorterMemoryAllocator, memForKeysReader, lastBlockBytesKeys);
 		InputViewIterator<Tuple> keyIterator = new InputViewIterator<Tuple>(keysReader, keySerializer);
-		
-		keySorter = new UnilateralSortMerger<Tuple>(memManager, memory, ioManager, 
-				keyIterator, memoryOwner, keySerializerFactory, keyComparator, 1, maxFilehandles, 1.0f, false,
-				this.executionConfig.isObjectReuseEnabled());
+
+		SorterMemoryAllocator sorterMemoryAllocator = new SorterMemoryAllocator(memManager, memory, memoryOwner, maxFilehandles, false, this.sorterMemoryAllocator.isKeepOpenForIterativeTasks());
+		keySorter = new UnilateralSortMerger<Tuple>(memManager, ioManager, sorterMemoryAllocator,
+			keyIterator, keySerializerFactory, keyComparator, 1, maxFilehandles, 1.0f, false,
+			false, this.executionConfig.isObjectReuseEnabled());
 
 		// wait for the sorter to sort the keys
 		MutableObjectIterator<Tuple> result;
@@ -265,7 +267,7 @@ public class LargeRecordHandler<T> {
 			throw new IOException(e);
 		}
 		
-		recordsReader = new SeekableFileChannelInputView(ioManager, recordsChannel, memManager, memForRecordReader, lastBlockBytesRecords);
+		recordsReader = new SeekableFileChannelInputView(ioManager, recordsChannel, memManager, sorterMemoryAllocator, memForRecordReader, lastBlockBytesRecords);
 		
 		return new FetchingIterator<T>(serializer, result, recordsReader, keySerializer, numKeyFields);
 	}
@@ -360,9 +362,11 @@ public class LargeRecordHandler<T> {
 					ex = ex == null ? t : ex;
 				}
 			}
-			
-			memManager.release(memory);
-			
+
+			if (sorterMemoryAllocator != null) {
+				sorterMemoryAllocator.releaseLargeBufferMemory();
+			}
+
 			recordCounter = 0;
 		}
 		

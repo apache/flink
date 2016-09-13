@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.Driver;
@@ -144,12 +145,12 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 	{
 		this.input = null;
 		this.inputSerializer = serializer;
+		SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memManager, this.owner, this.perSortFractionMem, 32, true /*use large record handler*/);
 		this.sorter = new UnilateralSortMerger<IN>(
-				this.memManager, this.ioManager, input, this.owner,
+				this.memManager, this.ioManager, allocator, input,
 				this.<IN>getInputSerializer(0),
 				comp,
-				this.perSortFractionMem, 32, 0.8f,
-				true /*use large record handler*/,
+				this.perSortFractionMem, 32, 0.8f, true /*use large record handler*/,
 				false);
 	}
 	

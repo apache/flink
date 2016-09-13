@@ -62,7 +62,7 @@ public class SeekableFileChannelInputViewTest {
 			assertTrue(memMan.verifyEmpty());
 			
 			memMan.allocatePages(new DummyInvokable(), memory, 4);
-			SeekableFileChannelInputView in = new SeekableFileChannelInputView(ioManager, channel, memMan, memory, out.getBytesInLatestSegment());
+			SeekableFileChannelInputView in = new SeekableFileChannelInputView(ioManager, channel, memMan, null, memory, out.getBytesInLatestSegment());
 			
 			// read first, complete
 			for (int i = 0; i < NUM_RECORDS; i += 4) {

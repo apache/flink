@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -88,7 +89,6 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param input The input that is sorted by this sorter.
-	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param serializerFactory The type serializer.
 	 * @param comparator The type comparator establishing the order relation.
 	 * @param memoryFraction The fraction of memory dedicated to sorting, merging and I/O.
@@ -100,15 +100,10 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(GroupCombineFunction<E, E> combineStub, MemoryManager memoryManager, IOManager ioManager,
-			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
-			double memoryFraction, int maxNumFileHandles, float startSpillingFraction,
-			boolean handleLargeRecords, boolean objectReuseEnabled)
-	throws IOException, MemoryAllocationException
-	{
-		this(combineStub, memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
-			memoryFraction, -1, maxNumFileHandles, startSpillingFraction, handleLargeRecords, objectReuseEnabled);
+	public CombiningUnilateralSortMerger(GroupCombineFunction<E, E> combineStub, MemoryManager memoryManager, IOManager ioManager, SorterMemoryAllocator sorterMemoryAllocator, MutableObjectIterator<E> input, TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator, double memoryFraction, int maxNumFileHandles, float startSpillingFraction, boolean objectReuseEnabled)
+		throws IOException, MemoryAllocationException {
+		this(combineStub, memoryManager, ioManager, sorterMemoryAllocator, input, serializerFactory, comparator,
+			memoryFraction, -1, maxNumFileHandles, startSpillingFraction, objectReuseEnabled);
 	}
 	
 	/**
@@ -119,8 +114,8 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @param combineStub The stub used to combine values with the same key.
 	 * @param memoryManager The memory manager from which to allocate the memory.
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
+	 * @param sorterMemoryAllocator The Iterative memory allocator which handles on the allocation of memory
 	 * @param input The input that is sorted by this sorter.
-	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param serializerFactory The type serializer.
 	 * @param comparator The type comparator establishing the order relation.
 	 * @param memoryFraction The fraction of memory dedicated to sorting, merging and I/O.
@@ -133,17 +128,12 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(GroupCombineFunction<E, E> combineStub, MemoryManager memoryManager, IOManager ioManager,
-			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
-			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
-			float startSpillingFraction, boolean handleLargeRecords, boolean objectReuseEnabled)
-	throws IOException, MemoryAllocationException
-	{
-		super(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
+	public CombiningUnilateralSortMerger(GroupCombineFunction<E, E> combineStub, MemoryManager memoryManager, IOManager ioManager, SorterMemoryAllocator sorterMemoryAllocator, MutableObjectIterator<E> input, TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator, double memoryFraction, int numSortBuffers, int maxNumFileHandles, float startSpillingFraction, boolean objectReuseEnabled)
+		throws IOException, MemoryAllocationException {
+		super(memoryManager, ioManager, sorterMemoryAllocator, input, serializerFactory, comparator,
 			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false,
-			handleLargeRecords, objectReuseEnabled);
-		
+			objectReuseEnabled);
+
 		this.combineStub = combineStub;
 	}
 	
@@ -398,8 +388,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			}
 			
 			// from here on, we won't write again
-			this.memManager.release(this.writeMemory);
-			this.writeMemory.clear();
+			if (sorterMemoryAllocator != null) {
+				sorterMemoryAllocator.releaseWriteBufferMemory();
+			}
 			
 			// check if we have spilled some data at all
 			if (channelIDs.isEmpty()) {

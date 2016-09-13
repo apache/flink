@@ -104,7 +104,7 @@ public class FileChannelStreamsITCase {
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
-			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
+			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, null, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 			
 			// read and re-generate all records and compare them
@@ -148,7 +148,7 @@ public class FileChannelStreamsITCase {
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
-			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
+			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, null, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 			
 			// read and re-generate all records and compare them
@@ -192,7 +192,7 @@ public class FileChannelStreamsITCase {
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
-			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
+			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, null, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 	
 			// read and re-generate all records and compare them
@@ -242,7 +242,7 @@ public class FileChannelStreamsITCase {
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), 1);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
-			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
+			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, null, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 			
 			// read and re-generate all records and compare them
@@ -286,7 +286,7 @@ public class FileChannelStreamsITCase {
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
-			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
+			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, null, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 			
 			// read and re-generate all records and compare them

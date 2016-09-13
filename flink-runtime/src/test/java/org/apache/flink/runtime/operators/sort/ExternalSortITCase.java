@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.iterative.task.SorterMemoryAllocator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -111,9 +112,9 @@ public class ExternalSortITCase {
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
-				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, (double)64/78, 2, true /*use large record handler*/);
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager, allocator,
+				source, this.pactRecordSerializer, this.pactRecordComparator,
 					(double)64/78, 2, 0.9f, true /*use large record handler*/, true);
 	
 			// emit data
@@ -160,9 +161,10 @@ public class ExternalSortITCase {
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
-					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
+
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, (double)64/78, 2, true /*use large record handler*/);
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager, allocator,
+					source, this.pactRecordSerializer, this.pactRecordComparator,
 					(double)64/78, 10, 2, 0.9f, true /*use large record handler*/, false);
 	
 			// emit data
@@ -209,10 +211,11 @@ public class ExternalSortITCase {
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
-					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)16/78, 64, 0.7f, true /*use large record handler*/, true);
+
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, (double) 16 / 78, 64, true /*use large record handler*/);
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager, allocator,
+				source, this.pactRecordSerializer, this.pactRecordComparator,
+				(double) 16 / 78, 64, 0.7f, true /*use large record handler*/, true);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -261,10 +264,11 @@ public class ExternalSortITCase {
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
-					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 16, 0.7f, true /*use large record handler*/, false);
+
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, (double) 64 / 78, 16, true /*use large record handler*/);
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager, allocator,
+				source, this.pactRecordSerializer, this.pactRecordComparator,
+				(double) 64 / 78, 16, 0.7f, true /*use large record handler*/, false);
 			
 			// emit data
 			LOG.debug("Emitting data...");
@@ -319,10 +323,10 @@ public class ExternalSortITCase {
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<IntPair> merger = new UnilateralSortMerger<IntPair>(this.memoryManager, this.ioManager, 
-					generator, this.parentTask, serializerFactory, comparator, (double)64/78, 4, 0.7f,
-					true /*use large record handler*/, true);
+
+			SorterMemoryAllocator allocator = new SorterMemoryAllocator(this.memoryManager, this.parentTask, (double) 64 / 78, 4, true /*use large record handler*/);
+			Sorter<IntPair> merger = new UnilateralSortMerger<IntPair>(this.memoryManager, this.ioManager, allocator,
+				generator, serializerFactory, comparator, (double) 64 / 78, 4, 0.7f, true /*use large record handler*/, true);
 	
 			// emit data
 			LOG.debug("Emitting data...");
