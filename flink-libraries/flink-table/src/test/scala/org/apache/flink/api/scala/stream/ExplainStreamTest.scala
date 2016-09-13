@@ -32,7 +32,7 @@ class ExplainStreamTest
   val testFilePath = ExplainStreamTest.this.getClass.getResource("/").getFile
 
   @Test
-  def testFilter() : Unit = {
+  def testFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
@@ -47,7 +47,7 @@ class ExplainStreamTest
   }
 
   @Test
-  def testUnion() : Unit = {
+  def testUnion(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 

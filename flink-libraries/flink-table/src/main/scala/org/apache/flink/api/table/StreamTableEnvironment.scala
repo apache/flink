@@ -284,7 +284,7 @@ abstract class StreamTableEnvironment(
 
     s"== Abstract Syntax Tree ==" +
       System.lineSeparator +
-      s"$ast"
+      ast
 
   }
 

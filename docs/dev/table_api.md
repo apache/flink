@@ -2474,7 +2474,7 @@ Table `explain` is supported for both `BatchTableEnvironment` and `StreamTableEn
 	val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
 	val table = table1.unionAll(table2)
 
-	val explanation:String = tEnv.explain(table)
+	val explanation: String = tEnv.explain(table)
 {% endhighlight %}
 </div>
 {% top %}
