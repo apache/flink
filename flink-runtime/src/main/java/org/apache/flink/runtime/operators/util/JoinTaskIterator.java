@@ -68,4 +68,9 @@ public interface JoinTaskIterator<V1, V2, O>
 	 * method signals an interrupt to that procedure.
 	 */
 	void abort();
+
+	/**
+	 * Resets the iterator specifically for the iterative tasks where the memory segments are not released
+	 */
+	void resetForIterativeTasks();
 }

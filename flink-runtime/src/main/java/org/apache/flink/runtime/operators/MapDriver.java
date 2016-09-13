@@ -114,4 +114,9 @@ public class MapDriver<IT, OT> implements Driver<MapFunction<IT, OT>, OT> {
 	public void cancel() {
 		this.running = false;
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+
+	}
 }

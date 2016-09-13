@@ -157,4 +157,9 @@ public class ReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinItera
 		this.running = false;
 		this.hashJoin.abort();
 	}
+
+	@Override
+	public void resetForIterativeTasks() {
+		this.hashJoin.close();
+	}
 }

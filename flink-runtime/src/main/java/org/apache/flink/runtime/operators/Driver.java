@@ -87,4 +87,6 @@ public interface Driver<S extends Function, OT> {
 	 * @throws Exception Exceptions may be forwarded.
 	 */
 	void cancel() throws Exception;
+
+	void resetForIterativeTasks() throws Exception;
 }

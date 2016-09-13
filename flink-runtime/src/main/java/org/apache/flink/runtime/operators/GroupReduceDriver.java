@@ -140,4 +140,9 @@ public class GroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT,
 	public void cancel() {
 		this.running = false;
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+
+	}
 }

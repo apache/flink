@@ -177,4 +177,9 @@ public class NonReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIte
 		this.running = false;
 		this.hashJoin.abort();
 	}
+
+	@Override
+	public void resetForIterativeTasks() {
+		this.hashJoin.close();
+	}
 }

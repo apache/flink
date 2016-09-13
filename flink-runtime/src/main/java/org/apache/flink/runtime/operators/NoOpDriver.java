@@ -106,4 +106,9 @@ public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 	public void cancel() {
 		this.running = false;
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+
+	}
 }

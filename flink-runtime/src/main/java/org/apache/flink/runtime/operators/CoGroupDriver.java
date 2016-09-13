@@ -175,4 +175,10 @@ public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, 
 		this.running = false;
 		cleanup();
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+		// call cleanup here
+		cleanup();
+	}
 }

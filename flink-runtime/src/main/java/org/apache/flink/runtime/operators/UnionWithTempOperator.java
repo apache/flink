@@ -87,4 +87,9 @@ public class UnionWithTempOperator<T> implements Driver<Function, T> {
 	public void cancel() {
 		this.running = false;
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+		
+	}
 }

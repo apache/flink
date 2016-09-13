@@ -256,4 +256,8 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	public void cancel() {
 		this.running = false;
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+	}
 }

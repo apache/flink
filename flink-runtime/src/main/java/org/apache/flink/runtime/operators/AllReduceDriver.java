@@ -160,4 +160,8 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 	public void cancel() {
 		this.running = false;
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+	}
 }

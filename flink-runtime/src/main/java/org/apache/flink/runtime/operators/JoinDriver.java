@@ -131,14 +131,17 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 		if (objectReuseEnabled) {
 			switch (ls) {
 				case INNER_MERGE:
-					this.joinIterator = new ReusingMergeInnerJoinIterator<>(in1, in2, 
+					if (joinIterator == null) {
+						this.joinIterator = new ReusingMergeInnerJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
 							memoryManager, ioManager, numPages, this.taskContext.getContainingTask());
+					}
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
-					this.joinIterator = new ReusingBuildFirstHashJoinIterator<>(in1, in2,
+					if (joinIterator == null) {
+						this.joinIterator = new ReusingBuildFirstHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator21(comparator1, comparator2),
@@ -148,9 +151,11 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							false,
 							false,
 							hashJoinUseBitMaps);
+					}
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
-					this.joinIterator = new ReusingBuildSecondHashJoinIterator<>(in1, in2,
+					if (joinIterator == null) {
+						this.joinIterator = new ReusingBuildSecondHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
@@ -160,6 +165,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							false,
 							false,
 							hashJoinUseBitMaps);
+					}
 					break;
 				default:
 					throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
@@ -167,15 +173,17 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 		} else {
 			switch (ls) {
 				case INNER_MERGE:
-					this.joinIterator = new NonReusingMergeInnerJoinIterator<>(in1, in2,
+					if (joinIterator == null) {
+						this.joinIterator = new NonReusingMergeInnerJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
 							memoryManager, ioManager, numPages, this.taskContext.getContainingTask());
-
+					}
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
-					this.joinIterator = new NonReusingBuildFirstHashJoinIterator<>(in1, in2,
+					if (joinIterator == null) {
+						this.joinIterator = new NonReusingBuildFirstHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator21(comparator1, comparator2),
@@ -185,9 +193,11 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							false,
 							false,
 							hashJoinUseBitMaps);
+					}
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
-					this.joinIterator = new NonReusingBuildSecondHashJoinIterator<>(in1, in2,
+					if (joinIterator == null) {
+						this.joinIterator = new NonReusingBuildSecondHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
@@ -197,6 +207,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							false,
 							false,
 							hashJoinUseBitMaps);
+					}
 					break;
 				default:
 					throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
@@ -235,6 +246,13 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 		this.running = false;
 		if (this.joinIterator != null) {
 			this.joinIterator.abort();
+		}
+	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+		if(this.joinIterator != null) {
+			this.joinIterator.resetForIterativeTasks();
 		}
 	}
 }

@@ -129,7 +129,9 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 
 		MemoryManager memManager = this.taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
-		this.memory = memManager.allocatePages(this.taskContext.getContainingTask(), numMemoryPages);
+		if(this.memory == null) {
+			this.memory = memManager.allocatePages(this.taskContext.getContainingTask(), numMemoryPages);
+		}
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
@@ -265,5 +267,13 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 	 */
 	public long getOversizedRecordCount() {
 		return oversizedRecordCount;
+	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+		if (this.sorter != null) {
+			this.sorter.dispose();
+		}
+		// do not release the memory
 	}
 }

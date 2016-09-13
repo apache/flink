@@ -162,4 +162,9 @@ public class AllGroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<
 
 	@Override
 	public void cancel() {}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+
+	}
 }

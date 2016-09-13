@@ -113,7 +113,8 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 		
 		// create and return outer join iterator according to provided local strategy.
 		if (objectReuseEnabled) {
-			this.outerJoinIterator = getReusingOuterJoinIterator(
+			if (outerJoinIterator == null) {
+				this.outerJoinIterator = getReusingOuterJoinIterator(
 					ls,
 					in1,
 					in2,
@@ -125,9 +126,11 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 					memoryManager,
 					ioManager,
 					driverMemFraction
-			);
+				);
+			}
 		} else {
-			this.outerJoinIterator = getNonReusingOuterJoinIterator(
+			if (outerJoinIterator == null) {
+				this.outerJoinIterator = getNonReusingOuterJoinIterator(
 					ls,
 					in1,
 					in2,
@@ -139,7 +142,8 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 					memoryManager,
 					ioManager,
 					driverMemFraction
-			);
+				);
+			}
 		}
 		
 		this.outerJoinIterator.open();
@@ -204,4 +208,11 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 			IOManager ioManager,
 			double driverMemFraction
 	) throws Exception;
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+		if (outerJoinIterator != null) {
+			outerJoinIterator.resetForIterativeTasks();
+		}
+	}
 }

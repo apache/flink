@@ -45,14 +45,12 @@ import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCri
 import org.apache.flink.runtime.iterative.io.SolutionSetObjectsUpdateOutputCollector;
 import org.apache.flink.runtime.iterative.io.SolutionSetUpdateOutputCollector;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
-import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
@@ -153,6 +151,11 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	}
 
 	@Override
+	protected void postRun() throws Exception {
+		this.driver.resetForIterativeTasks();
+	}
+
+	@Override
 	protected void closeLocalStrategiesAndCaches() {
 		try {
 			super.closeLocalStrategiesAndCaches();
@@ -206,9 +209,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
 			resDriver.reset();
 		} else {
-			Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
-			this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
-
+			// do not re instantiate the driver. Just reuse the same one
 			try {
 				this.driver.setup(this);
 			}

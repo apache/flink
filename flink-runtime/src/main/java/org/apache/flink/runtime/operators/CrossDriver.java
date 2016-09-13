@@ -432,4 +432,9 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 
 		}
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+		cleanup();
+	}
 }

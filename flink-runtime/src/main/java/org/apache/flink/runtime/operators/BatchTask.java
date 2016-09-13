@@ -531,8 +531,12 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			}
 		}
 		finally {
-			this.driver.cleanup();
+			postRun();
 		}
+	}
+
+	protected void postRun() throws Exception {
+		this.driver.cleanup();
 	}
 
 	protected void closeLocalStrategiesAndCaches() {

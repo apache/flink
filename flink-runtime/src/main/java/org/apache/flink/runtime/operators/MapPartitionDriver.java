@@ -111,4 +111,9 @@ public class MapPartitionDriver<IT, OT> implements Driver<MapPartitionFunction<I
 
 	@Override
 	public void cancel() {}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+
+	}
 }

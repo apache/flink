@@ -129,5 +129,9 @@ public class AllGroupCombineDriver<IN, OUT> implements Driver<GroupCombineFuncti
 	@Override
 	public void cancel() {
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+	}
 }
 

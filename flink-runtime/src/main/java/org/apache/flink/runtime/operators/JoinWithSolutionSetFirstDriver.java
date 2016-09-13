@@ -225,4 +225,8 @@ public class JoinWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettableD
 	public void cancel() {
 		this.running = false;
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+	}
 }

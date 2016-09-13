@@ -147,4 +147,8 @@ public class CoGroupRawDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT
 			}
 		}
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+	}
 }

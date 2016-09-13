@@ -119,4 +119,9 @@ public class FlatMapDriver<IT, OT> implements Driver<FlatMapFunction<IT, OT>, OT
 	public void cancel() {
 		this.running = false;
 	}
+
+	@Override
+	public void resetForIterativeTasks() throws Exception {
+
+	}
 }

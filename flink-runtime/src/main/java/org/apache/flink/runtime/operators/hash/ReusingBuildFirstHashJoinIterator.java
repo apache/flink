@@ -163,4 +163,11 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 		this.running = false;
 		this.hashJoin.abort();
 	}
+
+	@Override
+	public void resetForIterativeTasks() {
+		// close the join
+		this.hashJoin.close();
+		// do not relase the memory
+	}
 }

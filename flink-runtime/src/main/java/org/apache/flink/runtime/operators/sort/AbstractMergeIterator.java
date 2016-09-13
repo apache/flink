@@ -52,6 +52,14 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 	protected final TypeSerializer<T1> serializer1;
 	protected final TypeSerializer<T2> serializer2;
 
+	protected final MutableObjectIterator<T1> input1;
+
+	protected final MutableObjectIterator<T2> input2;
+
+	protected final TypeComparator<T1> comparator1;
+
+	protected final TypeComparator<T2> comparator2;
+
 	private final NonReusingBlockResettableIterator<T2> blockIt;    // for N:M cross products with same key
 
 	private final IOManager ioManager;
@@ -86,13 +94,16 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 		this.iterator1 = createKeyGroupedIterator(input1, serializer1, comparator1.duplicate());
 		this.iterator2 = createKeyGroupedIterator(input2, serializer2, comparator2.duplicate());
 
+		this.input1 = input1;
+		this.input2 = input2;
+		this.comparator1 = comparator1;
+		this.comparator2 = comparator2;
 		final int numPagesForSpiller = numMemoryPages > 20 ? 2 : 1;
 		this.blockIt = new NonReusingBlockResettableIterator<>(this.memoryManager, this.serializer2,
 				(numMemoryPages - numPagesForSpiller), parentTask);
 		this.memoryForSpillingIterator = memoryManager.allocatePages(parentTask, numPagesForSpiller);
 	}
 
-	@Override
 	public void open() throws IOException {
 	}
 
@@ -354,4 +365,10 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 	 */
 	protected abstract <T> T createCopy(TypeSerializer<T> serializer, T value, T reuse);
 
+	@Override
+	public void resetForIterativeTasks() {
+		this.blockIt.resetForIterativeTasks();
+		this.iterator1 = createKeyGroupedIterator(input1, serializer1, comparator1.duplicate());
+		this.iterator2 = createKeyGroupedIterator(input2, serializer2, comparator2.duplicate());
+	}
 }
