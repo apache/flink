@@ -118,7 +118,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean forceAvro = false;
 
-	private boolean forceCodeGeneration = true;
+	private boolean codeGenerationEnabled = true;
 
 	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
 
@@ -587,15 +587,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * Force Flink to use the generated serializers and comparators for POJOs.
      */
 	public void enableCodeGeneration() {
-		forceCodeGeneration = true;
+		codeGenerationEnabled = true;
 	}
 
 	public void disableCodeGeneration() {
-		forceCodeGeneration = false;
+		codeGenerationEnabled = false;
 	}
 
 	public boolean isCodeGenerationEnabled() {
-		return forceCodeGeneration;
+		return codeGenerationEnabled;
 	}
 
 	/**

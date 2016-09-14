@@ -68,13 +68,17 @@ public final class PojoComparatorGenerator<T> {
 		final String fullClassName = packageName + "." + className;
 		code = InstantiationUtil.getCodeForCachedClass(fullClassName);
 		if (code == null) {
-			generateCode(className);
+			try {
+				generateCode(className);
+			} catch (NoSuchMethodException e) {
+				throw new RuntimeException("Unable to generate comparator: " + className, e);
+			}
 		}
 		return new GenTypeComparatorProxy<>(type, fullClassName, code, comparators, serializer);
 	}
 
 
-	private void generateCode(String className) {
+	private void generateCode(String className) throws NoSuchMethodException {
 		String typeName = type.getCanonicalName();
 		StringBuilder members = new StringBuilder();
 		for (int i = 0; i < comparators.length; ++i) {

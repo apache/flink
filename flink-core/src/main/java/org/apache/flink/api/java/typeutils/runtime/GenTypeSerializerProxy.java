@@ -68,9 +68,7 @@ public class GenTypeSerializerProxy<T> extends TypeSerializer<T> {
 		for (int i = 0; i < this.fieldSerializers.length; i++) {
 			this.fieldSerializers[i] = other.fieldSerializers[i].duplicate();
 		}
-		if (other.impl != null) {
-			this.impl = other.impl.duplicate();
-		}
+		this.impl = other.impl.duplicate();
 	}
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {

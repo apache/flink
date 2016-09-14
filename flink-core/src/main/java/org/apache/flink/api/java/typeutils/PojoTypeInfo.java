@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -78,7 +79,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
 
 	private static final Map<Class<?>, Class<? extends TypeSerializer>> customSerializers = new HashMap<>();
-	private static final Map<Tuple2<ArrayList<Integer>, Class>, Class<? extends TypeComparator>> customComparators =
+	private static final Map<Tuple2<ImmutableList<Integer>, Class>, Class<? extends TypeComparator>> customComparators =
 		new HashMap<>();
 
 	private final PojoField[] fields;
@@ -106,12 +107,12 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	 *
 	 */
 	@PublicEvolving
-	public static <S extends TypeComparator> void registerCustomComparator(ArrayList<Integer> keyIds,
+	public static <S extends TypeComparator> void registerCustomComparator(ImmutableList<Integer> keyIds,
 																			Class clazz, Class<S> comp) {
 		Constructor<?>[] ctors = comp.getConstructors();
 		checkArgument(ctors.length == 1);
 		checkArgument(ctors[0].getParameterTypes().length == 0);
-		customComparators.put(new Tuple2<>(keyIds, clazz), comp);
+		customComparators.put(Tuple2.of(keyIds, clazz), comp);
 	}
 
 	@PublicEvolving
@@ -484,7 +485,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		}
 	}
 
-	public static String accessStringForField(Field f) {
+	public static String accessStringForField(Field f) throws NoSuchMethodException {
 		String fieldName = f.getName();
 		if (Modifier.isPublic(f.getModifiers())) {
 			return fieldName;
@@ -495,12 +496,13 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			parentClazz.getMethod(getterName);
 		} catch (NoSuchMethodException e) {
 			// No getter, it might be a scala class.
-			return fieldName + "()";
+			getterName = fieldName;
 		}
+		parentClazz.getMethod(getterName);
 		return getterName + "()";
 	}
 
-	public static String modifyStringForField(Field f, String arg) {
+	public static String modifyStringForField(Field f, String arg) throws NoSuchMethodException {
 		String fieldName = f.getName();
 		if (Modifier.isPublic(f.getModifiers())) {
 			if (f.getType().isPrimitive()) {
@@ -519,6 +521,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			// No getter, it might be a scala class.
 			setterName = fieldName + "_$eq";
 		}
+		parentClazz.getMethod(setterName, f.getType());
 
 		if (f.getType().isPrimitive()) {
 			return  setterName + "(" +

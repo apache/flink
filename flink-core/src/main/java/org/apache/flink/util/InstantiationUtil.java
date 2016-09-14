@@ -22,7 +22,7 @@ import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -53,11 +53,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public final class InstantiationUtil {
-	private static final HashMap<String, ClassLoader> loaderForGeneratedClasses = new HashMap<>();
-	private static final Map<String, Tuple2<Class, String>> generatedClasses = new HashMap<>();
+	private static final Map<String, Tuple3<Class, String, ClassLoader>> generatedClasses = new HashMap<>();
 	private static final freemarker.template.Configuration cfg =
 		new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_24);
 
+	// This is required to handle templates for code generation.
 	static {
 		cfg.setClassForTemplateLoading(InstantiationUtil.class, "/");
 		cfg.setDefaultEncoding("UTF-8");
@@ -79,7 +79,6 @@ public final class InstantiationUtil {
 	// Each time the user class loader changes, the generated classes should be invalidated.
 	public synchronized static void invalidateGeneratedClassesCache() {
 		generatedClasses.clear();
-		loaderForGeneratedClasses.clear();
 	}
 
 	// In case a class with a given key exists in the cache, return the corresponding java code. Otherwise return null.
@@ -104,9 +103,8 @@ public final class InstantiationUtil {
 			compiler.cook(code);
 			ClassLoader loader = compiler.getClassLoader();
 			generatedClazz = loader.loadClass(name);
-			assert !loaderForGeneratedClasses.containsKey(name);
-			loaderForGeneratedClasses.put(name, loader);
-			generatedClasses.put(name, new Tuple2<>(generatedClazz, code));
+			assert !generatedClasses.containsKey(name);
+			generatedClasses.put(name, Tuple3.of(generatedClazz, code, loader));
 		}
 		return generatedClazz;
 	}
@@ -129,27 +127,25 @@ public final class InstantiationUtil {
 		@Override
 		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
 			String name = desc.getName();
-			if (classLoader != null) {
-				try {
-					return Class.forName(name, false, classLoader);
-				} catch (ClassNotFoundException ex) {
-					// check if class is a primitive class
-					Class<?> cl = primitiveClasses.get(name);
-					if (cl != null) {
-						// return primitive class
-						return cl;
-					} else {
-						// search among the compiled classes too
-						return Class.forName(name, false, loaderForGeneratedClasses.get(name));
+			try {
+				if (classLoader != null) {
+					try {
+						return Class.forName(name, false, classLoader);
+					} catch (ClassNotFoundException ex) {
+						// check if class is a primitive class
+						Class<?> cl = primitiveClasses.get(name);
+						if (cl != null) {
+							// return primitive class
+							return cl;
+						} else {
+							throw ex;
+						}
 					}
 				}
-			}
-
-			try {
 				return super.resolveClass(desc);
 			} catch (ClassNotFoundException ex) {
-				// It is possible the passed class loader is null but we still want to load generated classes.
-				return Class.forName(name, false, loaderForGeneratedClasses.get(name));
+				// Search among generated classes.
+				return Class.forName(name, false, generatedClasses.get(name).f2);
 			}
 		}
 		

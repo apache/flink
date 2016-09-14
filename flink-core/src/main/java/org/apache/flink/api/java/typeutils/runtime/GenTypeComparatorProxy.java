@@ -71,9 +71,7 @@ public class GenTypeComparatorProxy<T> extends CompositeTypeComparator<T> implem
 			this.comparators[i] = other.comparators[i].duplicate();
 		}
 		this.serializer = other.serializer.duplicate();
-		if (other.impl != null) {
-			this.impl = (CompositeTypeComparator<T>) other.impl.duplicate();
-		}
+		this.impl = (CompositeTypeComparator<T>) other.impl.duplicate();
 	}
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -167,6 +165,7 @@ public class GenTypeComparatorProxy<T> extends CompositeTypeComparator<T> implem
 		return impl.extractKeys(record, target, index);
 	}
 
+	// Used by generated code.
 	public TypeComparator<T> getImpl() {
 		return impl;
 	}

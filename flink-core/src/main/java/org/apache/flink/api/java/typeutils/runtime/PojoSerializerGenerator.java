@@ -61,12 +61,16 @@ public final class PojoSerializerGenerator<T> {
 		final String fullClassName = packageName + "." + className;
 		code = InstantiationUtil.getCodeForCachedClass(fullClassName);
 		if (code == null) {
-			generateCode(className);
+			try {
+				generateCode(className);
+			} catch (NoSuchMethodException e) {
+				throw new RuntimeException("Unable to generate serializer: " + className, e);
+			}
 		}
 		return new GenTypeSerializerProxy<>(clazz, fullClassName, code, fieldSerializers, config);
 	}
 
-	private void generateCode(String className) {
+	private void generateCode(String className) throws NoSuchMethodException {
 		assert fieldSerializers.length > 0;
 		String typeName = clazz.getCanonicalName();
 		StringBuilder members = new StringBuilder();
