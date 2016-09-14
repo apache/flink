@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import org.apache.flink.api.common.ExecutionConfig;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -28,29 +31,25 @@ import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.NetUtils;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.concurrent.TimeUnit;
-
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
@@ -197,5 +196,30 @@ public class JobSubmitTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testAnswerFailureWhenSavepointReadFails() throws Exception {
+		// create a simple job graph
+		JobGraph jg = createSimpleJobGraph();
+		jg.setSavepointPath("pathThatReallyDoesNotExist...");
+
+		// submit the job
+		Future<Object> submitFuture = jmGateway.ask(
+			new JobManagerMessages.SubmitJob(jg, ListeningBehaviour.DETACHED), timeout);
+		Object result = Await.result(submitFuture, timeout);
+		assertEquals(JobManagerMessages.JobResultFailure.class, result.getClass());
+	}
+
+	private JobGraph createSimpleJobGraph() {
+		JobVertex jobVertex = new JobVertex("Vertex");
+
+		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
+		List<JobVertexID> vertexIdList = Collections.singletonList(jobVertex.getID());
+
+		JobGraph jg = new JobGraph("test job", jobVertex);
+		jg.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList,
+			5000, 5000, 0L, 10));
+		return jg;
 	}
 }
