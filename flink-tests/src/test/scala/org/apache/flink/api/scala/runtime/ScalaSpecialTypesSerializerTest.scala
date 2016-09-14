@@ -153,17 +153,19 @@ class ScalaSpecialTypesSerializerTestInstance[T](
   @Test
   override def testInstantiate(): Unit = {
     try {
-      val serializer: TypeSerializer[T] = getSerializer
-      if (!serializer.isInstanceOf[KryoSerializer[_]]) {
-        // kryo serializer does return null, so only test for non-kryo-serializers
-        val instance: T = serializer.createInstance
-        assertNotNull("The created instance must not be null.", instance)
+      val serializers: Array[TypeSerializer[T]] = getSerializers
+      for (serializer <- serializers) {
+        if (!serializer.isInstanceOf[KryoSerializer[_]]) {
+          // kryo serializer does return null, so only test for non-kryo-serializers
+          val instance: T = serializer.createInstance
+          assertNotNull("The created instance must not be null.", instance)
+        }
+        val tpe: Class[T] = getTypeClass
+        assertNotNull("The test is corrupt: type class is null.", tpe)
+        // We cannot check this because Collection Instances are not always of the type
+        // that the user writes, they might have generated names.
+        // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
       }
-      val tpe: Class[T] = getTypeClass
-      assertNotNull("The test is corrupt: type class is null.", tpe)
-      // We cannot check this because Collection Instances are not always of the type
-      // that the user writes, they might have generated names.
-      // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
     }
     catch {
       case e: Exception => {

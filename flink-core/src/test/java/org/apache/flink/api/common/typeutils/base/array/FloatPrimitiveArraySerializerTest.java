@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySerializer;
@@ -29,7 +30,7 @@ import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerial
 public class FloatPrimitiveArraySerializerTest extends SerializerTestBase<float[]> {
 
 	@Override
-	protected TypeSerializer<float[]> createSerializer() {
+	protected TypeSerializer<float[]> createSerializer(ExecutionConfig config) {
 		return new FloatPrimitiveArraySerializer();
 	}
 

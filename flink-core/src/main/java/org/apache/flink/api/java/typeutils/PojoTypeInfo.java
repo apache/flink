@@ -223,7 +223,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
 
 		Matcher matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression);
-		if(!matcher.matches()) {
+		if (!matcher.matches()) {
 			if (fieldExpression.startsWith(ExpressionKeys.SELECT_ALL_CHAR) || fieldExpression.startsWith(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
 				throw new InvalidFieldReferenceException("Wildcard expressions are not allowed here.");
 			} else {

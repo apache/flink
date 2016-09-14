@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.sql.Time;
+
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -28,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 public class SqlTimeSerializerTest extends SerializerTestBase<Time> {
 
 	@Override
-	protected TypeSerializer<Time> createSerializer() {
+	protected TypeSerializer<Time> createSerializer(ExecutionConfig config) {
 		return new SqlTimeSerializer();
 	}
 

@@ -34,12 +34,12 @@ import java.util.Arrays;
 
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 
 import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.junit.Test;
@@ -54,7 +54,7 @@ import org.junit.Test;
  */
 public abstract class SerializerTestBase<T> extends TestLogger {
 	
-	protected abstract TypeSerializer<T> createSerializer();
+	protected abstract TypeSerializer<T> createSerializer(ExecutionConfig config);
 
 	/**
 	 * Gets the expected length for the serializer's {@link TypeSerializer#getLength()} method.
@@ -73,20 +73,22 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testInstantiate() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			if(serializer.getClass().getName().endsWith("KryoSerializer")) {
-				// the kryo serializer will return null. We ignore this test for Kryo.
-				return;
-			}
-			T instance = serializer.createInstance();
-			assertNotNull("The created instance must not be null.", instance);
-			
-			Class<T> type = getTypeClass();
-			assertNotNull("The test is corrupt: type class is null.", type);
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				if (serializer.getClass().getName().endsWith("KryoSerializer")) {
+					// the kryo serializer will return null. We ignore this test for Kryo.
+					return;
+				}
+				T instance = serializer.createInstance();
+				assertNotNull("The created instance must not be null.", instance);
 
-			if (!type.isAssignableFrom(instance.getClass())) {
-				fail("Type of the instantiated object is wrong. " +
-						"Expected Type: " + type + " present type " + instance.getClass());
+				Class<T> type = getTypeClass();
+				assertNotNull("The test is corrupt: type class is null.", type);
+
+				if (!type.isAssignableFrom(instance.getClass())) {
+					fail("Type of the instantiated object is wrong. " +
+							"Expected Type: " + type + " present type " + instance.getClass());
+				}
 			}
 		}
 		catch (Exception e) {
@@ -137,8 +139,10 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			assertEquals(len, serializer.getLength());
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				assertEquals(len, serializer.getLength());
+			}
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -150,13 +154,15 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testCopy() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			for (T datum : testData) {
-				T copy = serializer.copy(datum);
-				copy.toString();
-				deepEquals("Copied element is not equal to the original element.", datum, copy);
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
+
+				for (T datum : testData) {
+					T copy = serializer.copy(datum);
+					copy.toString();
+					deepEquals("Copied element is not equal to the original element.", datum, copy);
+				}
 			}
 		}
 		catch (Exception e) {
@@ -169,13 +175,15 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testCopyIntoNewElements() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			for (T datum : testData) {
-				T copy = serializer.copy(datum, serializer.createInstance());
-				copy.toString();
-				deepEquals("Copied element is not equal to the original element.", datum, copy);
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
+
+				for (T datum : testData) {
+					T copy = serializer.copy(datum, serializer.createInstance());
+					copy.toString();
+					deepEquals("Copied element is not equal to the original element.", datum, copy);
+				}
 			}
 		}
 		catch (Exception e) {
@@ -188,16 +196,18 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testCopyIntoReusedElements() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			T target = serializer.createInstance();
-			
-			for (T datum : testData) {
-				T copy = serializer.copy(datum, target);
-				copy.toString();
-				deepEquals("Copied element is not equal to the original element.", datum, copy);
-				target = copy;
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
+
+				T target = serializer.createInstance();
+
+				for (T datum : testData) {
+					T copy = serializer.copy(datum, target);
+					copy.toString();
+					deepEquals("Copied element is not equal to the original element.", datum, copy);
+					target = copy;
+				}
 			}
 		}
 		catch (Exception e) {
@@ -210,22 +220,24 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testSerializeIndividually() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			for (T value : testData) {
-				TestOutputView out = new TestOutputView();
-				serializer.serialize(value, out);
-				TestInputView in = out.getInputView();
-				
-				assertTrue("No data available during deserialization.", in.available() > 0);
-				
-				T deserialized = serializer.deserialize(serializer.createInstance(), in);
- 				deserialized.toString();
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
 
-				deepEquals("Deserialized value if wrong.", value, deserialized);
-				
-				assertTrue("Trailing data available after deserialization.", in.available() == 0);
+				for (T value : testData) {
+					TestOutputView out = new TestOutputView();
+					serializer.serialize(value, out);
+					TestInputView in = out.getInputView();
+
+					assertTrue("No data available during deserialization.", in.available() > 0);
+
+					T deserialized = serializer.deserialize(serializer.createInstance(), in);
+					deserialized.toString();
+
+					deepEquals("Deserialized value if wrong.", value, deserialized);
+
+					assertTrue("Trailing data available after deserialization.", in.available() == 0);
+				}
 			}
 		}
 		catch (Exception e) {
@@ -239,26 +251,28 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testSerializeIndividuallyReusingValues() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			T reuseValue = serializer.createInstance();
-			
-			for (T value : testData) {
-				TestOutputView out = new TestOutputView();
-				serializer.serialize(value, out);
-				TestInputView in = out.getInputView();
-				
-				assertTrue("No data available during deserialization.", in.available() > 0);
-				
-				T deserialized = serializer.deserialize(reuseValue, in);
-				deserialized.toString();
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
 
-				deepEquals("Deserialized value if wrong.", value, deserialized);
-				
-				assertTrue("Trailing data available after deserialization.", in.available() == 0);
-				
-				reuseValue = deserialized;
+				T reuseValue = serializer.createInstance();
+
+				for (T value : testData) {
+					TestOutputView out = new TestOutputView();
+					serializer.serialize(value, out);
+					TestInputView in = out.getInputView();
+
+					assertTrue("No data available during deserialization.", in.available() > 0);
+
+					T deserialized = serializer.deserialize(reuseValue, in);
+					deserialized.toString();
+
+					deepEquals("Deserialized value if wrong.", value, deserialized);
+
+					assertTrue("Trailing data available after deserialization.", in.available() == 0);
+
+					reuseValue = deserialized;
+				}
 			}
 		}
 		catch (Exception e) {
@@ -271,26 +285,28 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testSerializeAsSequenceNoReuse() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			TestOutputView out = new TestOutputView();
-			for (T value : testData) {
-				serializer.serialize(value, out);
-			}
-			
-			TestInputView in = out.getInputView();
-			
-			int num = 0;
-			while (in.available() > 0) {
-				T deserialized = serializer.deserialize(in);
-				deserialized.toString();
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
 
-				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
-				num++;
+				TestOutputView out = new TestOutputView();
+				for (T value : testData) {
+					serializer.serialize(value, out);
+				}
+
+				TestInputView in = out.getInputView();
+
+				int num = 0;
+				while (in.available() > 0) {
+					T deserialized = serializer.deserialize(in);
+					deserialized.toString();
+
+					deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+					num++;
+				}
+
+				assertEquals("Wrong number of elements deserialized.", testData.length, num);
 			}
-			
-			assertEquals("Wrong number of elements deserialized.", testData.length, num);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -302,28 +318,30 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testSerializeAsSequenceReusingValues() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			TestOutputView out = new TestOutputView();
-			for (T value : testData) {
-				serializer.serialize(value, out);
-			}
-			
-			TestInputView in = out.getInputView();
-			T reuseValue = serializer.createInstance();
-			
-			int num = 0;
-			while (in.available() > 0) {
-				T deserialized = serializer.deserialize(reuseValue, in);
-				deserialized.toString();
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
 
-				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
-				reuseValue = deserialized;
-				num++;
+				TestOutputView out = new TestOutputView();
+				for (T value : testData) {
+					serializer.serialize(value, out);
+				}
+
+				TestInputView in = out.getInputView();
+				T reuseValue = serializer.createInstance();
+
+				int num = 0;
+				while (in.available() > 0) {
+					T deserialized = serializer.deserialize(reuseValue, in);
+					deserialized.toString();
+
+					deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+					reuseValue = deserialized;
+					num++;
+				}
+
+				assertEquals("Wrong number of elements deserialized.", testData.length, num);
 			}
-			
-			assertEquals("Wrong number of elements deserialized.", testData.length, num);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -335,27 +353,29 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testSerializedCopyIndividually() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			for (T value : testData) {
-				TestOutputView out = new TestOutputView();
-				serializer.serialize(value, out);
-				
-				TestInputView source = out.getInputView();
-				TestOutputView target = new TestOutputView();
-				serializer.copy(source, target);
-				
-				TestInputView toVerify = target.getInputView();
-				
-				assertTrue("No data available copying.", toVerify.available() > 0);
-				
-				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-				deserialized.toString();
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
 
-				deepEquals("Deserialized value if wrong.", value, deserialized);
-				
-				assertTrue("Trailing data available after deserialization.", toVerify.available() == 0);
+				for (T value : testData) {
+					TestOutputView out = new TestOutputView();
+					serializer.serialize(value, out);
+
+					TestInputView source = out.getInputView();
+					TestOutputView target = new TestOutputView();
+					serializer.copy(source, target);
+
+					TestInputView toVerify = target.getInputView();
+
+					assertTrue("No data available copying.", toVerify.available() > 0);
+
+					T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
+					deserialized.toString();
+
+					deepEquals("Deserialized value if wrong.", value, deserialized);
+
+					assertTrue("Trailing data available after deserialization.", toVerify.available() == 0);
+				}
 			}
 		}
 		catch (Exception e) {
@@ -369,32 +389,34 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testSerializedCopyAsSequence() {
 		try {
-			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
-			
-			TestOutputView out = new TestOutputView();
-			for (T value : testData) {
-				serializer.serialize(value, out);
-			}
-			
-			TestInputView source = out.getInputView();
-			TestOutputView target = new TestOutputView();
-			for (int i = 0; i < testData.length; i++) {
-				serializer.copy(source, target);
-			}
-			
-			TestInputView toVerify = target.getInputView();
-			int num = 0;
-			
-			while (toVerify.available() > 0) {
-				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-				deserialized.toString();
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> serializer : serializers) {
+				T[] testData = getData();
 
-				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
-				num++;
+				TestOutputView out = new TestOutputView();
+				for (T value : testData) {
+					serializer.serialize(value, out);
+				}
+
+				TestInputView source = out.getInputView();
+				TestOutputView target = new TestOutputView();
+				for (int i = 0; i < testData.length; i++) {
+					serializer.copy(source, target);
+				}
+
+				TestInputView toVerify = target.getInputView();
+				int num = 0;
+
+				while (toVerify.available() > 0) {
+					T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
+					deserialized.toString();
+
+					deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+					num++;
+				}
+
+				assertEquals("Wrong number of elements copied.", testData.length, num);
 			}
-			
-			assertEquals("Wrong number of elements copied.", testData.length, num);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -406,16 +428,18 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	@Test
 	public void testSerializabilityAndEquals() {
 		try {
-			TypeSerializer<T> ser1 = getSerializer();
-			TypeSerializer<T> ser2;
-			try {
-				ser2 = InstantiationUtil.clone(ser1);
-			} catch (SerializationException e) {
-				fail("The serializer is not serializable: " + e);
-				return;
+			TypeSerializer<T>[] serializers = getSerializers();
+			for (TypeSerializer<T> ser1 : serializers) {
+				TypeSerializer<T> ser2;
+				try {
+					ser2 = InstantiationUtil.clone(ser1);
+				} catch (SerializationException e) {
+					fail("The serializer is not serializable: " + e);
+					return;
+				}
+
+				assertEquals("The copy of the serializer is not equal to the original one.", ser1, ser2);
 			}
-			
-			assertEquals("The copy of the serializer is not equal to the original one.", ser1, ser2);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -466,12 +490,23 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected TypeSerializer<T> getSerializer() {
-		TypeSerializer<T> serializer = createSerializer();
-		if (serializer == null) {
-			throw new RuntimeException("Test case corrupt. Returns null as serializer.");
+	protected TypeSerializer<T>[] getSerializers() {
+		// Up to two serializers are tested for each subclass
+		// The first one with code generation disabled, the second with enabled
+		TypeSerializer<T>[] serializers = new TypeSerializer[2];
+		ExecutionConfig config = new ExecutionConfig();
+
+		config.disableCodeGeneration();
+		serializers[0] = createSerializer(config);
+		config.enableCodeGeneration();
+		serializers[1] = createSerializer(config);
+
+		for (TypeSerializer<T> serializer : serializers) {
+			if (serializer == null) {
+				throw new RuntimeException("Test case corrupt. Returns null as serializer.");
+			}
 		}
-		return serializer;
+		return serializers;
 	}
 	
 	private T[] getData() {

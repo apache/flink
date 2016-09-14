@@ -43,7 +43,7 @@ public final class ${className} extends TypeSerializer {
 	private static byte IS_TAGGED_SUBCLASS = 8;
 	private int numFields;
 	private ExecutionConfig executionConfig;
-	private Map<Class, TypeSerializer> subclassSerializerCache;
+	private transient Map<Class, TypeSerializer> subclassSerializerCache;
 	private final Map<Class, Integer> registeredClasses;
 	private final TypeSerializer[] registeredSerializers;
 	Class clazz;

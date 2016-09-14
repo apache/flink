@@ -37,11 +37,10 @@ public class SubclassFromInterfaceSerializerTest extends SerializerTestBase<Subc
 	private TypeInformation<TestUserInterface> type = TypeExtractor.getForClass(TestUserInterface.class);
 
 	@Override
-	protected TypeSerializer<TestUserInterface> createSerializer() {
+	protected TypeSerializer<TestUserInterface> createSerializer(ExecutionConfig config) {
 		// only register one of the two child classes
-		ExecutionConfig conf = new ExecutionConfig();
-		conf.registerPojoType(TestUserClass2.class);
-		TypeSerializer<TestUserInterface> serializer = type.createSerializer(conf);
+		config.registerPojoType(TestUserClass2.class);
+		TypeSerializer<TestUserInterface> serializer = type.createSerializer(config);
 		assert(serializer instanceof KryoSerializer);
 		return serializer;
 	}

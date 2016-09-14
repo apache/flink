@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.BooleanValue;
@@ -30,7 +31,7 @@ import org.apache.flink.types.BooleanValue;
 public class BooleanValueSerializerTest extends SerializerTestBase<BooleanValue> {
 	
 	@Override
-	protected TypeSerializer<BooleanValue> createSerializer() {
+	protected TypeSerializer<BooleanValue> createSerializer(ExecutionConfig config) {
 		return new BooleanValueSerializer();
 	}
 	

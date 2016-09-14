@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils;
 
 
+import org.apache.flink.api.common.ExecutionConfig;
+
 public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 
 	private final TypeSerializer<T> serializer;
@@ -42,7 +44,7 @@ public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	protected TypeSerializer<T> createSerializer() {
+	protected TypeSerializer<T> createSerializer(ExecutionConfig config) {
 		return this.serializer;
 	}
 

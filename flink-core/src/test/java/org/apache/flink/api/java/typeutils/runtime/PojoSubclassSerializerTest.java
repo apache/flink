@@ -36,11 +36,10 @@ public class PojoSubclassSerializerTest extends SerializerTestBase<PojoSubclassS
 	private TypeInformation<TestUserClassBase> type = TypeExtractor.getForClass(TestUserClassBase.class);
 
 	@Override
-	protected TypeSerializer<TestUserClassBase> createSerializer() {
+	protected TypeSerializer<TestUserClassBase> createSerializer(ExecutionConfig config) {
 		// only register one of the three child classes, the third child class is NO POJO
-		ExecutionConfig conf = new ExecutionConfig();
-		conf.registerPojoType(TestUserClass1.class);
-		TypeSerializer<TestUserClassBase> serializer = type.createSerializer(conf);
+		config.registerPojoType(TestUserClass1.class);
+		TypeSerializer<TestUserClassBase> serializer = type.createSerializer(config);
 		return serializer;
 	}
 

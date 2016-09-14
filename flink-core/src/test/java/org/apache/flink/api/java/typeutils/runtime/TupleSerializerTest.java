@@ -203,13 +203,13 @@ public class TupleSerializerTest {
 		
 		@SuppressWarnings("unchecked")
 		Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>[] testTuples = new Tuple5[] {
-				new Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>(a, b1, o1, ba1, co1),
-				new Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>(b, b2, o2, ba2, co2),
-				new Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>(c, b3, o3, ba1, co3),
-				new Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>(d, b2, o4, ba1, co4),
-				new Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>(e, b4, o5, ba2, co4),
-				new Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>(f, b5, o1, ba2, co4),
-				new Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>(g, b6, o4, ba1, co2)
+				Tuple5.of(a, b1, o1, ba1, co1),
+				Tuple5.of(b, b2, o2, ba2, co2),
+				Tuple5.of(c, b3, o3, ba1, co3),
+				Tuple5.of(d, b2, o4, ba1, co4),
+				Tuple5.of(e, b4, o5, ba2, co4),
+				Tuple5.of(f, b5, o1, ba2, co4),
+				Tuple5.of(g, b6, o4, ba1, co2)
 		};
 		
 		runTests(-1, testTuples);

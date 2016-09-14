@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.CharValue;
@@ -30,7 +31,7 @@ import org.apache.flink.types.CharValue;
 public class CharValueSerializerTest extends SerializerTestBase<CharValue> {
 	
 	@Override
-	protected TypeSerializer<CharValue> createSerializer() {
+	protected TypeSerializer<CharValue> createSerializer(ExecutionConfig config) {
 		return new CharValueSerializer();
 	}
 	

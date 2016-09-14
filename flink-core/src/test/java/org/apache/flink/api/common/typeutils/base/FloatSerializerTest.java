@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
@@ -29,7 +30,7 @@ import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 public class FloatSerializerTest extends SerializerTestBase<Float> {
 	
 	@Override
-	protected TypeSerializer<Float> createSerializer() {
+	protected TypeSerializer<Float> createSerializer(ExecutionConfig config) {
 		return new FloatSerializer();
 	}
 	

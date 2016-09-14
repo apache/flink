@@ -20,6 +20,8 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.math.BigDecimal;
 import java.util.Random;
+
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -29,7 +31,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 public class BigDecSerializerTest extends SerializerTestBase<BigDecimal> {
 
 	@Override
-	protected TypeSerializer<BigDecimal> createSerializer() {
+	protected TypeSerializer<BigDecimal> createSerializer(ExecutionConfig config) {
 		return new BigDecSerializer();
 	}
 

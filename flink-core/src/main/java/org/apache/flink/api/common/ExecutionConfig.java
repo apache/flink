@@ -118,7 +118,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean forceAvro = false;
 
-	private boolean codeGenerationEnabled = true;
+	private boolean codeGenerationEnabled = false;
 
 	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
 

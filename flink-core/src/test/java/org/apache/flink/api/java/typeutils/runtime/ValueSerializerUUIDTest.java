@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -25,7 +26,7 @@ import java.util.UUID;
 
 public class ValueSerializerUUIDTest extends SerializerTestBase<ValueID> {
 	@Override
-	protected TypeSerializer<ValueID> createSerializer() {
+	protected TypeSerializer<ValueID> createSerializer(ExecutionConfig config) {
 		return new ValueSerializer<>(ValueID.class);
 	}
 

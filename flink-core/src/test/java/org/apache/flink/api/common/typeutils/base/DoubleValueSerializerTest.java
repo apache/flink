@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.DoubleValue;
@@ -30,7 +31,7 @@ import org.apache.flink.types.DoubleValue;
 public class DoubleValueSerializerTest extends SerializerTestBase<DoubleValue> {
 	
 	@Override
-	protected TypeSerializer<DoubleValue> createSerializer() {
+	protected TypeSerializer<DoubleValue> createSerializer(ExecutionConfig config) {
 		return new DoubleValueSerializer();
 	}
 	

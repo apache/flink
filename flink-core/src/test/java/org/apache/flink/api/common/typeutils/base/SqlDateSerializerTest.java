@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.sql.Date;
+
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -28,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 public class SqlDateSerializerTest extends SerializerTestBase<Date> {
 
 	@Override
-	protected TypeSerializer<Date> createSerializer() {
+	protected TypeSerializer<Date> createSerializer(ExecutionConfig config) {
 		return new SqlDateSerializer();
 	}
 

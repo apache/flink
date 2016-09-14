@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -33,7 +34,7 @@ public class BytePrimitiveArraySerializerTest extends SerializerTestBase<byte[]>
 	private final Random rnd = new Random(346283764872L);
 	
 	@Override
-	protected TypeSerializer<byte[]> createSerializer() {
+	protected TypeSerializer<byte[]> createSerializer(ExecutionConfig config) {
 		return new BytePrimitiveArraySerializer();
 	}
 

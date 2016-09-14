@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
@@ -28,7 +29,7 @@ import org.apache.flink.types.StringValue;
 public class StringValueSerializerTest extends SerializerTestBase<StringValue> {
 	
 	@Override
-	protected TypeSerializer<StringValue> createSerializer() {
+	protected TypeSerializer<StringValue> createSerializer(ExecutionConfig config) {
 		return new StringValueSerializer();
 	}
 	

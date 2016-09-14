@@ -55,12 +55,12 @@ public class EitherSerializerTest {
 			Right(Double.MIN_VALUE),
 			Right(Double.MAX_VALUE)};
 
-	EitherTypeInfo<String, Double> eitherTypeInfo = (EitherTypeInfo<String, Double>) new EitherTypeInfo<String, Double>(
+	EitherTypeInfo<String, Double> eitherTypeInfo = new EitherTypeInfo<>(
 			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO);
 	EitherSerializer<String, Double> eitherSerializer =
 			(EitherSerializer<String, Double>) eitherTypeInfo.createSerializer(new ExecutionConfig());
 	SerializerTestInstance<Either<String, Double>> testInstance =
-			new EitherSerializerTestInstance<Either<String, Double>>(eitherSerializer, eitherTypeInfo.getTypeClass(), -1, testData);
+			new EitherSerializerTestInstance<>(eitherSerializer, eitherTypeInfo.getTypeClass(), -1, testData);
 	testInstance.testAll();
 	}
 
@@ -95,14 +95,14 @@ public class EitherSerializerTest {
 			Right(Double.MIN_VALUE),
 			Right(Double.MAX_VALUE)};
 
-	EitherTypeInfo<Tuple2<Long, Long>, Double> eitherTypeInfo = (EitherTypeInfo<Tuple2<Long, Long>, Double>)
-			new EitherTypeInfo<Tuple2<Long, Long>, Double>(
+	EitherTypeInfo<Tuple2<Long, Long>, Double> eitherTypeInfo =
+			new EitherTypeInfo<>(
 			new TupleTypeInfo<Tuple2<Long, Long>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO),
 			BasicTypeInfo.DOUBLE_TYPE_INFO);
 	EitherSerializer<Tuple2<Long, Long>, Double> eitherSerializer =
 			(EitherSerializer<Tuple2<Long, Long>, Double>) eitherTypeInfo.createSerializer(new ExecutionConfig());
 	SerializerTestInstance<Either<Tuple2<Long, Long>, Double>> testInstance =
-			new EitherSerializerTestInstance<Either<Tuple2<Long, Long>, Double>>(
+			new EitherSerializerTestInstance<>(
 					eitherSerializer, eitherTypeInfo.getTypeClass(), -1, testData);
 	testInstance.testAll();
 	}
@@ -207,13 +207,14 @@ public class EitherSerializerTest {
 		@Test
 		public void testInstantiate() {
 			try {
-				TypeSerializer<T> serializer = getSerializer();
+				TypeSerializer<T>[] serializers = getSerializers();
+				for (TypeSerializer<T> serializer : serializers) {
+					T instance = serializer.createInstance();
+					assertNotNull("The created instance must not be null.", instance);
 
-				T instance = serializer.createInstance();
-				assertNotNull("The created instance must not be null.", instance);
-
-				Class<T> type = getTypeClass();
-				assertNotNull("The test is corrupt: type class is null.", type);
+					Class<T> type = getTypeClass();
+					assertNotNull("The test is corrupt: type class is null.", type);
+				}
 			}
 			catch (Exception e) {
 				System.err.println(e.getMessage());

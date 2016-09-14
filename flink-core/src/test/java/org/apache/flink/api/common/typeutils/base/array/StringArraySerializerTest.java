@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
@@ -35,7 +36,7 @@ import static org.junit.Assert.assertFalse;
 public class StringArraySerializerTest extends SerializerTestBase<String[]> {
 
 	@Override
-	protected TypeSerializer<String[]> createSerializer() {
+	protected TypeSerializer<String[]> createSerializer(ExecutionConfig config) {
 		return new StringArraySerializer();
 	}
 
@@ -76,7 +77,7 @@ public class StringArraySerializerTest extends SerializerTestBase<String[]> {
 
 	@Test
 	public void arrayTypeIsMutable() {
-		StringArraySerializer serializer = (StringArraySerializer) createSerializer();
+		StringArraySerializer serializer = (StringArraySerializer) createSerializer(new ExecutionConfig());
 		assertFalse(serializer.isImmutableType());
 	}
 }

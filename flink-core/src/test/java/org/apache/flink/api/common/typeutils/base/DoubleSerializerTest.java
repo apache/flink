@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.util.Random;
+
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -28,7 +31,7 @@ import java.util.Random;
 public class DoubleSerializerTest extends SerializerTestBase<Double> {
 	
 	@Override
-	protected TypeSerializer<Double> createSerializer() {
+	protected TypeSerializer<Double> createSerializer(ExecutionConfig config) {
 		return new DoubleSerializer();
 	}
 	

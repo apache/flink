@@ -139,19 +139,22 @@ class TraversableSerializerTestInstance[T](
 
   @Test
   def testTraversableDeepCopy(): Unit = {
-    val serializer = getSerializer
-    val elementSerializer = serializer.asInstanceOf[TraversableSerializer[_, _]].elementSerializer
-    val data = getTestData
+    val serializers = getSerializers
+    for (serializer <- serializers) {
+      val elementSerializer = serializer.asInstanceOf[TraversableSerializer[_, _]].elementSerializer
+      val data = getTestData
 
-    // check for deep copy if type is immutable and not serialized with Kryo
-    // elements of traversable should not have reference equality
-    if (!elementSerializer.isImmutableType && !elementSerializer.isInstanceOf[KryoSerializer[_]]) {
-      data.foreach { datum =>
-        val original = datum.asInstanceOf[Traversable[_]].toIterable
-        val copy = serializer.copy(datum).asInstanceOf[Traversable[_]].toIterable
-        copy.zip(original).foreach { case (c: AnyRef, o: AnyRef) =>
-          assertTrue("Copy of mutable element has reference equality.", c ne o)
-        case _ => // ok
+      // check for deep copy if type is immutable and not serialized with Kryo
+      // elements of traversable should not have reference equality
+      if (!elementSerializer.isImmutableType &&
+          !elementSerializer.isInstanceOf[KryoSerializer[_]]) {
+        data.foreach { datum =>
+          val original = datum.asInstanceOf[Traversable[_]].toIterable
+          val copy = serializer.copy(datum).asInstanceOf[Traversable[_]].toIterable
+          copy.zip(original).foreach { case (c: AnyRef, o: AnyRef) =>
+            assertTrue("Copy of mutable element has reference equality.", c ne o)
+          case _ => // ok
+          }
         }
       }
     }
@@ -160,14 +163,16 @@ class TraversableSerializerTestInstance[T](
   @Test
   override def testInstantiate(): Unit = {
     try {
-      val serializer: TypeSerializer[T] = getSerializer
-      val instance: T = serializer.createInstance
-      assertNotNull("The created instance must not be null.", instance)
-      val tpe: Class[T] = getTypeClass
-      assertNotNull("The test is corrupt: type class is null.", tpe)
-      // We cannot check this because Collection Instances are not always of the type
-      // that the user writes, they might have generated names.
-      // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
+      val serializers: Array[TypeSerializer[T]] = getSerializers
+      for (serializer <- serializers) {
+        val instance: T = serializer.createInstance
+        assertNotNull("The created instance must not be null.", instance)
+        val tpe: Class[T] = getTypeClass
+        assertNotNull("The test is corrupt: type class is null.", tpe)
+        // We cannot check this because Collection Instances are not always of the type
+        // that the user writes, they might have generated names.
+        // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
+      }
     }
     catch {
       case e: Exception =>

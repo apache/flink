@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -27,7 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 public class CharPrimitiveArraySerializerTest extends SerializerTestBase<char[]> {
 
 	@Override
-	protected TypeSerializer<char[]> createSerializer() {
+	protected TypeSerializer<char[]> createSerializer(ExecutionConfig config) {
 		return new CharPrimitiveArraySerializer();
 	}
 

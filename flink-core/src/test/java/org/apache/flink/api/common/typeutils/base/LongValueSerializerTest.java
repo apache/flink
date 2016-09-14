@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.LongValue;
@@ -30,7 +31,7 @@ import org.apache.flink.types.LongValue;
 public class LongValueSerializerTest extends SerializerTestBase<LongValue> {
 	
 	@Override
-	protected TypeSerializer<LongValue> createSerializer() {
+	protected TypeSerializer<LongValue> createSerializer(ExecutionConfig config) {
 		return new LongValueSerializer();
 	}
 	

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
@@ -29,7 +30,7 @@ import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerial
 public class BooleanPrimitiveArraySerializerTest extends SerializerTestBase<boolean[]> {
 
 	@Override
-	protected TypeSerializer<boolean[]> createSerializer() {
+	protected TypeSerializer<boolean[]> createSerializer(ExecutionConfig config) {
 		return new BooleanPrimitiveArraySerializer();
 	}
 

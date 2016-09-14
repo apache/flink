@@ -145,7 +145,11 @@ public final class InstantiationUtil {
 				return super.resolveClass(desc);
 			} catch (ClassNotFoundException ex) {
 				// Search among generated classes.
-				return Class.forName(name, false, generatedClasses.get(name).f2);
+				Tuple3<Class, String, ClassLoader> entry = generatedClasses.get(name);
+				if (entry == null) {
+					throw ex;
+				}
+				return Class.forName(name, false, entry.f2);
 			}
 		}
 		
