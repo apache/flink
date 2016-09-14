@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.wordcount;
+package org.apache.flink.test.manual;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -30,7 +30,7 @@ import org.apache.flink.util.Collector;
 
 /**
  * This example shows an implementation of WordCount without using the Tuple2
- * type, but a custom class.
+ * type, but a custom class. This test also enables code generation for the custom class.
  *
  * <p>
  * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
@@ -71,6 +71,7 @@ public class PojoClusterExample {
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
+		env.getConfig().enableCodeGeneration();
 
 		// get input data
 		DataStream<String> text;

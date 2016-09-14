@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -30,11 +31,16 @@ import java.util.Map;
 
 import static org.apache.flink.api.java.typeutils.PojoTypeInfo.accessStringForField;
 
+/**
+ * This class is intended to generate source code for comparing POJOs and passing it to a wrapper class.
+ * See GenTypeComparatorProxy for more details.
+ */
+@Internal
 public final class PojoComparatorGenerator {
 	private static final String packageName = "org.apache.flink.api.java.typeutils.runtime.generated";
 
 	public static <T> TypeComparator<T> createComparator(Field[] keyFields, TypeComparator<?>[] comparators,
-														 TypeSerializer<T> serializer, Class<T> type, Integer[] keyFieldIds) {
+														TypeSerializer<T> serializer, Class<T> type, Integer[] keyFieldIds) {
 		// Multiple comparators can be generated for each type based on a list of keys. The list of keys and the type
 		// name should determine the generated comparator. This information is used for caching (avoiding
 		// recompilation). Note that, the name of the field is not sufficient because nested POJOs might have a field
@@ -61,7 +67,7 @@ public final class PojoComparatorGenerator {
 
 
 	private static <T> String generateCode(String className, Field[] keyFields, TypeComparator<?>[] comparators,
-										   TypeSerializer<T> serializer, Class<T> type) throws NoSuchMethodException {
+											TypeSerializer<T> serializer, Class<T> type) throws NoSuchMethodException {
 		String typeName = type.getCanonicalName();
 		StringBuilder members = new StringBuilder();
 		for (int i = 0; i < comparators.length; ++i) {

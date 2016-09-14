@@ -18,29 +18,24 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparatorGenerator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializerGenerator;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -48,7 +43,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -81,46 +75,11 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	private static final Pattern PATTERN_NESTED_FIELDS = Pattern.compile(REGEX_NESTED_FIELDS);
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
 
-	private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
-
-	private static final Map<Class<?>, Class<? extends TypeSerializer>> customSerializers = new HashMap<>();
-	private static final Map<Tuple2<ArrayList<Integer>, ? extends Class<?>>, Class<? extends TypeComparator>> customComparators =
-		new HashMap<>();
+	private static final Logger LOG = LoggerFactory.getLogger(PojoTypeInfo.class);
 
 	private final PojoField[] fields;
 	
 	private final int totalFields;
-
-	/**
-	 * Register a custom serializer for a type. The precedence of the serializers
-	 * is the following (highest to lowest): Custom, Kryo, Avro, Generated, Flink.
-	 * The chosen serializer will be the first one from the list that is turned on.
-	 *
-	 */
-	@PublicEvolving
-	public static <C, S extends TypeSerializer<C>> void registerCustomSerializer(Class<C> clazz, Class<S> ser) {
-		Constructor<?>[] ctors = ser.getConstructors();
-		checkArgument(ctors.length == 1);
-		checkArgument(ctors[0].getParameterTypes().length == 0);
-		customSerializers.put(clazz, ser);
-	}
-
-	/**
-	 * Register a custom comparator for a type. The precedence of the comparators
-	 * is the following (highest to lowest): Custom, Generated, Flink.
-	 * The chosen comparator will be the first one from the list that is turned on.
-	 *
-	 */
-	@PublicEvolving
-	public static <C, S extends TypeComparator<C>> void registerCustomComparator(Class<S> comp, Class<C> clazz, String... fields) {
-		Constructor<?>[] ctors = comp.getConstructors();
-		checkArgument(ctors.length == 1);
-		checkArgument(ctors[0].getParameterTypes().length == 0);
-
-		ArrayList<Integer> keyFieldIds = new ArrayList<>(Arrays.asList(ArrayUtils.toObject(
-			new Keys.ExpressionKeys<>(fields, TypeInformation.of(clazz)).computeLogicalKeyPositions())));
-		customComparators.put(Tuple2.of(keyFieldIds, clazz), comp);
-	}
 
 	@PublicEvolving
 	public PojoTypeInfo(Class<T> typeClass, List<PojoField> fields) {
@@ -348,10 +307,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	@Override
 	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-		if (customSerializers.containsKey(this.getTypeClass())) {
-			return InstantiationUtil.instantiate(customSerializers.get(this.getTypeClass()));
-		}
-
 		if (config.isForceKryoEnabled()) {
 			return new KryoSerializer<T>(getTypeClass(), config);
 		}
@@ -455,11 +410,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			checkState(
 				keyFields.size() == fieldComparators.size(),
 				"Number of key fields and field comparators is not equal.");
-
-			Tuple2<ArrayList<Integer>, ? extends Class<?>> custCompKey = Tuple2.of(keyFieldIds, getTypeClass());
-			if (customComparators.containsKey(custCompKey)) {
-				return InstantiationUtil.instantiate(customComparators.get(custCompKey));
-			}
 
 			if (config.isCodeGenerationEnabled()) {
 				try {

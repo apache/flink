@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -28,6 +29,15 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Constructor;
 
+/**
+ * This class wraps a generated serializer. It contains both an instance of the serializer and its source code.
+ * The instance of the wrapped serializer is not serialized. During deserialization the source code is compiled.
+ * Note that, the compilation is cached inside InstantiationUtil.
+ *
+ * The reason why the wrapped serializer is not serialized is that, it should be possible to send this class in a
+ * serialized form to a JVM which do not have the class of the wrapped object compiled yet.
+ */
+@Internal
 public class GenTypeSerializerProxy<T> extends TypeSerializer<T> {
 	private final String code;
 	private final String name;
