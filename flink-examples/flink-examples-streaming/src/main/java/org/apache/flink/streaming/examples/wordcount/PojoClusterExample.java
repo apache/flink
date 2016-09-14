@@ -23,9 +23,9 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.Collector;
 
 /**
@@ -58,7 +58,7 @@ public class PojoClusterExample {
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
 		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
 
-		ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(config, false);
+		LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
 
 		// Checking input parameters

@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompositeTypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -31,33 +30,16 @@ import java.util.Map;
 
 import static org.apache.flink.api.java.typeutils.PojoTypeInfo.accessStringForField;
 
-public final class PojoComparatorGenerator<T> {
+public final class PojoComparatorGenerator {
 	private static final String packageName = "org.apache.flink.api.java.typeutils.runtime.generated";
 
-	private transient Field[] keyFields;
-	private transient Integer[] keyFieldIds;
-	private final TypeComparator<?>[] comparators;
-	private final TypeSerializer<T> serializer;
-	private final Class<T> type;
-	private final ExecutionConfig config;
-	private String code;
-
-	public PojoComparatorGenerator(Field[] keyFields, TypeComparator<?>[] comparators, TypeSerializer<T> serializer,
-									Class<T> type, Integer[] keyFieldIds, ExecutionConfig config) {
-		this.keyFields = keyFields;
-		this.comparators = comparators;
-
-		this.type = type;
-		this.serializer = serializer;
-		this.keyFieldIds = keyFieldIds;
-		this.config = config;
-	}
-
-	public TypeComparator<T> createComparator() {
+	public static <T> TypeComparator<T> createComparator(Field[] keyFields, TypeComparator<?>[] comparators,
+														 TypeSerializer<T> serializer, Class<T> type, Integer[] keyFieldIds) {
 		// Multiple comparators can be generated for each type based on a list of keys. The list of keys and the type
 		// name should determine the generated comparator. This information is used for caching (avoiding
 		// recompilation). Note that, the name of the field is not sufficient because nested POJOs might have a field
 		// with the name.
+
 		StringBuilder keyBuilder = new StringBuilder();
 		for(Integer i : keyFieldIds) {
 			keyBuilder.append(i);
@@ -66,10 +48,10 @@ public final class PojoComparatorGenerator<T> {
 		final String className = type.getCanonicalName().replace('.', '_') + "_GeneratedComparator" +
 			keyBuilder.toString();
 		final String fullClassName = packageName + "." + className;
-		code = InstantiationUtil.getCodeForCachedClass(fullClassName);
+		String code = InstantiationUtil.getCodeForCachedClass(fullClassName);
 		if (code == null) {
 			try {
-				generateCode(className);
+				code = generateCode(className, keyFields, comparators, serializer, type);
 			} catch (NoSuchMethodException e) {
 				throw new RuntimeException("Unable to generate comparator: " + className, e);
 			}
@@ -78,7 +60,8 @@ public final class PojoComparatorGenerator<T> {
 	}
 
 
-	private void generateCode(String className) throws NoSuchMethodException {
+	private static <T> String generateCode(String className, Field[] keyFields, TypeComparator<?>[] comparators,
+										   TypeSerializer<T> serializer, Class<T> type) throws NoSuchMethodException {
 		String typeName = type.getCanonicalName();
 		StringBuilder members = new StringBuilder();
 		for (int i = 0; i < comparators.length; ++i) {
@@ -192,7 +175,7 @@ public final class PojoComparatorGenerator<T> {
 		root.put("putNormalizedKeys", putNormalizedKeys.toString().split("\n"));
 		root.put("extractKeys", extractKeys.toString().split("\n"));
 		try {
-			code = InstantiationUtil.getCodeFromTemplate("PojoComparatorTemplate.ftl", root);
+			return InstantiationUtil.getCodeFromTemplate("PojoComparatorTemplate.ftl", root);
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to read template.", e);
 		}

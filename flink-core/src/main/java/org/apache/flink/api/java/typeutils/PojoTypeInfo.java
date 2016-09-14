@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -83,7 +84,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
 	private static final Map<Class<?>, Class<? extends TypeSerializer>> customSerializers = new HashMap<>();
-	private static final Map<Tuple2<ImmutableList<Integer>, Class>, Class<? extends TypeComparator>> customComparators =
+	private static final Map<Tuple2<ArrayList<Integer>, ? extends Class<?>>, Class<? extends TypeComparator>> customComparators =
 		new HashMap<>();
 
 	private final PojoField[] fields;
@@ -111,12 +112,14 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	 *
 	 */
 	@PublicEvolving
-	public static <S extends TypeComparator> void registerCustomComparator(ImmutableList<Integer> keyIds,
-																			Class clazz, Class<S> comp) {
+	public static <C, S extends TypeComparator<C>> void registerCustomComparator(Class<S> comp, Class<C> clazz, String... fields) {
 		Constructor<?>[] ctors = comp.getConstructors();
 		checkArgument(ctors.length == 1);
 		checkArgument(ctors[0].getParameterTypes().length == 0);
-		customComparators.put(Tuple2.of(keyIds, clazz), comp);
+
+		ArrayList<Integer> keyFieldIds = new ArrayList<>(Arrays.asList(ArrayUtils.toObject(
+			new Keys.ExpressionKeys<>(fields, TypeInformation.of(clazz)).computeLogicalKeyPositions())));
+		customComparators.put(Tuple2.of(keyFieldIds, clazz), comp);
 	}
 
 	@PublicEvolving
@@ -285,11 +288,11 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		}
 
 		String tail = matcher.group(3);
-		if(tail == null) {
+		if (tail == null) {
 			// we found the type
 			return (TypeInformation<X>) fieldType;
 		} else {
-			if(fieldType instanceof CompositeType<?>) {
+			if (fieldType instanceof CompositeType<?>) {
 				return ((CompositeType<?>) fieldType).getTypeAt(tail);
 			} else {
 				throw new InvalidFieldReferenceException("Nested field expression \""+tail+"\" not possible on atomic type "+fieldType+".");
@@ -349,10 +352,10 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			return InstantiationUtil.instantiate(customSerializers.get(this.getTypeClass()));
 		}
 
-		if(config.isForceKryoEnabled()) {
+		if (config.isForceKryoEnabled()) {
 			return new KryoSerializer<T>(getTypeClass(), config);
 		}
-		if(config.isForceAvroEnabled()) {
+		if (config.isForceAvroEnabled()) {
 			return new AvroSerializer<T>(getTypeClass());
 		}
 
@@ -364,16 +367,15 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			reflectiveFields[i] = fields[i].getField();
 		}
 
-		if(config.isCodeGenerationEnabled()) {
+		if (config.isCodeGenerationEnabled()) {
 			try {
-				return new PojoSerializerGenerator<T>(getTypeClass(), fieldSerializers, reflectiveFields,
-					config).createSerializer();
+				return PojoSerializerGenerator.createSerializer(getTypeClass(), fieldSerializers,
+					reflectiveFields, config);
 			} catch (Exception e) {
 				LOG.warn("Unable to generate serializer: " + e.getMessage(), e);
 			}
 		}
-
-		return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
+		return new PojoSerializer<>(getTypeClass(), fieldSerializers, reflectiveFields, config);
 	}
 	
 	@Override
@@ -454,25 +456,25 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 				keyFields.size() == fieldComparators.size(),
 				"Number of key fields and field comparators is not equal.");
 
-			Tuple2<ArrayList<Integer>, Class<T>> custCompKey = Tuple2.of(keyFieldIds, getTypeClass());
+			Tuple2<ArrayList<Integer>, ? extends Class<?>> custCompKey = Tuple2.of(keyFieldIds, getTypeClass());
 			if (customComparators.containsKey(custCompKey)) {
 				return InstantiationUtil.instantiate(customComparators.get(custCompKey));
 			}
 
 			if (config.isCodeGenerationEnabled()) {
 				try {
-					return new PojoComparatorGenerator<T>(keyFields.toArray(new Field[keyFields.size()]),
-						fieldComparators.toArray(new TypeComparator[fieldComparators.size()]), createSerializer
-						(config), getTypeClass(), keyFieldIds.toArray(new Integer[keyFields.size()]), config)
-						.createComparator();
+					return PojoComparatorGenerator.createComparator(
+						keyFields.toArray(new Field[0]),
+						fieldComparators.toArray(new TypeComparator[0]),
+						createSerializer(config), getTypeClass(), keyFieldIds.toArray(new Integer[0]));
 				} catch (Exception e) {
 					LOG.warn("Unable to generate comparator: " + e.getMessage(), e);
 				}
 			}
 
-			return new PojoComparator<T>(
-				keyFields.toArray(new Field[keyFields.size()]),
-				fieldComparators.toArray(new TypeComparator[fieldComparators.size()]),
+			return new PojoComparator<>(
+				keyFields.toArray(new Field[0]),
+				fieldComparators.toArray(new TypeComparator[0]),
 				createSerializer(config),
 				getTypeClass());
 		}
@@ -497,6 +499,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		}
 	}
 
+	@PublicEvolving
 	public static String accessStringForField(Field f) throws NoSuchMethodException {
 		String fieldName = f.getName();
 		if (Modifier.isPublic(f.getModifiers())) {
@@ -514,6 +517,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		return getterName + "()";
 	}
 
+	@PublicEvolving
 	public static String modifyStringForField(Field f, String arg) throws NoSuchMethodException {
 		String fieldName = f.getName();
 		if (Modifier.isPublic(f.getModifiers())) {

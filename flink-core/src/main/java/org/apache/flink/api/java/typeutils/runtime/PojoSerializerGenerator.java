@@ -33,36 +33,25 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.api.java.typeutils.PojoTypeInfo.accessStringForField;
 import static org.apache.flink.api.java.typeutils.PojoTypeInfo.modifyStringForField;
 
-public final class PojoSerializerGenerator<T> {
+public final class PojoSerializerGenerator {
 	private static final String packageName = "org.apache.flink.api.java.typeutils.runtime.generated";
 
-	private final Class<T> clazz;
-	private final Field[] refFields;
-	private final TypeSerializer<?>[] fieldSerializers;
-	private final ExecutionConfig config;
-	private String code;
-
-	public PojoSerializerGenerator(
-		Class<T> clazz,
-		TypeSerializer<?>[] fields,
-		Field[] reflectiveFields,
-		ExecutionConfig config) {
-		this.clazz = checkNotNull(clazz);
-		this.refFields = checkNotNull(reflectiveFields);
-		this.fieldSerializers = checkNotNull(fields);
-		this.config = checkNotNull(config);
-		for (Field refField : this.refFields) {
+	public static <T> TypeSerializer<T> createSerializer(Class<T> clazz, TypeSerializer<?>[] fieldSerializers,
+														 Field[] refFields, ExecutionConfig config)  {
+		checkNotNull(clazz);
+		checkNotNull(fieldSerializers);
+		checkNotNull(refFields);
+		checkNotNull(config);
+		for (Field refField : refFields) {
 			refField.setAccessible(true);
 		}
-	}
 
-	public TypeSerializer<T> createSerializer()  {
 		final String className = clazz.getCanonicalName().replace('.', '_') + "_GeneratedSerializer";
 		final String fullClassName = packageName + "." + className;
-		code = InstantiationUtil.getCodeForCachedClass(fullClassName);
+		String code = InstantiationUtil.getCodeForCachedClass(fullClassName);
 		if (code == null) {
 			try {
-				generateCode(className);
+				code = generateCode(className, clazz, fieldSerializers, refFields);
 			} catch (NoSuchMethodException e) {
 				throw new RuntimeException("Unable to generate serializer: " + className, e);
 			}
@@ -70,7 +59,8 @@ public final class PojoSerializerGenerator<T> {
 		return new GenTypeSerializerProxy<>(clazz, fullClassName, code, fieldSerializers, config);
 	}
 
-	private void generateCode(String className) throws NoSuchMethodException {
+	private static <T> String generateCode(String className, Class<T> clazz, TypeSerializer<?>[] fieldSerializers,
+										   Field[] refFields) throws NoSuchMethodException {
 		assert fieldSerializers.length > 0;
 		String typeName = clazz.getCanonicalName();
 		StringBuilder members = new StringBuilder();
@@ -229,7 +219,7 @@ public final class PojoSerializerGenerator<T> {
 		root.put("dataCopyFields", dataCopyFields.toString().split("\n"));
 		root.put("duplicateSerializers", duplicateSerializers.toString().split("\n"));
 		try {
-			code = InstantiationUtil.getCodeFromTemplate("PojoSerializerTemplate.ftl", root);
+			return InstantiationUtil.getCodeFromTemplate("PojoSerializerTemplate.ftl", root);
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to read template.", e);
 		}
