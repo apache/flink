@@ -1302,6 +1302,8 @@ class JobManager(
                   executionGraph.restoreLatestCheckpointedState()
                 } catch {
                   case e: Exception =>
+                    jobInfo.notifyClients(
+                      decorateMessage(JobResultFailure(new SerializedThrowable(e))))
                     throw new SuppressRestartsException(e)
                 }
               }
@@ -1313,7 +1315,9 @@ class JobManager(
               case t: Throwable =>
                 // Don't restart the execution if this fails. Otherwise, the
                 // job graph will skip ZooKeeper in case of HA.
-                new SuppressRestartsException(t)
+                jobInfo.notifyClients(
+                  decorateMessage(JobResultFailure(new SerializedThrowable(t))))
+                throw new SuppressRestartsException(t)
             }
           }
 
