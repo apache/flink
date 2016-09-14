@@ -123,7 +123,7 @@ public class MassiveStringValueSorting {
 					sorter.close();
 				}
 				if (allocator != null) {
-					allocator.close();
+					allocator.close(true);
 				}
 			}
 		}

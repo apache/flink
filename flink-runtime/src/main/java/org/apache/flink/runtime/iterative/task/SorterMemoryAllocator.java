@@ -168,9 +168,10 @@ public class SorterMemoryAllocator {
 
 	/**
 	 * Close all the created buffers
+	 * @param force forces the closure of the allocated memory
 	 */
-	public void close() {
-		if (!keepOpenForIterativeTasks) {
+	public void close(boolean force) {
+		if (force || !keepOpenForIterativeTasks) {
 			releaseWriteBufferMemory();
 
 			releaseSortBufferMemory();

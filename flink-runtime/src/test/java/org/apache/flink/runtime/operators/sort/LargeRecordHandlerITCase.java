@@ -138,7 +138,7 @@ public class LargeRecordHandlerITCase {
 			catch (IllegalStateException e) {
 				// expected
 			}
-			sorterMemoryAllocator.close();
+			sorterMemoryAllocator.close(true);
 			assertTrue(memMan.verifyEmpty());
 		}
 		catch (Exception e) {

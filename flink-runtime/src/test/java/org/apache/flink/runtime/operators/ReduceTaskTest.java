@@ -144,7 +144,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 			Assert.fail("Invoke method caused exception.");
 		} finally {
 			if(sorterMemoryAllocator != null) {
-				sorterMemoryAllocator.close();
+				sorterMemoryAllocator.close(true);
 			}
 			if (sorter != null) {
 				sorter.close();

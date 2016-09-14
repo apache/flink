@@ -505,7 +505,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			// exceptions, because their memory segments are freed
 			try {
 				if (sorterMemoryAllocator != null) {
-					this.sorterMemoryAllocator.close();
+					// do not force close here in case of iterative tasks
+					this.sorterMemoryAllocator.close(false);
 				}
 			}
 			catch (Throwable t) {}

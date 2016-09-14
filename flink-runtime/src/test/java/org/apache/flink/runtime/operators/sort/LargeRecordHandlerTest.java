@@ -80,7 +80,7 @@ import org.junit.Test;
 			catch (IllegalStateException e) {
 				// expected
 			}
-			sorterMemoryAllocator.close();
+			sorterMemoryAllocator.close(true);
 			assertTrue(memMan.verifyEmpty());
 		}
 		catch (Exception e) {
@@ -166,7 +166,7 @@ import org.junit.Test;
 			catch (IllegalStateException e) {
 				// expected
 			}
-			sorterMemoryAllocator.close();
+			sorterMemoryAllocator.close(true);
 			assertTrue(memMan.verifyEmpty());
 		}
 		catch (Exception e) {
@@ -247,7 +247,7 @@ import org.junit.Test;
 			
 			handler.close();
 
-			sorterMemoryAllocator.close();
+			sorterMemoryAllocator.close(true);
 			
 			try {
 				handler.addRecord(new Tuple3<Long, String, Byte>(92L, "peter pepper", (byte) 1));

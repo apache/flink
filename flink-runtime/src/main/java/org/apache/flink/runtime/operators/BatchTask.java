@@ -590,7 +590,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			if (this.sorterMemoryAllocator != null) {
 				for (SorterMemoryAllocator sorterMemoryAllocator : this.sorterMemoryAllocator) {
 					if (sorterMemoryAllocator != null) {
-						sorterMemoryAllocator.close();
+						sorterMemoryAllocator.close(true);
 					}
 				}
 			}
