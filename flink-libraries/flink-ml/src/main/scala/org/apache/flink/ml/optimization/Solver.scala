@@ -28,19 +28,44 @@ import org.apache.flink.ml.optimization.LearningRateMethod.LearningRateMethodTra
 /** Base class for optimization algorithms
  *
  */
-abstract class Solver extends Serializable with WithParameters {
-  import Solver._
+abstract class Solver[A, T] extends Serializable with WithParameters {
+
+  /**
+    *
+    * @param initialWeights optional existing weights set
+    * @param data the dataset being optimized create weight set
+    * @return a weights set for use in optimization
+    */
+  def createInitialWeightsDS(initialWeights: Option[DataSet[T]],
+                             data: DataSet[A]): DataSet[T]
 
   /** Provides a solution for the given optimization problem
     *
-    * @param data A Dataset of LabeledVector (input, output) pairs
-    * @param initialWeights The initial weight that will be optimized
-    * @return A Vector of weights optimized to the given problem
+    * @param data           A Dataset of Type T
+    * @param initialWeights The initial weight of Type A
+    * @return A Vector of weights of Type A
     */
   def optimize(
-      data: DataSet[LabeledVector],
-      initialWeights: Option[DataSet[WeightVector]])
-    : DataSet[WeightVector]
+    data: DataSet[A],
+    initialWeights: Option[DataSet[T]])
+  : DataSet[T]
+}
+
+object Solver {
+  // Define parameters for Solver
+  case object LossFunction extends Parameter[LossFunction] {
+    // TODO(tvas): Should depend on problem, here is where differentiating between classification
+    // and regression could become useful
+    val defaultValue = None
+  }
+
+  case object RegularizationConstant extends Parameter[Double] {
+    val defaultValue = Some(0.0001) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
+  }
+}
+
+abstract class LabeledSolver extends Solver[LabeledVector, WeightVector] {
+  import Solver._
 
   /** Creates initial weights vector, creating a DataSet with a WeightVector element
     *
@@ -48,7 +73,7 @@ abstract class Solver extends Serializable with WithParameters {
     * @param data The data for which we optimize the weights
     * @return A DataSet containing a single WeightVector element
     */
-  def createInitialWeightsDS(initialWeights: Option[DataSet[WeightVector]],
+  override def createInitialWeightsDS(initialWeights: Option[DataSet[WeightVector]],
                              data: DataSet[LabeledVector]): DataSet[WeightVector] = {
     // TODO: Faster way to do this?
     val dimensionsDS = data.map(_.vector.size).reduce((a, b) => b)
@@ -97,25 +122,12 @@ abstract class Solver extends Serializable with WithParameters {
   }
 }
 
-object Solver {
-  // Define parameters for Solver
-  case object LossFunction extends Parameter[LossFunction] {
-    // TODO(tvas): Should depend on problem, here is where differentiating between classification
-    // and regression could become useful
-    val defaultValue = None
-  }
-
-  case object RegularizationConstant extends Parameter[Double] {
-    val defaultValue = Some(0.0001) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
-  }
-}
-
 /** An abstract class for iterative optimization algorithms
   *
   * See [[https://en.wikipedia.org/wiki/Iterative_method Iterative Methods on Wikipedia]] for more
   * info
   */
-abstract class IterativeSolver() extends Solver {
+abstract class IterativeSolver() extends LabeledSolver {
 
   //Setters for parameters
   def setIterations(iterations: Int): this.type = {
