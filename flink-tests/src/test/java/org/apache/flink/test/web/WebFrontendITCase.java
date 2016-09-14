@@ -249,7 +249,7 @@ public class WebFrontendITCase {
 			assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
 			assertEquals("{\"jid\":\""+jid+"\",\"name\":\"Stoppable streaming test job\"," +
 					"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"default\"," +
-					"\"job-parallelism\":-1,\"object-reuse-mode\":false}}", response.getContent());
+					"\"job-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
 		}
 	}
 

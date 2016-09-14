@@ -41,6 +41,8 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
+import org.apache.flink.runtime.executiongraph.archive.ExecutionConfigSummary;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -237,6 +239,9 @@ public class ExecutionGraph implements Serializable {
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
 
+	/** Serializable summary of all job config values, e.g. for web interface */
+	private ExecutionConfigSummary executionConfigSummary;
+
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
 	// --------------------------------------------------------------------------------------------
@@ -314,6 +319,16 @@ public class ExecutionGraph implements Serializable {
 		this.restartStrategy = restartStrategy;
 
 		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
+
+		// create a summary of all relevant data accessed in the web interface's JobConfigHandler
+		try {
+			ExecutionConfig executionConfig = serializedConfig.deserializeValue(userClassLoader);
+			if (executionConfig != null) {
+				this.executionConfigSummary = new ExecutionConfigSummary(executionConfig);
+			}
+		} catch (IOException | ClassNotFoundException e) {
+			LOG.error("Couldn't create ExecutionConfigSummary for job {} ", jobID, e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1014,7 +1029,26 @@ public class ExecutionGraph implements Serializable {
 		jobStatusListenerActors.clear();
 		executionListenerActors.clear();
 
+		if (userClassLoader instanceof FlinkUserCodeClassLoader) {
+			try {
+				// close the classloader to free space of user jars immediately
+				// otherwise we have to wait until garbage collection
+				((FlinkUserCodeClassLoader) userClassLoader).close();
+			} catch (IOException e) {
+				LOG.warn("Failed to close the user classloader for job {}", jobID, e);
+			}
+		}
+		userClassLoader = null;
+
 		isArchived = true;
+	}
+
+	/**
+	 * Returns the serializable ExecutionConfigSummary
+	 * @return ExecutionConfigSummary which may be null in case of errors
+	 */
+	public ExecutionConfigSummary getExecutionConfigSummary() {
+		return executionConfigSummary;
 	}
 
 	/**

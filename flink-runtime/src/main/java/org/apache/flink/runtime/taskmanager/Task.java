@@ -459,6 +459,7 @@ public class Task implements Runnable {
 		Map<String, Future<Path>> distributedCacheEntries = new HashMap<String, Future<Path>>();
 		AbstractInvokable invokable = null;
 
+		ClassLoader userCodeClassLoader = null;
 		try {
 			// ----------------------------
 			//  Task Bootstrap - We periodically
@@ -469,7 +470,7 @@ public class Task implements Runnable {
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task " + taskNameWithSubtask);
 
-			final ClassLoader userCodeClassLoader = createUserCodeClassloader(libraryCache);
+			userCodeClassLoader = createUserCodeClassloader(libraryCache);
 			final ExecutionConfig executionConfig = serializedExecutionConfig.deserializeValue(userCodeClassLoader);
 
 			if (executionConfig.getTaskCancellationInterval() >= 0) {
