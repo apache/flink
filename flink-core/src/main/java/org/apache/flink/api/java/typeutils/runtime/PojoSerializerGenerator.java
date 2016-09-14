@@ -51,8 +51,8 @@ public final class PojoSerializerGenerator<T> {
 		this.refFields = checkNotNull(reflectiveFields);
 		this.fieldSerializers = checkNotNull(fields);
 		this.config = checkNotNull(config);
-		for (int i = 0; i < this.refFields.length; i++) {
-			this.refFields[i].setAccessible(true);
+		for (Field refField : this.refFields) {
+			refField.setAccessible(true);
 		}
 	}
 
@@ -85,29 +85,25 @@ public final class PojoSerializerGenerator<T> {
 		}
 		StringBuilder createFields = new StringBuilder();
 		for (int i = 0; i < fieldSerializers.length; ++i) {
-			createFields.append(String.format("((" + typeName + ")t)." + modifyStringForField(refFields[i],
+			createFields.append(String.format("t." + modifyStringForField(refFields[i],
 				"f%d.createInstance()") + ";\n", i));
 		}
 		StringBuilder copyFields = new StringBuilder();
-		copyFields.append("Object value;\n");
 		for (int i = 0; i < fieldSerializers.length; ++i) {
 			if (refFields[i].getType().isPrimitive()) {
-				copyFields.append(String.format("((" + typeName + ")target)." + modifyStringForField(refFields[i],
+				copyFields.append(String.format("target." + modifyStringForField(refFields[i],
 					"((" + typeName + ")from)." + accessStringForField(refFields[i])) + ";\n", i));
 			} else {
 				copyFields.append(String.format(
 					"value = ((" + typeName + ")from)." + accessStringForField(refFields[i]) + ";\n" +
 					"if (value != null) {\n" +
-					"	((" + typeName + ")target)." + modifyStringForField(refFields[i], "f%d.copy(value)") + ";\n" +
+					"	target." + modifyStringForField(refFields[i], "f%d.copy(value)") + ";\n" +
 					"} else {\n" +
-					"	((" + typeName + ")target)." + modifyStringForField(refFields[i], "null") + ";\n" +
+					"	target." + modifyStringForField(refFields[i], "null") + ";\n" +
 					"}\n", i));
 			}
 		}
 		StringBuilder reuseCopyFields = new StringBuilder();
-		reuseCopyFields.append("Object value;\n");
-		reuseCopyFields.append("Object reuseValue;\n");
-		reuseCopyFields.append("Object copy;\n");
 		for (int i = 0; i < fieldSerializers.length; ++i) {
 			if (refFields[i].getType().isPrimitive()) {
 				reuseCopyFields.append(String.format("((" + typeName + ")reuse)." + modifyStringForField(refFields[i],
@@ -139,7 +135,6 @@ public final class PojoSerializerGenerator<T> {
 		}
 		memberEquals.delete(memberEquals.length() - 3, memberEquals.length());
 		StringBuilder serializeFields = new StringBuilder();
-		serializeFields.append("Object o;\n");
 		for (int i = 0; i < fieldSerializers.length; ++i) {
 			if (refFields[i].getType().isPrimitive()) {
 				serializeFields.append(String.format(
@@ -158,26 +153,22 @@ public final class PojoSerializerGenerator<T> {
 			}
 		}
 		StringBuilder deserializeFields = new StringBuilder();
-		deserializeFields.append("boolean isNull;\n");
 		for (int i = 0; i < fieldSerializers.length; ++i) {
 			if (refFields[i].getType().isPrimitive()) {
 				deserializeFields.append(String.format("source.readBoolean();\n" +
-					"((" + typeName + ")target)." + modifyStringForField(refFields[i], "f%d.deserialize(source)") +
+					"target." + modifyStringForField(refFields[i], "f%d.deserialize(source)") +
 					";\n", i));
 			} else {
 				deserializeFields.append(String.format("isNull = source.readBoolean();\n" +
 					"if (isNull) {\n" +
-					"	((" + typeName + ")target)." + modifyStringForField(refFields[i], "null") + ";\n" +
+					"	target." + modifyStringForField(refFields[i], "null") + ";\n" +
 					"} else {\n" +
-					"	((" + typeName + ")target)." + modifyStringForField(refFields[i], "f%d.deserialize(source)") +
+					"	target." + modifyStringForField(refFields[i], "f%d.deserialize(source)") +
 					";\n" +
 					"}\n", i));
 			}
 		}
 		StringBuilder reuseDeserializeFields = new StringBuilder();
-		reuseDeserializeFields.append("boolean isNull;\n");
-		reuseDeserializeFields.append("Object field;\n");
-		reuseDeserializeFields.append("Object reuseField;\n");
 		for (int i = 0; i < fieldSerializers.length; ++i) {
 			if (refFields[i].getType().isPrimitive()) {
 				reuseDeserializeFields .append(String.format("source.readBoolean();\n" +
@@ -199,7 +190,6 @@ public final class PojoSerializerGenerator<T> {
 			}
 		}
 		StringBuilder dataCopyFields = new StringBuilder();
-		dataCopyFields.append("boolean isNull;\n");
 		for (int i = 0; i < fieldSerializers.length; ++i) {
 			if (refFields[i].getType().isPrimitive()) {
 				dataCopyFields.append(String.format("source.readBoolean();\n" +

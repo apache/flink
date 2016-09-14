@@ -171,11 +171,9 @@ public final class ${className} extends CompositeTypeComparator implements java.
 	@Override
 	public void putNormalizedKey(Object value, MemorySegment target, int offset, int numBytes) {
 		int len;
-		do {
-			<#list putNormalizedKeys as pnk>
-			${pnk}
-			</#list>
-		} while (false);
+		<#list putNormalizedKeys as pnk>
+		${pnk}
+		</#list>
 	}
 
 	@Override

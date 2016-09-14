@@ -161,7 +161,7 @@ public final class PojoComparatorGenerator<T> {
 		}
 		StringBuilder putNormalizedKeys = new StringBuilder();
 		for (int i = 0; i < comparators.length; ++i) {
-			putNormalizedKeys.append(String.format("if (%d >= numLeadingNormalizableKeys || numBytes <= 0) break;\n" +
+			putNormalizedKeys.append(String.format("if (%d >= numLeadingNormalizableKeys || numBytes <= 0) return;\n" +
 				"len = normalizedKeyLengths[%d];\n" +
 				"len = numBytes >= len ? len : numBytes;\n" +
 				"f%d.putNormalizedKey(((" + typeName + ")value)." + accessStringForField(keyFields[i]) +

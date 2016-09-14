@@ -139,6 +139,7 @@ public final class ${className} extends TypeSerializer {
 		<#if alwaysNull != "true">
 		${typeName} target = new ${typeName}();
 		</#if>
+		Object value;
 		<#list copyFields as cf>
 		${cf}
 		</#list>
@@ -151,6 +152,9 @@ public final class ${className} extends TypeSerializer {
 		if (reuse == null) {
 			return copy(from);
 		}
+		Object value;
+		Object reuseValue;
+		Object copy;
 		<#list reuseCopyFields as rcf>
 		${rcf}
 		</#list>
@@ -164,6 +168,7 @@ public final class ${className} extends TypeSerializer {
 			return;
 		}
 		target.writeByte(NO_SUBCLASS);
+		Object o;
 		<#list serializeFields as sf>
 		${sf}
 		</#list>
@@ -175,8 +180,8 @@ public final class ${className} extends TypeSerializer {
 		if((flags & IS_NULL) != 0) {
 			return null;
 		}
-		${typeName} target = null;
-		target = createInstance();
+		${typeName} target = createInstance();
+		boolean isNull;
 		<#list deserializeFields as dsf>
 		${dsf}
 		</#list>
@@ -192,6 +197,9 @@ public final class ${className} extends TypeSerializer {
 		if (reuse == null) {
 			reuse = createInstance();
 		}
+		boolean isNull;
+		Object field;
+		Object reuseField;
 		<#list reuseDeserializeFields as rdsf>
 		${rdsf}
 		</#list>
@@ -205,6 +213,7 @@ public final class ${className} extends TypeSerializer {
 		if ((flags & IS_NULL) != 0) {
 			return;
 		}
+		boolean isNull;
 		<#list dataCopyFields as dcf>
 		${dcf}
 		</#list>
@@ -223,6 +232,7 @@ public final class ${className} extends TypeSerializer {
 			<#if alwaysNull != "true">
 			target = new ${typeName}();
 			</#if>
+			Object value;
 			<#list copyFields as cf>
 			${cf}
 			</#list>
@@ -241,6 +251,9 @@ public final class ${className} extends TypeSerializer {
 			if (reuse == null || actualType != reuse.getClass()) {
 				return copy(from);
 			}
+			Object value;
+			Object reuseValue;
+			Object copy;
 			<#list reuseCopyFields as rcf>
 			${rcf}
 			</#list>
@@ -281,6 +294,7 @@ public final class ${className} extends TypeSerializer {
 			target.writeByte(subclassTag);
 		}
 		if ((flags & NO_SUBCLASS) != 0) {
+			Object o;
 			<#list serializeFields as sf>
 			${sf}
 			</#list>
@@ -318,6 +332,7 @@ public final class ${className} extends TypeSerializer {
 			target = createInstance();
 		}
 		if ((flags & NO_SUBCLASS) != 0) {
+			boolean isNull;
 			<#list deserializeFields as dsf>
 			${dsf}
 			</#list>
@@ -361,6 +376,9 @@ public final class ${className} extends TypeSerializer {
 			}
 		}
 		if ((flags & NO_SUBCLASS) != 0) {
+			boolean isNull;
+			Object field;
+			Object reuseField;
 			<#list reuseDeserializeFields as rdsf>
 			${rdsf}
 			</#list>
@@ -394,6 +412,7 @@ public final class ${className} extends TypeSerializer {
 			subclassSerializer = registeredSerializers[subclassTag];
 		}
 		if ((flags & NO_SUBCLASS) != 0) {
+			boolean isNull;
 			<#list dataCopyFields as dcf>
 			${dcf}
 			</#list>

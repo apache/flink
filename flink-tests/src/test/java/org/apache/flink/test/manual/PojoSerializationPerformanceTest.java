@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.test.manual;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -5,46 +23,22 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.io.disk.RandomAccessInputView;
-import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
-import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 
-import java.io.EOFException;
 import java.io.IOException;
-import java.util.ArrayList;
-
 
 public class PojoSerializationPerformanceTest {
-	public static final class TestPojo {
+	private static final class TestPojo {
 		public int key;
 		public long value;
 	}
 
-	private static final int SEGMENT_SIZE = 1024*1024;
-
-
-	public static class TestDataOutputView implements DataOutputView {
-		private byte[] buffer;
-
-		public TestDataOutputView(int size) {
-			buffer = new byte[1];
-		}
-
-		public void clear() {
-		}
-
-		public byte[] getBuffer() {
-			return buffer;
-		}
-
-		public void checkSize(int numBytes) throws EOFException {
+	@SuppressWarnings("NullableProblems")
+	private static class TestDataOutputView implements DataOutputView {
+		public TestDataOutputView() {
 		}
 
 		@Override
 		public void skipBytesToWrite(int numBytes) throws IOException {
-			checkSize(numBytes);
 		}
 
 		@Override
@@ -108,8 +102,8 @@ public class PojoSerializationPerformanceTest {
 		}
 	}
 
-	public static class TestDataInputView implements DataInputView {
-
+	@SuppressWarnings("NullableProblems")
+	private static class TestDataInputView implements DataInputView {
 		public TestDataInputView() {
 		}
 
@@ -208,49 +202,47 @@ public class PojoSerializationPerformanceTest {
 		}
 	}
 
-	private static ArrayList<MemorySegment> getMemory(int numSegments, int segmentSize) {
-		ArrayList<MemorySegment> list = new ArrayList<MemorySegment>(numSegments);
-		for (int i = 0; i < numSegments; i++) {
-			list.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
-		}
-		return list;
-	}
-
 	public static void main(String[] args) throws Exception {
 		TypeInformation<TestPojo> testPojoTypeInfo = TypeInformation.of(TestPojo.class);
 		ExecutionConfig config = new ExecutionConfig();
 		config.disableCodeGeneration();
 		TypeSerializer<TestPojo> originalSerializer = testPojoTypeInfo.createSerializer(config);
-		System.out.println(originalSerializer.getClass().getCanonicalName());
 		config.enableCodeGeneration();
 		TypeSerializer<TestPojo> generatedSerializer = testPojoTypeInfo.createSerializer(config);
-		System.out.println(generatedSerializer.getClass().getCanonicalName());
 
-		ArrayList<MemorySegment> segments = getMemory(2500, SEGMENT_SIZE);
-		ListMemorySegmentSource segmentSource = new ListMemorySegmentSource(segments);
-		SimpleCollectingOutputView outputView = new SimpleCollectingOutputView(segments, segmentSource, SEGMENT_SIZE);
-		RandomAccessInputView inputView = new RandomAccessInputView(segments, SEGMENT_SIZE);
 		TestDataInputView mockedInput = new TestDataInputView();
-		TestDataOutputView mockedOutput = new TestDataOutputView(5);
+		TestDataOutputView mockedOutput = new TestDataOutputView();
 		TestPojo obj = new TestPojo();
-		TestPojo reuse = new TestPojo();
 		for (int j = 0; j < 10000; ++j) {
 			obj.key = 0;
 			obj.value = obj.key*2;
-			testPerformance(obj, reuse, mockedOutput, mockedInput, originalSerializer, 100);
+			testPerformance(obj, mockedOutput, mockedInput, generatedSerializer, 100);
 		}
 		long start = System.currentTimeMillis();
 		for (int j = 0; j < 100; ++j) {
 			obj.key = 0;
 			obj.value = obj.key*2;
-			testPerformance(obj, reuse, mockedOutput, mockedInput, originalSerializer, 1000000);
+			testPerformance(obj, mockedOutput, mockedInput, generatedSerializer, 1000000);
 		}
 		long end = System.currentTimeMillis();
-		System.out.println("### Total time: " + (end - start) + "");
+		System.out.println("### Total time of generated serialization: " + (end - start) + "");
+		for (int j = 0; j < 10000; ++j) {
+			obj.key = 0;
+			obj.value = obj.key*2;
+			testPerformance(obj, mockedOutput, mockedInput, originalSerializer, 100);
+		}
+		start = System.currentTimeMillis();
+		for (int j = 0; j < 100; ++j) {
+			obj.key = 0;
+			obj.value = obj.key*2;
+			testPerformance(obj, mockedOutput, mockedInput, originalSerializer, 1000000);
+		}
+		end = System.currentTimeMillis();
+		System.out.println("### Total time of Flink serialization: " + (end - start) + "");
 	}
 
-	static void testPerformance(TestPojo obj, TestPojo reuse, DataOutputView outputView, DataInputView inputView,
-	                     TypeSerializer<TestPojo> serializer, int num) throws IOException {
+	private static void testPerformance(TestPojo obj, DataOutputView outputView, DataInputView
+		inputView, TypeSerializer<TestPojo> serializer, int num) throws IOException {
 		for (int i = 0; i < num; ++i) {
 			serializer.serialize(obj, outputView);
 			obj = serializer.deserialize(inputView);

@@ -36,6 +36,8 @@ import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializerGenerator;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.util.InstantiationUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -77,6 +79,8 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 	private static final Pattern PATTERN_NESTED_FIELDS = Pattern.compile(REGEX_NESTED_FIELDS);
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
+
+	private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
 	private static final Map<Class<?>, Class<? extends TypeSerializer>> customSerializers = new HashMap<>();
 	private static final Map<Tuple2<ImmutableList<Integer>, Class>, Class<? extends TypeComparator>> customComparators =
@@ -361,8 +365,12 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		}
 
 		if(config.isCodeGenerationEnabled()) {
-			return new PojoSerializerGenerator<T>(getTypeClass(), fieldSerializers, reflectiveFields, config)
-				.createSerializer();
+			try {
+				return new PojoSerializerGenerator<T>(getTypeClass(), fieldSerializers, reflectiveFields,
+					config).createSerializer();
+			} catch (Exception e) {
+				LOG.warn("Unable to generate serializer: " + e.getMessage(), e);
+			}
 		}
 
 		return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
@@ -452,10 +460,14 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			}
 
 			if (config.isCodeGenerationEnabled()) {
-				return new PojoComparatorGenerator<T>(keyFields.toArray(new Field[keyFields.size()]),
-					fieldComparators.toArray(new TypeComparator[fieldComparators.size()]), createSerializer
-					(config), getTypeClass(), keyFieldIds.toArray(new Integer[keyFields.size()]), config)
-					.createComparator();
+				try {
+					return new PojoComparatorGenerator<T>(keyFields.toArray(new Field[keyFields.size()]),
+						fieldComparators.toArray(new TypeComparator[fieldComparators.size()]), createSerializer
+						(config), getTypeClass(), keyFieldIds.toArray(new Integer[keyFields.size()]), config)
+						.createComparator();
+				} catch (Exception e) {
+					LOG.warn("Unable to generate comparator: " + e.getMessage(), e);
+				}
 			}
 
 			return new PojoComparator<T>(
