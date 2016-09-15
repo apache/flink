@@ -2501,3 +2501,27 @@ The Table API provides a configuration (the so-called `TableConfig`) to modify r
 By default, the Table API supports `null` values. Null handling can be disabled to improve preformance by setting the `nullCheck` property in the `TableConfig` to `false`.
 
 {% top %}
+
+Explaining a Table
+----
+The Table API provides a mechanism to describe the graph of operations that leads to the resulting output. This is done through the `TableEnvironment#explain(table)` method. It returns a string describing two graphs: the Abstract Syntax Tree of the relational algebra query and the Flink's Execution Plan of the equivalent Flink's Job. 
+
+Table `explain` is supported for both `BatchTableEnvironment` and `StreamTableEnvironment`. Currently `StreamTableEnvironment` doesn't support the explanation of the Execution Plan.
+
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+	val env = StreamExecutionEnvironment.getExecutionEnvironment
+	val tEnv = TableEnvironment.getTableEnvironment(env)
+
+	val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+	val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+	val table = table1.unionAll(table2)
+
+	val explanation: String = tEnv.explain(table)
+{% endhighlight %}
+</div>
+{% top %}
+
+
+

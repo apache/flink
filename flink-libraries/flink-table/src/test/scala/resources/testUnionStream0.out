@@ -1,0 +1,4 @@
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+  LogicalTableScan(table=[[_DataStreamTable_0]])
+  LogicalTableScan(table=[[_DataStreamTable_1]])
