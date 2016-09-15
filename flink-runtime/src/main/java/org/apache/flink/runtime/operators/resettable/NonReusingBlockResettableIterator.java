@@ -201,4 +201,13 @@ public class NonReusingBlockResettableIterator<T> extends AbstractBlockResettabl
 		this.readPhase = true;
 		super.close();
 	}
+
+	@Override
+	public void resetForIterativeTasks() {
+		nextElement = null;
+		leftOverElement = null;
+		readPhase = false;
+		noMoreBlocks = false;
+		super.resetForIterativeTasks();
+	}
 }

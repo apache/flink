@@ -298,63 +298,67 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			IterationAggregatorBroker.instance().handIn(brokerKey, aggregatorRegistry);
 
 			DataInputView superstepResult = null;
+			try {
+				while (this.running && !terminationRequested()) {
 
-			while (this.running && !terminationRequested()) {
-
-				if (log.isInfoEnabled()) {
-					log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
-				}
-
-				barrier.setup();
-
-				if (waitForSolutionSetUpdate) {
-					solutionSetUpdateBarrier.setup();
-				}
-
-				if (!inFirstIteration()) {
-					feedBackSuperstepResult(superstepResult);
-				}
-
-				super.run();
-
-				// signal to connected tasks that we are done with the superstep
-				sendEndOfSuperstepToAllIterationOutputs();
-
-				if (waitForSolutionSetUpdate) {
-					solutionSetUpdateBarrier.waitForSolutionSetUpdate();
-				}
-
-				// blocking call to wait for the result
-				superstepResult = backChannel.getReadEndAfterSuperstepEnded();
-				if (log.isInfoEnabled()) {
-					log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
-				}
-
-				sendEventToSync(new WorkerDoneEvent(workerIndex, aggregatorRegistry.getAllAggregators()));
-
-				if (log.isInfoEnabled()) {
-					log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
-				}
-
-				barrier.waitForOtherWorkers();
-
-				if (barrier.terminationSignaled()) {
 					if (log.isInfoEnabled()) {
-						log.info(formatLogString("head received termination request in iteration ["
-							+ currentIteration()
-							+ "]"));
+						log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
 					}
-					requestTermination();
-					nextStepKickoff.signalTermination();
-				} else {
-					incrementIterationCounter();
 
-					String[] globalAggregateNames = barrier.getAggregatorNames();
-					Value[] globalAggregates = barrier.getAggregates();
-					aggregatorRegistry.updateGlobalAggregatesAndReset(globalAggregateNames, globalAggregates);
-					
-					nextStepKickoff.triggerNextSuperstep();
+					barrier.setup();
+
+					if (waitForSolutionSetUpdate) {
+						solutionSetUpdateBarrier.setup();
+					}
+
+					if (!inFirstIteration()) {
+						feedBackSuperstepResult(superstepResult);
+					}
+
+					super.run();
+
+					// signal to connected tasks that we are done with the superstep
+					sendEndOfSuperstepToAllIterationOutputs();
+
+					if (waitForSolutionSetUpdate) {
+						solutionSetUpdateBarrier.waitForSolutionSetUpdate();
+					}
+
+					// blocking call to wait for the result
+					superstepResult = backChannel.getReadEndAfterSuperstepEnded();
+					if (log.isInfoEnabled()) {
+						log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
+					}
+
+					sendEventToSync(new WorkerDoneEvent(workerIndex, aggregatorRegistry.getAllAggregators()));
+
+					if (log.isInfoEnabled()) {
+						log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
+					}
+
+					barrier.waitForOtherWorkers();
+
+					if (barrier.terminationSignaled()) {
+						if (log.isInfoEnabled()) {
+							log.info(formatLogString("head received termination request in iteration ["
+								+ currentIteration()
+								+ "]"));
+						}
+						requestTermination();
+						nextStepKickoff.signalTermination();
+					} else {
+						incrementIterationCounter();
+
+						String[] globalAggregateNames = barrier.getAggregatorNames();
+						Value[] globalAggregates = barrier.getAggregates();
+						aggregatorRegistry.updateGlobalAggregatesAndReset(globalAggregateNames, globalAggregates);
+
+						nextStepKickoff.triggerNextSuperstep();
+					}
 				}
+			} finally {
+				// clean up after the loop is done.
+				this.driver.cleanup();
 			}
 
 			if (log.isInfoEnabled()) {

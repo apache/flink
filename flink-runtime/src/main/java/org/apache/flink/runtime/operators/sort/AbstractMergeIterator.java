@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.sort;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
+import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -51,10 +52,6 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 
 	protected final TypeSerializer<T1> serializer1;
 	protected final TypeSerializer<T2> serializer2;
-
-	protected final MutableObjectIterator<T1> input1;
-
-	protected final MutableObjectIterator<T2> input2;
 
 	protected final TypeComparator<T1> comparator1;
 
@@ -94,8 +91,6 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 		this.iterator1 = createKeyGroupedIterator(input1, serializer1, comparator1.duplicate());
 		this.iterator2 = createKeyGroupedIterator(input2, serializer2, comparator2.duplicate());
 
-		this.input1 = input1;
-		this.input2 = input2;
 		this.comparator1 = comparator1;
 		this.comparator2 = comparator2;
 		final int numPagesForSpiller = numMemoryPages > 20 ? 2 : 1;
@@ -366,9 +361,14 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 	protected abstract <T> T createCopy(TypeSerializer<T> serializer, T value, T reuse);
 
 	@Override
-	public void resetForIterativeTasks() {
+	public void resetForIterativeTasks(MutableObjectIterator<T1> in1, MutableObjectIterator<T2> in2, TypeSerializer<T1> serializer1, TypeSerializer<T2> serializer2, TypeComparator<T1> comp1, TypeComparator<T2> comp2, TypePairComparatorFactory<T1, T2> pairComparatorFactory) {
 		this.blockIt.resetForIterativeTasks();
-		this.iterator1 = createKeyGroupedIterator(input1, serializer1, comparator1.duplicate());
-		this.iterator2 = createKeyGroupedIterator(input2, serializer2, comparator2.duplicate());
+		this.iterator1 = createKeyGroupedIterator(in1, serializer1, comp1.duplicate());
+		this.iterator2 = createKeyGroupedIterator(in2, serializer2, comp2.duplicate());
+		this.pairComparator = pairComparatorFactory.createComparator12(comp1, comp2);
+		this.copy1 = serializer1.createInstance();
+		this.spillHeadCopy = serializer1.createInstance();
+		this.copy2 = serializer2.createInstance();
+		this.blockHeadCopy = serializer2.createInstance();
 	}
 }

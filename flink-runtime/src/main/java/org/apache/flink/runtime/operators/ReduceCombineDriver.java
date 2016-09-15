@@ -125,9 +125,8 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 		MemoryManager memManager = taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(
 			taskContext.getTaskConfig().getRelativeMemoryDriver());
-		if(memory == null) {
-			memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
-		}
+		memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
+
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
 		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
@@ -356,16 +355,6 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	@Override
 	public void resetForIterativeTasks() throws Exception {
-		try {
-			if (sorter != null) {
-				sorter.dispose();
-			}
-			if (table != null) {
-				table.close();
-			}
-		} catch (Exception e) {
-			// may happen during concurrent modification
-		}
-		// do not release the segments
+		cleanup();
 	}
 }

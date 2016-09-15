@@ -59,6 +59,8 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 	
 	protected volatile boolean running;
 
+	protected boolean resetForIterativeTasks;
+
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -122,7 +124,11 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Join Driver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
-		
+
+		if(resetForIterativeTasks) {
+			resetIterator();
+			resetForIterativeTasks = false;
+		}
 		boolean hashJoinUseBitMaps = taskContext.getTaskManagerInfo().getConfiguration().getBoolean(
 				ConfigConstants.RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY,
 				ConfigConstants.DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS);
@@ -251,8 +257,27 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 
 	@Override
 	public void resetForIterativeTasks() throws Exception {
+		resetForIterativeTasks = true;
+	}
+
+	private void resetIterator() {
 		if(this.joinIterator != null) {
-			this.joinIterator.resetForIterativeTasks();
+			final TaskConfig config = this.taskContext.getTaskConfig();
+
+			final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
+
+			final MutableObjectIterator<IT1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<IT1>getInput(0), numRecordsIn);
+			final MutableObjectIterator<IT2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<IT2>getInput(1), numRecordsIn);
+
+			// get the key positions and types
+			final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
+			final TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
+			final TypeComparator<IT1> comparator1 = this.taskContext.getDriverComparator(0);
+			final TypeComparator<IT2> comparator2 = this.taskContext.getDriverComparator(1);
+
+			final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = config.getPairComparatorFactory(
+				this.taskContext.getUserCodeClassLoader());
+			this.joinIterator.resetForIterativeTasks(in1, in2, serializer1, serializer2, comparator1, comparator2, pairComparatorFactory);
 		}
 	}
 }

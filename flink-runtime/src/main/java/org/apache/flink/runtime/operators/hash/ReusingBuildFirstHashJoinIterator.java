@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
+import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -48,13 +49,21 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 
 	private final V1 tempBuildSideRecord;
 
-	protected final TypeSerializer<V2> probeSideSerializer;
+	protected TypeSerializer<V2> probeSideSerializer;
+
+	protected TypeSerializer<V1> serializer1;
+
+	protected TypeComparator<V1> comparator1;
+
+	protected  TypeComparator<V2> comparator2;
+
+	protected TypePairComparator<V2, V1> typePairComparator;
 	
 	private final MemoryManager memManager;
 	
-	private final MutableObjectIterator<V1> firstInput;
+	private MutableObjectIterator<V1> firstInput;
 	
-	private final MutableObjectIterator<V2> secondInput;
+	private MutableObjectIterator<V2> secondInput;
 
 	private final boolean probeSideOuterJoin;
 
@@ -165,9 +174,14 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 	}
 
 	@Override
-	public void resetForIterativeTasks() {
-		// close the join
+	public void resetForIterativeTasks(MutableObjectIterator<V1> in1, MutableObjectIterator<V2> in2, TypeSerializer<V1> serializer1, TypeSerializer<V2> serializer2, TypeComparator<V1> comp1, TypeComparator<V2> comp2, TypePairComparatorFactory<V1, V2> pairComparatorFactory) {
 		this.hashJoin.close();
-		// do not relase the memory
+		this.firstInput = in1;
+		this.secondInput = in2;
+		this.comparator1 = comp1;
+		this.comparator2 = comp2;
+		this.serializer1 = serializer1;
+		this.probeSideSerializer = serializer2;
+		this.typePairComparator = pairComparatorFactory.createComparator21(comp1, comp2);
 	}
 }
