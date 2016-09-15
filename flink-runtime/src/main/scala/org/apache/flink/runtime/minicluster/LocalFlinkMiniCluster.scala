@@ -219,7 +219,8 @@ class LocalFlinkMiniCluster(
       memoryManager,
       ioManager,
       network,
-      leaderRetrievalService)
+      leaderRetrievalService,
+      metricsRegistry)
 
     metricsRegistry.startQueryService(system)
 
@@ -277,7 +278,8 @@ class LocalFlinkMiniCluster(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
-    leaderRetrievalService: LeaderRetrievalService): Props = {
+    leaderRetrievalService: LeaderRetrievalService,
+    metricsRegistry: MetricRegistry): Props = {
 
     TaskManager.getTaskManagerProps(
       taskManagerClass,
@@ -287,7 +289,8 @@ class LocalFlinkMiniCluster(
       memoryManager,
       ioManager,
       networkEnvironment,
-      leaderRetrievalService)
+      leaderRetrievalService,
+      metricsRegistry)
   }
 
   def getResourceManagerProps(
