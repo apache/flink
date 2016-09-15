@@ -133,6 +133,11 @@ trait ImplicitExpressionOperations {
   def power(other: Expression) = Power(expr, other)
 
   /**
+    * Calculates the square root of a given value.
+    */
+  def sqrt() = Sqrt(expr)
+
+  /**
     * Calculates the absolute value of given value.
     */
   def abs() = Abs(expr)

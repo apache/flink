@@ -1323,6 +1323,17 @@ NUMERIC.power(NUMERIC)
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.sqrt()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the square root of a given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 NUMERIC.abs()
 {% endhighlight %}
       </td>
@@ -1714,6 +1725,17 @@ NUMERIC.power(NUMERIC)
       </td>
       <td>
         <p>Calculates the given number raised to the power of the other value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.sqrt()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the square root of a given value.</p>
       </td>
     </tr>
 
