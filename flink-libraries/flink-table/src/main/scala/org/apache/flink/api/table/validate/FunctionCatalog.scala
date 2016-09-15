@@ -19,8 +19,8 @@
 package org.apache.flink.api.table.validate
 
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable}
-import org.apache.calcite.sql.{SqlFunction, SqlOperatorTable}
+import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
+import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.api.table.ValidationException
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.functions.ScalarFunction
@@ -31,7 +31,8 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 /**
-  * A catalog for looking up user-defined functions, used during validation phase.
+  * A catalog for looking up (user-defined) functions, used during validation phases
+  * of both Table API and SQL API.
   */
 class FunctionCatalog {
 
@@ -48,7 +49,7 @@ class FunctionCatalog {
 
   def getSqlOperatorTable: SqlOperatorTable =
     ChainedSqlOperatorTable.of(
-      SqlStdOperatorTable.instance(),
+      new BasicOperatorTable(),
       new ListSqlOperatorTable(sqlFunctions)
     )
 
@@ -116,7 +117,7 @@ class FunctionCatalog {
 
 object FunctionCatalog {
 
-  val buildInFunctions: Map[String, Class[_]] = Map(
+  val builtInFunctions: Map[String, Class[_]] = Map(
     // logic
     "isNull" -> classOf[IsNull],
     "isNotNull" -> classOf[IsNotNull],
@@ -169,11 +170,117 @@ object FunctionCatalog {
   )
 
   /**
-    * Create a new function catalog with build-in functions.
+    * Create a new function catalog with built-in functions.
     */
-  def withBuildIns: FunctionCatalog = {
+  def withBuiltIns: FunctionCatalog = {
     val catalog = new FunctionCatalog()
-    buildInFunctions.foreach { case (n, c) => catalog.registerFunction(n, c) }
+    builtInFunctions.foreach { case (n, c) => catalog.registerFunction(n, c) }
     catalog
   }
+}
+
+class BasicOperatorTable extends ReflectiveSqlOperatorTable {
+
+  /**
+    * List of supported SQL operators / functions.
+    *
+    * This list should be kept in sync with [[SqlStdOperatorTable]].
+    */
+  private val builtInSqlOperators: Seq[SqlOperator] = Seq(
+    // SET OPERATORS
+    SqlStdOperatorTable.UNION,
+    SqlStdOperatorTable.UNION_ALL,
+    SqlStdOperatorTable.EXCEPT,
+    SqlStdOperatorTable.EXCEPT_ALL,
+    SqlStdOperatorTable.INTERSECT,
+    SqlStdOperatorTable.INTERSECT_ALL,
+    // BINARY OPERATORS
+    SqlStdOperatorTable.AND,
+    SqlStdOperatorTable.AS,
+    SqlStdOperatorTable.CONCAT,
+    SqlStdOperatorTable.DIVIDE,
+    SqlStdOperatorTable.DIVIDE_INTEGER,
+    SqlStdOperatorTable.DOT,
+    SqlStdOperatorTable.EQUALS,
+    SqlStdOperatorTable.GREATER_THAN,
+    SqlStdOperatorTable.IS_DISTINCT_FROM,
+    SqlStdOperatorTable.IS_NOT_DISTINCT_FROM,
+    SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+    SqlStdOperatorTable.LESS_THAN,
+    SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
+    SqlStdOperatorTable.MINUS,
+    SqlStdOperatorTable.MULTIPLY,
+    SqlStdOperatorTable.NOT_EQUALS,
+    SqlStdOperatorTable.OR,
+    SqlStdOperatorTable.PLUS,
+    SqlStdOperatorTable.DATETIME_PLUS,
+    // POSTFIX OPERATORS
+    SqlStdOperatorTable.DESC,
+    SqlStdOperatorTable.NULLS_FIRST,
+    SqlStdOperatorTable.IS_NOT_NULL,
+    SqlStdOperatorTable.IS_NULL,
+    SqlStdOperatorTable.IS_NOT_TRUE,
+    SqlStdOperatorTable.IS_TRUE,
+    SqlStdOperatorTable.IS_NOT_FALSE,
+    SqlStdOperatorTable.IS_FALSE,
+    SqlStdOperatorTable.IS_NOT_UNKNOWN,
+    SqlStdOperatorTable.IS_UNKNOWN,
+    // PREFIX OPERATORS
+    SqlStdOperatorTable.NOT,
+    SqlStdOperatorTable.UNARY_MINUS,
+    SqlStdOperatorTable.UNARY_PLUS,
+    // AGGREGATE OPERATORS
+    SqlStdOperatorTable.SUM,
+    SqlStdOperatorTable.COUNT,
+    SqlStdOperatorTable.MIN,
+    SqlStdOperatorTable.MAX,
+    SqlStdOperatorTable.AVG,
+    // SPECIAL OPERATORS
+    SqlStdOperatorTable.ROW,
+    SqlStdOperatorTable.OVERLAPS,
+    SqlStdOperatorTable.LITERAL_CHAIN,
+    SqlStdOperatorTable.BETWEEN,
+    SqlStdOperatorTable.SYMMETRIC_BETWEEN,
+    SqlStdOperatorTable.NOT_BETWEEN,
+    SqlStdOperatorTable.SYMMETRIC_NOT_BETWEEN,
+    SqlStdOperatorTable.NOT_LIKE,
+    SqlStdOperatorTable.LIKE,
+    SqlStdOperatorTable.NOT_SIMILAR_TO,
+    SqlStdOperatorTable.SIMILAR_TO,
+    SqlStdOperatorTable.CASE,
+    SqlStdOperatorTable.REINTERPRET,
+    SqlStdOperatorTable.EXTRACT_DATE,
+    // FUNCTIONS
+    SqlStdOperatorTable.SUBSTRING,
+    SqlStdOperatorTable.OVERLAY,
+    SqlStdOperatorTable.TRIM,
+    SqlStdOperatorTable.POSITION,
+    SqlStdOperatorTable.CHAR_LENGTH,
+    SqlStdOperatorTable.CHARACTER_LENGTH,
+    SqlStdOperatorTable.UPPER,
+    SqlStdOperatorTable.LOWER,
+    SqlStdOperatorTable.INITCAP,
+    SqlStdOperatorTable.POWER,
+    SqlStdOperatorTable.SQRT,
+    SqlStdOperatorTable.MOD,
+    SqlStdOperatorTable.LN,
+    SqlStdOperatorTable.LOG10,
+    SqlStdOperatorTable.ABS,
+    SqlStdOperatorTable.EXP,
+    SqlStdOperatorTable.NULLIF,
+    SqlStdOperatorTable.COALESCE,
+    SqlStdOperatorTable.FLOOR,
+    SqlStdOperatorTable.CEIL,
+    SqlStdOperatorTable.LOCALTIME,
+    SqlStdOperatorTable.LOCALTIMESTAMP,
+    SqlStdOperatorTable.CURRENT_TIME,
+    SqlStdOperatorTable.CURRENT_TIMESTAMP,
+    SqlStdOperatorTable.CURRENT_DATE,
+    SqlStdOperatorTable.CAST,
+    SqlStdOperatorTable.EXTRACT,
+    SqlStdOperatorTable.QUARTER,
+    SqlStdOperatorTable.SCALAR_QUERY
+  )
+
+  builtInSqlOperators.foreach(register)
 }
