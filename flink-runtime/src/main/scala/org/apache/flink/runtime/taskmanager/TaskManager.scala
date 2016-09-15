@@ -1863,7 +1863,8 @@ object TaskManager {
       memoryManager,
       ioManager,
       network,
-      leaderRetrievalService)
+      leaderRetrievalService,
+      metricsRegistry)
 
     metricsRegistry.startQueryService(actorSystem)
 
@@ -1881,7 +1882,8 @@ object TaskManager {
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
-    leaderRetrievalService: LeaderRetrievalService
+    leaderRetrievalService: LeaderRetrievalService,
+    metricsRegistry: FlinkMetricRegistry
   ): Props = {
     Props(
       taskManagerClass,
@@ -1892,7 +1894,8 @@ object TaskManager {
       ioManager,
       networkEnvironment,
       taskManagerConfig.numberOfSlots,
-      leaderRetrievalService)
+      leaderRetrievalService,
+      metricsRegistry)
   }
 
   def createTaskManagerComponents(
