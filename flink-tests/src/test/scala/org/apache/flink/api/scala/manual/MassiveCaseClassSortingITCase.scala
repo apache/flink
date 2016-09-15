@@ -97,7 +97,8 @@ class MassiveCaseClassSortingITCase {
         val mm = new MemoryManager(1024 * 1024, 1)
         val ioMan = new IOManagerAsync()
         val  invokable = new DummyInvokable();
-        val allocator = new SorterMemoryAllocator(mm, invokable, 1.0, 4, true /*use large record handler*/);
+        val allocator =
+          new SorterMemoryAllocator(mm, invokable, 1.0, 4, true /*use large record handler*/);
         sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, allocator, inputIterator,
               new RuntimeSerializerFactory[StringTuple](serializer, classOf[StringTuple]),
               comparator, 1.0, 4, 0.8f, true /*use large record handler*/, false)
