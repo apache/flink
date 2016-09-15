@@ -63,6 +63,7 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
@@ -476,6 +477,7 @@ public class Task implements Runnable {
 		Map<String, Future<Path>> distributedCacheEntries = new HashMap<String, Future<Path>>();
 		AbstractInvokable invokable = null;
 
+		ClassLoader userCodeClassLoader = null;
 		try {
 			// ----------------------------
 			//  Task Bootstrap - We periodically
@@ -486,7 +488,7 @@ public class Task implements Runnable {
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task " + taskNameWithSubtask);
 
-			final ClassLoader userCodeClassLoader = createUserCodeClassloader(libraryCache);
+			userCodeClassLoader = createUserCodeClassloader(libraryCache);
 			final ExecutionConfig executionConfig = serializedExecutionConfig.deserializeValue(userCodeClassLoader);
 
 			if (executionConfig.getTaskCancellationInterval() >= 0) {
@@ -698,6 +700,12 @@ public class Task implements Runnable {
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
+
+				// release any referenced jar files to cleanup blob entries
+				if (userCodeClassLoader instanceof Closeable) {
+					((Closeable) userCodeClassLoader).close();
+				}
+				userCodeClassLoader = null;
 
 				notifyFinalState();
 			}
