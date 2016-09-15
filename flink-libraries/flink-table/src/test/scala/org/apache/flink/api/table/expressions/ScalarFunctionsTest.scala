@@ -358,6 +358,21 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   }
 
   @Test
+  def testSqrt(): Unit = {
+    testAllApis(
+      25.sqrt(),
+      "25.sqrt()",
+      "SQRT(25)",
+      "5.0")
+
+    testAllApis(
+      2.2.sqrt(),
+      "2.2.sqrt()",
+      "POWER(CAST(2.2 AS DOUBLE), CAST(0.5 AS DOUBLE))", // TODO fix FLINK-4621
+      math.sqrt(2.2).toString)
+  }
+
+  @Test
   def testLn(): Unit = {
     testAllApis(
       'f2.ln(),

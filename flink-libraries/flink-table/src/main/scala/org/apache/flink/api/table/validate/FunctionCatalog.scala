@@ -151,6 +151,7 @@ object FunctionCatalog {
     "ln" -> classOf[Ln],
     "power" -> classOf[Power],
     "mod" -> classOf[Mod],
+    "sqrt" -> classOf[Sqrt],
 
     // temporal functions
     "extract" -> classOf[Extract],
