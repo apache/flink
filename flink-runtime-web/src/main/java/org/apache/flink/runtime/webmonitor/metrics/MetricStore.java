@@ -65,6 +65,7 @@ public class MetricStore {
 			switch (info.getCategory()) {
 				case INFO_CATEGORY_JM:
 					addMetric(jobManager.metrics, name, metric);
+					break;
 				case INFO_CATEGORY_TM:
 					String tmID = ((QueryScopeInfo.TaskManagerQueryScopeInfo) info).taskManagerID;
 					tm = taskManagers.get(tmID);
