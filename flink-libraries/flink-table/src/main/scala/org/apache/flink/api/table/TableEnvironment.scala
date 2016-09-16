@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table
 
+import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.config.Lex
@@ -242,6 +243,16 @@ abstract class TableEnvironment(val config: TableConfig) {
     frameworkConfig
   }
 
+  protected def validateType(typeInfo: TypeInformation[_]): Unit = {
+    val clazz = typeInfo.getTypeClass
+    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
+        !Modifier.isPublic(clazz.getModifiers) ||
+        clazz.getCanonicalName == null) {
+      throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
+        s"static and globally accessible.")
+    }
+  }
+
   /**
     * Returns field names and field positions for a given [[TypeInformation]].
     *
@@ -257,6 +268,8 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
       (Array[String], Array[Int]) =
   {
+    validateType(inputType)
+
     val fieldNames: Array[String] = inputType match {
       case t: TupleTypeInfo[A] => t.getFieldNames
       case c: CaseClassTypeInfo[A] => c.getFieldNames
@@ -285,6 +298,8 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected[flink] def getFieldInfo[A](
     inputType: TypeInformation[A],
     exprs: Array[Expression]): (Array[String], Array[Int]) = {
+
+    validateType(inputType)
 
     val indexedNames: Array[(Int, String)] = inputType match {
       case a: AtomicType[A] =>
