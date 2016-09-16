@@ -165,10 +165,17 @@ public class ExecutionJobVertex {
 			InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
 			
 			if (splitSource != null) {
-				inputSplits = splitSource.createInputSplits(numTaskVertices);
-				
-				if (inputSplits != null) {
-					splitAssigner = splitSource.getInputSplitAssigner(inputSplits);
+				Thread currentThread = Thread.currentThread();
+				ClassLoader oldContextClassLoader = currentThread.getContextClassLoader();
+				currentThread.setContextClassLoader(graph.getUserClassLoader());
+				try {
+					inputSplits = splitSource.createInputSplits(numTaskVertices);
+
+					if (inputSplits != null) {
+						splitAssigner = splitSource.getInputSplitAssigner(inputSplits);
+					}
+				} finally {
+					currentThread.setContextClassLoader(oldContextClassLoader);
 				}
 			}
 			else {
