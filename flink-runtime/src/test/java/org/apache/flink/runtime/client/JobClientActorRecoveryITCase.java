@@ -20,7 +20,6 @@ package org.apache.flink.runtime.client;
 
 import akka.actor.PoisonPill;
 import org.apache.curator.test.TestingServer;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -82,7 +81,7 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 	public void testJobClientRecovery() throws Exception {
 		File rootFolder = tempFolder.getRoot();
 
-		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
 			zkServer.getConnectString(),
 			rootFolder.getPath());
 

@@ -45,6 +45,9 @@ object TypeCoercion {
       case (_, BIG_DEC_TYPE_INFO) => Some(BIG_DEC_TYPE_INFO)
       case (BIG_DEC_TYPE_INFO, _) => Some(BIG_DEC_TYPE_INFO)
 
+      case (stti: SqlTimeTypeInfo[_], _: IntervalTypeInfo[_]) => Some(stti)
+      case (_: IntervalTypeInfo[_], stti: SqlTimeTypeInfo[_]) => Some(stti)
+
       case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
         val higherIndex = numericWideningPrecedence.lastIndexWhere(t => t == tp1 || t == tp2)
         Some(numericWideningPrecedence(higherIndex))
@@ -100,6 +103,8 @@ object TypeCoercion {
     case (INT_TYPE_INFO, SqlTimeTypeInfo.DATE) => true
     case (INT_TYPE_INFO, SqlTimeTypeInfo.TIME) => true
     case (LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) => true
+    case (INT_TYPE_INFO, IntervalTypeInfo.INTERVAL_MONTHS) => true
+    case (LONG_TYPE_INFO, IntervalTypeInfo.INTERVAL_MILLIS) => true
 
     case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIME) => false
     case (SqlTimeTypeInfo.TIME, SqlTimeTypeInfo.DATE) => false
@@ -107,6 +112,9 @@ object TypeCoercion {
     case (SqlTimeTypeInfo.DATE, INT_TYPE_INFO) => true
     case (SqlTimeTypeInfo.TIME, INT_TYPE_INFO) => true
     case (SqlTimeTypeInfo.TIMESTAMP, LONG_TYPE_INFO) => true
+
+    case (IntervalTypeInfo.INTERVAL_MONTHS, INT_TYPE_INFO) => true
+    case (IntervalTypeInfo.INTERVAL_MILLIS, LONG_TYPE_INFO) => true
 
     case _ => false
   }

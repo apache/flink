@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Date;
@@ -64,8 +61,6 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-import org.apache.hadoop.io.Writable;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -98,38 +93,6 @@ public class TypeExtractorTest {
 
 		// use getForObject()
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, TypeExtractor.getForObject(true));
-	}
-	
-	public static class MyWritable implements Writable {
-		
-		@Override
-		public void write(DataOutput out) throws IOException {
-			
-		}
-		
-		@Override
-		public void readFields(DataInput in) throws IOException {
-		}
-		
-	}
-	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Test
-	public void testWritableType() {
-		RichMapFunction<?, ?> function = new RichMapFunction<MyWritable, MyWritable>() {
-			private static final long serialVersionUID = 1L;
-			
-			@Override
-			public MyWritable map(MyWritable value) throws Exception {
-				return null;
-			}
-			
-		};
-		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) new WritableTypeInfo<MyWritable>(MyWritable.class));
-		
-		Assert.assertTrue(ti instanceof WritableTypeInfo<?>);
-		Assert.assertEquals(MyWritable.class, ((WritableTypeInfo<?>) ti).getTypeClass());
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -1403,22 +1366,6 @@ public class TypeExtractorTest {
 		
 		try {
 			TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInfoParser.parse("Integer[]"));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
-		
-		RichMapFunction<?, ?> function4 = new RichMapFunction<Writable, String>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public String map(Writable value) throws Exception {
-				return null;
-			}
-		};
-		
-		try {
-			TypeExtractor.getMapReturnTypes(function4, (TypeInformation) new WritableTypeInfo<MyWritable>(MyWritable.class));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right

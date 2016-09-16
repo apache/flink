@@ -18,15 +18,19 @@
 
 package org.apache.flink.api.table
 
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeSystem}
+import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.table.FlinkTypeFactory.typeInfoToSqlTypeName
 import org.apache.flink.api.table.plan.schema.GenericRelDataType
+import org.apache.flink.api.table.typeutils.IntervalTypeInfo
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isSimple
 
 import scala.collection.mutable
@@ -42,7 +46,20 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   def createTypeFromTypeInfo(typeInfo: TypeInformation[_]): RelDataType = {
     // simple type can be converted to SQL types and vice versa
     if (isSimple(typeInfo)) {
-      createSqlType(typeInfoToSqlTypeName(typeInfo))
+      val sqlType = typeInfoToSqlTypeName(typeInfo)
+      sqlType match {
+
+        case INTERVAL_YEAR_MONTH =>
+          createSqlIntervalType(
+            new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO))
+
+        case INTERVAL_DAY_TIME =>
+          createSqlIntervalType(
+            new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
+
+        case _ =>
+          createSqlType(sqlType)
+      }
     }
     // advanced types require specific RelDataType
     // for storing the original TypeInformation
@@ -58,7 +75,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       new GenericRelDataType(typeInfo, getTypeSystem.asInstanceOf[FlinkTypeSystem])
 
     case ti@_ =>
-      throw new TableException(s"Unsupported type information: $ti")
+      throw TableException(s"Unsupported type information: $ti")
   }
 }
 
@@ -75,16 +92,18 @@ object FlinkTypeFactory {
       case STRING_TYPE_INFO => VARCHAR
       case BIG_DEC_TYPE_INFO => DECIMAL
 
-      // date/time types
+      // temporal types
       case SqlTimeTypeInfo.DATE => DATE
       case SqlTimeTypeInfo.TIME => TIME
       case SqlTimeTypeInfo.TIMESTAMP => TIMESTAMP
+      case IntervalTypeInfo.INTERVAL_MONTHS => INTERVAL_YEAR_MONTH
+      case IntervalTypeInfo.INTERVAL_MILLIS => INTERVAL_DAY_TIME
 
       case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
-        throw new TableException("Character type is not supported.")
+        throw TableException("Character type is not supported.")
 
       case _@t =>
-        throw new TableException(s"Type is not supported: $t")
+        throw TableException(s"Type is not supported: $t")
   }
 
   def toTypeInfo(relDataType: RelDataType): TypeInformation[_] = relDataType.getSqlTypeName match {
@@ -98,15 +117,15 @@ object FlinkTypeFactory {
     case VARCHAR | CHAR => STRING_TYPE_INFO
     case DECIMAL => BIG_DEC_TYPE_INFO
 
-    // date/time types
+    // temporal types
     case DATE => SqlTimeTypeInfo.DATE
     case TIME => SqlTimeTypeInfo.TIME
     case TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
-    case INTERVAL_DAY_TIME | INTERVAL_YEAR_MONTH =>
-      throw new TableException("Intervals are not supported yet.")
+    case INTERVAL_YEAR_MONTH => IntervalTypeInfo.INTERVAL_MONTHS
+    case INTERVAL_DAY_TIME => IntervalTypeInfo.INTERVAL_MILLIS
 
     case NULL =>
-      throw new TableException("Type NULL is not supported. " +
+      throw TableException("Type NULL is not supported. " +
         "Null values must have a supported type.")
 
     // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
@@ -119,6 +138,6 @@ object FlinkTypeFactory {
       genericRelDataType.typeInfo
 
     case _@t =>
-      throw new TableException(s"Type is not supported: $t")
+      throw TableException(s"Type is not supported: $t")
   }
 }

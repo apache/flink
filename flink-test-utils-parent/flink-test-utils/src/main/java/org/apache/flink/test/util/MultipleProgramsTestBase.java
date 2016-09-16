@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runners.Parameterized;
@@ -72,7 +73,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 
 	protected static boolean startWebServer = false;
 
-	protected static ForkableFlinkMiniCluster cluster = null;
+	protected static LocalFlinkMiniCluster cluster = null;
 	
 	// ------------------------------------------------------------------------
 	

@@ -1,8 +1,8 @@
 ---
 title: "Amazon Web Services (AWS)"
-top-nav-group: deployment
-top-nav-pos: 5
-top-nav-title: AWS
+nav-title: AWS
+nav-parent_id: deployment
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -36,7 +36,7 @@ Amazon Web Services offers cloud computing services on which you can run Flink.
 
 The EMR documentation contains [examples showing how to start an EMR cluster](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-gs-launch-sample-cluster.html). You can follow that guide and install any EMR release. You don't need to install *All Applications* part of the EMR release, but can stick to *Core Hadoop*:
 
-<img src="fig/flink-on-emr.png" class="img-responsive">
+<img src="{{ site.baseurl }}/fig/flink-on-emr.png" class="img-responsive">
 
 When creating your cluster, make sure to setup [IAM roles](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-iam-roles.html) allowing you to access your S3 buckets if required.
 
@@ -57,7 +57,7 @@ HADOOP_CONF_DIR=/etc/hadoop/conf bin/flink run -m yarn-cluster examples/streamin
 
 ## S3: Simple Storage Service
 
-[Amazon Simple Storage Service](http://aws.amazon.com/s3/) (Amazon S3) provides cloud object storage for a variety of use cases. You can use S3 with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl}}/apis/streaming/state_backends.html).
+[Amazon Simple Storage Service](http://aws.amazon.com/s3/) (Amazon S3) provides cloud object storage for a variety of use cases. You can use S3 with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl}}/dev/state_backends.html).
 
 You can use S3 objects like regular files by specifying paths in the following format:
 
@@ -78,7 +78,7 @@ stream.writeAsText("s3://<bucket>/<endpoint>");
 env.setStateBackend(new FsStateBackend("s3://<your-bucket>/<endpoint>"));
 ```
 
-Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup]({{ site.baseurl }}/setup/jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/apis/streaming/state_backends.html#the-rocksdbstatebackend);  everywhere that Flink expects a FileSystem URI.
+Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup]({{ site.baseurl }}/setup/jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/dev/state_backends.html#the-rocksdbstatebackend);  everywhere that Flink expects a FileSystem URI.
 
 ### Set S3 FileSystem
 

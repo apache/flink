@@ -195,11 +195,11 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val expr = input.toTable(tEnv)
     val result = expr
       .groupBy('word)
-      .select('word, 'count.sum as 'count)
-      .filter('count === 2)
+      .select('word, 'frequency.sum as 'frequency)
+      .filter('frequency === 2)
       .toDataSet[MyWC]
 
-    val mappedResult = result.map(w => (w.word, w.count * 10)).collect()
+    val mappedResult = result.map(w => (w.word, w.frequency * 10)).collect()
     val expected = "(hello,20)\n" + "(hola,20)"
     TestBaseUtils.compareResultAsText(mappedResult.asJava, expected)
   }

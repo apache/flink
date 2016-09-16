@@ -69,12 +69,14 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
+    env.getConfig.setMaxParallelism(2);
 
     val sourceStream = env.addSource(new SourceFunction[(Int, Int)] {
 
       override def run(ctx: SourceContext[(Int, Int)]): Unit = {
         0 until numElements foreach {
-          i => ctx.collect((MathUtils.murmurHash(i) % numKeys, i))
+          // keys '1' and '2' hash to different buckets
+          i => ctx.collect((1 + (MathUtils.murmurHash(i)) % numKeys, i))
         }
       }
 

@@ -23,7 +23,7 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -80,8 +80,6 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties
  */
 public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<YarnClusterClient> {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterDescriptor.class);
-
-	private static final String CONFIG_FILE_NAME = "flink-conf.yaml";
 
 	/**
 	 * Minimum memory requirements, checked by the Client.
@@ -142,10 +140,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// tries to load the config through the environment, if it fails it can still be set through the setters
 		try {
 			this.configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
-			GlobalConfiguration.loadConfiguration(configurationDirectory);
-			this.flinkConfiguration = GlobalConfiguration.getConfiguration();
+			this.flinkConfiguration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
-			File confFile = new File(configurationDirectory + File.separator + CONFIG_FILE_NAME);
+			File confFile = new File(configurationDirectory + File.separator + GlobalConfiguration.FLINK_CONF_FILENAME);
 			if (!confFile.exists()) {
 				throw new RuntimeException("Unable to locate configuration file in " + confFile);
 			}
@@ -556,13 +553,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// no user specified cli argument for namespace?
 		if (zkNamespace == null || zkNamespace.isEmpty()) {
 			// namespace defined in config? else use applicationId as default.
-			zkNamespace = flinkConfiguration.getString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, String.valueOf(appId));
+			zkNamespace = flinkConfiguration.getString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, String.valueOf(appId));
 			setZookeeperNamespace(zkNamespace);
 		}
 
-		flinkConfiguration.setString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
+		flinkConfiguration.setString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
 
-		if (RecoveryMode.isHighAvailabilityModeActivated(flinkConfiguration)) {
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfiguration)) {
 			// activate re-execution of failed applications
 			appContext.setMaxAppAttempts(
 				flinkConfiguration.getInteger(

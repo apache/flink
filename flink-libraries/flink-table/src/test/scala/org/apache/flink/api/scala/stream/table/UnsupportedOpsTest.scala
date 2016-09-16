@@ -109,4 +109,12 @@ class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.minusAll(t2)
   }
+
+  @Test(expected = classOf[ValidationException])
+  def testLimit(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    t1.limit(0,5)
+  }
 }

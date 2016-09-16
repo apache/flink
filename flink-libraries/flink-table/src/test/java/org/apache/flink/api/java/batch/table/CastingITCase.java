@@ -138,50 +138,5 @@ public class CastingITCase extends TableProgramsTestBase {
 		String expected = "1,1,1,1,2.0,2.0,true\n";
 		compareResultAsText(results, expected);
 	}
-
-	@Ignore // Date type not supported yet
-	@Test
-	public void testCastDateFromString() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
-
-		DataSource<Tuple4<String, String, String, String>> input =
-				env.fromElements(new Tuple4<>("2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"));
-
-		Table table =
-				tableEnv.fromDataSet(input);
-
-		Table result = table
-				.select("f0.cast(DATE) AS f0, f1.cast(DATE) AS f1, f2.cast(DATE) AS f2, f3.cast(DATE) AS f3")
-				.select("f0.cast(STRING), f1.cast(STRING), f2.cast(STRING), f3.cast(STRING)");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "2011-05-03 00:00:00.000,1970-01-01 15:51:36.000,2011-05-03 15:51:36.000," +
-				"1970-01-17 17:47:53.775\n";
-		compareResultAsText(results, expected);
-	}
-
-	@Ignore // Date type not supported yet
-	@Test
-	public void testCastDateToStringAndLong() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
-
-		DataSource<Tuple2<String, String>> input =
-			env.fromElements(new Tuple2<>("2011-05-03 15:51:36.000", "1304437896000"));
-
-		Table table =
-			tableEnv.fromDataSet(input);
-
-		Table result = table
-			.select("f0.cast(DATE) AS f0, f1.cast(DATE) AS f1")
-			.select("f0.cast(STRING), f0.cast(LONG), f1.cast(STRING), f1.cast(LONG)");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "2011-05-03 15:51:36.000,1304437896000,2011-05-03 15:51:36.000,1304437896000\n";
-		compareResultAsText(results, expected);
-	}
 }
 

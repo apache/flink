@@ -57,7 +57,7 @@ public class NettyBufferPool implements ByteBufAllocator {
 	 * @param numberOfArenas Number of arenas (recommended: 2 * number of task
 	 *                       slots)
 	 */
-	NettyBufferPool(int numberOfArenas) {
+	public NettyBufferPool(int numberOfArenas) {
 		checkArgument(numberOfArenas >= 1, "Number of arenas");
 		this.numberOfArenas = numberOfArenas;
 

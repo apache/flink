@@ -43,7 +43,7 @@ object SocketWindowWordCount {
       ParameterTool.fromArgs(args).getInt("port")
     } catch {
       case e: Exception => {
-        System.err.println("No port specified. Please run 'WindowWordCount --port <port>', " +
+        System.err.println("No port specified. Please run 'SocketWindowWordCount --port <port>', " +
           "where port is the address of the text server")
         System.err.println("To start a simple text server, run 'netcat -l <port>' " +
           "and type the input text into the command line")

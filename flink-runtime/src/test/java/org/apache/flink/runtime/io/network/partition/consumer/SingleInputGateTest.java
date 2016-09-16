@@ -128,7 +128,7 @@ public class SingleInputGateTest {
 		// Unknown
 		ResultPartitionID unknownPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 
-		InputChannel unknown = new UnknownInputChannel(inputGate, 1, unknownPartitionId, partitionManager, taskEventDispatcher, mock(ConnectionManager.class), new Tuple2<Integer, Integer>(0, 0), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+		InputChannel unknown = new UnknownInputChannel(inputGate, 1, unknownPartitionId, partitionManager, taskEventDispatcher, mock(ConnectionManager.class), 0, 0, new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		// Set channels
 		inputGate.setInputChannel(localPartitionId.getPartitionId(), local);
@@ -174,13 +174,15 @@ public class SingleInputGateTest {
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
 		InputChannel unknown = new UnknownInputChannel(
-				inputGate,
-				0,
-				new ResultPartitionID(),
-				partitionManager,
-				new TaskEventDispatcher(),
-				new LocalConnectionManager(),
-				new Tuple2<Integer, Integer>(0, 0), new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			inputGate,
+			0,
+			new ResultPartitionID(),
+			partitionManager,
+			new TaskEventDispatcher(),
+			new LocalConnectionManager(),
+			0,
+			0,
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		inputGate.setInputChannel(unknown.partitionId.getPartitionId(), unknown);
 
@@ -213,14 +215,15 @@ public class SingleInputGateTest {
 				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		InputChannel unknown = new UnknownInputChannel(
-				inputGate,
-				0,
-				new ResultPartitionID(),
-				new ResultPartitionManager(),
-				new TaskEventDispatcher(),
-				new LocalConnectionManager(),
-				new Tuple2<Integer, Integer>(0, 0),
-				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
+			inputGate,
+			0,
+			new ResultPartitionID(),
+			new ResultPartitionManager(),
+			new TaskEventDispatcher(),
+			new LocalConnectionManager(),
+			0,
+			0,
+			new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 		inputGate.setInputChannel(unknown.partitionId.getPartitionId(), unknown);
 

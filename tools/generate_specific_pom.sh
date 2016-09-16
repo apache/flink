@@ -79,6 +79,8 @@ fi
 echo "Using $nupom as name for the generated pom file."
 
 # export relevant variables for find command subshells
+export old_version
+export new_version
 export hadoop1
 export hadoop2
 export nupom
@@ -104,6 +106,8 @@ find "$flink_home" -name pom.xml -exec bash -c '
 
   # To avoid accidentally replace version numbers in our dependencies 
   # sharing the version number with the current release use the following.
+
+  echo "p=$p, old_version=${old_version}, new_version=$new_version"
 
   perl -0777 -pe "s:<groupId>org.apache.flink</groupId>\n([\t ]*<artifactId>([a-z]+-)+[a-z0-9\.\_]+</artifactId>\n[\t ]*)<version>${old_version}</version>:<groupId>org.apache.flink</groupId>\n\1<version>${new_version}</version>:g" "$p" > "$tmp_nuname1"
 

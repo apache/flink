@@ -95,6 +95,14 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	// ----------------------------------------------------------------------------------------
 	//                               Data Input
 	// ----------------------------------------------------------------------------------------
+
+	public int available() {
+		if (position < end) {
+			return end - position - 1;
+		} else {
+			return 0;
+		}
+	}
 	
 	@Override
 	public boolean readBoolean() throws IOException {

@@ -86,17 +86,10 @@ object YarnMessages {
   case object HeartbeatWithYarn
   case object CheckForUserCommand
 
-  // tell the AM to monitor the job and stop once it has finished
-  case class LocalStopAMAfterJob(jobId:JobID)
-
   case object LocalGetYarnMessage // request new message
-  case object LocalGetYarnClusterStatus // request the latest cluster status
 
   def getLocalGetYarnMessage(): AnyRef = {
     LocalGetYarnMessage
   }
 
-  def getLocalGetyarnClusterStatus(): AnyRef = {
-    LocalGetYarnClusterStatus
-  }
 }

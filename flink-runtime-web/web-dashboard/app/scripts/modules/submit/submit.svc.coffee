@@ -32,7 +32,7 @@ angular.module('flinkApp')
   @deleteJar = (id) ->
     deferred = $q.defer()
 
-    $http.delete("jars/" + id)
+    $http.delete("jars/" + encodeURIComponent(id))
     .success (data, status, headers, config) ->
        deferred.resolve(data)
 
@@ -41,7 +41,7 @@ angular.module('flinkApp')
   @getPlan = (id, args) ->
     deferred = $q.defer()
 
-    $http.get("jars/" + id + "/plan", {params: args})
+    $http.get("jars/" + encodeURIComponent(id) + "/plan", {params: args})
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 
@@ -50,7 +50,7 @@ angular.module('flinkApp')
   @runJob = (id, args) ->
     deferred = $q.defer()
 
-    $http.post("jars/" + id + "/run", {}, {params: args})
+    $http.post("jars/" + encodeURIComponent(id) + "/run", {}, {params: args})
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 

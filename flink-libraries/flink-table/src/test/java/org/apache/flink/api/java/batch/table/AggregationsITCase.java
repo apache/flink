@@ -33,7 +33,7 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.apache.flink.examples.java.JavaTableExample.WC;
+import org.apache.flink.examples.java.WordCountTable.WC;
 
 import java.util.List;
 
@@ -196,8 +196,8 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 
 		Table filtered = table
 				.groupBy("word")
-				.select("word.count as count, word")
-				.filter("count = 2");
+				.select("word.count as frequency, word")
+				.filter("frequency = 2");
 
 		List<String> result = tableEnv.toDataSet(filtered, WC.class)
 				.map(new MapFunction<WC, String>() {

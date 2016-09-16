@@ -37,7 +37,7 @@ import java.io.Serializable;
  * This example shows how to use Gelly's {@link Graph#getTriplets()} and
  * {@link Graph#joinWithEdges(DataSet, EdgeJoinFunction)} methods.
  * 
- * Given a directed, unweighted graph, with vertex values representing points in a plan,
+ * Given a directed, unweighted graph, with vertex values representing points in a plain,
  * return a weighted graph where the edge weights are equal to the Euclidean distance between the
  * src and the trg vertex values.
  *

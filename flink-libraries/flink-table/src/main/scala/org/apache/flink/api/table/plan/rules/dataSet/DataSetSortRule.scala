@@ -18,12 +18,10 @@
 
 package org.apache.flink.api.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.{LogicalJoin, LogicalSort}
-import org.apache.flink.api.table.TableException
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSort}
 
 class DataSetSortRule
@@ -32,23 +30,6 @@ class DataSetSortRule
     Convention.NONE,
     DataSetConvention.INSTANCE,
     "DataSetSortRule") {
-
-  /**
-    * Only translate when no OFFSET or LIMIT specified
-    */
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val sort = call.rel(0).asInstanceOf[LogicalSort]
-
-    if (sort.offset != null) {
-      throw new TableException("ORDER BY OFFSET is currently not supported.")
-    }
-
-    if (sort.fetch != null) {
-      throw new TableException("ORDER BY FETCH is currently not supported.")
-    }
-
-    sort.offset == null && sort.fetch == null
-  }
 
   override def convert(rel: RelNode): RelNode = {
 
@@ -61,7 +42,9 @@ class DataSetSortRule
       traitSet,
       convInput,
       sort.getCollation,
-      rel.getRowType
+      rel.getRowType,
+      sort.offset,
+      sort.fetch
     )
   }
 }

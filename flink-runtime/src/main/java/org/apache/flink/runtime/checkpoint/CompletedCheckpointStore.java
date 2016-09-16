@@ -49,10 +49,17 @@ public interface CompletedCheckpointStore {
 	CompletedCheckpoint getLatestCheckpoint() throws Exception;
 
 	/**
-	 * Discards all added {@link CompletedCheckpoint} instances via {@link
-	 * CompletedCheckpoint#discard(ClassLoader)}.
+	 * Shuts down the store and discards all checkpoint instances.
 	 */
-	void discardAllCheckpoints() throws Exception;
+	void shutdown() throws Exception;
+
+	/**
+	 * Suspends the store.
+	 *
+	 * <p>If the implementation allows recovery, checkpoint state needs to be
+	 * kept around. Otherwise, this should act like shutdown.
+	 */
+	void suspend() throws Exception;
 
 	/**
 	 * Returns all {@link CompletedCheckpoint} instances.

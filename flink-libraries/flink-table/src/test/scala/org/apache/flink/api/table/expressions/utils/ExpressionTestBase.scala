@@ -30,6 +30,7 @@ import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.table._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.api.table.functions.UserDefinedFunction
 import org.apache.flink.api.table.runtime.FunctionCompiler
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.junit.Assert._
@@ -63,6 +64,7 @@ abstract class ExpressionTestBase {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     tEnv.registerDataSet(tableName, dataSetMock)
+    functions.foreach(f => tEnv.registerFunction(f._1, f._2))
 
     // prepare RelBuilder
     val relBuilder = tEnv.getRelBuilder
@@ -74,6 +76,8 @@ abstract class ExpressionTestBase {
   def testData: Any
 
   def typeInfo: TypeInformation[Any]
+
+  def functions: Map[String, UserDefinedFunction] = Map()
 
   @Before
   def resetTestExprs() = {
@@ -118,7 +122,11 @@ abstract class ExpressionTestBase {
       .zipWithIndex
       .foreach {
         case ((expr, expected), index) =>
-          assertEquals(s"Wrong result for: $expr", expected, result.productElement(index))
+          val actual = result.productElement(index)
+          assertEquals(
+            s"Wrong result for: $expr",
+            expected,
+            if (actual == null) "null" else actual)
       }
   }
 

@@ -19,17 +19,18 @@
 package org.apache.flink.runtime.checkpoint.stats;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,7 +52,7 @@ import static org.mockito.Mockito.when;
 public class SimpleCheckpointStatsTrackerTest {
 
 	private static final Random RAND = new Random();
-	
+
 	@Test
 	public void testNoCompletedCheckpointYet() throws Exception {
 		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(
@@ -154,7 +155,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	private static void verifyJobStats(
 			CheckpointStatsTracker tracker,
 			int historySize,
-			CompletedCheckpoint[] checkpoints) {
+			CompletedCheckpoint[] checkpoints) throws Exception {
 
 		assertTrue(tracker.getJobStats().isDefined());
 		JobCheckpointStats jobStats = tracker.getJobStats().get();
@@ -275,14 +276,15 @@ public class SimpleCheckpointStatsTrackerTest {
 	}
 
 	private static CompletedCheckpoint[] generateRandomCheckpoints(
-			int numCheckpoints) throws IOException {
+			int numCheckpoints) throws Exception {
 
 		// Config
 		JobID jobId = new JobID();
 		int minNumOperators = 4;
 		int maxNumOperators = 32;
-		int minParallelism = 4;
-		int maxParallelism = 16;
+		int minOperatorParallelism = 4;
+		int maxOperatorParallelism = 16;
+		int maxParallelism = 32;
 
 		// Use yuge numbers here in order to test that summing up state sizes
 		// does not overflow. This was a bug in the initial version, because
@@ -299,7 +301,7 @@ public class SimpleCheckpointStatsTrackerTest {
 
 		for (int i = 0; i < numOperators; i++) {
 			operatorIds[i] = new JobVertexID();
-			operatorParallelism[i] = RAND.nextInt(maxParallelism - minParallelism + 1) + minParallelism;
+			operatorParallelism[i] = RAND.nextInt(maxOperatorParallelism - minOperatorParallelism + 1) + minOperatorParallelism;
 		}
 
 		// Generate checkpoints
@@ -317,7 +319,7 @@ public class SimpleCheckpointStatsTrackerTest {
 				JobVertexID operatorId = operatorIds[operatorIndex];
 				int parallelism = operatorParallelism[operatorIndex];
 
-				TaskState taskState = new TaskState(operatorId, parallelism);
+				TaskState taskState = new TaskState(operatorId, parallelism, maxParallelism);
 
 				taskGroupStates.put(operatorId, taskState);
 
@@ -328,9 +330,11 @@ public class SimpleCheckpointStatsTrackerTest {
 						completionDuration = duration;
 					}
 
+					final long proxySize = minStateSize + ((long) (RAND.nextDouble() * (maxStateSize - minStateSize)));
+					StreamStateHandle proxy = new StateHandleProxy(new Path(), proxySize);
+
 					SubtaskState subtaskState = new SubtaskState(
-						new SerializedValue<StateHandle<?>>(null),
-						minStateSize + ((long) (RAND.nextDouble() * (maxStateSize - minStateSize))),
+						new ChainedStateHandle<>(Arrays.asList(proxy)),
 						duration);
 
 					taskState.putState(subtaskIndex, subtaskState);
@@ -340,8 +344,7 @@ public class SimpleCheckpointStatsTrackerTest {
 			// Add some random delay
 			final long completionTimestamp = triggerTimestamp + completionDuration + RAND.nextInt(10);
 
-			checkpoints[i] = new CompletedCheckpoint(
-					jobId, i, triggerTimestamp, completionTimestamp, taskGroupStates);
+			checkpoints[i] = new CompletedCheckpoint(jobId, i, triggerTimestamp, completionTimestamp, taskGroupStates, true);
 		}
 
 		return checkpoints;
@@ -357,10 +360,32 @@ public class SimpleCheckpointStatsTrackerTest {
 			ExecutionJobVertex v = mock(ExecutionJobVertex.class);
 			when(v.getJobVertexId()).thenReturn(operatorId);
 			when(v.getParallelism()).thenReturn(parallelism);
-			
+
 			jobVertices.add(v);
 		}
 
 		return jobVertices;
+	}
+
+	private static class StateHandleProxy extends FileStateHandle {
+
+		private static final long serialVersionUID = 35356735683568L;
+
+		public StateHandleProxy(Path filePath, long proxySize) {
+			super(filePath);
+			this.proxySize = proxySize;
+		}
+
+		private long proxySize;
+
+		@Override
+		public void discardState() throws Exception {
+
+		}
+
+		@Override
+		public long getStateSize() {
+			return proxySize;
+		}
 	}
 }

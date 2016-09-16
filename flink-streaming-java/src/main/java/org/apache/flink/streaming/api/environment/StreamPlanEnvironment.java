@@ -40,7 +40,7 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 			setParallelism(parallelism);
 		} else {
 			// determine parallelism
-			setParallelism(GlobalConfiguration.getInteger(
+			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(
 					ConfigConstants.DEFAULT_PARALLELISM_KEY,
 					ConfigConstants.DEFAULT_PARALLELISM));
 		}

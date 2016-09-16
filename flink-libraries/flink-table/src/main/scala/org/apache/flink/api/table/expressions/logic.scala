@@ -32,8 +32,8 @@ abstract class BinaryPredicate extends BinaryExpression {
         right.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"$this only accepts children of Boolean Type, " +
-        s"get ${left.resultType} and ${right.resultType}")
+      ValidationFailure(s"$this only accepts children of Boolean type, " +
+        s"get $left : ${left.resultType} and $right : ${right.resultType}")
     }
   }
 }
@@ -52,8 +52,8 @@ case class Not(child: Expression) extends UnaryExpression {
     if (child.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Not only accepts child of Boolean Type, " +
-        s"get ${child.resultType}")
+      ValidationFailure(s"Not operator requires a boolean expression as input, " +
+        s"but $child is of type ${child.resultType}")
     }
   }
 }

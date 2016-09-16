@@ -1267,7 +1267,7 @@ public abstract class ExecutionEnvironment {
 	 * with pre-configured environments. Examples are running programs from the command line, and
 	 * running programs in the Scala shell.
 	 * 
-	 * <p>When the context environment factors is set, no other environments can be explicitly used.
+	 * <p>When the context environment factory is set, no other environments can be explicitly used.
 	 * 
 	 * @param ctx The context environment factory.
 	 */

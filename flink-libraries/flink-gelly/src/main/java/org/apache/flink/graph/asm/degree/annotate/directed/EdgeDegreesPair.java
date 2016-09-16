@@ -27,7 +27,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeDegreeWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
@@ -41,7 +41,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class EdgeDegreesPair<K, VV, EV>
-extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Edge<K, Tuple3<EV, Degrees, Degrees>>> {
+extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple3<EV, Degrees, Degrees>>> {
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_DEFAULT;
@@ -64,7 +64,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Edge<K, Tuple3<EV, Degrees, D
 	}
 
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
 		if (! EdgeDegreesPair.class.isAssignableFrom(other.getClass())) {
@@ -73,7 +73,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Edge<K, Tuple3<EV, Degrees, D
 
 		EdgeDegreesPair rhs = (EdgeDegreesPair) other;
 
-		parallelism = Math.min(parallelism, rhs.parallelism);
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
+			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
 
 		return true;
 	}

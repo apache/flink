@@ -225,7 +225,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
-		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.getConfiguration());
+		flinkYarnClient.setFlinkConfiguration(GlobalConfiguration.loadConfiguration());
 		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));
 
 		// deploy

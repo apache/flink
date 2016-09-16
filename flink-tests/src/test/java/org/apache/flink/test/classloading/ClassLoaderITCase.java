@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStoreFactory;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -36,9 +36,10 @@ import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.test.testdata.KMeansData;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -60,7 +61,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-public class ClassLoaderITCase {
+public class ClassLoaderITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClassLoaderITCase.class);
 
@@ -80,7 +81,7 @@ public class ClassLoaderITCase {
 
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
-	private static ForkableFlinkMiniCluster testCluster;
+	private static TestingCluster testCluster;
 
 	private static int parallelism;
 
@@ -103,7 +104,7 @@ public class ClassLoaderITCase {
 		config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY,
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
-		testCluster = new ForkableFlinkMiniCluster(config, false);
+		testCluster = new TestingCluster(config, false);
 		testCluster.start();
 	}
 
@@ -275,8 +276,9 @@ public class ClassLoaderITCase {
 		// Trigger savepoint
 		String savepointPath = null;
 		for (int i = 0; i < 20; i++) {
-			LOG.info("Triggering savepoint (" + (i+1) + "/20.");
+			LOG.info("Triggering savepoint (" + (i+1) + "/20).");
 			Future<Object> savepointFuture = jm.ask(new TriggerSavepoint(jobId), deadline.timeLeft());
+
 			Object savepointResponse = Await.result(savepointFuture, deadline.timeLeft());
 
 			if (savepointResponse.getClass() == TriggerSavepointSuccess.class) {
@@ -300,14 +302,14 @@ public class ClassLoaderITCase {
 
 		// Dispose savepoint
 		LOG.info("Disposing savepoint at " + savepointPath);
-		Future<Object> disposeFuture = jm.ask(new DisposeSavepoint(savepointPath, Option.apply(blobKeys)), deadline.timeLeft());
+		Future<Object> disposeFuture = jm.ask(new DisposeSavepoint(savepointPath), deadline.timeLeft());
 		Object disposeResponse = Await.result(disposeFuture, deadline.timeLeft());
 
 		if (disposeResponse.getClass() == JobManagerMessages.getDisposeSavepointSuccess().getClass()) {
 			// Success :-)
 			LOG.info("Disposed savepoint at " + savepointPath);
 		} else if (disposeResponse instanceof DisposeSavepointFailure) {
-			throw new IllegalStateException("Failed to dispose savepoint");
+			throw new IllegalStateException("Failed to dispose savepoint " + disposeResponse);
 		} else {
 			throw new IllegalStateException("Unexpected response to DisposeSavepoint");
 		}

@@ -150,7 +150,7 @@ public class FlinkYarnSessionCliTest {
 
 		FlinkYarnSessionCli yarnCLI = new TestCLI("y", "yarn");
 		AbstractYarnClusterDescriptor descriptor = yarnCLI.createDescriptor("", runOptions.getCommandLine());
-		System.out.println(descriptor.getZookeeperNamespace());
+
 		Assert.assertEquals(zkNamespaceCliInput, descriptor.getZookeeperNamespace());
 	}
 

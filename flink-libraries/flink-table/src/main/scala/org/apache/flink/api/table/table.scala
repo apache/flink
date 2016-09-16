@@ -21,7 +21,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.expressions.{Asc, ExpressionParser, UnresolvedAlias, Expression, Ordering}
-import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
+import org.apache.flink.api.table.plan.RexNodeTranslator._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 
@@ -78,14 +78,14 @@ class Table(
   def select(fields: Expression*): Table = {
     val projectionOnAggregates = fields.map(extractAggregations(_, tableEnv))
     val aggregations = projectionOnAggregates.flatMap(_._2)
+    val projectList = expandProjectList(projectionOnAggregates.map(_._1), logicalPlan)
     if (aggregations.nonEmpty) {
       new Table(tableEnv,
-        Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        Project(projectList,
           Aggregate(Nil, aggregations, logicalPlan).validate(tableEnv)).validate(tableEnv))
     } else {
       new Table(tableEnv,
-        Project(
-          projectionOnAggregates.map(e => UnresolvedAlias(e._1)), logicalPlan).validate(tableEnv))
+        Project(projectList, logicalPlan).validate(tableEnv))
     }
   }
 
@@ -563,12 +563,49 @@ class Table(
     * Example:
     *
     * {{{
-    *   tab.orderBy("name DESC")
+    *   tab.orderBy("name.desc")
     * }}}
     */
   def orderBy(fields: String): Table = {
     val parsedFields = ExpressionParser.parseExpressionList(fields)
     orderBy(parsedFields: _*)
+  }
+
+  /**
+    * Limits a sorted result from an offset position.
+    * Similar to a SQL LIMIT clause. Limit is technically part of the Order By operator and
+    * thus must be preceded by it.
+    *
+    * Example:
+    *
+    * {{{
+    *   // returns unlimited number of records beginning with the 4th record
+    *   tab.orderBy('name.desc).limit(3)
+    * }}}
+    *
+    * @param offset number of records to skip
+    */
+  def limit(offset: Int): Table = {
+    new Table(tableEnv, Limit(offset = offset, child = logicalPlan).validate(tableEnv))
+  }
+
+  /**
+    * Limits a sorted result to a specified number of records from an offset position.
+    * Similar to a SQL LIMIT clause. Limit is technically part of the Order By operator and
+    * thus must be preceded by it.
+    *
+    * Example:
+    *
+    * {{{
+    *   // returns 5 records beginning with the 4th record
+    *   tab.orderBy('name.desc).limit(3, 5)
+    * }}}
+    *
+    * @param offset number of records to skip
+    * @param fetch number of records to be returned
+    */
+  def limit(offset: Int, fetch: Int): Table = {
+    new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
   }
 
   /**

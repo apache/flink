@@ -46,12 +46,12 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 
 
 	public PrimitiveInputFormat(Path filePath, Class<OT> primitiveClass) {
-		super(filePath);
+		super(filePath, null);
 		this.primitiveClass = primitiveClass;
 	}
 
 	public PrimitiveInputFormat(Path filePath, String delimiter, Class<OT> primitiveClass) {
-		super(filePath);
+		super(filePath, null);
 		this.primitiveClass = primitiveClass;
 		this.setDelimiter(delimiter);
 	}

@@ -142,4 +142,46 @@ public class PatternTest extends TestLogger {
 		assertEquals(previous.getName(), "subevent");
 		assertEquals(previous2.getName(), "start");
 	}
+
+	@Test
+	public void testPatternWithOrFilter() {
+		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 3518061453394250543L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return false;
+			}
+		}).or(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 947463545810023841L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return false;
+			}
+		}).next("or").or(new FilterFunction<Event>() {
+			private static final long serialVersionUID = -2775487887505922250L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return false;
+			}
+		}).followedBy("end");
+
+		Pattern<Event, ?> previous;
+		Pattern<Event, ?> previous2;
+
+		assertNotNull(previous = pattern.getPrevious());
+		assertNotNull(previous2 = previous.getPrevious());
+		assertNull(previous2.getPrevious());
+
+		assertTrue(pattern instanceof FollowedByPattern);
+		assertFalse(previous.getFilterFunction() instanceof OrFilterFunction);
+		assertTrue(previous2.getFilterFunction() instanceof OrFilterFunction);
+
+		assertEquals(pattern.getName(), "end");
+		assertEquals(previous.getName(), "or");
+		assertEquals(previous2.getName(), "start");
+	}
+
 }

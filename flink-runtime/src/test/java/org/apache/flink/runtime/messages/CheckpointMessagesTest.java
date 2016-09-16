@@ -18,32 +18,38 @@
 
 package org.apache.flink.runtime.messages;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
-import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
+import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 public class CheckpointMessagesTest {
-	
+
 	@Test
 	public void testTriggerAndConfirmCheckpoint() {
 		try {
 			NotifyCheckpointComplete cc = new NotifyCheckpointComplete(new JobID(), new ExecutionAttemptID(), 45287698767345L, 467L);
 			testSerializabilityEqualsHashCode(cc);
-			
+
 			TriggerCheckpoint tc = new TriggerCheckpoint(new JobID(), new ExecutionAttemptID(), 347652734L, 7576752L);
 			testSerializabilityEqualsHashCode(tc);
-			
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -55,35 +61,40 @@ public class CheckpointMessagesTest {
 	public void testConfirmTaskCheckpointed() {
 		try {
 			AcknowledgeCheckpoint noState = new AcknowledgeCheckpoint(
-											new JobID(), new ExecutionAttemptID(), 569345L);
+					new JobID(), new ExecutionAttemptID(), 569345L);
+
+			KeyGroupRange keyGroupRange = KeyGroupRange.of(42,42);
 
 			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
-											new JobID(), new ExecutionAttemptID(), 87658976143L, 
-											new SerializedValue<StateHandle<?>>(new MyHandle()), 0);
-			
+					new JobID(),
+					new ExecutionAttemptID(),
+					87658976143L,
+					CheckpointCoordinatorTest.generateChainedStateHandle(new MyHandle()),
+					CheckpointCoordinatorTest.generateKeyGroupState(
+							keyGroupRange, Collections.singletonList(new MyHandle())));
+
 			testSerializabilityEqualsHashCode(noState);
 			testSerializabilityEqualsHashCode(withState);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
-	
+
 	private static void testSerializabilityEqualsHashCode(Serializable o) throws IOException {
 		Object copy = CommonTestUtils.createCopySerializable(o);
+		System.out.println(o.getClass() +" "+copy.getClass());
 		assertEquals(o, copy);
 		assertEquals(o.hashCode(), copy.hashCode());
 		assertNotNull(o.toString());
 		assertNotNull(copy.toString());
 	}
-	
-	public static class MyHandle implements StateHandle<Serializable> {
+
+	public static class MyHandle implements StreamStateHandle {
 
 		private static final long serialVersionUID = 8128146204128728332L;
 
-		@Override
-		public Serializable getState(ClassLoader userCodeClassLoader) {
+		public Serializable get(ClassLoader userCodeClassLoader) {
 			return null;
 		}
 
@@ -107,5 +118,10 @@ public class CheckpointMessagesTest {
 
 		@Override
 		public void close() throws IOException {}
+
+		@Override
+		public FSDataInputStream openInputStream() throws IOException {
+			return null;
+		}
 	}
 }

@@ -50,7 +50,7 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 	// --------------------------------------------------------------------------------------------
 	
 	public TextValueInputFormat(Path filePath) {
-		super(filePath);
+		super(filePath, null);
 	}
 	
 	// --------------------------------------------------------------------------------------------	

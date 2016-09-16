@@ -20,10 +20,9 @@ package org.apache.flink.api.scala.batch.table
 
 import java.util.Date
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.{Row, TableEnvironment, Types}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit._
@@ -95,25 +94,25 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
       .toTable(tEnv)
       .select(
         // * -> String
-        '_1.cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_2.cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_3.cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_4.cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_1.cast(Types.STRING),
+        '_2.cast(Types.STRING),
+        '_3.cast(Types.STRING),
+        '_4.cast(Types.STRING),
         // NUMERIC TYPE -> Boolean
-        '_1.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO),
-        '_2.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO),
-        '_3.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO),
+        '_1.cast(Types.BOOLEAN),
+        '_2.cast(Types.BOOLEAN),
+        '_3.cast(Types.BOOLEAN),
         // NUMERIC TYPE -> NUMERIC TYPE
-        '_1.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
-        '_2.cast(BasicTypeInfo.INT_TYPE_INFO),
-        '_3.cast(BasicTypeInfo.SHORT_TYPE_INFO),
+        '_1.cast(Types.DOUBLE),
+        '_2.cast(Types.INT),
+        '_3.cast(Types.SHORT),
         // Boolean -> NUMERIC TYPE
-        '_4.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
+        '_4.cast(Types.DOUBLE),
         // identity casting
-        '_1.cast(BasicTypeInfo.INT_TYPE_INFO),
-        '_2.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
-        '_3.cast(BasicTypeInfo.LONG_TYPE_INFO),
-        '_4.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO))
+        '_1.cast(Types.INT),
+        '_2.cast(Types.DOUBLE),
+        '_3.cast(Types.LONG),
+        '_4.cast(Types.BOOLEAN))
 
     val expected = "1,0.0,1,true," +
       "true,false,true," +
@@ -134,13 +133,13 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
       .toTable(tEnv)
       .select(
         // String -> BASIC TYPE (not String, Date, Void, Character)
-        '_1.cast(BasicTypeInfo.BYTE_TYPE_INFO),
-        '_1.cast(BasicTypeInfo.SHORT_TYPE_INFO),
-        '_1.cast(BasicTypeInfo.INT_TYPE_INFO),
-        '_1.cast(BasicTypeInfo.LONG_TYPE_INFO),
-        '_3.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
-        '_3.cast(BasicTypeInfo.FLOAT_TYPE_INFO),
-        '_2.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO))
+        '_1.cast(Types.BYTE),
+        '_1.cast(Types.SHORT),
+        '_1.cast(Types.INT),
+        '_1.cast(Types.LONG),
+        '_3.cast(Types.DOUBLE),
+        '_3.cast(Types.FLOAT),
+        '_2.cast(Types.BOOLEAN))
 
     val expected = "1,1,1,1,2.0,2.0,true\n"
     val results = t.toDataSet[Row].collect()
@@ -157,10 +156,10 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val t = env.fromElements(("2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"))
       .toTable(tEnv)
       .select(
-        '_1.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_3.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_4.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
+        '_1.cast(Types.DATE).cast(Types.STRING),
+        '_2.cast(Types.DATE).cast(Types.STRING),
+        '_3.cast(Types.DATE).cast(Types.STRING),
+        '_4.cast(Types.DATE).cast(Types.STRING))
 
     val expected = "2011-05-03 00:00:00.000,1970-01-01 15:51:36.000,2011-05-03 15:51:36.000," +
       "1970-01-17 17:47:53.775\n"
@@ -176,12 +175,12 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
 
     val ds = env.fromElements(("2011-05-03 15:51:36.000", "1304437896000"))
     val t = ds.toTable(tEnv)
-      .select('_1.cast(BasicTypeInfo.DATE_TYPE_INFO).as('f0),
-        '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).as('f1))
-      .select('f0.cast(BasicTypeInfo.STRING_TYPE_INFO),
-        'f0.cast(BasicTypeInfo.LONG_TYPE_INFO),
-        'f1.cast(BasicTypeInfo.STRING_TYPE_INFO),
-        'f1.cast(BasicTypeInfo.LONG_TYPE_INFO))
+      .select('_1.cast(Types.DATE).as('f0),
+        '_2.cast(Types.DATE).as('f1))
+      .select('f0.cast(Types.STRING),
+        'f0.cast(Types.LONG),
+        'f1.cast(Types.STRING),
+        'f1.cast(Types.LONG))
 
     val expected = "2011-05-03 15:51:36.000,1304437896000," +
       "2011-05-03 15:51:36.000,1304437896000\n"

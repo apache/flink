@@ -29,30 +29,60 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
+import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
-import org.junit.Test;
+import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.IOException;
 
 import static org.junit.Assert.fail;
 
+@SuppressWarnings("serial")
+public class CustomDistributionITCase extends TestLogger {
 
-public class CustomDistributionITCase {
+	// ------------------------------------------------------------------------
+	//  The mini cluster that is shared across tests
+	// ------------------------------------------------------------------------
 
+	private static LocalFlinkMiniCluster cluster;
+
+	@BeforeClass
+	public static void setup() throws Exception {
+		cluster = TestBaseUtils.startCluster(1, 8, false, false, true);
+	}
+
+	@AfterClass
+	public static void teardown() throws Exception {
+		TestBaseUtils.stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
+	}
+
+	@Before
+	public void prepare() {
+		TestEnvironment clusterEnv = new TestEnvironment(cluster, 1);
+		clusterEnv.setAsContext();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Test the record partitioned rightly with one field according to the customized data distribution
+	 */
 	@Test
-	public void testPartitionWithDistribution1() throws Exception{
-		/*
-		 * Test the record partitioned rightly with one field according to the customized data distribution
-		 */
-
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+	public void testPartitionWithDistribution1() throws Exception {
 		final TestDataDist1 dist = new TestDataDist1();
 
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(dist.getParallelism());
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
 		DataSet<Boolean> result = DataSetUtils
 			.partitionByRange(input, dist, 0)
@@ -96,13 +126,15 @@ public class CustomDistributionITCase {
 		env.execute();
 	}
 
+	/**
+	 * Test the record partitioned rightly with two fields according to the customized data distribution
+	 */
 	@Test
-	public void testRangeWithDistribution2() throws Exception{
-		/*
-		 * Test the record partitioned rightly with two fields according to the customized data distribution
-		 */
+	public void testRangeWithDistribution2() throws Exception {
+		final TestDataDist2 dist = new TestDataDist2();
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(dist.getParallelism());
 
 		DataSet<Tuple3<Integer, Integer, String>> input = env.fromElements(
 						new Tuple3<>(1, 5, "Hi"),
@@ -121,10 +153,6 @@ public class CustomDistributionITCase {
 						new Tuple3<>(5, 2, "Hi Java?"),
 						new Tuple3<>(5, 3, "Hi Java again")
 			);
-
-		final TestDataDist2 dist = new TestDataDist2();
-
-		env.setParallelism(dist.getParallelism());
 
 		DataSet<Boolean> result = DataSetUtils
 			.partitionByRange(input, dist, 0, 1)
@@ -175,17 +203,17 @@ public class CustomDistributionITCase {
 		env.execute();
 	}
 
+	/*
+	 * Test the number of partition keys less than the number of distribution fields
+	 */
 	@Test
-	public void testPartitionKeyLessDistribution() throws Exception{
-		/*
-		 * Test the number of partition keys less than the number of distribution fields
-		 */
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+	public void testPartitionKeyLessDistribution() throws Exception {
 		final TestDataDist2 dist = new TestDataDist2();
 
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(dist.getParallelism());
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
 		DataSet<Boolean> result = DataSetUtils
 			.partitionByRange(input, dist, 0)
@@ -229,19 +257,17 @@ public class CustomDistributionITCase {
 		env.execute();
 	}
 
+	/*
+	 * Test the number of partition keys larger than the number of distribution fields
+	 */
 	@Test(expected = IllegalArgumentException.class)
-	public void testPartitionMoreThanDistribution() throws Exception{
-		/*
-		 * Test the number of partition keys larger than the number of distribution fields
-		 */
-
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+	public void testPartitionMoreThanDistribution() throws Exception {
 		final TestDataDist2 dist = new TestDataDist2();
 
-		DataSet<Tuple3<Integer, Long, String>> result = DataSetUtils
-				.partitionByRange(input, dist, 0, 1, 2);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+		DataSetUtils.partitionByRange(input, dist, 0, 1, 2);
 	}
 	
 	/**
@@ -278,14 +304,10 @@ public class CustomDistributionITCase {
 		}
 
 		@Override
-		public void write(DataOutputView out) throws IOException {
-			
-		}
+		public void write(DataOutputView out) throws IOException {}
 
 		@Override
-		public void read(DataInputView in) throws IOException {
-			
-		}
+		public void read(DataInputView in) throws IOException {}
 	}
 
 	/**
@@ -323,13 +345,9 @@ public class CustomDistributionITCase {
 		}
 
 		@Override
-		public void write(DataOutputView out) throws IOException {
-			
-		}
+		public void write(DataOutputView out) throws IOException {}
 
 		@Override
-		public void read(DataInputView in) throws IOException {
-			
-		}
+		public void read(DataInputView in) throws IOException {}
 	}
 }

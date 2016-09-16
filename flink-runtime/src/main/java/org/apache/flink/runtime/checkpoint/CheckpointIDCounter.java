@@ -29,9 +29,18 @@ public interface CheckpointIDCounter {
 	void start() throws Exception;
 
 	/**
-	 * Stops the {@link CheckpointIDCounter} service.
+	 * Shuts the {@link CheckpointIDCounter} service down and frees all created
+	 * resources.
 	 */
-	void stop() throws Exception;
+	void shutdown() throws Exception;
+
+	/**
+	 * Suspends the counter.
+	 *
+	 * <p>If the implementation allows recovery, the counter state needs to be
+	 * kept. Otherwise, this acts as shutdown.
+	 */
+	void suspend() throws Exception;
 
 	/**
 	 * Atomically increments the current checkpoint ID.

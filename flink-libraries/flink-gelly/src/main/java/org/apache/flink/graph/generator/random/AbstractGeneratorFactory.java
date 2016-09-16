@@ -35,7 +35,7 @@ implements RandomGenerableFactory<T> {
 	// A large computation will run in parallel but blocks are generated on
 	// and distributed from a single node. This limit should be greater
 	// than the maximum expected parallelism.
-	public static final int MAXIMUM_BLOCK_COUNT = 1 << 20;
+	public static final int MAXIMUM_BLOCK_COUNT = 1 << 15;
 
 	// This should be sufficiently large relative to the cost of instantiating
 	// and initializing the random generator and sufficiently small relative to

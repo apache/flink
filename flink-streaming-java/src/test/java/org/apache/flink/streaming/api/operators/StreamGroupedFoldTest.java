@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
@@ -69,8 +70,8 @@ public class StreamGroupedFoldTest {
 		StreamGroupedFold<Integer, String, String> operator = new StreamGroupedFold<>(new MyFolder(), "100");
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
-		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
-		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -107,10 +108,9 @@ public class StreamGroupedFoldTest {
 				new TestOpenCloseFoldFunction(), "init");
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
-		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
-		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
-		
-		
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
+
 		long initialTime = 0L;
 
 		testHarness.open();

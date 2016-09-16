@@ -19,14 +19,14 @@
 package org.apache.flink.api.table.plan.nodes.dataset
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.{RelTraitSet, RelOptCluster}
-import org.apache.calcite.rel.{RelWriter, RelNode}
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.runtime.ValuesInputFormat
+import org.apache.flink.api.table.runtime.io.ValuesInputFormat
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.typeutils.TypeConverter._
 import org.apache.flink.api.table.{BatchTableEnvironment, Row}

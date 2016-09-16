@@ -20,27 +20,26 @@ package org.apache.flink.runtime.state;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * A simple base for closable handles.
- * 
+ *
  * Offers to register a stream (or other closable object) that close calls are delegated to if
  * the handle is closed or was already closed.
  */
-public abstract class AbstractCloseableHandle implements Closeable, Serializable {
+public abstract class AbstractCloseableHandle implements Closeable, StateObject {
 
 	/** Serial Version UID must be constant to maintain format compatibility */
 	private static final long serialVersionUID = 1L;
 
 	/** To atomically update the "closable" field without needing to add a member class like "AtomicBoolean */
-	private static final AtomicIntegerFieldUpdater<AbstractCloseableHandle> CLOSER = 
+	private static final AtomicIntegerFieldUpdater<AbstractCloseableHandle> CLOSER =
 			AtomicIntegerFieldUpdater.newUpdater(AbstractCloseableHandle.class, "isClosed");
 
 	// ------------------------------------------------------------------------
 
-	/** The closeable to close if this handle is closed late */ 
+	/** The closeable to close if this handle is closed late */
 	private transient volatile Closeable toClose;
 
 	/** Flag to remember if this handle was already closed */
@@ -53,7 +52,7 @@ public abstract class AbstractCloseableHandle implements Closeable, Serializable
 		if (toClose == null) {
 			return;
 		}
-		
+
 		// NOTE: The order of operations matters here:
 		// (1) first setting the closeable
 		// (2) checking the flag.
@@ -73,16 +72,16 @@ public abstract class AbstractCloseableHandle implements Closeable, Serializable
 
 	/**
 	 * Closes the handle.
-	 * 
+	 *
 	 * <p>If a "Closeable" has been registered via {@link #registerCloseable(Closeable)},
 	 * then this will be closes.
-	 * 
+	 *
 	 * <p>If any "Closeable" will be registered via {@link #registerCloseable(Closeable)} in the future,
 	 * it will immediately be closed and that method will throw an exception.
-	 * 
+	 *
 	 * @throws IOException Exceptions occurring while closing an already registered {@code Closeable}
 	 *                     are forwarded.
-	 * 
+	 *
 	 * @see #registerCloseable(Closeable)
 	 */
 	@Override
@@ -106,7 +105,7 @@ public abstract class AbstractCloseableHandle implements Closeable, Serializable
 
 	/**
 	 * Checks whether this handle has been closed.
-	 * 
+	 *
 	 * @return True is the handle is closed, false otherwise.
 	 */
 	public boolean isClosed() {
@@ -116,7 +115,7 @@ public abstract class AbstractCloseableHandle implements Closeable, Serializable
 	/**
 	 * This method checks whether the handle is closed and throws an exception if it is closed.
 	 * If the handle is not closed, this method does nothing.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the handle has been closed.
 	 */
 	public void ensureNotClosed() throws IOException {

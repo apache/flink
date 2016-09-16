@@ -26,7 +26,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.FilePathFilter;
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
@@ -122,9 +122,9 @@ public class ContinuousFileMonitoringFunctionITCase extends StreamingProgramTest
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(1);
 
+			format.setFilesFilter(FilePathFilter.createDefaultFilter());
 			ContinuousFileMonitoringFunction<String> monitoringFunction =
 				new ContinuousFileMonitoringFunction<>(format, hdfsURI,
-					FilePathFilter.createDefaultFilter(),
 					FileProcessingMode.PROCESS_CONTINUOUSLY,
 					env.getParallelism(), INTERVAL);
 

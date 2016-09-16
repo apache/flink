@@ -48,7 +48,7 @@ public class SocketWindowWordCount {
 			final ParameterTool params = ParameterTool.fromArgs(args);
 			port = params.getInt("port");
 		} catch (Exception e) {
-			System.err.println("No port specified. Please run 'WindowWordCount --port <port>', " +
+			System.err.println("No port specified. Please run 'SocketWindowWordCount --port <port>', " +
 					"where port is the address of the text server");
 			System.err.println("To start a simple text server, run 'netcat -l <port>' and type the input text " +
 					"into the command line");
@@ -59,7 +59,7 @@ public class SocketWindowWordCount {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// get input data by connecting to the socket
-		DataStream<String> text = env.socketTextStream("localhost", port, '\n');
+		DataStream<String> text = env.socketTextStream("localhost", port, "\n");
 
 		// parse the data, group it, window it, and aggregate the counts 
 		DataStream<WordWithCount> windowCounts = text

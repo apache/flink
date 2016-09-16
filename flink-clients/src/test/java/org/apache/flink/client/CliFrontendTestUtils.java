@@ -71,33 +71,7 @@ public class CliFrontendTestUtils {
 		System.setOut(new PrintStream(new BlackholeOutputSteam()));
 		System.setErr(new PrintStream(new BlackholeOutputSteam()));
 	}
-	
-	public static void clearGlobalConfiguration() {
-		try {
-			Field singletonInstanceField = GlobalConfiguration.class.getDeclaredField("SINGLETON");
-			Field conf = GlobalConfiguration.class.getDeclaredField("config");
-			Field map = Configuration.class.getDeclaredField("confData");
-			
-			singletonInstanceField.setAccessible(true);
-			conf.setAccessible(true);
-			map.setAccessible(true);
-			
-			GlobalConfiguration gconf = (GlobalConfiguration) singletonInstanceField.get(null);
-			if (gconf != null) {
-				Configuration confObject = (Configuration) conf.get(gconf);
-				@SuppressWarnings("unchecked")
-				Map<String, Object> confData = (Map<String, Object>) map.get(confObject);
-				confData.clear();
-			}
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Test initialization caused an exception: " + e.getMessage());
-		}
-		
-	}
-	
+
 	private static final class BlackholeOutputSteam extends java.io.OutputStream {
 		@Override
 		public void write(int b){}

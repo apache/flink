@@ -23,16 +23,13 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * {@link ValueState} implementation that stores state in RocksDB.
@@ -42,14 +39,11 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBValueState<K, N, V>
-	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>>
+	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>, V>
 	implements ValueState<V> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<V> valueSerializer;
-
-	/** This holds the name of the state and can create an initial default value for the state. */
-	private final ValueStateDescriptor<V> stateDesc;
 
 	/**
 	 * We disable writes to the write-ahead-log here. We can't have these in the base class
@@ -67,10 +61,9 @@ public class RocksDBValueState<K, N, V>
 	public RocksDBValueState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<V> stateDesc,
-			RocksDBStateBackend backend) {
+			RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, backend);
-		this.stateDesc = requireNonNull(stateDesc);
+		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getSerializer();
 
 		writeOptions = new WriteOptions();
@@ -79,11 +72,9 @@ public class RocksDBValueState<K, N, V>
 
 	@Override
 	public V value() {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
 				return stateDesc.getDefaultValue();
@@ -100,17 +91,26 @@ public class RocksDBValueState<K, N, V>
 			clear();
 			return;
 		}
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
-			baos.reset();
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
+			keySerializationStream.reset();
 			valueSerializer.serialize(value, out);
-			backend.db.put(columnFamily, writeOptions, key, baos.toByteArray());
+			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
-}
 
+	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		byte[] value = super.getSerializedValue(serializedKeyAndNamespace);
+
+		if (value != null) {
+			return value;
+		} else {
+			return KvStateRequestSerializer.serializeValue(stateDesc.getDefaultValue(), stateDesc.getSerializer());
+		}
+	}
+}

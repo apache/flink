@@ -331,19 +331,19 @@ public class YarnApplicationMasterRunner {
 			// make sure that everything whatever ends up in the log
 			LOG.error("YARN Application Master initialization failed", t);
 
-			if (actorSystem != null) {
-				try {
-					actorSystem.shutdown();
-				} catch (Throwable tt) {
-					LOG.error("Error shutting down actor system", tt);
-				}
-			}
-
 			if (webMonitor != null) {
 				try {
 					webMonitor.stop();
 				} catch (Throwable ignored) {
 					LOG.warn("Failed to stop the web frontend", t);
+				}
+			}
+
+			if (actorSystem != null) {
+				try {
+					actorSystem.shutdown();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down actor system", tt);
 				}
 			}
 
@@ -418,8 +418,7 @@ public class YarnApplicationMasterRunner {
 	private static Configuration createConfiguration(String baseDirectory, Map<String, String> additional) {
 		LOG.info("Loading config from directory " + baseDirectory);
 
-		GlobalConfiguration.loadConfiguration(baseDirectory);
-		Configuration configuration = GlobalConfiguration.getConfiguration();
+		Configuration configuration = GlobalConfiguration.loadConfiguration(baseDirectory);
 
 		configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, baseDirectory);
 
@@ -431,7 +430,7 @@ public class YarnApplicationMasterRunner {
 		// override zookeeper namespace with user cli argument (if provided)
 		String cliZKNamespace = ENV.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);
 		if (cliZKNamespace != null && !cliZKNamespace.isEmpty()) {
-			configuration.setString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, cliZKNamespace);
+			configuration.setString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, cliZKNamespace);
 		}
 
 		// if a web monitor shall be started, set the port to random binding
@@ -600,10 +599,9 @@ public class YarnApplicationMasterRunner {
 
 		ctx.setEnvironment(containerEnv);
 
-		try {
+		try (DataOutputBuffer dob = new DataOutputBuffer()) {
 			UserGroupInformation user = UserGroupInformation.getCurrentUser();
 			Credentials credentials = user.getCredentials();
-			DataOutputBuffer dob = new DataOutputBuffer();
 			credentials.writeTokenStorageToStream(dob);
 			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 			ctx.setTokens(securityTokens);

@@ -127,6 +127,17 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
+    * Specifies a filter condition which is ORed with an existing filter function.
+    *
+    * @param filter Or filter function
+    * @return The same pattern operator where the new filter condition is set
+    */
+  def or(filter: FilterFunction[F]): Pattern[T, F] = {
+    jPattern.or(filter)
+    this
+  }
+
+  /**
     * Specifies a filter condition which has to be fulfilled by an event in order to be matched.
     *
     * @param filterFun Filter condition

@@ -22,11 +22,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -62,26 +62,30 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 	private static WriteMode DEFAULT_WRITE_MODE;
 	
 	private static OutputDirectoryMode DEFAULT_OUTPUT_DIRECTORY_MODE;
-	
-	
-	private static final void initDefaultsFromConfiguration(Configuration configuration) {
-		final boolean overwrite = configuration.getBoolean(ConfigConstants
-						.FILESYSTEM_DEFAULT_OVERWRITE_KEY,
+
+	static {
+		initDefaultsFromConfiguration(GlobalConfiguration.loadConfiguration());
+	}
+
+	/**
+	 * Initialize defaults for output format. Needs to be a static method because it is configured for local
+	 * cluster execution, see LocalFlinkMiniCluster.
+	 * @param configuration The configuration to load defaults from
+	 */
+	private static void initDefaultsFromConfiguration(Configuration configuration) {
+		final boolean overwrite = configuration.getBoolean(
+				ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY,
 				ConfigConstants.DEFAULT_FILESYSTEM_OVERWRITE);
 	
 		DEFAULT_WRITE_MODE = overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE;
 		
-		final boolean alwaysCreateDirectory = configuration.getBoolean(ConfigConstants
-						.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
+		final boolean alwaysCreateDirectory = configuration.getBoolean(
+			ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
 			ConfigConstants.DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY);
 	
 		DEFAULT_OUTPUT_DIRECTORY_MODE = alwaysCreateDirectory ? OutputDirectoryMode.ALWAYS : OutputDirectoryMode.PARONLY;
 	}
-	
-	static {
-		initDefaultsFromConfiguration(GlobalConfiguration.getConfiguration());
-	}
-	
+
 	// --------------------------------------------------------------------------------------------	
 	
 	/**
@@ -121,9 +125,9 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 	private transient boolean fileCreated;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public FileOutputFormat() {}
-	
+
 	public FileOutputFormat(Path outputPath) {
 		this.outputFilePath = outputPath;
 	}

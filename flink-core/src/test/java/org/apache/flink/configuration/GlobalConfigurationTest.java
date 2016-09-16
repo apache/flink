@@ -19,114 +19,58 @@
 package org.apache.flink.configuration;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.Field;
 import java.util.UUID;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * This class contains tests for the global configuration (parsing configuration directory information).
  */
 public class GlobalConfigurationTest extends TestLogger {
 
-	@Before
-	public void resetSingleton() throws SecurityException, NoSuchFieldException, IllegalArgumentException,
-			IllegalAccessException {
-		// reset GlobalConfiguration between tests
-		Field instance = GlobalConfiguration.class.getDeclaredField("SINGLETON");
-		instance.setAccessible(true);
-		instance.set(null, null);
-	}
-	
-	@Test
-	public void testConfigurationMixed() {
-		File tmpDir = getTmpDir();
-		File confFile1 = createRandomFile(tmpDir, ".yaml");
-		File confFile2 = createRandomFile(tmpDir, ".xml");
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
-		try {
-			try {
-				PrintWriter pw1 = new PrintWriter(confFile1);
-				PrintWriter pw2 = new PrintWriter(confFile2);
-				
-				pw1.println("mykey1: myvalue1_YAML");
-				pw1.println("mykey2: myvalue2");
-				
-				pw2.println("<configuration>");
-				pw2.println("<property><key>mykey1</key><value>myvalue1_XML</value></property>");
-				pw2.println("<property><key>mykey3</key><value>myvalue3</value></property>");
-				pw2.println("</configuration>");
-				
-				pw1.close();
-				pw2.close();
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			}
-			
-			GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
-			Configuration conf = GlobalConfiguration.getConfiguration();
-			
-			// all distinct keys from confFile1 + confFile2key
-			assertEquals(3, conf.keySet().size());
-			
-			// keys 1, 2, 3 should be OK and match the expected values
-			// => configuration keys from YAML should overwrite keys from XML
-			assertEquals("myvalue1_YAML", conf.getString("mykey1", null));
-			assertEquals("myvalue2", conf.getString("mykey2", null));
-			assertEquals("myvalue3", conf.getString("mykey3", null));
-		} finally {
-			confFile1.delete();
-			confFile2.delete();
-			tmpDir.delete();
-		}
-	}
-	
 	@Test
 	public void testConfigurationYAML() {
-		File tmpDir = getTmpDir();
-		File confFile1 = createRandomFile(tmpDir, ".yaml");
-		File confFile2 = createRandomFile(tmpDir, ".yml");
+		File tmpDir = tempFolder.getRoot();
+		File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
 
 		try {
-			try {
-				PrintWriter pw1 = new PrintWriter(confFile1);
-				PrintWriter pw2 = new PrintWriter(confFile2);
+			try (final PrintWriter pw = new PrintWriter(confFile)) {
 
-				pw1.println("###########################"); // should be skipped
-				pw1.println("# Some : comments : to skip"); // should be skipped
-				pw1.println("###########################"); // should be skipped
-				pw1.println("mykey1: myvalue1"); // OK, simple correct case
-				pw1.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
-				pw1.println("mykey3:myvalue3"); // SKIP, missing white space after colon
-				pw1.println(" some nonsense without colon and whitespace separator"); // SKIP
-				pw1.println(" :  "); // SKIP
-				pw1.println("   "); // SKIP
-				pw1.println("mykey4: myvalue4# some comments"); // OK, skip comments only
-				pw1.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
-				pw1.println("mykey6: my: value6"); // OK, only use first ': ' as separator
-				pw1.println("mykey7: "); // SKIP, no value provided
-				pw1.println(": myvalue8"); // SKIP, no key provided
+				pw.println("###########################"); // should be skipped
+				pw.println("# Some : comments : to skip"); // should be skipped
+				pw.println("###########################"); // should be skipped
+				pw.println("mykey1: myvalue1"); // OK, simple correct case
+				pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
+				pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
+				pw.println(" some nonsense without colon and whitespace separator"); // SKIP
+				pw.println(" :  "); // SKIP
+				pw.println("   "); // SKIP
+				pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
+				pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
+				pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
+				pw.println("mykey7: "); // SKIP, no value provided
+				pw.println(": myvalue8"); // SKIP, no key provided
 
-				pw2.println("mykey9: myvalue9"); // OK
-				pw2.println("mykey9: myvalue10"); // OK, overwrite last value
+				pw.println("mykey9: myvalue9"); // OK
+				pw.println("mykey9: myvalue10"); // OK, overwrite last value
 
-				pw1.close();
-				pw2.close();
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			}
 
-			GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
-			Configuration conf = GlobalConfiguration.getConfiguration();
+			Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
 
 			// all distinct keys from confFile1 + confFile2 key
 			assertEquals(6, conf.keySet().size());
@@ -142,83 +86,36 @@ public class GlobalConfigurationTest extends TestLogger {
 			assertEquals("null", conf.getString("mykey8", "null"));
 			assertEquals("myvalue10", conf.getString("mykey9", null));
 		} finally {
-			confFile1.delete();
-			confFile2.delete();
+			confFile.delete();
 			tmpDir.delete();
 		}
 	}
 
-	/**
-	 * This test creates several configuration files with values and cross-checks the resulting
-	 * {@link GlobalConfiguration} object.
-	 */
+	@Test(expected = IllegalArgumentException.class)
+	public void testFailIfNull() {
+		GlobalConfiguration.loadConfiguration(null);
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testFailIfNotLoaded() {
+		GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testInvalidConfiguration() throws IOException {
+		GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
+	}
+
 	@Test
-	public void testConfigurationXML() {
+	// We allow malformed YAML files
+	public void testInvalidYamlFile() throws IOException {
+		final File confFile = tempFolder.newFile(GlobalConfiguration.FLINK_CONF_FILENAME);
 
-		// Create temporary directory for configuration files
-		final File tmpDir = getTmpDir();
-		final File confFile1 = createRandomFile(tmpDir, ".xml");
-		final File confFile2 = createRandomFile(tmpDir, ".xml");
-
-		try {
-			try {
-				final PrintWriter pw1 = new PrintWriter(confFile1);
-				final PrintWriter pw2 = new PrintWriter(confFile2);
-
-				pw1.append("<configuration>");
-				pw2.append("<configuration>");
-
-				pw1.append("<property><key>mykey1</key><value>myvalue1</value></property>");
-				pw1.append("<property></property>");
-				pw1.append("<property><key></key><value></value></property>");
-				pw1.append("<property><key>hello</key><value></value></property>");
-				pw1.append("<property><key>mykey2</key><value>myvalue2</value></property>");
-				pw2.append("<property><key>mykey3</key><value>myvalue3</value></property>");
-				pw2.append("<property><key>mykey4</key><value>myvalue4</value></property>");
-
-				pw1.append("</configuration>");
-				pw2.append("</configuration>");
-				pw1.close();
-				pw2.close();
-			} catch (FileNotFoundException e) {
-				fail(e.getMessage());
-			}
-
-			GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
-
-			final Configuration co = GlobalConfiguration.getConfiguration();
-
-			assertEquals(co.getString("mykey1", "null"), "myvalue1");
-			assertEquals(co.getString("mykey2", "null"), "myvalue2");
-			assertEquals(co.getString("mykey3", "null"), "myvalue3");
-			assertEquals(co.getString("mykey4", "null"), "myvalue4");
-
-			// // Test (wrong) string-to integer conversion. should return default value.
-			// semantics are changed to throw an exception upon invalid parsing!
-			// assertEquals(co.getInteger("mykey1", 500), 500);
-			// assertEquals(co.getInteger("anything", 500), 500);
-			// assertEquals(co.getBoolean("notexistent", true), true);
-
-			// Test include local configuration
-			final Configuration newconf = new Configuration();
-			newconf.setInteger("mynewinteger", 1000);
-			GlobalConfiguration.includeConfiguration(newconf);
-			assertEquals(GlobalConfiguration.getInteger("mynewinteger", 0), 1000);
-		} finally {
-			// Remove temporary files
-			confFile1.delete();
-			confFile2.delete();
-			tmpDir.delete();
+		try (PrintWriter pw = new PrintWriter(confFile);) {
+			pw.append("invalid");
 		}
+
+		assertNotNull(GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath()));
 	}
 
-	private File getTmpDir() {
-		File tmpDir = new File(CommonTestUtils.getTempDir(), UUID.randomUUID().toString());
-		assertTrue(tmpDir.mkdirs());
-		return tmpDir;
-	}
-
-	private File createRandomFile(File path, String suffix) {
-		return new File(path, UUID.randomUUID().toString() + suffix);
-	}
 }

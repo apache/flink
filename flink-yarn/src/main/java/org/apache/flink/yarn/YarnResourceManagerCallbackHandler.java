@@ -42,9 +42,16 @@ public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.Callb
 
 	/** The progress we report */
 	private float currentProgress;
-	
+
+	public YarnResourceManagerCallbackHandler() {
+		this(null);
+	}
 	
 	public YarnResourceManagerCallbackHandler(ActorRef yarnFrameworkMaster) {
+		this.yarnFrameworkMaster = yarnFrameworkMaster;
+	}
+
+	public void initialize(ActorRef yarnFrameworkMaster) {
 		this.yarnFrameworkMaster = yarnFrameworkMaster;
 	}
 
@@ -65,16 +72,20 @@ public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.Callb
 
 	@Override
 	public void onContainersCompleted(List<ContainerStatus> list) {
-		yarnFrameworkMaster.tell(
-			new ContainersComplete(list),
-			ActorRef.noSender());
+		if (yarnFrameworkMaster != null) {
+			yarnFrameworkMaster.tell(
+				new ContainersComplete(list),
+				ActorRef.noSender());
+		}
 	}
 
 	@Override
 	public void onContainersAllocated(List<Container> containers) {
-		yarnFrameworkMaster.tell(
-			new ContainersAllocated(containers),
-			ActorRef.noSender());
+		if (yarnFrameworkMaster != null) {
+			yarnFrameworkMaster.tell(
+				new ContainersAllocated(containers),
+				ActorRef.noSender());
+		}
 	}
 
 	@Override
@@ -89,8 +100,10 @@ public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.Callb
 
 	@Override
 	public void onError(Throwable error) {
-		yarnFrameworkMaster.tell(
-			new FatalErrorOccurred("Connection to YARN Resource Manager failed", error),
-			ActorRef.noSender());
+		if (yarnFrameworkMaster != null) {
+			yarnFrameworkMaster.tell(
+				new FatalErrorOccurred("Connection to YARN Resource Manager failed", error),
+				ActorRef.noSender());
+		}
 	}
 }

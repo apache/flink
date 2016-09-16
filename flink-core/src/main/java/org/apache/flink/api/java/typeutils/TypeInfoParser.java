@@ -168,7 +168,7 @@ public class TypeInfoParser {
 			String fullyQualifiedName = writableMatcher.group(3);
 			sb.delete(0, className.length() + 1 + fullyQualifiedName.length() + 1);
 			Class<?> clazz = loadClass(fullyQualifiedName);
-			returnType = WritableTypeInfo.getWritableTypeInfo((Class) clazz);
+			returnType = TypeExtractor.createHadoopWritableTypeInfo(clazz);
 		}
 		// enum types
 		else if (enumMatcher.find()) {

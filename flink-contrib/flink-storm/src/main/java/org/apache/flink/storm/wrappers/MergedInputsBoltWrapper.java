@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.topology.IRichBolt;
-import com.google.common.collect.Sets;
 
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -25,6 +25,8 @@ import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collection;
+
+import static java.util.Arrays.asList;
 
 /**
  * A {@link MergedInputsBoltWrapper} is a {@link BoltWrapper} that expects input tuples of type {@link StormTuple}. It
@@ -67,7 +69,7 @@ public final class MergedInputsBoltWrapper<IN, OUT> extends BoltWrapper<StormTup
 	 */
 	public MergedInputsBoltWrapper(final IRichBolt bolt, final String[] rawOutputs)
 			throws IllegalArgumentException {
-		super(bolt, Sets.newHashSet(rawOutputs));
+		super(bolt, asList(rawOutputs));
 	}
 
 	/**

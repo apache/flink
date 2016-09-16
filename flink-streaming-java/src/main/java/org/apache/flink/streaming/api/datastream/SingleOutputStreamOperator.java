@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.util.Preconditions;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,6 +40,9 @@ import static java.util.Objects.requireNonNull;
  */
 @Public
 public class SingleOutputStreamOperator<T> extends DataStream<T> {
+
+	/** Indicate this is a non-parallel operator and cannot set a non-1 degree of parallelism. **/
+	protected boolean nonParallel = false;
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
 		super(environment, transformation);
@@ -94,9 +98,42 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		if (parallelism < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
-
+		if (nonParallel && parallelism > 1) {
+			throw new IllegalArgumentException("The parallelism of non parallel operator must be 1.");
+		}
 		transformation.setParallelism(parallelism);
 
+		return this;
+	}
+
+	/**
+	 * Sets the maximum parallelism of this operator.
+	 *
+	 * The maximum parallelism specifies the upper bound for dynamic scaling. It also defines the
+	 * number of key groups used for partitioned state.
+	 *
+	 * @param maxParallelism Maximum parallelism
+	 * @return The operator with set maximum parallelism
+	 */
+	@PublicEvolving
+	public SingleOutputStreamOperator<T> setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
+
+		transformation.setMaxParallelism(maxParallelism);
+
+		return this;
+	}
+
+	/**
+	 * Sets the parallelism of this operator to one.
+	 * And mark this operator cannot set a non-1 degree of parallelism.
+	 *
+	 * @return The operator with only one parallelism.
+	 */
+	@PublicEvolving
+	public SingleOutputStreamOperator<T> forceNonParallel() {
+		transformation.setParallelism(1);
+		nonParallel = true;
 		return this;
 	}
 

@@ -32,6 +32,7 @@ under the License.
     <link rel="stylesheet" href="{{ site.baseurl }}/page/css/flink.css">
     <link rel="stylesheet" href="{{ site.baseurl }}/page/css/syntax.css">
     <link rel="stylesheet" href="{{ site.baseurl }}/page/css/codetabs.css">
+    <link rel="stylesheet" href="{{ site.baseurl }}/page/font-awesome/css/font-awesome.min.css">
     {% if page.mathjax %}
     <script type="text/x-mathjax-config">
         MathJax.Hub.Config({
@@ -53,20 +54,36 @@ under the License.
     <![endif]-->
   </head>
   <body>
-    {% comment %} Includes are found in the _includes directory. {% endcomment %}
-    {% include navbar.html %}
-
-    {% if page.mathjax %}
-    {% include latex_commands.html %}
-    {% endif %}
-
     <!-- Main content. -->
     <div class="container">
+      {% if site.is_stable %}
+      {% unless site.is_latest %}
+      <div class="row">
+        <div class="col-sm-12">
+          <div class="alert alert-info">
+              <strong>Note</strong>: This documentation is for Flink version <strong>{{ site.version }}</strong>. There is a more recent stable version available. Please consider updating and <a href="{{ site.latest_stable_url }}">check out the documentation for that version</a>.
+          </div>
+        </div>
+      </div>
+      {% endunless %}
+      {% endif %}
+
       {% comment %}
       This is the base for all content. The content from the layouts found in
       the _layouts directory goes here.
       {% endcomment %}
-      {{ content }}
+      <div class="row">
+        <div class="col-lg-3">
+          {% include sidenav.html %}
+        </div>
+        <div class="col-lg-9 content">
+          {% if page.mathjax %}
+          {% include latex_commands.html %}
+          {% endif %}
+
+          {{ content }}
+        </div>
+      </div>
     </div><!-- /.container -->
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->

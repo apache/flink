@@ -23,8 +23,8 @@ import com.codahale.metrics.ScheduledReporter;
 import info.ganglia.gmetric4j.gmetric.GMetric;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
+import org.apache.flink.metrics.MetricConfig;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +38,7 @@ public class GangliaReporter extends ScheduledDropwizardReporter {
 	public static final String ARG_MODE_ADDRESSING = "addressingMode";
 
 	@Override
-	public ScheduledReporter getReporter(Configuration config) {
+	public ScheduledReporter getReporter(MetricConfig config) {
 
 		try {
 			String host = config.getString(ARG_HOST, null);

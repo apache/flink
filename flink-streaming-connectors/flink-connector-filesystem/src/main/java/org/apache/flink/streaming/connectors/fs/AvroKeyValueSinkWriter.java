@@ -46,8 +46,8 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 <pre>
 Usage:
 {@code
-		RollingSink<Tuple2<Long , Long>> sink = new RollingSink<Tuple2<Long , Long>>("/tmp/path");
-		sink.setBucketer(new DateTimeBucketer("yyyy-MM-dd/HH/mm/"));
+		BucketingSink<Tuple2<Long, Long>> sink = new BucketingSink<Tuple2<Long, Long>>("/tmp/path");
+		sink.setBucketer(new DateTimeBucketer<Tuple2<Long, Long>>("yyyy-MM-dd/HH/mm/"));
 		sink.setPendingSuffix(".avro");
 		Map<String,String> properties = new HashMap<>();
 		Schema longSchema = Schema.create(Type.LONG);
@@ -58,7 +58,7 @@ Usage:
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, Boolean.toString(true));
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
 		
-		sink.setWriter(new AvroSinkWriter<Long , Long>(properties));
+		sink.setWriter(new AvroSinkWriter<Long, Long>(properties));
 		sink.setBatchSize(1024 * 1024 * 64); // this is 64 MB,
 }
 </pre>

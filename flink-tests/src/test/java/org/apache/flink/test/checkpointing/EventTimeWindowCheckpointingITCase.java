@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -41,7 +42,6 @@ import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -73,9 +73,10 @@ import static org.junit.Assert.*;
 @RunWith(Parameterized.class)
 public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
+	private static final int MAX_MEM_STATE_SIZE = 10 * 1024 * 1024;
 	private static final int PARALLELISM = 4;
 
-	private static ForkableFlinkMiniCluster cluster;
+	private static LocalFlinkMiniCluster cluster;
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -94,7 +95,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 48);
 
-		cluster = new ForkableFlinkMiniCluster(config, false);
+		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
 	}
 
@@ -109,27 +110,18 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	public void initStateBackend() throws IOException {
 		switch (stateBackendEnum) {
 			case MEM:
-				this.stateBackend = new MemoryStateBackend();
+				this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE);
 				break;
 			case FILE: {
 				String backups = tempFolder.newFolder().getAbsolutePath();
 				this.stateBackend = new FsStateBackend("file://" + backups);
 				break;
 			}
-			case ROCKSDB: {
-				String rocksDb = tempFolder.newFolder().getAbsolutePath();
-				String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
-				rdb.setDbStoragePath(rocksDb);
-				this.stateBackend = rdb;
-				break;
-			}
 			case ROCKSDB_FULLY_ASYNC: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
 				String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend(MAX_MEM_STATE_SIZE));
 				rdb.setDbStoragePath(rocksDb);
-				rdb.enableFullyAsyncSnapshots();
 				this.stateBackend = rdb;
 				break;
 			}
@@ -204,7 +196,16 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	}
 
 	@Test
-	public void testTumblingTimeWindowWithKVState() {
+	public void testTumblingTimeWindowWithKVStateMinMaxParallelism() {
+		doTestTumblingTimeWindowWithKVState(PARALLELISM);
+	}
+
+	@Test
+	public void testTumblingTimeWindowWithKVStateMaxMaxParallelism() {
+		doTestTumblingTimeWindowWithKVState(1 << 15);
+	}
+
+	public void doTestTumblingTimeWindowWithKVState(int maxParallelism) {
 		final int NUM_ELEMENTS_PER_KEY = 3000;
 		final int WINDOW_SIZE = 100;
 		final int NUM_KEYS = 100;
@@ -215,6 +216,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARALLELISM);
+			env.setMaxParallelism(maxParallelism);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
@@ -772,14 +774,13 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		return Arrays.asList(new Object[][] {
 				{StateBackendEnum.MEM},
 				{StateBackendEnum.FILE},
-				{StateBackendEnum.ROCKSDB},
 				{StateBackendEnum.ROCKSDB_FULLY_ASYNC}
 			}
 		);
 	}
 
 	private enum StateBackendEnum {
-		MEM, FILE, ROCKSDB, ROCKSDB_FULLY_ASYNC
+		MEM, FILE, ROCKSDB_FULLY_ASYNC
 	}
 
 

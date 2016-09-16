@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
 
@@ -122,18 +123,75 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	private RegisterApplicationMasterResponseReflector applicationMasterResponseReflector =
 		new RegisterApplicationMasterResponseReflector(LOG);
 
+	public YarnFlinkResourceManager(
+		Configuration flinkConfig,
+		YarnConfiguration yarnConfig,
+		LeaderRetrievalService leaderRetrievalService,
+		String applicationMasterHostName,
+		String webInterfaceURL,
+		ContaineredTaskManagerParameters taskManagerParameters,
+		ContainerLaunchContext taskManagerLaunchContext,
+		int yarnHeartbeatIntervalMillis,
+		int maxFailedContainers,
+		int numInitialTaskManagers) {
+
+		this(
+			flinkConfig,
+			yarnConfig,
+			leaderRetrievalService,
+			applicationMasterHostName,
+			webInterfaceURL,
+			taskManagerParameters,
+			taskManagerLaunchContext,
+			yarnHeartbeatIntervalMillis,
+			maxFailedContainers,
+			numInitialTaskManagers,
+			new YarnResourceManagerCallbackHandler());
+	}
 
 	public YarnFlinkResourceManager(
-			Configuration flinkConfig,
-			YarnConfiguration yarnConfig,
-			LeaderRetrievalService leaderRetrievalService,
-			String applicationMasterHostName,
-			String webInterfaceURL,
-			ContaineredTaskManagerParameters taskManagerParameters,
-			ContainerLaunchContext taskManagerLaunchContext,
-			int yarnHeartbeatIntervalMillis,
-			int maxFailedContainers,
-			int numInitialTaskManagers) {
+		Configuration flinkConfig,
+		YarnConfiguration yarnConfig,
+		LeaderRetrievalService leaderRetrievalService,
+		String applicationMasterHostName,
+		String webInterfaceURL,
+		ContaineredTaskManagerParameters taskManagerParameters,
+		ContainerLaunchContext taskManagerLaunchContext,
+		int yarnHeartbeatIntervalMillis,
+		int maxFailedContainers,
+		int numInitialTaskManagers,
+		YarnResourceManagerCallbackHandler callbackHandler) {
+
+		this(
+			flinkConfig,
+			yarnConfig,
+			leaderRetrievalService,
+			applicationMasterHostName,
+			webInterfaceURL,
+			taskManagerParameters,
+			taskManagerLaunchContext,
+			yarnHeartbeatIntervalMillis,
+			maxFailedContainers,
+			numInitialTaskManagers,
+			callbackHandler,
+			AMRMClientAsync.createAMRMClientAsync(yarnHeartbeatIntervalMillis, callbackHandler),
+			NMClient.createNMClient());
+	}
+
+	public YarnFlinkResourceManager(
+		Configuration flinkConfig,
+		YarnConfiguration yarnConfig,
+		LeaderRetrievalService leaderRetrievalService,
+		String applicationMasterHostName,
+		String webInterfaceURL,
+		ContaineredTaskManagerParameters taskManagerParameters,
+		ContainerLaunchContext taskManagerLaunchContext,
+		int yarnHeartbeatIntervalMillis,
+		int maxFailedContainers,
+		int numInitialTaskManagers,
+		YarnResourceManagerCallbackHandler callbackHandler,
+		AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient,
+		NMClient nodeManagerClient) {
 
 		super(numInitialTaskManagers, flinkConfig, leaderRetrievalService);
 
@@ -144,6 +202,10 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		this.webInterfaceURL = webInterfaceURL;
 		this.yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMillis;
 		this.maxFailedContainers = maxFailedContainers;
+
+		this.resourceManagerCallbackHandler = Preconditions.checkNotNull(callbackHandler);
+		this.resourceManagerClient = Preconditions.checkNotNull(resourceManagerClient);
+		this.nodeManagerClient = Preconditions.checkNotNull(nodeManagerClient);
 
 		this.containersInLaunch = new HashMap<>();
 		this.containersBeingReturned = new HashMap<>();
@@ -178,16 +240,12 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	protected void initialize() throws Exception {
 		LOG.info("Initializing YARN resource master");
 
-		// create the client to communicate with the ResourceManager
-		resourceManagerCallbackHandler = new YarnResourceManagerCallbackHandler(self());
+		resourceManagerCallbackHandler.initialize(self());
 
-		resourceManagerClient = AMRMClientAsync.createAMRMClientAsync(
-			yarnHeartbeatIntervalMillis, resourceManagerCallbackHandler);
 		resourceManagerClient.init(yarnConfig);
 		resourceManagerClient.start();
 
 		// create the client to communicate with the node managers
-		nodeManagerClient = NMClient.createNMClient();
 		nodeManagerClient.init(yarnConfig);
 		nodeManagerClient.start();
 		nodeManagerClient.cleanupRunningContainersOnStop(true);
@@ -277,7 +335,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			Priority priority = Priority.newInstance(0);
 
 			// Resource requirements for worker containers
-			int taskManagerSlots = Integer.valueOf(System.getenv(YarnConfigKeys.ENV_SLOTS));
+			int taskManagerSlots = taskManagerParameters.numSlots();
 			int vcores = config.getInteger(ConfigConstants.YARN_VCORES, Math.max(taskManagerSlots, 1));
 			Resource capability = Resource.newInstance(containerMemorySizeMB, vcores);
 
@@ -300,7 +358,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	}
 
 	@Override
-	protected void releaseRegisteredWorker(RegisteredYarnWorkerNode worker) {
+	protected void releaseStartedWorker(RegisteredYarnWorkerNode worker) {
 		releaseYarnContainer(worker.yarnContainer());
 	}
 
@@ -323,10 +381,13 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	}
 
 	@Override
-	protected RegisteredYarnWorkerNode workerRegistered(ResourceID resourceID) throws Exception {
+	protected RegisteredYarnWorkerNode workerStarted(ResourceID resourceID) {
 		YarnContainerInLaunch inLaunch = containersInLaunch.remove(resourceID);
 		if (inLaunch == null) {
-			throw new Exception("Cannot register Worker - unknown resource id " + resourceID);
+			// Container was not in state "being launched", this can indicate that the TaskManager
+			// in this container was already registered or that the container was not started
+			// by this resource manager. Simply ignore this resourceID.
+			return null;
 		} else {
 			return new RegisteredYarnWorkerNode(inLaunch.container());
 		}
@@ -345,8 +406,12 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 				accepted.add(new RegisteredYarnWorkerNode(yci.container()));
 			}
 			else {
-				LOG.info("YARN container consolidation does not recognize TaskManager {}",
-					resourceID);
+				if (isStarted(resourceID)) {
+					LOG.info("TaskManager {} has already been registered at the resource manager.", resourceID);
+				} else {
+					LOG.info("YARN container consolidation does not recognize TaskManager {}",
+						resourceID);
+				}
 			}
 		}
 		return accepted;
@@ -368,7 +433,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 	private void containersAllocated(List<Container> containers) {
 		final int numRequired = getDesignatedWorkerPoolSize();
-		final int numRegistered = getNumberOfRegisteredTaskManagers();
+		final int numRegistered = getNumberOfStartedTaskManagers();
 
 		for (Container container : containers) {
 			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
@@ -519,7 +584,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 	private void updateProgress() {
 		final int required = getDesignatedWorkerPoolSize();
-		final int available = getNumberOfRegisteredTaskManagers() + containersInLaunch.size();
+		final int available = getNumberOfStartedTaskManagers() + containersInLaunch.size();
 		final float progress = (required <= 0) ? 1.0f : available / (float) required;
 
 		if (resourceManagerCallbackHandler != null) {
@@ -583,7 +648,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		 * @return A list with containers from previous application attempt.
 		 */
 		private List<Container> getContainersFromPreviousAttempts(RegisterApplicationMasterResponse response) {
-			if (method != null) {
+			if (method != null && response != null) {
 				try {
 					@SuppressWarnings("unchecked")
 					List<Container> list = (List<Container>) method.invoke(response);

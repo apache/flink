@@ -192,7 +192,7 @@ abstract class NettyMessage {
 			buffer = null;
 		}
 
-		BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId) {
+		public BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId) {
 			this.buffer = buffer;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = receiverId;

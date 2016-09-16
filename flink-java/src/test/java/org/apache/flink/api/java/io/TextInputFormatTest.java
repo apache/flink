@@ -36,6 +36,7 @@ import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.junit.Test;
 
@@ -103,7 +104,7 @@ public class TextInputFormatTest {
 				File tempFile = File.createTempFile("TextInputFormatTest", ".tmp", tmpDir);
 				tempFile.deleteOnExit();
 
-				expectedFiles.add("file:" + tempFile.getAbsolutePath());
+				expectedFiles.add(new Path(tempFile.getAbsolutePath()).makeQualified(FileSystem.getLocalFileSystem()).toString());
 			}
 			File parentDir = new File("tmp");
 

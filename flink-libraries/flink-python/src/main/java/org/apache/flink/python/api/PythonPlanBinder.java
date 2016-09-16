@@ -73,8 +73,10 @@ public class PythonPlanBinder {
 	public static final String FLINK_PYTHON3_BINARY_KEY = "python.binary.python3";
 	public static final String PLANBINDER_CONFIG_BCVAR_COUNT = "PLANBINDER_BCVAR_COUNT";
 	public static final String PLANBINDER_CONFIG_BCVAR_NAME_PREFIX = "PLANBINDER_BCVAR_";
-	public static String FLINK_PYTHON2_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON2_BINARY_KEY, "python");
-	public static String FLINK_PYTHON3_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
+	public static String FLINK_PYTHON2_BINARY_PATH =
+		GlobalConfiguration.loadConfiguration().getString(FLINK_PYTHON2_BINARY_KEY, "python");
+	public static String FLINK_PYTHON3_BINARY_PATH =
+		GlobalConfiguration.loadConfiguration().getString(FLINK_PYTHON3_BINARY_KEY, "python3");
 
 	private static final Random r = new Random();
 
@@ -113,8 +115,9 @@ public class PythonPlanBinder {
 	}
 
 	public PythonPlanBinder() throws IOException {
-		FLINK_PYTHON2_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON2_BINARY_KEY, "python");
-		FLINK_PYTHON3_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
+		Configuration conf = GlobalConfiguration.loadConfiguration();
+		FLINK_PYTHON2_BINARY_PATH = conf.getString(FLINK_PYTHON2_BINARY_KEY, "python");
+		FLINK_PYTHON3_BINARY_PATH = conf.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
 		FULL_PATH = FLINK_DIR != null
 				//command-line
 				? FLINK_DIR + FLINK_PYTHON_REL_LOCAL_PATH

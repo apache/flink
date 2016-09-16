@@ -20,6 +20,8 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Public;
 
+import java.util.Properties;
+
 /**
  * Unmodifiable version of the Configuration class.
  */
@@ -41,6 +43,13 @@ public class UnmodifiableConfiguration extends Configuration {
 	// --------------------------------------------------------------------------------------------
 	//  All mutating methods must fail
 	// --------------------------------------------------------------------------------------------
+
+
+	@Override
+	public void addAllToProperties(Properties props) {
+		// override to make the UnmodifiableConfigurationTest happy
+		super.addAllToProperties(props);
+	}
 
 	@Override
 	public final void addAll(Configuration other) {

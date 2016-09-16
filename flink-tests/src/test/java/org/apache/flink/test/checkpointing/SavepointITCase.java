@@ -30,11 +30,10 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStoreFactory;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -44,12 +43,14 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
+import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.runtime.state.filesystem.AbstractFileStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestSavepoint;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ResponseSavepoint;
@@ -61,30 +62,23 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskStateList;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -140,7 +134,7 @@ public class SavepointITCase extends TestLogger {
 
 		LOG.info("Created temporary directory: " + tmpDir + ".");
 
-		ForkableFlinkMiniCluster flink = null;
+		TestingCluster flink = null;
 
 		try {
 			// Create a test actor system
@@ -171,7 +165,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("Flink configuration: " + config + ".");
 
 			// Start Flink
-			flink = new ForkableFlinkMiniCluster(config);
+			flink = new TestingCluster(config);
 			LOG.info("Starting Flink cluster.");
 			flink.start();
 
@@ -220,9 +214,9 @@ public class SavepointITCase extends TestLogger {
 					new RequestSavepoint(savepointPath),
 					deadline.timeLeft());
 
-			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
+			SavepointV1 savepoint = (SavepointV1) ((ResponseSavepoint) Await.result(
 					savepointFuture, deadline.timeLeft())).savepoint();
-			LOG.info("Retrieved savepoint: " + savepoint + ".");
+			LOG.info("Retrieved savepoint: " + savepointPath + ".");
 
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
@@ -264,7 +258,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("JobManager: " + jobManager + ".");
 
 			final Throwable[] error = new Throwable[1];
-			final ForkableFlinkMiniCluster finalFlink = flink;
+			final TestingCluster finalFlink = flink;
 			final Multimap<JobVertexID, TaskDeploymentDescriptor> tdds = HashMultimap.create();
 			new JavaTestKit(testActorSystem) {{
 
@@ -321,12 +315,11 @@ public class SavepointITCase extends TestLogger {
 
 			// Verify that all tasks, which are part of the savepoint
 			// have a matching task deployment descriptor.
-			for (Map.Entry<JobVertexID, TaskState> entry: savepoint.getTaskStates().entrySet()) {
-				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(entry.getKey());
-				TaskState taskState = entry.getValue();
+			for (TaskState taskState : savepoint.getTaskStates()) {
+				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(taskState.getJobVertexID());
 
 				errMsg = "Missing task for savepoint state for operator "
-					+ entry.getKey() + ".";
+						+ taskState.getJobVertexID() + ".";
 				assertTrue(errMsg, taskTdds.size() > 0);
 
 				assertEquals(taskState.getNumberCollectedStates(), taskTdds.size());
@@ -336,7 +329,7 @@ public class SavepointITCase extends TestLogger {
 
 					assertNotNull(subtaskState);
 					errMsg = "Initial operator state mismatch.";
-					assertEquals(errMsg, subtaskState.getState(), tdd.getOperatorState());
+					assertEquals(errMsg, subtaskState.getChainedStateHandle(), tdd.getOperatorState());
 				}
 			}
 
@@ -347,7 +340,7 @@ public class SavepointITCase extends TestLogger {
 
 			LOG.info("Disposing savepoint " + savepointPath + ".");
 			Future<Object> disposeFuture = jobManager.ask(
-					new DisposeSavepoint(savepointPath, Option.<List<BlobKey>>empty()),
+					new DisposeSavepoint(savepointPath),
 					deadline.timeLeft());
 
 			errMsg = "Failed to dispose savepoint " + savepointPath + ".";
@@ -360,16 +353,15 @@ public class SavepointITCase extends TestLogger {
 			// The checkpoint files
 			List<File> checkpointFiles = new ArrayList<>();
 
-			for (TaskState stateForTaskGroup : savepoint.getTaskStates().values()) {
+			for (TaskState stateForTaskGroup : savepoint.getTaskStates()) {
 				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
-					StreamTaskStateList taskStateList = (StreamTaskStateList) subtaskState.getState()
-						.deserializeValue(ClassLoader.getSystemClassLoader());
+					ChainedStateHandle<StreamStateHandle> streamTaskState = subtaskState.getChainedStateHandle();
 
-					for (StreamTaskState taskState : taskStateList.getState(
-						ClassLoader.getSystemClassLoader())) {
-
-						AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
-						checkpointFiles.add(new File(fsState.getFilePath().toUri()));
+					for (int i = 0; i < streamTaskState.getLength(); i++) {
+						if (streamTaskState.get(i) != null) {
+							FileStateHandle fileStateHandle = (FileStateHandle) streamTaskState.get(i);
+							checkpointFiles.add(new File(fileStateHandle.getFilePath().toUri()));
+						}
 					}
 				}
 			}
@@ -389,152 +381,9 @@ public class SavepointITCase extends TestLogger {
 			// All savepoints should have been cleaned up
 			errMsg = "Savepoints directory not cleaned up properly: " +
 					Arrays.toString(savepointDir.listFiles()) + ".";
-			assertNull(errMsg, savepointDir.listFiles());
+			assertEquals(errMsg, 0, savepointDir.listFiles().length);
 
 			// - Verification END ---------------------------------------------
-		}
-		finally {
-			if (flink != null) {
-				flink.shutdown();
-			}
-
-			if (tmpDir != null) {
-				FileUtils.deleteDirectory(tmpDir);
-			}
-		}
-	}
-
-	/**
-	 * Tests that removed checkpoint files which are part of a savepoint throw
-	 * a proper Exception on submission.
-	 */
-	@Test
-	@RetryOnFailure(times = 2)
-	public void testCheckpointHasBeenRemoved() throws Exception {
-		// Config
-		int numTaskManagers = 2;
-		int numSlotsPerTaskManager = 2;
-		int parallelism = numTaskManagers * numSlotsPerTaskManager;
-
-		// Test deadline
-		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
-
-		// The number of checkpoints to complete before triggering the savepoint
-		final int numberOfCompletedCheckpoints = 10;
-
-		// Temporary directory for file state backend
-		final File tmpDir = CommonTestUtils.createTempDirectory();
-
-		LOG.info("Created temporary directory: " + tmpDir + ".");
-
-		ForkableFlinkMiniCluster flink = null;
-
-		try {
-			// Flink configuration
-			final Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
-
-			final File checkpointDir = new File(tmpDir, "checkpoints");
-			final File savepointDir = new File(tmpDir, "savepoints");
-
-			if (!checkpointDir.mkdir() || !savepointDir.mkdirs()) {
-				fail("Test setup failed: failed to create temporary directories.");
-			}
-
-			LOG.info("Created temporary checkpoint directory: " + checkpointDir + ".");
-			LOG.info("Created temporary savepoint directory: " + savepointDir + ".");
-
-			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-			config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
-
-			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
-					checkpointDir.toURI().toString());
-			config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY,
-					savepointDir.toURI().toString());
-
-			LOG.info("Flink configuration: " + config + ".");
-
-			// Start Flink
-			flink = new ForkableFlinkMiniCluster(config);
-			LOG.info("Starting Flink cluster.");
-			flink.start();
-
-			// Retrieve the job manager
-			LOG.info("Retrieving JobManager.");
-			ActorGateway jobManager = Await.result(
-					flink.leaderGateway().future(),
-					deadline.timeLeft());
-			LOG.info("JobManager: " + jobManager + ".");
-
-			// Submit the job
-			final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000, 1000);
-			final JobID jobId = jobGraph.getJobID();
-
-			// Wait for the source to be notified about the expected number
-			// of completed checkpoints
-			InfiniteTestSource.CheckpointCompleteLatch = new CountDownLatch(
-					numberOfCompletedCheckpoints);
-
-			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
-
-			flink.submitJobDetached(jobGraph);
-
-			LOG.info("Waiting for " + numberOfCompletedCheckpoints +
-					" checkpoint complete notifications.");
-
-			// Wait...
-			InfiniteTestSource.CheckpointCompleteLatch.await();
-
-			LOG.info("Received all " + numberOfCompletedCheckpoints +
-					" checkpoint complete notifications.");
-
-			// ...and then trigger the savepoint
-			LOG.info("Triggering a savepoint.");
-
-			Future<Object> savepointPathFuture = jobManager.ask(
-					new TriggerSavepoint(jobId), deadline.timeLeft());
-
-			final String savepointPath = ((TriggerSavepointSuccess) Await
-					.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
-			LOG.info("Retrieved savepoint path: " + savepointPath + ".");
-
-			// Retrieve the savepoint from the testing job manager
-			LOG.info("Requesting the savepoint.");
-			Future<Object> savepointFuture = jobManager.ask(
-					new RequestSavepoint(savepointPath),
-					deadline.timeLeft());
-
-			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
-					savepointFuture, deadline.timeLeft())).savepoint();
-			LOG.info("Retrieved savepoint: " + savepoint + ".");
-
-			// Shut down the Flink cluster (thereby canceling the job)
-			LOG.info("Shutting down Flink cluster.");
-			flink.shutdown();
-
-			// Remove the checkpoint files
-			try {
-				FileUtils.deleteDirectory(checkpointDir);
-			} catch (FileNotFoundException ignored) {
-			}
-
-			// Restart the cluster
-			LOG.info("Restarting Flink cluster.");
-			flink.start();
-
-			// Set the savepoint path
-			jobGraph.setSavepointPath(savepointPath);
-
-			LOG.info("Resubmitting job " + jobGraph.getJobID() + " with " +
-					"savepoint path " + savepointPath + " in detached mode.");
-
-			try {
-				flink.submitJobAndWait(jobGraph, false, deadline.timeLeft());
-				fail("Did not throw expected Exception because of missing checkpoint files");
-			}
-			catch (Exception ignored) {
-			}
 		}
 		finally {
 			if (flink != null) {
@@ -570,7 +419,7 @@ public class SavepointITCase extends TestLogger {
 
 		LOG.info("Created temporary directory: " + tmpDir + ".");
 
-		ForkableFlinkMiniCluster flink = null;
+		TestingCluster flink = null;
 		List<File> checkpointFiles = new ArrayList<>();
 
 		try {
@@ -595,7 +444,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("Flink configuration: " + config + ".");
 
 			// Start Flink
-			flink = new ForkableFlinkMiniCluster(config);
+			flink = new TestingCluster(config);
 			LOG.info("Starting Flink cluster.");
 			flink.start();
 
@@ -644,9 +493,23 @@ public class SavepointITCase extends TestLogger {
 					new RequestSavepoint(savepointPath),
 					deadline.timeLeft());
 
-			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
+			SavepointV1 savepoint = (SavepointV1) ((ResponseSavepoint) Await.result(
 					savepointFuture, deadline.timeLeft())).savepoint();
-			LOG.info("Retrieved savepoint: " + savepoint + ".");
+			LOG.info("Retrieved savepoint: " + savepointPath + ".");
+
+			// Check that all checkpoint files have been removed
+			for (TaskState stateForTaskGroup : savepoint.getTaskStates()) {
+				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
+					ChainedStateHandle<StreamStateHandle> streamTaskState = subtaskState.getChainedStateHandle();
+
+					for (int i = 0; i < streamTaskState.getLength(); i++) {
+						if (streamTaskState.get(i) != null) {
+							FileStateHandle fileStateHandle = (FileStateHandle) streamTaskState.get(i);
+							checkpointFiles.add(new File(fileStateHandle.getFilePath().toUri()));
+						}
+					}
+				}
+			}
 
 			// Cancel the job
 			LOG.info("Cancelling job " + jobId + ".");
@@ -659,29 +522,16 @@ public class SavepointITCase extends TestLogger {
 			Future<Object> removedRespFuture = jobManager.ask(
 					new NotifyWhenJobRemoved(jobId), deadline.timeLeft());
 			assertTrue((Boolean) Await.result(removedRespFuture, deadline.timeLeft()));
-
-			// Check that all checkpoint files have been removed
-			for (TaskState stateForTaskGroup : savepoint.getTaskStates().values()) {
-				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
-					StreamTaskStateList taskStateList = (StreamTaskStateList) subtaskState.getState()
-						.deserializeValue(ClassLoader.getSystemClassLoader());
-
-					for (StreamTaskState taskState : taskStateList.getState(
-						ClassLoader.getSystemClassLoader())) {
-
-						AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
-						checkpointFiles.add(new File(fsState.getFilePath().toUri()));
-					}
-				}
-			}
 		}
 		finally {
 			if (flink != null) {
 				flink.shutdown();
 			}
 
+			Thread.sleep(1000);
+
 			// At least one checkpoint file
-			assertTrue(checkpointFiles.size() > 0);
+			assertTrue(checkpointFiles.toString(), checkpointFiles.size() > 0);
 
 			// The checkpoint associated with the savepoint should have been
 			// discarded after shutdown
@@ -706,7 +556,7 @@ public class SavepointITCase extends TestLogger {
 		// Test deadline
 		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 
-		ForkableFlinkMiniCluster flink = null;
+		TestingCluster flink = null;
 
 		try {
 			// Flink configuration
@@ -717,7 +567,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("Flink configuration: " + config + ".");
 
 			// Start Flink
-			flink = new ForkableFlinkMiniCluster(config);
+			flink = new TestingCluster(config);
 			LOG.info("Starting Flink cluster.");
 			flink.start();
 
@@ -747,121 +597,6 @@ public class SavepointITCase extends TestLogger {
 			catch (Exception e) {
 				assertEquals(SuppressRestartsException.class, e.getCause().getClass());
 				assertEquals(IllegalArgumentException.class, e.getCause().getCause().getClass());
-			}
-		}
-		finally {
-			if (flink != null) {
-				flink.shutdown();
-			}
-		}
-	}
-
-	/**
-	 * Tests that a restore failure is retried with the savepoint state.
-	 */
-	@Test
-	public void testRestoreFailure() throws Exception {
-		// Config
-		int numTaskManagers = 1;
-		int numSlotsPerTaskManager = 1;
-		int numExecutionRetries = 2;
-		int retryDelay = 500;
-		int checkpointingInterval = 100000000;
-
-		// Test deadline
-		final Deadline deadline = new FiniteDuration(3, TimeUnit.MINUTES).fromNow();
-
-		ForkableFlinkMiniCluster flink = null;
-
-		try {
-			// The job
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(1);
-			env.enableCheckpointing(checkpointingInterval);
-			env.setNumberOfExecutionRetries(numExecutionRetries);
-			env.getConfig().setExecutionRetryDelay(retryDelay);
-
-			DataStream<Integer> stream = env
-					.addSource(new RestoreStateCountingAndFailingSource());
-
-			// Source configuration
-			RestoreStateCountingAndFailingSource.failOnRestoreStateCall = false;
-			RestoreStateCountingAndFailingSource.numRestoreStateCalls = 0;
-			RestoreStateCountingAndFailingSource.checkpointCompleteLatch = new CountDownLatch(1);
-			RestoreStateCountingAndFailingSource.emitted= 0;
-
-			stream.addSink(new DiscardingSink<Integer>());
-
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-
-			// Flink configuration
-			final Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
-			LOG.info("Flink configuration: " + config + ".");
-
-			// Start Flink
-			flink = new ForkableFlinkMiniCluster(config);
-			LOG.info("Starting Flink cluster.");
-			flink.start();
-
-			// Retrieve the job manager
-			LOG.info("Retrieving JobManager.");
-			ActorGateway jobManager = flink.getLeaderGateway(deadline.timeLeft());
-			LOG.info("JobManager: " + jobManager + ".");
-
-			// Submit the job and wait for some checkpoints to complete
-			flink.submitJobDetached(jobGraph);
-
-			while (deadline.hasTimeLeft() && RestoreStateCountingAndFailingSource.emitted < 100) {
-				Thread.sleep(100);
-			}
-
-			assertTrue("No progress", RestoreStateCountingAndFailingSource.emitted >= 100);
-
-			// Trigger the savepoint
-			Future<Object> savepointPathFuture = jobManager.ask(
-					new TriggerSavepoint(jobGraph.getJobID()), deadline.timeLeft());
-
-			Object resp = Await.result(savepointPathFuture, deadline.timeLeft());
-
-			String savepointPath = null;
-			if (resp instanceof TriggerSavepointSuccess) {
-				savepointPath = ((TriggerSavepointSuccess) resp).savepointPath();
-				LOG.info("Retrieved savepoint path: " + savepointPath + ".");
-			} else if (resp instanceof TriggerSavepointFailure) {
-				fail("Received TriggerSavepointFailure: " + ((TriggerSavepointFailure) resp).cause().getMessage());
-			} else {
-				fail("Unexpected response of type  " + resp.getClass() + " " + resp);
-			}
-
-			// Completed checkpoint
-			RestoreStateCountingAndFailingSource.checkpointCompleteLatch.await();
-
-			// Cancel the job
-			Future<?> cancelFuture = jobManager.ask(new CancelJob(
-					jobGraph.getJobID()), deadline.timeLeft());
-			Await.ready(cancelFuture, deadline.timeLeft());
-
-			// Wait for the job to be removed
-			Future<?> removedFuture = jobManager.ask(new NotifyWhenJobRemoved(
-					jobGraph.getJobID()), deadline.timeLeft());
-			Await.ready(removedFuture, deadline.timeLeft());
-
-			// Set source to fail on restore calls and try to recover from savepoint
-			RestoreStateCountingAndFailingSource.failOnRestoreStateCall = true;
-			jobGraph.setSavepointPath(savepointPath);
-
-			try {
-				flink.submitJobAndWait(jobGraph, false, deadline.timeLeft());
-				// If the savepoint state is not restored, we will wait here
-				// until the deadline times out.
-				fail("Did not throw expected Exception");
-			} catch (Exception ignored) {
-			} finally {
-				// Expecting one restore for the initial submission from
-				// savepoint and one for the execution retries
-				assertEquals(1 + numExecutionRetries, RestoreStateCountingAndFailingSource.numRestoreStateCalls);
 			}
 		}
 		finally {
@@ -985,6 +720,10 @@ public class SavepointITCase extends TestLogger {
 			while (running) {
 				ctx.collect(1);
 				emitted++;
+
+				if (failOnRestoreStateCall) {
+					throw new RuntimeException("Restore test failure");
+				}
 			}
 		}
 
@@ -1001,10 +740,6 @@ public class SavepointITCase extends TestLogger {
 		@Override
 		public void restoreState(Serializable state) throws Exception {
 			numRestoreStateCalls++;
-
-			if (failOnRestoreStateCall) {
-				throw new RuntimeException("Restore test failure");
-			}
 		}
 
 		@Override

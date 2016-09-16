@@ -259,6 +259,8 @@ public class FileCache {
 					IOUtils.copyBytes(fsInput, lfsOutput);
 					//noinspection ResultOfMethodCallIgnored
 					new File(targetPath.toString()).setExecutable(executable);
+					// closing the FSDataOutputStream
+					lfsOutput.close();
 				}
 				catch (IOException ioe) {
 					LOG.error("could not copy file to local file cache.", ioe);

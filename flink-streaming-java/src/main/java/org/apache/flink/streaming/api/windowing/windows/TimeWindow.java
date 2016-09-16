@@ -227,4 +227,16 @@ public class TimeWindow extends Window {
 			}
 		}
 	}
+
+	/**
+	 * Method to get the window start for a timestamp.
+	 *
+	 * @param timestamp epoch millisecond to get the window start.
+	 * @param offset The offset which window start would be shifted by.
+	 * @param windowSize The size of the generated windows.
+	 * @return window start
+	 */
+	public static long getWindowStartWithOffset(long timestamp, long offset, long windowSize) {
+		return timestamp - (timestamp - offset + windowSize) % windowSize;
+	}
 }

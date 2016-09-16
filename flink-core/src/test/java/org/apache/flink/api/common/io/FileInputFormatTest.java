@@ -27,16 +27,18 @@ import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.types.IntValue;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collections;
 
 import static org.junit.Assert.*;
 
@@ -44,6 +46,9 @@ import static org.junit.Assert.*;
  * Tests for the FileInputFormat
  */
 public class FileInputFormatTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	// ------------------------------------------------------------------------
 	//  Statistics
@@ -257,41 +262,21 @@ public class FileInputFormatTest {
 	public void testIgnoredUnderscoreFiles() {
 		try {
 			final String contents = "CONTENTS";
-			
-			// create some accepted, some ignored files
-			
-			File tempDir = new File(System.getProperty("java.io.tmpdir"));
-			File f;
-			do {
-				f = new File(tempDir, TestFileUtils.randomFileName(""));
-			}
-			while (f.exists());
 
-			assertTrue(f.mkdirs());
-			f.deleteOnExit();
-			
-			File child1 = new File(f, "dataFile1.txt");
-			File child2 = new File(f, "another_file.bin");
-			File luigiFile = new File(f, "_luigi");
-			File success = new File(f, "_SUCCESS");
-			
-			File[] files = { child1, child2, luigiFile, success };
-			
-			for (File child : files) {
-				child.deleteOnExit();
-			
-				BufferedWriter out = new BufferedWriter(new FileWriter(child));
-				try { 
-					out.write(contents);
-				} finally {
-					out.close();
-				}
-			}
-			
+			// create some accepted, some ignored files
+
+
+			File child1 = temporaryFolder.newFile("dataFile1.txt");
+			File child2 = temporaryFolder.newFile("another_file.bin");
+			File luigiFile = temporaryFolder.newFile("_luigi");
+			File success = temporaryFolder.newFile("_SUCCESS");
+
+			createTempFiles(contents.getBytes(), child1, child2, luigiFile, success);
+
 			// test that only the valid files are accepted
 			
 			final DummyFileInputFormat format = new DummyFileInputFormat();
-			format.setFilePath(f.toURI().toString());
+			format.setFilePath(temporaryFolder.getRoot().toURI().toString());
 			format.configure(new Configuration());
 			FileInputSplit[] splits = format.createInputSplits(1);
 			
@@ -314,43 +299,95 @@ public class FileInputFormatTest {
 	}
 
 	@Test
+	public void testExcludeFiles() {
+		try {
+			final String contents = "CONTENTS";
+
+			// create some accepted, some ignored files
+
+			File child1 = temporaryFolder.newFile("dataFile1.txt");
+			File child2 = temporaryFolder.newFile("another_file.bin");
+
+			File[] files = { child1, child2 };
+
+			createTempFiles(contents.getBytes(), files);
+
+			// test that only the valid files are accepted
+
+			Configuration configuration = new Configuration();
+
+			final DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePath(temporaryFolder.getRoot().toURI().toString());
+			format.configure(configuration);
+			format.setFilesFilter(new GlobFilePathFilter(
+				Collections.singletonList("**"),
+				Collections.singletonList("**/another_file.bin")));
+			FileInputSplit[] splits = format.createInputSplits(1);
+
+			Assert.assertEquals(1, splits.length);
+
+			final URI uri1 = splits[0].getPath().toUri();
+
+			final URI childUri1 = child1.toURI();
+
+			Assert.assertEquals(uri1, childUri1);
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testReadMultiplePatterns() {
+		try {
+			final String contents = "CONTENTS";
+
+			// create some accepted, some ignored files
+
+			File child1 = temporaryFolder.newFile("dataFile1.txt");
+			File child2 = temporaryFolder.newFile("another_file.bin");
+			createTempFiles(contents.getBytes(), child1, child2);
+
+			// test that only the valid files are accepted
+
+			Configuration configuration = new Configuration();
+
+			final DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePath(temporaryFolder.getRoot().toURI().toString());
+			format.configure(configuration);
+			format.setFilesFilter(new GlobFilePathFilter(
+				Collections.singletonList("**"),
+				Arrays.asList(new String[] {"**/another_file.bin", "**/dataFile1.txt"})
+			));
+			FileInputSplit[] splits = format.createInputSplits(1);
+
+			Assert.assertEquals(0, splits.length);
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+
+	@Test
 	public void testGetStatsIgnoredUnderscoreFiles() {
 		try {
-			final long SIZE = 2048;
+			final int SIZE = 2048;
 			final long TOTAL = 2*SIZE;
 
 			// create two accepted and two ignored files
-			File tempDir = new File(System.getProperty("java.io.tmpdir"));
-			File f;
-			do {
-				f = new File(tempDir, TestFileUtils.randomFileName(""));
-			}
-			while (f.exists());
-			
-			assertTrue(f.mkdirs());
-			f.deleteOnExit();
+			File child1 = temporaryFolder.newFile("dataFile1.txt");
+			File child2 = temporaryFolder.newFile("another_file.bin");
+			File luigiFile = temporaryFolder.newFile("_luigi");
+			File success = temporaryFolder.newFile("_SUCCESS");
 
-			File child1 = new File(f, "dataFile1.txt");
-			File child2 = new File(f, "another_file.bin");
-			File luigiFile = new File(f, "_luigi");
-			File success = new File(f, "_SUCCESS");
+			createTempFiles(new byte[SIZE], child1, child2, luigiFile, success);
 
-			File[] files = { child1, child2, luigiFile, success };
-
-			for (File child : files) {
-				child.deleteOnExit();
-
-				BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(child));
-				try {
-					for (long bytes = SIZE; bytes > 0; bytes--) {
-						out.write(0);
-					}
-				} finally {
-					out.close();
-				}
-			}
 			final DummyFileInputFormat format = new DummyFileInputFormat();
-			format.setFilePath(f.toURI().toString());
+			format.setFilePath(temporaryFolder.getRoot().toURI().toString());
 			format.configure(new Configuration());
 
 			// check that only valid files are used for statistics computation
@@ -406,7 +443,20 @@ public class FileInputFormatTest {
 	}
 	
 	// ------------------------------------------------------------------------
-	
+
+	private void createTempFiles(byte[] contents, File... files) throws IOException {
+		for (File child : files) {
+			child.deleteOnExit();
+
+			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(child));
+			try {
+				out.write(contents);
+			} finally {
+				out.close();
+			}
+		}
+	}
+
 	private class DummyFileInputFormat extends FileInputFormat<IntValue> {
 		private static final long serialVersionUID = 1L;
 

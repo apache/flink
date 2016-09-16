@@ -37,7 +37,7 @@ fi
 
 # Stop JobManager instance(s)
 shopt -s nocasematch
-if [[ $RECOVERY_MODE == "zookeeper" ]]; then
+if [[ $HIGH_AVAILABILITY == "zookeeper" ]]; then
     # HA Mode
     readMasters
 

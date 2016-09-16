@@ -19,8 +19,9 @@
 package org.apache.flink.graph.asm.degree.annotate.undirected;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -42,7 +43,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class VertexDegree<K, VV, EV>
-extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
+extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 
 	// Optional configuration
 	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
@@ -102,7 +103,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 	}
 
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
 		if (! VertexDegree.class.isAssignableFrom(other.getClass())) {
@@ -121,7 +122,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 
 		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
 		reduceOnTargetId.mergeWith(rhs.reduceOnTargetId);
-		parallelism = Math.min(parallelism, rhs.parallelism);
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
+			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
 
 		return true;
 	}
@@ -137,12 +139,13 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 			.getEdges()
 			.map(mapEdgeToId)
 				.setParallelism(parallelism)
-				.name("Map edge to vertex ID");
+				.name("Edge to vertex ID");
 
 		// v, deg(v)
 		DataSet<Vertex<K, LongValue>> degree = vertexIds
 			.groupBy(0)
 			.reduce(new DegreeCount<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Degree count");
 
@@ -154,7 +157,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 				.equalTo(0)
 				.with(new JoinVertexWithVertexDegree<K, VV>())
 					.setParallelism(parallelism)
-					.name("Join zero degree vertices");
+					.name("Zero degree vertices");
 		}
 
 		return degree;

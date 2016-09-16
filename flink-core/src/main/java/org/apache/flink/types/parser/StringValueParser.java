@@ -50,7 +50,7 @@ public class StringValueParser extends FieldParser<StringValue> {
 
 		final int delimLimit = limit - delimiter.length + 1;
 
-		if(quotedStringParsing == true && bytes[i] == quoteCharacter) {
+		if(quotedStringParsing && bytes[i] == quoteCharacter) {
 			// quoted string parsing enabled and first character is a quote
 			i++;
 

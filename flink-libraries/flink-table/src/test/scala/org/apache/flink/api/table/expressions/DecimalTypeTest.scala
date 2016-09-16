@@ -18,10 +18,9 @@
 
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{Row, Types}
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.junit.Test
@@ -79,37 +78,37 @@ class DecimalTypeTest extends ExpressionTestBase {
       Double.MinValue.toString)
 
     testAllApis(
-      Double.MinValue.cast(FLOAT_TYPE_INFO),
+      Double.MinValue.cast(Types.FLOAT),
       s"${Double.MinValue}.cast(FLOAT)",
       s"CAST(${Double.MinValue} AS FLOAT)",
       Float.NegativeInfinity.toString)
 
     testAllApis(
-      Byte.MinValue.cast(BYTE_TYPE_INFO),
+      Byte.MinValue.cast(Types.BYTE),
       s"(${Byte.MinValue}).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT)",
       Byte.MinValue.toString)
 
     testAllApis(
-      Byte.MinValue.cast(BYTE_TYPE_INFO) - 1.cast(BYTE_TYPE_INFO),
+      Byte.MinValue.cast(Types.BYTE) - 1.cast(Types.BYTE),
       s"(${Byte.MinValue}).cast(BYTE) - (1).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT) - CAST(1 AS TINYINT)",
       Byte.MaxValue.toString)
 
     testAllApis(
-      Short.MinValue.cast(SHORT_TYPE_INFO),
+      Short.MinValue.cast(Types.SHORT),
       s"(${Short.MinValue}).cast(SHORT)",
       s"CAST(${Short.MinValue} AS SMALLINT)",
       Short.MinValue.toString)
 
     testAllApis(
-      Int.MinValue.cast(INT_TYPE_INFO) - 1,
+      Int.MinValue.cast(Types.INT) - 1,
       s"(${Int.MinValue}).cast(INT) - 1",
       s"CAST(${Int.MinValue} AS INT) - 1",
       Int.MaxValue.toString)
 
     testAllApis(
-      Long.MinValue.cast(LONG_TYPE_INFO),
+      Long.MinValue.cast(Types.LONG),
       s"(${Long.MinValue}L).cast(LONG)",
       s"CAST(${Long.MinValue} AS BIGINT)",
       Long.MinValue.toString)
@@ -119,51 +118,51 @@ class DecimalTypeTest extends ExpressionTestBase {
   def testDecimalCasting(): Unit = {
     // from String
     testTableApi(
-      "123456789123456789123456789".cast(BIG_DEC_TYPE_INFO),
+      "123456789123456789123456789".cast(Types.DECIMAL),
       "'123456789123456789123456789'.cast(DECIMAL)",
       "123456789123456789123456789")
 
     // from double
     testAllApis(
-      'f3.cast(BIG_DEC_TYPE_INFO),
+      'f3.cast(Types.DECIMAL),
       "f3.cast(DECIMAL)",
       "CAST(f3 AS DECIMAL)",
       "4.2")
 
     // to double
     testAllApis(
-      'f0.cast(DOUBLE_TYPE_INFO),
+      'f0.cast(Types.DOUBLE),
       "f0.cast(DOUBLE)",
       "CAST(f0 AS DOUBLE)",
       "1.2345678912345679E8")
 
     // to int
     testAllApis(
-      'f4.cast(INT_TYPE_INFO),
+      'f4.cast(Types.INT),
       "f4.cast(INT)",
       "CAST(f4 AS INT)",
       "123456789")
 
     // to long
     testAllApis(
-      'f4.cast(LONG_TYPE_INFO),
+      'f4.cast(Types.LONG),
       "f4.cast(LONG)",
       "CAST(f4 AS BIGINT)",
       "123456789")
 
     // to boolean (not SQL compliant)
     testTableApi(
-      'f1.cast(BOOLEAN_TYPE_INFO),
+      'f1.cast(Types.BOOLEAN),
       "f1.cast(BOOL)",
       "true")
 
     testTableApi(
-      'f5.cast(BOOLEAN_TYPE_INFO),
+      'f5.cast(Types.BOOLEAN),
       "f5.cast(BOOL)",
       "false")
 
     testTableApi(
-      BigDecimal("123456789.123456789123456789").cast(DOUBLE_TYPE_INFO),
+      BigDecimal("123456789.123456789123456789").cast(Types.DOUBLE),
       "(123456789.123456789123456789p).cast(DOUBLE)",
       "1.2345678912345679E8")
   }
@@ -300,12 +299,12 @@ class DecimalTypeTest extends ExpressionTestBase {
 
   def typeInfo = {
     new RowTypeInfo(Seq(
-      BIG_DEC_TYPE_INFO,
-      BIG_DEC_TYPE_INFO,
-      INT_TYPE_INFO,
-      DOUBLE_TYPE_INFO,
-      BIG_DEC_TYPE_INFO,
-      BIG_DEC_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
+      Types.DECIMAL,
+      Types.DECIMAL,
+      Types.INT,
+      Types.DOUBLE,
+      Types.DECIMAL,
+      Types.DECIMAL)).asInstanceOf[TypeInformation[Any]]
   }
 
 }

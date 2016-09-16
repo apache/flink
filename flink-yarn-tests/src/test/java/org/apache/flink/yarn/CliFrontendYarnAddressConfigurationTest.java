@@ -97,14 +97,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 		System.setErr(ERR);
 	}
 
-	@Before
-	public void clearConfig() throws NoSuchFieldException, IllegalAccessException {
-		// reset GlobalConfiguration between tests
-		Field instance = GlobalConfiguration.class.getDeclaredField("SINGLETON");
-		instance.setAccessible(true);
-		instance.set(null, null);
-	}
-
 	private static final String TEST_YARN_JOB_MANAGER_ADDRESS = "22.33.44.55";
 	private static final int TEST_YARN_JOB_MANAGER_PORT = 6655;
 	private static final ApplicationId TEST_YARN_APPLICATION_ID =
@@ -210,7 +202,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 				CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
 
 		frontend.retrieveClient(options);
-		String zkNs = frontend.getConfiguration().getString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, "error");
+		String zkNs = frontend.getConfiguration().getString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, "error");
 		Assert.assertTrue(zkNs.matches("application_\\d+_0042"));
 	}
 
@@ -224,7 +216,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 				CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString(), "-yz", overrideZkNamespace});
 
 		frontend.retrieveClient(options);
-		String zkNs = frontend.getConfiguration().getString(ConfigConstants.ZOOKEEPER_NAMESPACE_KEY, "error");
+		String zkNs = frontend.getConfiguration().getString(ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY, "error");
 		Assert.assertEquals(overrideZkNamespace, zkNs);
 	}
 

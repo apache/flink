@@ -24,18 +24,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import static java.util.Objects.requireNonNull;
 
@@ -125,7 +125,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		
 		// decide when to first compute the window and when to slide it
 		// the values should align with the start of time (that is, the UNIX epoch, not the big bang)
-		final long now = System.currentTimeMillis();
+		final long now = getRuntimeContext().getCurrentProcessingTime();
 		nextEvaluationTime = now + windowSlide - (now % windowSlide);
 		nextSlideTime = now + paneSize - (now % paneSize);
 
@@ -178,7 +178,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 
 	@Override
-	public void dispose() {
+	public void dispose() throws Exception {
 		super.dispose();
 		
 		// acquire the lock during shutdown, to prevent trigger calls at the same time
@@ -244,36 +244,35 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-		
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+		super.snapshotState(out, checkpointId, timestamp);
+
 		// we write the panes with the key/value maps into the stream, as well as when this state
 		// should have triggered and slided
-		AbstractStateBackend.CheckpointStateOutputView out =
-				getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
-		out.writeLong(nextEvaluationTime);
-		out.writeLong(nextSlideTime);
-		panes.writeToOutput(out, keySerializer, stateTypeSerializer);
-		
-		taskState.setOperatorState(out.closeAndGetHandle());
-		return taskState;
+		DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(out);
+
+		outView.writeLong(nextEvaluationTime);
+		outView.writeLong(nextSlideTime);
+
+		panes.writeToOutput(outView, keySerializer, stateTypeSerializer);
+
+		outView.flush();
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState) throws Exception {
-		super.restoreState(taskState);
+	public void restoreState(FSDataInputStream in) throws Exception {
+		super.restoreState(in);
 
-		@SuppressWarnings("unchecked")
-		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
-		DataInputView in = inputState.getState(getUserCodeClassloader());
-		
-		final long nextEvaluationTime = in.readLong();
-		final long nextSlideTime = in.readLong();
+		DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
+
+		final long nextEvaluationTime = inView.readLong();
+		final long nextSlideTime = inView.readLong();
 
 		AbstractKeyedTimePanes<IN, KEY, STATE, OUT> panes = createPanes(keySelector, function);
-		panes.readFromInput(in, keySerializer, stateTypeSerializer);
-		
+
+		panes.readFromInput(inView, keySerializer, stateTypeSerializer);
+
 		restoredState = new RestoredState<>(panes, nextEvaluationTime, nextSlideTime);
 	}
 

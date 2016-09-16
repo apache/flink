@@ -90,4 +90,9 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	public void sync() throws IOException {
 		fos.getFD().sync();
 	}
+
+	@Override
+	public long getPos() throws IOException {
+		return fos.getChannel().position();
+	}
 }

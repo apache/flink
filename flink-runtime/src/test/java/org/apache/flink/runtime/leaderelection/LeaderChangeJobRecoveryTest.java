@@ -18,28 +18,28 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Before;
 import org.junit.Test;
+
 import scala.concurrent.Await;
-import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
-import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
@@ -113,15 +113,12 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		ExecutionGraph executionGraph = ((TestingJobManagerMessages.ExecutionGraphFound) responseExecutionGraph).executionGraph();
 
-		TestActorGateway testActorGateway = new TestActorGateway();
-
-		executionGraph.registerJobStatusListener(testActorGateway);
+		TestJobStatusListener testListener = new TestJobStatusListener();
+		executionGraph.registerJobStatusListener(testListener);
 
 		cluster.revokeLeadership();
 
-		Future<Boolean> hasReachedTerminalState = testActorGateway.hasReachedTerminalState();
-
-		assertTrue("The job should have reached a terminal state.", Await.result(hasReachedTerminalState, timeout));
+		testListener.waitForTerminalState(30000);
 	}
 
 	public JobGraph createBlockingJob(int parallelism) {
@@ -150,59 +147,19 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 		return jobGraph;
 	}
 
-	public static class TestActorGateway implements ActorGateway {
+	public static class TestJobStatusListener implements JobStatusListener {
 
-		private static final long serialVersionUID = -736146686160538227L;
-		private transient Promise<Boolean> terminalState = new scala.concurrent.impl.Promise.DefaultPromise<>();
+		private final OneShotLatch terminalStateLatch = new OneShotLatch();
 
-		public Future<Boolean> hasReachedTerminalState() {
-			return terminalState.future();
+		public void waitForTerminalState(long timeoutMillis) throws InterruptedException, TimeoutException {
+			terminalStateLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
 		}
 
 		@Override
-		public Future<Object> ask(Object message, FiniteDuration timeout) {
-			return null;
-		}
-
-		@Override
-		public void tell(Object message) {
-			this.tell(message, new AkkaActorGateway(ActorRef.noSender(), null));
-		}
-
-		@Override
-		public void tell(Object message, ActorGateway sender) {
-			if (message instanceof ExecutionGraphMessages.JobStatusChanged) {
-				ExecutionGraphMessages.JobStatusChanged jobStatusChanged = (ExecutionGraphMessages.JobStatusChanged) message;
-
-				if (jobStatusChanged.newJobStatus().isGloballyTerminalState() || jobStatusChanged.newJobStatus() == JobStatus.SUSPENDED) {
-					terminalState.success(true);
-				}
+		public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp, Throwable error) {
+			if (newJobStatus.isGloballyTerminalState() || newJobStatus == JobStatus.SUSPENDED) {
+				terminalStateLatch.trigger();
 			}
-		}
-
-		@Override
-		public void forward(Object message, ActorGateway sender) {
-
-		}
-
-		@Override
-		public Future<Object> retry(Object message, int numberRetries, FiniteDuration timeout, ExecutionContext executionContext) {
-			return null;
-		}
-
-		@Override
-		public String path() {
-			return null;
-		}
-
-		@Override
-		public ActorRef actor() {
-			return null;
-		}
-
-		@Override
-		public UUID leaderSessionID() {
-			return null;
 		}
 	}
 }

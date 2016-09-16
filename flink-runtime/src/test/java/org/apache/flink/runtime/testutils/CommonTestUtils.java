@@ -51,7 +51,7 @@ public class CommonTestUtils {
 			try {
 				Thread.sleep(remaining);
 			}
-			catch (InterruptedException e) {}
+			catch (InterruptedException ignored) {}
 			
 			now = System.currentTimeMillis();
 		}
@@ -137,8 +137,7 @@ public class CommonTestUtils {
 	}
 
 	public static void printLog4jDebugConfig(File file) throws IOException {
-		FileWriter fw = new FileWriter(file);
-		try {
+		try (FileWriter fw = new FileWriter(file)) {
 			PrintWriter writer = new PrintWriter(fw);
 
 			writer.println("log4j.rootLogger=DEBUG, console");
@@ -152,9 +151,6 @@ public class CommonTestUtils {
 			writer.flush();
 			writer.close();
 		}
-		finally {
-			fw.close();
-		}
 	}
 
 	public static File createTempDirectory() throws IOException {
@@ -165,7 +161,6 @@ public class CommonTestUtils {
 			if (!dir.exists() && dir.mkdirs()) {
 				return dir;
 			}
-			System.err.println("Could not use temporary directory " + dir.getAbsolutePath());
 		}
 
 		throw new IOException("Could not create temporary file directory");

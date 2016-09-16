@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.Config;
@@ -27,16 +28,18 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
-import com.google.common.collect.Sets;
+
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
 import org.apache.flink.storm.util.TestSink;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -47,6 +50,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+
+import static java.util.Collections.singleton;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -85,7 +90,7 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		WrapperSetupHelper.getNumberOfAttributes(boltOrSpout,
-				Sets.newHashSet(new String[] { Utils.DEFAULT_STREAM_ID }));
+				new HashSet<String>(singleton(Utils.DEFAULT_STREAM_ID)));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -143,8 +148,7 @@ public class WrapperSetupHelperTest extends AbstractTest {
 
 		Assert.assertEquals(attributes, WrapperSetupHelper.getNumberOfAttributes(
 				boltOrSpout,
-				numberOfAttributes == -1 ? Sets
-						.newHashSet(new String[] { Utils.DEFAULT_STREAM_ID }) : null));
+				numberOfAttributes == -1 ? new HashSet<String>(singleton(Utils.DEFAULT_STREAM_ID)) : null));
 	}
 
 	@Test

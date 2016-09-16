@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -93,6 +94,8 @@ public class RescalePartitionerTest extends TestLogger {
 
 		// get input data
 		DataStream<String> text = env.addSource(new ParallelSourceFunction<String>() {
+			private static final long serialVersionUID = 7772338606389180774L;
+
 			@Override
 			public void run(SourceContext<String> ctx) throws Exception {
 
@@ -107,6 +110,8 @@ public class RescalePartitionerTest extends TestLogger {
 		DataStream<Tuple2<String, Integer>> counts = text
 			.rescale()
 			.flatMap(new FlatMapFunction<String, Tuple2<String, Integer>>() {
+				private static final long serialVersionUID = -5255930322161596829L;
+
 				@Override
 				public void flatMap(String value,
 					Collector<Tuple2<String, Integer>> out) throws Exception {
@@ -142,7 +147,8 @@ public class RescalePartitionerTest extends TestLogger {
 			new NoRestartStrategy(),
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(),
-			ExecutionGraph.class.getClassLoader());
+			ExecutionGraph.class.getClassLoader(),
+			new UnregisteredMetricsGroup());
 		try {
 			eg.attachJobGraph(jobVertices);
 		}

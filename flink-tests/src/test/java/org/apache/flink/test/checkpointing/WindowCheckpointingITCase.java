@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -34,7 +35,6 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -71,7 +71,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
-	private static ForkableFlinkMiniCluster cluster;
+	private static LocalFlinkMiniCluster cluster;
 
 
 	@BeforeClass
@@ -81,7 +81,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 48);
 
-		cluster = new ForkableFlinkMiniCluster(config, false);
+		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
 	}
 
@@ -337,7 +337,6 @@ public class WindowCheckpointingITCase extends TestLogger {
 			// we loop longer than we have elements, to permit delayed checkpoints
 			// to still cause a failure
 			while (running) {
-
 				if (!failedBefore) {
 					// delay a bit, if we have not failed before
 					Thread.sleep(1);
@@ -350,17 +349,15 @@ public class WindowCheckpointingITCase extends TestLogger {
 				}
 
 				if (numElementsEmitted < numElementsToEmit &&
-						(failedBefore || numElementsEmitted <= failureAfterNumElements))
-				{
+						(failedBefore || numElementsEmitted <= failureAfterNumElements)) {
 					// the function failed before, or we are in the elements before the failure
 					synchronized (ctx.getCheckpointLock()) {
 						int next = numElementsEmitted++;
 						ctx.collect(new Tuple2<Long, IntType>((long) next, new IntType(next)));
 					}
-				}
-				else {
+				} else {
 					// if our work is done, delay a bit to prevent busy waiting
-					Thread.sleep(1);
+					Thread.sleep(10);
 				}
 			}
 		}
@@ -409,6 +406,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 		public void open(Configuration parameters) throws Exception {
 			// this sink can only work with DOP 1
 			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+			checkSuccess();
 		}
 
 		@Override
@@ -423,6 +421,10 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 			// check if we have seen all we expect
 			aggCount += value.f1.value;
+			checkSuccess();
+		}
+
+		private void checkSuccess() throws SuccessException {
 			if (aggCount >= elementCountExpected * countPerElementExpected) {
 				// we are done. validate
 				assertEquals(elementCountExpected, counts.size());

@@ -72,7 +72,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -153,9 +152,7 @@ public class CliFrontend {
 
 		// load the configuration
 		LOG.info("Trying to load configuration file");
-		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-		System.setProperty(ConfigConstants.ENV_FLINK_CONF_DIR, configDirectory.getAbsolutePath());
-		this.config = GlobalConfiguration.getConfiguration();
+		this.config = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
 		try {
 			FileSystem.setDefaultScheme(config);
@@ -729,7 +726,7 @@ public class CliFrontend {
 				logAndSysout("Disposing savepoint '" + savepointPath + "'.");
 			}
 
-			Object msg = new DisposeSavepoint(savepointPath, Option.apply(blobKeys));
+			Object msg = new DisposeSavepoint(savepointPath);
 			Future<Object> response = jobManager.ask(msg, clientTimeout);
 
 			Object result;
@@ -847,7 +844,7 @@ public class CliFrontend {
 		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
 		try {
 			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
-			logAndSysout("Using address " + client.getJobManagerAddressFromConfig() + " to connect to JobManager.");
+			logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
 			return client;
 		} catch (Exception e) {
 			LOG.error("Couldn't retrieve {} cluster.", customCLI.getId(), e);
@@ -898,7 +895,7 @@ public class CliFrontend {
 		}
 
 		// Avoid resolving the JobManager Gateway here to prevent blocking until we invoke the user's program.
-		final InetSocketAddress jobManagerAddress = client.getJobManagerAddressFromConfig();
+		final InetSocketAddress jobManagerAddress = client.getJobManagerAddress();
 		logAndSysout("Using address " + jobManagerAddress.getHostString() + ":" + jobManagerAddress.getPort() + " to connect to JobManager.");
 		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
 		return client;
@@ -1028,7 +1025,7 @@ public class CliFrontend {
 			default:
 				System.out.printf("\"%s\" is not a valid action.\n", action);
 				System.out.println();
-				System.out.println("Valid actions are \"run\", \"list\", \"info\", \"stop\", or \"cancel\".");
+				System.out.println("Valid actions are \"run\", \"list\", \"info\", \"savepoint\", \"stop\", or \"cancel\".");
 				System.out.println();
 				System.out.println("Specify the version option (-v or --version) to print Flink version.");
 				System.out.println();
@@ -1060,8 +1057,7 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	public static String getConfigurationDirectoryFromEnv() {
-		String envLocation = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		String location = envLocation != null ? envLocation : System.getProperty(ConfigConstants.ENV_FLINK_CONF_DIR);
+		String location = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 
 		if (location != null) {
 			if (new File(location).exists()) {

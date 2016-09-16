@@ -80,8 +80,11 @@ public class MergingWindowSet<W extends Window> {
 		this.windowAssigner = windowAssigner;
 		windows = new HashMap<>();
 
-		for (Tuple2<W, W> window: state.get()) {
-			windows.put(window.f0, window.f1);
+		Iterable<Tuple2<W, W>> windowState = state.get();
+		if (windowState != null) {
+			for (Tuple2<W, W> window: windowState) {
+				windows.put(window.f0, window.f1);
+			}
 		}
 	}
 
@@ -100,12 +103,7 @@ public class MergingWindowSet<W extends Window> {
 	 * @param window The window for which to get the state window.
 	 */
 	public W getStateWindow(W window) {
-		W result = windows.get(window);
-		if (result == null) {
-			throw new IllegalStateException("Window " + window + " is not in in-flight window set.");
-		}
-
-		return result;
+		return windows.get(window);
 	}
 
 	/**
@@ -203,7 +201,7 @@ public class MergingWindowSet<W extends Window> {
 		}
 
 		// the new window created a new, self-contained window without merging
-		if (resultWindow.equals(newWindow)) {
+		if (resultWindow.equals(newWindow) && mergeResults.isEmpty()) {
 			this.windows.put(resultWindow, resultWindow);
 		}
 
@@ -226,5 +224,12 @@ public class MergingWindowSet<W extends Window> {
 		 * @throws Exception
 		 */
 		void merge(W mergeResult, Collection<W> mergedWindows, W stateWindowResult, Collection<W> mergedStateWindows) throws Exception;
+	}
+
+	@Override
+	public String toString() {
+		return "MergingWindowSet{" +
+				"windows=" + windows +
+				'}';
 	}
 }

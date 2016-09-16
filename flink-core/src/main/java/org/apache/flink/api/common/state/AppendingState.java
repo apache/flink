@@ -46,8 +46,14 @@ public interface AppendingState<IN, OUT> extends State {
 	 * operator instance. If state partitioning is applied, the value returned
 	 * depends on the current operator input, as the operator maintains an
 	 * independent state for each partition.
-	 * 
-	 * @return The operator state value corresponding to the current input.
+	 *
+	 * <p>
+	 *     <b>NOTE TO IMPLEMENTERS:</b> if the state is empty, then this method
+	 *     should return {@code null}.
+	 * </p>
+	 *
+	 * @return The operator state value corresponding to the current input or {@code null}
+	 * if the state is empty.
 	 * 
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */

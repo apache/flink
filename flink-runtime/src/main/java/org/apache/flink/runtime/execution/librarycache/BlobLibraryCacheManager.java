@@ -77,7 +77,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 
 		// Initializing the clean up task
 		this.cleanupTimer = new Timer(true);
-		this.cleanupTimer.schedule(this, cleanupInterval);
+		this.cleanupTimer.schedule(this, cleanupInterval, cleanupInterval);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -200,6 +200,12 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 
 	@Override
 	public void shutdown() throws IOException{
+		try {
+			run();
+		} catch (Throwable t) {
+			LOG.warn("Failed to run clean up task before shutdown", t);
+		}
+
 		blobService.shutdown();
 		cleanupTimer.cancel();
 	}
@@ -210,7 +216,6 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	@Override
 	public void run() {
 		synchronized (lockObject) {
-			
 			Iterator<Map.Entry<BlobKey, Integer>> entryIter = blobKeyReferenceCounters.entrySet().iterator();
 			
 			while (entryIter.hasNext()) {

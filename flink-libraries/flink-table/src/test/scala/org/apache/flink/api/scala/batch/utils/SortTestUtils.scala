@@ -42,8 +42,17 @@ object SortTestUtils {
     ,(20, 6L, "Comment#14")
     ,(21, 6L, "Comment#15"))
 
-  def sortExpectedly(dataSet: List[Product])(implicit ordering: Ordering[Product]): String = {
-    dataSet.sorted(ordering).mkString("\n").replaceAll("[\\(\\)]", "")
+  def sortExpectedly(dataSet: List[Product])
+                    (implicit ordering: Ordering[Product]): String = 
+    sortExpectedly(dataSet, 0, dataSet.length)
+
+  def sortExpectedly(dataSet: List[Product], start: Int, end: Int)
+                    (implicit ordering: Ordering[Product]): String = {
+    dataSet
+      .sorted(ordering)
+      .slice(start, end)
+      .mkString("\n")
+      .replaceAll("[\\(\\)]", "")
   }
 
 }

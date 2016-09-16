@@ -19,12 +19,12 @@
 package org.apache.flink.yarn
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.taskmanager.TaskManagerConfiguration
+import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManagerLocation}
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
 
 /** [[YarnTaskManager]] implementation which mixes in the [[TestingTaskManagerLike]] mixin.
@@ -43,14 +43,15 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
   *                              JobManager
   */
 class TestingYarnTaskManager(
-    config: TaskManagerConfiguration,
-    resourceID: ResourceID,
-    connectionInfo: InstanceConnectionInfo,
-    memoryManager: MemoryManager,
-    ioManager: IOManager,
-    network: NetworkEnvironment,
-    numberOfSlots: Int,
-    leaderRetrievalService: LeaderRetrievalService)
+                              config: TaskManagerConfiguration,
+                              resourceID: ResourceID,
+                              connectionInfo: TaskManagerLocation,
+                              memoryManager: MemoryManager,
+                              ioManager: IOManager,
+                              network: NetworkEnvironment,
+                              numberOfSlots: Int,
+                              leaderRetrievalService: LeaderRetrievalService,
+                              metricRegistry : MetricRegistry)
   extends YarnTaskManager(
     config,
     resourceID,
@@ -59,12 +60,14 @@ class TestingYarnTaskManager(
     ioManager,
     network,
     numberOfSlots,
-    leaderRetrievalService)
+    leaderRetrievalService,
+    metricRegistry)
   with TestingTaskManagerLike {
 
   object YarnTaskManager {
 
     /** Entry point (main method) to run the TaskManager on YARN.
+ *
       * @param args The command line arguments.
       */
     def main(args: Array[String]): Unit = {

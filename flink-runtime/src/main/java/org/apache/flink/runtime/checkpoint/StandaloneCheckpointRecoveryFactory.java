@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 /**
- * {@link CheckpointCoordinator} components in {@link RecoveryMode#STANDALONE}.
+ * {@link CheckpointCoordinator} components in {@link HighAvailabilityMode#NONE}.
  */
 public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
 
@@ -37,7 +37,7 @@ public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFa
 	}
 
 	@Override
-	public CompletedCheckpointStore createCompletedCheckpoints(JobID jobId, ClassLoader userClassLoader)
+	public CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader)
 			throws Exception {
 
 		return new StandaloneCompletedCheckpointStore(CheckpointRecoveryFactory

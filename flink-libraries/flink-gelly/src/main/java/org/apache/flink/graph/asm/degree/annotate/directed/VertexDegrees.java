@@ -21,9 +21,9 @@ package org.apache.flink.graph.asm.degree.annotate.directed;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -33,7 +33,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.utils.Murmur3_32;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.LongValue;
@@ -50,7 +50,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class VertexDegrees<K, VV, EV>
-extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
+extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 
 	// Optional configuration
 	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
@@ -86,11 +86,11 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 
 	@Override
 	protected String getAlgorithmName() {
-		return VertexOutDegree.class.getName();
+		return VertexDegrees.class.getName();
 	}
 
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
 		if (! VertexDegrees.class.isAssignableFrom(other.getClass())) {
@@ -108,7 +108,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 		// merge configurations
 
 		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
-		parallelism = Math.min(parallelism, rhs.parallelism);
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
+			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
 
 		return true;
 	}
@@ -122,7 +123,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 				.setParallelism(parallelism)
 				.name("Emit and flip edge")
 			.groupBy(0, 1)
-				.reduce(new ReduceBitmask<K>())
+			.reduceGroup(new ReduceBitmask<K>())
 				.setParallelism(parallelism)
 				.name("Reduce bitmask");
 
@@ -141,7 +142,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 				.equalTo(0)
 				.with(new JoinVertexWithVertexDegrees<K, VV>())
 					.setParallelism(parallelism)
-					.name("Join zero degree vertices");
+					.name("Zero degree vertices");
 		}
 
 		return vertexDegrees;
@@ -177,13 +178,23 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	 *
 	 * @param <T> ID type
 	 */
-	private static class ReduceBitmask<T>
-	implements ReduceFunction<Tuple3<T, T, ByteValue>> {
+	@ForwardedFields("0; 1")
+	private static final class ReduceBitmask<T>
+	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple3<T, T, ByteValue>> {
 		@Override
-		public Tuple3<T, T, ByteValue> reduce(Tuple3<T, T, ByteValue> left, Tuple3<T, T, ByteValue> right)
+		public void reduce(Iterable<Tuple3<T, T, ByteValue>> values, Collector<Tuple3<T, T, ByteValue>> out)
 				throws Exception {
-			left.f2.setValue((byte)(left.f2.getValue() | right.f2.getValue()));
-			return left;
+			Tuple3<T, T, ByteValue> output = null;
+
+			byte bitmask = 0;
+
+			for (Tuple3<T, T, ByteValue> value: values) {
+				output = value;
+				bitmask |= value.f2.getValue();
+			}
+
+			output.f2.setValue(bitmask);
+			out.collect(output);
 		}
 	}
 

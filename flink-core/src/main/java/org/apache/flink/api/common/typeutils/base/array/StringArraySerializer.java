@@ -42,7 +42,7 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 	
 	@Override
 	public boolean isImmutableType() {
-		return true;
+		return false;
 	}
 
 	@Override

@@ -32,7 +32,8 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     relBuilder
       .getRexBuilder
-      .makeCast(
+      // we use abstract cast here because RelBuilder.cast() has to many side effects
+      .makeAbstractCast(
         typeFactory.createTypeFromTypeInfo(resultType),
         child.toRexNode)
   }

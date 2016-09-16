@@ -219,6 +219,10 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
+		 * 
+		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
+		 * Due to binary backwards compatibility, this cannot be altered. Use the {@link #with(JoinFunction)}
+		 * method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(JoinFunction<T1, T2, T> function) {
 			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
@@ -237,6 +241,27 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
+		 *
+		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(JoinFunction)}
+		 * method has the wrong return type and hence does not allow one to set an operator-specific
+		 * parallelism
+		 * 
+		 * @deprecated This method will be removed once the {@link #apply(JoinFunction)} method is fixed
+		 *             in the next major version of Flink (2.0).
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(JoinFunction<T1, T2, T> function) {
+			return (SingleOutputStreamOperator<T>) apply(function);
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
+		 * 
+		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
+		 * Due to binary backwards compatibility, this cannot be altered. Use the
+		 * {@link #with(JoinFunction, TypeInformation)}, method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(FlatJoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
@@ -252,9 +277,31 @@ public class JoinedStreams<T1, T2> {
 
 		}
 
+
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
+		 *
+		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(JoinFunction, TypeInformation)}
+		 * method has the wrong return type and hence does not allow one to set an operator-specific
+		 * parallelism
+		 *
+		 * @deprecated This method will be replaced by {@link #apply(FlatJoinFunction, TypeInformation)} in Flink 2.0.
+		 * So use the {@link #apply(FlatJoinFunction, TypeInformation)} in the future.
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(FlatJoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+			return (SingleOutputStreamOperator<T>) apply(function, resultType);
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
+		 * 
+		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
+		 * Due to binary backwards compatibility, this cannot be altered. Use the
+		 * {@link #with(FlatJoinFunction)}, method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(FlatJoinFunction<T1, T2, T> function) {
 			TypeInformation<T> resultType = TypeExtractor.getBinaryOperatorReturnType(
@@ -273,6 +320,27 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
+		 *
+		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(FlatJoinFunction)}
+		 * method has the wrong return type and hence does not allow one to set an operator-specific
+		 * parallelism.
+		 * 
+		 * @deprecated This method will be removed once the {@link #apply(FlatJoinFunction)}
+		 *             method is fixed in the next major version of Flink (2.0).
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(FlatJoinFunction<T1, T2, T> function) {
+			return (SingleOutputStreamOperator<T>) apply(function);
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
+		 * 
+		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
+		 * Due to binary backwards compatibility, this cannot be altered. Use the
+		 * {@link #with(JoinFunction, TypeInformation)}, method to set an operator-specific parallelism.
 		 */
 		public <T> DataStream<T> apply(JoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
@@ -286,6 +354,23 @@ public class JoinedStreams<T1, T2> {
 					.evictor(evictor)
 					.apply(new JoinCoGroupFunction<>(function), resultType);
 
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
+		 *
+		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(FlatJoinFunction, TypeInformation)}
+		 * method has the wrong return type and hence does not allow one to set an operator-specific
+		 * parallelism
+		 * 
+		 * @deprecated This method will be removed once the {@link #apply(JoinFunction, TypeInformation)}
+		 *             method is fixed in the next major version of Flink (2.0).
+		 */
+		@PublicEvolving
+		@Deprecated
+		public <T> SingleOutputStreamOperator<T> with(JoinFunction<T1, T2, T> function, TypeInformation<T> resultType) {
+			return (SingleOutputStreamOperator<T>) apply(function, resultType);
 		}
 	}
 	

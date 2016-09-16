@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
-import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
+import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -59,10 +59,28 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+    * Sets the maximum degree of parallelism defined for the program.
+    * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+    * defines the number of key groups used for partitioned state.
+    **/
+  def setMaxParallelism(maxParallelism: Int): Unit = {
+    javaEnv.setMaxParallelism(maxParallelism)
+  }
+
+  /**
    * Returns the default parallelism for this execution environment. Note that this
    * value can be overridden by individual operations using [[DataStream#setParallelism(int)]]
    */
   def getParallelism = javaEnv.getParallelism
+
+  /**
+    * Returns the maximum degree of parallelism defined for the program.
+    *
+    * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+    * defines the number of key groups used for partitioned state.
+    *
+    */
+  def getMaxParallelism = javaEnv.getMaxParallelism
 
   /**
    * Sets the maximum time frequency (milliseconds) for the flushing of the
@@ -467,6 +485,40 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
     * Reads the contents of the user-specified path based on the given [[FileInputFormat]].
+    * Depending on the provided [[FileProcessingMode]].
+    *
+    * @param inputFormat
+    *          The input format used to create the data stream
+    * @param filePath
+    *          The path of the file, as a URI (e.g., "file:///some/local/file" or
+    *          "hdfs://host:port/file/path")
+    * @param watchType
+    *          The mode in which the source should operate, i.e. monitor path and react
+    *          to new data, or process once and exit
+    * @param interval
+    *          In the case of periodic path monitoring, this specifies the interval (in millis)
+    *          between consecutive path scans
+    * @param filter
+    *          The files to be excluded from the processing
+    * @return The data stream that represents the data read from the given file
+    *
+    * @deprecated Use {@link FileInputFormat#setFilesFilter(FilePathFilter)} to set a filter and
+    *         {@link StreamExecutionEnvironment#readFile(FileInputFormat,
+      *              String, FileProcessingMode, long)}
+    */
+  @PublicEvolving
+  @Deprecated
+  def readFile[T: TypeInformation](
+                                    inputFormat: FileInputFormat[T],
+                                    filePath: String,
+                                    watchType: FileProcessingMode,
+                                    interval: Long,
+                                    filter: FilePathFilter): DataStream[T] = {
+    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, filter))
+  }
+
+  /**
+    * Reads the contents of the user-specified path based on the given [[FileInputFormat]].
     * Depending on the provided [[FileProcessingMode]], the source
     * may periodically monitor (every `interval` ms) the path for new data
     * ([[FileProcessingMode.PROCESS_CONTINUOUSLY]]), or process
@@ -496,8 +548,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * @param interval
     *          In the case of periodic path monitoring, this specifies the interval (in millis)
     *          between consecutive path scans
-    * @param filter
-    *          The files to be excluded from the processing
     * @return The data stream that represents the data read from the given file
     */
   @PublicEvolving
@@ -505,10 +555,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
       inputFormat: FileInputFormat[T],
       filePath: String,
       watchType: FileProcessingMode,
-      interval: Long,
-      filter: FilePathFilter): DataStream[T] = {
+      interval: Long): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, filter, typeInfo))
+    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, typeInfo))
   }
 
   /**

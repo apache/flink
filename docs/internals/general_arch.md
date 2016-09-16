@@ -1,9 +1,8 @@
 ---
 title:  "General Architecture and Process Model"
-# Top navigation
-top-nav-group: internals
-top-nav-pos: 3
-top-nav-title: Architecture and Process Model
+nav-title: Architecture and Process Model
+nav-parent_id: internals
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -39,7 +38,7 @@ into the parallel data flow form that is executed by the JobManager and TaskMana
 illustrates the different actors in the system and their interactions.
 
 <div style="text-align: center;">
-<img src="../fig/process_model.svg" width="100%" alt="Flink Process Model">
+<img src="{{ site.baseurl }}/fig/process_model.svg" width="100%" alt="Flink Process Model">
 </div>
 
 ## Component Stack
@@ -63,17 +62,17 @@ Table for queries on logical tables, FlinkML for Machine Learning, and Gelly for
 You can click on the components in the figure to learn more.
 
 <center>
-  <img src="../fig/stack.png" width="700px" alt="Apache Flink: Stack" usemap="#overview-stack">
+  <img src="{{ site.baseurl }}/fig/stack.png" width="700px" alt="Apache Flink: Stack" usemap="#overview-stack">
 </center>
 
 <map name="overview-stack">
-<area id="lib-datastream-cep" title="CEP: Complex Event Processing" href="{{ site.baseurl }}/apis/streaming/libs/cep.html" shape="rect" coords="63,0,143,177" />
-<area id="lib-datastream-table" title="Table: Relational DataStreams" href="{{ site.baseurl }}/apis/batch/libs/table.html" shape="rect" coords="143,0,223,177" />
-<area id="lib-dataset-ml" title="FlinkML: Machine Learning" href="{{ site.baseurl }}/apis/batch/libs/ml/index.html" shape="rect" coords="382,2,462,176" />
-<area id="lib-dataset-gelly" title="Gelly: Graph Processing" href="{{ site.baseurl }}/apis/batch/libs/gelly.html" shape="rect" coords="461,0,541,177" />
-<area id="lib-dataset-table" title="Table: Relational DataSets" href="{{ site.baseurl }}/apis/batch/libs/table.html" shape="rect" coords="544,0,624,177" />
-<area id="datastream" title="DataStream API" href="{{ site.baseurl }}/apis/streaming/index.html" shape="rect" coords="64,177,379,255" />
-<area id="dataset" title="DataSet API" href="{{ site.baseurl }}/apis/batch/index.html" shape="rect" coords="382,177,697,255" />
+<area id="lib-datastream-cep" title="CEP: Complex Event Processing" href="{{ site.baseurl }}/dev/libs/cep.html" shape="rect" coords="63,0,143,177" />
+<area id="lib-datastream-table" title="Table: Relational DataStreams" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="143,0,223,177" />
+<area id="lib-dataset-ml" title="FlinkML: Machine Learning" href="{{ site.baseurl }}/dev/libs/ml/index.html" shape="rect" coords="382,2,462,176" />
+<area id="lib-dataset-gelly" title="Gelly: Graph Processing" href="{{ site.baseurl }}/dev/libs/gelly/index.html" shape="rect" coords="461,0,541,177" />
+<area id="lib-dataset-table" title="Table API and SQL" href="{{ site.baseurl }}/dev/table_api.html" shape="rect" coords="544,0,624,177" />
+<area id="datastream" title="DataStream API" href="{{ site.baseurl }}/dev/datastream_api.html" shape="rect" coords="64,177,379,255" />
+<area id="dataset" title="DataSet API" href="{{ site.baseurl }}/dev/batch/index.html" shape="rect" coords="382,177,697,255" />
 <area id="runtime" title="Runtime" href="{{ site.baseurl }}/internals/general_arch.html" shape="rect" coords="63,257,700,335" />
 <area id="local" title="Local" href="{{ site.baseurl }}/setup/local_setup.html" shape="rect" coords="62,337,275,414" />
 <area id="cluster" title="Cluster" href="{{ site.baseurl }}/setup/cluster_setup.html" shape="rect" coords="273,336,486,413" />
@@ -89,7 +88,7 @@ of smaller sub-modules.
 The individual projects and their dependencies are shown in the figure below.
 
 <div style="text-align: center;">
-<img src="fig/projects_dependencies.svg" alt="The Flink sub-projects and their dependencies" height="600px" style="text-align: center;"/>
+<img src="{{ site.baseurl }}/fig/projects_dependencies.svg" alt="The Flink sub-projects and their dependencies" height="600px" style="text-align: center;"/>
 </div>
 
 In addition to the projects listed in the figure above, Flink currently contains the following sub-projects:
@@ -100,8 +99,3 @@ into the final folder structure that is ready to use.
 - `flink-quickstart`: Scripts, maven archetypes, and example programs for the quickstarts and tutorials.
 
 - `flink-contrib`: A series of projects that are in an early version and useful tools contributed by users. The code for the latter is maintained mainly by external contributors. The requirements for code being accepted into `flink-contrib` are lower compared to the rest of the code.
-
-
-
-
-

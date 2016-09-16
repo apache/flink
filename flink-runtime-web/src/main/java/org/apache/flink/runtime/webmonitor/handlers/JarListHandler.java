@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
 
@@ -94,20 +93,23 @@ public class JarListHandler implements RequestHandler {
 				} catch (IOException ignored) {
 					// we simply show no entries here
 				}
-				
+
 				// show every entry class that can be loaded later on.
-				PackagedProgram program;
 				for (String clazz : classes) {
 					clazz = clazz.trim();
+
+					PackagedProgram program = null;
 					try {
 						program = new PackagedProgram(f, clazz, new String[0]);
+					} catch (Exception ignored) {
+						// ignore jar files which throw an error upon creating a PackagedProgram
+					}
+					if (program != null) {
 						gen.writeStartObject();
 						gen.writeStringField("name", clazz);
 						String desc = program.getDescription();
 						gen.writeStringField("description", desc == null ? "No description provided" : desc);
 						gen.writeEndObject();
-					} catch (ProgramInvocationException e) {
-						//
 					}
 				}
 				gen.writeEndArray();

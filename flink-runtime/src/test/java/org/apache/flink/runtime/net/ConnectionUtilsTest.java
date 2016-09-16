@@ -17,18 +17,30 @@
  */
 package org.apache.flink.runtime.net;
 
-import static org.junit.Assert.*;
-
-import org.apache.flink.util.OperatingSystem;
-import org.junit.Test;
-
+import java.io.IOException;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.UnknownHostException;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the network utilities.
  */
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(ConnectionUtils.class)
 public class ConnectionUtilsTest {
 
 	@Test
@@ -42,7 +54,8 @@ public class ConnectionUtilsTest {
 			InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
 
 			// check that it did not take forever
-			assertTrue(System.currentTimeMillis() - start < (OperatingSystem.isWindows() ? 30000 : 8000));
+			// this check can unfortunately not be too tight, or it will be flaky on some CI infrastructure
+			assertTrue(System.currentTimeMillis() - start < 30000);
 
 			// we should have found a heuristic address
 			assertNotNull(add);
@@ -53,6 +66,38 @@ public class ConnectionUtilsTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testFindConnectingAddressWhenGetLocalHostThrows() throws Exception {
+		PowerMockito.mockStatic(InetAddress.class);
+		Mockito.when(InetAddress.getLocalHost()).thenThrow(new UnknownHostException()).thenCallRealMethod();
+
+		final InetAddress loopbackAddress = Inet4Address.getByName("127.0.0.1");
+		Thread socketServerThread;
+		try (ServerSocket socket = new ServerSocket(0, 1, loopbackAddress)) {
+			// Make sure that the thread will eventually die even if something else goes wrong
+			socket.setSoTimeout(10_000);
+			socketServerThread = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						socket.accept();
+					} catch (IOException e) {
+						// ignore
+					}
+				}
+			});
+			socketServerThread.start();
+
+			final InetSocketAddress socketAddress = new InetSocketAddress(loopbackAddress, socket.getLocalPort());
+			final InetAddress address = ConnectionUtils.findConnectingAddress(
+				socketAddress, 2000, 400);
+
+			PowerMockito.verifyStatic();
+			// Make sure we got an address via alternative means
+			assertNotNull(address);
 		}
 	}
 }

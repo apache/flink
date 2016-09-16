@@ -24,7 +24,7 @@ services:
       - "48081:8081"
     command: jobmanager
     volumes:
-      - /usr/local/flink/conf
+      - /opt/flink/conf
 
   taskmanager:
     image: flink
@@ -33,4 +33,3 @@ services:
     command: taskmanager
     volumes_from:
       - jobmanager:ro
-

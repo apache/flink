@@ -135,10 +135,7 @@ public final class MathUtils {
 		code *= 0x1b873593;
 
 		code = Integer.rotateLeft(code, 13);
-		// By the MurmurHash algorithm the following should be "code = code * 5 + 0xe6546b64;" (see FLINK-3623)
-		// but correcting the algorithm is a breaking change (see FLINK-4154). The effect of the resulting skew
-		// increases with increased parallelism (see FLINK-4154).
-		code *= 0xe6546b64;
+		code = code * 5 + 0xe6546b64;
 
 		code ^= 4;
 		code ^= code >>> 16;
@@ -156,6 +153,21 @@ public final class MathUtils {
 		else {
 			return 0;
 		}
+	}
+
+	/**
+	 * Round the given number to the next power of two
+	 * @param x number to round
+	 * @return x rounded up to the next power of two
+	 */
+	public static int roundUpToPowerOfTwo(int x) {
+		x = x - 1;
+		x |= x >> 1;
+		x |= x >> 2;
+		x |= x >> 4;
+		x |= x >> 8;
+		x |= x >> 16;
+		return x + 1;
 	}
 
 	// ============================================================================================

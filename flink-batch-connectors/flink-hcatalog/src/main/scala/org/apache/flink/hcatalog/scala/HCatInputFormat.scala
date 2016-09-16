@@ -28,7 +28,7 @@ import org.apache.hive.hcatalog.data.schema.HCatFieldSchema
  * A InputFormat to read from HCatalog tables.
  * The InputFormat supports projection (selection and order of fields) and partition filters.
  *
- * Data can be returned as {@link HCatRecord} or Scala tuples.
+ * Data can be returned as [[HCatRecord]] or Scala tuples.
  * Scala tuples support only up to 22 fields.
  *
  */

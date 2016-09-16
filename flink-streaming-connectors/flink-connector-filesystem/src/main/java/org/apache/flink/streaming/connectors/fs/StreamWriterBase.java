@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -32,7 +33,7 @@ import java.lang.reflect.Method;
  */
 public abstract class StreamWriterBase<T> implements Writer<T> {
 
-	private static Logger LOG = LoggerFactory.getLogger(RollingSink.class);
+	private static Logger LOG = LoggerFactory.getLogger(BucketingSink.class);
 
 	/**
 	 * The {@code FSDataOutputStream} for the current part file.

@@ -18,13 +18,16 @@
 
 package org.apache.flink.api.scala.batch.sql
 
-import java.sql.{Timestamp, Time, Date}
+import java.sql.{Date, Time, Timestamp}
 
+import org.apache.flink.api.java.batch.table.{ExpressionsITCase => JExpressionsITCase}
+import org.apache.flink.api.scala.batch.sql.ExpressionsITCase.MyHashCode
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
+import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.api.table.codegen.CodeGenException
-import TableProgramsTestBase.TableConfigMode
+import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
@@ -144,4 +147,30 @@ class ExpressionsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+
+
+  @Test
+  def testUserDefinedScalarFunction(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    tEnv.registerFunction("hashCode", new JExpressionsITCase.OldHashCode)
+    tEnv.registerFunction("hashCode", MyHashCode)
+
+    val ds = env.fromElements("a", "b", "c")
+    tEnv.registerDataSet("MyTable", ds, 'text)
+
+    val result = tEnv.sql("SELECT hashCode(text) FROM MyTable")
+
+    val expected = "97\n98\n99"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+}
+
+object ExpressionsITCase {
+  object MyHashCode extends ScalarFunction {
+    def eval(s: String): Int = s.hashCode()
+  }
 }

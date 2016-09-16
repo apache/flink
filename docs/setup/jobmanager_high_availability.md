@@ -1,8 +1,8 @@
 ---
 title: "JobManager High Availability (HA)"
-top-nav-group: deployment
-top-nav-title: High Availability
-top-nav-pos: 6
+nav-title: High Availability (HA)
+nav-parent_id: setup
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,13 +38,13 @@ The general idea of JobManager high availability for standalone clusters is that
 
 As an example, consider the following setup with three JobManager instances:
 
-<img src="fig/jobmanager_ha_overview.png" class="center" />
+<img src="{{ site.baseurl }}/fig/jobmanager_ha_overview.png" class="center" />
 
 ### Configuration
 
-To enable JobManager High Availability you have to set the **recovery mode** to *zookeeper*, configure a **ZooKeeper quorum** and set up a **masters file** with all JobManagers hosts and their web UI ports.
+To enable JobManager High Availability you have to set the **high-availability mode** to *zookeeper*, configure a **ZooKeeper quorum** and set up a **masters file** with all JobManagers hosts and their web UI ports.
 
-Flink leverages **[ZooKeeper](http://zookeeper.apache.org)** for  *distributed coordination* between all running JobManager instances. ZooKeeper is a separate service from Flink, which provides highly reliable distributed coordination via leader election and light-weight consistent state storage. Check out [ZooKeeper's Getting Started Guide](http://zookeeper.apache.org/doc/trunk/zookeeperStarted.html) for more information about ZooKeeper. Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) installation.
+Flink leverages **[ZooKeeper](http://zookeeper.apache.org)** for *distributed coordination* between all running JobManager instances. ZooKeeper is a separate service from Flink, which provides highly reliable distributed coordination via leader election and light-weight consistent state storage. Check out [ZooKeeper's Getting Started Guide](http://zookeeper.apache.org/doc/trunk/zookeeperStarted.html) for more information about ZooKeeper. Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) installation.
 
 #### Masters File (masters)
 
@@ -58,38 +58,38 @@ jobManagerAddress1:webUIPort1
 jobManagerAddressX:webUIPortX
   </pre>
 
-By default, the job manager will pick a *random port* for inter process communication. You can change this via the **`recovery.jobmanager.port`** key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
+By default, the job manager will pick a *random port* for inter process communication. You can change this via the **`high-availability.jobmanager.port`** key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
 
 #### Config File (flink-conf.yaml)
 
 In order to start an HA-cluster add the following configuration keys to `conf/flink-conf.yaml`:
 
-- **Recovery mode** (required): The *recovery mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode.
+- **high-availability mode** (required): The *high-availability mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode.
 
-  <pre>recovery.mode: zookeeper</pre>
+  <pre>high-availability: zookeeper</pre>
 
 - **ZooKeeper quorum** (required): A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
 
-  <pre>recovery.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
+  <pre>high-availability.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
 
   Each *addressX:port* refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
 
 - **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all cluster namespace nodes are placed.
 
-  <pre>recovery.zookeeper.path.root: /flink
+  <pre>high-availability.zookeeper.path.root: /flink
 
 - **ZooKeeper namespace** (recommended): The *namespace ZooKeeper node*, under which all required coordination data for a cluster is placed.
 
-  <pre>recovery.zookeeper.path.namespace: /default_ns # important: customize per cluster</pre> 
+  <pre>high-availability.zookeeper.path.namespace: /default_ns # important: customize per cluster</pre>
 
-  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate namespaces for each cluster. By default, the Yarn cluster and the Yarn session automatically generate namespaces based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a namespace with the -z CLI option, in turn, overrides manual configuration. 
+  **Important**: if you are running multiple Flink HA clusters, you have to manually configure separate namespaces for each cluster. By default, the Yarn cluster and the Yarn session automatically generate namespaces based on Yarn application id. A manual configuration overrides this behaviour in Yarn. Specifying a namespace with the -z CLI option, in turn, overrides manual configuration.
 
 - **State backend and storage directory** (required): JobManager meta data is persisted in the *state backend* and only a pointer to this state is stored in ZooKeeper. Currently, only the file system state backend is supported in HA mode.
 
     <pre>
+high-availability.zookeeper.storageDir: hdfs:///flink/recovery</pre>
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
-recovery.zookeeper.storageDir: hdfs:///flink/recovery</pre>
 
     The `storageDir` stores all meta data needed to recover a JobManager failure.
 
@@ -97,16 +97,17 @@ After configuring the masters and the ZooKeeper quorum, you can use the provided
 
 #### Example: Standalone Cluster with 2 JobManagers
 
-1. **Configure recovery mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
+1. **Configure high availability mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
 
    <pre>
-recovery.mode: zookeeper
-recovery.zookeeper.quorum: localhost:2181
-recovery.zookeeper.path.root: /flink
-recovery.zookeeper.path.namespace: /cluster_one # important: customize per cluster
+high-availability: zookeeper
+high-availability.zookeeper.quorum: localhost:2181
+high-availability.zookeeper.path.root: /flink
+high-availability.zookeeper.path.namespace: /cluster_one # important: customize per cluster
+high-availability.zookeeper.storageDir: hdfs:///flink/recovery</pre>
+
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
-recovery.zookeeper.storageDir: hdfs:///flink/recovery</pre>
 
 2. **Configure masters** in `conf/masters`:
 
@@ -183,16 +184,16 @@ This means that the application can be restarted 10 times before YARN fails the 
 
 #### Example: Highly Available YARN Session
 
-1. **Configure recovery mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
+1. **Configure HA mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
 
    <pre>
-recovery.mode: zookeeper
-recovery.zookeeper.quorum: localhost:2181
-recovery.zookeeper.path.root: /flink
-recovery.zookeeper.path.namespace: /cluster_one # important: customize per cluster
+high-availability: zookeeper
+high-availability.zookeeper.quorum: localhost:2181
+high-availability.zookeeper.storageDir: hdfs:///flink/recovery
+high-availability.zookeeper.path.root: /flink
+high-availability.zookeeper.path.namespace: /cluster_one # important: customize per cluster
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
-recovery.zookeeper.storageDir: hdfs:///flink/recovery
 yarn.application-attempts: 10</pre>
 
 3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):

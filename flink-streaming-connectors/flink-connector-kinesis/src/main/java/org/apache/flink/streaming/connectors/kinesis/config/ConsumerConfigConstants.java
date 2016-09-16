@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.config;
 
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 
 /**
@@ -127,5 +128,11 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final double DEFAULT_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final long DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS = 10000L;
+
+	/**
+	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured
+	 * getRecords interval can not exceed 5 minutes, which is the expire time for retrieved iterators.
+	 */
+	public static final long MAX_SHARD_GETRECORDS_INTERVAL_MILLIS = 300000L;
 
 }

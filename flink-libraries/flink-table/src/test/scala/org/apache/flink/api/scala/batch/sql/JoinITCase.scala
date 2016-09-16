@@ -18,13 +18,12 @@
 
 package org.apache.flink.api.scala.batch.sql
 
-import org.apache.calcite.tools.ValidationException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{Row, TableEnvironment, TableException}
+import org.apache.flink.api.table.{ValidationException, Row, TableEnvironment, TableException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._

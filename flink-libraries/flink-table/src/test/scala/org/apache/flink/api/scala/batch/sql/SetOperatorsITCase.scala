@@ -143,6 +143,7 @@ class SetOperatorsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
   @Ignore
   // calcite sql parser doesn't support EXCEPT ALL
   def testExceptAll(): Unit = {
@@ -215,6 +216,7 @@ class SetOperatorsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
   @Ignore
   // calcite sql parser doesn't support INTERSECT ALL
   def testIntersectAll(): Unit = {

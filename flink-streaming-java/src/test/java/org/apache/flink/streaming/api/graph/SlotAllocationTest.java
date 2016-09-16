@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 /**
@@ -37,7 +38,7 @@ import org.junit.Test;
  * resource groups/slot sharing groups.
  */
 @SuppressWarnings("serial")
-public class SlotAllocationTest {
+public class SlotAllocationTest extends TestLogger {
 	
 	@Test
 	public void testTwoPipelines() {

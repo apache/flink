@@ -22,14 +22,15 @@ import java.util.concurrent.ExecutorService
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
-import org.apache.flink.metrics.MetricRegistry
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
+import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.testingUtils.TestingJobManagerLike
 
 import scala.concurrent.duration.FiniteDuration

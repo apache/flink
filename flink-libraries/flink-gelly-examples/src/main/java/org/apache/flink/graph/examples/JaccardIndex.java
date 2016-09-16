@@ -28,6 +28,7 @@ import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphCsvReader;
 import org.apache.flink.graph.asm.simple.undirected.Simplify;
 import org.apache.flink.graph.asm.translate.LongValueToIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
@@ -38,8 +39,11 @@ import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.types.StringValue;
 
 import java.text.NumberFormat;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Driver for the library implementation of Jaccard Index.
@@ -67,10 +71,10 @@ public class JaccardIndex {
 		System.out.println(WordUtils.wrap("This algorithm returns 4-tuples containing two vertex IDs, the" +
 			" number of shared neighbors, and the number of distinct neighbors.", 80));
 		System.out.println();
-		System.out.println("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]>");
 		System.out.println();
 		System.out.println("options:");
-		System.out.println("  --input csv --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
+		System.out.println("  --input csv --type <integer | string> --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
 		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
 		System.out.println();
 		System.out.println("  --output print");
@@ -85,6 +89,8 @@ public class JaccardIndex {
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
 
+		int little_parallelism = parameters.getInt("little_parallelism", PARALLELISM_DEFAULT);
+
 		DataSet ji;
 
 		switch (parameters.get("input", "")) {
@@ -95,16 +101,31 @@ public class JaccardIndex {
 				String fieldDelimiter = StringEscapeUtils.unescapeJava(
 					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-				Graph<LongValue, NullValue, NullValue> graph = Graph
+				GraphCsvReader reader = Graph
 					.fromCsvReader(parameters.get("input_filename"), env)
 						.ignoreCommentsEdges("#")
 						.lineDelimiterEdges(lineDelimiter)
-						.fieldDelimiterEdges(fieldDelimiter)
-						.keyType(LongValue.class);
+						.fieldDelimiterEdges(fieldDelimiter);
 
-				ji = graph
-					.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
+				switch (parameters.get("type", "")) {
+					case "integer": {
+						ji = reader
+							.keyType(LongValue.class)
+							.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
+					} break;
 
+					case "string": {
+						ji = reader
+							.keyType(StringValue.class)
+							.run(new org.apache.flink.graph.library.similarity.JaccardIndex<StringValue, NullValue, NullValue>()
+								.setLittleParallelism(little_parallelism));
+					} break;
+
+					default:
+						printUsage();
+						return;
+				}
 				} break;
 
 			case "rmat": {
@@ -116,20 +137,26 @@ public class JaccardIndex {
 				long vertexCount = 1L << scale;
 				long edgeCount = vertexCount * edgeFactor;
 
-				boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
-
 				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+					.setParallelism(little_parallelism)
 					.generate();
+
+				boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
 
 				if (scale > 32) {
 					ji = graph
-						.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip))
-						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
+						.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip)
+							.setParallelism(little_parallelism))
+						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>()
+							.setLittleParallelism(little_parallelism));
 				} else {
 					ji = graph
-						.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-						.run(new Simplify<IntValue, NullValue, NullValue>(clipAndFlip))
-						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<IntValue, NullValue, NullValue>());
+						.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue())
+							.setParallelism(little_parallelism))
+						.run(new Simplify<IntValue, NullValue, NullValue>(clipAndFlip)
+							.setParallelism(little_parallelism))
+						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<IntValue, NullValue, NullValue>()
+							.setLittleParallelism(little_parallelism));
 				}
 				} break;
 

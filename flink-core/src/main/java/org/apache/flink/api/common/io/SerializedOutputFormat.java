@@ -33,7 +33,7 @@ import org.apache.flink.core.memory.DataOutputView;
 public class SerializedOutputFormat<T extends IOReadableWritable> extends BinaryOutputFormat<T> {
 	
 	private static final long serialVersionUID = 1L;
-	
+
 	@Override
 	protected void serialize(T record, DataOutputView dataOutputView) throws IOException {
 		record.write(dataOutputView);

@@ -43,31 +43,35 @@ public class SerializedValue<T> implements java.io.Serializable {
 	/** The serialized data */
 	private final byte[] serializedData;
 
+	private SerializedValue(byte[] serializedData) {
+		Preconditions.checkNotNull(serializedData, "Serialized data");
+		this.serializedData = serializedData;
+	}
 
 	public SerializedValue(T value) throws IOException {
 		this.serializedData = value == null ? null : InstantiationUtil.serializeObject(value);
 	}
 
-
 	@SuppressWarnings("unchecked")
 	public T deserializeValue(ClassLoader loader) throws IOException, ClassNotFoundException {
-		if (loader == null) {
-			throw new NullPointerException("No classloader has been passed");
-		}
-
+		Preconditions.checkNotNull(loader, "No classloader has been passed");
 		return serializedData == null ? null : (T) InstantiationUtil.deserializeObject(serializedData, loader);
 	}
 
 	/**
-	 * Gets the size of the serialized state.
-	 * @return The size of the serialized state.
+	 * Returns the serialized value or <code>null</code> if no value is set.
+	 *
+	 * @return Serialized data.
 	 */
-	public int getSizeOfSerializedState() {
-		return serializedData.length;
+	public byte[] getByteArray() {
+		return serializedData;
+	}
+
+	public static <T> SerializedValue<T> fromBytes(byte[] serializedData) {
+		return new SerializedValue<T>(serializedData);
 	}
 
 	// --------------------------------------------------------------------------------------------
-
 
 	@Override
 	public int hashCode() {

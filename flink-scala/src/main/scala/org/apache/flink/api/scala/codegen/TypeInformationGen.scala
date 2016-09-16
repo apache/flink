@@ -291,7 +291,7 @@ private[flink] trait TypeInformationGen[C <: Context] {
       desc: UDTDescriptor): c.Expr[TypeInformation[T]] = {
     val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
     reify {
-      new WritableTypeInfo[T](tpeClazz.splice)
+      TypeExtractor.createHadoopWritableTypeInfo[T](tpeClazz.splice)
     }
   }
 

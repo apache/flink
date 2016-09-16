@@ -25,8 +25,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.runtime.io.ValuesInputFormat
 import org.apache.flink.api.table.{Row, StreamTableEnvironment}
-import org.apache.flink.api.table.runtime.ValuesInputFormat
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.typeutils.TypeConverter._
 import org.apache.flink.streaming.api.datastream.DataStream

@@ -18,12 +18,17 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.api.common.JobID;
 
+import javax.annotation.Nullable;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class represents a shared slot. A shared slot can have multiple
@@ -35,7 +40,7 @@ import java.util.Set;
  * <p><b>IMPORTANT:</b> This class contains no synchronization. Thus, the caller has to guarantee proper
  * synchronization. In the current implementation, all concurrently modifying operations are
  * passed through a {@link SlotSharingGroupAssignment} object which is responsible for
- * synchronization.</p>
+ * synchronization.
  */
 public class SharedSlot extends Slot {
 
@@ -51,12 +56,18 @@ public class SharedSlot extends Slot {
 	 * This constructor is used to create a slot directly from an instance. 
 	 * 
 	 * @param jobID The ID of the job that the slot is created for.
-	 * @param instance The instance that holds the slot.
+	 * @param owner The component from which this slot is allocated.
+	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the slot.
+	 * @param taskManagerActorGateway The actor gateway to communicate with the TaskManager   
 	 * @param assignmentGroup The assignment group that this shared slot belongs to.
 	 */
-	public SharedSlot(JobID jobID, Instance instance, int slotNumber, SlotSharingGroupAssignment assignmentGroup) {
-		this(jobID, instance, slotNumber, assignmentGroup, null, null);
+	public SharedSlot(
+			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
+			ActorGateway taskManagerActorGateway,
+			SlotSharingGroupAssignment assignmentGroup) {
+
+		this(jobID, owner, location, slotNumber, taskManagerActorGateway, assignmentGroup, null, null);
 	}
 
 	/**
@@ -64,15 +75,23 @@ public class SharedSlot extends Slot {
 	 * to the given task group.
 	 * 
 	 * @param jobID The ID of the job that the slot is created for.
-	 * @param instance The instance that holds the slot.
+	 * @param owner The component from which this slot is allocated.
+	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the slot.
+	 * @param taskManagerActorGateway The actor gateway to communicate with the TaskManager   
 	 * @param assignmentGroup The assignment group that this shared slot belongs to.
+	 * @param parent The parent slot of this slot.
+	 * @param groupId The assignment group of this slot.
 	 */
-	public SharedSlot(JobID jobID, Instance instance, int slotNumber,
-						SlotSharingGroupAssignment assignmentGroup, SharedSlot parent, AbstractID groupId) {
-		super(jobID, instance, slotNumber, parent, groupId);
+	public SharedSlot(
+			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
+			ActorGateway taskManagerActorGateway,
+			SlotSharingGroupAssignment assignmentGroup,
+			@Nullable SharedSlot parent, @Nullable AbstractID groupId) {
 
-		this.assignmentGroup = assignmentGroup;
+		super(jobID, owner, location, slotNumber, taskManagerActorGateway, parent, groupId);
+
+		this.assignmentGroup = checkNotNull(assignmentGroup);
 		this.subSlots = new HashSet<Slot>();
 	}
 
@@ -148,7 +167,9 @@ public class SharedSlot extends Slot {
 	 */
 	SimpleSlot allocateSubSlot(AbstractID groupId) {
 		if (isAlive()) {
-			SimpleSlot slot = new SimpleSlot(getJobID(), getInstance(), subSlots.size(), this, groupId);
+			SimpleSlot slot = new SimpleSlot(
+					getJobID(), getOwner(), getTaskManagerLocation(), subSlots.size(), 
+					getTaskManagerActorGateway(), this, groupId);
 			subSlots.add(slot);
 			return slot;
 		}
@@ -168,7 +189,9 @@ public class SharedSlot extends Slot {
 	 */
 	SharedSlot allocateSharedSlot(AbstractID groupId){
 		if (isAlive()) {
-			SharedSlot slot = new SharedSlot(getJobID(), getInstance(), subSlots.size(), assignmentGroup, this, groupId);
+			SharedSlot slot = new SharedSlot(
+					getJobID(), getOwner(), getTaskManagerLocation(), subSlots.size(), 
+					getTaskManagerActorGateway(), assignmentGroup, this, groupId);
 			subSlots.add(slot);
 			return slot;
 		}

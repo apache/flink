@@ -99,9 +99,7 @@ public class WebLogDataGenerator {
 
 		Random rand = new Random(Calendar.getInstance().getTimeInMillis());
 
-		try {
-			FileWriter fw = new FileWriter(path);
-
+		try (FileWriter fw = new FileWriter(path)) {
 			for (int i = 0; i < noDocs; i++) {
 
 				int wordsInDoc = rand.nextInt(40) + 10;
@@ -110,8 +108,7 @@ public class WebLogDataGenerator {
 				for (int j = 0; j < wordsInDoc; j++) {
 					if (rand.nextDouble() > 0.9) {
 						// Approx. every 10th word is a keyword
-						doc.append(filterKeyWords[rand
-								.nextInt(filterKeyWords.length)] + " ");
+						doc.append(filterKeyWords[rand.nextInt(filterKeyWords.length)] + " ");
 					} else {
 						// Fills up the docs file(s) with random words
 						doc.append(words[rand.nextInt(words.length)] + " ");
@@ -121,8 +118,6 @@ public class WebLogDataGenerator {
 
 				fw.write(doc.toString());
 			}
-			fw.close();
-
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -142,9 +137,7 @@ public class WebLogDataGenerator {
 
 		Random rand = new Random(Calendar.getInstance().getTimeInMillis());
 
-		try {
-			FileWriter fw = new FileWriter(path);
-
+		try (FileWriter fw = new FileWriter(path)) {
 			for (int i = 0; i < noDocs; i++) {
 				// Rank
 				StringBuilder rank = new StringBuilder(rand.nextInt(100) + "|");
@@ -155,8 +148,6 @@ public class WebLogDataGenerator {
 
 				fw.write(rank.toString());
 			}
-			fw.close();
-
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -178,9 +169,7 @@ public class WebLogDataGenerator {
 
 		Random rand = new Random(Calendar.getInstance().getTimeInMillis());
 
-		try {
-			FileWriter fw = new FileWriter(path);
-
+		try (FileWriter fw = new FileWriter(path)) {
 			for (int i = 0; i < noVisits; i++) {
 
 				int year = 2000 + rand.nextInt(10); // yearFilter 3
@@ -200,8 +189,6 @@ public class WebLogDataGenerator {
 
 				fw.write(visit.toString());
 			}
-			fw.close();
-
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

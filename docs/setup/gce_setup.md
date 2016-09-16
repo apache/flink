@@ -1,8 +1,8 @@
 ---
 title:  "Google Compute Engine Setup"
-top-nav-group: deployment
-top-nav-title: Google Compute Engine
-top-nav-pos: 4
+nav-title: Google Compute Engine
+nav-parent_id: deployment
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

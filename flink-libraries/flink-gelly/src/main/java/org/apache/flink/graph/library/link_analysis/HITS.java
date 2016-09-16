@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
@@ -39,7 +40,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.library.link_analysis.HITS.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
-import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -63,7 +64,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class HITS<K, VV, EV>
-extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
+extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private static final String CHANGE_IN_SCORES = "change in scores";
 
@@ -134,7 +135,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	@Override
-	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
 		if (! HITS.class.isAssignableFrom(other.getClass())) {
@@ -147,7 +148,8 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 
 		maxIterations = Math.max(maxIterations, rhs.maxIterations);
 		convergenceThreshold = Math.min(convergenceThreshold, rhs.convergenceThreshold);
-		parallelism = Math.min(parallelism, rhs.parallelism);
+		parallelism = (parallelism == PARALLELISM_DEFAULT) ? rhs.parallelism :
+			((rhs.parallelism == PARALLELISM_DEFAULT) ? parallelism : Math.min(parallelism, rhs.parallelism));
 
 		return true;
 	}
@@ -169,6 +171,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.name("Initial scores")
 			.groupBy(0)
 			.reduce(new SumScores<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -185,6 +188,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.name("Hub")
 			.groupBy(0)
 			.reduce(new SumScore<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -194,6 +198,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -207,6 +212,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.name("Authority")
 			.groupBy(0)
 			.reduce(new SumScore<K>())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 
@@ -216,6 +222,7 @@ extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Result<K>> {
 				.setParallelism(parallelism)
 				.name("Square")
 			.reduce(new Sum())
+				.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 

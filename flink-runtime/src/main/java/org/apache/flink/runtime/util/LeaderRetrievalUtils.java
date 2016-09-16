@@ -28,7 +28,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -61,15 +61,15 @@ public class LeaderRetrievalUtils {
 	public static LeaderRetrievalService createLeaderRetrievalService(Configuration configuration)
 		throws Exception {
 
-		RecoveryMode recoveryMode = getRecoveryMode(configuration);
+		HighAvailabilityMode highAvailabilityMode = getRecoveryMode(configuration);
 
-		switch (recoveryMode) {
-			case STANDALONE:
+		switch (highAvailabilityMode) {
+			case NONE:
 				return StandaloneUtils.createLeaderRetrievalService(configuration);
 			case ZOOKEEPER:
 				return ZooKeeperUtils.createLeaderRetrievalService(configuration);
 			default:
-				throw new Exception("Recovery mode " + recoveryMode + " is not supported.");
+				throw new Exception("Recovery mode " + highAvailabilityMode + " is not supported.");
 		}
 	}
 
@@ -86,16 +86,16 @@ public class LeaderRetrievalUtils {
 	public static LeaderRetrievalService createLeaderRetrievalService(
 				Configuration configuration, ActorRef standaloneRef) throws Exception {
 
-		RecoveryMode recoveryMode = getRecoveryMode(configuration);
+		HighAvailabilityMode highAvailabilityMode = getRecoveryMode(configuration);
 
-		switch (recoveryMode) {
-			case STANDALONE:
+		switch (highAvailabilityMode) {
+			case NONE:
 				String akkaUrl = standaloneRef.path().toSerializationFormat();
 				return new StandaloneLeaderRetrievalService(akkaUrl);
 			case ZOOKEEPER:
 				return ZooKeeperUtils.createLeaderRetrievalService(configuration);
 			default:
-				throw new Exception("Recovery mode " + recoveryMode + " is not supported.");
+				throw new Exception("Recovery mode " + highAvailabilityMode + " is not supported.");
 		}
 	}
 	
@@ -282,7 +282,7 @@ public class LeaderRetrievalUtils {
 	}
 
 	/**
-	 * Gets the recovery mode as configured, based on the {@link ConfigConstants#RECOVERY_MODE}
+	 * Gets the recovery mode as configured, based on the {@link ConfigConstants#HA_MODE}
 	 * config key.
 	 * 
 	 * @param config The configuration to read the recovery mode from.
@@ -291,20 +291,8 @@ public class LeaderRetrievalUtils {
 	 * @throws IllegalConfigurationException Thrown, if the recovery mode does not correspond
 	 *                                       to a known value.
 	 */
-	public static RecoveryMode getRecoveryMode(Configuration config) {
-		String mode = config.getString(
-			ConfigConstants.RECOVERY_MODE,
-			ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
-		
-		switch (mode) {
-			case "STANDALONE":
-				return RecoveryMode.STANDALONE;
-			case "ZOOKEEPER":
-				return RecoveryMode.ZOOKEEPER;
-			default:
-				throw new IllegalConfigurationException(
-					"The value for '" + ConfigConstants.RECOVERY_MODE + "' is unknown: " + mode);
-		}
+	public static HighAvailabilityMode getRecoveryMode(Configuration config) {
+		return HighAvailabilityMode.fromConfig(config);
 	}
 	
 	// ------------------------------------------------------------------------

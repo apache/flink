@@ -20,14 +20,13 @@ package org.apache.flink.api.scala.batch.table
 
 import java.sql.{Date, Time, Timestamp}
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.api.table.expressions.Null
-import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
+import org.apache.flink.api.table.{Row, TableEnvironment, Types, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Assert._
@@ -108,8 +107,8 @@ class ExpressionsITCase(
       .select(
         'a,
         'b,
-        Null(BasicTypeInfo.INT_TYPE_INFO),
-        Null(BasicTypeInfo.STRING_TYPE_INFO) === "")
+        Null(Types.INT),
+        Null(Types.STRING) === "")
 
     try {
       val ds = t.toDataSet[Row]

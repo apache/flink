@@ -34,10 +34,10 @@ extends AsmTestBase {
 	@Test
 	public void testWithSimpleGraph()
 			throws Exception {
-		Result expectedResult = new Result(6, 7, 13);
+		Result expectedResult = new Result(6, 7, 13, 4, 2, 3, 6);
 
 		Result vertexMetrics = new VertexMetrics<IntValue, NullValue, NullValue>()
-			.run(undirectedSimpleGraph)
+			.run(directedSimpleGraph)
 			.execute();
 
 		assertEquals(expectedResult, vertexMetrics);
@@ -47,10 +47,11 @@ extends AsmTestBase {
 	public void testWithCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedEdges = completeGraphVertexCount * expectedDegree / 2;
-		long expectedTriplets = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		long expectedEdges = completeGraphVertexCount * expectedDegree;
+		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		long expectedTriplets = completeGraphVertexCount * expectedMaximumTriplets;
 
-		Result expectedResult = new Result(completeGraphVertexCount, expectedEdges, expectedTriplets);
+		Result expectedResult = new Result(completeGraphVertexCount, expectedEdges, expectedTriplets, expectedDegree, expectedDegree, expectedDegree, expectedMaximumTriplets);
 
 		Result vertexMetrics = new VertexMetrics<LongValue, NullValue, NullValue>()
 			.run(completeGraph)
@@ -64,7 +65,7 @@ extends AsmTestBase {
 			throws Exception {
 		Result expectedResult;
 
-		expectedResult = new Result(0, 0, 0);
+		expectedResult = new Result(0, 0, 0, 0, 0, 0, 0);
 
 		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
 			.setIncludeZeroDegreeVertices(false)
@@ -73,7 +74,7 @@ extends AsmTestBase {
 
 		assertEquals(withoutZeroDegreeVertices, expectedResult);
 
-		expectedResult = new Result(3, 0, 0);
+		expectedResult = new Result(3, 0, 0, 0, 0, 0, 0);
 
 		Result withZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
 			.setIncludeZeroDegreeVertices(true)
@@ -86,10 +87,10 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		Result expectedResult = new Result(902, 10442, 1003442);
+		Result expectedResult = new Result(902, 12009, 1003442, 463, 334, 342, 106953);
 
 		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph)
+			.run(directedRMatGraph)
 			.execute();
 
 		assertEquals(expectedResult, withoutZeroDegreeVertices);

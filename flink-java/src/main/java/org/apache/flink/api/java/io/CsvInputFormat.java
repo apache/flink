@@ -86,8 +86,8 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 		/*
 		 * Fix to support windows line endings in CSVInputFiles with standard delimiter setup = \n
 		 */
-		//Find windows end line, so find carriage return before the newline
-		if (this.lineDelimiterIsLinebreak == true && numBytes > 0 && bytes[offset + numBytes - 1] == '\r') {
+		// Found window's end line, so find carriage return before the newline
+		if (this.lineDelimiterIsLinebreak && numBytes > 0 && bytes[offset + numBytes - 1] == '\r') {
 			//reduce the number of bytes so that the Carriage return is not taken as data
 			numBytes--;
 		}

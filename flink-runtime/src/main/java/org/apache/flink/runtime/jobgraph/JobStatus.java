@@ -55,7 +55,7 @@ public enum JobStatus {
 	
 	// --------------------------------------------------------------------------------------------
 
-	enum TerminalState {
+	private enum TerminalState {
 		NON_TERMINAL,
 		LOCALLY,
 		GLOBALLY
@@ -69,6 +69,10 @@ public enum JobStatus {
 	
 	public boolean isGloballyTerminalState() {
 		return terminalState == TerminalState.GLOBALLY;
+	}
+
+	public boolean isTerminalState() {
+		return terminalState != TerminalState.NON_TERMINAL;
 	}
 }
 

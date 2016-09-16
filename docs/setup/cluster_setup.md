@@ -1,8 +1,7 @@
 ---
-title:  "Cluster Setup"
-top-nav-group: deployment
-top-nav-title: Cluster (Standalone)
-top-nav-pos: 2
+title: "Standalone Cluster"
+nav-parent_id: deployment
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

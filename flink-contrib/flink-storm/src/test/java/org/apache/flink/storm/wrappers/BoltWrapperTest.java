@@ -327,7 +327,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 	private static final class TestBolt implements IRichBolt {
 		private static final long serialVersionUID = 7278692872260138758L;
-		private OutputCollector collector;
+		private transient OutputCollector collector;
 
 		@SuppressWarnings("rawtypes")
 		@Override
@@ -366,7 +366,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 	public static StreamTask<?, ?> createMockStreamTask(ExecutionConfig execConfig) {
 		Environment env = mock(Environment.class);
-		when(env.getTaskInfo()).thenReturn(new TaskInfo("Mock Task", 0, 1, 0));
+		when(env.getTaskInfo()).thenReturn(new TaskInfo("Mock Task", 1, 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(BoltWrapperTest.class.getClassLoader());
 		when(env.getMetricGroup()).thenReturn(new UnregisteredTaskMetricsGroup());
 

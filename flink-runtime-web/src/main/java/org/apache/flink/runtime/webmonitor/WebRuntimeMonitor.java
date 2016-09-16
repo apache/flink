@@ -67,6 +67,11 @@ import org.apache.flink.runtime.webmonitor.handlers.SubtasksAllAccumulatorsHandl
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksTimesHandler;
 import org.apache.flink.runtime.webmonitor.handlers.TaskManagerLogHandler;
 import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
+import org.apache.flink.runtime.webmonitor.metrics.JobManagerMetricsHandler;
+import org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler;
+import org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler;
+import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
+import org.apache.flink.runtime.webmonitor.metrics.TaskManagerMetricsHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContext$;
@@ -133,6 +138,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private ExecutorService executorService;
 
+	private MetricFetcher metricFetcher;
+
 	public WebRuntimeMonitor(
 			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
@@ -159,10 +166,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 		final boolean webSubmitAllow = cfg.isProgramSubmitEnabled();
 		if (webSubmitAllow) {
 			// create storage for uploads
-			String uploadDirName = "flink-web-upload-" + UUID.randomUUID();
-			this.uploadDir = new File(getBaseDir(config), uploadDirName);
-			if (!uploadDir.mkdir() || !uploadDir.canWrite()) {
-				throw new IOException("Unable to create temporary directory to support jar uploads.");
+			this.uploadDir = getUploadDir(config);
+			// the upload directory should either 1. exist and writable or 2. can be created and writable
+			if (!(uploadDir.exists() && uploadDir.canWrite()) && !(uploadDir.mkdir() && uploadDir.canWrite())) {
+				throw new IOException(
+					String.format("Jar upload directory %s cannot be created or is not writable.",
+						uploadDir.getAbsolutePath()));
 			}
 			LOG.info("Using directory {} for web frontend JAR file uploads", uploadDir);
 		}
@@ -204,6 +213,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		ExecutionContextExecutor context = ExecutionContext$.MODULE$.fromExecutor(executorService);
 
+		metricFetcher = new MetricFetcher(actorSystem, retriever, context);
+
 		router = new Router()
 			// config how to interact with this web server
 			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
@@ -233,6 +244,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 							currentGraphs,
 							backPressureStatsTracker,
 							refreshInterval)))
+			.GET("/jobs/:jobid/vertices/:vertexid/metrics", handler(new JobVertexMetricsHandler(metricFetcher)))
 			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(new SubtasksAllAccumulatorsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(new SubtaskCurrentAttemptDetailsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(new SubtaskExecutionAttemptDetailsHandler(currentGraphs)))
@@ -243,6 +255,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/accumulators", handler(new JobAccumulatorsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/checkpoints", handler(new JobCheckpointsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/metrics", handler(new JobMetricsHandler(metricFetcher)))
 
 			.GET("/taskmanagers", handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
 			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/metrics", handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
@@ -250,6 +263,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				new TaskManagerLogHandler(retriever, context, jobManagerAddressPromise.future(), timeout, TaskManagerLogHandler.FileMode.LOG, config))
 			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/stdout", 
 				new TaskManagerLogHandler(retriever, context, jobManagerAddressPromise.future(), timeout, TaskManagerLogHandler.FileMode.STDOUT, config))
+			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/metrics", handler(new TaskManagerMetricsHandler(metricFetcher)))
 
 			// log and stdout
 			.GET("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
@@ -257,6 +271,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
 				new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.stdOutFile))
+
+			.GET("/jobmanager/metrics", handler(new JobManagerMetricsHandler(metricFetcher)))
 
 			// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
 			.GET("/jobs/:jobid/yarn-cancel", handler(new JobCancellationHandler()))
@@ -437,12 +453,23 @@ public class WebRuntimeMonitor implements WebMonitor {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-
 	private RuntimeMonitorHandler handler(RequestHandler handler) {
 		return new RuntimeMonitorHandler(handler, retriever, jobManagerAddressPromise.future(), timeout);
 	}
 
 	File getBaseDir(Configuration configuration) {
-		return new File(configuration.getString(ConfigConstants.JOB_MANAGER_WEB_TMPDIR_KEY, System.getProperty("java.io.tmpdir")));
+		return new File(getBaseDirStr(configuration));
+	}
+
+	private String getBaseDirStr(Configuration configuration) {
+		return configuration.getString(ConfigConstants.JOB_MANAGER_WEB_TMPDIR_KEY, System.getProperty("java.io.tmpdir"));
+	}
+
+	private File getUploadDir(Configuration configuration) {
+		File baseDir = new File(configuration.getString(ConfigConstants.JOB_MANAGER_WEB_UPLOAD_DIR_KEY,
+			getBaseDirStr(configuration)));
+
+		boolean uploadDirSpecified = configuration.containsKey(ConfigConstants.JOB_MANAGER_WEB_UPLOAD_DIR_KEY);
+		return uploadDirSpecified ? baseDir : new File(baseDir, "flink-web-" + UUID.randomUUID());
 	}
 }

@@ -44,7 +44,7 @@ public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 
 	@Override
 	public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) {
-		return TriggerResult.FIRE_AND_PURGE;
+		return TriggerResult.FIRE;
 	}
 
 	@Override

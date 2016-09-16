@@ -336,7 +336,8 @@ public class BlobUtils {
 	 *
 	 * <p>The returned path can be used with the state backend for recovery purposes.
 	 *
-	 * <p>This follows the same scheme as {@link #getStorageLocation(File, BlobKey)}.
+	 * <p>This follows the same scheme as {@link #getStorageLocation(File, BlobKey)}
+	 * and is used for HA.
 	 */
 	static String getRecoveryPath(String basePath, BlobKey blobKey) {
 		// format: $base/cache/blob_$key

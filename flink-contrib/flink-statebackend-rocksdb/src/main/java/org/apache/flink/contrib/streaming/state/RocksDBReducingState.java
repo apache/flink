@@ -24,16 +24,12 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * {@link ReducingState} implementation that stores state in RocksDB.
@@ -43,14 +39,11 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>>
+	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>, V>
 	implements ReducingState<V> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<V> valueSerializer;
-
-	/** This holds the name of the state and can create an initial default value for the state. */
-	private final ReducingStateDescriptor<V> stateDesc;
 
 	/** User-specified reduce function */
 	private final ReduceFunction<V> reduceFunction;
@@ -71,10 +64,9 @@ public class RocksDBReducingState<K, N, V>
 	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<V> stateDesc,
-			RocksDBStateBackend backend) {
-		
-		super(columnFamily, namespaceSerializer, backend);
-		this.stateDesc = requireNonNull(stateDesc);
+			RocksDBKeyedStateBackend<K> backend) {
+
+		super(columnFamily, namespaceSerializer, stateDesc, backend);
 		this.valueSerializer = stateDesc.getSerializer();
 		this.reduceFunction = stateDesc.getReduceFunction();
 
@@ -84,11 +76,9 @@ public class RocksDBReducingState<K, N, V>
 
 	@Override
 	public V get() {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
 				return null;
@@ -101,27 +91,26 @@ public class RocksDBReducingState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
-			writeKeyAndNamespace(out);
-			byte[] key = baos.toByteArray();
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 			if (valueBytes == null) {
-				baos.reset();
+				keySerializationStream.reset();
 				valueSerializer.serialize(value, out);
-				backend.db.put(columnFamily, writeOptions, key, baos.toByteArray());
+				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 			} else {
 				V oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 				V newValue = reduceFunction.reduce(oldValue, value);
-				baos.reset();
+				keySerializationStream.reset();
 				valueSerializer.serialize(newValue, out);
-				backend.db.put(columnFamily, writeOptions, key, baos.toByteArray());
+				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
-}
 
+}

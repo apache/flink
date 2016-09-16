@@ -43,8 +43,13 @@ public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor 
 		Preconditions.checkNotNull(testingRuntimeJar, "Could not find the flink-runtime tests " +
 			"jar. Make sure to package the flink-runtime module.");
 
+		File testingYarnJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn"));
+		Preconditions.checkNotNull(testingRuntimeJar, "Could not find the flink-yarn tests " +
+			"jar. Make sure to package the flink-yarn module.");
+
 		filesToShip.add(testingJar);
 		filesToShip.add(testingRuntimeJar);
+		filesToShip.add(testingYarnJar);
 
 		addShipFiles(filesToShip);
 	}

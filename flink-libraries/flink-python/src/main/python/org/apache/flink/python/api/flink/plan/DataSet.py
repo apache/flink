@@ -669,7 +669,6 @@ class OperatorSet(DataSet):
         child.other = set._info
         child.name = name
         self._info.bcvars.append(child)
-        set._info.children.append(child)
         self._env._broadcast.append(child)
         return self
 

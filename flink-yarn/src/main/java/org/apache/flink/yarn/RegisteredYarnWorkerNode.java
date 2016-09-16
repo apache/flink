@@ -30,7 +30,6 @@ import static java.util.Objects.requireNonNull;
  */
 public class RegisteredYarnWorkerNode implements ResourceIDRetrievable {
 
-
 	/** The container on which the worker runs */
 	private final Container yarnContainer;
 

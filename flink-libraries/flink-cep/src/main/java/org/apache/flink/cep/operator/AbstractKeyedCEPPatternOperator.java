@@ -24,14 +24,15 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -91,6 +92,8 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	@Override
 	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
+		super.open();
+
 		if (keys == null) {
 			keys = new HashSet<>();
 		}
@@ -183,30 +186,22 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	}
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+		super.snapshotState(out, checkpointId, timestamp);
 
-		AbstractStateBackend.CheckpointStateOutputView ov = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
-
+		DataOutputView ov = new DataOutputViewStreamWrapper(out);
 		ov.writeInt(keys.size());
 
 		for (KEY key: keys) {
 			keySerializer.serialize(key, ov);
 		}
-
-		taskState.setOperatorState(ov.closeAndGetHandle());
-
-		return taskState;
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state) throws Exception {
+	public void restoreState(FSDataInputStream state) throws Exception {
 		super.restoreState(state);
 
-		@SuppressWarnings("unchecked")
-		StateHandle<DataInputView> stateHandle = (StateHandle<DataInputView>) state.getOperatorState();
-
-		DataInputView inputView = stateHandle.getState(getUserCodeClassloader());
+		DataInputView inputView = new DataInputViewStreamWrapper(state);
 
 		if (keys == null) {
 			keys = new HashSet<>();

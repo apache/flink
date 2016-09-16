@@ -72,11 +72,13 @@ upload_artifacts_s3() {
 
 	ls $ARTIFACTS_DIR
 
-	if [ -n "$UPLOAD_BUCKET" ] && [ -n "$UPLOAD_ACCESS_KEY" ] && [ -n "$UPLOAD_SECRET_KEY" ]; then
-		echo "COMPRESSING build artifacts."
+	echo "COMPRESSING build artifacts."
 
-		cd $ARTIFACTS_DIR
-		tar -zcvf $ARTIFACTS_FILE *
+	cd $ARTIFACTS_DIR
+	tar -zcvf $ARTIFACTS_FILE *
+
+	# Upload to secured S3
+	if [ -n "$UPLOAD_BUCKET" ] && [ -n "$UPLOAD_ACCESS_KEY" ] && [ -n "$UPLOAD_SECRET_KEY" ]; then
 
 		# Install artifacts tool
 		curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
@@ -89,6 +91,10 @@ upload_artifacts_s3() {
 		# re-creates the whole directory structure from root.
 		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH $ARTIFACTS_FILE
 	fi
+
+	# upload to http://transfer.sh
+	echo "Uploading to transfer.sh"
+	curl --upload-file $ARTIFACTS_FILE http://transfer.sh
 }
 
 print_stacktraces () {

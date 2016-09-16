@@ -37,12 +37,14 @@ public final class HadoopUtils {
 	/**
 	 * Merge HadoopConfiguration into Configuration. This is necessary for the HDFS configuration.
 	 */
-	public static void mergeHadoopConf(Configuration configuration) {
-		Configuration hadoopConf = org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils.getHadoopConfiguration();
-		
+	public static void mergeHadoopConf(Configuration hadoopConfig) {
+
+		Configuration hadoopConf =
+			org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils.getHadoopConfiguration();
+
 		for (Map.Entry<String, String> e : hadoopConf) {
-			if (configuration.get(e.getKey()) == null) {
-				configuration.set(e.getKey(), e.getValue());
+			if (hadoopConfig.get(e.getKey()) == null) {
+				hadoopConfig.set(e.getKey(), e.getValue());
 			}
 		}
 	}

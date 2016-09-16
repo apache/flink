@@ -24,33 +24,34 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.operators.translation.TupleUnwrappingIterator;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Wraps a Flink Tuple2 (key-value-pair) iterator into an iterator over the second (value) field.
  */
-@SuppressWarnings("rawtypes")
 public class HadoopTupleUnwrappingIterator<KEY,VALUE> 
-									extends TupleUnwrappingIterator<VALUE, KEY> implements java.io.Serializable {
+		extends TupleUnwrappingIterator<VALUE, KEY> implements java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
-	
-	private Iterator<Tuple2<KEY,VALUE>> iterator;
-	
+
 	private final TypeSerializer<KEY> keySerializer;
+
+	private transient Iterator<Tuple2<KEY,VALUE>> iterator;
 	
-	private boolean atFirst = false;
-	private KEY curKey = null;
-	private VALUE firstValue = null;
-	
+	private transient KEY curKey;
+	private transient VALUE firstValue;
+	private transient boolean atFirst;
+
 	public HadoopTupleUnwrappingIterator(TypeSerializer<KEY> keySerializer) {
-		this.keySerializer = keySerializer;
+		this.keySerializer = checkNotNull(keySerializer);
 	}
 	
 	/**
-	* Set the Flink iterator to wrap.
-	* 
-	* @param iterator The Flink iterator to wrap.
-	*/
-	@Override()
+	 * Set the Flink iterator to wrap.
+	 * 
+	 * @param iterator The Flink iterator to wrap.
+	 */
+	@Override
 	public void set(final Iterator<Tuple2<KEY,VALUE>> iterator) {
 		this.iterator = iterator;
 		if(this.hasNext()) {

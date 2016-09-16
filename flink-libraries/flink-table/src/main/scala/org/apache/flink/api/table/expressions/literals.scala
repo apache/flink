@@ -20,11 +20,15 @@ package org.apache.flink.api.table.expressions
 import java.sql.{Date, Time, Timestamp}
 import java.util.{Calendar, TimeZone}
 
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.table.FlinkTypeFactory
+import org.apache.flink.api.table.typeutils.IntervalTypeInfo
 
 object Literal {
   private[flink] def apply(l: Any): Literal = l match {
@@ -62,6 +66,22 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
         relBuilder.getRexBuilder.makeTimeLiteral(dateToCalendar, 0)
       case SqlTimeTypeInfo.TIMESTAMP =>
         relBuilder.getRexBuilder.makeTimestampLiteral(dateToCalendar, 3)
+
+      case IntervalTypeInfo.INTERVAL_MONTHS =>
+        val interval = java.math.BigDecimal.valueOf(value.asInstanceOf[Int])
+        val intervalQualifier = new SqlIntervalQualifier(
+          TimeUnit.YEAR,
+          TimeUnit.MONTH,
+          SqlParserPos.ZERO)
+        relBuilder.getRexBuilder.makeIntervalLiteral(interval, intervalQualifier)
+
+      case IntervalTypeInfo.INTERVAL_MILLIS =>
+        val interval = java.math.BigDecimal.valueOf(value.asInstanceOf[Long])
+        val intervalQualifier = new SqlIntervalQualifier(
+          TimeUnit.DAY,
+          TimeUnit.SECOND,
+          SqlParserPos.ZERO)
+        relBuilder.getRexBuilder.makeIntervalLiteral(interval, intervalQualifier)
 
       case _ => relBuilder.literal(value)
     }

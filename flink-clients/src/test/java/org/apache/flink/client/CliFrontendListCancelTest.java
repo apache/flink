@@ -55,7 +55,6 @@ public class CliFrontendListCancelTest {
 	@BeforeClass
 	public static void init() {
 		CliFrontendTestUtils.pipeSystemOutToNull();
-		CliFrontendTestUtils.clearGlobalConfiguration();
 	}
 	
 	@Test

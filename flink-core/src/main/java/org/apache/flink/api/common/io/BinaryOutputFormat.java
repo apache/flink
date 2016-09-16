@@ -45,7 +45,7 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 	
 	private transient DataOutputViewStreamWrapper outView;
 
-	
+
 	@Override
 	public void close() throws IOException {
 		try {

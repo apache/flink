@@ -22,8 +22,6 @@ import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichSpout;
 
-import com.google.common.collect.Sets;
-
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.java.tuple.Tuple0;
@@ -36,6 +34,8 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.Collection;
 import java.util.HashMap;
+
+import static java.util.Arrays.asList;
 
 /**
  * A {@link SpoutWrapper} wraps an {@link IRichSpout} in order to execute it within a Flink Streaming program. It
@@ -121,7 +121,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 */
 	public SpoutWrapper(final IRichSpout spout, final String[] rawOutputs)
 			throws IllegalArgumentException {
-		this(spout, Sets.newHashSet(rawOutputs), null);
+		this(spout, asList(rawOutputs), null);
 	}
 
 	/**
@@ -147,7 +147,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> imp
 	 */
 	public SpoutWrapper(final IRichSpout spout, final String[] rawOutputs,
 			final Integer numberOfInvocations) throws IllegalArgumentException {
-		this(spout, Sets.newHashSet(rawOutputs), numberOfInvocations);
+		this(spout, asList(rawOutputs), numberOfInvocations);
 	}
 
 	/**

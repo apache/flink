@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 
 public class DiscardingRecycler implements BufferRecycler {
 
+	public static final BufferRecycler INSTANCE = new DiscardingRecycler();
+
 	@Override
 	public void recycle(MemorySegment memSeg) {
 		memSeg.free();

@@ -22,7 +22,8 @@ import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.UnresolvedException
-import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure}
+import org.apache.flink.api.table.validate.{ValidationSuccess, ExprValidationResult,
+ValidationFailure}
 
 trait NamedExpression extends Expression {
   private[flink] def name: String
@@ -89,6 +90,14 @@ case class Alias(child: Expression, name: String)
       ResolvedFieldReference(name, child.resultType)
     } else {
       UnresolvedFieldReference(name)
+    }
+  }
+
+  override private[flink] def validateInput(): ExprValidationResult = {
+    if (name == "*") {
+      ValidationFailure("Alias can not accept '*' as name.")
+    } else {
+      ValidationSuccess
     }
   }
 }
