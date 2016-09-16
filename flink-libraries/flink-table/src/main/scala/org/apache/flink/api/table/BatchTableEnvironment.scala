@@ -190,7 +190,7 @@ abstract class BatchTableEnvironment(
     *
     * @param table The table for which the AST and execution plan will be returned.
     */
-  def explain(table: Table): String = explain(table: Table, false)
+  def explain(table: Table): String = explain(table: Table, extended = false)
 
   /**
     * Registers a [[DataSet]] as a table under a given name in the [[TableEnvironment]]'s catalog.
@@ -239,6 +239,8 @@ abstract class BatchTableEnvironment(
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
+
+    validateType(tpe)
 
     val relNode = table.getRelNode
 
