@@ -41,24 +41,24 @@ import scala.collection.JavaConversions._
 class DataSetValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    rowType: RelDataType,
+    rowRelDataType: RelDataType,
     tuples: ImmutableList[ImmutableList[RexLiteral]])
-  extends Values(cluster, rowType, tuples, traitSet)
+  extends Values(cluster, rowRelDataType, tuples, traitSet)
   with DataSetRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetValues(
       cluster,
       traitSet,
-      rowType,
-      tuples
+      getRowType,
+      getTuples
     )
   }
 
   override def toString: String = {
-    "Values(values: (${rowType.getFieldNames.asScala.toList.mkString(\", \")}))"
+    s"Values(values: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -78,7 +78,7 @@ class DataSetValues(
       config.getEfficientTypeUsage).asInstanceOf[RowTypeInfo]
 
     // convert List[RexLiteral] to Row
-    val rows: Seq[Row] = tuples.asList.map { t =>
+    val rows: Seq[Row] = getTuples.asList.map { t =>
       val row = new Row(t.size())
       t.zipWithIndex.foreach( x => row.setField(x._2, x._1.getValue.asInstanceOf[Any]) )
       row
@@ -89,7 +89,7 @@ class DataSetValues(
   }
 
   private def valuesFieldsToString: String = {
-    rowType.getFieldNames.asScala.toList.mkString(", ")
+    getRowType.getFieldNames.asScala.toList.mkString(", ")
   }
 
 }

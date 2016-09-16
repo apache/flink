@@ -36,14 +36,14 @@ abstract class BatchScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    rowType: RelDataType)
+    rowRelDataType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with DataSetRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def toString: String = {
-    s"Source(from: (${rowType.getFieldNames.asScala.toList.mkString(", ")}))"
+    s"Source(from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -81,14 +81,14 @@ abstract class BatchScan(
 
           val mapFunc = getConversionMapper(
             config,
-            false,
+            nullableInput = false,
             inputType,
             determinedType,
             "DataSetSourceConversion",
             getRowType.getFieldNames,
             Some(flinkTable.fieldIndexes))
 
-          val opName = s"from: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+          val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
           input.map(mapFunc).name(opName)
         }

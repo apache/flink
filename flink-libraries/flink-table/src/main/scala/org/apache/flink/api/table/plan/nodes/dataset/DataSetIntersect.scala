@@ -38,14 +38,14 @@ import scala.collection.JavaConverters._
 class DataSetIntersect(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    left: RelNode,
-    right: RelNode,
-    rowType: RelDataType,
+    leftNode: RelNode,
+    rightNode: RelNode,
+    rowRelDataType: RelDataType,
     all: Boolean)
-  extends BiRel(cluster, traitSet, left, right)
+  extends BiRel(cluster, traitSet, leftNode, rightNode)
     with DataSetRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetIntersect(
@@ -53,7 +53,7 @@ class DataSetIntersect(
       traitSet,
       inputs.get(0),
       inputs.get(1),
-      rowType,
+      getRowType,
       all
     )
   }
@@ -115,7 +115,7 @@ class DataSetIntersect(
             "DataSetIntersectConversion",
             getRowType.getFieldNames)
 
-          val opName = s"convert: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+          val opName = s"convert: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
           intersectDs.map(mapFunc).name(opName)
         }
@@ -127,7 +127,7 @@ class DataSetIntersect(
   }
 
   private def intersectSelectionToString: String = {
-    rowType.getFieldNames.asScala.toList.mkString(", ")
+    getRowType.getFieldNames.asScala.toList.mkString(", ")
   }
 
 }

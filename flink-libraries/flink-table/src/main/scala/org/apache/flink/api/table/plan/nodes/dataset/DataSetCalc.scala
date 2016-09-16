@@ -40,32 +40,32 @@ class DataSetCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    rowType: RelDataType,
+    rowRelDataType: RelDataType,
     calcProgram: RexProgram,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with FlinkCalc
   with DataSetRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetCalc(
       cluster,
       traitSet,
       inputs.get(0),
-      rowType,
+      getRowType,
       calcProgram,
       ruleDescription)
   }
 
-  override def toString: String = calcToString(calcProgram, getExpressionString(_, _, _))
+  override def toString: String = calcToString(calcProgram, getExpressionString)
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("select", selectionToString(calcProgram, getExpressionString(_, _, _)))
+      .item("select", selectionToString(calcProgram, getExpressionString))
       .itemIf("where",
-        conditionToString(calcProgram, getExpressionString(_, _, _)),
+        conditionToString(calcProgram, getExpressionString),
         calcProgram.getCondition != null)
   }
 
@@ -95,7 +95,7 @@ class DataSetCalc(
 
     val config = tableEnv.getConfig
 
-    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val returnType = determineReturnType(
       getRowType,
@@ -120,7 +120,7 @@ class DataSetCalc(
       returnType)
 
     val mapFunc = calcMapFunction(genFunction)
-    inputDS.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString(_, _, _)))
+    inputDS.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))
   }
 
 }

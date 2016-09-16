@@ -39,7 +39,7 @@ class DataSetSort(
     traitSet: RelTraitSet,
     inp: RelNode,
     collations: RelCollation,
-    rowType2: RelDataType,
+    rowRelDataType: RelDataType,
     offset: RexNode,
     fetch: RexNode)
   extends SingleRel(cluster, traitSet, inp)
@@ -57,13 +57,15 @@ class DataSetSort(
     Long.MaxValue
   }
 
+  override def deriveRowType(): RelDataType = rowRelDataType
+
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new DataSetSort(
       cluster,
       traitSet,
       inputs.get(0),
       collations,
-      rowType2,
+      getRowType,
       offset,
       fetch
     )
@@ -138,15 +140,15 @@ class DataSetSort(
         if (determinedType != inputType) {
 
           val mapFunc = getConversionMapper(
-            config,
-            false,
-            partitionedDs.getType,
-            determinedType,
-            "DataSetSortConversion",
-            getRowType.getFieldNames.asScala
+            config = config,
+            nullableInput = false,
+            inputType = partitionedDs.getType,
+            expectedType = determinedType,
+            conversionOperatorName = "DataSetSortConversion",
+            fieldNames = getRowType.getFieldNames.asScala
           )
 
-          val opName = s"convert: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+          val opName = s"convert: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
           limitedDs.map(mapFunc).name(opName)
         }
@@ -170,7 +172,7 @@ class DataSetSort(
     .map(c => (c.getFieldIndex, directionToOrder(c.getDirection)))
 
   private val sortFieldsToString = fieldCollations
-    .map(col => s"${rowType2.getFieldNames.get(col._1)} ${col._2.getShortName}" ).mkString(", ")
+    .map(col => s"${getRowType.getFieldNames.get(col._1)} ${col._2.getShortName}" ).mkString(", ")
 
   private val offsetToString = s"$offset"
 
