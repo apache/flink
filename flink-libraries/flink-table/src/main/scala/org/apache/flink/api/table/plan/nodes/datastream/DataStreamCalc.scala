@@ -38,33 +38,33 @@ class DataStreamCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    rowType: RelDataType,
+    rowRelDataType: RelDataType,
     calcProgram: RexProgram,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with FlinkCalc
   with DataStreamRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamCalc(
       cluster,
       traitSet,
       inputs.get(0),
-      rowType,
+      getRowType,
       calcProgram,
       ruleDescription
     )
   }
 
-  override def toString: String = calcToString(calcProgram, getExpressionString(_, _, _))
+  override def toString: String = calcToString(calcProgram, getExpressionString)
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("select", selectionToString(calcProgram, getExpressionString(_, _, _)))
+      .item("select", selectionToString(calcProgram, getExpressionString))
       .itemIf("where",
-        conditionToString(calcProgram, getExpressionString(_, _, _)),
+        conditionToString(calcProgram, getExpressionString),
         calcProgram.getCondition != null)
   }
 
@@ -74,7 +74,7 @@ class DataStreamCalc(
 
     val config = tableEnv.getConfig
 
-    val inputDataStream = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val inputDataStream = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
     val returnType = determineReturnType(
       getRowType,
@@ -99,6 +99,6 @@ class DataStreamCalc(
       returnType)
 
     val mapFunc = calcMapFunction(genFunction)
-    inputDataStream.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString(_, _, _)))
+    inputDataStream.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))
   }
 }
