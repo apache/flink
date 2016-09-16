@@ -37,6 +37,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -73,9 +74,9 @@ public class UnionClosedBranchingTest extends CompilerTestBase {
 	@Parameterized.Parameters
 	public static Collection<Object[]> params() {
 		Collection<Object[]> params = Arrays.asList(new Object[][]{
-				{ExecutionMode.PIPELINED, PIPELINED, BATCH},
+				{ExecutionMode.PIPELINED, BATCH, PIPELINED},
 				{ExecutionMode.PIPELINED_FORCED, PIPELINED, PIPELINED},
-				{ExecutionMode.BATCH, BATCH, BATCH},
+				{ExecutionMode.BATCH, BATCH, PIPELINED},
 				{ExecutionMode.BATCH_FORCED, BATCH, BATCH},
 		});
 
@@ -93,10 +94,16 @@ public class UnionClosedBranchingTest extends CompilerTestBase {
 	/** Expected {@link DataExchangeMode} from union to join. */
 	private final DataExchangeMode unionToJoin;
 
+	/** Expected {@link ShipStrategyType} from source to union. */
+	private final ShipStrategyType sourceToUnionStrategy = ShipStrategyType.PARTITION_HASH;
+
+	/** Expected {@link ShipStrategyType} from union to join. */
+	private final ShipStrategyType unionToJoinStrategy = ShipStrategyType.FORWARD;
+
 	public UnionClosedBranchingTest(
-			ExecutionMode executionMode,
-			DataExchangeMode sourceToUnion,
-			DataExchangeMode unionToJoin) {
+		ExecutionMode executionMode,
+		DataExchangeMode sourceToUnion,
+		DataExchangeMode unionToJoin) {
 
 		this.executionMode = executionMode;
 		this.sourceToUnion = sourceToUnion;
@@ -140,12 +147,16 @@ public class UnionClosedBranchingTest extends CompilerTestBase {
 		for (Channel channel : joinNode.getInputs()) {
 			assertEquals("Unexpected data exchange mode between union and join node.",
 					unionToJoin, channel.getDataExchangeMode());
+			assertEquals("Unexpected ship strategy between union and join node.",
+					unionToJoinStrategy, channel.getShipStrategy());
 		}
 
 		for (SourcePlanNode src : optimizedPlan.getDataSources()) {
 			for (Channel channel : src.getOutgoingChannels()) {
 				assertEquals("Unexpected data exchange mode between source and union node.",
 						sourceToUnion, channel.getDataExchangeMode());
+				assertEquals("Unexpected ship strategy between source and union node.",
+					sourceToUnionStrategy, channel.getShipStrategy());
 			}
 		}
 
@@ -176,9 +187,8 @@ public class UnionClosedBranchingTest extends CompilerTestBase {
 			for (IntermediateDataSet dataSet : src.getProducedDataSets()) {
 				ResultPartitionType dsType = dataSet.getResultType();
 
-				// The result type is determined by the channel between the union and the join node
-				// and *not* the channel between source and union.
-				if (unionToJoin.equals(BATCH)) {
+				// Ensure batch exchange unless PIPELINED_FORCE is enabled.
+				if (!executionMode.equals(ExecutionMode.PIPELINED_FORCED)) {
 					assertTrue("Expected batch exchange, but result type is " + dsType + ".",
 							dsType.isBlocking());
 				} else {
