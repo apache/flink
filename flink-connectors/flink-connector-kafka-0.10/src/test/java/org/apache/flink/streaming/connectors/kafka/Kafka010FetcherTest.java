@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internal.Handover;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internal.KafkaConsumerThread;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -135,6 +136,7 @@ public class Kafka010FetcherTest {
                 schema,
                 new Properties(),
                 0L,
+				StartupMode.GROUP_OFFSETS,
                 false);
 
         // ----- run the fetcher -----
@@ -272,6 +274,7 @@ public class Kafka010FetcherTest {
                 schema,
                 new Properties(),
                 0L,
+				StartupMode.GROUP_OFFSETS,
                 false);
 
 
@@ -387,6 +390,7 @@ public class Kafka010FetcherTest {
                 schema,
                 new Properties(),
                 0L,
+				StartupMode.GROUP_OFFSETS,
                 false);
 
 

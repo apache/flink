@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import kafka.api.FetchRequestBuilder;
+import kafka.api.OffsetRequest;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.common.ErrorMapping;
 import kafka.common.TopicAndPartition;
@@ -110,6 +111,8 @@ class SimpleConsumerThread<T> extends Thread {
 		this.owner = owner;
 		this.errorHandler = errorHandler;
 		this.broker = broker;
+		// all partitions should have been assigned a starting offset by the fetcher
+		checkAllPartitionsHaveDefinedStartingOffsets(seedPartitions);
 		this.partitions = seedPartitions;
 		this.deserializer = requireNonNull(deserializer);
 		this.unassignedPartitions = requireNonNull(unassignedPartitions);
@@ -144,10 +147,8 @@ class SimpleConsumerThread<T> extends Thread {
 			// create the Kafka consumer that we actually use for fetching
 			consumer = new SimpleConsumer(broker.host(), broker.port(), soTimeout, bufferSize, clientId);
 			
-			// make sure that all partitions have some offsets to start with
-			// those partitions that do not have an offset from a checkpoint need to get
-			// their start offset from ZooKeeper
-			getMissingOffsetsFromKafka(partitions);
+			// replace earliest of latest starting offsets with actual offset values fetched from Kafka
+			replaceEarliestOrLatestOffsetsWithActualValuesFromKafka(partitions);
 
 			// Now, the actual work starts :-)
 			int offsetOutOfRangeCount = 0;
@@ -160,9 +161,12 @@ class SimpleConsumerThread<T> extends Thread {
 				List<KafkaTopicPartitionState<TopicAndPartition>> newPartitions = newPartitionsQueue.pollBatch();
 				if (newPartitions != null) {
 					// found some new partitions for this thread's broker
-					
-					// check if the new partitions need an offset lookup
-					getMissingOffsetsFromKafka(newPartitions);
+
+					// the new partitions should already be assigned a starting offset
+					checkAllPartitionsHaveDefinedStartingOffsets(newPartitions);
+					// if the new partitions are to start from earliest or latest offsets,
+					// we need to replace them with actual values from Kafka
+					replaceEarliestOrLatestOffsetsWithActualValuesFromKafka(newPartitions);
 					
 					// add the new partitions (and check they are not already in there)
 					for (KafkaTopicPartitionState<TopicAndPartition> newPartition: newPartitions) {
@@ -408,23 +412,32 @@ class SimpleConsumerThread<T> extends Thread {
 		}
 	}
 
-	private void getMissingOffsetsFromKafka(
+	private void replaceEarliestOrLatestOffsetsWithActualValuesFromKafka(
 			List<KafkaTopicPartitionState<TopicAndPartition>> partitions) throws IOException
 	{
 		// collect which partitions we should fetch offsets for
-		List<KafkaTopicPartitionState<TopicAndPartition>> partitionsToGetOffsetsFor = new ArrayList<>();
+		List<KafkaTopicPartitionState<TopicAndPartition>> partitionsWithEarliestOffsetSetting = new ArrayList<>();
+		List<KafkaTopicPartitionState<TopicAndPartition>> partitionsWithLatestOffsetSetting = new ArrayList<>();
 		for (KafkaTopicPartitionState<TopicAndPartition> part : partitions) {
-			if (!part.isOffsetDefined()) {
-				// retrieve the offset from the consumer
-				partitionsToGetOffsetsFor.add(part);
+			if (part.getOffset() == OffsetRequest.EarliestTime()) {
+				partitionsWithEarliestOffsetSetting.add(part);
+			} else if (part.getOffset() == OffsetRequest.LatestTime()) {
+				partitionsWithLatestOffsetSetting.add(part);
 			}
 		}
-		
-		if (partitionsToGetOffsetsFor.size() > 0) {
-			getLastOffsetFromKafka(consumer, partitionsToGetOffsetsFor, invalidOffsetBehavior);
-			
-			LOG.info("No checkpoint/savepoint offsets found for some partitions. " +
-					"Fetched the following start offsets {}", partitionsToGetOffsetsFor);
+
+		if (partitionsWithEarliestOffsetSetting.size() > 0) {
+			getLastOffsetFromKafka(consumer, partitionsWithEarliestOffsetSetting, OffsetRequest.EarliestTime());
+
+			LOG.info("Found partitions that are set to start from the earliest offset. " +
+				"Fetched the following start offsets {}", partitionsWithEarliestOffsetSetting);
+		}
+
+		if (partitionsWithLatestOffsetSetting.size() > 0) {
+			getLastOffsetFromKafka(consumer, partitionsWithLatestOffsetSetting, OffsetRequest.LatestTime());
+
+			LOG.info("Found partitions that are set to start from the latest offset. " +
+				"Fetched the following start offsets {}", partitionsWithLatestOffsetSetting);
 		}
 	}
 
@@ -499,6 +512,16 @@ class SimpleConsumerThread<T> extends Thread {
 			// the offset returned is that of the next record to fetch. because our state reflects the latest
 			// successfully emitted record, we subtract one
 			part.setOffset(offset - 1);
+		}
+	}
+
+	private static void checkAllPartitionsHaveDefinedStartingOffsets(
+		List<KafkaTopicPartitionState<TopicAndPartition>> partitions)
+	{
+		for (KafkaTopicPartitionState<TopicAndPartition> part : partitions) {
+			if (!part.isOffsetDefined()) {
+				throw new RuntimeException("SimpleConsumerThread received a partition with undefined starting offset");
+			}
 		}
 	}
 }

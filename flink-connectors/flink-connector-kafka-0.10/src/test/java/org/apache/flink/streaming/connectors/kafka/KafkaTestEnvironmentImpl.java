@@ -45,10 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.BindException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 
 import static org.apache.flink.util.NetUtils.hostAndPortToUrlString;
 import static org.junit.Assert.assertTrue;
@@ -409,6 +406,13 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		public Long getCommittedOffset(String topicName, int partition) {
 			OffsetAndMetadata committed = offsetClient.committed(new TopicPartition(topicName, partition));
 			return (committed != null) ? committed.offset() : null;
+		}
+
+		@Override
+		public void setCommittedOffset(String topicName, int partition, long offset) {
+			Map<TopicPartition, OffsetAndMetadata> partitionAndOffset = new HashMap<>();
+			partitionAndOffset.put(new TopicPartition(topicName, partition), new OffsetAndMetadata(offset));
+			offsetClient.commitSync(partitionAndOffset);
 		}
 
 		@Override

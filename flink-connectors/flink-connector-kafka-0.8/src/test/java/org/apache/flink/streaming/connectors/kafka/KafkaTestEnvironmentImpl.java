@@ -393,6 +393,15 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		}
 
 		@Override
+		public void setCommittedOffset(String topicName, int partition, long offset) {
+			try {
+				ZookeeperOffsetHandler.setOffsetInZooKeeper(offsetClient, groupId, topicName, partition, offset);
+			} catch (Exception e) {
+				throw new RuntimeException("Exception when writing offsets to Zookeeper", e);
+			}
+		}
+
+		@Override
 		public void close() {
 			offsetClient.close();
 		}

@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -67,6 +68,9 @@ public abstract class AbstractFetcher<T, KPH> {
 	/** The mode describing whether the fetcher also generates timestamps and watermarks */
 	protected final int timestampWatermarkMode;
 
+	/** The startup mode for the consumer */
+	protected final StartupMode startupMode;
+
 	/** Flag whether to register metrics for the fetcher */
 	protected final boolean useMetrics;
 
@@ -83,10 +87,12 @@ public abstract class AbstractFetcher<T, KPH> {
 			ProcessingTimeService processingTimeProvider,
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
+			StartupMode startupMode,
 			boolean useMetrics) throws Exception
 	{
 		this.sourceContext = checkNotNull(sourceContext);
 		this.checkpointLock = sourceContext.getCheckpointLock();
+		this.startupMode = checkNotNull(startupMode);
 		this.useMetrics = useMetrics;
 		
 		// figure out what we watermark mode we will be using

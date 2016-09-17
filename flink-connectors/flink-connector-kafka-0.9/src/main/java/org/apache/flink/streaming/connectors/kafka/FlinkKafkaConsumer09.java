@@ -191,6 +191,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 				deserializer,
 				properties,
 				pollTimeout,
+				startupMode,
 				useMetrics);
 		
 	}

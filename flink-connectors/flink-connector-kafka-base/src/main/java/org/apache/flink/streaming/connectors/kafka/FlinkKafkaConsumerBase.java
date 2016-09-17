@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
@@ -102,6 +103,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private SerializedValue<AssignerWithPunctuatedWatermarks<T>> punctuatedWatermarkAssigner;
 
 	private transient ListState<Tuple2<KafkaTopicPartition, Long>> offsetsStateForCheckpoint;
+
+	/** The startup mode for the consumer (default is {@link StartupMode#GROUP_OFFSETS}) */
+	protected StartupMode startupMode = StartupMode.GROUP_OFFSETS;
 
 	// ------------------------------------------------------------------------
 	//  runtime state (used individually by each parallel subtask) 
@@ -216,6 +220,41 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		} catch (Exception e) {
 			throw new IllegalArgumentException("The given assigner is not serializable", e);
 		}
+	}
+
+	/**
+	 * Specifies the consumer to start reading from the earliest offset for all partitions.
+	 * This ignores any committed group offsets in Zookeeper / Kafka brokers.
+	 *
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> setStartFromEarliest() {
+		this.startupMode = StartupMode.EARLIEST;
+		return this;
+	}
+
+	/**
+	 * Specifies the consumer to start reading from the latest offset for all partitions.
+	 * This ignores any committed group offsets in Zookeeper / Kafka brokers.
+	 *
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> setStartFromLatest() {
+		this.startupMode = StartupMode.LATEST;
+		return this;
+	}
+
+	/**
+	 * Specifies the consumer to start reading from any committed group offsets found
+	 * in Zookeeper / Kafka brokers. The "group.id" property must be set in the configuration
+	 * properties. If no offset can be found for a partition, the behaviour in "auto.offset.reset"
+	 * set in the configuration properties will be used for the partition.
+	 *
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> setStartFromGroupOffsets() {
+		this.startupMode = StartupMode.GROUP_OFFSETS;
+		return this;
 	}
 
 	// ------------------------------------------------------------------------

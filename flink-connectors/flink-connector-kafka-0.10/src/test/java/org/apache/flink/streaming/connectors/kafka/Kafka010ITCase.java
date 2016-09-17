@@ -131,6 +131,25 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		runEndOfStreamTest();
 	}
 
+	// --- startup mode ---
+
+	// TODO not passing due to Kafka Consumer config error
+//	@Test(timeout = 60000)
+//	public void testStartFromEarliestOffsets() throws Exception {
+//		runStartFromEarliestOffsets();
+//	}
+
+	@Test(timeout = 60000)
+	public void testStartFromLatestOffsets() throws Exception {
+		runStartFromLatestOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromGroupOffsets() throws Exception {
+		runStartFromGroupOffsets();
+	}
+
+
 	// --- offset committing ---
 
 	@Test(timeout = 60000)

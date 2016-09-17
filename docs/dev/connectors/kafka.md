@@ -164,6 +164,46 @@ For convenience, Flink provides the following schemas:
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
 
+### Kafka Consumers Start Position Configuration
+
+By default, the Flink Kafka Consumer starts reading partitions from the consumer group's (`group.id` setting in the
+consumer properties) committed offsets in Kafka brokers (or Zookeeper for Kafka 0.8).
+
+This behaviour can be explicitly overriden, as demonstrated below:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+FlinkKafkaConsumer08<String> myConsumer = new FlinkKafkaConsumer08<>(...);
+myConsumer.setStartFromEarliest();     // start from the earliest record possible
+myConsumer.setStartFromLatest();       // start from the latest record
+myConsumer.setStartFromGroupOffsets(); // the default behaviour
+
+DataStream<String> stream = env.addSource(myConsumer);
+...
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+val myConsumer = new FlinkKafkaConsumer08[String](...)
+myConsumer.setStartFromEarliest()      // start from the earliest record possible
+myConsumer.setStartFromLatest()        // start from the latest record
+myConsumer.setStartFromGroupOffsets()  // the default behaviour
+
+val stream = env.addSource(myConsumer)
+...
+{% endhighlight %}
+</div>
+</div>
+
+All versions of the Flink Kafka Consumer have the above explicit configuration methods for start position. When
+configured to start from the earliest or latest record by calling either `setStartFromEarliest()` or `setStartFromLatest()`,
+the consumer will ignore any committed group offsets in Kafka when determining the start position for partitions.
+
 ### Kafka Consumers and Fault Tolerance
 
 With Flink's checkpointing enabled, the Flink Kafka Consumer will consume records from a topic and periodically checkpoint all

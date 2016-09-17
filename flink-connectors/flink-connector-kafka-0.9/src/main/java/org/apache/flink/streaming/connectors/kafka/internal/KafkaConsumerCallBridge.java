@@ -38,4 +38,13 @@ public class KafkaConsumerCallBridge {
 	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {
 		consumer.assign(topicPartitions);
 	}
+
+	public void seekPartitionsToBeginning(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
+		consumer.seekToBeginning(partitions.toArray(new TopicPartition[partitions.size()]));
+	}
+
+	public void seekPartitionsToEnd(KafkaConsumer consumer, List<TopicPartition> partitions) {
+		consumer.seekToEnd(partitions.toArray(new TopicPartition[partitions.size()]));
+	}
+
 }
