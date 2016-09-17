@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -31,6 +32,7 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -54,6 +56,7 @@ public class AbstractFetcherTimestampsTest {
 		TestFetcher<Long> fetcher = new TestFetcher<>(
 				sourceContext,
 				originalPartitions,
+				null,
 				null, /* periodic watermark assigner */
 				new SerializedValue<AssignerWithPunctuatedWatermarks<Long>>(new PunctuatedTestExtractor()),
 				processingTimeProvider,
@@ -128,6 +131,7 @@ public class AbstractFetcherTimestampsTest {
 		TestFetcher<Long> fetcher = new TestFetcher<>(
 				sourceContext,
 				originalPartitions,
+				null,
 				new SerializedValue<AssignerWithPeriodicWatermarks<Long>>(new PeriodicTestExtractor()),
 				null, /* punctuated watermarks assigner*/
 				processingTimeService,
@@ -199,12 +203,23 @@ public class AbstractFetcherTimestampsTest {
 		protected TestFetcher(
 				SourceContext<T> sourceContext,
 				List<KafkaTopicPartition> assignedPartitions,
+				HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				ProcessingTimeService processingTimeProvider,
 				long autoWatermarkInterval) throws Exception
 		{
-			super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, processingTimeProvider, autoWatermarkInterval, TestFetcher.class.getClassLoader(), false);
+			super(
+				sourceContext,
+				assignedPartitions,
+				restoredSnapshotState,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				processingTimeProvider,
+				autoWatermarkInterval,
+				TestFetcher.class.getClassLoader(),
+				StartupMode.LATEST,
+				false);
 		}
 
 		@Override
