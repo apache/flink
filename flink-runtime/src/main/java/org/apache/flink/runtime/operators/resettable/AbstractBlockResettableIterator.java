@@ -45,9 +45,9 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 	
 	// ------------------------------------------------------------------------
 	
-	protected final RandomAccessInputView readView;
+	protected RandomAccessInputView readView;
 	
-	protected final SimpleCollectingOutputView collectingView;
+	protected SimpleCollectingOutputView collectingView;
 	
 	protected final TypeSerializer<T> serializer;
 	
@@ -183,4 +183,24 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 		}
 	}
 
+	public void resetForIterativeTasks() {
+		if (this.closed) {
+			throw new IllegalStateException("Iterator was closed.");
+		}
+		this.numRecordsInBuffer = 0;
+		this.numRecordsReturned = 0;
+
+		// add the full segments to the empty ones
+		for (int i = this.fullSegments.size() - 1; i >= 0; i--) {
+			this.emptySegments.add(this.fullSegments.remove(i));
+		}
+
+		this.collectingView = new SimpleCollectingOutputView(this.fullSegments,
+			new ListMemorySegmentSource(this.emptySegments), memoryManager.getPageSize());
+		this.readView = new RandomAccessInputView(this.fullSegments, memoryManager.getPageSize());
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Block Resettable Iterator resetted for iterative tasks.");
+		}
+		// do not close the segments
+	}
 }

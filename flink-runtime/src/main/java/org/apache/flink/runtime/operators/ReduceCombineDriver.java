@@ -49,7 +49,7 @@ import org.apache.flink.util.MutableObjectIterator;
  *
  * @param <T> The data type consumed and produced by the combiner.
  */
-public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
+public class ReduceCombineDriver<T> implements ResettableDriver<ReduceFunction<T>, T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ReduceCombineDriver.class);
 
@@ -82,6 +82,8 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 	private volatile boolean running;
 
 	private boolean objectReuseEnabled = false;
+
+	private boolean reset = false;
 
 
 	// ------------------------------------------------------------------------
@@ -125,7 +127,12 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 		MemoryManager memManager = taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(
 			taskContext.getTaskConfig().getRelativeMemoryDriver());
-		memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
+
+		if (!reset) {
+			memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
+		} else {
+			reset = false;
+		}
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
 		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
@@ -349,6 +356,26 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 	public void cancel() {
 		running = false;
 
+		cleanup();
+	}
+
+	@Override
+	public boolean isInputResettable(int inputNum) {
+		return false;
+	}
+
+	@Override
+	public void initialize() throws Exception {
+
+	}
+
+	@Override
+	public void reset() throws Exception {
+		reset = true;
+	}
+
+	@Override
+	public void teardown() throws Exception {
 		cleanup();
 	}
 }

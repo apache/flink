@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @see org.apache.flink.api.common.functions.FlatJoinFunction
  */
-public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT2, OT>, OT> {
+public class JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
 	protected static final Logger LOG = LoggerFactory.getLogger(JoinDriver.class);
 	
@@ -58,6 +58,8 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 	private volatile JoinTaskIterator<IT1, IT2, OT> joinIterator; // the iterator that does the actual join 
 	
 	protected volatile boolean running;
+
+	protected boolean reset;
 
 	// ------------------------------------------------------------------------
 
@@ -128,17 +130,22 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 				ConfigConstants.DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS);
 
 		// create and return joining iterator according to provided local strategy.
-		if (objectReuseEnabled) {
-			switch (ls) {
-				case INNER_MERGE:
-					this.joinIterator = new ReusingMergeInnerJoinIterator<>(in1, in2, 
+		if (reset) {
+			resetForIterativeTasks(in1, in2, serializer1, serializer2, comparator1, comparator2, pairComparatorFactory);
+			reset = false;
+		}
+		if (joinIterator == null) {
+			if (objectReuseEnabled) {
+				switch (ls) {
+					case INNER_MERGE:
+						this.joinIterator = new ReusingMergeInnerJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
 							memoryManager, ioManager, numPages, this.taskContext.getContainingTask());
-					break;
-				case HYBRIDHASH_BUILD_FIRST:
-					this.joinIterator = new ReusingBuildFirstHashJoinIterator<>(in1, in2,
+						break;
+					case HYBRIDHASH_BUILD_FIRST:
+						this.joinIterator = new ReusingBuildFirstHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator21(comparator1, comparator2),
@@ -148,9 +155,9 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							false,
 							false,
 							hashJoinUseBitMaps);
-					break;
-				case HYBRIDHASH_BUILD_SECOND:
-					this.joinIterator = new ReusingBuildSecondHashJoinIterator<>(in1, in2,
+						break;
+					case HYBRIDHASH_BUILD_SECOND:
+						this.joinIterator = new ReusingBuildSecondHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
@@ -160,22 +167,22 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							false,
 							false,
 							hashJoinUseBitMaps);
-					break;
-				default:
-					throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
-			}
-		} else {
-			switch (ls) {
-				case INNER_MERGE:
-					this.joinIterator = new NonReusingMergeInnerJoinIterator<>(in1, in2,
+						break;
+					default:
+						throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
+				}
+			} else {
+				switch (ls) {
+					case INNER_MERGE:
+						this.joinIterator = new NonReusingMergeInnerJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
 							memoryManager, ioManager, numPages, this.taskContext.getContainingTask());
 
-					break;
-				case HYBRIDHASH_BUILD_FIRST:
-					this.joinIterator = new NonReusingBuildFirstHashJoinIterator<>(in1, in2,
+						break;
+					case HYBRIDHASH_BUILD_FIRST:
+						this.joinIterator = new NonReusingBuildFirstHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator21(comparator1, comparator2),
@@ -185,9 +192,9 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							false,
 							false,
 							hashJoinUseBitMaps);
-					break;
-				case HYBRIDHASH_BUILD_SECOND:
-					this.joinIterator = new NonReusingBuildSecondHashJoinIterator<>(in1, in2,
+						break;
+					case HYBRIDHASH_BUILD_SECOND:
+						this.joinIterator = new NonReusingBuildSecondHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
@@ -197,9 +204,10 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							false,
 							false,
 							hashJoinUseBitMaps);
-					break;
-				default:
-					throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
+						break;
+					default:
+						throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
+				}
 			}
 		}
 		
@@ -236,5 +244,29 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 		if (this.joinIterator != null) {
 			this.joinIterator.abort();
 		}
+	}
+
+	@Override
+	public boolean isInputResettable(int inputNum) {
+		return false;
+	}
+
+	@Override
+	public void initialize() throws Exception {
+
+	}
+
+	@Override
+	public void reset() throws Exception {
+		reset = true;
+	}
+
+	@Override
+	public void teardown() throws Exception {
+		cleanup();
+	}
+
+	private void resetForIterativeTasks(MutableObjectIterator<IT1> in1, MutableObjectIterator<IT2> in2, TypeSerializer<IT1> serializer1, TypeSerializer<IT2> serializer2, TypeComparator<IT1> comp1, TypeComparator<IT2> comp2, TypePairComparatorFactory<IT1, IT2> pairComparatorFactory) {
+		this.joinIterator.reset(in1, in2, serializer1, serializer2, comp1, comp2, pairComparatorFactory);
 	}
 }

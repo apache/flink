@@ -55,7 +55,7 @@ import java.util.List;
  * @param <IN> The data type consumed by the combiner.
  * @param <OUT> The data type produced by the combiner.
  */
-public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFunction<IN, OUT>, OUT> {
+public class GroupReduceCombineDriver<IN, OUT> implements ResettableDriver<GroupCombineFunction<IN, OUT>, OUT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceCombineDriver.class);
 
@@ -83,6 +83,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 	private volatile boolean running = true;
 
 	private boolean objectReuseEnabled = false;
+
+	private boolean reset = false;
 
 	// ------------------------------------------------------------------------
 
@@ -129,7 +131,11 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 
 		MemoryManager memManager = this.taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
-		this.memory = memManager.allocatePages(this.taskContext.getContainingTask(), numMemoryPages);
+		if (!reset) {
+			memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
+		} else {
+			reset = false;
+		}
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
@@ -265,5 +271,25 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 	 */
 	public long getOversizedRecordCount() {
 		return oversizedRecordCount;
+	}
+
+	@Override
+	public boolean isInputResettable(int inputNum) {
+		return false;
+	}
+
+	@Override
+	public void initialize() throws Exception {
+
+	}
+
+	@Override
+	public void reset() throws Exception {
+		reset = true;
+	}
+
+	@Override
+	public void teardown() throws Exception {
+
 	}
 }

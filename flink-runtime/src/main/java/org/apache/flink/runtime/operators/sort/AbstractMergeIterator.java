@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.sort;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
+import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -354,4 +355,11 @@ public abstract class AbstractMergeIterator<T1, T2, O> implements JoinTaskIterat
 	 */
 	protected abstract <T> T createCopy(TypeSerializer<T> serializer, T value, T reuse);
 
+	@Override
+	public void reset(MutableObjectIterator<T1> in1, MutableObjectIterator<T2> in2, TypeSerializer<T1> serializer1, TypeSerializer<T2> serializer2, TypeComparator<T1> comp1, TypeComparator<T2> comp2, TypePairComparatorFactory<T1, T2> pairComparatorFactory) {
+		this.blockIt.resetForIterativeTasks();
+		this.iterator1 = createKeyGroupedIterator(in1, serializer1, comp1.duplicate());
+		this.iterator2 = createKeyGroupedIterator(in2, serializer2, comp2.duplicate());
+		this.pairComparator = pairComparatorFactory.createComparator12(comp1, comp2);
+	}
 }

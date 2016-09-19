@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see FlatJoinFunction
  */
-public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT2, OT>, OT> {
+public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractOuterJoinDriver.class);
 	
@@ -49,7 +49,9 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 	
 	protected volatile JoinTaskIterator<IT1, IT2, OT> outerJoinIterator; // the iterator that does the actual outer join
 	protected volatile boolean running;
-	
+
+	protected boolean reset;
+
 	// ------------------------------------------------------------------------
 	
 	@Override
@@ -110,10 +112,15 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Outer Join Driver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
-		
+
+		if (reset) {
+			resetForIterativeTasks(in1, in2, serializer1, serializer2, comparator1, comparator2, pairComparatorFactory);
+			reset = false;
+		}
 		// create and return outer join iterator according to provided local strategy.
-		if (objectReuseEnabled) {
-			this.outerJoinIterator = getReusingOuterJoinIterator(
+		if(outerJoinIterator == null) {
+			if (objectReuseEnabled) {
+				this.outerJoinIterator = getReusingOuterJoinIterator(
 					ls,
 					in1,
 					in2,
@@ -125,9 +132,9 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 					memoryManager,
 					ioManager,
 					driverMemFraction
-			);
-		} else {
-			this.outerJoinIterator = getNonReusingOuterJoinIterator(
+				);
+			} else {
+				this.outerJoinIterator = getNonReusingOuterJoinIterator(
 					ls,
 					in1,
 					in2,
@@ -139,7 +146,8 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 					memoryManager,
 					ioManager,
 					driverMemFraction
-			);
+				);
+			}
 		}
 		
 		this.outerJoinIterator.open();
@@ -204,4 +212,28 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 			IOManager ioManager,
 			double driverMemFraction
 	) throws Exception;
+
+	@Override
+	public boolean isInputResettable(int inputNum) {
+		return false;
+	}
+
+	@Override
+	public void teardown() throws Exception {
+		cleanup();
+	}
+
+	@Override
+	public void initialize() throws Exception {
+
+	}
+
+	@Override
+	public void reset() throws Exception {
+		reset = true;
+	}
+
+	private void resetForIterativeTasks(MutableObjectIterator<IT1> in1, MutableObjectIterator<IT2> in2, TypeSerializer<IT1> serializer1, TypeSerializer<IT2> serializer2, TypeComparator<IT1> comp1, TypeComparator<IT2> comp2, TypePairComparatorFactory<IT1, IT2> pairComparatorFactory) {
+		outerJoinIterator.reset(in1, in2, serializer1, serializer2, comp1, comp2, pairComparatorFactory);
+	}
 }

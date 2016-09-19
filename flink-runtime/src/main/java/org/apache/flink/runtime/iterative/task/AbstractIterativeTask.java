@@ -125,6 +125,16 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	}
 
 	@Override
+	protected void postRun() throws Exception {
+		if (this.driver instanceof ResettableDriver) {
+			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
+			resDriver.reset();
+		} else {
+			super.postRun();
+		}
+	}
+
+	@Override
 	public void run() throws Exception {
 		if (inFirstIteration()) {
 			if (this.driver instanceof ResettableDriver) {
@@ -202,19 +212,15 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	}
 
 	private void reinstantiateDriver() throws Exception {
-		if (this.driver instanceof ResettableDriver) {
-			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
-			resDriver.reset();
-		} else {
+		if (!(this.driver instanceof ResettableDriver)) {
 			Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
 			this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 
 			try {
 				this.driver.setup(this);
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskInfo().getTaskName() +
-						"' , caused an error: " + t.getMessage(), t);
+					"' , caused an error: " + t.getMessage(), t);
 			}
 		}
 	}

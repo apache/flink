@@ -22,6 +22,7 @@ package org.apache.flink.runtime.operators.hash;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
+import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -44,13 +45,21 @@ public class NonReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIt
 
 	protected final MutableHashTable<V2, V1> hashJoin;
 
-	protected final TypeSerializer<V1> probeSideSerializer;
+	protected TypeSerializer<V1> probeSideSerializer;
+
+	protected TypeSerializer<V2> serializer2;
+
+	protected TypeComparator<V1> comparator1;
+
+	protected TypeComparator<V2> comparator2;
+
+	protected TypePairComparator<V1, V2> typePairComparator;
 
 	private final MemoryManager memManager;
 
-	private final MutableObjectIterator<V1> firstInput;
+	private MutableObjectIterator<V1> firstInput;
 
-	private final MutableObjectIterator<V2> secondInput;
+	private MutableObjectIterator<V2> secondInput;
 
 	private final boolean buildSideOuterJoin;
 
@@ -79,6 +88,10 @@ public class NonReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIt
 		this.firstInput = firstInput;
 		this.secondInput = secondInput;
 		this.probeSideSerializer = serializer1;
+		this.serializer2 = serializer2;
+		this.typePairComparator = pairComparator;
+		this.comparator1 = comparator1;
+		this.comparator2 = comparator2;
 
 		if(useBitmapFilters && probeSideOuterJoin) {
 			throw new IllegalArgumentException("Bitmap filter may not be activated for joining with empty build side");
@@ -173,5 +186,17 @@ public class NonReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIt
 	public void abort() {
 		this.running = false;
 		this.hashJoin.abort();
+	}
+
+	@Override
+	public void reset(MutableObjectIterator<V1> in1, MutableObjectIterator<V2> in2, TypeSerializer<V1> serializer1, TypeSerializer<V2> serializer2, TypeComparator<V1> comp1, TypeComparator<V2> comp2, TypePairComparatorFactory<V1, V2> pairComparatorFactory) {
+		this.hashJoin.close();
+		this.firstInput = in1;
+		this.secondInput = in2;
+		this.comparator1 = comp1;
+		this.comparator2 = comp2;
+		this.serializer2 = serializer2;
+		this.probeSideSerializer = serializer1;
+		this.typePairComparator = pairComparatorFactory.createComparator12(comp1, comp2);
 	}
 }
