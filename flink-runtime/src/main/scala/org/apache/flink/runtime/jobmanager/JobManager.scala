@@ -1024,8 +1024,15 @@ class JobManager(
       // send resource manager the ok
       currentResourceManager match {
         case Some(rm) =>
-          // inform rm
-          rm ! decorateMessage(msg)
+          try {
+            // inform rm and wait for it to confirm
+            val waitTime = FiniteDuration(5, TimeUnit.SECONDS)
+            val answer = (rm ? decorateMessage(msg))(waitTime)
+            Await.ready(answer, waitTime)
+          } catch {
+            case e: TimeoutException =>
+            case e: InterruptedException =>
+          }
         case None =>
           // ResourceManager not available
           // we choose not to wait here beacuse it might block the shutdown forever
