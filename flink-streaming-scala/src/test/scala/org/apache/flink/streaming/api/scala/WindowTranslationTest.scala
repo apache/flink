@@ -94,7 +94,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .window(SlidingEventTimeWindows.of(
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of(100): CountTrigger[TimeWindow])
       .reduce(reducer)
 
     val transform1 = window1.javaStream.getTransformation
@@ -109,11 +109,11 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
     assertTrue(
       winOperator1.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
-
+val trigger: CountTrigger[TimeWindow] = CountTrigger.of(100);
     val window2 = source
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(trigger)
       .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
       def apply(
                     tuple: Tuple,
@@ -166,7 +166,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
     val window2 = source
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of[TimeWindow](100))
       .evictor(CountEvictor.of(1000))
       .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
       def apply(
@@ -202,7 +202,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .window(SlidingEventTimeWindows.of(
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of[TimeWindow](100))
       .apply(reducer, new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
                    tuple: Tuple,
@@ -227,7 +227,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
     val window2 = source
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of[TimeWindow](100))
       .apply(reducer, new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
                    tuple: Tuple,

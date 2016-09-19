@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -44,6 +45,8 @@ import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.triggerdsl.DslTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.triggerdsl.DslTriggerRunner;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
@@ -51,6 +54,7 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalSingleValueAllWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A {@code AllWindowedStream} represents a data stream where the stream of
@@ -110,6 +114,28 @@ public class AllWindowedStream<T, W extends Window> {
 
 		this.trigger = trigger;
 		return this;
+	}
+
+	/**
+	 * Sets the {@code Trigger} that should be used to trigger window emission.
+	 */
+	@PublicEvolving
+	public AllWindowedStream<T, W> trigger(DslTrigger<? super T, ? super W> trigger) {
+		if (windowAssigner instanceof MergingWindowAssigner && !trigger.canMerge()) {
+			throw new UnsupportedOperationException("A merging window assigner cannot be used with a trigger that does not support merging.");
+		}
+
+		this.trigger = new DslTriggerRunner<>(trigger);
+		return this;
+	}
+
+	private Trigger<? super T, ? super W> buildTrigger(TypeSerializer<W> windowSerializer) {
+		Preconditions.checkNotNull(this.trigger, "The trigger has not been initialized.");
+		if (trigger instanceof DslTriggerRunner) {
+			DslTriggerRunner runner = (DslTriggerRunner) trigger;
+			runner.createTriggerTree(windowSerializer, allowedLateness);
+		}
+		return trigger;
 	}
 
 	/**
@@ -266,6 +292,9 @@ public class AllWindowedStream<T, W extends Window> {
 		String opName;
 		KeySelector<T, Byte> keySel = input.getKeySelector();
 
+		TypeSerializer<W> windowSerializer = windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig());
+		this.trigger = buildTrigger(windowSerializer);
+
 		WindowOperator<Byte, T, Iterable<T>, R, W> operator;
 
 		if (evictor != null) {
@@ -276,7 +305,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 			operator =
 				new EvictingWindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -293,7 +322,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 			operator =
 				new WindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -354,6 +383,9 @@ public class AllWindowedStream<T, W extends Window> {
 		String opName;
 		KeySelector<T, Byte> keySel = input.getKeySelector();
 
+		TypeSerializer<W> windowSerializer = windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig());
+		this.trigger = buildTrigger(windowSerializer);
+
 		OneInputStreamOperator<T, R> operator;
 
 		if (evictor != null) {
@@ -364,7 +396,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 			operator =
 				new EvictingWindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -382,7 +414,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 			operator =
 				new WindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -447,6 +479,9 @@ public class AllWindowedStream<T, W extends Window> {
 		String opName;
 		KeySelector<T, Byte> keySel = input.getKeySelector();
 
+		TypeSerializer<W> windowSerializer = windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig());
+		this.trigger = buildTrigger(windowSerializer);
+
 		OneInputStreamOperator<T, R> operator;
 
 		if (evictor != null) {
@@ -458,7 +493,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 			operator =
 				new EvictingWindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -475,7 +510,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 			operator =
 				new WindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,

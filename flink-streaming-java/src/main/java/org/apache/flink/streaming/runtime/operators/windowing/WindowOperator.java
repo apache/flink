@@ -731,7 +731,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			try {
 				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve state", e);
+				throw new RuntimeException("Could not retrieve state.", e);
 			}
 		}
 

@@ -28,6 +28,7 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -48,6 +49,8 @@ import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.triggerdsl.DslTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.triggerdsl.DslTriggerRunner;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
@@ -58,6 +61,7 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A {@code WindowedStream} represents a data stream where elements are grouped by
@@ -121,6 +125,28 @@ public class WindowedStream<T, K, W extends Window> {
 
 		this.trigger = trigger;
 		return this;
+	}
+
+	/**
+	 * Sets the {@code Trigger} that should be used to trigger window emission.
+	 */
+	@PublicEvolving
+	public WindowedStream<T, K, W> trigger(DslTrigger<? super T, ? super W> trigger) {
+		if (windowAssigner instanceof MergingWindowAssigner && !trigger.canMerge()) {
+			throw new UnsupportedOperationException("A merging window assigner cannot be used with a trigger that does not support merging.");
+		}
+
+		this.trigger = new DslTriggerRunner<>(trigger);
+		return this;
+	}
+
+	private Trigger<? super T, ? super W> buildTrigger(TypeSerializer<W> windowSerializer) {
+		Preconditions.checkNotNull(this.trigger, "The trigger has not been initialized.");
+		if (trigger instanceof DslTriggerRunner) {
+			DslTriggerRunner runner = (DslTriggerRunner) trigger;
+			runner.createTriggerTree(windowSerializer, allowedLateness);
+		}
+		return trigger;
 	}
 
 	/**
@@ -287,6 +313,9 @@ public class WindowedStream<T, K, W extends Window> {
 		String opName;
 		KeySelector<T, K> keySel = input.getKeySelector();
 
+		TypeSerializer<W> windowSerializer = windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig());
+		this.trigger = buildTrigger(windowSerializer);
+
 		WindowOperator<K, T, Iterable<T>, R, W> operator;
 
 		if (evictor != null) {
@@ -297,7 +326,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 			operator =
 				new EvictingWindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -314,7 +343,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 			operator =
 				new WindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -375,6 +404,9 @@ public class WindowedStream<T, K, W extends Window> {
 		String opName;
 		KeySelector<T, K> keySel = input.getKeySelector();
 
+		TypeSerializer<W> windowSerializer = windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig());
+		this.trigger = buildTrigger(windowSerializer);
+
 		OneInputStreamOperator<T, R> operator;
 
 		if (evictor != null) {
@@ -385,7 +417,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 			operator =
 				new EvictingWindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -403,7 +435,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 			operator =
 				new WindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSerializer,
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
@@ -468,6 +500,9 @@ public class WindowedStream<T, K, W extends Window> {
 		String opName;
 		KeySelector<T, K> keySel = input.getKeySelector();
 
+		TypeSerializer<W> windowSerializer = windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig());
+		this.trigger = buildTrigger(windowSerializer);
+
 		OneInputStreamOperator<T, R> operator;
 
 		if (evictor != null) {
@@ -478,7 +513,7 @@ public class WindowedStream<T, K, W extends Window> {
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator = new EvictingWindowOperator<>(windowAssigner,
-				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+				windowSerializer,
 				keySel,
 				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 				stateDesc,
@@ -494,7 +529,7 @@ public class WindowedStream<T, K, W extends Window> {
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator = new WindowOperator<>(windowAssigner,
-				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+				windowSerializer,
 				keySel,
 				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 				stateDesc,

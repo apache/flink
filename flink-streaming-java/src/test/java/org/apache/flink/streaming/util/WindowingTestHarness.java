@@ -146,7 +146,6 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 
 	public void dispose() throws Exception {
 		close();
-		timeServiceProvider.clearProviderState();
 	}
 
 	/**

@@ -102,7 +102,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .windowAll(SlidingEventTimeWindows.of(
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of[TimeWindow](100))
       .reduce(reducer)
 
     val transform1 = window1.javaStream.getTransformation
@@ -120,7 +120,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
     val window2 = source
       .windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of[TimeWindow](100))
       .apply(new AllWindowFunction[(String, Int), (String, Int), TimeWindow]() {
       def apply(
                     window: TimeWindow,
@@ -170,7 +170,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
     val window2 = source
       .windowAll(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of[TimeWindow](100))
       .evictor(CountEvictor.of(1000))
       .apply(new AllWindowFunction[(String, Int), (String, Int), TimeWindow]() {
       def apply(
@@ -205,7 +205,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .window(SlidingEventTimeWindows.of(
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of[TimeWindow](100))
       .apply(reducer, new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
                    tuple: Tuple,
@@ -230,7 +230,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
     val window2 = source
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
-      .trigger(CountTrigger.of(100))
+      .trigger(CountTrigger.of[TimeWindow](100))
       .apply(reducer, new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
                    tuple: Tuple,

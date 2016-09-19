@@ -331,4 +331,40 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 			defaultValue = null;
 		}
 	}
+
+	/**
+	 * Creates a new {@link StateDescriptor} of the same type as the argument <tt>stateDescriptor</tt> passed as an argument, but with the name
+	 * updated with the provided <tt>suffix</tt>. This method should be updated every time there is a change in the format of the state descriptors.
+	 *
+	 * @param stateDescriptor the original state descriptor to copy.
+	 * @param suffix the suffix to be appended in the name.
+	 * @return The resulting state descriptor.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <S extends State> StateDescriptor<S, ?> translateStateDescriptorWithSuffix(StateDescriptor<S, ?> stateDescriptor, String suffix) {
+		String newName = stateDescriptor.getName().endsWith(suffix) ?
+			stateDescriptor.getName() :
+			stateDescriptor.getName() +"_"+ suffix;
+
+		StateDescriptor<S, ?> newStateDescriptor;
+		if (stateDescriptor instanceof ValueStateDescriptor) {
+			newStateDescriptor = new ValueStateDescriptor(newName, stateDescriptor.getSerializer(), stateDescriptor.getDefaultValue());
+		} else if (stateDescriptor instanceof ListStateDescriptor) {
+			newStateDescriptor = new ListStateDescriptor(newName, stateDescriptor.getSerializer());
+		} else if (stateDescriptor instanceof ReducingStateDescriptor) {
+			newStateDescriptor = new ReducingStateDescriptor(newName,
+				((ReducingStateDescriptor) stateDescriptor).getReduceFunction(), stateDescriptor.getSerializer());
+		} else if (stateDescriptor instanceof FoldingStateDescriptor) {
+			newStateDescriptor = new FoldingStateDescriptor(newName, stateDescriptor.getDefaultValue(),
+				((FoldingStateDescriptor) stateDescriptor).getFoldFunction(), stateDescriptor.getSerializer());
+		} else {
+			throw new RuntimeException("Unknown state descriptor: " + stateDescriptor);
+		}
+
+		// update also the queryable state name
+		String newQueryableStateName = stateDescriptor.getQueryableStateName() +"_"+ suffix;
+		newStateDescriptor.setQueryable(newQueryableStateName);
+
+		return newStateDescriptor;
+	}
 }

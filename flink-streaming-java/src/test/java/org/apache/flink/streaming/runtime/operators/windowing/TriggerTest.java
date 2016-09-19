@@ -109,18 +109,17 @@ public class TriggerTest {
 		testHarness.processWatermark(2000);								// +6 on_time
 
 		// added as late
-		testHarness.processElement(new Tuple2<>("key1", 1), 1980);		// no firing as no late trigger is specified,
-																		// and this is not the default trigger
+		testHarness.processElement(new Tuple2<>("key1", 1), 1980);		// +7 because we get the default trigger
 
 		testHarness.processWatermark(2200);								// cleanup
 
 		// dropped
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 3);		// +3 for the watermarks
+		Assert.assertEquals(6 + 7 + 3, testHarness.getOutput().size());	// +3 for the watermarks
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(testHarness.getOperator().getNumberOfTimers(), new Tuple2<>(0, 0));
 
 		testHarness.close();
 		testHarness.dispose();
@@ -148,7 +147,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1100);								// +3
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2);		// +2 for the watermark
+		Assert.assertEquals(3 + 2, testHarness.getOutput().size());		// +2 for the watermark
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 
@@ -160,19 +159,19 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1200);								// +4
 
-		Assert.assertTrue(testHarness.getOutput().size() == 7 + 3);		// +3 for the watermark
+		Assert.assertEquals(7 + 3, testHarness.getOutput().size());		// +3 for the watermark
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 
 		testHarness.processWatermark(2000);								// +6
 
-		Assert.assertTrue(testHarness.getOutput().size() == 13 + 4);	// +4 for the watermark
+		Assert.assertEquals(13 + 4, testHarness.getOutput().size());	// +4 for the watermark
 
 		// added as late
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 13 + 4);
+		Assert.assertEquals(13 + 4, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -182,7 +181,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(2100);								// +7
 
-		Assert.assertTrue(testHarness.getOutput().size() == 20 + 5);
+		Assert.assertEquals(20 + 5, testHarness.getOutput().size());
 
 		// the following element is late but will be added,
 		// but the timer it will set will be after the cleanup (2200),
@@ -197,10 +196,10 @@ public class TriggerTest {
 
 		testHarness.processWatermark(2201);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 20 + 6); // +6 for the watermark
+		Assert.assertEquals(20 + 6, testHarness.getOutput().size()); // +6 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -233,7 +232,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(2000);								// nothing to fire
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);			// +2 for the watermarks
+		Assert.assertEquals(2, testHarness.getOutput().size());			// +2 for the watermarks
 
 		// dropped as late
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
@@ -241,10 +240,10 @@ public class TriggerTest {
 
 		testHarness.processWatermark(5000);								// no firing as we are after the cleanup
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);			// +1 for the watermark
+		Assert.assertEquals(3, testHarness.getOutput().size());			// +1 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -281,10 +280,10 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(2000);								// +6 on_time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6);
+		Assert.assertEquals(6, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -327,10 +326,10 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(2000);							//+6
 
-		Assert.assertTrue(testHarness.getOutput().size() == 13);
+		Assert.assertEquals(13, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -362,7 +361,7 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(12);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 
@@ -377,17 +376,17 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(22);								// +5 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 5);
+		Assert.assertEquals(2 + 5, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 
 		testHarness.setProcessingTime(2000);							// +12 = +6 for on_time
 																		//       +6 for early trigger from previous element
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 5 + 6 + 6);
+		Assert.assertEquals(2 + 5 + 6 + 6, testHarness.getOutput().size() );
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -412,7 +411,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// +2 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 
@@ -424,7 +423,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// +4 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 4);
+		Assert.assertEquals(2 + 4, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 
@@ -432,14 +431,14 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// +6 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 4 + 6);
+		Assert.assertEquals(2 + 4 + 6, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(2000);							// +6 for on_time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 4 + 6 + 6);
+		Assert.assertEquals(2 + 4 + 6 + 6, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -464,7 +463,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// +2 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 
@@ -476,7 +475,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// no firing (ONCE)
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 
@@ -484,14 +483,14 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// no firing (ONCE)
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(2000);							// +6 for on_time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 6);
+		Assert.assertEquals(2 + 6, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -524,10 +523,10 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(4000);									// here it should fire but window is cleaned up
 
-		Assert.assertTrue(testHarness.getOutput().size() == 0);
+		Assert.assertEquals(0, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -566,11 +565,11 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(200);									// +3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);			// +1 for the watermark
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());			// +1 for the watermark
 
 		testHarness.setProcessingTime(300);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);			// no data, no firing
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());			// no data, no firing
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1500);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1500);
@@ -583,12 +582,12 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(400);									// +5 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 1);
+		Assert.assertEquals(3 + 5 + 1, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 		testHarness.processWatermark(1999);									// +6 on-time firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 2);	// +2 for watermarks
+		Assert.assertEquals(3 + 5 + 6 + 2, testHarness.getOutput().size());	// +2 for watermarks
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -605,25 +604,25 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 
 		testHarness.setProcessingTime(500);									// no firing as we are in the late period
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 2);
+		Assert.assertEquals(3 + 5 + 6 + 2, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(600);									// +10 late firing
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 10 + 2);
+		Assert.assertEquals(3 + 5 + 6 + 10 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 		testHarness.setProcessingTime(800);									// no late firing because it is repeat.Once
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 10 + 2);
+		Assert.assertEquals(3 + 5 + 6 + 10 + 2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(2299);									// this is cleanup
 
 		// dropped due to lateness
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 10 + 3);
+		Assert.assertEquals(3 + 5 + 6 + 10 + 3, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -633,8 +632,6 @@ public class TriggerTest {
 	public void testEventTimeTriggerWithEarlyAndLateTumblingDiscarding() throws Exception {
 		final int WINDOW_SIZE = 2000;
 		final int ALLOWED_LATENESS = 300;
-
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
 		TumblingEventTimeWindows windowAssigner = TumblingEventTimeWindows.of(Time.milliseconds(WINDOW_SIZE));
 
@@ -663,22 +660,22 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(200);									// +3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);			// +1 for the watermark
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());			// +1 for the watermark
 
 		testHarness.setProcessingTime(300);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);			// no data, no firings
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());			// no data, no firings
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1500);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1500);
 		testHarness.setProcessingTime(400);									// +2 early firing FOREVER
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2 + 1);
+		Assert.assertEquals(3 + 2 + 1, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 		testHarness.processWatermark(2100);									// +1 on-time firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2 + 1 + 2);	// +1 for the watermark
+		Assert.assertEquals(3 + 2 + 1 + 2, testHarness.getOutput().size());	// +1 for the watermark
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
@@ -686,7 +683,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 
 		testHarness.setProcessingTime(500);									// no firing as we are in the late period
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2 + 1 + 2);
+		Assert.assertEquals(3 + 2 + 1 + 2, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(10L, 11L);
@@ -695,7 +692,7 @@ public class TriggerTest {
 		testHarness.open();
 
 		testHarness.setProcessingTime(600);									// +4 late firing
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2 + 1 + 4 + 2);
+		Assert.assertEquals(3 + 2 + 1 + 4 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 		testHarness.setProcessingTime(800);									// no late firing because we are at ONCE
@@ -705,10 +702,10 @@ public class TriggerTest {
 		// dropped due to lateness
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2 + 1 + 4 + 3);
+		Assert.assertEquals(3 + 2 + 1 + 4 + 3, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -718,8 +715,6 @@ public class TriggerTest {
 	public void testEventTimeTriggerWithEarlyOnlyTumbling() throws Exception {
 		final int WINDOW_SIZE = 2000;
 		final int ALLOWED_LATENESS = 300;
-
-		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
 		TumblingEventTimeWindows windowAssigner = TumblingEventTimeWindows.of(Time.milliseconds(WINDOW_SIZE));
 
@@ -740,11 +735,11 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(200);										// +3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);				// +1 for the watermark
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());				// +1 for the watermark
 
 		testHarness.setProcessingTime(300);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);				// no data, no firing
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());				// no data, no firing
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1500);
 
@@ -757,14 +752,14 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1500);
 		testHarness.setProcessingTime(400);										// +5 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 1);
+		Assert.assertEquals(3 + 5 + 1, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 		testHarness.processWatermark(2100);										// + 6 on-time firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 2);		// +1 for the watermark
+		Assert.assertEquals(3 + 5 + 6 + 2, testHarness.getOutput().size());		// +1 for the watermark
 
-		testHarness.processElement(new Tuple2<>("key1", 1), 1900);				// no firing at every late element
+		testHarness.processElement(new Tuple2<>("key1", 1), 1900);				// +7 firing late element
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -772,23 +767,24 @@ public class TriggerTest {
 		testHarness.restore(snapshot);
 		testHarness.open();
 
-		testHarness.processElement(new Tuple2<>("key1", 1), 1900);				// no firing at every late element
+		testHarness.processWatermark(2100);										// TODO: 9/24/16 this is to simulate that we knwo the last watermark after the failure
+		testHarness.processElement(new Tuple2<>("key1", 1), 1900);				// +8 firing at every late element
 
 		testHarness.setProcessingTime(500);										// no firing because we have no late trigger
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 2);
+		Assert.assertEquals(3 + 5 + 6 + 7 + 8 + 3, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(600);										// no firing because we have no late trigger
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 2);
+		Assert.assertEquals(3 + 5 + 6 + 7 + 8 + 3, testHarness.getOutput().size());
 
-		testHarness.processWatermark(2299);										// this is cleanup
+		testHarness.processWatermark(2301);										// this is cleanup
 
 		// dropped due to lateness
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 5 + 6 + 3);
+		Assert.assertEquals(3 + 5 + 6 + 7 + 8 + 4, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -824,11 +820,11 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(200);                            // no early trigger, no firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 1);        // +1 for the watermark
+		Assert.assertEquals(1, testHarness.getOutput().size());        // +1 for the watermark
 
 		testHarness.setProcessingTime(300);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 1);        // no firing
+		Assert.assertEquals(1, testHarness.getOutput().size());        // no firing
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 
@@ -840,7 +836,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(2100);                            // +4 on-time firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 2);    // +2 for the watermarks
+		Assert.assertEquals(4 + 2, testHarness.getOutput().size());    // +2 for the watermarks
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
@@ -854,20 +850,20 @@ public class TriggerTest {
 		testHarness.open();
 
 		testHarness.setProcessingTime(500);                            // + 8 late firing
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 8 + 2);
+		Assert.assertEquals(4 + 8 + 2, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(600);                            // no firing (ONCE)
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 8 + 2);
+		Assert.assertEquals(4 + 8 + 2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(2299);								// this is cleanup
 
 		// dropped due to lateness
 		testHarness.processElement(new Tuple2<>("key1", 1), 1900);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 8 + 3);
+		Assert.assertEquals(4 + 8 + 3, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -899,7 +895,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);	// +3 count_3 fires
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -909,12 +905,12 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);	// no firing because both counters are reset
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1004);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// +6 count_3 fires
 
-		Assert.assertTrue(testHarness.getOutput().size() == 9);
+		Assert.assertEquals(9, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	//
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// no firing
@@ -922,10 +918,10 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1999);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 18 + 1);// +1 for the watermark
+		Assert.assertEquals(18 + 1, testHarness.getOutput().size());// +1 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -951,7 +947,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 
 		testHarness.setProcessingTime(110);							// +2 processing time
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);	// no firing because both states are cleaned at previous firing
@@ -966,11 +962,11 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);	// +6 count_4 fires (accumulating)
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 6);
+		Assert.assertEquals(2 + 6, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(250);							// no firing, state has been cleared
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 6);
+		Assert.assertEquals(2 + 6, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
@@ -984,13 +980,13 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(350);							// +9, processing time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 6 + 9);
+		Assert.assertEquals(2 + 6 + 9, testHarness.getOutput().size());
 
 		testHarness.processWatermark(2000);							// the cleanup timer
 
 		// check the we have processed all the timers
 		// (we do not have separate cleanup timer because lateness=0)
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1032,11 +1028,11 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1999);								// +6 on-time firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 10 + 1);	// +1 for the watermark
+		Assert.assertEquals(10 + 1, testHarness.getOutput().size());	// +1 for the watermark
 
 		// check the we have processed all the timers
 		// (we do not have separate cleanup timer because lateness=0)
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1077,13 +1073,13 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1004);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);		// +0 count_2 fires but ignored
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4);			// +1 for the watermark
+		Assert.assertEquals(4, testHarness.getOutput().size());			// +1 for the watermark
 
 		testHarness.processWatermark(1999);								// this will lead to processing the cleanup timer
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 1);		// +1 for the watermark
+		Assert.assertEquals(4 + 1, testHarness.getOutput().size());		// +1 for the watermark
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1107,7 +1103,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);		// +0 count_2 fires but ignored
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);		// +3 all fire here
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		StreamStateHandle snapshot = testHarness.snapshot(0L, 0L);
@@ -1126,13 +1122,13 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1004);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);		// +3 all fire here
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6);			// +1 for the watermark
+		Assert.assertEquals(6, testHarness.getOutput().size());			// +1 for the watermark
 
 		testHarness.processWatermark(1999);								// this will lead to processing the cleanup timer
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 1);		// +1 for the watermark
+		Assert.assertEquals(6 + 1, testHarness.getOutput().size());		// +1 for the watermark
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1176,9 +1172,9 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1999);								// +8 on-time firing with >4 elements
 
-		Assert.assertTrue(testHarness.getOutput().size() == 8 + 1);		// +1 for the watermark
+		Assert.assertEquals(8 + 1, testHarness.getOutput().size());		// +1 for the watermark
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1210,7 +1206,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);		// the 4 fires here but is ignored
 		testHarness.processElement(new Tuple2<>("key2", 1), 1004);		// both fire here
 
-		Assert.assertTrue(testHarness.getOutput().size() == 5);
+		Assert.assertEquals(5, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 
@@ -1225,13 +1221,13 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1007);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1007);		// both would fire here but we are at ONCE
 
-		Assert.assertTrue(testHarness.getOutput().size() == 5);
+		Assert.assertEquals(5, testHarness.getOutput().size());
 
 		testHarness.processWatermark(1999);								// cleanup
 
-		Assert.assertTrue(testHarness.getOutput().size() == 5 + 1);		// +1 for the watermark
+		Assert.assertEquals(5 + 1, testHarness.getOutput().size());		// +1 for the watermark
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1275,7 +1271,7 @@ public class TriggerTest {
 		testHarness.open();
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1003);	// +4 early for key1
-		Assert.assertTrue(testHarness.getOutput().size() == 4);
+		Assert.assertEquals(4, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1004);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// +4 early firing for key2
@@ -1286,14 +1282,14 @@ public class TriggerTest {
 		testHarness.restore(snapshot);
 		testHarness.open();
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 4);
+		Assert.assertEquals(4 + 4, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1006);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1007);
 
 		testHarness.processWatermark(1999);							// +10 on-time firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 4 + 10 + 1);		// +1 for the watermark
+		Assert.assertEquals(4 + 4 + 10 + 1, testHarness.getOutput().size());		// +1 for the watermark
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1306,7 +1302,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1901);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1902);	// +9 late firing for key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 4 + 10 + 9 + 1);	// +1 for the watermark
+		Assert.assertEquals(4 + 4 + 10 + 9 + 1, testHarness.getOutput().size());	// +1 for the watermark
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1903);
 
@@ -1319,7 +1315,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1904);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1905);	// +7 late firing for key1
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 4 + 10 + 9 + 7 + 1);    // +1 for the watermark
+		Assert.assertEquals(4 + 4 + 10 + 9 + 7 + 1, testHarness.getOutput().size());    // +1 for the watermark
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1904);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1905);
@@ -1329,9 +1325,9 @@ public class TriggerTest {
 
 		testHarness.processWatermark(2200);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 4 + 10 + 9 + 7 + 2); // +2 for the watermark
+		Assert.assertEquals(4 + 4 + 10 + 9 + 7 + 2, testHarness.getOutput().size()); // +2 for the watermark
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1339,6 +1335,71 @@ public class TriggerTest {
 
 	@Test
 	public void testEventTimeTriggerWithEarlyOnlyTumbling2() throws Exception {
+		final int WINDOW_SIZE = 2000;
+		final long allowedLateness = 100;
+
+		TumblingEventTimeWindows windowAssigner = TumblingEventTimeWindows.of(Time.milliseconds(WINDOW_SIZE));
+
+		Count<TimeWindow> countTrigger = Count.atLeast(4);
+		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = createTestHarness(
+			windowAssigner,
+			EventTime.<TimeWindow>afterEndOfWindow()
+				.withEarlyTrigger(countTrigger)
+				.withLateTrigger(Repeat.Forever(countTrigger))
+				.accumulating(),
+			allowedLateness);
+
+		testHarness.open();
+
+		testHarness.processElement(new Tuple2<>("key2", 1), 800);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1002);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1003);		// + 4 early firing
+
+		Assert.assertEquals(4, testHarness.getOutput().size());
+
+		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1003);		// no firing
+
+		Assert.assertEquals(4, testHarness.getOutput().size());
+
+		testHarness.processElement(new Tuple2<>("key2", 1), 1004);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
+
+		testHarness.processWatermark(1999);								// +10 on-time
+
+		Assert.assertEquals(4 + 10 + 1, testHarness.getOutput().size());
+
+		// late but accepted elements
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);		// + 14 late firing
+
+		Assert.assertEquals(4 + 14 + 10 + 1, testHarness.getOutput().size());
+
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);		// + 18 late firing
+
+		Assert.assertEquals(4 + 14 + 18 + 10 + 1, testHarness.getOutput().size());
+
+		testHarness.processElement(new Tuple2<>("key1", 1), 2150);
+		testHarness.processWatermark(10999);							// fire just the new window
+
+		Assert.assertEquals(4 + 14 + 18 + 10 + 1 + 2, testHarness.getOutput().size());
+
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
+
+		testHarness.close();
+		testHarness.dispose();
+	}
+
+	@Test
+	public void testEventTimeTriggerWithEarlyOnlyTumbling3() throws Exception {
 		final int WINDOW_SIZE = 2000;
 		final long allowedLateness = 100;
 
@@ -1366,14 +1427,14 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);		// + 4 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4);
+		Assert.assertEquals(4, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);		// + 8 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 8);
+		Assert.assertEquals(4 + 8, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1004);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
@@ -1386,20 +1447,19 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1999);								// +10 on-time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 8 + 10 + 1);
+		Assert.assertEquals(4 + 8 + 10 + 1, testHarness.getOutput().size());
 
 		// late but accepted elements
-		testHarness.processElement(new Tuple2<>("key2", 1), 1900);		// no firing, no late trigger
-		testHarness.processElement(new Tuple2<>("key2", 1), 1900);		// no firing, no late trigger
+		testHarness.processElement(new Tuple2<>("key2", 1), 1900);		// +11 late firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 8 + 10 + 1);
+		Assert.assertEquals(4 + 8 + 10 + 11 + 1, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 2150);
-		testHarness.processWatermark(10999);                        // fire just the new window
+		testHarness.processWatermark(10999);							// fire just the new window
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 8 + 10 + 1 + 2);
+		Assert.assertEquals(4 + 8 + 10 + 11 + 1 + 2, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1442,7 +1502,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1999);							// +6 on-time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 1);	// +1 for the watermark
+		Assert.assertEquals(6 + 1, testHarness.getOutput().size());	// +1 for the watermark
 
 		// late but accepted elements
 		testHarness.processElement(new Tuple2<>("key2", 1), 1900);
@@ -1464,9 +1524,9 @@ public class TriggerTest {
 
 		testHarness.processWatermark(2200);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 16 + 2); // +2 for the watermarks
+		Assert.assertEquals(16 + 2, testHarness.getOutput().size()); // +2 for the watermarks
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1504,7 +1564,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);		// + 3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);		// +1 for the watermark
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());		// +1 for the watermark
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1514,7 +1574,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(7500);								// +3 onTime firing, with no new data
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1538,7 +1598,7 @@ public class TriggerTest {
 																		// early trigger of the merged window
 																		// because the new early count is 4		+7
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 7 + 2);
+		Assert.assertEquals(3 + 3 + 7 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 9000);
 		testHarness.processElement(new Tuple2<>("key2", 1), 9000);
@@ -1551,15 +1611,15 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 9000);		// early firing							+10
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 7 + 10 + 2);
+		Assert.assertEquals(3 + 3 + 7 + 10 + 2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(15000);							// +10 onTime of new session, with no new data
 
 		testHarness.processWatermark(20000);							// also process the last cleanup timer
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 7 + 10 + 10 + 4);
+		Assert.assertEquals(3 + 3 + 7 + 10 + 10 + 4, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1593,7 +1653,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);		// + 3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);		// +1 for the watermark
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());		// +1 for the watermark
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1603,7 +1663,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(7500);								// +3 onTime firing, with no new data
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1617,7 +1677,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);		// + 8 late firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 8 + 2);
+		Assert.assertEquals(3 + 3 + 8 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);		// late of old session is 1
 
@@ -1636,7 +1696,7 @@ public class TriggerTest {
 		// early trigger of the merged window
 		// because the new early count is 4		+7
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 8 + 12 + 2);
+		Assert.assertEquals(3 + 3 + 8 + 12 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 9000);
 		testHarness.processElement(new Tuple2<>("key2", 1), 9000);
@@ -1649,15 +1709,15 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 9000);		// early firing							+15
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 8 + 12 + 15 + 2);
+		Assert.assertEquals(3 + 3 + 8 + 12 + 15 + 2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(15000);							// +15 onTime of new session, with no new data
 
 		testHarness.processWatermark(20000);							// also process the last cleanup timer
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 8 + 12 + 15 + 15 + 4);
+		Assert.assertEquals(3 + 3 + 8 + 12 + 15 + 15 + 4, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1687,11 +1747,11 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);		// +3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
 		testHarness.processWatermark(7500);								// +3 early firing with no new element
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		StreamStateHandle snapshot = testHarness.snapshot(0L, 0L);
@@ -1701,7 +1761,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);		// late of old session is 1
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
 		// new session
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
@@ -1722,7 +1782,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(11500);							// + 2 onTime firing for new session
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3);
+		Assert.assertEquals(3 + 3 + 2 + 3, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		// late of new session is 1
 		testHarness.processElement(new Tuple2<>("key2", 1), 9500);		// early of expanded new session is 2
@@ -1734,18 +1794,18 @@ public class TriggerTest {
 		testHarness.open();
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 9500);		// + 5 early of new session is 3
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3 + 5);
+		Assert.assertEquals(3 + 3 + 2 + 3 + 5, testHarness.getOutput().size());
 
 		// this will merge the two sessions into one
 		testHarness.processElement(new Tuple2<>("key2", 1), 7000);		// the new early count is 2 (one was the late in the old session)
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		// +11  early firing of new merged session
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3 + 5 + 11);
+		Assert.assertEquals(3 + 3 + 2 + 3 + 5 + 11, testHarness.getOutput().size());
 
 		testHarness.processWatermark(12500);							// +11 onTime of new session, with no new data
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3 + 5 + 11 + 11 + 1);
+		Assert.assertEquals(3 + 3 + 2 + 3 + 5 + 11 + 11 + 1, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
@@ -1760,14 +1820,14 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		// +16 late firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3 + 5 + 11 + 11 + 16 + 1);
+		Assert.assertEquals(3 + 3 + 2 + 3 + 5 + 11 + 11 + 16 + 1, testHarness.getOutput().size());
 
 		testHarness.processWatermark(25000);
 
 		//nothing happens at cleanup, we just add the last watermark
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3 + 5 + 11 + 11 + 16 + 1 + 1);
+		Assert.assertEquals(3 + 3 + 2 + 3 + 5 + 11 + 11 + 16 + 1 + 1, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1801,15 +1861,15 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);		// +3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
 		testHarness.processWatermark(7500);								// +3 onTime firing with no new element
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
-		testHarness.processElement(new Tuple2<>("key2", 1), 3000);		// no firing for late elements	old_counter = 1
+		testHarness.processElement(new Tuple2<>("key2", 1), 3000);		// +4 late firing	old_counter = 0
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 4 + 2, testHarness.getOutput().size());
 
 		// new session
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
@@ -1823,13 +1883,13 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		// early of new session is 2
 		testHarness.processWatermark(11500);							// +2 onTime firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3);
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3, testHarness.getOutput().size());
 
-		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		// no late firing here			new_counter = 1
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3);
+		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		// +3 late firing		new_counter = 0 (we fired)
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 3, testHarness.getOutput().size());
 
-		testHarness.processElement(new Tuple2<>("key2", 1), 9500);		//								new_counter = 2
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 3);
+		testHarness.processElement(new Tuple2<>("key2", 1), 9500);		//	no firing because the session got extended	new_counter = 1
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 3, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1837,31 +1897,33 @@ public class TriggerTest {
 		testHarness.restore(snapshot);
 		testHarness.open();
 
-		testHarness.processElement(new Tuple2<>("key2", 1), 9500);		// +5							new_counter = 0
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 5 + 3);
+		testHarness.processWatermark(11500);
 
-		testHarness.processElement(new Tuple2<>("key2", 1), 9500);		//								new_counter = 1
+		testHarness.processElement(new Tuple2<>("key2", 1), 9500);		//							new_counter = 2
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 4, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 5 + 3);
+		testHarness.processElement(new Tuple2<>("key2", 1), 9500);		// +6 early firing			new_counter = 3
+
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 4 + 6, testHarness.getOutput().size());
 
 		// this will merge the two sessions into one
-		testHarness.processElement(new Tuple2<>("key2", 1), 7000);		// + 11 early of merged
+		testHarness.processElement(new Tuple2<>("key2", 1), 7000);		//							new_counter = 1
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 5 + 11 + 3);
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 4 + 6, testHarness.getOutput().size());
 
-		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		//									count = 1
-		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		//									count = 2
-		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		// no fire (ONCE)					count = 3
+		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		//							new_counter = 2
+		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		// +13	early firing		new_counter = 3 (because it is a new session so the ONCE does not apply)
+		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		//							new_counter = 1
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 5 + 11 + 3);
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 4 + 6 + 13, testHarness.getOutput().size());
 
 		testHarness.processWatermark(12500);							// +14 on-time firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 5 + 11 + 14 + 4);
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 4 + 6 + 13 + 14 + 1, testHarness.getOutput().size());
 
-		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		//	no late firing					count = 1
+		testHarness.processElement(new Tuple2<>("key2", 1), 8500);		//	+15 late firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 5 + 11 + 14 + 4);
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 4 + 6 + 13 + 14 + 15 + 1, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1869,16 +1931,17 @@ public class TriggerTest {
 		testHarness.restore(snapshot);
 		testHarness.open();
 
-		testHarness.processElement(new Tuple2<>("key2", 1), 8500);	//	no late firing						count = 2
+		testHarness.processWatermark(12500);						// TODO: 9/24/16 this is to simulate that we knwo the last watermark after the failure
+		testHarness.processElement(new Tuple2<>("key2", 1), 8500);	//	no late firing					count = 2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 5 + 11 + 14 + 4);
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 4 + 6 + 13 + 14 + 15 + 16 + 2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(25000);
 
 		//nothing happens at cleanup, we just add the last watermark
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 5 + 11 + 14 + 5);
+		Assert.assertEquals(3 + 3 + 4 + 2 + 3 + 4 + 6 + 13 + 14 + 15 + 16 + 3, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -1922,15 +1985,15 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(1000);								// +3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(2000);								// no firing, no data
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
 		testHarness.processWatermark(7500);									// no firing, no data
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1940,7 +2003,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);			// late of old session registers timer for 3000
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(2500);
 
@@ -1966,11 +2029,11 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(3000);								// +7 early firing of the merged session
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 7);
+		Assert.assertEquals(3 + 3 + 2 + 7, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(3700);								// the 3500 timer should be ignored because its window was merged
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 7);
+		Assert.assertEquals(3 + 3 + 2 + 7, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -1980,7 +2043,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(12500);								// +7 firing with no new element
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 7 + 7 + 1);
+		Assert.assertEquals(3 + 3 + 2 + 7 + 7 + 1, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);			// late registers timer for 5700
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
@@ -2003,14 +2066,14 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(5800);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 7 + 7 + 12 + 1);
+		Assert.assertEquals(3 + 3 + 2 + 7 + 7 + 12 + 1, testHarness.getOutput().size());
 
 		testHarness.processWatermark(25000);
 
 		//nothing happens at cleanup, we just add the last watermark
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2 + 7 + 7 + 12 + 2);
+		Assert.assertEquals(3 + 3 + 2 + 7 + 7 + 12 + 2, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2050,11 +2113,11 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(1000);								// +3 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(2000);								// no firing, no data
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);			// registers timer for 3000
 
@@ -2066,10 +2129,10 @@ public class TriggerTest {
 
 		testHarness.processWatermark(7500);									// +4 onTime firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 2);
+		Assert.assertEquals(3 + 4 + 2, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(3000);								// this should not fire because we had an on-time firing
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 2);
+		Assert.assertEquals(3 + 4 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);			// late of old session is 1
 
@@ -2082,7 +2145,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);			// late of old session is 2
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);			// +7 late firing of old session
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 7 + 2);
+		Assert.assertEquals(3 + 4 + 7 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);			// late of old session is 1 and register timer for 4000
 
@@ -2090,7 +2153,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 3000);			// late of old session is 2 and register timer for 6000
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 7 + 2);
+		Assert.assertEquals(3 + 4 + 7 + 2, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(5500);
 
@@ -2109,15 +2172,15 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(6000);								// +12 early firing of merged session
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 7 + 12 + 2);
+		Assert.assertEquals(3 + 4 + 7 + 12 + 2, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(6700);								// nothing should happen here
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 7 + 12 + 2);
+		Assert.assertEquals(3 + 4 + 7 + 12 + 2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(12500);								// +12 on time firing with no new element
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 7 + 12 + 12 + 3);
+		Assert.assertEquals( 3 + 4 + 7 + 12 + 12 + 3, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
@@ -2125,14 +2188,14 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(10000);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 7 + 12 + 12 + 15 + 3);
+		Assert.assertEquals(3 + 4 + 7 + 12 + 12 + 15 + 3, testHarness.getOutput().size());
 
 		testHarness.processWatermark(25000);
 
 		//nothing happens at cleanup, we just add the last watermark
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 4 + 7 + 12 + 12 + 15 + 4);
+		Assert.assertEquals(3 + 4 + 7 + 12 + 12 + 15 + 4, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2146,72 +2209,72 @@ public class TriggerTest {
 		EventTimeSessionWindows windowAssigner = EventTimeSessionWindows.withGap(Time.seconds(GAP_SIZE));
 
 		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = createTestHarness(
-			windowAssigner, 
+			windowAssigner,
 			Count.<TimeWindow>atLeast(3),
 			allowedLateness);
 
 		testHarness.open();
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1000);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(1, 0)));	// cleanup for 13999
+		Assert.assertEquals(new Tuple2<>(1, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 13999
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 2000);
 		testHarness.processWatermark(4998);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(2, 0)));	// cleanup for 14999
+		Assert.assertEquals(new Tuple2<>(2, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 14999
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);			// +3 early firing
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(3, 0)));	// cleanup for 17499
+		Assert.assertEquals(new Tuple2<>(3, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 17499
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);			// no firing - we are in ONCE mode
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(3, 0)));	// the cleanup is already there so no re-adding
+		Assert.assertEquals(new Tuple2<>(3, 0), testHarness.getOperator().getNumberOfTimers());	// the cleanup is already there so no re-adding
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
 		testHarness.processWatermark(7500);									// nothing because we only have a count trigger
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2);
+		Assert.assertEquals(3 + 2, testHarness.getOutput().size());
 
 		// new session
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 7501);										// new session with one element
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(4, 0)));	// cleanup for 20500
+		Assert.assertEquals(new Tuple2<>(4, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 20500
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8000);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(5, 0)));	// cleanup for 20999
+		Assert.assertEquals(new Tuple2<>(5, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 20999
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2);
+		Assert.assertEquals(3 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8000);			// +3 for new session
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(6, 0)));	// cleanup for 21499
+		Assert.assertEquals(new Tuple2<>(6, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 21499
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);			// +6 because these elements expand the window
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 6 + 2);	// no firing
+		Assert.assertEquals(3 + 3 + 6 + 2, testHarness.getOutput().size());	// no firing
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 6 + 2);	// no firing because we are in ONCE mode
+		Assert.assertEquals(3 + 3 + 6 + 2, testHarness.getOutput().size());	// no firing because we are in ONCE mode
 
 		// merging the two sessions
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 6500);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(7, 0)));	// cleanup for 21499 but for the whole window 1000 to 11500, so reinserted
+		Assert.assertEquals(new Tuple2<>(7, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 21499 but for the whole window 1000 to 11500, so reinserted
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 6 + 17 + 2);
+		Assert.assertEquals(3 + 3 + 6 + 17 + 2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(21500);								// to process all the cleanup timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2232,65 +2295,65 @@ public class TriggerTest {
 		testHarness.open();
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1000);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(1, 0)));	// cleanup for 13999
+		Assert.assertEquals(new Tuple2<>(1, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 13999
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 2000);
 		testHarness.processWatermark(4998);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(2, 0)));	// cleanup for 14999
+		Assert.assertEquals(new Tuple2<>(2, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 14999
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);										// +3 firing
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(3, 0)));	// cleanup for 17499
+		Assert.assertEquals(new Tuple2<>(3, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 17499
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 4500);
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(3, 0)));	// the timer is already there
+		Assert.assertEquals(new Tuple2<>(3, 0), testHarness.getOperator().getNumberOfTimers());	// the timer is already there
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 1);
+		Assert.assertEquals(3 + 1, testHarness.getOutput().size());
 
 		testHarness.processWatermark(7500);																// nothing because we only have a count trigger
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2);
+		Assert.assertEquals(3 + 2, testHarness.getOutput().size());
 
 		// new session
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 7501);										// new session with one element
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(4, 0)));	// cleanup for 20500
+		Assert.assertEquals(new Tuple2<>(4, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 20500
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8000);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(5, 0)));	// cleanup for 20999
+		Assert.assertEquals(new Tuple2<>(5, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 20999
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2);
+		Assert.assertEquals(3 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8000);										// +3 for new session
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 2);
+		Assert.assertEquals(3 + 3 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(6, 0)));	// cleanup for 21499
+		Assert.assertEquals(new Tuple2<>(6, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 21499
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);										// +3 because these elements expand the window
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 3 + 2);								// no firing
+		Assert.assertEquals(3 + 3 + 3 + 2, testHarness.getOutput().size());								// no firing
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 		testHarness.processElement(new Tuple2<>("key2", 1), 8500);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 3 + 2);								// no firing because we are in ONCE mode
+		Assert.assertEquals(3 + 3 + 3 + 2, testHarness.getOutput().size());								// no firing because we are in ONCE mode
 
 		// merging the two sessions
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 6500);
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(7, 0)));	// cleanup for 21499 but for the whole window 1000 to 11500, so reinserted
+		Assert.assertEquals(new Tuple2<>(7, 0), testHarness.getOperator().getNumberOfTimers());	// cleanup for 21499 but for the whole window 1000 to 11500, so reinserted
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 3 + 3 + 8 + 2);
+		Assert.assertEquals(3 + 3 + 3 + 8 + 2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(21500);															// to process all the cleanup timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2338,9 +2401,9 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 100);	// so without disambiguation here we would fire
 		testHarness.processWatermark(2001);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 1);		// just the watermark
+		Assert.assertEquals(1, testHarness.getOutput().size());		// just the watermark
 
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2364,6 +2427,10 @@ public class TriggerTest {
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
+		ExecutionConfig config = new ExecutionConfig();
+		KeySelector<Tuple2<String, Integer>, String> keySelector = new TupleKeySelector();
+		TypeInformation<String> keyType = BasicTypeInfo.STRING_TYPE_INFO;
+
 		FoldingStateDescriptor<Tuple2<String, Integer>, Tuple2<String, Integer>> windowStateDesc =
 			new FoldingStateDescriptor<>(
 				"window-contents",
@@ -2374,11 +2441,7 @@ public class TriggerTest {
 						return new Tuple2<>(value.f0, accumulator.f1 + value.f1);
 					}
 				},
-				inputType);
-
-		ExecutionConfig config = new ExecutionConfig();
-		KeySelector<Tuple2<String, Integer>, String> keySelector = new TupleKeySelector();
-		TypeInformation<String> keyType = BasicTypeInfo.STRING_TYPE_INFO;
+				inputType.createSerializer(config));
 
 		TumblingEventTimeWindows assigner = TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS));
 		DslTriggerRunner runner = new DslTriggerRunner<>(Repeat.Forever(EventTime.<TimeWindow>afterEndOfWindow()).discarding());
@@ -2408,18 +2471,21 @@ public class TriggerTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), 1000));
 		testHarness.processWatermark(new Watermark(1599));
 
+		expected.add(new Watermark(1599));
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 1999));
+		expected.add(new StreamRecord<>(new Tuple2<>("key1", 3), 1999));
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 		testHarness.processWatermark(new Watermark(1999));
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 1000)); // we do not fire now
+		expected.add(new Watermark(1999)); // here it fires and purges
+		expected.add(new StreamRecord<>(new Tuple2<>("key1", 1), 1999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 1000)); // + 1 we have a late firing because we get the default trigger
 		testHarness.processWatermark(new Watermark(2100));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 2000));
 		testHarness.processWatermark(new Watermark(5000));
 
-		expected.add(new Watermark(1599));
-		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 1999));
-		expected.add(new StreamRecord<>(new Tuple2<>("key1", 3), 1999));
-		expected.add(new Watermark(1999)); // here it fires and purges
 		expected.add(new Watermark(2100)); // here is the cleanup timer
 		expected.add(new StreamRecord<>(new Tuple2<>("key1", 1), 3999));
 		expected.add(new Watermark(5000));
@@ -2472,7 +2538,7 @@ public class TriggerTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 		testHarness.processWatermark(new Watermark(1599));
 		testHarness.processWatermark(new Watermark(1999));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 1000));  // no firing
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 1000));  // + 1 we have a late firing because we get the default trigger
 		testHarness.processWatermark(new Watermark(2000));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 2000));
 		testHarness.processWatermark(new Watermark(5000));
@@ -2481,6 +2547,7 @@ public class TriggerTest {
 		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 1999));
 		expected.add(new StreamRecord<>(new Tuple2<>("key1", 1), 1999));
 		expected.add(new Watermark(1999)); // here it fires and purges
+		expected.add(new StreamRecord<>(new Tuple2<>("key1", 1), 1999));
 		expected.add(new Watermark(2000)); // here is the cleanup timer
 		expected.add(new StreamRecord<>(new Tuple2<>("key1", 1), 3999));
 		expected.add(new Watermark(5000));
@@ -2755,24 +2822,24 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1100);                            // + 6
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 2);
+		Assert.assertEquals(6 + 2, testHarness.getOutput().size());
 
 		// added as late
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
 		testHarness.processWatermark(1200);                            // +7
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 7 + 3);
+		Assert.assertEquals(6 + 7 + 3, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
 		testHarness.processWatermark(1300);                            // + 9
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 7 + 9 + 4); // +3 for the watermark
+		Assert.assertEquals(6 + 7 + 9 + 4, testHarness.getOutput().size()); // +3 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2808,24 +2875,24 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(1100);                            // + 6
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6);
+		Assert.assertEquals(6, testHarness.getOutput().size());
 
 		// added as late
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
 		testHarness.setProcessingTime(1200);                            // +7
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 7);
+		Assert.assertEquals(6 + 7, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
 		testHarness.setProcessingTime(1300);                            // + 9
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 7 + 9);
+		Assert.assertEquals(6 + 7 + 9, testHarness.getOutput().size());
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2849,7 +2916,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// +4
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4);
+		Assert.assertEquals(4, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
@@ -2863,7 +2930,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// +8
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4 + 8);
+		Assert.assertEquals(4 + 8, testHarness.getOutput().size());
 
 		// added as late
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
@@ -2871,7 +2938,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2895,7 +2962,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// +4
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4);
+		Assert.assertEquals(4, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
@@ -2909,7 +2976,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);		// no firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 4);
+		Assert.assertEquals(4, testHarness.getOutput().size());
 
 		// added as late
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
@@ -2917,7 +2984,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2955,17 +3022,17 @@ public class TriggerTest {
 		testHarness.processWatermark(2000);							// ON_TIME					+6
 
 		// added as late
-		testHarness.processElement(new Tuple2<>("key1", 1), 1980);	// no firing because we are at Repeat.ONCE
+		testHarness.processElement(new Tuple2<>("key1", 1), 1980);	// + 7 late firing
 
-		testHarness.processWatermark(2200);    // this will be added but there is no late trigger specified so no firing
+		testHarness.processWatermark(2200);
 
 		// dropped
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6 + 3);	// +3 for the watermark
+		Assert.assertEquals(testHarness.getOutput().size(), 6 + 7 + 3);	// +3 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -2990,12 +3057,15 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);	//	+2 early firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 1);
+		Assert.assertEquals(2 + 1, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
+		testHarness.processElement(new Tuple2<>("key1", 1), 1000);	// no firing (ONCE)
+
+		Assert.assertEquals(2 + 1, testHarness.getOutput().size());
+
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
-		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
-		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
+		testHarness.processElement(new Tuple2<>("key1", 1), 1000);	// no firing (ONCE)
 
 		// do a snapshot, close and restore again
 		StreamStateHandle snapshot = testHarness.snapshot(0L, 0L);
@@ -3005,20 +3075,20 @@ public class TriggerTest {
 
 		testHarness.processWatermark(2000);							// firing ON_TIME
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 6 + 2);
+		Assert.assertEquals(2 + 6 + 2, testHarness.getOutput().size());
 
 		// added as late
-		testHarness.processElement(new Tuple2<>("key1", 1), 1980);	// no firing because we are at Repeat.ONCE
+		testHarness.processElement(new Tuple2<>("key1", 1), 1980);	// +7 late firing
 
 		testHarness.processWatermark(2200);    // this will be added but there is no late trigger specified so no firing
 
 		// dropped
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2 + 6 + 3);	// +3 for the watermark
+		Assert.assertEquals(2 + 6 + 7 + 3, testHarness.getOutput().size());	// +3 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -3040,7 +3110,7 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1000);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 1);
+		Assert.assertEquals(1, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		StreamStateHandle snapshot = testHarness.snapshot(0L, 0L);
@@ -3054,22 +3124,22 @@ public class TriggerTest {
 
 		testHarness.processWatermark(2000);							// no firing ON_TIME because no elements
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);		// for watermarks
+		Assert.assertEquals(2, testHarness.getOutput().size());		// for watermarks
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);	// +1 ON_TIME firing (although it is late)
 
-		Assert.assertTrue(testHarness.getOutput().size() == 1 + 2);	// for watermarks
+		Assert.assertEquals(1 + 2, testHarness.getOutput().size());	// for watermarks
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1000);	// +2 late firing
 
-		Assert.assertTrue(testHarness.getOutput().size() == 1 + 3 + 2);
+		Assert.assertEquals(1 + 3 + 2, testHarness.getOutput().size());
 
 		// added as late
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);	// no firing because we are at Repeat.ONCE
 
-		Assert.assertTrue(testHarness.getOutput().size() == 1 + 3 + 2);
+		Assert.assertEquals(1 + 3 + 2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
@@ -3078,10 +3148,10 @@ public class TriggerTest {
 		// dropped
 		testHarness.processElement(new Tuple2<>("key1", 1), 1980);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 1 + 3 + 3);	// +3 for the watermarks
+		Assert.assertEquals(1 + 3 + 3, testHarness.getOutput().size());	// +3 for the watermarks
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -3108,7 +3178,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 
 		testHarness.setProcessingTime(110);							// +2 processing time
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);	// no firing
@@ -3122,11 +3192,11 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);	// +6 count_4 fires (accumulating)
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.setProcessingTime(250);							// no firing, state has been cleared
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
@@ -3140,13 +3210,13 @@ public class TriggerTest {
 
 		testHarness.setProcessingTime(350);							// +9, processing time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 2);
+		Assert.assertEquals(2, testHarness.getOutput().size());
 
 		testHarness.processWatermark(2000);							// the cleanup timer
 
 		// check the we have processed all the timers
 		// (we do not have separate cleanup timer because lateness=0)
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -3176,7 +3246,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);	// +3 count_3 fires	key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -3186,7 +3256,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1004);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1004);
@@ -3194,7 +3264,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// no firing (ONCE)
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
@@ -3202,10 +3272,10 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1999);							// +2 key1 +6 key2 fires on_time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2 + 6 + 1);// +1 for the watermark
+		Assert.assertEquals(3 + 2 + 6 + 1, testHarness.getOutput().size());// +1 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -3237,7 +3307,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);	// +3 count_3 fires	key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -3247,7 +3317,7 @@ public class TriggerTest {
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1003);
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key1", 1), 1004);
 		testHarness.processElement(new Tuple2<>("key1", 1), 1004);
@@ -3255,7 +3325,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// no firing (ONCE)
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
@@ -3263,10 +3333,10 @@ public class TriggerTest {
 
 		testHarness.processWatermark(1999);							// +2 key1 fires on_time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3 + 2 + 1);// +1 for the watermark
+		Assert.assertEquals(3 + 2 + 1, testHarness.getOutput().size());// +1 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -3297,7 +3367,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);	// +3 count_3 fires	key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -3313,20 +3383,20 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// +3 count_3 fires	key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6);
+		Assert.assertEquals(6, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// +3 count_3 fires	key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 9);
+		Assert.assertEquals(9, testHarness.getOutput().size());
 
 		testHarness.processWatermark(1999);							// +2 key1 +0 key2 fires on_time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 9 + 2 + 1);// +1 for the watermark
+		Assert.assertEquals(9 + 2 + 1, testHarness.getOutput().size());// +1 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
@@ -3357,7 +3427,7 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1001);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1002);	// +3 count_3 fires	key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 3);
+		Assert.assertEquals(3, testHarness.getOutput().size());
 
 		// do a snapshot, close and restore again
 		snapshot = testHarness.snapshot(0L, 0L);
@@ -3373,20 +3443,20 @@ public class TriggerTest {
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// +3 count_3 fires	key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 6);
+		Assert.assertEquals(6, testHarness.getOutput().size());
 
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);
 		testHarness.processElement(new Tuple2<>("key2", 1), 1005);	// +3 count_3 fires	key2
 
-		Assert.assertTrue(testHarness.getOutput().size() == 9);
+		Assert.assertEquals(9, testHarness.getOutput().size());
 
 		testHarness.processWatermark(1999);							// +2 key1 +6 key2 fires on_time
 
-		Assert.assertTrue(testHarness.getOutput().size() == 9 + 2 + 1);// +1 for the watermark
+		Assert.assertEquals(9 + 2 + 1, testHarness.getOutput().size());// +1 for the watermark
 
 		// check the we have processed all the timers
-		Assert.assertTrue(testHarness.getOperator().getNumberOfTimers().equals(new Tuple2<>(0, 0)));
+		Assert.assertEquals(new Tuple2<>(0, 0), testHarness.getOperator().getNumberOfTimers());
 
 		testHarness.close();
 		testHarness.dispose();
