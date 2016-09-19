@@ -86,6 +86,20 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	}
 
 	@Override
+	public void onFire(Window window, TriggerContext ctx) throws Exception {
+		// do nothing.
+		//
+		// Even if we fire at the end or not, the state has already been cleared in the onEventTime(),
+		// so there is nothing to do here. We do the cleanup in the onEventTime, as before, and not here,
+		// as in other triggers. This is because i) we assume that existing triggers are not combinable,
+		// so whenever this trigger proposes to fire, it will fire and ii) if somebody in the future tries
+		// to combine this with another trigger, then cleaning the state onEventTime gives the
+		// opportunity to the trigger to reset the timer for a future potential firing. If not, then the
+		// timer would be stuck to the same initial value, as in the onEventTime we only check for equality,
+		// and onElement we check if the state is null.
+	}
+
+	@Override
 	public void clear(W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
 		long timestamp = fireTimestamp.get();
@@ -106,7 +120,7 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 
 	@Override
 	public String toString() {
-		return "ContinuousProcessingTimeTrigger(" + interval + ")";
+		return "ContinuousEventTimeTrigger(" + interval + ")";
 	}
 
 	@VisibleForTesting

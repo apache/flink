@@ -63,7 +63,8 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * @param element The element that arrived.
 	 * @param timestamp The timestamp of the element that arrived.
 	 * @param window The window to which the element is being added.
-	 * @param ctx A context object that can be used to register timer callbacks.
+	 * @param ctx A context object that can be used to register timer callbacks, check the
+	 *            current event and processing time and get access to registered state.
 	 */
 	public abstract TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception;
 
@@ -72,7 +73,8 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 *
 	 * @param time The timestamp at which the timer fired.
 	 * @param window The window for which the timer fired.
-	 * @param ctx A context object that can be used to register timer callbacks.
+	 * @param ctx A context object that can be used to register timer callbacks, check the
+	 *            current event and processing time and get access to registered state.
 	 */
 	public abstract TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception;
 
@@ -81,9 +83,21 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 *
 	 * @param time The timestamp at which the timer fired.
 	 * @param window The window for which the timer fired.
-	 * @param ctx A context object that can be used to register timer callbacks.
+	 * @param ctx A context object that can be used to register timer callbacks, check the
+	 *            current event and processing time and get access to registered state.
 	 */
 	public abstract TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
+
+	/**
+	 * Called after a window has fired.
+	 *
+	 * @param window The window that fired.
+	 * @param ctx A context object that can be used to register timer callbacks, check the
+	 *            current event and processing time and get access to registered state.
+	 */
+	public void onFire(W window, TriggerContext ctx) throws Exception {
+
+	}
 
 	/**
 	 * Returns true if this trigger supports merging of trigger state and can therefore
@@ -102,7 +116,8 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}.
 	 *
 	 * @param window The new window that results from the merge.
-	 * @param ctx A context object that can be used to register timer callbacks and access state.
+	 * @param ctx A context object that can be used to register timer callbacks, check the
+	 *            current event and processing time and get access to registered state.
 	 */
 	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
 		throw new RuntimeException("This trigger does not support merging.");
@@ -154,7 +169,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 * @param time The time at which to invoke {@link Trigger#onProcessingTime(long, Window, TriggerContext)}
 		 */
 		void registerProcessingTimeTimer(long time);
-	
+
 		/**
 		 * Register an event-time callback. When the current watermark passes the specified
 		 * time {@link Trigger#onEventTime(long, Window, TriggerContext)} is called with the time specified here.

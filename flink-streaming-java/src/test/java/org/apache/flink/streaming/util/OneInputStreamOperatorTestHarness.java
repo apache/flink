@@ -161,6 +161,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		}).when(mockTask).getTimerService();
 	}
 
+	public OneInputStreamOperator<IN, OUT> getOperator() {
+		return this.operator;
+	}
+
 	public void setStateBackend(AbstractStateBackend stateBackend) {
 		this.stateBackend = stateBackend;
 	}
