@@ -31,6 +31,7 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 	private static final BigDecimal BIG_DECIMAL_INSTANCE = BigDecimal.ZERO;
 
 	private BigDecimal result;
+	private char[] reuse = null;
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, BigDecimal reusable) {
@@ -41,7 +42,7 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 		while (i < limit) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING);
+					setErrorState(ParseErrorState.EMPTY_COLUMN);
 					return -1;
 				}
 				break;
@@ -55,9 +56,20 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 			return -1;
 		}
 
-		String str = new String(bytes, startPos, i - startPos);
 		try {
-			this.result = new BigDecimal(str);
+			final int length = i - startPos;
+			if (reuse == null || reuse.length != length) {
+				reuse = new char[length];
+			}
+			for (int j = 0; j < length; j++) {
+				final byte b = bytes[startPos + j];
+				if ((b < '0' || b > '9') && b != '-' && b != '+' && b != '.' && b != 'E' && b != 'e') {
+					throw new NumberFormatException();
+				}
+				reuse[j] = (char) bytes[startPos + j];
+			}
+
+			this.result = new BigDecimal(reuse);
 			return (i == limit) ? limit : i + delimiter.length;
 		} catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
@@ -120,7 +132,14 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
 		}
 
-		String str = new String(bytes, startPos, i);
-		return new BigDecimal(str);
+		final char[] reuse = new char[i];
+		for (int j = 0; j < i; j++) {
+			final byte b = bytes[startPos + j];
+			if ((b < '0' || b > '9') && b != '-' && b != '+' && b != '.' && b != 'E' && b != 'e') {
+				throw new NumberFormatException();
+			}
+			reuse[j] = (char) bytes[startPos + j];
+		}
+		return new BigDecimal(reuse);
 	}
 }
