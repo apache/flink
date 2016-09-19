@@ -18,20 +18,26 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.rpc.exceptions.LeaderSessionIDException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 
 import scala.concurrent.Future;
 
@@ -47,12 +53,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * It offers the following methods as part of its rpc interface to interact with the him remotely:
  * <ul>
- *     <li>{@link #registerJobMaster(JobMasterRegistration)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #registerJobMaster(UUID, String, JobID)} registers a {@link JobMaster} at the resource manager</li>
  *     <li>{@link #requestSlot(SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
 public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
-	private final Map<JobMasterGateway, InstanceID> jobMasterGateways;
+	/** the mapping relationship of JobID and JobMasterGateway */
+	private final Map<JobID, JobMasterRegistration> jobMasters;
+
 	private final HighAvailabilityServices highAvailabilityServices;
 	private LeaderElectionService leaderElectionService = null;
 	private UUID leaderSessionID = null;
@@ -60,7 +68,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	public ResourceManager(RpcService rpcService, HighAvailabilityServices highAvailabilityServices) {
 		super(rpcService);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
-		this.jobMasterGateways = new HashMap<>();
+		this.jobMasters = new HashMap<>(16);
 	}
 
 	@Override
@@ -80,8 +88,11 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	public void shutDown() {
 		try {
 			leaderElectionService.stop();
+			for(JobID jobID : jobMasters.keySet()) {
+				highAvailabilityServices.getJobMasterLeaderRetriever(jobID).stop();
+			}
 			super.shutDown();
-		} catch(Throwable e) {
+		} catch (Throwable e) {
 			log.error("A fatal error happened when shutdown the ResourceManager", e);
 			throw new RuntimeException("A fatal error happened when shutdown the ResourceManager", e);
 		}
@@ -100,26 +111,42 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
 	 *
-	 * @param jobMasterRegistration Job master registration information
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
+	 * @param jobMasterAddress        The address of the JobMaster that registers
+	 * @param jobID                   The Job ID of the JobMaster that registers
 	 * @return Future registration response
 	 */
 	@RpcMethod
-	public Future<RegistrationResponse> registerJobMaster(JobMasterRegistration jobMasterRegistration) {
-		Future<JobMasterGateway> jobMasterFuture = getRpcService().connect(jobMasterRegistration.getAddress(), JobMasterGateway.class);
+	public Future<RegistrationResponse> registerJobMaster(UUID resourceManagerLeaderId, final String jobMasterAddress, final JobID jobID) {
+
+		if(!leaderSessionID.equals(resourceManagerLeaderId)) {
+			log.warn("Discard registration from JobMaster {} at ({}) because the expected leader session ID {} did not equal the received leader session ID  {}",
+				jobID, jobMasterAddress, leaderSessionID, resourceManagerLeaderId);
+			return Futures.failed(new LeaderSessionIDException(leaderSessionID, resourceManagerLeaderId));
+		}
+
+		Future<JobMasterGateway> jobMasterFuture = getRpcService().connect(jobMasterAddress, JobMasterGateway.class);
 
 		return jobMasterFuture.map(new Mapper<JobMasterGateway, RegistrationResponse>() {
 			@Override
 			public RegistrationResponse apply(final JobMasterGateway jobMasterGateway) {
-				InstanceID instanceID;
-
-				if (jobMasterGateways.containsKey(jobMasterGateway)) {
-					instanceID = jobMasterGateways.get(jobMasterGateway);
+				if (jobMasters.containsKey(jobID)) {
+					JobMasterRegistration jobMasterRegistration = new JobMasterRegistration(jobMasterGateway, jobMasters.get(jobID).getJobMasterLeaderSessionID());
+					jobMasters.put(jobID, jobMasterRegistration);
+					log.info("Replacing gateway for registered JobID {}.", jobID);
 				} else {
-					instanceID = new InstanceID();
-					jobMasterGateways.put(jobMasterGateway, instanceID);
+					JobMasterRegistration jobMasterRegistration = new JobMasterRegistration(jobMasterGateway);
+					jobMasters.put(jobID, jobMasterRegistration);
+					try {
+						highAvailabilityServices.getJobMasterLeaderRetriever(jobID).start(new JobMasterLeaderListener(jobID));
+					} catch(Throwable e) {
+						log.warn("Decline registration from JobMaster {} at ({}) because fail to get the leader retriever for the given job JobMaster",
+							jobID, jobMasterAddress);
+						return new RegistrationResponse.Decline("Fail to get the leader retriever for the given JobMaster");
+					}
 				}
 
-				return new RegistrationResponse(true, instanceID);
+				return new JobMasterRegistrationSuccess(5000);
 			}
 		}, getMainThreadExecutionContext());
 	}
@@ -138,18 +165,16 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 
 
 	/**
-	 *
-	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader 
-	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
-	 * @param resourceID               The resource ID of the TaskExecutor that registers
-	 *
+	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
+	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
+	 * @param resourceID              The resource ID of the TaskExecutor that registers
 	 * @return The response by the ResourceManager.
 	 */
 	@RpcMethod
-	public org.apache.flink.runtime.registration.RegistrationResponse registerTaskExecutor(
-			UUID resourceManagerLeaderId,
-			String taskExecutorAddress,
-			ResourceID resourceID) {
+	public RegistrationResponse registerTaskExecutor(
+		UUID resourceManagerLeaderId,
+		String taskExecutorAddress,
+		ResourceID resourceID) {
 
 		return new TaskExecutorRegistrationSuccess(new InstanceID(), 5000);
 	}
@@ -183,7 +208,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 				@Override
 				public void run() {
 					log.info("ResourceManager {} was revoked leadership.", getAddress());
-					jobMasterGateways.clear();
+					jobMasters.clear();
 					leaderSessionID = null;
 				}
 			});
@@ -207,6 +232,37 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> {
 					log.error("ResourceManager received an error from the LeaderElectionService.", exception);
 					// terminate ResourceManager in case of an error
 					shutDown();
+				}
+			});
+		}
+	}
+
+	private class JobMasterLeaderListener implements LeaderRetrievalListener {
+		private final JobID jobID;
+
+		private JobMasterLeaderListener(JobID jobID) {
+			this.jobID = jobID;
+		}
+
+		@Override
+		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.info("A new leader for JobMaster {} is elected, address is {}, leaderSessionID is {}", jobID, leaderAddress, leaderSessionID);
+					// update job master leader session id
+					JobMasterRegistration jobMasterRegistration = jobMasters.get(jobID);
+					jobMasterRegistration.setJobMasterLeaderSessionID(leaderSessionID);
+				}
+			});
+		}
+
+		@Override
+		public void handleError(final Exception exception) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.error("JobMasterLeaderListener received an error from the LeaderRetrievalService", exception);
 				}
 			});
 		}
