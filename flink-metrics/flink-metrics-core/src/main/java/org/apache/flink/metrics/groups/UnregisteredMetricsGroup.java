@@ -114,4 +114,14 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
 		return metricName;
 	}
+
+	@Override
+	public String getMetricIdentifier(String metricName, String metricReporter) {
+		return metricName;
+	}
+
+	@Override
+	public String getMetricIdentifier(String metricName, String metricReporter, CharacterFilter filter) {
+		return metricName;
+	}
 }

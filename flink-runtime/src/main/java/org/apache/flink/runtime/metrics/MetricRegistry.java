@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TimerTask;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -54,8 +56,7 @@ public class MetricRegistry {
 	private ActorRef queryService;
 
 	private final ScopeFormats scopeFormats;
-
-	private final char delimiter;
+	private final Map<String,Character> delimiter = new HashMap<>();
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
@@ -72,14 +73,12 @@ public class MetricRegistry {
 		}
 		this.scopeFormats = scopeFormats;
 
-		char delim;
-		try {
-			delim = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".").charAt(0);
-		} catch (Exception e) {
-			LOG.warn("Failed to parse delimiter, using default delimiter.", e);
-			delim = '.';
+		String defaultDelimiter = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".");
+		if(defaultDelimiter.length()!=1){
+			LOG.warn("Failed to parse delimiter, using default delimiter.Actual delimiter value: \""+defaultDelimiter+"\"");
+			defaultDelimiter=".";
 		}
-		this.delimiter = delim;
+		this.delimiter.put("default", defaultDelimiter.charAt(0));
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>();
@@ -97,6 +96,7 @@ public class MetricRegistry {
 			for (String namedReporter : namedReporters) {
 
 				DelegatingConfiguration reporterConfig = new DelegatingConfiguration(config, ConfigConstants.METRICS_REPORTER_PREFIX + namedReporter + ".");
+				this.delimiter.put(namedReporter,reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,defaultDelimiter).charAt(0));
 				final String className = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, null);
 				if (className == null) {
 					LOG.error("No reporter class set for reporter " + namedReporter + ". Metrics might not be exposed/reported.");
@@ -163,7 +163,21 @@ public class MetricRegistry {
 	}
 
 	public char getDelimiter() {
-		return this.delimiter;
+		return getDelimiter(null);
+	}
+
+	public char getDelimiter(String metricReporter) {
+		Character defaultDelimiter = this.delimiter.get("default");
+		if(metricReporter==null){
+			return defaultDelimiter;
+		}
+
+		Character delimForReporter=this.delimiter.get(metricReporter);
+		if(delimForReporter==null){
+			return defaultDelimiter;
+		}
+
+		return delimForReporter;
 	}
 
 	public List<MetricReporter> getReporters() {
@@ -186,7 +200,7 @@ public class MetricRegistry {
 		}
 		shutdownExecutor();
 	}
-	
+
 	private void shutdownExecutor() {
 		if (executor != null) {
 			executor.shutdown();
