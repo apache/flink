@@ -18,15 +18,16 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import java.util.Map;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.List;
 
 /**
  * TypeInformation is the core class of Flink's type system. Flink requires a type information
@@ -122,14 +123,25 @@ public abstract class TypeInformation<T> implements Serializable {
 	public abstract Class<T> getTypeClass();
 
 	/**
-	 * Returns the generic parameters of this type.
+	 * Optional method for giving Flink's type extraction system information about the mapping
+	 * of a generic type parameter to the type information of a subtype. This information is necessary
+	 * in cases where type information should be deduced from an input type.
 	 *
-	 * @return The list of generic parameters. This list can be empty.
+	 * For instance, a method for a {@link Tuple2} would look like this:
+	 * <code>
+	 * Map m = new HashMap();
+	 * m.put("T0", this.getTypeAt(0));
+	 * m.put("T1", this.getTypeAt(1));
+	 * return m;
+	 * </code>
+	 *
+	 * @return map of inferred subtypes; it does not have to contain all generic parameters as key;
+	 *         values may be null if type could not be inferred
 	 */
 	@PublicEvolving
-	public List<TypeInformation<?>> getGenericParameters() {
-		// Return an empty list as the default implementation
-		return Collections.emptyList();
+	public Map<String, TypeInformation<?>> getGenericParameters() {
+		// return an empty map as the default implementation
+		return Collections.emptyMap();
 	}
 
 	/**
