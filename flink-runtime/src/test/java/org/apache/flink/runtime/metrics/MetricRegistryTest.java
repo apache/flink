@@ -280,4 +280,25 @@ public class MetricRegistryTest extends TestLogger {
 
 		registry.shutdown();
 	}
+
+	@Test
+	public void testConfigurableDelimiterForReporter() {
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "_");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test4." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "--");
+		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A.B.C.D.E");
+
+		MetricRegistry registry = new MetricRegistry(config);
+
+		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id");
+		assertEquals("A.B.C.D.E.name", tmGroup.getMetricIdentifier("name"));
+		assertEquals("A_B_C_D_E_name", tmGroup.getMetricIdentifier("name", "test1"));
+		assertEquals("A-B-C-D-E-name", tmGroup.getMetricIdentifier("name", "test2"));
+		assertEquals("A.B.C.D.E.name", tmGroup.getMetricIdentifier("name", "test3"));
+		assertEquals("A.B.C.D.E.name", tmGroup.getMetricIdentifier("name", "test4"));
+
+		registry.shutdown();
+	}
 }
