@@ -96,7 +96,7 @@ public class TypeFillTest {
 
 	}
 
-	private class TestSource<T> implements SourceFunction<T> {
+	private static class TestSource<T> implements SourceFunction<T> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -106,19 +106,19 @@ public class TypeFillTest {
 		public void cancel() {}
 	}
 
-	private class TestMap<T, O> implements MapFunction<T, O> {
+	private static class TestMap<T, O> implements MapFunction<T, O> {
 		@Override
 		public O map(T value) throws Exception {
 			return null;
 		}
 	}
 
-	private class TestFlatMap<T, O> implements FlatMapFunction<T, O> {
+	private static class TestFlatMap<T, O> implements FlatMapFunction<T, O> {
 		@Override
 		public void flatMap(T value, Collector<O> out) throws Exception {}
 	}
 
-	private class TestCoMap<IN1, IN2, OUT> implements CoMapFunction<IN1, IN2, OUT> {
+	private static class TestCoMap<IN1, IN2, OUT> implements CoMapFunction<IN1, IN2, OUT> {
 
 		@Override
 		public OUT map1(IN1 value) {
@@ -132,7 +132,7 @@ public class TypeFillTest {
 
 	}
 
-	private class TestCoFlatMap<IN1, IN2, OUT> implements CoFlatMapFunction<IN1, IN2, OUT> {
+	private static class TestCoFlatMap<IN1, IN2, OUT> implements CoFlatMapFunction<IN1, IN2, OUT> {
 
 		@Override
 		public void flatMap1(IN1 value, Collector<OUT> out) throws Exception {}
