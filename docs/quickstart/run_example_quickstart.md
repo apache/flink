@@ -44,7 +44,7 @@ about this. For our purposes, the command to run is this:
 $ mvn archetype:generate\
     -DarchetypeGroupId=org.apache.flink\
     -DarchetypeArtifactId=flink-quickstart-java\
-    -DarchetypeVersion=1.0.0\
+    -DarchetypeVersion={{ site.version }}\
     -DgroupId=wiki-edits\
     -DartifactId=wiki-edits\
     -Dversion=0.1\
