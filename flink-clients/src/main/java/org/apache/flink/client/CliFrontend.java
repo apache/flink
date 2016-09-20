@@ -161,9 +161,6 @@ public class CliFrontend {
 				"filesystem scheme from configuration.", e);
 		}
 
-		this.config.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDirectory.getAbsolutePath()
-				+ ".." + File.separator);
-
 		this.clientTimeout = AkkaUtils.getClientTimeout(config);
 	}
 

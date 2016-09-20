@@ -22,7 +22,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -33,7 +34,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.security.auth.Subject;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 
@@ -170,14 +176,11 @@ public class SecurityContext {
 	 * Kafka current code behavior.
 	 */
 	private static void populateSystemSecurityProperties(Configuration configuration) {
+		Preconditions.checkNotNull(configuration, "The supplied configuation was null");
 
 		//required to be empty for Kafka but we will override the property
 		//with pseudo JAAS configuration file if SASL auth is enabled for ZK
 		System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, "");
-
-		if(configuration == null) {
-			return;
-		}
 
 		boolean disableSaslClient = configuration.getBoolean(ConfigConstants.ZOOKEEPER_SASL_DISABLE,
 				ConfigConstants.DEFAULT_ZOOKEEPER_SASL_DISABLE);
@@ -188,46 +191,26 @@ public class SecurityContext {
 			return;
 		}
 
-		String baseDir = configuration.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, null);
-		if(baseDir == null) {
-			String message = "SASL auth is enabled for ZK but unable to locate pseudo Jaas config " +
-					"since " + ConfigConstants.FLINK_BASE_DIR_PATH_KEY + " is not provided";
-			LOG.error(message);
-			throw new IllegalConfigurationException(message);
-		}
-
-		File f = new File(baseDir);
-		if(!f.exists() || !f.isDirectory()) {
-			LOG.error("Invalid flink base directory {} configuration provided", baseDir);
-			throw new IllegalConfigurationException("Invalid flink base directory configuration provided");
-		}
-
-		File jaasConfigFile = new File(f, JAAS_CONF_FILENAME);
-
-		if (!jaasConfigFile.exists() || !jaasConfigFile.isFile()) {
-
-			//check if there is a conf directory
-			File confDir = new File(f, "conf");
-			if(!confDir.exists() || !confDir.isDirectory()) {
-				LOG.error("Could not locate " + JAAS_CONF_FILENAME);
-				throw new IllegalConfigurationException("Could not locate " + JAAS_CONF_FILENAME);
-			}
-
-			jaasConfigFile = new File(confDir, JAAS_CONF_FILENAME);
-
-			if (!jaasConfigFile.exists() || !jaasConfigFile.isFile()) {
-				LOG.error("Could not locate " + JAAS_CONF_FILENAME);
-				throw new IllegalConfigurationException("Could not locate " + JAAS_CONF_FILENAME);
-			}
+		// load Jaas config file to initialize SASL
+		final File jaasConfFile;
+		try {
+			Path jaasConfPath = Files.createTempFile(JAAS_CONF_FILENAME, "");
+			InputStream jaasConfStream = SecurityContext.class.getClassLoader().getResourceAsStream(JAAS_CONF_FILENAME);
+			Files.copy(jaasConfStream, jaasConfPath, StandardCopyOption.REPLACE_EXISTING);
+			jaasConfFile = jaasConfPath.toFile();
+			jaasConfFile.deleteOnExit();
+		} catch (IOException e) {
+			throw new RuntimeException("SASL auth is enabled for ZK but unable to " +
+				"locate pseudo Jaas config provided with Flink", e);
 		}
 
 		LOG.info("Enabling {} property with pseudo JAAS config file: {}",
-				JAVA_SECURITY_AUTH_LOGIN_CONFIG, jaasConfigFile);
+				JAVA_SECURITY_AUTH_LOGIN_CONFIG, jaasConfFile.getAbsolutePath());
 
 		//ZK client module lookup the configuration to handle SASL.
 		//https://github.com/sgroschupf/zkclient/blob/master/src/main/java/org/I0Itec/zkclient/ZkClient.java#L900
-		System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, jaasConfigFile.getAbsolutePath());
-		System.setProperty(ZOOKEEPER_SASL_CLIENT,"true");
+		System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, jaasConfFile.getAbsolutePath());
+		System.setProperty(ZOOKEEPER_SASL_CLIENT, "true");
 
 		String zkSaslServiceName = configuration.getString(ConfigConstants.ZOOKEEPER_SASL_SERVICE_NAME, null);
 		if(!StringUtils.isBlank(zkSaslServiceName)) {
@@ -249,6 +232,10 @@ public class SecurityContext {
 		String keytab;
 
 		String principal;
+
+		public SecurityConfiguration() {
+			this.flinkConf = GlobalConfiguration.loadConfiguration();
+		}
 
 		public String getKeytab() {
 			return keytab;

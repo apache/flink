@@ -427,8 +427,7 @@ public abstract class YarnTestBase extends TestLogger {
 					out.println(ConfigConstants.SECURITY_PRINCIPAL_KEY + ": " + principal);
 					out.println("");
 				} catch (IOException e) {
-					LOG.error("Exception occured while trying to append the security configurations. Reason: {}", e.getMessage());
-					throw new RuntimeException(e);
+					throw new RuntimeException("Exception occured while trying to append the security configurations.", e);
 				}
 
 				String configDir = tempConfPathForSecureRun.getAbsolutePath();

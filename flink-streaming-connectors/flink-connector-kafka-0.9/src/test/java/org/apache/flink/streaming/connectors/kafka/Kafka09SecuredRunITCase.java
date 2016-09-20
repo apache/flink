@@ -29,14 +29,14 @@ import java.io.IOException;
 /*
  * Kafka Secure Connection (kerberos) IT test case
  */
-public class Kafka09SecureRunITCase extends KafkaConsumerTestBase {
+public class Kafka09SecuredRunITCase extends KafkaConsumerTestBase {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(Kafka09SecureRunITCase.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(Kafka09SecuredRunITCase.class);
 
 	@BeforeClass
 	public static void prepare() throws IOException, ClassNotFoundException {
 		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Starting Kafka09SecureRunITCase ");
+		LOG.info("    Starting Kafka09SecuredRunITCase ");
 		LOG.info("-------------------------------------------------------------------------");
 
 		SecureTestEnvironment.prepare(tempFolder);
