@@ -38,7 +38,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
-public class TestTableInputFormat extends HBaseTestingClusterAutostarter {
+public class TestTableInputFormatITCase extends HBaseTestingClusterAutostarter {
 	private static final String TEST_TABLE_NAME = "TableInputFormatTestTable";
 	private static final byte[] TEST_TABLE_FAMILY_NAME = "F".getBytes();
 	private static final byte[] TEST_TABLE_COLUMN_NAME = "Col".getBytes();
