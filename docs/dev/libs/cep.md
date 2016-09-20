@@ -98,7 +98,7 @@ val result: DataStream[Alert] = patternStream.select(createAlert(_))
 </div>
 </div>
 
-Note that we use use Java 8 lambdas in our Java code examples to make them more succinct.
+Note that we use Java 8 lambdas in our Java code examples to make them more succinct.
 
 ## The Pattern API
 
@@ -521,10 +521,11 @@ def flatSelectFn(pattern : mutable.Map[String, IN], collector : Collector[OUT]) 
 
 ### Handling Timed Out Partial Patterns
 
-Whenever a pattern has a window length associated via the `within` key word, it is possible that partial event patterns will be discarded because they exceed the window length.
-In order to react to these timeout events the `select` and `flatSelect` API calls allow to specify a timeout handler.
+Whenever a pattern has a window length associated via the `within` keyword, it is possible that partial event patterns will be discarded because they exceed the window length.
+In order to react to these timeout events the `select` and `flatSelect` API calls allow a timeout handler to be specified.
 This timeout handler is called for each partial event pattern which has timed out.
-The timeout handler receives all so far matched events of the partial pattern and the timestamp when the timeout was detected.
+The timeout handler receives all the events that have been matched so far by the pattern, and the timestamp when the timeout was detected.
+
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
