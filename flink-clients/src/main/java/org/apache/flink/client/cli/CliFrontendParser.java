@@ -262,7 +262,7 @@ public class CliFrontendParser {
 	 * Prints the help for the client.
 	 */
 	public static void printHelp() {
-		System.out.println("./flink [CONFIGDIR] <ACTION> [ACTION-OPTIONS] [ARGUMENTS]");
+		System.out.println("./flink [--configdir CONFIGDIR] <ACTION> [ACTION-OPTIONS] [ARGUMENTS]");
 		System.out.println();
 
 		printHelpForMain();
