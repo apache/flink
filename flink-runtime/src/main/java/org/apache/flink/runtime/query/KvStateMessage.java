@@ -20,6 +20,7 @@ package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.Preconditions;
 
@@ -97,8 +98,8 @@ public interface KvStateMessage extends Serializable {
 		/** JobVertexID the KvState instance belongs to. */
 		private final JobVertexID jobVertexId;
 
-		/** Key group index the KvState instance belongs to. */
-		private final int keyGroupIndex;
+		/** Key group range the KvState instance belongs to. */
+		private final KeyGroupRange keyGroupRange;
 
 		/** Name under which the KvState has been registered. */
 		private final String registrationName;
@@ -114,7 +115,7 @@ public interface KvStateMessage extends Serializable {
 		 *
 		 * @param jobId                JobID the KvState instance belongs to
 		 * @param jobVertexId          JobVertexID the KvState instance belongs to
-		 * @param keyGroupIndex        Key group index the KvState instance belongs to
+		 * @param keyGroupRange        Key group range the KvState instance belongs to
 		 * @param registrationName     Name under which the KvState has been registered
 		 * @param kvStateId            ID of the registered KvState instance
 		 * @param kvStateServerAddress Server address where to find the KvState instance
@@ -122,15 +123,15 @@ public interface KvStateMessage extends Serializable {
 		public NotifyKvStateRegistered(
 				JobID jobId,
 				JobVertexID jobVertexId,
-				int keyGroupIndex,
+				KeyGroupRange keyGroupRange,
 				String registrationName,
 				KvStateID kvStateId,
 				KvStateServerAddress kvStateServerAddress) {
 
 			this.jobId = Preconditions.checkNotNull(jobId, "JobID");
 			this.jobVertexId = Preconditions.checkNotNull(jobVertexId, "JobVertexID");
-			Preconditions.checkArgument(keyGroupIndex >= 0, "Negative key group index");
-			this.keyGroupIndex = keyGroupIndex;
+			Preconditions.checkArgument(keyGroupRange != KeyGroupRange.EMPTY_KEY_GROUP);
+			this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 			this.registrationName = Preconditions.checkNotNull(registrationName, "Registration name");
 			this.kvStateId = Preconditions.checkNotNull(kvStateId, "KvStateID");
 			this.kvStateServerAddress = Preconditions.checkNotNull(kvStateServerAddress, "KvStateServerAddress");
@@ -159,8 +160,8 @@ public interface KvStateMessage extends Serializable {
 		 *
 		 * @return Key group index the KvState instance belongs to
 		 */
-		public int getKeyGroupIndex() {
-			return keyGroupIndex;
+		public KeyGroupRange getKeyGroupRange() {
+			return keyGroupRange;
 		}
 
 		/**
@@ -195,7 +196,7 @@ public interface KvStateMessage extends Serializable {
 			return "NotifyKvStateRegistered{" +
 					"jobId=" + jobId +
 					", jobVertexId=" + jobVertexId +
-					", keyGroupIndex=" + keyGroupIndex +
+					", keyGroupRange=" + keyGroupRange +
 					", registrationName='" + registrationName + '\'' +
 					", kvStateId=" + kvStateId +
 					", kvStateServerAddress=" + kvStateServerAddress +
@@ -214,7 +215,7 @@ public interface KvStateMessage extends Serializable {
 		private final JobVertexID jobVertexId;
 
 		/** Key group index the KvState instance belongs to. */
-		private final int keyGroupIndex;
+		private final KeyGroupRange keyGroupRange;
 
 		/** Name under which the KvState has been registered. */
 		private final String registrationName;
@@ -224,19 +225,19 @@ public interface KvStateMessage extends Serializable {
 		 *
 		 * @param jobId                JobID the KvState instance belongs to
 		 * @param jobVertexId          JobVertexID the KvState instance belongs to
-		 * @param keyGroupIndex        Key group index the KvState instance belongs to
+		 * @param keyGroupRange        Key group range the KvState instance belongs to
 		 * @param registrationName     Name under which the KvState has been registered
 		 */
 		public NotifyKvStateUnregistered(
 				JobID jobId,
 				JobVertexID jobVertexId,
-				int keyGroupIndex,
+				KeyGroupRange keyGroupRange,
 				String registrationName) {
 
 			this.jobId = Preconditions.checkNotNull(jobId, "JobID");
 			this.jobVertexId = Preconditions.checkNotNull(jobVertexId, "JobVertexID");
-			Preconditions.checkArgument(keyGroupIndex >= 0, "Negative key group index");
-			this.keyGroupIndex = keyGroupIndex;
+			Preconditions.checkArgument(keyGroupRange != KeyGroupRange.EMPTY_KEY_GROUP);
+			this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 			this.registrationName = Preconditions.checkNotNull(registrationName, "Registration name");
 		}
 
@@ -263,8 +264,8 @@ public interface KvStateMessage extends Serializable {
 		 *
 		 * @return Key group index the KvState instance belongs to
 		 */
-		public int getKeyGroupIndex() {
-			return keyGroupIndex;
+		public KeyGroupRange getKeyGroupRange() {
+			return keyGroupRange;
 		}
 
 		/**
@@ -281,7 +282,7 @@ public interface KvStateMessage extends Serializable {
 			return "NotifyKvStateUnregistered{" +
 					"jobId=" + jobId +
 					", jobVertexId=" + jobVertexId +
-					", keyGroupIndex=" + keyGroupIndex +
+					", keyGroupRange=" + keyGroupRange +
 					", registrationName='" + registrationName + '\'' +
 					'}';
 		}
