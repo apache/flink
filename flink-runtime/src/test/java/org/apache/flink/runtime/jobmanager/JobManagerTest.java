@@ -58,6 +58,7 @@ import org.apache.flink.runtime.query.KvStateMessage.NotifyKvStateRegistered;
 import org.apache.flink.runtime.query.KvStateMessage.NotifyKvStateUnregistered;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
@@ -467,7 +468,7 @@ public class JobManagerTest {
 		NotifyKvStateRegistered registerNonExistingJob = new NotifyKvStateRegistered(
 				new JobID(),
 				new JobVertexID(),
-				0,
+				new KeyGroupRange(0, 0),
 				"any-name",
 				new KvStateID(),
 				new KvStateServerAddress(InetAddress.getLocalHost(), 1233));
@@ -492,7 +493,7 @@ public class JobManagerTest {
 		NotifyKvStateRegistered registerForExistingJob = new NotifyKvStateRegistered(
 				jobGraph.getJobID(),
 				jobVertex1.getID(),
-				0,
+				new KeyGroupRange(0, 0),
 				"register-me",
 				new KvStateID(),
 				new KvStateServerAddress(InetAddress.getLocalHost(), 1293));
@@ -512,11 +513,12 @@ public class JobManagerTest {
 
 		assertEquals(jobGraph.getJobID(), location.getJobId());
 		assertEquals(jobVertex1.getID(), location.getJobVertexId());
-		assertEquals(jobVertex1.getParallelism(), location.getNumKeyGroups());
+		assertEquals(jobVertex1.getMaxParallelism(), location.getNumKeyGroups());
 		assertEquals(1, location.getNumRegisteredKeyGroups());
-		int keyGroupIndex = registerForExistingJob.getKeyGroupIndex();
-		assertEquals(registerForExistingJob.getKvStateId(), location.getKvStateID(keyGroupIndex));
-		assertEquals(registerForExistingJob.getKvStateServerAddress(), location.getKvStateServerAddress(keyGroupIndex));
+		KeyGroupRange keyGroupRange = registerForExistingJob.getKeyGroupRange();
+		assertEquals(1, keyGroupRange.getNumberOfKeyGroups());
+		assertEquals(registerForExistingJob.getKvStateId(), location.getKvStateID(keyGroupRange.getStartKeyGroup()));
+		assertEquals(registerForExistingJob.getKvStateServerAddress(), location.getKvStateServerAddress(keyGroupRange.getStartKeyGroup()));
 
 		//
 		// Unregistration
@@ -524,7 +526,7 @@ public class JobManagerTest {
 		NotifyKvStateUnregistered unregister = new NotifyKvStateUnregistered(
 				registerForExistingJob.getJobId(),
 				registerForExistingJob.getJobVertexId(),
-				registerForExistingJob.getKeyGroupIndex(),
+				registerForExistingJob.getKeyGroupRange(),
 				registerForExistingJob.getRegistrationName());
 
 		jobManager.tell(unregister);
@@ -546,7 +548,7 @@ public class JobManagerTest {
 		NotifyKvStateRegistered register = new NotifyKvStateRegistered(
 				jobGraph.getJobID(),
 				jobVertex1.getID(),
-				0,
+				new KeyGroupRange(0, 0),
 				"duplicate-me",
 				new KvStateID(),
 				new KvStateServerAddress(InetAddress.getLocalHost(), 1293));
@@ -554,7 +556,7 @@ public class JobManagerTest {
 		NotifyKvStateRegistered duplicate = new NotifyKvStateRegistered(
 				jobGraph.getJobID(),
 				jobVertex2.getID(), // <--- different operator, but...
-				0,
+				new KeyGroupRange(0, 0),
 				"duplicate-me", // ...same name
 				new KvStateID(),
 				new KvStateServerAddress(InetAddress.getLocalHost(), 1293));

@@ -1108,6 +1108,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		KeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+		KeyGroupRange expectedKeyGroupRange = backend.getKeyGroupRange();
 
 		KvStateRegistryListener listener = mock(KvStateRegistryListener.class);
 		registry.registerListener(listener);
@@ -1122,7 +1123,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 		// Verify registered
 		verify(listener, times(1)).notifyKvStateRegistered(
-				eq(env.getJobID()), eq(env.getJobVertexId()), eq(0), eq("banana"), any(KvStateID.class));
+				eq(env.getJobID()), eq(env.getJobVertexId()), eq(expectedKeyGroupRange), eq("banana"), any(KvStateID.class));
 
 
 		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory));
@@ -1130,7 +1131,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		backend.close();
 
 		verify(listener, times(1)).notifyKvStateUnregistered(
-				eq(env.getJobID()), eq(env.getJobVertexId()), eq(0), eq("banana"));
+				eq(env.getJobID()), eq(env.getJobVertexId()), eq(expectedKeyGroupRange), eq("banana"));
 		backend.close();
 		// Initialize again
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
@@ -1140,12 +1141,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 		// Verify registered again
 		verify(listener, times(2)).notifyKvStateRegistered(
-				eq(env.getJobID()), eq(env.getJobVertexId()), eq(0), eq("banana"), any(KvStateID.class));
+				eq(env.getJobID()), eq(env.getJobVertexId()), eq(expectedKeyGroupRange), eq("banana"), any(KvStateID.class));
 
 		backend.close();
 
 	}
-	
+
 	@Test
 	public void testEmptyStateCheckpointing() {
 

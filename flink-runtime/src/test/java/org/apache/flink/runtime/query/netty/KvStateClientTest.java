@@ -595,7 +595,7 @@ public class KvStateClientTest {
 				KvState<?> kvState = (KvState<?>) state;
 
 				// Register KvState (one state instance for all server)
-				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), 0, "any", kvState);
+				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), new KeyGroupRange(0, 0), "any", kvState);
 			}
 
 			final KvStateClient finalClient = client;

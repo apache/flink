@@ -154,7 +154,7 @@ public class QueryableStateClientTest {
 			KvStateServerAddress serverAddress = new KvStateServerAddress(InetAddress.getLocalHost(), 12323);
 			KvStateLocation location = new KvStateLocation(jobId, new JobVertexID(), numKeyGroups, query3);
 			for (int i = 0; i < numKeyGroups; i++) {
-				location.registerKvState(i, kvStateId, serverAddress);
+				location.registerKvState(new KeyGroupRange(i, i), kvStateId, serverAddress);
 			}
 
 			when(lookupService.getKvStateLookupInfo(eq(jobId), eq(query3)))
@@ -184,7 +184,7 @@ public class QueryableStateClientTest {
 			serverAddress = new KvStateServerAddress(InetAddress.getLocalHost(), 11123);
 			location = new KvStateLocation(jobId, new JobVertexID(), numKeyGroups, query4);
 			for (int i = 0; i < numKeyGroups; i++) {
-				location.registerKvState(i, kvStateId, serverAddress);
+				location.registerKvState(new KeyGroupRange(i, i), kvStateId, serverAddress);
 			}
 
 			when(lookupService.getKvStateLookupInfo(eq(jobId), eq(query4)))
@@ -281,7 +281,7 @@ public class QueryableStateClientTest {
 				kvStateIds[i] = registries[i].registerKvState(
 						jobId,
 						new JobVertexID(),
-						i, // key group index
+						new KeyGroupRange(i, i),
 						"choco",
 						kvState);
 			}
@@ -302,7 +302,7 @@ public class QueryableStateClientTest {
 			// Location lookup service
 			KvStateLocation location = new KvStateLocation(jobId, jobVertexId, numServers, "choco");
 			for (int keyGroupIndex = 0; keyGroupIndex < numServers; keyGroupIndex++) {
-				location.registerKvState(keyGroupIndex, kvStateIds[keyGroupIndex], servers[keyGroupIndex].getAddress());
+				location.registerKvState(new KeyGroupRange(keyGroupIndex, keyGroupIndex), kvStateIds[keyGroupIndex], servers[keyGroupIndex].getAddress());
 			}
 
 			KvStateLocationLookupService lookupService = mock(KvStateLocationLookupService.class);
@@ -385,7 +385,7 @@ public class QueryableStateClientTest {
 
 		// Exact contents don't matter here
 		KvStateLocation location = new KvStateLocation(new JobID(), new JobVertexID(), 1, name);
-		location.registerKvState(0, new KvStateID(), new KvStateServerAddress(InetAddress.getLocalHost(), 892));
+		location.registerKvState(new KeyGroupRange(0, 0), new KvStateID(), new KvStateServerAddress(InetAddress.getLocalHost(), 892));
 
 		JobID jobId1 = new JobID();
 		JobID jobId2 = new JobID();

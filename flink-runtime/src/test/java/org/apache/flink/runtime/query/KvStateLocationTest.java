@@ -20,9 +20,12 @@ package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.junit.Test;
 
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -36,55 +39,87 @@ public class KvStateLocationTest {
 		JobID jobId = new JobID();
 		JobVertexID jobVertexId = new JobVertexID();
 		int numKeyGroups = 123;
+		int numRanges = 10;
+		int fract = numKeyGroups / numRanges;
+		int remain = numKeyGroups % numRanges;
+		List<KeyGroupRange> keyGroupRanges = new ArrayList<>(numRanges);
+
+		int start = 0;
+		for (int i = 0; i < numRanges; ++i) {
+			int end = start + fract - 1;
+			if(remain > 0) {
+				--remain;
+				++end;
+			}
+ 			KeyGroupRange range = new KeyGroupRange(start, end);
+			keyGroupRanges.add(range);
+			start = end + 1;
+		}
+
+		System.out.println(keyGroupRanges);
+
 		String registrationName = "asdasdasdasd";
 
 		KvStateLocation location = new KvStateLocation(jobId, jobVertexId, numKeyGroups, registrationName);
 
-		KvStateID[] kvStateIds = new KvStateID[numKeyGroups];
-		KvStateServerAddress[] serverAddresses = new KvStateServerAddress[numKeyGroups];
+		KvStateID[] kvStateIds = new KvStateID[numRanges];
+		KvStateServerAddress[] serverAddresses = new KvStateServerAddress[numRanges];
 
 		InetAddress host = InetAddress.getLocalHost();
 
 		// Register
-		for (int keyGroupIndex = 0; keyGroupIndex < numKeyGroups; keyGroupIndex++) {
-			kvStateIds[keyGroupIndex] = new KvStateID();
-			serverAddresses[keyGroupIndex] = new KvStateServerAddress(host, 1024 + keyGroupIndex);
-
-			location.registerKvState(keyGroupIndex, kvStateIds[keyGroupIndex], serverAddresses[keyGroupIndex]);
-			assertEquals(keyGroupIndex + 1, location.getNumRegisteredKeyGroups());
+		int registeredCount = 0;
+		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
+			kvStateIds[rangeIdx] = new KvStateID();
+			serverAddresses[rangeIdx] = new KvStateServerAddress(host, 1024 + rangeIdx);
+			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
+			location.registerKvState(keyGroupRange, kvStateIds[rangeIdx], serverAddresses[rangeIdx]);
+			registeredCount += keyGroupRange.getNumberOfKeyGroups();
+			assertEquals(registeredCount, location.getNumRegisteredKeyGroups());
 		}
 
 		// Lookup
-		for (int keyGroupIndex = 0; keyGroupIndex < numKeyGroups; keyGroupIndex++) {
-			assertEquals(kvStateIds[keyGroupIndex], location.getKvStateID(keyGroupIndex));
-			assertEquals(serverAddresses[keyGroupIndex], location.getKvStateServerAddress(keyGroupIndex));
+		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
+			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
+			for(int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
+				assertEquals(kvStateIds[rangeIdx], location.getKvStateID(keyGroup));
+				assertEquals(serverAddresses[rangeIdx], location.getKvStateServerAddress(keyGroup));
+			}
 		}
 
 		// Overwrite
-		for (int keyGroupIndex = 0; keyGroupIndex < numKeyGroups; keyGroupIndex++) {
-			kvStateIds[keyGroupIndex] = new KvStateID();
-			serverAddresses[keyGroupIndex] = new KvStateServerAddress(host, 1024 + keyGroupIndex);
+		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
+			kvStateIds[rangeIdx] = new KvStateID();
+			serverAddresses[rangeIdx] = new KvStateServerAddress(host, 1024 + rangeIdx);
 
-			location.registerKvState(keyGroupIndex, kvStateIds[keyGroupIndex], serverAddresses[keyGroupIndex]);
-			assertEquals(numKeyGroups, location.getNumRegisteredKeyGroups());
+			location.registerKvState(keyGroupRanges.get(rangeIdx), kvStateIds[rangeIdx], serverAddresses[rangeIdx]);
+			assertEquals(registeredCount, location.getNumRegisteredKeyGroups());
 		}
 
 		// Lookup
-		for (int keyGroupIndex = 0; keyGroupIndex < numKeyGroups; keyGroupIndex++) {
-			assertEquals(kvStateIds[keyGroupIndex], location.getKvStateID(keyGroupIndex));
-			assertEquals(serverAddresses[keyGroupIndex], location.getKvStateServerAddress(keyGroupIndex));
+		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
+			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
+			for(int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
+				assertEquals(kvStateIds[rangeIdx], location.getKvStateID(keyGroup));
+				assertEquals(serverAddresses[rangeIdx], location.getKvStateServerAddress(keyGroup));
+			}
 		}
 
 		// Unregister
-		for (int keyGroupIndex = 0; keyGroupIndex < numKeyGroups; keyGroupIndex++) {
-			location.unregisterKvState(keyGroupIndex);
-			assertEquals(numKeyGroups - keyGroupIndex - 1, location.getNumRegisteredKeyGroups());
+		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
+			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
+			location.unregisterKvState(keyGroupRange);
+			registeredCount -= keyGroupRange.getNumberOfKeyGroups();
+			assertEquals(registeredCount, location.getNumRegisteredKeyGroups());
 		}
 
 		// Lookup
-		for (int keyGroupIndex = 0; keyGroupIndex < numKeyGroups; keyGroupIndex++) {
-			assertEquals(null, location.getKvStateID(keyGroupIndex));
-			assertEquals(null, location.getKvStateServerAddress(keyGroupIndex));
+		for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++) {
+			KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
+			for(int keyGroup = keyGroupRange.getStartKeyGroup(); keyGroup <= keyGroupRange.getEndKeyGroup(); ++keyGroup) {
+				assertEquals(null, location.getKvStateID(keyGroup));
+				assertEquals(null, location.getKvStateServerAddress(keyGroup));
+			}
 		}
 
 		assertEquals(0, location.getNumRegisteredKeyGroups());
