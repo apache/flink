@@ -577,8 +577,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializerClass
 	 * 		The class of the serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type, 
-					Class<? extends Serializer<?>> serializerClass) {
+	@SuppressWarnings("rawtypes")
+	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer> serializerClass) {
 		config.registerTypeWithKryoSerializer(type, serializerClass);
 	}
 

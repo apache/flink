@@ -311,6 +311,7 @@ public class ExecutionConfig implements Serializable {
 	 * @return The specified restart configuration
 	 */
 	@PublicEvolving
+	@SuppressWarnings("deprecation")
 	public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
 		if (restartStrategyConfiguration == null) {
 			// support the old API calls by creating a restart strategy from them
@@ -601,11 +602,15 @@ public class ExecutionConfig implements Serializable {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializerClass The class of the serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+	@SuppressWarnings("rawtypes")
+	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer> serializerClass) {
 		if (type == null || serializerClass == null) {
 			throw new NullPointerException("Cannot register null class or serializer.");
 		}
-		registeredTypesWithKryoSerializerClasses.put(type, serializerClass);
+
+		@SuppressWarnings("unchecked")
+		Class<? extends Serializer<?>> castedSerializerClass = (Class<? extends Serializer<?>>) serializerClass;
+		registeredTypesWithKryoSerializerClasses.put(type, castedSerializerClass);
 	}
 
 	/**
@@ -620,7 +625,7 @@ public class ExecutionConfig implements Serializable {
 		if (type == null) {
 			throw new NullPointerException("Cannot register null type class.");
 		}
-		if(!registeredPojoTypes.contains(type)) {
+		if (!registeredPojoTypes.contains(type)) {
 			registeredPojoTypes.add(type);
 		}
 	}
