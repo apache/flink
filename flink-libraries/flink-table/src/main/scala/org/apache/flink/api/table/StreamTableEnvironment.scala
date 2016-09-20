@@ -24,8 +24,7 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.Programs
-
+import org.apache.calcite.tools.{Programs, RuleSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
@@ -204,6 +203,11 @@ abstract class StreamTableEnvironment(
   }
 
   /**
+    * Returns the built-in rules that are defined by the environment.
+    */
+  protected def getBuiltInRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
+
+  /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *
     * @param relNode The root node of the relational expression tree.
@@ -214,7 +218,7 @@ abstract class StreamTableEnvironment(
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
 
     // optimize the logical Flink plan
-    val optProgram = Programs.ofRules(FlinkRuleSets.DATASTREAM_OPT_RULES)
+    val optProgram = Programs.ofRules(getRuleSet)
     val flinkOutputProps = relNode.getTraitSet.replace(DataStreamConvention.INSTANCE).simplify()
 
     val dataStreamPlan = try {

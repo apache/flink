@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.table
 
+import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{TypeExtractor, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.table.expressions.{Alias, UnresolvedFieldReference}
 import org.apache.flink.api.table.sinks.TableSink
 import org.junit.Test
@@ -278,6 +279,8 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
   override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
 
   override protected def checkValidTableName(name: String): Unit = ???
+
+  override protected def getBuiltInRuleSet: RuleSet = ???
 
   override def sql(query: String): Table = ???
 }
