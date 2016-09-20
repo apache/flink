@@ -64,6 +64,12 @@ import static org.junit.Assert.fail;
 /**
  * By using this class as the super class of a set of tests you will have a HBase testing
  * cluster available that is very suitable for writing tests for scanning and filtering against.
+ * This is usable by any downstream application because the HBase cluster is 'injected' because
+ * a dynamically generated hbase-site.xml is added to the classpath.
+ * Because of this classpath manipulation it is not possible to start a second testing cluster in the same JVM.
+ * So if you have this you should either put all hbase related tests in a single class or force surefire to
+ * setup a new JVM for each testclass.
+ * See: http://maven.apache.org/surefire/maven-surefire-plugin/examples/fork-options-and-parallel-execution.html
  */
 //
 // NOTE: The code in this file is based on code from the
@@ -78,6 +84,8 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 	private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
 	private static HBaseAdmin admin = null;
 	private static List<TableName> createdTables = new ArrayList<>();
+
+	private static boolean alreadyRanTestCluster = false;
 
 	protected static void createTable(TableName tableName, byte[] columnFamilyName, byte[][] splitKeys) {
 		LOG.info("HBase minicluster: Creating table " + tableName.getNameAsString());
@@ -137,6 +145,11 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 		((Log4JLogger) RpcServer.LOG).getLogger().setLevel(Level.ALL);
 		((Log4JLogger) AbstractRpcClient.LOG).getLogger().setLevel(Level.ALL);
 		((Log4JLogger) ScannerCallable.LOG).getLogger().setLevel(Level.ALL);
+
+		if (alreadyRanTestCluster) {
+			fail("You CANNOT start a second HBase Testing cluster in the SAME JVM");
+		}
+
 		TEST_UTIL.startMiniCluster(1);
 
 		// https://issues.apache.org/jira/browse/HBASE-11711
@@ -161,10 +174,9 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 	private static void registerHBaseMiniClusterInClasspath() {
 		File baseDir = new File(System.getProperty("java.io.tmpdir", "/tmp/"));
 		hbaseSiteXmlDirectory = new File(baseDir, "unittest-hbase-minicluster-" + Math.abs(new Random().nextLong()) + "/");
-		hbaseSiteXmlFile = new File(hbaseSiteXmlDirectory, "hbase-site.xml");
 
 		if (!hbaseSiteXmlDirectory.mkdirs()) {
-			fail("Unable to create output directory "+ hbaseSiteXmlDirectory +" for the HBase minicluster");
+			fail("Unable to create output directory " + hbaseSiteXmlDirectory + " for the HBase minicluster");
 		}
 
 		assertNotNull("The ZooKeeper for the HBase minicluster is missing", TEST_UTIL.getZkCluster());
@@ -173,10 +185,15 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 		String zookeeperQuorum = "localhost:" + TEST_UTIL.getZkCluster().getClientPort();
 		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", zookeeperQuorum);
 
+		createHBaseSiteXml(hbaseSiteXmlDirectory, zookeeperQuorum);
+		addDirectoryToClassPath(hbaseSiteXmlDirectory);
+	}
+
+	private static void createHBaseSiteXml(File hbaseSiteXmlDirectory, String zookeeperQuorum) {
+		hbaseSiteXmlFile = new File(hbaseSiteXmlDirectory, "hbase-site.xml");
 		// Create the hbase-site.xml file for this run.
 		try {
-			String hbaseSiteXml =
-				"<?xml version=\"1.0\"?>\n" +
+			String hbaseSiteXml = "<?xml version=\"1.0\"?>\n" +
 				"<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>\n" +
 				"<configuration>\n" +
 				"  <property>\n" +
@@ -188,39 +205,43 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 			fos.write(hbaseSiteXml.getBytes(StandardCharsets.UTF_8));
 			fos.close();
 		} catch (IOException e) {
-			fail("Unable to create " + hbaseSiteXmlFile );
+			fail("Unable to create " + hbaseSiteXmlFile);
 		}
-
-		addDirectoryToClassPath(hbaseSiteXmlDirectory);
 	}
 
 	private static void addDirectoryToClassPath(File directory) {
 		try {
 			// Get the classloader actually used by HBaseConfiguration
 			ClassLoader classLoader = HBaseConfiguration.create().getClassLoader();
-			if (! (classLoader instanceof URLClassLoader)) {
+			if (!(classLoader instanceof URLClassLoader)) {
 				fail("We should get a URLClassLoader");
 			}
 
 			// Make the addURL method accessible
-			Method method = URLClassLoader.class.getDeclaredMethod( "addURL", URL.class );
-			method.setAccessible( true );
+			Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+			method.setAccessible(true);
 
 			// Add the directory where we put the hbase-site.xml to the classpath
-			method.invoke( classLoader, directory.toURI().toURL() );
+			method.invoke(classLoader, directory.toURI().toURL());
 		} catch (MalformedURLException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			fail("Unable to add " +directory + " to classpath because of this exception: " + e.getMessage());
+			fail("Unable to add " + directory + " to classpath because of this exception: " + e.getMessage());
 		}
 	}
 
 	@AfterClass
 	public static void tearDown() throws Exception {
+		if (alreadyRanTestCluster) {
+			LOG.error("Skipping teardown of HBase Testing cluster because it wasn't started");
+			return;
+		}
 		LOG.info("HBase minicluster: Shutting down");
 		deleteTables();
 		hbaseSiteXmlFile.delete();
 		hbaseSiteXmlDirectory.delete();
 		TEST_UTIL.shutdownMiniCluster();
 		LOG.info("HBase minicluster: Down");
+		// Avoid starting it again.
+		alreadyRanTestCluster = true;
 	}
 
 }
