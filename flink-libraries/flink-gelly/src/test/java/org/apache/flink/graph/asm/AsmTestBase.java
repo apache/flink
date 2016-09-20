@@ -48,6 +48,8 @@ public class AsmTestBase {
 	protected Graph<LongValue,NullValue,NullValue> completeGraph;
 
 	// empty graph
+	protected final long emptyGraphVertexCount = 3;
+
 	protected Graph<LongValue,NullValue,NullValue> emptyGraph;
 
 	// RMat graph
@@ -86,7 +88,7 @@ public class AsmTestBase {
 			.generate();
 
 		// empty graph
-		emptyGraph = new EmptyGraph(env, 3)
+		emptyGraph = new EmptyGraph(env, emptyGraphVertexCount)
 			.generate();
 
 		// RMat graph
