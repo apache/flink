@@ -22,6 +22,8 @@ import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.Promise;
 
+import java.util.concurrent.CancellationException;
+
 /**
  * Implementation of {@link CompletableFuture} which is backed by {@link Promise}.
  *
@@ -34,7 +36,6 @@ public class FlinkCompletableFuture<T> extends FlinkFuture<T> implements Complet
 	public FlinkCompletableFuture() {
 		promise = new scala.concurrent.impl.Promise.DefaultPromise<>();
 		scalaFuture = promise.future();
-
 	}
 
 	@Override
@@ -61,5 +62,10 @@ public class FlinkCompletableFuture<T> extends FlinkFuture<T> implements Complet
 		} catch (IllegalStateException e) {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean cancel(boolean mayInterruptIfRunning) {
+		return completeExceptionally(new CancellationException("Future has been canceled."));
 	}
 }
