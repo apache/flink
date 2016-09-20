@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.hbase;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
@@ -36,17 +37,27 @@ class HBaseClient implements Closeable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HBaseClient.class);
 
+	private Configuration hbConfig;
 	private Connection connection;
 	private Table table;
 
-	public HBaseClient(org.apache.hadoop.conf.Configuration hbConfig, String tableName) throws IOException {
-		connection = ConnectionFactory.createConnection(hbConfig);
-		table = connection.getTable(TableName.valueOf(tableName));
+	public HBaseClient(Configuration hbConfig) {
+		this.hbConfig = hbConfig;
 	}
 
-	public void sendDataToHbase(List<Mutation> mutations) throws IOException, InterruptedException {
+	public void connect(String tableName) throws IOException {
+		connection = ConnectionFactory.createConnection(hbConfig);
+		TableName name = TableName.valueOf(tableName);
+		table = connection.getTable(name);
+	}
+
+	public void send(List<Mutation> mutations) throws IOException, InterruptedException {
 		Object[] results = new Object[mutations.size()];
 		table.batch(mutations, results);
+	}
+
+	public Configuration getConfig() {
+		return this.hbConfig;
 	}
 
 	@Override

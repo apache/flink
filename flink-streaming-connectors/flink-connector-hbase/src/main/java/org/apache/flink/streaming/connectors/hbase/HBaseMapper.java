@@ -34,13 +34,13 @@ public interface HBaseMapper<IN> extends Function, Serializable {
 	 * @param value
 	 * @return row key
 	 */
-	byte[] rowKey(IN value);
+	byte[] getRowKey(IN value);
 
 	/**
-	 * Given an input value return a list of actions of to be performed on a single row in HBase table.
+	 * Given an empty {@link MutationActions} to which new actions can be added based on an input value.
 	 *
 	 * @param value
-	 * @return a list of mutation actions
+	 * @param mutActions an empty {@link MutationActions}
 	 */
-	MutationActions actions(IN value);
+	void addActions(IN value, MutationActions mutActions);
 }

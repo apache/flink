@@ -25,6 +25,7 @@ import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,102 +37,32 @@ import java.util.List;
  */
 public class MutationActions {
 	private final List<MutationAction> actions;
+	private final List<Mutation> mutations;
 
 	public MutationActions() {
 		this.actions = new ArrayList<>();
+		this.mutations = new ArrayList<>();
 	}
 
 	/**
-	 * Create a new list of HBase {@link Mutation}s.
-	 *
-	 * @param rowKey row that the created {@link Mutation} list is applied to
-	 * @param writeToWAL enable WAL
-	 * @return a list of HBase {@link Mutation}s
+	 * Removes all of the {@link MutationAction}s.
 	 */
-	public List<Mutation> createMutations(byte[] rowKey, boolean writeToWAL) {
-		Preconditions.checkArgument(rowKey != null, "Row key cannot be null.");
-		List<Mutation> mutations = new ArrayList<>();
-		Put put = null;
-		Increment increment = null;
-		Append append = null;
-		Delete deleteRow = null;
-		Delete delete = null;
-		for (MutationAction action : actions) {
-			switch (action.getType()) {
-				case PUT:
-					if (put == null) {
-						put = new Put(rowKey);
-						mutations.add(put);
-					}
-					if (action.getTs() == -1) {
-						put.addColumn(action.getFamily(), action.getQualifier(), action.getValue());
-					} else {
-						put.addColumn(action.getFamily(), action.getQualifier(), action.getTs(), action.getValue());
-					}
-					break;
+	public void clearActions() {
+		actions.clear();
+	}
 
-				case INCREMENT:
-					if (increment == null) {
-						increment = new Increment(rowKey);
-						mutations.add(increment);
-					}
-					increment.addColumn(action.getFamily(), action.getQualifier(), action.getIncrement());
-					break;
-
-				case APPEND:
-					if (append == null) {
-						append = new Append(rowKey);
-						mutations.add(append);
-					}
-					append.add(action.getFamily(), action.getQualifier(), action.getValue());
-					break;
-
-				case DELETE_ROW:
-					if (deleteRow == null) {
-						deleteRow = new Delete(rowKey, action.getTs());
-						mutations.add(deleteRow);
-					} else {
-						deleteRow.setTimestamp(Math.max(deleteRow.getTimeStamp(), action.getTs()));
-					}
-					break;
-
-				case DELETE_FAMILY:
-					if (delete == null) {
-						delete = new Delete(rowKey);
-						mutations.add(delete);
-					}
-					delete.addFamily(action.getFamily(), action.getTs());
-					break;
-
-				case DELETE_COLUMNS:
-					if (delete == null) {
-						delete = new Delete(rowKey);
-						mutations.add(delete);
-					}
-					delete.addColumns(action.getFamily(), action.getQualifier(), action.getTs());
-					break;
-
-				case DELETE_COLUMN:
-					if (delete == null) {
-						delete = new Delete(rowKey);
-						mutations.add(delete);
-					}
-					if (action.getTs() == -1) {
-						delete.addColumn(action.getFamily(), action.getQualifier());
-					} else {
-						delete.addColumn(action.getFamily(), action.getQualifier(), action.getTs());
-					}
-					break;
-
-				default:
-					throw new IllegalArgumentException("Cannot process such action type: " + action.getType());
-			}
+	/**
+	 * Send a list of HBase {@link Mutation}s generated from mutation actions to an HBase table and apply to a specific row.
+	 *
+	 * @param client an {@link HBaseClient} that connects to an HBase table
+	 * @param rowKey row the list of mutations are applied to
+	 * @param writeToWAL enable WAL
+	 */
+	public void sendActions(HBaseClient client, byte[] rowKey, boolean writeToWAL) throws IOException, InterruptedException {
+		createMutations(rowKey, writeToWAL);
+		if (!mutations.isEmpty()) {
+			client.send(mutations);
 		}
-		Durability durability = writeToWAL ? Durability.SYNC_WAL : Durability.SKIP_WAL;
-		for (Mutation mutation : mutations) {
-			mutation.setDurability(durability);
-		}
-		return mutations;
 	}
 
 	/**
@@ -295,6 +226,91 @@ public class MutationActions {
 	public MutationActions addDeleteColumn(byte[] family, byte[] qualifier) {
 		actions.add(new MutationAction(family, qualifier, null, -1, 0, MutationAction.Type.DELETE_COLUMN));
 		return this;
+	}
+
+	private void createMutations(byte[] rowKey, boolean writeToWAL) {
+		Preconditions.checkArgument(rowKey != null, "Row key cannot be null.");
+		mutations.clear();
+		Put put = null;
+		Increment increment = null;
+		Append append = null;
+		Delete deleteRow = null;
+		Delete delete = null;
+		for (MutationAction action : actions) {
+			switch (action.getType()) {
+				case PUT:
+					if (put == null) {
+						put = new Put(rowKey);
+						mutations.add(put);
+					}
+					if (action.getTs() == -1) {
+						put.addColumn(action.getFamily(), action.getQualifier(), action.getValue());
+					} else {
+						put.addColumn(action.getFamily(), action.getQualifier(), action.getTs(), action.getValue());
+					}
+					break;
+
+				case INCREMENT:
+					if (increment == null) {
+						increment = new Increment(rowKey);
+						mutations.add(increment);
+					}
+					increment.addColumn(action.getFamily(), action.getQualifier(), action.getIncrement());
+					break;
+
+				case APPEND:
+					if (append == null) {
+						append = new Append(rowKey);
+						mutations.add(append);
+					}
+					append.add(action.getFamily(), action.getQualifier(), action.getValue());
+					break;
+
+				case DELETE_ROW:
+					if (deleteRow == null) {
+						deleteRow = new Delete(rowKey, action.getTs());
+						mutations.add(deleteRow);
+					} else {
+						deleteRow.setTimestamp(Math.max(deleteRow.getTimeStamp(), action.getTs()));
+					}
+					break;
+
+				case DELETE_FAMILY:
+					if (delete == null) {
+						delete = new Delete(rowKey);
+						mutations.add(delete);
+					}
+					delete.addFamily(action.getFamily(), action.getTs());
+					break;
+
+				case DELETE_COLUMNS:
+					if (delete == null) {
+						delete = new Delete(rowKey);
+						mutations.add(delete);
+					}
+					delete.addColumns(action.getFamily(), action.getQualifier(), action.getTs());
+					break;
+
+				case DELETE_COLUMN:
+					if (delete == null) {
+						delete = new Delete(rowKey);
+						mutations.add(delete);
+					}
+					if (action.getTs() == -1) {
+						delete.addColumn(action.getFamily(), action.getQualifier());
+					} else {
+						delete.addColumn(action.getFamily(), action.getQualifier(), action.getTs());
+					}
+					break;
+
+				default:
+					throw new IllegalArgumentException("Cannot process such action type: " + action.getType());
+			}
+		}
+		Durability durability = writeToWAL ? Durability.SYNC_WAL : Durability.SKIP_WAL;
+		for (Mutation mutation : mutations) {
+			mutation.setDurability(durability);
+		}
 	}
 
 	private static class MutationAction {

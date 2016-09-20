@@ -48,10 +48,9 @@ public class HBaseSinkExample {
 
 	static {
 		Random random = new Random();
-		for (int i = 0; i < 99; i++) {
-			String rowKey = ROWKEY_PREFIX + (i % 20);
-			int opcode = random.nextInt(9);
-			int value = i;
+		for (int value = 0; value < 20; value++) {
+			String rowKey = ROWKEY_PREFIX + String.format("%02d", value);
+			int opcode = random.nextInt(3);
 			dataSource.add(new Tuple3<>(rowKey, opcode, value));
 		}
 	}
@@ -83,36 +82,20 @@ public class HBaseSinkExample {
 		}
 
 		@Override
-		public byte[] rowKey(Tuple3<String, Integer, Integer> value) {
+		public byte[] getRowKey(Tuple3<String, Integer, Integer> value) {
 			return Bytes.toBytes(value.f0);
 		}
 
 		@Override
-		public MutationActions actions(Tuple3<String, Integer, Integer> value) {
-			MutationActions mutationActions = new MutationActions();
+		public void addActions(Tuple3<String, Integer, Integer> value, MutationActions mutActions) {
 			if (value.f1 == 0) {
-				mutationActions.addPut(family, col1, Bytes.toBytes(value.f2 / 10));
+				mutActions.addPut(family, col1, Bytes.toBytes(value.f2));
 			} else if (value.f1 == 1) {
-				mutationActions.addPut(family, col2, Bytes.toBytes(value.f2 % 10));
-			} else if (value.f1 == 2) {
-				mutationActions.addPut(family, col1, Bytes.toBytes(value.f2 / 10));
-				mutationActions.addPut(family, col2, Bytes.toBytes(value.f2 % 10));
-			} else if (value.f1 == 3) {
-				mutationActions.addAppend(family, col1, Bytes.toBytes(value.f2 / 10));
-			} else if (value.f1 == 4) {
-				mutationActions.addAppend(family, col2, Bytes.toBytes(value.f2 % 10));
-			} else if (value.f1 == 5) {
-				mutationActions.addPut(family, col1, Bytes.toBytes(value.f2 / 10));
-				mutationActions.addPut(family, col2, Bytes.toBytes(value.f2 % 10));
-			} else if (value.f1 == 6) {
-				mutationActions.addDeleteColumns(family, col1);
-			} else if (value.f1 == 7) {
-				mutationActions.addDeleteColumns(family, col2);
+				mutActions.addPut(family, col2, Bytes.toBytes(value.f2));
 			} else {
-				mutationActions.addDeleteColumns(family, col1);
-				mutationActions.addDeleteColumns(family, col2);
+				mutActions.addAppend(family, col1, Bytes.toBytes(value.f2));
+				mutActions.addAppend(family, col2, Bytes.toBytes(value.f2));
 			}
-			return mutationActions;
 		}
 	}
 }

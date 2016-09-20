@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * A sink that writes its input to an HBase table.
@@ -42,6 +41,7 @@ public class HBaseSink<IN> extends RichSinkFunction<IN> {
 	private static final Logger LOG = LoggerFactory.getLogger(HBaseSink.class);
 
 	private transient HBaseClient client;
+	private transient MutationActions mutActions;
 	private String tableName;
 	private HBaseMapper<IN> mapper;
 	private boolean writeToWAL = true;
@@ -74,8 +74,10 @@ public class HBaseSink<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
+		this.client = new HBaseClient(HBaseConfiguration.create());
+		this.mutActions = new MutationActions();
 		try {
-			client = new HBaseClient(HBaseConfiguration.create(), tableName);
+			client.connect(tableName);
 		} catch (IOException e) {
 			LOG.error("HBase sink preparation failed.", e);
 			throw e;
@@ -84,16 +86,14 @@ public class HBaseSink<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void invoke(IN value) throws Exception {
-		byte[] rowKey = mapper.rowKey(value);
-		MutationActions actions = mapper.actions(value);
-		List<Mutation> mutations = actions.createMutations(rowKey, writeToWAL);
-		if (!mutations.isEmpty()) {
-			try {
-				client.sendDataToHbase(mutations);
-			} catch (Exception e) {
-				LOG.error("Error while sending data to HBase.", e);
-				throw e;
-			}
+		mutActions.clearActions();
+		byte[] rowKey = mapper.getRowKey(value);
+		mapper.addActions(value, mutActions);
+		try {
+			mutActions.sendActions(client, rowKey, writeToWAL);
+		} catch (Exception e) {
+			LOG.error("Error while sending data to HBase.", e);
+			throw e;
 		}
 	}
 
