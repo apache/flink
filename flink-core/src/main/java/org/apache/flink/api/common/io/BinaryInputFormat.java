@@ -181,9 +181,6 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 			// let the file input format deal with the up-to-date check and the basic size
 			final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
-			if (stats == null) {
-				return null;
-			}
 
 			// check whether the file stats are still sequential stats (in that case they are still valid)
 			if (stats instanceof SequentialStatistics) {

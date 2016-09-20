@@ -259,8 +259,8 @@ public class NetUtils {
 				rangeIterator = Collections.singleton(Integer.valueOf(range)).iterator();
 			} else {
 				// evaluate range
-				final int start = Integer.valueOf(range.substring(0, dashIdx));
-				final int end = Integer.valueOf(range.substring(dashIdx+1, range.length()));
+				final int start = Integer.parseInt(range.substring(0, dashIdx));
+				final int end = Integer.parseInt(range.substring(dashIdx+1, range.length()));
 				rangeIterator = new Iterator<Integer>() {
 					int i = start;
 					@Override

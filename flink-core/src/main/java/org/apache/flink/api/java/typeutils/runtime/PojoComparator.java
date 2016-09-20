@@ -128,11 +128,9 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 		this.type = toClone.type;
 
 		try {
-			this.serializer = (TypeSerializer<T>) InstantiationUtil.deserializeObject(
+			this.serializer = InstantiationUtil.deserializeObject(
 					InstantiationUtil.serializeObject(toClone.serializer), Thread.currentThread().getContextClassLoader());
-		} catch (IOException e) {
-			throw new RuntimeException("Cannot copy serializer", e);
-		} catch (ClassNotFoundException e) {
+		} catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException("Cannot copy serializer", e);
 		}
 	}
