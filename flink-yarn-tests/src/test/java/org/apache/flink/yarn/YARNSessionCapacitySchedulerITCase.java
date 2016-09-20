@@ -519,29 +519,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		}
 	}
 
-	/**
-	 * Tests that the Flink cluster shuts down cleanly even if Yarn doesn't kill all containers.
-	 * This can happen, e.g. if the kill command is not available or Yarn doesn't know
-	 * how to call it correctly.
-	 */
-	@Test(timeout = 60000)
-	public void testCleanShutdown() {
-		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
-				"-n", "1",
-				"-jm", "768",
-				"-tm", "1024"},
-			"Number of connected TaskManagers changed to 1. Slots available: 1",
-			RunTypes.YARN_SESSION);
-
-		Assert.assertEquals(2, getRunningContainers());
-
-		runner.sendStop();
-
-		while (getRunningContainers() != 0) {
-			sleep();
-		}
-	}
-
 	@After
 	public void checkForProhibitedLogContents() {
 		ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
