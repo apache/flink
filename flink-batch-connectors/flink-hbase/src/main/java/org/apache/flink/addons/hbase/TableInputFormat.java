@@ -40,9 +40,8 @@ import java.util.List;
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
- *
  */
-public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<T, TableInputSplit>{
+public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<T, TableInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -71,6 +70,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	 * These are opened here because they are needed in the createInputSplits
 	 * which is called before the openInputFormat method.
 	 * So the connection is opened in {@link #configure(Configuration)} and closed in {@link #closeInputFormat()}.
+	 *
 	 * @param parameters The configuration that is to be used
 	 * @see Configuration
 	 */
@@ -81,13 +81,8 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	}
 
 	/**
-	 * Do nothing.
+	 * Create an {@link HTable} instance and set it into this format
 	 */
-	@Override
-	public void openInputFormat() throws IOException {
-	}
-
-	/** Create an {@link HTable} instance and set it into this format */
 	private HTable createTable() {
 		LOG.info("Initializing HBaseConfiguration");
 		//use files found in the classpath
@@ -124,17 +119,17 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 
 	@Override
 	public T nextRecord(T reuse) throws IOException {
-		if (this.resultScanner == null){
+		if (this.resultScanner == null) {
 			throw new IOException("No table result scanner provided!");
 		}
-		try{
+		try {
 			Result res = this.resultScanner.next();
-			if (res != null){
+			if (res != null) {
 				scannedRows++;
 				lastRow = res.getRow();
 				return mapResultToTuple(res);
 			}
-		}catch (Exception e) {
+		} catch (Exception e) {
 			this.resultScanner.close();
 			//workaround for timeout on scan
 			LOG.warn("Error after scan of " + scannedRows + " rows. Retry with a new scanner...", e);
@@ -157,7 +152,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 		LOG.info("Closing split (scanned {} rows)", scannedRows);
 		this.lastRow = null;
 		try {
-			if(resultScanner !=null) {
+			if (resultScanner != null) {
 				this.resultScanner.close();
 			}
 		} finally {
@@ -168,7 +163,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	@Override
 	public void closeInputFormat() throws IOException {
 		try {
-			if(table!=null) {
+			if (table != null) {
 				this.table.close();
 			}
 		} finally {
@@ -198,16 +193,16 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 				continue;
 			}
 			//Finds the region on which the given row is being served
-			final String[] hosts = new String[] { regionLocation };
+			final String[] hosts = new String[]{regionLocation};
 
 			// determine if regions contains keys used by the scan
 			boolean isLastRegion = endKey.length == 0;
 			if ((scanWithNoLowerBound || isLastRegion || Bytes.compareTo(startRow, endKey) < 0) &&
-					(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
+				(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
 
 				final byte[] splitStart = scanWithNoLowerBound || Bytes.compareTo(startKey, startRow) >= 0 ? startKey : startRow;
 				final byte[] splitStop = (scanWithNoUpperBound || Bytes.compareTo(endKey, stopRow) <= 0)
-						&& !isLastRegion ? endKey : stopRow;
+					&& !isLastRegion ? endKey : stopRow;
 				int id = splits.size();
 				final TableInputSplit split = new TableInputSplit(id, hosts, table.getTableName(), splitStart, splitStop);
 				splits.add(split);
@@ -227,7 +222,7 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 		String splitStartKey = splitStart.isEmpty() ? "-" : splitStart;
 		String splitStopKey = splitEnd.isEmpty() ? "-" : splitEnd;
 		String[] hostnames = split.getHostnames();
-		LOG.info("{} split (this={})[{}|{}|{}|{}]",action, this, splitId, hostnames, splitStartKey, splitStopKey);
+		LOG.info("{} split (this={})[{}|{}|{}|{}]", action, this, splitId, hostnames, splitStartKey, splitStopKey);
 	}
 
 	/**
@@ -243,10 +238,8 @@ public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<
 	 * Override this method, if you want to bulk exclude regions altogether from M-R. By default, no region is excluded(
 	 * i.e. all regions are included).
 	 *
-	 * @param startKey
-	 *        Start key of the region
-	 * @param endKey
-	 *        End key of the region
+	 * @param startKey Start key of the region
+	 * @param endKey   End key of the region
 	 * @return true, if this region needs to be included as part of the input (default).
 	 */
 	protected boolean includeRegionInSplit(final byte[] startKey, final byte[] endKey) {
