@@ -35,7 +35,7 @@ public class SecurityContextTest {
 		SecurityContext.SecurityConfiguration sc = new SecurityContext.SecurityConfiguration();
 		try {
 			SecurityContext.install(sc);
-			assertEquals(UserGroupInformation.getLoginUser().getUserName(),getOSUserName());
+			assertEquals(UserGroupInformation.getLoginUser().getUserName(), getOSUserName());
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
@@ -59,7 +59,7 @@ public class SecurityContextTest {
 		if( osName.contains( "windows" ) ){
 			className = "com.sun.security.auth.module.NTSystem";
 		}
-		else if( osName.contains( "linux" ) ){
+		else if( osName.contains( "linux" ) || osName.contains( "mac" )  ){
 			className = "com.sun.security.auth.module.UnixSystem";
 		}
 		else if( osName.contains( "solaris" ) || osName.contains( "sunos" ) ){

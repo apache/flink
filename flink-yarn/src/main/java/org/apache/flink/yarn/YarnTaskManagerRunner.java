@@ -127,7 +127,6 @@ public class YarnTaskManagerRunner {
 				configuration.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytabPath);
 				configuration.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, remoteKeytabPrincipal);
 			}
-			configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, currDir);
 
 			SecurityContext.install(sc.setFlinkConfiguration(configuration));
 
@@ -145,7 +144,7 @@ public class YarnTaskManagerRunner {
 				}
 			});
 		} catch(Exception e) {
-			LOG.error("Exception occurred while launching Task Manager. Reason: {}", e);
+			LOG.error("Exception occurred while launching Task Manager", e);
 			throw new RuntimeException(e);
 		}
 

@@ -20,6 +20,7 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.hadoop.minikdc.MiniKdc;
 import org.junit.rules.TemporaryFolder;
@@ -60,12 +61,10 @@ public class SecureTestEnvironment {
 
 	private static String hadoopServicePrincipal = null;
 
-	private static File baseDirForSecureRun = null;
-
 	public static void prepare(TemporaryFolder tempFolder) {
 
 		try {
-			baseDirForSecureRun = tempFolder.newFolder();
+			File baseDirForSecureRun = tempFolder.newFolder();
 			LOG.info("Base Directory for Secure Environment: {}", baseDirForSecureRun);
 
 			String hostName = "localhost";
@@ -113,19 +112,17 @@ public class SecureTestEnvironment {
 			//See Yarn test case module for reference
 			createJaasConfig(baseDirForSecureRun);
 			SecurityContext.SecurityConfiguration ctx = new SecurityContext.SecurityConfiguration();
-			Configuration flinkConfig = new Configuration();
+			Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
 			flinkConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY, testKeytab);
 			flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, testPrincipal);
 			flinkConfig.setBoolean(ConfigConstants.ZOOKEEPER_SASL_DISABLE, false);
-			flinkConfig.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, baseDirForSecureRun.getAbsolutePath());
 			ctx.setFlinkConfiguration(flinkConfig);
 			TestingSecurityContext.install(ctx, getClientSecurityConfigurationMap());
 
-			populateSystemEnvVariables();
+			populateJavaPropertyVariables();
 
 		} catch(Exception e) {
-			LOG.error("Exception occured while preparing secure environment. Reason: {}", e);
-			throw new RuntimeException(e);
+			throw new RuntimeException("Exception occured while preparing secure environment.", e);
 		}
 
 	}
@@ -145,14 +142,12 @@ public class SecureTestEnvironment {
 		testPrincipal = null;
 		testZkServerPrincipal = null;
 		hadoopServicePrincipal = null;
-		baseDirForSecureRun = null;
 
 	}
 
-	private static void populateSystemEnvVariables() {
+	private static void populateJavaPropertyVariables() {
 
 		if(LOG.isDebugEnabled()) {
-			System.setProperty("FLINK_JAAS_DEBUG", "true");
 			System.setProperty("sun.security.krb5.debug", "true");
 		}
 
@@ -165,7 +160,6 @@ public class SecureTestEnvironment {
 
 	private static void resetSystemEnvVariables() {
 		System.clearProperty("java.security.krb5.conf");
-		System.clearProperty("FLINK_JAAS_DEBUG");
 		System.clearProperty("sun.security.krb5.debug");
 
 		System.clearProperty("zookeeper.authProvider.1");
@@ -227,7 +221,7 @@ public class SecureTestEnvironment {
 	}
 
 	/*
-	 * Helper method to create a temporary JAAS configuration file to ger around the Kafka and ZK SASL
+	 * Helper method to create a temporary JAAS configuration file to get around the Kafka and ZK SASL
 	 * implementation lookup java.security.auth.login.config
 	 */
 	private static void  createJaasConfig(File baseDirForSecureRun) {
@@ -241,8 +235,7 @@ public class SecureTestEnvironment {
 			out.println("useTicketCache=true;");
 			out.println("};");
 		} catch (IOException e) {
-			LOG.error("Exception occured while trying to create JAAS config. Reason: {}", e.getMessage());
-			throw new RuntimeException(e);
+			throw new RuntimeException("Exception occured while trying to create JAAS config.", e);
 		}
 
 	}

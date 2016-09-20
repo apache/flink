@@ -176,7 +176,6 @@ public class YarnApplicationMasterRunner {
 				flinkConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY, keytabPath);
 				flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, remoteKeytabPrincipal);
 			}
-			flinkConfig.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, currDir);
 
 			SecurityContext.install(sc.setFlinkConfiguration(flinkConfig));
 

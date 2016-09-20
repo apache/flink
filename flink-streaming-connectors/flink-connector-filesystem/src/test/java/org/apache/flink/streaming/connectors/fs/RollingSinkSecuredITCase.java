@@ -227,7 +227,6 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 			TestStreamEnvironment.setAsContext(cluster, DEFAULT_PARALLELISM);
 
 		} catch (Exception e) {
-			LOG.error("Exception occured while creating MiniFlink cluster. Reason: {}", e);
 			throw new RuntimeException(e);
 		}
 	}
