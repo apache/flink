@@ -32,7 +32,6 @@ public class YarnConfigKeys {
 	public final static String ENV_APP_ID = "_APP_ID";
 	public static final String ENV_CLIENT_HOME_DIR = "_CLIENT_HOME_DIR";
 	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
-	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
 	public static final String ENV_SLOTS = "_SLOTS";
 	public static final String ENV_DETACHED = "_DETACHED";
 	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
@@ -41,8 +40,13 @@ public class YarnConfigKeys {
 
 	public final static String FLINK_JAR_PATH = "_FLINK_JAR_PATH"; // the Flink jar resource location (in HDFS).
 
+	public final static String KEYTAB_PATH = "_KEYTAB_PATH";
+	public final static String KEYTAB_PRINCIPAL = "_KEYTAB_PRINCIPAL";
+	public final static String ENV_HADOOP_USER_NAME = "HADOOP_USER_NAME";
 	public static final String ENV_ZOOKEEPER_NAMESPACE = "_ZOOKEEPER_NAMESPACE";
 
+	public static final String ENV_KRB5_PATH = "_KRB5_PATH";
+	public static final String ENV_YARN_SITE_XML_PATH = "_YARN_SITE_XML_PATH";
 
 	// ------------------------------------------------------------------------
 

@@ -139,6 +139,31 @@ jobmanager.web.port: 8081
 #
 # "host1:clientPort,host2:clientPort,..." (default clientPort: 2181)
 #
+
 # high-availability: zookeeper
 # high-availability.zookeeper.quorum: localhost:2181
 # high-availability.zookeeper.storageDir: hdfs:///flink/ha/
+
+#==============================================================================
+# Flink Cluster Security Configuration (optional configuration)
+#==============================================================================
+
+# Kerberos security for the connectors can be enabled by providing below configurations
+# Security works in two modes - keytab/principal combination or using the Kerberos token cache
+# If keytab and principal are not provided, token cache (manual kinit) will be used
+
+#security.keytab: /path/to/kerberos/keytab
+#security.principal: flink-user
+
+#==============================================================================
+# ZK Security Configuration (optional configuration)
+#==============================================================================
+# Below configurations are applicable if ZK quorum is configured for Kerberos security
+
+# SASL authentication is disabled by default and can be enabled by changig the value to false
+#
+# zookeeper.sasl.disable: true
+
+# Override below configuration to provide custom ZK service name if configured
+#
+# zookeeper.sasl.service-name: zookeeper

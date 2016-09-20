@@ -81,6 +81,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
+	public Properties getSecureProperties() {
+		return null;
+	}
+
+	@Override
 	public String getVersion() {
 		return "0.8";
 	}
@@ -132,9 +137,14 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		return server.socketServer().brokerId();
 	}
 
+	@Override
+	public boolean isSecureRunSupported() {
+		return false;
+	}
+
 
 	@Override
-	public void prepare(int numKafkaServers, Properties additionalServerProperties) {
+	public void prepare(int numKafkaServers, Properties additionalServerProperties, boolean secureMode) {
 		this.additionalServerProperties = additionalServerProperties;
 		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 
@@ -210,6 +220,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		if (zookeeper != null) {
 			try {
 				zookeeper.stop();
+				zookeeper.close();
 			}
 			catch (Exception e) {
 				LOG.warn("ZK.stop() failed", e);

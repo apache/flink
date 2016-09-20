@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -59,7 +60,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -341,26 +341,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	@Override
 	public YarnClusterClient deploy() {
-
 		try {
-
-			UserGroupInformation.setConfiguration(conf);
-			UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
-
-			if (UserGroupInformation.isSecurityEnabled()) {
-				if (!ugi.hasKerberosCredentials()) {
-					throw new YarnDeploymentException("In secure mode. Please provide Kerberos credentials in order to authenticate. " +
-						"You may use kinit to authenticate and request a TGT from the Kerberos server.");
-				}
-				return ugi.doAs(new PrivilegedExceptionAction<YarnClusterClient>() {
-					@Override
-					public YarnClusterClient run() throws Exception {
-						return deployInternal();
-					}
-				});
-			} else {
-				return deployInternal();
-			}
+			return deployInternal();
 		} catch (Exception e) {
 			throw new RuntimeException("Couldn't deploy Yarn cluster", e);
 		}
@@ -539,9 +521,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		addLibFolderToShipFiles(effectiveShipFiles);
+		//check if there is a JAAS config file
+		File jaasConfigFile = new File(configurationDirectory + File.separator + SecurityContext.JAAS_CONF_FILENAME);
+		if (jaasConfigFile.exists() && jaasConfigFile.isFile()) {
+			effectiveShipFiles.add(jaasConfigFile);
+		}
 
-		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(hasLogback, hasLog4j);
+		addLibFolderToShipFiles(effectiveShipFiles);
 
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
@@ -626,8 +612,53 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 		fs.setPermission(sessionFilesDir, permission); // set permission for path.
 
+		//To support Yarn Secure Integration Test Scenario
+		//In Integration test setup, the Yarn containers created by YarnMiniCluster does not have the Yarn site XML
+		//and KRB5 configuration files. We are adding these files as container local resources for the container
+		//applications (JM/TMs) to have proper secure cluster setup
+		Path remoteKrb5Path = null;
+		Path remoteYarnSiteXmlPath = null;
+		boolean hasKrb5 = false;
+		if(System.getenv("IN_TESTS") != null) {
+			String krb5Config = System.getProperty("java.security.krb5.conf");
+			if(krb5Config != null && krb5Config.length() != 0) {
+				File krb5 = new File(krb5Config);
+				LOG.info("Adding KRB5 configuration {} to the AM container local resource bucket", krb5.getAbsolutePath());
+				LocalResource krb5ConfResource = Records.newRecord(LocalResource.class);
+				Path krb5ConfPath = new Path(krb5.getAbsolutePath());
+				remoteKrb5Path = Utils.setupLocalResource(fs, appId.toString(), krb5ConfPath, krb5ConfResource, fs.getHomeDirectory());
+				localResources.put(Utils.KRB5_FILE_NAME, krb5ConfResource);
+
+				File f = new File(System.getenv("YARN_CONF_DIR"),Utils.YARN_SITE_FILE_NAME);
+				LOG.info("Adding Yarn configuration {} to the AM container local resource bucket", f.getAbsolutePath());
+				LocalResource yarnConfResource = Records.newRecord(LocalResource.class);
+				Path yarnSitePath = new Path(f.getAbsolutePath());
+				remoteYarnSiteXmlPath = Utils.setupLocalResource(fs, appId.toString(), yarnSitePath, yarnConfResource, fs.getHomeDirectory());
+				localResources.put(Utils.YARN_SITE_FILE_NAME, yarnConfResource);
+
+				hasKrb5 = true;
+			}
+		}
+
 		// setup security tokens
-		Utils.setTokensFor(amContainer, paths, conf);
+		LocalResource keytabResource = null;
+		Path remotePathKeytab = null;
+		String keytab = flinkConfiguration.getString(ConfigConstants.SECURITY_KEYTAB_KEY, null);
+		if(keytab != null) {
+			LOG.info("Adding keytab {} to the AM container local resource bucket", keytab);
+			keytabResource = Records.newRecord(LocalResource.class);
+			Path keytabPath = new Path(keytab);
+			remotePathKeytab = Utils.setupLocalResource(fs, appId.toString(), keytabPath, keytabResource, fs.getHomeDirectory());
+			localResources.put(Utils.KEYTAB_FILE_NAME, keytabResource);
+		}
+
+		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(hasLogback, hasLog4j, hasKrb5);
+
+		if ( UserGroupInformation.isSecurityEnabled() && keytab == null ) {
+			//set tokens only when keytab is not provided
+			LOG.info("Adding delegation token to the AM container..");
+			Utils.setTokensFor(amContainer, paths, conf);
+		}
 
 		amContainer.setLocalResources(localResources);
 		fs.close();
@@ -646,10 +677,24 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		appMasterEnv.put(YarnConfigKeys.ENV_APP_ID, appId.toString());
 		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_HOME_DIR, fs.getHomeDirectory().toString());
 		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, envShipFileList.toString());
-		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
 		appMasterEnv.put(YarnConfigKeys.ENV_SLOTS, String.valueOf(slots));
 		appMasterEnv.put(YarnConfigKeys.ENV_DETACHED, String.valueOf(detached));
 		appMasterEnv.put(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE, getZookeeperNamespace());
+
+		// https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md#identity-on-an-insecure-cluster-hadoop_user_name
+		appMasterEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, UserGroupInformation.getCurrentUser().getUserName());
+
+		if(keytabResource != null) {
+			appMasterEnv.put(YarnConfigKeys.KEYTAB_PATH, remotePathKeytab.toString() );
+			String principal = flinkConfiguration.getString(ConfigConstants.SECURITY_PRINCIPAL_KEY, null);
+			appMasterEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, principal );
+		}
+
+		//To support Yarn Secure Integration Test Scenario
+		if(remoteYarnSiteXmlPath != null && remoteKrb5Path != null) {
+			appMasterEnv.put(YarnConfigKeys.ENV_YARN_SITE_XML_PATH, remoteYarnSiteXmlPath.toString());
+			appMasterEnv.put(YarnConfigKeys.ENV_KRB5_PATH, remoteKrb5Path.toString() );
+		}
 
 		if(dynamicPropertiesEncoded != null) {
 			appMasterEnv.put(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
@@ -700,6 +745,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				throw new YarnDeploymentException("Failed to deploy the cluster: " + e.getMessage());
 			}
 			YarnApplicationState appState = report.getYarnApplicationState();
+			LOG.debug("Application State: {}", appState);
 			switch(appState) {
 				case FAILED:
 				case FINISHED:
@@ -996,7 +1042,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 	}
 
-	protected ContainerLaunchContext setupApplicationMasterContainer(boolean hasLogback, boolean hasLog4j) {
+	protected ContainerLaunchContext setupApplicationMasterContainer(boolean hasLogback,
+																	boolean hasLog4j,
+																	boolean hasKrb5) {
 		// ------------------ Prepare Application Master Container  ------------------------------
 
 		// respect custom JVM options in the YAML file
@@ -1019,6 +1067,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			if(hasLog4j) {
 				amCommand += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
 			}
+		}
+
+		//applicable only for YarnMiniCluster secure test run
+		//krb5.conf file will be available as local resource in JM/TM container
+		if(hasKrb5) {
+			amCommand += " -Djava.security.krb5.conf=krb5.conf";
 		}
 
 		amCommand += " " + getApplicationMasterClass().getName() + " "

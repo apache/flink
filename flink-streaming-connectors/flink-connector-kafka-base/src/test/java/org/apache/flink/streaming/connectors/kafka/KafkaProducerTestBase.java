@@ -34,6 +34,7 @@ import org.apache.flink.test.util.SuccessException;
 
 
 import java.io.Serializable;
+import java.util.Properties;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
@@ -102,17 +103,24 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 				}
 			})
 			.setParallelism(1);
+
+			Properties props = new Properties();
+			props.putAll(FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings));
+			props.putAll(secureProps);
 			
 			// sink partitions into 
 			stream.addSink(kafkaServer.getProducer(topic,
 					new KeyedSerializationSchemaWrapper<>(serSchema),
-					FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings),
+					props,
 					new CustomPartitioner(parallelism)))
 			.setParallelism(parallelism);
 
 			// ------ consuming topology ---------
-			
-			FlinkKafkaConsumerBase<Tuple2<Long, String>> source = kafkaServer.getConsumer(topic, deserSchema, standardProps);
+
+			Properties consumerProps = new Properties();
+			consumerProps.putAll(standardProps);
+			consumerProps.putAll(secureProps);
+			FlinkKafkaConsumerBase<Tuple2<Long, String>> source = kafkaServer.getConsumer(topic, deserSchema, consumerProps);
 			
 			env.addSource(source).setParallelism(parallelism)
 

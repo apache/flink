@@ -35,10 +35,10 @@ public abstract class KafkaTestEnvironment {
 
 	protected static final String KAFKA_HOST = "localhost";
 
-	public abstract void prepare(int numKafkaServers, Properties kafkaServerProperties);
+	public abstract void prepare(int numKafkaServers, Properties kafkaServerProperties, boolean secureMode);
 
-	public void prepare(int numberOfKafkaServers) {
-		this.prepare(numberOfKafkaServers, null);
+	public void prepare(int numberOfKafkaServers, boolean secureMode) {
+		this.prepare(numberOfKafkaServers, null, secureMode);
 	}
 
 	public abstract void shutdown();
@@ -51,8 +51,9 @@ public abstract class KafkaTestEnvironment {
 		this.createTestTopic(topic, numberOfPartitions, replicationFactor, new Properties());
 	}
 
-
 	public abstract Properties getStandardProperties();
+
+	public abstract Properties getSecureProperties();
 
 	public abstract String getBrokerConnectionString();
 
@@ -85,5 +86,7 @@ public abstract class KafkaTestEnvironment {
 	public abstract int getLeaderToShutDown(String topic) throws Exception;
 
 	public abstract int getBrokerId(KafkaServer server);
+
+	public abstract boolean isSecureRunSupported();
 
 }
