@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.classloading;
 
-import akka.pattern.AskTimeoutException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -37,9 +36,9 @@ import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.test.testdata.KMeansData;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -82,7 +81,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
-	private static ForkableFlinkMiniCluster testCluster;
+	private static TestingCluster testCluster;
 
 	private static int parallelism;
 
@@ -105,7 +104,7 @@ public class ClassLoaderITCase extends TestLogger {
 		config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY,
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
-		testCluster = new ForkableFlinkMiniCluster(config, false);
+		testCluster = new TestingCluster(config, false);
 		testCluster.start();
 	}
 

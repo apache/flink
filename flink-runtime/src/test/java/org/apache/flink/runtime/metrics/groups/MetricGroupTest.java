@@ -18,19 +18,25 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class MetricGroupTest {
+public class MetricGroupTest extends TestLogger {
 	
 	private MetricRegistry registry;
 
@@ -110,6 +116,24 @@ public class MetricGroupTest {
 		assertNotNull(group.addGroup(name));
 		assertNotNull(group.counter(name));
 	}
+
+	@Test
+	public void testCreateQueryServiceMetricInfo() {
+		JobID jid = new JobID();
+		AbstractID vid = new AbstractID();
+		AbstractID eid = new AbstractID();
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
+		TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
+		GenericMetricGroup userGroup = new GenericMetricGroup(registry, task, "hello");
+
+		QueryScopeInfo.TaskQueryScopeInfo info = (QueryScopeInfo.TaskQueryScopeInfo) userGroup.createQueryServiceMetricInfo(new DummyCharacterFilter());
+		assertEquals("hello", info.scope);
+		assertEquals(jid.toString(), info.jobID);
+		assertEquals(vid.toString(), info.vertexID);
+		assertEquals(4, info.subtaskIndex);
+	}
 	
 	// ------------------------------------------------------------------------
 	
@@ -136,6 +160,11 @@ public class MetricGroupTest {
 
 		public DummyAbstractMetricGroup(MetricRegistry registry) {
 			super(registry, new String[0], null);
+		}
+
+		@Override
+		protected QueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
+			return null;
 		}
 
 		@Override

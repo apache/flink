@@ -34,6 +34,36 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test
+  def testOverlay(): Unit = {
+    testAllApis(
+      "xxxxxtest".overlay("xxxx", 6),
+      "'xxxxxtest'.overlay('xxxx', 6)",
+      "OVERLAY('xxxxxtest' PLACING 'xxxx' FROM 6)",
+      "xxxxxxxxx")
+
+    testAllApis(
+      "xxxxxtest".overlay("xxxx", 6, 2),
+      "'xxxxxtest'.overlay('xxxx', 6, 2)",
+      "OVERLAY('xxxxxtest' PLACING 'xxxx' FROM 6 FOR 2)",
+      "xxxxxxxxxst")
+  }
+
+  @Test
+  def testPosition(): Unit = {
+    testAllApis(
+      "test".position("xxxtest"),
+      "'test'.position('xxxtest')",
+      "POSITION('test' IN 'xxxtest')",
+      "4")
+
+    testAllApis(
+      "testx".position("xxxtest"),
+      "'testx'.position('xxxtest')",
+      "POSITION('testx' IN 'xxxtest')",
+      "0")
+  }
+
+  @Test
   def testSubstring(): Unit = {
     testAllApis(
       'f0.substring(2),
@@ -325,6 +355,21 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f4.power(f5)",
       "POWER(f4, f5)",
       math.pow(44.toLong, 4.5.toFloat).toString)
+  }
+
+  @Test
+  def testSqrt(): Unit = {
+    testAllApis(
+      25.sqrt(),
+      "25.sqrt()",
+      "SQRT(25)",
+      "5.0")
+
+    testAllApis(
+      2.2.sqrt(),
+      "2.2.sqrt()",
+      "POWER(CAST(2.2 AS DOUBLE), CAST(0.5 AS DOUBLE))", // TODO fix FLINK-4621
+      math.sqrt(2.2).toString)
   }
 
   @Test
@@ -761,34 +806,34 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     // manual test can be found in NonDeterministicTests
 
     testAllApis(
-      currentDate().cast(Types.STRING).charLength(),
-      "currentDate().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR))",
-      "10")
-
-    testAllApis(
-      currentTime().cast(Types.STRING).charLength(),
-      "currentTime().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR))",
-      "8")
-
-    testAllApis(
-      currentTimestamp().cast(Types.STRING).charLength() >= 22,
-      "currentTimestamp().cast(STRING).charLength() >= 22",
-      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 22",
+      currentDate().cast(Types.STRING).charLength() >= 5,
+      "currentDate().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR)) >= 5",
       "true")
 
     testAllApis(
-      localTimestamp().cast(Types.STRING).charLength() >= 22,
-      "localTimestamp().cast(STRING).charLength() >= 22",
-      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 22",
+      currentTime().cast(Types.STRING).charLength() >= 5,
+      "currentTime().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR)) >= 5",
       "true")
 
     testAllApis(
-      localTime().cast(Types.STRING).charLength(),
-      "localTime().cast(STRING).charLength()",
-      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR))",
-      "8")
+      currentTimestamp().cast(Types.STRING).charLength() >= 12,
+      "currentTimestamp().cast(STRING).charLength() >= 12",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 12",
+      "true")
+
+    testAllApis(
+      localTimestamp().cast(Types.STRING).charLength() >= 12,
+      "localTimestamp().cast(STRING).charLength() >= 12",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 12",
+      "true")
+
+    testAllApis(
+      localTime().cast(Types.STRING).charLength() >= 5,
+      "localTime().cast(STRING).charLength() >= 5",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR)) >= 5",
+      "true")
 
     // comparisons are deterministic
     testAllApis(
@@ -796,6 +841,27 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "localTimestamp() === localTimestamp()",
       "LOCALTIMESTAMP = LOCALTIMESTAMP",
       "true")
+  }
+
+  @Test
+  def testQuarter(): Unit = {
+    testAllApis(
+      "1997-01-27".toDate.quarter(),
+      "'1997-01-27'.toDate.quarter()",
+      "QUARTER(DATE '1997-01-27')",
+      "1")
+
+    testAllApis(
+      "1997-04-27".toDate.quarter(),
+      "'1997-04-27'.toDate.quarter()",
+      "QUARTER(DATE '1997-04-27')",
+      "2")
+
+    testAllApis(
+      "1997-12-31".toDate.quarter(),
+      "'1997-12-31'.toDate.quarter()",
+      "QUARTER(DATE '1997-12-31')",
+      "4")
   }
 
   // ----------------------------------------------------------------------------------------------

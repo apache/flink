@@ -30,9 +30,10 @@ public interface InputSplitProvider {
 
 	/**
 	 * Requests the next input split to be consumed by the calling task.
-	 * 
+	 *
+	 * @param userCodeClassLoader used to deserialize input splits
 	 * @return the next input split to be consumed by the calling task or <code>null</code> if the
 	 *         task shall not consume any further input splits.
 	 */
-	InputSplit getNextInputSplit();
+	InputSplit getNextInputSplit(ClassLoader userCodeClassLoader);
 }

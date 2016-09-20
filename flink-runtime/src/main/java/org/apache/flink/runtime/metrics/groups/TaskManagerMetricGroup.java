@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.HashMap;
@@ -32,6 +35,7 @@ import java.util.Map;
  * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do
  * not contain tasks any more
  */
+@Internal
 public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetricGroup> {
 
 	private final Map<JobID, TaskManagerJobMetricGroup> jobs = new HashMap<>();
@@ -53,6 +57,11 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 
 	public String taskManagerId() {
 		return taskManagerId;
+	}
+
+	@Override
+	protected QueryScopeInfo.TaskManagerQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
+		return new QueryScopeInfo.TaskManagerQueryScopeInfo(this.taskManagerId);
 	}
 
 	// ------------------------------------------------------------------------

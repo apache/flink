@@ -27,55 +27,55 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.flink.util.Preconditions;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+/**
+ * Implementation using {@link ActorGateway} to forward the messages.
+ */
 public class TaskInputSplitProvider implements InputSplitProvider {
 
 	private final ActorGateway jobManager;
 	
-	private final JobID jobId;
+	private final JobID jobID;
 	
-	private final JobVertexID vertexId;
+	private final JobVertexID vertexID;
 
 	private final ExecutionAttemptID executionID;
 
-	private final ClassLoader usercodeClassLoader;
-	
 	private final FiniteDuration timeout;
-	
+
+
 	public TaskInputSplitProvider(
-			ActorGateway jobManager,
-			JobID jobId,
-			JobVertexID vertexId,
-			ExecutionAttemptID executionID,
-			ClassLoader userCodeClassLoader,
-			FiniteDuration timeout)
-	{
-		this.jobManager = jobManager;
-		this.jobId = jobId;
-		this.vertexId = vertexId;
-		this.executionID = executionID;
-		this.usercodeClassLoader = userCodeClassLoader;
-		this.timeout = timeout;
+		ActorGateway jobManager,
+		JobID jobID,
+		JobVertexID vertexID,
+		ExecutionAttemptID executionID,
+		FiniteDuration timeout) {
+
+		this.jobManager = Preconditions.checkNotNull(jobManager);
+		this.jobID = Preconditions.checkNotNull(jobID);
+		this.vertexID = Preconditions.checkNotNull(vertexID);
+		this.executionID = Preconditions.checkNotNull(executionID);
+		this.timeout = Preconditions.checkNotNull(timeout);
 	}
 
 	@Override
-	public InputSplit getNextInputSplit() {
+	public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) {
+		Preconditions.checkNotNull(userCodeClassLoader);
+
 		try {
 			final Future<Object> response = jobManager.ask(
-					new JobManagerMessages.RequestNextInputSplit(jobId, vertexId, executionID),
+					new JobManagerMessages.RequestNextInputSplit(jobID, vertexID, executionID),
 					timeout);
 
 			final Object result = Await.result(response, timeout);
 
-			if(!(result instanceof JobManagerMessages.NextInputSplit)){
-				throw new RuntimeException("RequestNextInputSplit requires a response of type " +
-						"NextInputSplit. Instead response is of type " + result.getClass() + ".");
-			} else {
+			if(result instanceof JobManagerMessages.NextInputSplit){
 				final JobManagerMessages.NextInputSplit nextInputSplit =
-						(JobManagerMessages.NextInputSplit) result;
+					(JobManagerMessages.NextInputSplit) result;
 
 				byte[] serializedData = nextInputSplit.splitData();
 
@@ -83,9 +83,12 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 					return null;
 				} else {
 					Object deserialized = InstantiationUtil.deserializeObject(serializedData,
-							usercodeClassLoader);
+						userCodeClassLoader);
 					return (InputSplit) deserialized;
 				}
+			} else {
+				throw new Exception("RequestNextInputSplit requires a response of type " +
+					"NextInputSplit. Instead response is of type " + result.getClass() + '.');
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Requesting the next InputSplit failed.", e);

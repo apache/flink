@@ -136,9 +136,11 @@ object FunctionCatalog {
     "like" -> classOf[Like],
     "lowerCase" -> classOf[Lower],
     "similar" -> classOf[Similar],
-    "subString" -> classOf[SubString],
+    "substring" -> classOf[Substring],
     "trim" -> classOf[Trim],
     "upperCase" -> classOf[Upper],
+    "position" -> classOf[Position],
+    "overlay" -> classOf[Overlay],
 
     // math functions
     "abs" -> classOf[Abs],
@@ -149,6 +151,7 @@ object FunctionCatalog {
     "ln" -> classOf[Ln],
     "power" -> classOf[Power],
     "mod" -> classOf[Mod],
+    "sqrt" -> classOf[Sqrt],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -156,7 +159,8 @@ object FunctionCatalog {
     "currentTime" -> classOf[CurrentTime],
     "currentTimestamp" -> classOf[CurrentTimestamp],
     "localTime" -> classOf[LocalTime],
-    "localTimestamp" -> classOf[LocalTimestamp]
+    "localTimestamp" -> classOf[LocalTimestamp],
+    "quarter" -> classOf[Quarter]
 
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]

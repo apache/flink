@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
+import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.taskmanager.{TaskManagerLocation, TaskManager, TaskManagerConfiguration}
 
 import scala.language.postfixOps
@@ -37,7 +38,8 @@ class TestingTaskManager(
                           ioManager: IOManager,
                           network: NetworkEnvironment,
                           numberOfSlots: Int,
-                          leaderRetrievalService: LeaderRetrievalService)
+                          leaderRetrievalService: LeaderRetrievalService,
+                          metricRegistry : MetricRegistry)
   extends TaskManager(
     config,
     resourceID,
@@ -46,7 +48,8 @@ class TestingTaskManager(
     ioManager,
     network,
     numberOfSlots,
-    leaderRetrievalService)
+    leaderRetrievalService,
+    metricRegistry)
   with TestingTaskManagerLike {
 
   def this(
@@ -56,7 +59,8 @@ class TestingTaskManager(
             ioManager: IOManager,
             network: NetworkEnvironment,
             numberOfSlots: Int,
-            leaderRetrievalService: LeaderRetrievalService) {
+            leaderRetrievalService: LeaderRetrievalService,
+            metricRegistry : MetricRegistry) {
     this(
       config,
       ResourceID.generate(),
@@ -65,6 +69,7 @@ class TestingTaskManager(
       ioManager,
       network,
       numberOfSlots,
-      leaderRetrievalService)
+      leaderRetrievalService,
+      metricRegistry)
   }
 }

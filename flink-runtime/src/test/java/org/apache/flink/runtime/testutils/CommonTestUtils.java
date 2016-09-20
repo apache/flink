@@ -71,8 +71,8 @@ public class CommonTestUtils {
 	 * Create a temporary log4j configuration for the test.
 	 */
 	public static File createTemporaryLog4JProperties() throws IOException {
-		File log4jProps = File.createTempFile(FileUtils.getRandomFilename(""), "-log4j" +
-				".properties");
+		File log4jProps = File.createTempFile(
+				FileUtils.getRandomFilename(""), "-log4j.properties");
 		log4jProps.deleteOnExit();
 		CommonTestUtils.printLog4jDebugConfig(log4jProps);
 
@@ -137,9 +137,7 @@ public class CommonTestUtils {
 	}
 
 	public static void printLog4jDebugConfig(File file) throws IOException {
-		try (FileWriter fw = new FileWriter(file)) {
-			PrintWriter writer = new PrintWriter(fw);
-
+		try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
 			writer.println("log4j.rootLogger=DEBUG, console");
 			writer.println("log4j.appender.console=org.apache.log4j.ConsoleAppender");
 			writer.println("log4j.appender.console.target = System.err");
@@ -147,9 +145,7 @@ public class CommonTestUtils {
 			writer.println("log4j.appender.console.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n");
 			writer.println("log4j.logger.org.eclipse.jetty.util.log=OFF");
 			writer.println("log4j.logger.org.apache.zookeeper=OFF");
-
 			writer.flush();
-			writer.close();
 		}
 	}
 

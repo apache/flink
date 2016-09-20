@@ -221,28 +221,26 @@ public class DataSourceTaskTest extends TaskTestBase {
 	
 	private static class InputFilePreparator {
 		public static void prepareInputFile(MutableObjectIterator<Record> inIt, String inputFilePath, boolean insertInvalidData)
-		throws IOException
-		{
-			FileWriter fw = new FileWriter(inputFilePath);
-			BufferedWriter bw = new BufferedWriter(fw);
-			
-			if (insertInvalidData) {
-				bw.write("####_I_AM_INVALID_########\n");
+		throws IOException {
+
+			try (BufferedWriter bw = new BufferedWriter(new FileWriter(inputFilePath))) {
+				if (insertInvalidData) {
+					bw.write("####_I_AM_INVALID_########\n");
+				}
+
+				Record rec = new Record();
+				while ((rec = inIt.next(rec)) != null) {
+					IntValue key = rec.getField(0, IntValue.class);
+					IntValue value = rec.getField(1, IntValue.class);
+
+					bw.write(key.getValue() + "_" + value.getValue() + "\n");
+				}
+				if (insertInvalidData) {
+					bw.write("####_I_AM_INVALID_########\n");
+				}
+
+				bw.flush();
 			}
-			
-			Record rec = new Record();
-			while ((rec = inIt.next(rec)) != null) {
-				IntValue key = rec.getField(0, IntValue.class);
-				IntValue value = rec.getField(1, IntValue.class);
-				
-				bw.write(key.getValue() + "_" + value.getValue() + "\n");
-			}
-			if (insertInvalidData) {
-				bw.write("####_I_AM_INVALID_########\n");
-			}
-			
-			bw.flush();
-			bw.close();
 		}
 	}
 	

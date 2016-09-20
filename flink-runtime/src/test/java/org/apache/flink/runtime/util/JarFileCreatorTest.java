@@ -205,13 +205,13 @@ public class JarFileCreatorTest {
 	}
 
 	private boolean validate(Set<String> expected, File out) throws IOException {
-
-		JarInputStream jis = new JarInputStream(new FileInputStream(out));
-		ZipEntry ze;
 		int count = expected.size();
-		while ((ze = jis.getNextEntry()) != null) {
-			count--;
-			expected.remove(ze.getName());
+		try (JarInputStream jis = new JarInputStream(new FileInputStream(out))) {
+			ZipEntry ze;
+			while ((ze = jis.getNextEntry()) != null) {
+				count--;
+				expected.remove(ze.getName());
+			}
 		}
 		return count == 0 && expected.size() == 0;
 	}

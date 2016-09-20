@@ -31,6 +31,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -155,9 +156,9 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 			throw new FileNotFoundException("Properties file " + propertiesFile.getAbsolutePath() + " does not exist");
 		}
 		Properties props = new Properties();
-		FileInputStream fis = new FileInputStream(propertiesFile);
-		props.load(fis);
-		fis.close();
+		try (FileInputStream fis = new FileInputStream(propertiesFile)) {
+			props.load(fis);
+		}
 		return fromMap((Map)props);
 	}
 
@@ -523,7 +524,9 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		}
 		Properties defaultProps = new Properties();
 		defaultProps.putAll(this.defaultData);
-		defaultProps.store(new FileOutputStream(file), "Default file created by Flink's ParameterUtil.createPropertiesFile()");
+		try (final OutputStream out = new FileOutputStream(file)) {
+			defaultProps.store(out, "Default file created by Flink's ParameterUtil.createPropertiesFile()");
+		}
 	}
 
 	@Override

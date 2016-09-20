@@ -29,10 +29,11 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 public class TestEnvironment extends ExecutionEnvironment {
 
-	private final ForkableFlinkMiniCluster executor;
+	private final LocalFlinkMiniCluster executor;
 
 	private TestEnvironment lastEnv = null;
 
@@ -46,7 +47,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		}
 	}
 
-	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism) {
+	public TestEnvironment(LocalFlinkMiniCluster executor, int parallelism) {
 		this.executor = executor;
 		setParallelism(parallelism);
 
@@ -54,7 +55,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		getConfig().setCodeAnalysisMode(CodeAnalysisMode.DISABLE);
 	}
 
-	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism, boolean isObjectReuseEnabled) {
+	public TestEnvironment(LocalFlinkMiniCluster executor, int parallelism, boolean isObjectReuseEnabled) {
 		this(executor, parallelism);
 
 		if (isObjectReuseEnabled) {

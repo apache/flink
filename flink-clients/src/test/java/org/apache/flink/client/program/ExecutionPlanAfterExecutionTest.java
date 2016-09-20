@@ -25,12 +25,15 @@ import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+
+import java.io.Serializable;
 
 import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
-public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
+public class ExecutionPlanAfterExecutionTest extends TestLogger implements Serializable {
 
 	@Test
 	public void testExecuteAfterGetExecutionPlan() {

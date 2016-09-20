@@ -18,8 +18,10 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.HashMap;
@@ -44,6 +46,11 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
 
 	public String hostname() {
 		return hostname;
+	}
+
+	@Override
+	protected QueryScopeInfo.JobManagerQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
+		return new QueryScopeInfo.JobManagerQueryScopeInfo();
 	}
 
 	// ------------------------------------------------------------------------

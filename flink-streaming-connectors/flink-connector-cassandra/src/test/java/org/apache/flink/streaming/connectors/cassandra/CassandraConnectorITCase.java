@@ -40,25 +40,23 @@ import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
-
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.TestEnvironment;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.internal.AssumptionViolatedException;
 import org.junit.runner.RunWith;
 
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -134,7 +132,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		}
 	}
 
-	private static ForkableFlinkMiniCluster flinkCluster;
+	private static LocalFlinkMiniCluster flinkCluster;
 
 	// ------------------------------------------------------------------------
 	//  Cluster Setup (Cassandra & Flink)
@@ -144,20 +142,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	public static void startCassandra() throws IOException {
 
 		// check if we should run this test, current Cassandra version requires Java >= 1.8
-		try {
-			String javaVersionString = System.getProperty("java.runtime.version").substring(0, 3);
-			float javaVersion = Float.parseFloat(javaVersionString);
-			Assume.assumeTrue(javaVersion >= 1.8f);
-		}
-		catch (AssumptionViolatedException e) {
-			System.out.println("Skipping CassandraConnectorITCase, because the JDK is < Java 8+");
-			throw e;
-		}
-		catch (Exception e) {
-			LOG.error("Cannot determine Java version", e);
-			e.printStackTrace();
-			fail("Cannot determine Java version");
-		}
+		org.apache.flink.core.testutils.CommonTestUtils.assumeJava8();
 
 		// generate temporary files
 		tmpDir = CommonTestUtils.createTempDirectory();
@@ -166,17 +151,20 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
 		
 		assertTrue(tmp.createNewFile());
-		BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
 
-		//copy cassandra.yaml; inject absolute paths into cassandra.yaml
-		Scanner scanner = new Scanner(file);
-		while (scanner.hasNextLine()) {
-			String line = scanner.nextLine();
-			line = line.replace("$PATH", "'" + tmp.getParentFile());
-			b.write(line + "\n");
-			b.flush();
+		try (
+			BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
+
+			//copy cassandra.yaml; inject absolute paths into cassandra.yaml
+			Scanner scanner = new Scanner(file);
+		) {
+			while (scanner.hasNextLine()) {
+				String line = scanner.nextLine();
+				line = line.replace("$PATH", "'" + tmp.getParentFile());
+				b.write(line + "\n");
+				b.flush();
+			}
 		}
-		scanner.close();
 
 
 		// Tell cassandra where the configuration files are.
@@ -205,7 +193,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
 
-		flinkCluster = new ForkableFlinkMiniCluster(config);
+		flinkCluster = new LocalFlinkMiniCluster(config);
 		flinkCluster.start();
 	}
 

@@ -54,12 +54,9 @@ public class TestFileUtils {
 		f.getParentFile().mkdirs();
 		f.createNewFile();
 		f.deleteOnExit();
-		
-		BufferedWriter out = new BufferedWriter(new FileWriter(f));
-		try { 
+
+		try (BufferedWriter out = new BufferedWriter(new FileWriter(f))) {
 			out.write(contents);
-		} finally {
-			out.close();
 		}
 		return f.toURI().toString();
 	}
@@ -73,13 +70,10 @@ public class TestFileUtils {
 		f.createNewFile();
 		f.deleteOnExit();
 
-		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(f));
-		try {
+		try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(f))) {
 			for (; bytes > 0; bytes--) {
 				out.write(0);
 			}
-		} finally {
-			out.close();
 		}
 		return f.toURI().toString();
 	}
@@ -87,12 +81,9 @@ public class TestFileUtils {
 	public static String createTempFile(String contents) throws IOException {
 		File f = File.createTempFile(FILE_PREFIX, FILE_SUFFIX);
 		f.deleteOnExit();
-		
-		BufferedWriter out = new BufferedWriter(new FileWriter(f));
-		try { 
+
+		try (BufferedWriter out = new BufferedWriter(new FileWriter(f))) {
 			out.write(contents);
-		} finally {
-			out.close();
 		}
 		return f.toURI().toString();
 	}
@@ -111,14 +102,11 @@ public class TestFileUtils {
 		for (long l : bytes) {
 			File child = new File(f, randomFileName());
 			child.deleteOnExit();
-		
-			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(child));
-			try { 
+
+			try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(child))) {
 				for (; l > 0; l--) {
 					out.write(0);
 				}
-			} finally {
-				out.close();
 			}
 		}
 		return f.toURI().toString();
@@ -140,12 +128,9 @@ public class TestFileUtils {
 		for (String s : contents) {
 			File child = new File(f, randomFileName(fileExtension));
 			child.deleteOnExit();
-		
-			BufferedWriter out = new BufferedWriter(new FileWriter(child));
-			try { 
+
+			try (BufferedWriter out = new BufferedWriter(new FileWriter(child))) {
 				out.write(s);
-			} finally {
-				out.close();
 			}
 		}
 		return f.toURI().toString();
