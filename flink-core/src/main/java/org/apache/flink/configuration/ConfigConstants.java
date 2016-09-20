@@ -847,6 +847,9 @@ public final class ConfigConstants {
 	/** The interval between reports. This is used as a suffix in an actual reporter config */
 	public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
 
+	/**	The delimiter used to assemble the metric identifier. This is used as a suffix in an actual reporter config. */
+	public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
+
 	/** The delimiter used to assemble the metric identifier. */
 	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
 
