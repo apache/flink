@@ -125,7 +125,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		
 		// decide when to first compute the window and when to slide it
 		// the values should align with the start of time (that is, the UNIX epoch, not the big bang)
-		final long now = getRuntimeContext().getCurrentProcessingTime();
+		final long now = getTimerService().getCurrentProcessingTime();
 		nextEvaluationTime = now + windowSlide - (now % windowSlide);
 		nextSlideTime = now + paneSize - (now % paneSize);
 
@@ -164,9 +164,9 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 				nextPastTriggerTime = Math.min(nextPastEvaluationTime, nextPastSlideTime);
 			}
 		}
-		
+
 		// make sure the first window happens
-		registerTimer(firstTriggerTime, this);
+		getTimerService().registerTimer(firstTriggerTime, this);
 	}
 
 	@Override
@@ -230,7 +230,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		}
 
 		long nextTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
-		registerTimer(nextTriggerTime, this);
+		getTimerService().registerTimer(nextTriggerTime, this);
 	}
 	
 	private void computeWindow(long timestamp) throws Exception {
