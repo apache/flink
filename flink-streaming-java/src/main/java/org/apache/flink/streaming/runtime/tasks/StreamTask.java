@@ -47,7 +47,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.slf4j.Logger;
@@ -65,7 +64,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 /**
@@ -205,16 +203,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			throw new RuntimeException("The timeProvider cannot be set to null.");
 		}
 		timerService = timeProvider;
-	}
-
-	/**
-	 * Returns the current processing time.
-	 */
-	public long getCurrentProcessingTime() {
-		if (timerService == null) {
-			throw new IllegalStateException("The timer service has not been initialized.");
-		}
-		return timerService.getCurrentProcessingTime();
 	}
 
 	@Override
@@ -825,13 +813,14 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Registers a timer.
+	 * Returns the {@link TimeServiceProvider} responsible for telling the current
+	 * processing time and registering timers.
 	 */
-	public ScheduledFuture<?> registerTimer(final long timestamp, final Triggerable target) {
+	public TimeServiceProvider getTimerService() {
 		if (timerService == null) {
 			throw new IllegalStateException("The timer service has not been initialized.");
 		}
-		return timerService.registerTimer(timestamp, target);
+		return timerService;
 	}
 
 	/**

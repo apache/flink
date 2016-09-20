@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 
 import java.util.concurrent.ScheduledFuture;
 
@@ -189,6 +190,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	public static class AutomaticWatermarkContext<T> implements SourceFunction.SourceContext<T> {
 
 		private final StreamSource<?, ?> owner;
+		private final TimeServiceProvider timeService;
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
@@ -209,14 +211,15 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			}
 
 			this.owner = owner;
+			this.timeService = owner.getTimerService();
 			this.lockingObject = lockingObjectParam;
 			this.output = outputParam;
 			this.watermarkInterval = watermarkInterval;
 			this.reuse = new StreamRecord<T>(null);
 
-			long now = owner.getCurrentProcessingTime();
-			this.watermarkTimer = owner.registerTimer(now + watermarkInterval,
-				new WatermarkEmittingTask(owner, lockingObjectParam, outputParam));
+			long now = this.timeService.getCurrentProcessingTime();
+			this.watermarkTimer = this.timeService.registerTimer(now + watermarkInterval,
+				new WatermarkEmittingTask(this.timeService, lockingObjectParam, outputParam));
 		}
 
 		@Override
@@ -224,7 +227,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			owner.checkAsyncException();
 			
 			synchronized (lockingObject) {
-				final long currentTime = owner.getCurrentProcessingTime();
+				final long currentTime = this.timeService.getCurrentProcessingTime();
 				output.collect(reuse.replace(element, currentTime));
 
 				// this is to avoid lock contention in the lockingObject by
@@ -276,19 +279,19 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		private class WatermarkEmittingTask implements Triggerable {
 
-			private final StreamSource<?, ?> owner;
+			private final TimeServiceProvider timeService;
 			private final Object lockingObject;
 			private final Output<StreamRecord<T>> output;
 
-			private WatermarkEmittingTask(StreamSource<?, ?> src, Object lock, Output<StreamRecord<T>> output) {
-				this.owner = src;
+			private WatermarkEmittingTask(TimeServiceProvider timeService, Object lock, Output<StreamRecord<T>> output) {
+				this.timeService = timeService;
 				this.lockingObject = lock;
 				this.output = output;
 			}
 
 			@Override
 			public void trigger(long timestamp) {
-				final long currentTime = owner.getCurrentProcessingTime();
+				final long currentTime = this.timeService.getCurrentProcessingTime();
 
 				if (currentTime > nextWatermarkTime) {
 					// align the watermarks across all machines. this will ensure that we
@@ -304,8 +307,8 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 					}
 				}
 
-				owner.registerTimer(owner.getCurrentProcessingTime() + watermarkInterval,
-					new WatermarkEmittingTask(owner, lockingObject, output));
+				this.timeService.registerTimer(this.timeService.getCurrentProcessingTime() + watermarkInterval,
+					new WatermarkEmittingTask(this.timeService, lockingObject, output));
 			}
 		}
 	}

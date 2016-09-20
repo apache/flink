@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.hadoop.shaded.org.apache.http.impl.conn.SystemDefaultDnsResolver;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -40,7 +39,6 @@ import java.util.List;
 import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ResultPartitionWriter.class)
@@ -150,7 +148,7 @@ public class TimeProviderTest {
 			}
 		});
 
-		Assert.assertTrue(provider.getNoOfRegisteredTimers() == 4);
+		Assert.assertEquals(provider.getNoOfRegisteredTimers(), 4);
 
 		provider.setCurrentTime(100);
 		long seen = 0;
@@ -177,24 +175,24 @@ public class TimeProviderTest {
 
 		testHarness.invoke();
 
-		assertTrue(testHarness.getCurrentProcessingTime() == 0);
+		assertEquals(testHarness.getTimerService().getCurrentProcessingTime(), 0);
 
 		tp.setCurrentTime(11);
-		assertTrue(testHarness.getCurrentProcessingTime() == 11);
+		assertEquals(testHarness.getTimerService().getCurrentProcessingTime(), 11);
 
 		tp.setCurrentTime(15);
 		tp.setCurrentTime(16);
-		assertTrue(testHarness.getCurrentProcessingTime() == 16);
+		assertEquals(testHarness.getTimerService().getCurrentProcessingTime(), 16);
 
 		// register 2 tasks
-		mapTask.registerTimer(30, new Triggerable() {
+		mapTask.getTimerService().registerTimer(30, new Triggerable() {
 			@Override
 			public void trigger(long timestamp) {
 
 			}
 		});
 
-		mapTask.registerTimer(40, new Triggerable() {
+		mapTask.getTimerService().registerTimer(40, new Triggerable() {
 			@Override
 			public void trigger(long timestamp) {
 
