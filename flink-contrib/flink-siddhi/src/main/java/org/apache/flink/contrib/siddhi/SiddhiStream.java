@@ -37,20 +37,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Siddhi CEP API Interface
+ * Siddhi CEP Stream API
  */
 @PublicEvolving
 public abstract class SiddhiStream {
-	private final SiddhiCEP environment;
+	private final SiddhiCEP cepEnvironment;
 
-	public SiddhiStream(SiddhiCEP environment) {
-		this.environment = environment;
+	/**
+	 * @param cepEnvironment SiddhiCEP cepEnvironment.
+     */
+	public SiddhiStream(SiddhiCEP cepEnvironment) {
+		Preconditions.checkNotNull(cepEnvironment,"SiddhiCEP cepEnvironment is null");
+		this.cepEnvironment = cepEnvironment;
 	}
 
-	protected SiddhiCEP getEnvironment() {
-		return this.environment;
+	/**
+	 * @return current SiddhiCEP cepEnvironment.
+     */
+	protected SiddhiCEP getCepEnvironment() {
+		return this.cepEnvironment;
 	}
 
+	/**
+	 * @return Transform SiddhiStream to physical DataStream
+     */
 	protected abstract DataStream<Tuple2<String, Object>> toDataStream();
 
 	/**
@@ -79,16 +89,27 @@ public abstract class SiddhiStream {
 		}
 	}
 
+	/**
+	 * ExecutableStream context to define execution logic, i.e. SiddhiCEP execution plan.
+     */
 	public static abstract class ExecutableStream extends SiddhiStream {
 		public ExecutableStream(SiddhiCEP environment) {
 			super(environment);
 		}
 
+		/**
+		 * @param executionPlan Siddhi SQL-Like execution plan query
+         * @return ExecutionSiddhiStream context
+         */
 		public ExecutionSiddhiStream sql(String executionPlan) {
-			return new ExecutionSiddhiStream(this.toDataStream(), executionPlan, getEnvironment());
+			Preconditions.checkNotNull(executionPlan,"executionPlan");
+			return new ExecutionSiddhiStream(this.toDataStream(), executionPlan, getCepEnvironment());
 		}
 	}
 
+	/**
+	 * Initial Single Siddhi Stream Context
+     */
 	public static class SingleSiddhiStream<T> extends ExecutableStream {
 		private final String streamId;
 
@@ -98,19 +119,33 @@ public abstract class SiddhiStream {
 			this.streamId = streamId;
 		}
 
+
+		/**
+		 * Define siddhi stream with streamId, source <code>DataStream</code> and stream schema and as the first stream of {@link UnionSiddhiStream}
+		 *
+		 * @param streamId Unique siddhi streamId
+		 * @param dataStream DataStream to bind to the siddhi stream.
+		 * @param fieldNames Siddhi stream schema field names
+		 *
+		 * @return {@link UnionSiddhiStream} context
+		 */
 		public UnionSiddhiStream<T> union(String streamId, DataStream<T> dataStream, String... fieldNames) {
-			getEnvironment().registerStream(streamId, dataStream, fieldNames);
+			getCepEnvironment().registerStream(streamId, dataStream, fieldNames);
 			return union(streamId);
 		}
 
+		/**
+		 * @param streamIds Defined siddhi streamIds to union
+         * @return {@link UnionSiddhiStream} context
+         */
 		public UnionSiddhiStream<T> union(String... streamIds) {
-			Preconditions.checkNotNull(streamIds);
-			return new UnionSiddhiStream<T>(this.streamId, Arrays.asList(streamIds), this.getEnvironment());
+			Preconditions.checkNotNull(streamIds,"streamIds");
+			return new UnionSiddhiStream<T>(this.streamId, Arrays.asList(streamIds), this.getCepEnvironment());
 		}
 
 		@Override
 		protected DataStream<Tuple2<String, Object>> toDataStream() {
-			return convertDataStream(getEnvironment().getDataStream(this.streamId), this.streamId);
+			return convertDataStream(getCepEnvironment().getDataStream(this.streamId), this.streamId);
 		}
 	}
 
@@ -120,6 +155,8 @@ public abstract class SiddhiStream {
 
 		public UnionSiddhiStream(String firstStreamId, List<String> unionStreamIds, SiddhiCEP environment) {
 			super(environment);
+			Preconditions.checkNotNull(firstStreamId,"firstStreamId");
+			Preconditions.checkNotNull(unionStreamIds,"unionStreamIds");
 			environment.checkStreamDefined(firstStreamId);
 			for (String unionStreamId : unionStreamIds) {
 				environment.checkStreamDefined(unionStreamId);
@@ -128,25 +165,41 @@ public abstract class SiddhiStream {
 			this.unionStreamIds = unionStreamIds;
 		}
 
+		/**
+		 * Define siddhi stream with streamId, source <code>DataStream</code> and stream schema and continue to union it with current stream.
+		 *
+		 * @param streamId Unique siddhi streamId
+		 * @param dataStream DataStream to bind to the siddhi stream.
+		 * @param fieldNames Siddhi stream schema field names
+		 *
+		 * @return {@link UnionSiddhiStream} context
+		 */
 		public UnionSiddhiStream<T> union(String streamId, DataStream<T> dataStream, String... fieldNames) {
-			getEnvironment().registerStream(streamId, dataStream, fieldNames);
+			Preconditions.checkNotNull(streamId,"streamId");
+			Preconditions.checkNotNull(dataStream,"dataStream");
+			Preconditions.checkNotNull(fieldNames,"fieldNames");
+			getCepEnvironment().registerStream(streamId, dataStream, fieldNames);
 			return union(streamId);
 		}
 
+		/**
+		 * @param streamId another defined streamId to union with.
+		 * @return {@link UnionSiddhiStream} context
+         */
 		public UnionSiddhiStream<T> union(String... streamId) {
 			List<String> newUnionStreamIds = new LinkedList<>();
 			newUnionStreamIds.addAll(unionStreamIds);
 			newUnionStreamIds.addAll(Arrays.asList(streamId));
-			return new UnionSiddhiStream<T>(this.firstStreamId, newUnionStreamIds, this.getEnvironment());
+			return new UnionSiddhiStream<T>(this.firstStreamId, newUnionStreamIds, this.getCepEnvironment());
 		}
 
 		@Override
 		protected DataStream<Tuple2<String, Object>> toDataStream() {
 			final String localFirstStreamId = firstStreamId;
 			final List<String> localUnionStreamIds = this.unionStreamIds;
-			DataStream<Tuple2<String, Object>> dataStream = convertDataStream(getEnvironment().<T>getDataStream(localFirstStreamId), this.firstStreamId);
+			DataStream<Tuple2<String, Object>> dataStream = convertDataStream(getCepEnvironment().<T>getDataStream(localFirstStreamId), this.firstStreamId);
 			for (String unionStreamId : localUnionStreamIds) {
-				dataStream = dataStream.union(convertDataStream(getEnvironment().<T>getDataStream(unionStreamId), unionStreamId));
+				dataStream = dataStream.union(convertDataStream(getCepEnvironment().<T>getDataStream(unionStreamId), unionStreamId));
 			}
 			return dataStream;
 		}

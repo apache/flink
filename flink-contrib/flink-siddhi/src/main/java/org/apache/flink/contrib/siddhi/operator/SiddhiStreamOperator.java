@@ -34,9 +34,9 @@ import java.util.PriorityQueue;
 /**
  * Wrap input event in generic type of <code>IN</code> as Tuple2<String,IN>
  */
-public class TupleStreamSiddhiOperator<IN, OUT> extends AbstractSiddhiOperator<Tuple2<String, IN>, OUT> {
+public class SiddhiStreamOperator<IN, OUT> extends AbstractSiddhiOperator<Tuple2<String, IN>, OUT> {
 
-	public TupleStreamSiddhiOperator(SiddhiOperatorContext siddhiPlan) {
+	public SiddhiStreamOperator(SiddhiOperatorContext siddhiPlan) {
 		super(siddhiPlan);
 	}
 

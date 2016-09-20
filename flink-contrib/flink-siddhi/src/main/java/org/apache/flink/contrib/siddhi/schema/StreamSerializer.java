@@ -24,6 +24,9 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 
+/**
+ * Stream Serialization and Field Extraction Methods.
+ */
 public class StreamSerializer<T> implements Serializable {
 	private final StreamSchema<T> schema;
 

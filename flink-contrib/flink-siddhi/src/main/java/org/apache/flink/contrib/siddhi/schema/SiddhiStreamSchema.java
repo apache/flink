@@ -27,6 +27,11 @@ import org.wso2.siddhi.query.api.definition.StreamDefinition;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Siddhi specific Stream Schema.
+ *
+ * @param <T> Siddhi stream element type
+ */
 public class SiddhiStreamSchema<T> extends StreamSchema<T> {
 	private static final String DEFINE_STREAM_TEMPLATE = "define stream %s (%s);";
 

@@ -46,9 +46,14 @@ import org.apache.flink.api.java.tuple.Tuple24;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * Siddhi Tuple Utility methods
+ */
 public class SiddhiTupleFactory {
 	/**
 	 * Convert object array to type of Tuple{N} where N is between 0 to 25.
+	 *
+	 * @throws IllegalArgumentException if rows's length > 25
 	 */
 	public static <T extends Tuple> T newTuple(Object[] row) {
 		Preconditions.checkNotNull(row, "Tuple row is null");

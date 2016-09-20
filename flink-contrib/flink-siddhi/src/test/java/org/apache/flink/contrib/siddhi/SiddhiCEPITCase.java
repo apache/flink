@@ -46,7 +46,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 /**
- * flink-siddhi integration test cases
+ * Flink-siddhi library integration test cases
  */
 public class SiddhiCEPITCase extends StreamingMultipleProgramsTestBase {
 

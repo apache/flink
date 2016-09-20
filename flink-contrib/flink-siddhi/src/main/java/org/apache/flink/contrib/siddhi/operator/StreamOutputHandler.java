@@ -34,6 +34,10 @@ import org.wso2.siddhi.query.api.definition.AbstractDefinition;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Siddhi Stream output callback handler and conver siddhi {@link Event} to required output type,
+ * according to output {@link TypeInformation} and siddhi schema {@link AbstractDefinition}
+ */
 public class StreamOutputHandler<R> extends StreamCallback {
 	private static final Logger LOGGER = LoggerFactory.getLogger(StreamOutputHandler.class);
 

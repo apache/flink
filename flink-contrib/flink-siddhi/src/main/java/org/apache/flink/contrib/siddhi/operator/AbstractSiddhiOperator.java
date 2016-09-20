@@ -49,6 +49,36 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
 
+/**
+ * <h1>Siddhi Runtime Operator</h1>
+ *
+ * A flink Stream Operator to integrate with native siddhi execution runtime, extension and type schema mechanism/
+ *
+ * <ul>
+ * <li>
+ * Create Siddhi {@link ExecutionPlanRuntime} according predefined execution plan and integrate with Flink Stream Operator lifecycle.
+ * </li>
+ * <li>
+ * Connect Flink DataStreams with predefined Siddhi Stream according to unique streamId
+ * </li>
+ * <li>
+ * Convert native {@link StreamRecord} to Siddhi {@link org.wso2.siddhi.core.event.Event} according to {@link StreamSchema}, and send to Siddhi Runtime.
+ * </li>
+ * <li>
+ * Listen output callback event and convert as expected output type according to output {@link org.apache.flink.api.common.typeinfo.TypeInformation}, then output as typed DataStream.
+ * </li>
+ * </li>
+ * <li>
+ * Integrate siddhi runtime state management with Flink state (See `AbstractSiddhiOperator`)
+ * </li>
+ * <li>
+ * Support siddhi plugin management to extend CEP functions. (See `SiddhiCEP#registerExtension`)
+ * </li>
+ * </ul>
+ *
+ * @param <IN>  Input Element Type
+ * @param <OUT> Output Element Type
+ */
 public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOperator<OUT> implements OneInputStreamOperator<IN, OUT> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSiddhiOperator.class);
 	private static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
@@ -75,6 +105,13 @@ public abstract class AbstractSiddhiOperator<IN, OUT> extends AbstractStreamOper
 		this.isProcessingTime = this.siddhiPlan.getTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 		this.streamRecordSerializers = new HashMap<>();
 
+		registerStreamRecordSerializers();
+	}
+
+	/**
+	 * Register StreamRecordSerializer based on {@link StreamSchema}
+	 */
+	private void registerStreamRecordSerializers() {
 		for (String streamId : this.siddhiPlan.getInputStreams()) {
 			streamRecordSerializers.put(streamId, createStreamRecordSerializer(this.siddhiPlan.getInputStreamSchema(streamId), this.siddhiPlan.getExecutionConfig()));
 		}

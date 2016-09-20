@@ -30,6 +30,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
+/**
+ * Generic Field-based Stream Schema
+ *
+ * @param <T> Stream element type
+ */
 public class StreamSchema<T> implements Serializable {
 	private static final Logger LOGGER = LoggerFactory.getLogger(StreamSchema.class);
 	private final TypeInformation<T> typeInfo;
