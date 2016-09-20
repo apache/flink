@@ -24,10 +24,9 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.Programs
-
+import org.apache.calcite.tools.{Programs, RuleSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.explain.PlanJsonParser
@@ -35,7 +34,7 @@ import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
-import org.apache.flink.api.table.plan.schema.{TableSourceTable, DataSetTable}
+import org.apache.flink.api.table.plan.schema.{DataSetTable, TableSourceTable}
 import org.apache.flink.api.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.api.table.sources.BatchTableSource
 
@@ -229,6 +228,11 @@ abstract class BatchTableEnvironment(
   }
 
   /**
+    * Returns the built-in rules that are defined by the environment.
+    */
+  protected def getBuiltInRuleSet: RuleSet = FlinkRuleSets.DATASET_OPT_RULES
+
+  /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *
     * @param relNode The original [[RelNode]] tree
@@ -240,7 +244,7 @@ abstract class BatchTableEnvironment(
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
 
     // optimize the logical Flink plan
-    val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
+    val optProgram = Programs.ofRules(getRuleSet)
     val flinkOutputProps = relNode.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
 
     val dataSetPlan = try {

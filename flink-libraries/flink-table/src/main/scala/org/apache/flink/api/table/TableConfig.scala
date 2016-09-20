@@ -22,7 +22,7 @@ import java.util.TimeZone
 /**
  * A config to define the runtime behavior of the Table API.
  */
-class TableConfig extends Serializable {
+class TableConfig {
 
   /**
    * Defines the timezone for date/time/timestamp conversions.
@@ -39,6 +39,11 @@ class TableConfig extends Serializable {
     * should be used within operators where possible.
     */
   private var efficientTypeUsage = false
+
+  /**
+    * Defines the configuration of Calcite for Table API and SQL queries.
+    */
+  private var calciteConfig = CalciteConfig.DEFAULT
 
   /**
    * Sets the timezone for date/time/timestamp conversions.
@@ -83,6 +88,18 @@ class TableConfig extends Serializable {
     this.efficientTypeUsage = efficientTypeUsage
   }
 
+  /**
+    * Returns the current configuration of Calcite for Table API and SQL queries.
+    */
+  def getCalciteConfig: CalciteConfig = calciteConfig
+
+  /**
+    * Sets the configuration of Calcite for Table API and SQL queries.
+    * Changing the configuration has no effect after the first query has been defined.
+    */
+  def setCalciteConfig(calciteConfig: CalciteConfig): Unit = {
+    this.calciteConfig = calciteConfig
+  }
 }
 
 object TableConfig {

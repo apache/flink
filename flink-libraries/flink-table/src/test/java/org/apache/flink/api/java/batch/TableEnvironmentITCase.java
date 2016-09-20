@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.calcite.tools.RuleSets;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.BatchTableEnvironment;
@@ -33,6 +34,8 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase;
+import org.apache.flink.api.table.CalciteConfig;
+import org.apache.flink.api.table.CalciteConfigBuilder;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.TableEnvironment;
@@ -434,6 +437,19 @@ public class TableEnvironmentITCase extends TableProgramsTestBase {
 		// Must fail since class is not static
 		Table t = tableEnv.fromDataSet(env.fromElements(1, 2, 3), "number");
 		tableEnv.toDataSet(t, MyNonStatic.class);
+	}
+
+	@Test(expected = TableException.class)
+	public void testCustomCalciteConfig() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		CalciteConfig cc = new CalciteConfigBuilder().replaceRuleSet(RuleSets.ofList()).build();
+		tableEnv.getConfig().setCalciteConfig(cc);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		Table t = tableEnv.fromDataSet(ds);
+		tableEnv.toDataSet(t, Row.class);
 	}
 
 	// --------------------------------------------------------------------------------------------

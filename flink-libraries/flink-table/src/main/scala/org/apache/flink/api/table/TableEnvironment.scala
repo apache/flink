@@ -29,7 +29,8 @@ import org.apache.calcite.schema.{Schemas, SchemaPlus}
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.{FrameworkConfig, Frameworks}
+import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RuleSet, RuleSets}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.table.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
@@ -46,6 +47,8 @@ import org.apache.flink.api.table.validate.FunctionCatalog
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 
+import scala.collection.JavaConverters._
+
 /**
   * The abstract base class for batch and stream TableEnvironments.
   *
@@ -53,48 +56,100 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
   */
 abstract class TableEnvironment(val config: TableConfig) {
 
-  // configure sql parser
-  // we use Java lex because back ticks are easier than double quotes in programming
-  // and cases are preserved
-  private val parserConfig = SqlParser
-    .configBuilder()
-    .setLex(Lex.JAVA)
-    .build()
-
   // the catalog to hold all registered and translated tables
   private val tables: SchemaPlus = Frameworks.createRootSchema(true)
 
   // Table API/SQL function catalog
   private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
 
-  // SQL operator and function catalog
-  private val sqlOperatorTable: SqlOperatorTable = functionCatalog.getSqlOperatorTable
-
   // the configuration to create a Calcite planner
-  private val frameworkConfig: FrameworkConfig = Frameworks
+  private lazy val frameworkConfig: FrameworkConfig = Frameworks
     .newConfigBuilder
     .defaultSchema(tables)
-    .parserConfig(parserConfig)
+    .parserConfig(getSqlParserConfig)
     .costFactory(new DataSetCostFactory)
     .typeSystem(new FlinkTypeSystem)
-    .operatorTable(sqlOperatorTable)
+    .operatorTable(getSqlOperatorTable)
     // set the executor to evaluate constant expressions
     .executor(new RexExecutorImpl(Schemas.createDataContext(null)))
     .build
 
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected val relBuilder: FlinkRelBuilder = FlinkRelBuilder.create(frameworkConfig)
+  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder.create(frameworkConfig)
 
   // the planner instance used to optimize queries of this TableEnvironment
-  private val planner: RelOptPlanner = relBuilder.getPlanner
+  private lazy val planner: RelOptPlanner = relBuilder.getPlanner
 
-  private val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
+  private lazy val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
 
   // a counter for unique attribute names
   private val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig = config
+
+  /**
+    * Returns the operator table for this environment including a custom Calcite configuration.
+    */
+  protected def getSqlOperatorTable: SqlOperatorTable = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getSqlOperatorTable match {
+
+      case None =>
+        functionCatalog.getSqlOperatorTable
+
+      case Some(table) =>
+        if (calciteConfig.replacesSqlOperatorTable) {
+          table
+        } else {
+          ChainedSqlOperatorTable.of(functionCatalog.getSqlOperatorTable, table)
+        }
+    }
+  }
+
+  /**
+    * Returns the rule set for this environment including a custom Calcite configuration.
+    */
+  protected def getRuleSet: RuleSet = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getRuleSet match {
+
+      case None =>
+        getBuiltInRuleSet
+
+      case Some(ruleSet) =>
+        if (calciteConfig.replacesRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
+  /**
+    * Returns the SQL parser config for this environment including a custom Calcite configuration.
+    */
+  protected def getSqlParserConfig: SqlParser.Config = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getSqlParserConfig match {
+
+      case None =>
+        // we use Java lex because back ticks are easier than double quotes in programming
+        // and cases are preserved
+        SqlParser
+          .configBuilder()
+          .setLex(Lex.JAVA)
+          .build()
+
+      case Some(sqlParserConfig) =>
+        sqlParserConfig
+    }
+  }
+
+  /**
+    * Returns the built-in rules that are defined by the environment.
+    */
+  protected def getBuiltInRuleSet: RuleSet
 
   /**
     * Registers a [[UserDefinedFunction]] under a unique name. Replaces already existing
