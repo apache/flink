@@ -126,7 +126,7 @@ public interface Future<T> {
 	<R> Future<R> exceptionallyAsync(ApplyFunction<Throwable, ? extends R> exceptionallyFunction, Executor executor);
 
 	/**
-	 * Applies the given function to the value of the future. The apply function can return a future
+	 * Applies the given function to the value of the future. The apply function returns a future
 	 * result, which is flattened. This means that the resulting future of this method represents
 	 * the future's value of the apply function.
 	 * <p>
