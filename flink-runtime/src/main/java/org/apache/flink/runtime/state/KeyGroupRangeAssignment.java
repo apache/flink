@@ -48,8 +48,19 @@ public final class KeyGroupRangeAssignment {
 	 * @param maxParallelism the maximum supported parallelism, aka the number of key-groups.
 	 * @return the key-group to which the given key is assigned
 	 */
-	public static final int assignToKeyGroup(Object key, int maxParallelism) {
-		return MathUtils.murmurHash(key.hashCode()) % maxParallelism;
+	public static int assignToKeyGroup(Object key, int maxParallelism) {
+		return computeKeyGroupForKeyHash(key.hashCode(), maxParallelism);
+	}
+
+	/**
+	 * Assigns the given key to a key-group index.
+	 *
+	 * @param keyHash the hash of the key to assign
+	 * @param maxParallelism the maximum supported parallelism, aka the number of key-groups.
+	 * @return the key-group to which the given key is assigned
+	 */
+	public static int computeKeyGroupForKeyHash(int keyHash, int maxParallelism) {
+		return MathUtils.murmurHash(keyHash) % maxParallelism;
 	}
 
 	/**

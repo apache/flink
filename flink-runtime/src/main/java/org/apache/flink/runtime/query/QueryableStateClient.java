@@ -36,8 +36,8 @@ import org.apache.flink.runtime.query.netty.KvStateClient;
 import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.query.netty.UnknownKeyOrNamespace;
 import org.apache.flink.runtime.query.netty.UnknownKvStateID;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -296,7 +296,7 @@ public class QueryableStateClient {
 				.flatMap(new Mapper<KvStateLocation, Future<byte[]>>() {
 					@Override
 					public Future<byte[]> apply(KvStateLocation lookup) {
-						int keyGroupIndex = MathUtils.murmurHash(keyHashCode) % lookup.getNumKeyGroups();
+						int keyGroupIndex = KeyGroupRangeAssignment.computeKeyGroupForKeyHash(keyHashCode, lookup.getNumKeyGroups());
 
 						KvStateServerAddress serverAddress = lookup.getKvStateServerAddress(keyGroupIndex);
 						if (serverAddress == null) {

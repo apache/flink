@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.Preconditions;
 
@@ -73,7 +74,7 @@ public class KvStateLocationRegistry {
 	 * Notifies the registry about a registered KvState instance.
 	 *
 	 * @param jobVertexId JobVertexID the KvState instance belongs to
-	 * @param keyGroupIndex Key group index the KvState instance belongs to
+	 * @param keyGroupRange Key group range the KvState instance belongs to
 	 * @param registrationName Name under which the KvState has been registered
 	 * @param kvStateId ID of the registered KvState instance
 	 * @param kvStateServerAddress Server address where to find the KvState instance
@@ -85,7 +86,7 @@ public class KvStateLocationRegistry {
 	 */
 	public void notifyKvStateRegistered(
 			JobVertexID jobVertexId,
-			int keyGroupIndex,
+			KeyGroupRange keyGroupRange,
 			String registrationName,
 			KvStateID kvStateId,
 			KvStateServerAddress kvStateServerAddress) {
@@ -97,7 +98,7 @@ public class KvStateLocationRegistry {
 			ExecutionJobVertex vertex = jobVertices.get(jobVertexId);
 
 			if (vertex != null) {
-				int parallelism = vertex.getParallelism();
+				int parallelism = vertex.getMaxParallelism();
 				location = new KvStateLocation(jobId, jobVertexId, parallelism, registrationName);
 				lookupTable.put(registrationName, location);
 			} else {
@@ -119,22 +120,21 @@ public class KvStateLocationRegistry {
 
 			throw duplicate;
 		}
-
-		location.registerKvState(keyGroupIndex, kvStateId, kvStateServerAddress);
+		location.registerKvState(keyGroupRange, kvStateId, kvStateServerAddress);
 	}
 
 	/**
 	 * Notifies the registry about an unregistered KvState instance.
 	 *
 	 * @param jobVertexId JobVertexID the KvState instance belongs to
-	 * @param keyGroupIndex Key group index the KvState instance belongs to
+	 * @param keyGroupRange Key group index the KvState instance belongs to
 	 * @param registrationName Name under which the KvState has been registered
 	 * @throws IllegalArgumentException If another operator registered the state instance
 	 * @throws IllegalArgumentException If the registration name is not known
 	 */
 	public void notifyKvStateUnregistered(
 			JobVertexID jobVertexId,
-			int keyGroupIndex,
+			KeyGroupRange keyGroupRange,
 			String registrationName) {
 
 		KvStateLocation location = lookupTable.get(registrationName);
@@ -147,7 +147,7 @@ public class KvStateLocationRegistry {
 						"under '" + registrationName + "'.");
 			}
 
-			location.unregisterKvState(keyGroupIndex);
+			location.unregisterKvState(keyGroupRange);
 
 			if (location.getNumRegisteredKeyGroups() == 0) {
 				lookupTable.remove(registrationName);

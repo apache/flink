@@ -265,8 +265,7 @@ public abstract class KeyedStateBackend<K> {
 			}
 
 			String name = stateDescriptor.getQueryableStateName();
-			// TODO: deal with key group indices here
-			kvStateRegistry.registerKvState(0, name, kvState);
+			kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
 		}
 
 		return state;
@@ -332,4 +331,9 @@ public abstract class KeyedStateBackend<K> {
 			long checkpointId,
 			long timestamp,
 			CheckpointStreamFactory streamFactory) throws Exception;
+
+
+	public KeyGroupRange getKeyGroupRange() {
+		return keyGroupRange;
+	}
 }

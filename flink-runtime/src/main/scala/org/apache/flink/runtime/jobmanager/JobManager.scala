@@ -1500,7 +1500,7 @@ class JobManager(
 
               graph.getKvStateLocationRegistry.notifyKvStateRegistered(
                 msg.getJobVertexId,
-                msg.getKeyGroupIndex,
+                msg.getKeyGroupRange,
                 msg.getRegistrationName,
                 msg.getKvStateId,
                 msg.getKvStateServerAddress)
@@ -1519,7 +1519,7 @@ class JobManager(
             try {
               graph.getKvStateLocationRegistry.notifyKvStateUnregistered(
                 msg.getJobVertexId,
-                msg.getKeyGroupIndex,
+                msg.getKeyGroupRange,
                 msg.getRegistrationName)
             } catch {
               case t: Throwable =>
