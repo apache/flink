@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,15 +54,15 @@ public class MetricRegistry {
 	private ActorRef queryService;
 
 	private final ScopeFormats scopeFormats;
-
-	private final char delimiter;
+	private final char globalDelimiter;
+	private final List<Character> delimiters = new ArrayList<>();
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
 	public MetricRegistry(MetricRegistryConfiguration config) {
 		this.scopeFormats = config.getScopeFormats();
-		this.delimiter = config.getDelimiter();
+		this.globalDelimiter = config.getDelimiter();
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>();
@@ -122,6 +123,13 @@ public class MetricRegistry {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
 					reporters.add(reporterInstance);
+
+					String delimiterForReporter = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, String.valueOf(globalDelimiter));
+					if (delimiterForReporter.length() != 1) {
+						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, globalDelimiter);
+						delimiterForReporter = String.valueOf(globalDelimiter);
+					}
+					this.delimiters.add(delimiterForReporter.charAt(0));
 				}
 				catch (Throwable t) {
 					shutdownExecutor();
@@ -144,8 +152,28 @@ public class MetricRegistry {
 		}
 	}
 
+	/**
+	 * Returns the global delimiter.
+	 *
+	 * @return global delimiter
+	 */
 	public char getDelimiter() {
-		return this.delimiter;
+		return this.globalDelimiter;
+	}
+
+	/**
+	 * Returns the configured delimiter for the reporter with the given index.
+	 *
+	 * @param reporterIndex index of the reporter whose delimiter should be used
+	 * @return configured reporter delimiter, or global delimiter if index is invalid
+	 */
+	public char getDelimiter(int reporterIndex) {
+		try {
+			return delimiters.get(reporterIndex);
+		} catch (IndexOutOfBoundsException e) {
+			LOG.warn("Delimiter for reporter index {} not found, returning global delimiter.", reporterIndex);
+			return this.globalDelimiter;
+		}
 	}
 
 	public List<MetricReporter> getReporters() {
@@ -198,17 +226,19 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void register(Metric metric, String metricName, MetricGroup group) {
+	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
 			if (reporters != null) {
-				for (MetricReporter reporter : reporters) {
+				for (int i = 0; i < reporters.size(); i++) {
+					MetricReporter reporter = reporters.get(i);
 					if (reporter != null) {
-						reporter.notifyOfAddedMetric(metric, metricName, group);
+						FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+						reporter.notifyOfAddedMetric(metric, metricName, front);
 					}
 				}
 			}
 			if (queryService != null) {
-				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, (AbstractMetricGroup) group);
+				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
@@ -222,12 +252,14 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void unregister(Metric metric, String metricName, MetricGroup group) {
+	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
 			if (reporters != null) {
-				for (MetricReporter reporter : reporters) {
+				for (int i = 0; i < reporters.size(); i++) {
+					MetricReporter reporter = reporters.get(i);
 					if (reporter != null) {
-						reporter.notifyOfRemovedMetric(metric, metricName, group);
+						FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+						reporter.notifyOfRemovedMetric(metric, metricName, front);
 					}
 				}
 			}

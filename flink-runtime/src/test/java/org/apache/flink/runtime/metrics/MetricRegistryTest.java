@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
@@ -33,10 +34,14 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class MetricRegistryTest extends TestLogger {
+
+	private static final char GLOBAL_DEFAULT_DELIMITER = '.';
 	
 	/**
 	 * Verifies that the reporter class argument is correctly used to instantiate and open the reporter.
@@ -279,5 +284,78 @@ public class MetricRegistryTest extends TestLogger {
 		assertEquals("A_B_C_D_E_name", tmGroup.getMetricIdentifier("name"));
 
 		registry.shutdown();
+	}
+
+	@Test
+	public void testConfigurableDelimiterForReporters() {
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2,test3");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "_");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "AA");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
+
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+
+		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter());
+		assertEquals('_', registry.getDelimiter(0));
+		assertEquals('-', registry.getDelimiter(1));
+		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter(2));
+		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter(3));
+		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter(-1));
+
+		registry.shutdown();
+	}
+
+	@Test
+	public void testConfigurableDelimiterForReportersInGroup() {
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2,test3,test4");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "_");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter8.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter8.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "AA");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter8.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test4." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter8.class.getName());
+		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A.B");
+
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+		List<MetricReporter> reporters = registry.getReporters();
+		((TestReporter8)reporters.get(0)).expectedDelimiter = '_'; //test1  reporter
+		((TestReporter8)reporters.get(1)).expectedDelimiter = '-'; //test2 reporter
+		((TestReporter8)reporters.get(2)).expectedDelimiter = GLOBAL_DEFAULT_DELIMITER; //test3 reporter, because 'AA' - not correct delimiter
+		((TestReporter8)reporters.get(3)).expectedDelimiter = GLOBAL_DEFAULT_DELIMITER; //for test4 reporter use global delimiter
+
+		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
+		group.counter("C");
+		group.close();
+		registry.shutdown();
+		assertEquals(4, TestReporter8.numCorrectDelimitersForRegister);
+		assertEquals(4, TestReporter8.numCorrectDelimitersForUnregister);
+	}
+
+	public static class TestReporter8 extends TestReporter {
+		char expectedDelimiter;
+		public static int numCorrectDelimitersForRegister = 0;
+		public static int numCorrectDelimitersForUnregister = 0;
+
+		@Override
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+			String expectedMetric = "A" + expectedDelimiter + "B" + expectedDelimiter + "C";
+			assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
+			assertEquals(expectedMetric, group.getMetricIdentifier(metricName));
+			numCorrectDelimitersForRegister++;
+		}
+
+		@Override
+		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+			String expectedMetric = "A" + expectedDelimiter + "B" + expectedDelimiter + "C";
+			assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
+			assertEquals(expectedMetric, group.getMetricIdentifier(metricName));
+			numCorrectDelimitersForUnregister++;
+		}
 	}
 }
