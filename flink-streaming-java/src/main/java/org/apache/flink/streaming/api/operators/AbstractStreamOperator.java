@@ -35,13 +35,11 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.ScheduledFuture;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class 
@@ -230,18 +228,11 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Register a timer callback. At the specified time the provided {@link Triggerable} will
-	 * be invoked. This call is guaranteed to not happen concurrently with method calls on the operator.
-	 *
-	 * @param time The absolute time in milliseconds.
-	 * @param target The target to be triggered.
+	 * Returns the {@link TimeServiceProvider} responsible for getting  the current
+	 * processing time and registering timers.
 	 */
-	protected ScheduledFuture<?> registerTimer(long time, Triggerable target) {
-		return container.registerTimer(time, target);
-	}
-
-	protected long getCurrentProcessingTime() {
-		return container.getCurrentProcessingTime();
+	protected TimeServiceProvider getTimerService() {
+		return container.getTimerService();
 	}
 
 	/**
