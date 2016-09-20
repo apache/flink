@@ -489,9 +489,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 		} else {
 			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
-				initialValue,
-				foldFunction,
-				resultType);
+				initialValue, foldFunction, resultType.createSerializer(getExecutionEnvironment().getConfig()));
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 

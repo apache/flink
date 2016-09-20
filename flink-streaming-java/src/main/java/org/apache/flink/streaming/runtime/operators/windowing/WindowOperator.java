@@ -61,7 +61,6 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -74,7 +73,8 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An operator that implements the logic for windowing based on a {@link WindowAssigner} and
@@ -186,26 +186,29 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
-	public WindowOperator(WindowAssigner<? super IN, W> windowAssigner,
-		TypeSerializer<W> windowSerializer,
-		KeySelector<IN, K> keySelector,
-		TypeSerializer<K> keySerializer,
-		StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
-		InternalWindowFunction<ACC, OUT, K, W> windowFunction,
-		Trigger<? super IN, ? super W> trigger,
-		long allowedLateness) {
+	public WindowOperator(
+			WindowAssigner<? super IN, W> windowAssigner,
+			TypeSerializer<W> windowSerializer,
+			KeySelector<IN, K> keySelector,
+			TypeSerializer<K> keySerializer,
+			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
+			Trigger<? super IN, ? super W> trigger,
+			long allowedLateness) {
 
 		super(windowFunction);
 
-		this.windowAssigner = requireNonNull(windowAssigner);
-		this.windowSerializer = windowSerializer;
-		this.keySelector = requireNonNull(keySelector);
-		this.keySerializer = requireNonNull(keySerializer);
+		checkArgument(allowedLateness >= 0);
 
+		checkArgument(windowStateDescriptor == null || windowStateDescriptor.isSerializerInitialized(),
+				"window state serializer is not properly initialized");
+
+		this.windowAssigner = checkNotNull(windowAssigner);
+		this.windowSerializer = checkNotNull(windowSerializer);
+		this.keySelector = checkNotNull(keySelector);
+		this.keySerializer = checkNotNull(keySerializer);
 		this.windowStateDescriptor = windowStateDescriptor;
-		this.trigger = requireNonNull(trigger);
-
-		Preconditions.checkArgument(allowedLateness >= 0);
+		this.trigger = checkNotNull(trigger);
 		this.allowedLateness = allowedLateness;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
@@ -666,7 +669,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
 			Class<S> stateType,
 			S defaultState) {
-			requireNonNull(stateType, "The state type class must not be null");
+			checkNotNull(stateType, "The state type class must not be null");
 
 			TypeInformation<S> typeInfo;
 			try {
@@ -686,8 +689,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			TypeInformation<S> stateType,
 			S defaultState) {
 
-			requireNonNull(name, "The name of the state must not be null");
-			requireNonNull(stateType, "The state type information must not be null");
+			checkNotNull(name, "The name of the state must not be null");
+			checkNotNull(stateType, "The state type information must not be null");
 
 			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(name, stateType.createSerializer(getExecutionConfig()), defaultState);
 			return getPartitionedState(stateDesc);
