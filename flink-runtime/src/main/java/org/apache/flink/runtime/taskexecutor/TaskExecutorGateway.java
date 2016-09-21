@@ -39,12 +39,12 @@ public interface TaskExecutorGateway extends RpcGateway {
 	void notifyOfNewResourceManagerLeader(String address, UUID resourceManagerLeaderId);
 
 	/**
-	 * Send by the ResourceManager to the TaskExecutor
+	 * Requests a slot from the TaskManager
+	 *
 	 * @param allocationID id for the request
 	 * @param resourceManagerLeaderID current leader id of the ResourceManager
-	 * @return SlotRequestReply Answer to the request
+	 * @return answer to the slot request
 	 */
-
 	Future<SlotRequestReply> requestSlot(
 		AllocationID allocationID,
 		UUID resourceManagerLeaderID,
