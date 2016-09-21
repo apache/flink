@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.util.Timeout;
-
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -29,8 +28,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
-
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
 
@@ -48,7 +45,7 @@ public class MainThreadValidationTest extends TestLogger {
 		// actual test
 		AkkaRpcService akkaRpcService = new AkkaRpcService(
 				AkkaUtils.createDefaultActorSystem(),
-				new Timeout(10000, TimeUnit.MILLISECONDS));
+				Time.milliseconds(10000));
 
 		try {
 			TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService);

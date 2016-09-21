@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import akka.dispatch.OnFailure;
-import akka.dispatch.OnSuccess;
-
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.AcceptFunction;
+import org.apache.flink.runtime.concurrent.ApplyFunction;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -31,12 +32,8 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 
 import org.slf4j.Logger;
 
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
-
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -57,7 +54,7 @@ public class TaskExecutorToResourceManagerConnection {
 	private final String resourceManagerAddress;
 
 	/** Execution context to be used to execute the on complete action of the ResourceManagerRegistration */
-	private final ExecutionContext executionContext;
+	private final Executor executor;
 
 	private TaskExecutorToResourceManagerConnection.ResourceManagerRegistration pendingRegistration;
 
@@ -74,13 +71,13 @@ public class TaskExecutorToResourceManagerConnection {
 		TaskExecutor taskExecutor,
 		String resourceManagerAddress,
 		UUID resourceManagerLeaderId,
-		ExecutionContext executionContext) {
+		Executor executor) {
 
 		this.log = checkNotNull(log);
 		this.taskExecutor = checkNotNull(taskExecutor);
 		this.resourceManagerAddress = checkNotNull(resourceManagerAddress);
 		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
-		this.executionContext = checkNotNull(executionContext);
+		this.executor = checkNotNull(executor);
 	}
 
 	// ------------------------------------------------------------------------
@@ -100,21 +97,22 @@ public class TaskExecutorToResourceManagerConnection {
 
 		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = pendingRegistration.getFuture();
 
-		future.onSuccess(new OnSuccess<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>>() {
+		future.thenAcceptAsync(new AcceptFunction<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>>() {
 			@Override
-			public void onSuccess(Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess> result) {
+			public void accept(Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess> result) {
 				registrationId = result.f1.getRegistrationId();
 				registeredResourceManager = result.f0;
 			}
-		}, executionContext);
+		}, executor);
 		
 		// this future should only ever fail if there is a bug, not if the registration is declined
-		future.onFailure(new OnFailure() {
+		future.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 			@Override
-			public void onFailure(Throwable failure) {
+			public Void apply(Throwable failure) {
 				taskExecutor.onFatalErrorAsync(failure);
+				return null;
 			}
-		}, executionContext);
+		}, executor);
 	}
 
 	public void close() {
@@ -197,7 +195,7 @@ public class TaskExecutorToResourceManagerConnection {
 		protected Future<RegistrationResponse> invokeRegistration(
 				ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
 
-			FiniteDuration timeout = new FiniteDuration(timeoutMillis, TimeUnit.MILLISECONDS);
+			Time timeout = Time.milliseconds(timeoutMillis);
 			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, timeout);
 		}
 	}

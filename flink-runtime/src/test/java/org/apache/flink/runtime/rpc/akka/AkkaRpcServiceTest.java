@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorSystem;
-import akka.util.Timeout;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.util.TestLogger;
@@ -40,7 +40,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	private static ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 
 	private static AkkaRpcService akkaRpcService =
-			new AkkaRpcService(actorSystem, new Timeout(10000, TimeUnit.MILLISECONDS));
+			new AkkaRpcService(actorSystem, Time.milliseconds(10000));
 
 	@AfterClass
 	public static void shutdown() {
