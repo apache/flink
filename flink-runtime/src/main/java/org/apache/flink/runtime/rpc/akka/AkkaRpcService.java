@@ -25,6 +25,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Identify;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 
 import akka.pattern.Patterns;
@@ -48,6 +49,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -222,5 +224,17 @@ public class AkkaRpcService implements RpcService {
 		checkArgument(delay >= 0, "delay must be zero or larger");
 
 		actorSystem.scheduler().scheduleOnce(new FiniteDuration(delay, unit), runnable, actorSystem.dispatcher());
+	}
+
+	@Override
+	public void execute(Runnable runnable) {
+		actorSystem.dispatcher().execute(runnable);
+	}
+
+	@Override
+	public <T> Future<T> execute(Callable<T> callable) {
+		scala.concurrent.Future<T> scalaFuture = Futures.future(callable, actorSystem.dispatcher());
+
+		return new FlinkFuture<>(scalaFuture);
 	}
 }
