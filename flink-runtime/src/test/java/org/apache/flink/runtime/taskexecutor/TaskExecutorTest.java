@@ -26,8 +26,9 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
@@ -51,8 +52,8 @@ public class TaskExecutorTest extends TestLogger {
 		try {
 			// register a mock resource manager gateway
 			ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
-			TaskExecutorConfiguration taskExecutorConfiguration = mock(TaskExecutorConfiguration.class);
-			PowerMockito.when(taskExecutorConfiguration.getNumberOfSlots()).thenReturn(1);
+			TaskManagerConfiguration taskManagerServicesConfiguration = mock(TaskManagerConfiguration.class);
+			PowerMockito.when(taskManagerServicesConfiguration.getNumberSlots()).thenReturn(1);
 			rpc.registerGateway(resourceManagerAddress, rmGateway);
 
 			TaskManagerLocation taskManagerLocation = mock(TaskManagerLocation.class);
@@ -61,12 +62,15 @@ public class TaskExecutorTest extends TestLogger {
 			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
 
 			TaskExecutor taskManager = new TaskExecutor(
-				taskExecutorConfiguration,
+				taskManagerServicesConfiguration,
 				taskManagerLocation,
-				rpc, mock(MemoryManager.class),
+				rpc,
+				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
-				haServices);
+				haServices,
+				mock(MetricRegistry.class),
+				mock(FatalErrorHandler.class));
 
 			taskManager.start();
 			String taskManagerAddress = taskManager.getAddress();
@@ -101,19 +105,22 @@ public class TaskExecutorTest extends TestLogger {
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setResourceManagerLeaderRetriever(testLeaderService);
 
-			TaskExecutorConfiguration taskExecutorConfiguration = mock(TaskExecutorConfiguration.class);
-			PowerMockito.when(taskExecutorConfiguration.getNumberOfSlots()).thenReturn(1);
+			TaskManagerConfiguration taskManagerServicesConfiguration = mock(TaskManagerConfiguration.class);
+			PowerMockito.when(taskManagerServicesConfiguration.getNumberSlots()).thenReturn(1);
 
 			TaskManagerLocation taskManagerLocation = mock(TaskManagerLocation.class);
 			when(taskManagerLocation.getResourceID()).thenReturn(resourceID);
 
 			TaskExecutor taskManager = new TaskExecutor(
-				taskExecutorConfiguration,
+				taskManagerServicesConfiguration,
 				taskManagerLocation,
-				rpc, mock(MemoryManager.class),
+				rpc,
+				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
-				haServices);
+				haServices,
+				mock(MetricRegistry.class),
+				mock(FatalErrorHandler.class));
 
 			taskManager.start();
 			String taskManagerAddress = taskManager.getAddress();
