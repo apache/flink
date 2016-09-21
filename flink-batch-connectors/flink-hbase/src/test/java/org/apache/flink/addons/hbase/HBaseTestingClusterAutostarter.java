@@ -170,6 +170,7 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 	/**
 	 * This dynamically generates a hbase-site.xml file that is added to the classpath.
 	 * This way this HBaseMinicluster can be used by an unmodified application.
+	 * The downside is that this cannot be 'unloaded' so you can have only one per JVM.
 	 */
 	private static void registerHBaseMiniClusterInClasspath() {
 		File baseDir = new File(System.getProperty("java.io.tmpdir", "/tmp/"));
