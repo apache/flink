@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -63,8 +64,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -125,6 +124,7 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 	public RocksDBKeyedStateBackend(
 			JobID jobId,
 			String operatorIdentifier,
+			ClassLoader userCodeClassLoader,
 			File instanceBasePath,
 			DBOptions dbOptions,
 			ColumnFamilyOptions columnFamilyOptions,
@@ -134,7 +134,7 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 			KeyGroupRange keyGroupRange
 	) throws Exception {
 
-		super(kvStateRegistry, keySerializer, numberOfKeyGroups, keyGroupRange);
+		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
 
 		this.operatorIdentifier = operatorIdentifier;
 		this.jobId = jobId;
@@ -177,6 +177,7 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 	public RocksDBKeyedStateBackend(
 			JobID jobId,
 			String operatorIdentifier,
+			ClassLoader userCodeClassLoader,
 			File instanceBasePath,
 			DBOptions dbOptions,
 			ColumnFamilyOptions columnFamilyOptions,
@@ -189,6 +190,7 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 		this(
 			jobId,
 			operatorIdentifier,
+			userCodeClassLoader,
 			instanceBasePath,
 			dbOptions,
 			columnFamilyOptions,
@@ -455,8 +457,8 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 				checkInterrupted();
 
 				//write StateDescriptor for this k/v state
-				ObjectOutputStream ooOut = new ObjectOutputStream(outStream);
-				ooOut.writeObject(column.getValue().f1);
+				InstantiationUtil.serializeObject(outStream, column.getValue().f1);
+
 				//retrieve iterator for this k/v states
 				ReadOptions readOptions = new ReadOptions();
 				readOptions.setSnapshot(snapshot);
@@ -649,8 +651,11 @@ public class RocksDBKeyedStateBackend<K> extends KeyedStateBackend<K> {
 
 			//restore the empty columns for the k/v states through the metadata
 			for (int i = 0; i < numColumns; i++) {
-				ObjectInputStream ooIn = new ObjectInputStream(currentStateHandleInStream);
-				StateDescriptor stateDescriptor = (StateDescriptor) ooIn.readObject();
+
+				StateDescriptor stateDescriptor = InstantiationUtil.deserializeObject(
+						currentStateHandleInStream,
+						rocksDBKeyedStateBackend.userCodeClassLoader);
+
 				Tuple2<ColumnFamilyHandle, StateDescriptor> columnFamily = rocksDBKeyedStateBackend.
 						kvStateInformation.get(stateDescriptor.getName());
 

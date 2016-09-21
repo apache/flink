@@ -77,14 +77,18 @@ public abstract class KeyedStateBackend<K> {
 	/** KvStateRegistry helper for this task */
 	protected final TaskKvStateRegistry kvStateRegistry;
 
+	protected final ClassLoader userCodeClassLoader;
+
 	public KeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
+			ClassLoader userCodeClassLoader,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange) {
 
 		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.numberOfKeyGroups = Preconditions.checkNotNull(numberOfKeyGroups);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 	}

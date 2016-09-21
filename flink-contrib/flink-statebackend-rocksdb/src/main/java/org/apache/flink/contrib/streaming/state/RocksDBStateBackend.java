@@ -240,6 +240,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		return new RocksDBKeyedStateBackend<>(
 				jobID,
 				operatorIdentifier,
+				env.getUserClassLoader(),
 				instanceBasePath,
 				getDbOptions(),
 				getColumnOptions(),
@@ -264,6 +265,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		return new RocksDBKeyedStateBackend<>(
 				jobID,
 				operatorIdentifier,
+				env.getUserClassLoader(),
 				instanceBasePath,
 				getDbOptions(),
 				getColumnOptions(),

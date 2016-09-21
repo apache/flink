@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -585,7 +586,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 						if (operator != null) {
 							LOG.debug("Restore state of task {} in chain ({}).", i, getName());
-							operator.restoreState(state.openInputStream());
+							FSDataInputStream inputStream = state.openInputStream();
+							try {
+								operator.restoreState(inputStream);
+							} finally {
+								inputStream.close();
+							}
 						}
 					}
 				}
