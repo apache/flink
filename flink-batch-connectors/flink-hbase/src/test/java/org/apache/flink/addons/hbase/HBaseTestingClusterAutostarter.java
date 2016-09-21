@@ -85,7 +85,7 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 	private static HBaseAdmin admin = null;
 	private static List<TableName> createdTables = new ArrayList<>();
 
-	private static boolean alreadyRanTestCluster = false;
+	private static boolean alreadyRegisteredTestCluster = false;
 
 	protected static void createTable(TableName tableName, byte[] columnFamilyName, byte[][] splitKeys) {
 		LOG.info("HBase minicluster: Creating table " + tableName.getNameAsString());
@@ -146,10 +146,6 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 		((Log4JLogger) AbstractRpcClient.LOG).getLogger().setLevel(Level.ALL);
 		((Log4JLogger) ScannerCallable.LOG).getLogger().setLevel(Level.ALL);
 
-		if (alreadyRanTestCluster) {
-			fail("You CANNOT start a second HBase Testing cluster in the SAME JVM");
-		}
-
 		TEST_UTIL.startMiniCluster(1);
 
 		// https://issues.apache.org/jira/browse/HBASE-11711
@@ -157,8 +153,6 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 
 		// Make sure the zookeeper quorum value contains the right port number (varies per run).
 		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", "localhost:" + TEST_UTIL.getZkCluster().getClientPort());
-
-		registerHBaseMiniClusterInClasspath();
 
 		initialize(TEST_UTIL.getConfiguration());
 		LOG.info("HBase minicluster: Running");
@@ -172,7 +166,10 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 	 * This way this HBaseMinicluster can be used by an unmodified application.
 	 * The downside is that this cannot be 'unloaded' so you can have only one per JVM.
 	 */
-	private static void registerHBaseMiniClusterInClasspath() {
+	public static void registerHBaseMiniClusterInClasspath() {
+		if (alreadyRegisteredTestCluster) {
+			fail("You CANNOT register a second HBase Testing cluster in the classpath of the SAME JVM");
+		}
 		File baseDir = new File(System.getProperty("java.io.tmpdir", "/tmp/"));
 		hbaseSiteXmlDirectory = new File(baseDir, "unittest-hbase-minicluster-" + Math.abs(new Random().nextLong()) + "/");
 
@@ -184,6 +181,9 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 
 		createHBaseSiteXml(hbaseSiteXmlDirectory, TEST_UTIL.getConfiguration().get("hbase.zookeeper.quorum"));
 		addDirectoryToClassPath(hbaseSiteXmlDirectory);
+
+		// Avoid starting it again.
+		alreadyRegisteredTestCluster = true;
 	}
 
 	private static void createHBaseSiteXml(File hbaseSiteXmlDirectory, String zookeeperQuorum) {
@@ -227,18 +227,12 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		if (alreadyRanTestCluster) {
-			LOG.error("Skipping teardown of HBase Testing cluster because it wasn't started");
-			return;
-		}
 		LOG.info("HBase minicluster: Shutting down");
 		deleteTables();
 		hbaseSiteXmlFile.delete();
 		hbaseSiteXmlDirectory.delete();
 		TEST_UTIL.shutdownMiniCluster();
 		LOG.info("HBase minicluster: Down");
-		// Avoid starting it again.
-		alreadyRanTestCluster = true;
 	}
 
 }

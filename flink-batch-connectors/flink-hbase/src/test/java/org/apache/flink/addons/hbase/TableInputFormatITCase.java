@@ -30,6 +30,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -46,6 +47,11 @@ public class TableInputFormatITCase extends HBaseTestingClusterAutostarter {
 
 	// These are the row ids AND also the values we will put in the test table
 	private static final String[] ROW_IDS = {"000", "111", "222", "333", "444", "555", "666", "777", "888", "999"};
+
+	@BeforeClass
+	public static void activateHBaseCluster(){
+		registerHBaseMiniClusterInClasspath();
+	}
 
 	@Before
 	public void createTestTable() throws IOException {
