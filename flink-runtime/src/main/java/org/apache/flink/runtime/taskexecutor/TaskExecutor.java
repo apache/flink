@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import akka.actor.ActorSystem;
-import akka.util.Timeout;
 import com.typesafe.config.Config;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
@@ -35,6 +35,7 @@ import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
 import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
+import org.jboss.netty.channel.ChannelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +79,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.UUID;
@@ -198,7 +200,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					this,
 					newLeaderAddress,
 					newLeaderId,
-					getMainThreadExecutionContext());
+					getMainThreadExecutor());
 			resourceManagerConnection.start();
 		}
 	}
@@ -302,9 +304,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			LOG.debug("Using akka configuration\n " + akkaConfig);
 			taskManagerSystem = AkkaUtils.createActorSystem(akkaConfig);
 		} catch (Throwable t) {
-			if (t instanceof org.jboss.netty.channel.ChannelException) {
+			if (t instanceof ChannelException) {
 				Throwable cause = t.getCause();
-				if (cause != null && t.getCause() instanceof java.net.BindException) {
+				if (cause != null && t.getCause() instanceof BindException) {
 					String address = NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort);
 					throw new IOException("Unable to bind TaskManager actor system to address " +
 						address + " - " + cause.getMessage(), t);
@@ -314,7 +316,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		// start akka rpc service based on actor system
-		final Timeout timeout = new Timeout(AkkaUtils.getTimeout(configuration).toMillis(), TimeUnit.MILLISECONDS);
+		final Time timeout = Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis());
 		final AkkaRpcService akkaRpcService = new AkkaRpcService(taskManagerSystem, timeout);
 
 		// start high availability service to implement getResourceManagerLeaderRetriever method only
