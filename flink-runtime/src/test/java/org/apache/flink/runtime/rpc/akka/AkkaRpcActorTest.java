@@ -69,6 +69,8 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		Future<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), DummyRpcGateway.class);
 
+		rpcEndpoint.start();
+
 		DummyRpcGateway rpcGateway = Await.result(futureRpcGateway, timeout.duration());
 
 		assertEquals(rpcEndpoint.getAddress(), rpcGateway.getAddress());
@@ -87,6 +89,28 @@ public class AkkaRpcActorTest extends TestLogger {
 			fail("The rpc connection resolution should have failed.");
 		} catch (RpcConnectionException exception) {
 			// we're expecting a RpcConnectionException
+		}
+	}
+
+	/**
+	 * Tests that connect fails if one tries to associate with a rpc endpoint which does not support
+	 * the specified rpc gateway.
+	 */
+	@Test
+	public void testFailingRpcGatewayVerification() throws Exception {
+		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
+
+		rpcEndpoint.start();
+
+		Future<FalseRpcGateway> futureRpcGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), FalseRpcGateway.class);
+
+		try {
+			FalseRpcGateway gateway = Await.result(futureRpcGateway, timeout.duration());
+
+			fail("The rpc connection should have failed, because the rpc endpoint does not " +
+				"support the specified rpc gateway.");
+		} catch (RpcConnectionException exception) {
+			// we're expecting this exception here
 		}
 	}
 
@@ -121,6 +145,8 @@ public class AkkaRpcActorTest extends TestLogger {
 	private interface DummyRpcGateway extends RpcGateway {
 		Future<Integer> foobar();
 	}
+
+	private interface FalseRpcGateway extends RpcGateway {}
 
 	private static class DummyRpcEndpoint extends RpcEndpoint<DummyRpcGateway> {
 

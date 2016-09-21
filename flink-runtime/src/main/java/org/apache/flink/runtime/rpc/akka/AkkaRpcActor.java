@@ -32,6 +32,8 @@ import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 
+import org.apache.flink.runtime.rpc.akka.messages.VerifyRpcGateway;
+import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +105,18 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	private void handleMessage(Object message) {
 		mainThreadValidator.enterMainThread();
 		try {
-			if (message instanceof RunAsync) {
+			if (message instanceof VerifyRpcGateway) {
+				VerifyRpcGateway verifyRpcGateway = (VerifyRpcGateway) message;
+
+				if (verifyRpcGateway.getClazz().isAssignableFrom(rpcEndpoint.getSelfGatewayType())) {
+					getSender().tell(new Status.Success(getSelf()), getSelf());
+				} else {
+					getSender().tell(new Status.Failure(
+						new RpcConnectionException("The provided rpc gateway " + verifyRpcGateway.getClazz() +
+							" is not supported by the rpc endpoint " + rpcEndpoint + '.')),
+						getSelf());
+				}
+			} else if (message instanceof RunAsync) {
 				handleRunAsync((RunAsync) message);
 			} else if (message instanceof CallAsync) {
 				handleCallAsync((CallAsync) message);
