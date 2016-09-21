@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SimpleSlotManager;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.exceptions.LeaderSessionIDException;
@@ -29,18 +31,16 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class ResourceManagerTest {
+public class ResourceManagerTaskExecutorTest {
 
 	private TestingSerialRpcService rpcService;
 
@@ -56,65 +56,59 @@ public class ResourceManagerTest {
 
 	/**
 	 * Test receive normal registration from task executor and receive duplicate registration from task executor
-	 *
-	 * @throws Exception
 	 */
 	@Test
 	public void testRegisterTaskExecutor() throws Exception {
 		String taskExecutorAddress = "/taskExecutor1";
 		ResourceID taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
-		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
-		final ResourceManager resourceManager = createAndStartResourceManager(leaderElectionService);
-		final UUID leaderSessionId = grantResourceManagerLeadership(leaderElectionService);
+		TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
+		final ResourceManager resourceManager = createAndStartResourceManager(rmLeaderElectionService);
+		final UUID leaderSessionId = grantLeadership(rmLeaderElectionService);
 
 		// test response successful
 		Future<RegistrationResponse> successfulFuture = resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID);
-		RegistrationResponse response = Await.result(successfulFuture, new FiniteDuration(0, TimeUnit.SECONDS));
+		RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
 		assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
-		// test response successful with previous instanceID when receive duplicate registration from taskExecutor
+		// test response successful with instanceID not equal to previous when receive duplicate registration from taskExecutor
 		Future<RegistrationResponse> duplicateFuture = resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID);
-		RegistrationResponse duplicateResponse = Await.result(duplicateFuture, new FiniteDuration(0, TimeUnit.SECONDS));
+		RegistrationResponse duplicateResponse = duplicateFuture.get();
 		assertTrue(duplicateResponse instanceof TaskExecutorRegistrationSuccess);
-		assertEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
+		assertNotEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
 	}
 
 	/**
 	 * Test receive registration with unmatched leadershipId from task executor
-	 *
-	 * @throws Exception
 	 */
-	@Test(expected = LeaderSessionIDException.class)
+	@Test
 	public void testRegisterTaskExecutorWithUnmatchedLeaderSessionId() throws Exception {
 		String taskExecutorAddress = "/taskExecutor1";
 		ResourceID taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
-		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
-		final ResourceManager resourceManager = createAndStartResourceManager(leaderElectionService);
-		final UUID leaderSessionId = grantResourceManagerLeadership(leaderElectionService);
+		TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
+		final ResourceManager resourceManager = createAndStartResourceManager(rmLeaderElectionService);
+		final UUID leaderSessionId = grantLeadership(rmLeaderElectionService);
 
 		// test throw exception when receive a registration from taskExecutor which takes unmatched leaderSessionId
 		UUID differentLeaderSessionID = UUID.randomUUID();
 		Future<RegistrationResponse> unMatchedLeaderFuture = resourceManager.registerTaskExecutor(differentLeaderSessionID, taskExecutorAddress, taskExecutorResourceID);
-		Await.result(unMatchedLeaderFuture, new FiniteDuration(200, TimeUnit.MILLISECONDS));
+		assertTrue(unMatchedLeaderFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 	}
 
 	/**
 	 * Test receive registration with invalid address from task executor
-	 *
-	 * @throws Exception
 	 */
-	@Test(expected = Exception.class)
+	@Test
 	public void testRegisterTaskExecutorFromInvalidAddress() throws Exception {
 		String taskExecutorAddress = "/taskExecutor1";
 		ResourceID taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
 		final ResourceManager resourceManager = createAndStartResourceManager(leaderElectionService);
-		final UUID leaderSessionId = grantResourceManagerLeadership(leaderElectionService);
+		final UUID leaderSessionId = grantLeadership(leaderElectionService);
 
 		// test throw exception when receive a registration from taskExecutor which takes invalid address
 		String invalidAddress = "/taskExecutor2";
 		Future<RegistrationResponse> invalidAddressFuture = resourceManager.registerTaskExecutor(leaderSessionId, invalidAddress, taskExecutorResourceID);
-		Await.result(invalidAddressFuture, new FiniteDuration(200, TimeUnit.MILLISECONDS));
+		assertTrue(invalidAddressFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 	}
 
 	private ResourceID mockTaskExecutor(String taskExecutorAddress) {
@@ -124,15 +118,15 @@ public class ResourceManagerTest {
 		return taskExecutorResourceID;
 	}
 
-	private ResourceManager createAndStartResourceManager(TestingLeaderElectionService leaderElectionService) {
+	private ResourceManager createAndStartResourceManager(TestingLeaderElectionService rmLeaderElectionService) {
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
-		ResourceManager resourceManager = new ResourceManager(rpcService, highAvailabilityServices);
+		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+		ResourceManager resourceManager = new ResourceManager(rpcService, highAvailabilityServices, new SimpleSlotManager());
 		resourceManager.start();
 		return resourceManager;
 	}
 
-	private UUID grantResourceManagerLeadership(TestingLeaderElectionService leaderElectionService) {
+	private UUID grantLeadership(TestingLeaderElectionService leaderElectionService) {
 		UUID leaderSessionId = UUID.randomUUID();
 		leaderElectionService.isLeader(leaderSessionId);
 		return leaderSessionId;
