@@ -20,10 +20,10 @@ package org.apache.flink.runtime.registration;
 
 import akka.dispatch.Futures;
 
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.TestingGatewayBase;
 import org.apache.flink.util.Preconditions;
-
-import scala.concurrent.Future;
 
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -56,7 +56,7 @@ public class TestRegistrationGateway extends TestingGatewayBase {
 		}
 
 		// return a completed future (for a proper value), or one that never completes and will time out (for null)
-		return response != null ? Futures.successful(response) : this.<RegistrationResponse>futureWithTimeout(timeout);
+		return response != null ? FlinkCompletableFuture.completed(response) : this.<RegistrationResponse>futureWithTimeout(timeout);
 	}
 
 	public BlockingQueue<RegistrationCall> getInvocations() {

@@ -21,17 +21,15 @@ package org.apache.flink.runtime.rpc;
 import akka.actor.ActorSystem;
 import akka.util.Timeout;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Test;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +47,7 @@ public class AsyncCallsTest extends TestLogger {
 	private static ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 
 	private static AkkaRpcService akkaRpcService =
-			new AkkaRpcService(actorSystem, new Timeout(10000, TimeUnit.MILLISECONDS));
+			new AkkaRpcService(actorSystem, Time.milliseconds(10000L));
 
 	@AfterClass
 	public static void shutdown() {
@@ -104,8 +102,9 @@ public class AsyncCallsTest extends TestLogger {
 				}
 				return "test";
 			}
-		}, new Timeout(30, TimeUnit.SECONDS));
-		String str = Await.result(result, new FiniteDuration(30, TimeUnit.SECONDS));
+		}, Time.seconds(30L));
+
+		String str = result.get(30, TimeUnit.SECONDS);
 		assertEquals("test", str);
 
 		// validate that no concurrent access happened
