@@ -153,6 +153,26 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
+	public Future<Boolean> isReachable(String address) {
+		checkState(!stopped, "RpcService is stopped");
+
+		LOG.debug("Try to connect to remote RPC endpoint with address {}.", address);
+
+		final scala.concurrent.Future<Object> identify = Patterns.ask(actorSystem.actorSelection(address), new Identify(42), timeout.toMilliseconds());
+		scala.concurrent.Future<Boolean> resultFuture = identify.map(new Mapper<Object, Boolean>(){
+			@Override
+			public Boolean apply(Object obj) {
+
+				ActorIdentity actorIdentity = (ActorIdentity) obj;
+				return actorIdentity.getRef() != null;
+			}
+		}, actorSystem.dispatcher());
+
+		return new FlinkFuture<>(resultFuture);
+	}
+
+
+	@Override
 	public <C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint) {
 		checkNotNull(rpcEndpoint, "rpc endpoint");
 

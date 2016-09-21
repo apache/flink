@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 /**
@@ -55,4 +59,20 @@ public interface JobMasterGateway extends RpcGateway {
 	 * @param address Address of the resource manager
 	 */
 	void registerAtResourceManager(final String address);
+
+	/**
+	 * Register jobInfo tracker
+	 *
+	 * @param clientAddress      address of jobInfo tracker
+	 * @param listeningBehaviour listening behaviour of jobInfo tracker
+	 * @param timeout
+	 */
+	Future<JobManagerMessages.RegisterJobClientSuccess>  registerJobInfoTracker(String clientAddress, ListeningBehaviour listeningBehaviour, @RpcTimeout Time timeout);
+
+	/**
+	 * Request class load property of job
+	 * @param timeout
+	 * @return
+	 */
+	Future<JobManagerMessages.ClassloadingProps> requestClassloadingProps(@RpcTimeout Time timeout);
 }

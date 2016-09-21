@@ -39,6 +39,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -49,9 +50,10 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import scala.concurrent.ExecutionContext$;
@@ -465,6 +467,29 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	@RpcMethod
 	public void registerAtResourceManager(final String address) {
 		//TODO:: register at the RM
+	}
+
+	/**
+	 * Register jobInfo tracker
+	 *
+	 * @param clientAddress      address of jobInfo tracker
+	 * @param listeningBehaviour listening behaviour of jobInfo tracker
+	 */
+	@RpcMethod
+	public JobManagerMessages.RegisterJobClientSuccess registerJobInfoTracker(String clientAddress, ListeningBehaviour listeningBehaviour) {
+		// TODO:: add client to listeners
+		return new JobManagerMessages.RegisterJobClientSuccess(jobGraph.getJobID());
+	}
+
+	/**
+	 * Request class load property of job
+	 *
+	 * @return
+	 */
+	@RpcMethod
+	public JobManagerMessages.ClassloadingProps requestClassloadingProps() {
+		// TODO
+		return null;
 	}
 
 	//----------------------------------------------------------------------------------------------

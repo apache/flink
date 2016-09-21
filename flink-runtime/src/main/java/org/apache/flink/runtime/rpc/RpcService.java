@@ -54,6 +54,14 @@ public interface RpcService {
 	<C extends RpcGateway> Future<C> connect(String address, Class<C> clazz);
 
 	/**
+	 * Try to connect to a remote rpc server under the provided address. Return false if the address is unreachable.
+	 *
+	 * @param address Address of the remote rpc server
+	 * @return
+	 */
+	Future<Boolean> isReachable(String address);
+
+	/**
 	 * Start a rpc server which forwards the remote procedure calls to the provided rpc endpoint.
 	 *
 	 * @param rpcEndpoint Rpc protocl to dispath the rpcs to

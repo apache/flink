@@ -93,6 +93,22 @@ public class TestingRpcService extends AkkaRpcService {
 	}
 
 	@Override
+	public <C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint) {
+		C gateway = super.startServer(rpcEndpoint);
+		// register started gateway of rpcEndpoint
+		registerGateway(gateway.getAddress(), gateway);
+		return gateway;
+	}
+
+	@Override
+	public void stopServer(RpcGateway selfGateway) {
+		super.stopServer(selfGateway);
+		// unregister gateway
+		registeredConnections.remove(selfGateway.getAddress());
+	}
+
+
+	@Override
 	public <C extends RpcGateway> Future<C> connect(String address, Class<C> clazz) {
 		RpcGateway gateway = registeredConnections.get(address);
 
@@ -108,6 +124,11 @@ public class TestingRpcService extends AkkaRpcService {
 		} else {
 			return FlinkCompletableFuture.completedExceptionally(new Exception("No gateway registered under that name"));
 		}
+	}
+
+	@Override
+	public Future<Boolean> isReachable(String address) {
+		return FlinkCompletableFuture.completed(registeredConnections.containsKey(address));
 	}
 
 	public void clearGateways() {
