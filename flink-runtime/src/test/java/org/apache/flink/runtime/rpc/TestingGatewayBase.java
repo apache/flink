@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.rpc;
 
-import akka.dispatch.Futures;
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -73,25 +73,25 @@ public abstract class TestingGatewayBase implements RpcGateway {
 	// ------------------------------------------------------------------------
 
 	public <T> Future<T> futureWithTimeout(long timeoutMillis) {
-		Promise<T> promise = Futures.<T>promise();
-		executor.schedule(new FutureTimeout(promise), timeoutMillis, TimeUnit.MILLISECONDS);
-		return promise.future();
+		FlinkCompletableFuture<T> future = new FlinkCompletableFuture<>();
+		executor.schedule(new FutureTimeout(future), timeoutMillis, TimeUnit.MILLISECONDS);
+		return future;
 	}
 
 	// ------------------------------------------------------------------------
 	
 	private static final class FutureTimeout implements Runnable {
 
-		private final Promise<?> promise;
+		private final CompletableFuture<?> promise;
 
-		private FutureTimeout(Promise<?> promise) {
+		private FutureTimeout(CompletableFuture<?> promise) {
 			this.promise = promise;
 		}
 
 		@Override
 		public void run() {
 			try {
-				promise.failure(new TimeoutException());
+				promise.completeExceptionally(new TimeoutException());
 			} catch (Throwable t) {
 				System.err.println("CAUGHT AN ERROR IN THE TEST: " + t.getMessage());
 				t.printStackTrace();

@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
@@ -33,14 +35,11 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,7 +78,7 @@ public abstract class SlotManager implements LeaderRetrievalListener {
 	/** All allocations, we can lookup allocations either by SlotID or AllocationID */
 	private final AllocationMap allocationMap;
 
-	private final FiniteDuration timeout;
+	private final Time timeout;
 
 	/** The current leader id set by the ResourceManager */
 	private UUID leaderID;
@@ -90,7 +89,7 @@ public abstract class SlotManager implements LeaderRetrievalListener {
 		this.freeSlots = new HashMap<>(16);
 		this.allocationMap = new AllocationMap();
 		this.taskManagerGateways = new HashMap<>();
-		this.timeout = new FiniteDuration(10, TimeUnit.SECONDS);
+		this.timeout = Time.seconds(10);
 	}
 
 

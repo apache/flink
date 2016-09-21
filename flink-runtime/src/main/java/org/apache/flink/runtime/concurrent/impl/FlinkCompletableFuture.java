@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.concurrent.impl;
 
+import akka.dispatch.Futures;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.Promise;
+import scala.concurrent.Promise$;
 
 import java.util.concurrent.CancellationException;
 
@@ -34,7 +36,17 @@ public class FlinkCompletableFuture<T> extends FlinkFuture<T> implements Complet
 	private final Promise<T> promise;
 
 	public FlinkCompletableFuture() {
-		promise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+		promise = Futures.promise();
+		scalaFuture = promise.future();
+	}
+
+	private FlinkCompletableFuture(T value) {
+		promise = Promise$.MODULE$.successful(value);
+		scalaFuture = promise.future();
+	}
+
+	private FlinkCompletableFuture(Throwable t) {
+		promise = Promise$.MODULE$.failed(t);
 		scalaFuture = promise.future();
 	}
 
@@ -67,5 +79,13 @@ public class FlinkCompletableFuture<T> extends FlinkFuture<T> implements Complet
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
 		return completeExceptionally(new CancellationException("Future has been canceled."));
+	}
+
+	public static <T> FlinkCompletableFuture<T> completed(T value) {
+		return new FlinkCompletableFuture<>(value);
+	}
+
+	public static <T> FlinkCompletableFuture<T> completedExceptionally(Throwable t) {
+		return new FlinkCompletableFuture<>(t);
 	}
 }

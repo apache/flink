@@ -18,16 +18,13 @@
 
 package org.apache.flink.runtime.rpc;
 
-import akka.dispatch.ExecutionContexts;
 import akka.dispatch.Futures;
-import akka.util.Timeout;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.Preconditions;
-import scala.concurrent.Await;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
@@ -37,6 +34,7 @@ import java.util.BitSet;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -67,8 +65,8 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
-	public ExecutionContext getExecutionContext() {
-		return ExecutionContexts.fromExecutorService(executorService);
+	public Executor getExecutor() {
+		return executorService;
 	}
 
 	@Override
@@ -94,7 +92,7 @@ public class TestingSerialRpcService implements RpcService {
 			classLoader,
 			new Class<?>[]{
 				rpcEndpoint.getSelfGatewayType(),
-				MainThreadExecutor.class,
+				MainThreadExecutable.class,
 				StartStoppable.class,
 				RpcGateway.class
 			},
@@ -114,13 +112,13 @@ public class TestingSerialRpcService implements RpcService {
 			if (clazz.isAssignableFrom(gateway.getClass())) {
 				@SuppressWarnings("unchecked")
 				C typedGateway = (C) gateway;
-				return Futures.successful(typedGateway);
+				return FlinkCompletableFuture.completed(typedGateway);
 			} else {
-				return Futures.failed(
+				return FlinkCompletableFuture.completedExceptionally(
 					new Exception("Gateway registered under " + address + " is not of type " + clazz));
 			}
 		} else {
-			return Futures.failed(new Exception("No gateway registered under that name"));
+			return FlinkCompletableFuture.completedExceptionally(new Exception("No gateway registered under that name"));
 		}
 	}
 
@@ -141,20 +139,20 @@ public class TestingSerialRpcService implements RpcService {
 		registeredConnections.clear();
 	}
 
-	private static final class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutor, StartStoppable {
+	private static final class TestingSerialInvocationHandler<C extends RpcGateway, T extends RpcEndpoint<C>> implements InvocationHandler, RpcGateway, MainThreadExecutable, StartStoppable {
 
 		private final T rpcEndpoint;
 
 		/** default timeout for asks */
-		private final Timeout timeout;
+		private final Time timeout;
 
 		private final String address;
 
 		private TestingSerialInvocationHandler(String address, T rpcEndpoint) {
-			this(address, rpcEndpoint, new Timeout(new FiniteDuration(10, TimeUnit.SECONDS)));
+			this(address, rpcEndpoint, Time.seconds(10));
 		}
 
-		private TestingSerialInvocationHandler(String address, T rpcEndpoint, Timeout timeout) {
+		private TestingSerialInvocationHandler(String address, T rpcEndpoint, Time timeout) {
 			this.rpcEndpoint = rpcEndpoint;
 			this.timeout = timeout;
 			this.address = address;
@@ -163,7 +161,7 @@ public class TestingSerialRpcService implements RpcService {
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			Class<?> declaringClass = method.getDeclaringClass();
-			if (declaringClass.equals(MainThreadExecutor.class) ||
+			if (declaringClass.equals(MainThreadExecutable.class) ||
 				declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class) ||
 				declaringClass.equals(RpcGateway.class)) {
 				return method.invoke(this, args);
@@ -171,7 +169,7 @@ public class TestingSerialRpcService implements RpcService {
 				final String methodName = method.getName();
 				Class<?>[] parameterTypes = method.getParameterTypes();
 				Annotation[][] parameterAnnotations = method.getParameterAnnotations();
-				Timeout futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
+				Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
 
 				final Tuple2<Class<?>[], Object[]> filteredArguments = filterArguments(
 					parameterTypes,
@@ -201,13 +199,13 @@ public class TestingSerialRpcService implements RpcService {
 		private Object handleRpcInvocationSync(final String methodName,
 			final Class<?>[] parameterTypes,
 			final Object[] args,
-			final Timeout futureTimeout) throws Exception {
+			final Time futureTimeout) throws Exception {
 			final Method rpcMethod = lookupRpcMethod(methodName, parameterTypes);
 			Object result = rpcMethod.invoke(rpcEndpoint, args);
 
 			if (result instanceof Future) {
 				Future<?> future = (Future<?>) result;
-				return Await.result(future, futureTimeout.duration());
+				return future.get(futureTimeout.getSize(), futureTimeout.getUnit());
 			} else {
 				return result;
 			}
@@ -219,11 +217,11 @@ public class TestingSerialRpcService implements RpcService {
 		}
 
 		@Override
-		public <V> Future<V> callAsync(Callable<V> callable, Timeout callTimeout) {
+		public <V> Future<V> callAsync(Callable<V> callable, Time callTimeout) {
 			try {
-				return Futures.successful(callable.call());
+				return FlinkCompletableFuture.completed(callable.call());
 			} catch (Throwable e) {
-				return Futures.failed(e);
+				return FlinkCompletableFuture.completedExceptionally(e);
 			}
 		}
 
@@ -281,18 +279,18 @@ public class TestingSerialRpcService implements RpcService {
 		 *                             has been found
 		 * @return Timeout extracted from the array of arguments or the default timeout
 		 */
-		private static Timeout extractRpcTimeout(Annotation[][] parameterAnnotations, Object[] args,
-			Timeout defaultTimeout) {
+		private static Time extractRpcTimeout(Annotation[][] parameterAnnotations, Object[] args,
+			Time defaultTimeout) {
 			if (args != null) {
 				Preconditions.checkArgument(parameterAnnotations.length == args.length);
 
 				for (int i = 0; i < parameterAnnotations.length; i++) {
 					if (isRpcTimeout(parameterAnnotations[i])) {
-						if (args[i] instanceof FiniteDuration) {
-							return new Timeout((FiniteDuration) args[i]);
+						if (args[i] instanceof Time) {
+							return (Time) args[i];
 						} else {
 							throw new RuntimeException("The rpc timeout parameter must be of type " +
-								FiniteDuration.class.getName() + ". The type " + args[i].getClass().getName() +
+								Time.class.getName() + ". The type " + args[i].getClass().getName() +
 								" is not supported.");
 						}
 					}
