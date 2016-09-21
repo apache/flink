@@ -18,16 +18,14 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
 import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.jboss.netty.channel.ChannelException;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -39,7 +37,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.net.BindException;
+
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -60,7 +58,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	private final HighAvailabilityServices haServices;
 
 	/** The task manager configuration */
-	private final TaskExecutorConfiguration taskExecutorConfig;
+	private final TaskManagerConfiguration taskManagerConfiguration;
 
 	/** The I/O manager component in the task manager */
 	private final IOManager ioManager;
@@ -71,8 +69,14 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	/** The network component in the task manager */
 	private final NetworkEnvironment networkEnvironment;
 
+	/** The metric registry in the task manager */
+	private final MetricRegistry metricRegistry;
+
 	/** The number of slots in the task manager, should be 1 for YARN */
 	private final int numberOfSlots;
+
+	/** The fatal error handler to use in case of a fatal error */
+	private final FatalErrorHandler fatalErrorHandler;
 
 	// --------- resource manager --------
 
@@ -81,26 +85,30 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ------------------------------------------------------------------------
 
 	public TaskExecutor(
-		TaskExecutorConfiguration taskExecutorConfig,
+		TaskManagerConfiguration taskManagerConfiguration,
 		TaskManagerLocation taskManagerLocation,
 		RpcService rpcService,
 		MemoryManager memoryManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
-		HighAvailabilityServices haServices) {
+		HighAvailabilityServices haServices,
+		MetricRegistry metricRegistry,
+		FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService);
 
-		checkArgument(taskExecutorConfig.getNumberOfSlots() > 0, "The number of slots has to be larger than 0.");
+		checkArgument(taskManagerConfiguration.getNumberSlots() > 0, "The number of slots has to be larger than 0.");
 
-		this.taskExecutorConfig = checkNotNull(taskExecutorConfig);
+		this.taskManagerConfiguration = checkNotNull(taskManagerConfiguration);
 		this.taskManagerLocation = checkNotNull(taskManagerLocation);
 		this.memoryManager = checkNotNull(memoryManager);
 		this.ioManager = checkNotNull(ioManager);
 		this.networkEnvironment = checkNotNull(networkEnvironment);
 		this.haServices = checkNotNull(haServices);
+		this.metricRegistry = checkNotNull(metricRegistry);
+		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
-		this.numberOfSlots =  taskExecutorConfig.getNumberOfSlots();
+		this.numberOfSlots =  taskManagerConfiguration.getNumberSlots();
 	}
 
 	// ------------------------------------------------------------------------
@@ -158,6 +166,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
+	/**
 	 * Requests a slot from the TaskManager
 	 *
 	 * @param allocationID id for the request
@@ -169,22 +178,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		return new SlotRequestRegistered(allocationID);
 	}
 
-	/**
-			public LeaderRetrievalService getJobMasterLeaderRetriever(JobID jobID) throws Exception {
-				return null;
-			}
-
-			@Override
-				return null;
-			}
-
-			@Override
-			public CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception {
-				return null;
-			}
-
-			@Override
-			public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
 	// ------------------------------------------------------------------------
 	//  Properties
 	// ------------------------------------------------------------------------
@@ -222,7 +215,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	void onFatalError(Throwable t) {
 		// to be determined, probably delegate to a fatal error handler that 
 		// would either log (mini cluster) ot kill the process (yarn, mesos, ...)
-		log.error("FATAL ERROR", t);
+		fatalErrorHandler.onFatalError(t);
 	}
 
 	// ------------------------------------------------------------------------
