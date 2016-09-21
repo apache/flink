@@ -32,7 +32,7 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 	
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, DoubleValue reusable) {
-		final int endPos = formattedStringEndPos(bytes, startPos, limit, delimiter);
+		final int endPos = nextNumericStringEndPos(bytes, startPos, limit, delimiter);
 		if (endPos < 0) {
 			return -1;
 		}

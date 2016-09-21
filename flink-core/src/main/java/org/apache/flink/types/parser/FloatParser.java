@@ -31,7 +31,7 @@ public class FloatParser extends FieldParser<Float> {
 	
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Float reusable) {
-		final int endPos = formattedStringEndPos(bytes, startPos, limit, delimiter);
+		final int endPos = nextNumericStringEndPos(bytes, startPos, limit, delimiter);
 		if (endPos < 0) {
 			return -1;
 		}
@@ -86,7 +86,7 @@ public class FloatParser extends FieldParser<Float> {
 	 * represents not a correct number.
 	 */
 	public static final float parseField(byte[] bytes, int startPos, int length, char delimiter) {
-		final String str = formattedString(bytes, startPos, length, delimiter);
+		final String str = nextNumericString(bytes, startPos, length, delimiter);
 		return Float.parseFloat(str);
 	}
 }

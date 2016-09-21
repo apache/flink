@@ -176,43 +176,43 @@ public abstract class FieldParser<T> {
 	}
 
 	/**
-	 * Returns the end position of a string with a numeric format (like XXXX-XX-XX). Sets the error state if the
-	 * string contains leading/trailing whitespaces or if the column is empty.
+	 * Returns the end position of a numeric string. A numeric string does not start or end with whitespaces.
+	 * Sets the error state if the string contains leading/trailing whitespaces or if the column is empty.
 	 *
 	 * @return the end position of the string or -1 if an error occurred
 	 */
-	public final int formattedStringEndPos(byte[] bytes, int startPos, int limit, byte[] delimiter) {
-		int len = startPos;
+	protected final int nextNumericStringEndPos(byte[] bytes, int startPos, int limit, byte[] delimiter) {
+		int endPos = startPos;
 
 		final int delimLimit = limit - delimiter.length + 1;
 
-		while (len < limit) {
-			if (len < delimLimit && delimiterNext(bytes, len, delimiter)) {
-				if (len == startPos) {
+		while (endPos < limit) {
+			if (endPos < delimLimit && delimiterNext(bytes, endPos, delimiter)) {
+				if (endPos == startPos) {
 					setErrorState(ParseErrorState.EMPTY_COLUMN);
 					return -1;
 				}
 				break;
 			}
-			len++;
+			endPos++;
 		}
 
-		if (len > startPos &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(len - 1)]))) {
+		if (endPos > startPos &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(endPos - 1)]))) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
 			return -1;
 		}
 
-		return len;
+		return endPos;
 	}
 
 	/**
-	 * Returns a string with a numeric format (like XXXX-XX-XX). Throws an exception if the
-	 * string contains leading/trailing whitespaces or if the column is empty.
+	 * Returns a numeric string. A numeric string does not start or end with whitespaces. Throws an
+	 * exception if the string contains leading/trailing whitespaces or if the column is empty.
 	 *
 	 * @return the parsed string
 	 */
-	public static final String formattedString(byte[] bytes, int startPos, int length, char delimiter) {
+	protected static final String nextNumericString(byte[] bytes, int startPos, int length, char delimiter) {
 		if (length <= 0) {
 			throw new NumberFormatException("Invalid input: Empty string");
 		}

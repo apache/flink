@@ -34,7 +34,7 @@ public class SqlTimeParser extends FieldParser<Time> {
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Time reusable) {
-		final int endPos = formattedStringEndPos(bytes, startPos, limit, delimiter);
+		final int endPos = nextNumericStringEndPos(bytes, startPos, limit, delimiter);
 		if (endPos < 0) {
 			return -1;
 		}
@@ -89,7 +89,7 @@ public class SqlTimeParser extends FieldParser<Time> {
 	 * represents not a correct number.
 	 */
 	public static final Time parseField(byte[] bytes, int startPos, int length, char delimiter) {
-		final String str = formattedString(bytes, startPos, length, delimiter);
+		final String str = nextNumericString(bytes, startPos, length, delimiter);
 		try {
 			return Time.valueOf(str);
 		}

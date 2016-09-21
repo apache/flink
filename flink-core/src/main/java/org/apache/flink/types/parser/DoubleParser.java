@@ -33,7 +33,7 @@ public class DoubleParser extends FieldParser<Double> {
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Double reusable) {
-		final int endPos = formattedStringEndPos(bytes, startPos, limit, delimiter);
+		final int endPos = nextNumericStringEndPos(bytes, startPos, limit, delimiter);
 		if (endPos < 0) {
 			return -1;
 		}
@@ -88,7 +88,7 @@ public class DoubleParser extends FieldParser<Double> {
 	 * represents not a correct number.
 	 */
 	public static final double parseField(byte[] bytes, int startPos, int length, char delimiter) {
-		final String str = formattedString(bytes, startPos, length, delimiter);
+		final String str = nextNumericString(bytes, startPos, length, delimiter);
 		return Double.parseDouble(str);
 	}
 }
