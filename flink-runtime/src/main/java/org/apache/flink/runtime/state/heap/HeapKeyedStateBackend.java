@@ -137,7 +137,6 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 		@SuppressWarnings("unchecked,rawtypes")
 		StateTable<K, N, T> stateTable = (StateTable) stateTables.get(stateDesc.getName());
 
-
 		if (stateTable == null) {
 			stateTable = new StateTable<>(stateDesc.getSerializer(), namespaceSerializer, keyGroupRange);
 			stateTables.put(stateDesc.getName(), stateTable);
@@ -191,7 +190,7 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 
 			TypeSerializer namespaceSerializer = kvState.getValue().getNamespaceSerializer();
 			TypeSerializer stateSerializer = kvState.getValue().getStateSerializer();
-			
+
 			InstantiationUtil.serializeObject(stream, namespaceSerializer);
 			InstantiationUtil.serializeObject(stream, stateSerializer);
 
@@ -271,7 +270,8 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 				TypeSerializer stateSerializer =
 						InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
 
-				StateTable<K, ?, ?> stateTable = new StateTable(stateSerializer,
+				StateTable<K, ?, ?> stateTable = new StateTable(
+						stateSerializer,
 						namespaceSerializer,
 						keyGroupRange);
 				stateTables.put(stateName, stateTable);
