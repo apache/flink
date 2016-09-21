@@ -24,10 +24,14 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.NonHaServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.resourcemanager.JobMasterRegistration;
-import org.apache.flink.runtime.resourcemanager.RegistrationResponse;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
@@ -88,14 +92,20 @@ public class SlotProtocolTest extends TestLogger {
 
 		testRpcService.registerGateway(jmAddress, mock(JobMasterGateway.class));
 
+		final TestingHighAvailabilityServices testingHaServices = new TestingHighAvailabilityServices();
+		final UUID rmLeaderID = UUID.randomUUID();
+		final UUID jmLeaderID = UUID.randomUUID();
+		TestingLeaderElectionService rmLeaderElectionService =
+			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
 		TestingSlotManager slotManager = Mockito.spy(new TestingSlotManager());
 		ResourceManager resourceManager =
-			new ResourceManager(testRpcService, new NonHaServices(rmAddress), slotManager);
+			new ResourceManager(testRpcService, testingHaServices, slotManager);
 		resourceManager.start();
+		rmLeaderElectionService.isLeader(rmLeaderID);
 
 		Future<RegistrationResponse> registrationFuture =
-			resourceManager.registerJobMaster(new JobMasterRegistration(jmAddress, jobID));
+			resourceManager.registerJobMaster(rmLeaderID, jmLeaderID, jmAddress, jobID);
 		try {
 			registrationFuture.get(5, TimeUnit.SECONDS);
 		} catch (Exception e) {
@@ -158,16 +168,23 @@ public class SlotProtocolTest extends TestLogger {
 
 		testRpcService.registerGateway(jmAddress, mock(JobMasterGateway.class));
 
+		final TestingHighAvailabilityServices testingHaServices = new TestingHighAvailabilityServices();
+		final UUID rmLeaderID = UUID.randomUUID();
+		final UUID jmLeaderID = UUID.randomUUID();
+		TestingLeaderElectionService rmLeaderElectionService =
+			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
+
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
 		TestingSlotManager slotManager = Mockito.spy(new TestingSlotManager());
 		ResourceManager resourceManager =
-			new ResourceManager(testRpcService, new NonHaServices(rmAddress), slotManager);
+			new ResourceManager(testRpcService, testingHaServices, slotManager);
 		resourceManager.start();
+		rmLeaderElectionService.isLeader(rmLeaderID);
 
 		Future<RegistrationResponse> registrationFuture =
-			resourceManager.registerJobMaster(new JobMasterRegistration(jmAddress, jobID));
+			resourceManager.registerJobMaster(rmLeaderID, jmLeaderID, jmAddress, jobID);
 		try {
 			registrationFuture.get(5, TimeUnit.SECONDS);
 		} catch (Exception e) {
@@ -208,6 +225,20 @@ public class SlotProtocolTest extends TestLogger {
 		verify(taskExecutorGateway, timeout(5000)).requestSlot(eq(allocationID), any(UUID.class), any(Time.class));
 	}
 
+	private static TestingLeaderElectionService configureHA(
+			TestingHighAvailabilityServices testingHA, JobID jobID, String rmAddress, UUID rmID, String jmAddress, UUID jmID) {
+		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
+		testingHA.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService(rmAddress, rmID);
+		testingHA.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+
+		final TestingLeaderElectionService jmLeaderElectionService = new TestingLeaderElectionService();
+		testingHA.setJobMasterLeaderElectionService(jmLeaderElectionService);
+		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService(jmAddress, jmID);
+		testingHA.setJobMasterLeaderRetriever(jobID, jmLeaderRetrievalService);
+
+		return rmLeaderElectionService;
+	}
 
 	private static class TestingSlotManager extends SimpleSlotManager {
 
