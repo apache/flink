@@ -20,8 +20,6 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 
-import java.io.Serializable;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -29,8 +27,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * identification and resource profile which we can compare to the resource request.
  */
 public class ResourceSlot implements ResourceIDRetrievable {
-
-	private static final long serialVersionUID = -5853720153136840674L;
 
 	/** The unique identification of this slot */
 	private final SlotID slotId;
