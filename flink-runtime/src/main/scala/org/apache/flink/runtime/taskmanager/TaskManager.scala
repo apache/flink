@@ -1932,7 +1932,7 @@ object TaskManager {
       netConfig.networkBufferSize,
       netConfig.memoryType)
 
-    val connectionManager = netConfig.nettyConfig match {
+    val connectionManager = Option(netConfig.nettyConfig) match {
       case Some(nettyConfig) => new NettyConnectionManager(nettyConfig)
       case None => new LocalConnectionManager()
     }
@@ -1942,7 +1942,7 @@ object TaskManager {
 
     val kvStateRegistry = new KvStateRegistry()
 
-    val kvStateServer = netConfig.nettyConfig match {
+    val kvStateServer = Option(netConfig.nettyConfig) match {
       case Some(nettyConfig) =>
 
         val numNetworkThreads = if (netConfig.queryServerNetworkThreads == 0) {
@@ -2274,7 +2274,7 @@ object TaskManager {
       queryServerPort,
       queryServerNetworkThreads,
       queryServerQueryThreads,
-      nettyConfig)
+      nettyConfig.getOrElse(null))
 
     // ----> timeouts, library caching, profiling
 

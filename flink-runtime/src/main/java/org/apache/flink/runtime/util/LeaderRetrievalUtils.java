@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -167,6 +168,12 @@ public class LeaderRetrievalUtils {
 				LOG.warn("Could not stop the leader retrieval service.", fe);
 			}
 		}
+	}
+
+	public static InetAddress findConnectingAddress(
+		LeaderRetrievalService leaderRetrievalService,
+		Time timeout) throws LeaderRetrievalException {
+		return findConnectingAddress(leaderRetrievalService, new FiniteDuration(timeout.getSize(), timeout.getUnit()));
 	}
 
 	public static InetAddress findConnectingAddress(
