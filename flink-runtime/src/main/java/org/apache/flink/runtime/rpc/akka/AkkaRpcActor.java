@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 
+import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,11 +87,11 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 			unstashAll();
 			getContext().become(new Procedure<Object>() {
 				@Override
-				public void apply(Object message) throws Exception {
-					if (message.equals(Processing.STOP)) {
+				public void apply(Object msg) throws Exception {
+					if (msg.equals(Processing.STOP)) {
 						getContext().unbecome();
 					} else {
-						handleMessage(message);
+						handleMessage(msg);
 					}
 				}
 			});
@@ -130,21 +131,36 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	 * @param rpcInvocation Rpc invocation message
 	 */
 	private void handleRpcInvocation(RpcInvocation rpcInvocation) {
+		Method rpcMethod = null;
+
 		try {
 			String methodName = rpcInvocation.getMethodName();
 			Class<?>[] parameterTypes = rpcInvocation.getParameterTypes();
 
-			Method rpcMethod = lookupRpcMethod(methodName, parameterTypes);
+			rpcMethod = lookupRpcMethod(methodName, parameterTypes);
+		} catch(ClassNotFoundException e) {
+			LOG.error("Could not load method arguments.", e);
 
-			if (rpcMethod.getReturnType().equals(Void.TYPE)) {
-				// No return value to send back
-				try {
+			RpcConnectionException rpcException = new RpcConnectionException("Could not load method arguments.", e);
+			getSender().tell(new Status.Failure(rpcException), getSelf());
+		} catch (IOException e) {
+			LOG.error("Could not deserialize rpc invocation message.", e);
+
+			RpcConnectionException rpcException = new RpcConnectionException("Could not deserialize rpc invocation message.", e);
+			getSender().tell(new Status.Failure(rpcException), getSelf());
+		} catch (final NoSuchMethodException e) {
+			LOG.error("Could not find rpc method for rpc invocation.", e);
+
+			RpcConnectionException rpcException = new RpcConnectionException("Could not find rpc method for rpc invocation.", e);
+			getSender().tell(new Status.Failure(rpcException), getSelf());
+		}
+
+		if (rpcMethod != null) {
+			try {
+				if (rpcMethod.getReturnType().equals(Void.TYPE)) {
+					// No return value to send back
 					rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
-				} catch (Throwable e) {
-					LOG.error("Error while executing remote procedure call {}.", rpcMethod, e);
-				}
-			} else {
-				try {
+				} else {
 					Object result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
 
 					if (result instanceof Future) {
@@ -169,17 +185,12 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 						// tell the sender the result of the computation
 						getSender().tell(new Status.Success(result), getSelf());
 					}
-				} catch (Throwable e) {
-					// tell the sender about the failure
-					getSender().tell(new Status.Failure(e), getSelf());
 				}
+			} catch (Throwable e) {
+				LOG.error("Error while executing remote procedure call {}.", rpcMethod, e);
+				// tell the sender about the failure
+				getSender().tell(new Status.Failure(e), getSelf());
 			}
-		} catch(ClassNotFoundException e) {
-			LOG.error("Could not load method arguments.", e);
-		} catch (IOException e) {
-			LOG.error("Could not deserialize rpc invocation message.", e);
-		} catch (final NoSuchMethodException e) {
-			LOG.error("Could not find rpc method for rpc invocation: {}.", rpcInvocation, e);
 		}
 	}
 
