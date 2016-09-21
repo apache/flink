@@ -174,6 +174,62 @@ public abstract class FieldParser<T> {
 	public ParseErrorState getErrorState() {
 		return this.errorState;
 	}
+
+	/**
+	 * Returns the end position of a string with a numeric format (like XXXX-XX-XX). Sets the error state if the
+	 * string contains leading/trailing whitespaces or if the column is empty.
+	 *
+	 * @return the end position of the string or -1 if an error occurred
+	 */
+	public final int formattedStringEndPos(byte[] bytes, int startPos, int limit, byte[] delimiter) {
+		int len = startPos;
+
+		final int delimLimit = limit - delimiter.length + 1;
+
+		while (len < limit) {
+			if (len < delimLimit && delimiterNext(bytes, len, delimiter)) {
+				if (len == startPos) {
+					setErrorState(ParseErrorState.EMPTY_COLUMN);
+					return -1;
+				}
+				break;
+			}
+			len++;
+		}
+
+		if (len > startPos &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(len - 1)]))) {
+			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
+			return -1;
+		}
+
+		return len;
+	}
+
+	/**
+	 * Returns a string with a numeric format (like XXXX-XX-XX). Throws an exception if the
+	 * string contains leading/trailing whitespaces or if the column is empty.
+	 *
+	 * @return the parsed string
+	 */
+	public static final String formattedString(byte[] bytes, int startPos, int length, char delimiter) {
+		if (length <= 0) {
+			throw new NumberFormatException("Invalid input: Empty string");
+		}
+		int i = 0;
+		final byte delByte = (byte) delimiter;
+
+		while (i < length && bytes[startPos + i] != delByte) {
+			i++;
+		}
+
+		if (i > 0 &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + i - 1]))) {
+			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
+		}
+
+		return new String(bytes, startPos, i);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Mapping from types to parsers

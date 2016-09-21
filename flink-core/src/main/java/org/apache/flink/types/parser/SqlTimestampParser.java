@@ -34,31 +34,15 @@ public class SqlTimestampParser extends FieldParser<Timestamp> {
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Timestamp reusable) {
-		int i = startPos;
-
-		final int delimLimit = limit - delimiter.length + 1;
-
-		while (i < limit) {
-			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
-				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_STRING);
-					return -1;
-				}
-				break;
-			}
-			i++;
-		}
-
-		if (i > startPos &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(i - 1)]))) {
-			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
+		final int endPos = formattedStringEndPos(bytes, startPos, limit, delimiter);
+		if (endPos < 0) {
 			return -1;
 		}
 
-		String str = new String(bytes, startPos, i - startPos);
+		String str = new String(bytes, startPos, endPos - startPos);
 		try {
 			this.result = Timestamp.valueOf(str);
-			return (i == limit) ? limit : i + delimiter.length;
+			return (endPos == limit) ? limit : endPos + delimiter.length;
 		} catch (IllegalArgumentException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
@@ -105,22 +89,7 @@ public class SqlTimestampParser extends FieldParser<Timestamp> {
 	 * represents not a correct number.
 	 */
 	public static final Timestamp parseField(byte[] bytes, int startPos, int length, char delimiter) {
-		if (length <= 0) {
-			throw new NumberFormatException("Invalid input: Empty string");
-		}
-		int i = 0;
-		final byte delByte = (byte) delimiter;
-
-		while (i < length && bytes[startPos + i] != delByte) {
-			i++;
-		}
-
-		if (i > 0 &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + i - 1]))) {
-			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
-		}
-
-		String str = new String(bytes, startPos, i);
+		final String str = formattedString(bytes, startPos, length, delimiter);
 		try {
 			return Timestamp.valueOf(str);
 		}

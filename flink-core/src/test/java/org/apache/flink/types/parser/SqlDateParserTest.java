@@ -43,7 +43,7 @@ public class SqlDateParserTest extends ParserTestBase<Date> {
 	public String[] getInvalidTestValues() {
 		return new String[] {
 			" 2013-08-12", "2013-08-12 ", "2013-08--12", "13-08-12", "2013/08/12", " ", "\t",
-			"2013-XX-XX"
+			"2013-XX-XX", "2000-02-35"
 		};
 	}
 

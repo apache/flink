@@ -35,29 +35,13 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, BigDecimal reusable) {
-		int i = startPos;
-
-		final int delimLimit = limit - delimiter.length + 1;
-
-		while (i < limit) {
-			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
-				if (i == startPos) {
-					setErrorState(ParseErrorState.EMPTY_COLUMN);
-					return -1;
-				}
-				break;
-			}
-			i++;
-		}
-
-		if (i > startPos &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(i - 1)]))) {
-			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
+		final int endPos = formattedStringEndPos(bytes, startPos, limit, delimiter);
+		if (endPos < 0) {
 			return -1;
 		}
 
 		try {
-			final int length = i - startPos;
+			final int length = endPos - startPos;
 			if (reuse == null || reuse.length < length) {
 				reuse = new char[length];
 			}
@@ -70,7 +54,7 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 			}
 
 			this.result = new BigDecimal(reuse, 0, length);
-			return (i == limit) ? limit : i + delimiter.length;
+			return (endPos == limit) ? limit : endPos + delimiter.length;
 		} catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
