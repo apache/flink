@@ -182,11 +182,7 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 
 		assertNotNull("The ZooKeeper for the HBase minicluster is missing", TEST_UTIL.getZkCluster());
 
-		// Make sure the zookeeper quorum value contains the right port number (varies per run).
-		String zookeeperQuorum = "localhost:" + TEST_UTIL.getZkCluster().getClientPort();
-		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", zookeeperQuorum);
-
-		createHBaseSiteXml(hbaseSiteXmlDirectory, zookeeperQuorum);
+		createHBaseSiteXml(hbaseSiteXmlDirectory, TEST_UTIL.getConfiguration().get("hbase.zookeeper.quorum"));
 		addDirectoryToClassPath(hbaseSiteXmlDirectory);
 	}
 
