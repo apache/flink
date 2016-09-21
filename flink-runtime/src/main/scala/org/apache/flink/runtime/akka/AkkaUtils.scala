@@ -94,6 +94,10 @@ object AkkaUtils {
     createActorSystem(getDefaultAkkaConfig)
   }
 
+  def getAkkaConfig(configuration: Configuration, hostname: String, port: Int): Config = {
+    getAkkaConfig(configuration, if (hostname == null) Some((hostname, port)) else None)
+  }
+
   /**
    * Creates an akka config with the provided configuration values. If the listening address is
    * specified, then the actor system will listen on the respective address.

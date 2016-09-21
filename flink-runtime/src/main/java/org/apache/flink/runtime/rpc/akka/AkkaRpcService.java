@@ -93,6 +93,8 @@ public class AkkaRpcService implements RpcService {
 
 		Address actorSystemAddress = AkkaUtils.getAddress(actorSystem);
 
+
+
 		if (actorSystemAddress.host().isDefined()) {
 			address = actorSystemAddress.host().get();
 		} else {
