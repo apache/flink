@@ -26,11 +26,13 @@ import akka.actor.Identify;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.dispatch.Mapper;
-import akka.pattern.AskableActorSelection;
-import akka.util.Timeout;
 
+import akka.pattern.Patterns;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.rpc.MainThreadExecutor;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -39,8 +41,6 @@ import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -48,6 +48,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -68,13 +69,13 @@ public class AkkaRpcService implements RpcService {
 	private final Object lock = new Object();
 
 	private final ActorSystem actorSystem;
-	private final Timeout timeout;
+	private final Time timeout;
 	private final Set<ActorRef> actors = new HashSet<>(4);
 	private final long maximumFramesize;
 
 	private volatile boolean stopped;
 
-	public AkkaRpcService(final ActorSystem actorSystem, final Timeout timeout) {
+	public AkkaRpcService(final ActorSystem actorSystem, final Time timeout) {
 		this.actorSystem = checkNotNull(actorSystem, "actor system");
 		this.timeout = checkNotNull(timeout, "timeout");
 
@@ -95,10 +96,9 @@ public class AkkaRpcService implements RpcService {
 				address, clazz.getName());
 
 		final ActorSelection actorSel = actorSystem.actorSelection(address);
-		final AskableActorSelection asker = new AskableActorSelection(actorSel);
 
-		final Future<Object> identify = asker.ask(new Identify(42), timeout);
-		return identify.map(new Mapper<Object, C>(){
+		final scala.concurrent.Future<Object> identify = Patterns.ask(actorSel, new Identify(42), timeout.toMilliseconds());
+		final scala.concurrent.Future<C> resultFuture = identify.map(new Mapper<Object, C>(){
 			@Override
 			public C checkedApply(Object obj) throws Exception {
 
@@ -128,6 +128,8 @@ public class AkkaRpcService implements RpcService {
 				}
 			}
 		}, actorSystem.dispatcher());
+
+		return new FlinkFuture<>(resultFuture);
 	}
 
 	@Override
@@ -159,7 +161,7 @@ public class AkkaRpcService implements RpcService {
 			classLoader,
 			new Class<?>[]{
 				rpcEndpoint.getSelfGatewayType(),
-				MainThreadExecutor.class,
+				MainThreadExecutable.class,
 				StartStoppable.class,
 				AkkaGateway.class},
 			akkaInvocationHandler);
@@ -209,7 +211,7 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public ExecutionContext getExecutionContext() {
+	public Executor getExecutor() {
 		return actorSystem.dispatcher();
 	}
 
@@ -219,6 +221,6 @@ public class AkkaRpcService implements RpcService {
 		checkNotNull(unit, "unit");
 		checkArgument(delay >= 0, "delay must be zero or larger");
 
-		actorSystem.scheduler().scheduleOnce(new FiniteDuration(delay, unit), runnable, getExecutionContext());
+		actorSystem.scheduler().scheduleOnce(new FiniteDuration(delay, unit), runnable, actorSystem.dispatcher());
 	}
 }

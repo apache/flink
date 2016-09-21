@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.ReflectionUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.reflections.Reflections;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -43,6 +43,7 @@ import static org.junit.Assert.fail;
 public class RpcCompletenessTest extends TestLogger {
 
 	private static final Class<?> futureClass = Future.class;
+	private static final Class<?> timeoutClass = Time.class;
 
 	@Test
 	@SuppressWarnings({"rawtypes", "unchecked"})
@@ -147,8 +148,8 @@ public class RpcCompletenessTest extends TestLogger {
 		for (int i = 0; i < parameterAnnotations.length; i++) {
 			if (RpcCompletenessTest.isRpcTimeout(parameterAnnotations[i])) {
 				assertTrue(
-					"The rpc timeout has to be of type " + FiniteDuration.class.getName() + ".",
-					parameterTypes[i].equals(FiniteDuration.class));
+					"The rpc timeout has to be of type " + timeoutClass.getName() + ".",
+					parameterTypes[i].equals(timeoutClass));
 
 				rpcTimeoutParameters++;
 			}

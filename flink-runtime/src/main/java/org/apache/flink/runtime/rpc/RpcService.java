@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
 
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -68,23 +68,22 @@ public interface RpcService {
 	void stopService();
 
 	/**
-	 * Gets the execution context, provided by this RPC service. This execution
-	 * context can be used for example for the {@code onComplete(...)} or {@code onSuccess(...)}
-	 * methods of Futures.
+	 * Gets the executor, provided by this RPC service. This executor can be used for example for
+	 * the {@code handleAsync(...)} or {@code thenAcceptAsync(...)} methods of futures.
 	 * 
-	 * <p><b>IMPORTANT:</b> This execution context does not isolate the method invocations against
+	 * <p><b>IMPORTANT:</b> This executor does not isolate the method invocations against
 	 * any concurrent invocations and is therefore not suitable to run completion methods of futures
 	 * that modify state of an {@link RpcEndpoint}. For such operations, one needs to use the
-	 * {@link RpcEndpoint#getMainThreadExecutionContext() MainThreadExecutionContext} of that
+	 * {@link RpcEndpoint#getMainThreadExecutor() MainThreadExecutionContext} of that
 	 * {@code RpcEndpoint}.
 	 * 
 	 * @return The execution context provided by the RPC service
 	 */
-	ExecutionContext getExecutionContext();
+	Executor getExecutor();
 
 	/**
 	 * Execute the runnable in the execution context of this RPC Service, as returned by
-	 * {@link #getExecutionContext()}, after a scheduled delay.
+	 * {@link #getExecutor()}, after a scheduled delay.
 	 *
 	 * @param runnable Runnable to be executed
 	 * @param delay    The delay after which the runnable will be executed
