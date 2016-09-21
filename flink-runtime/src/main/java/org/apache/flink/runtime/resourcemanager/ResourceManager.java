@@ -18,12 +18,11 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import akka.dispatch.Futures;
-import akka.dispatch.Mapper;
-
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ApplyFunction;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -38,7 +37,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Future;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -126,10 +124,9 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> impleme
 			getRpcService().connect(jobMasterRegistration.getAddress(), JobMasterGateway.class);
 		final JobID jobID = jobMasterRegistration.getJobID();
 
-		return jobMasterFuture.map(new Mapper<JobMasterGateway, RegistrationResponse>() {
+		return jobMasterFuture.thenApplyAsync(new ApplyFunction<JobMasterGateway, RegistrationResponse>() {
 			@Override
-			public RegistrationResponse apply(final JobMasterGateway jobMasterGateway) {
-
+			public RegistrationResponse apply(JobMasterGateway jobMasterGateway) {
 				final JobMasterGateway existingGateway = jobMasterGateways.put(jobID, jobMasterGateway);
 				if (existingGateway != null) {
 					LOG.info("Replacing existing gateway {} for JobID {} with  {}.",
@@ -137,7 +134,7 @@ public class ResourceManager extends RpcEndpoint<ResourceManagerGateway> impleme
 				}
 				return new RegistrationResponse(true);
 			}
-		}, getMainThreadExecutionContext());
+		}, getMainThreadExecutor());
 	}
 
 	/**

@@ -20,9 +20,11 @@ package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
-import akka.util.Timeout;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.rpc.MainThreadExecutor;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
@@ -34,9 +36,6 @@ import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 import org.apache.flink.util.Preconditions;
 import org.apache.log4j.Logger;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -53,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * rpc in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
  * executed.
  */
-class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutor, StartStoppable {
+class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutable, StartStoppable {
 	private static final Logger LOG = Logger.getLogger(AkkaInvocationHandler.class);
 
 	private final String address;
@@ -64,11 +63,11 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	private final boolean isLocal;
 
 	// default timeout for asks
-	private final Timeout timeout;
+	private final Time timeout;
 
 	private final long maximumFramesize;
 
-	AkkaInvocationHandler(String address, ActorRef rpcEndpoint, Timeout timeout, long maximumFramesize) {
+	AkkaInvocationHandler(String address, ActorRef rpcEndpoint, Time timeout, long maximumFramesize) {
 		this.address = Preconditions.checkNotNull(address);
 		this.rpcEndpoint = Preconditions.checkNotNull(rpcEndpoint);
 		this.isLocal = this.rpcEndpoint.path().address().hasLocalScope();
@@ -82,7 +81,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 		Object result;
 
-		if (declaringClass.equals(AkkaGateway.class) || declaringClass.equals(MainThreadExecutor.class) ||
+		if (declaringClass.equals(AkkaGateway.class) || declaringClass.equals(MainThreadExecutable.class) ||
 			declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class) ||
 			declaringClass.equals(RpcGateway.class)) {
 			result = method.invoke(this, args);
@@ -90,7 +89,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 			String methodName = method.getName();
 			Class<?>[] parameterTypes = method.getParameterTypes();
 			Annotation[][] parameterAnnotations = method.getParameterAnnotations();
-			Timeout futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
+			Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
 
 			Tuple2<Class<?>[], Object[]> filteredArguments = filterArguments(
 				parameterTypes,
@@ -130,13 +129,14 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 				result = null;
 			} else if (returnType.equals(Future.class)) {
 				// execute an asynchronous call
-				result = Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout);
+				result = new FlinkFuture<>(Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout.toMilliseconds()));
 			} else {
 				// execute a synchronous call
-				Future<?> futureResult = Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout);
-				FiniteDuration duration = timeout.duration();
+				scala.concurrent.Future<?> scalaFuture = Patterns.ask(rpcEndpoint, rpcInvocation, futureTimeout.toMilliseconds());
 
-				result = Await.result(futureResult, duration);
+				Future<?> futureResult = new FlinkFuture<>(scalaFuture);
+
+				return futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());
 			}
 		}
 
@@ -167,12 +167,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	}
 
 	@Override
-	public <V> Future<V> callAsync(Callable<V> callable, Timeout callTimeout) {
+	public <V> Future<V> callAsync(Callable<V> callable, Time callTimeout) {
 		if(isLocal) {
 			@SuppressWarnings("unchecked")
-			Future<V> result = (Future<V>) Patterns.ask(rpcEndpoint, new CallAsync(callable), callTimeout);
+			scala.concurrent.Future<V> result = (scala.concurrent.Future<V>) Patterns.ask(rpcEndpoint, new CallAsync(callable), callTimeout.toMilliseconds());
 
-			return result;
+			return new FlinkFuture<>(result);
 		} else {
 			throw new RuntimeException("Trying to send a Callable to a remote actor at " +
 				rpcEndpoint.path() + ". This is not supported.");
@@ -204,17 +204,17 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	 *                       has been found
 	 * @return Timeout extracted from the array of arguments or the default timeout
 	 */
-	private static Timeout extractRpcTimeout(Annotation[][] parameterAnnotations, Object[] args, Timeout defaultTimeout) {
+	private static Time extractRpcTimeout(Annotation[][] parameterAnnotations, Object[] args, Time defaultTimeout) {
 		if (args != null) {
 			Preconditions.checkArgument(parameterAnnotations.length == args.length);
 
 			for (int i = 0; i < parameterAnnotations.length; i++) {
 				if (isRpcTimeout(parameterAnnotations[i])) {
-					if (args[i] instanceof FiniteDuration) {
-						return new Timeout((FiniteDuration) args[i]);
+					if (args[i] instanceof Time) {
+						return (Time) args[i];
 					} else {
 						throw new RuntimeException("The rpc timeout parameter must be of type " +
-							FiniteDuration.class.getName() + ". The type " + args[i].getClass().getName() +
+							Time.class.getName() + ". The type " + args[i].getClass().getName() +
 							" is not supported.");
 					}
 				}

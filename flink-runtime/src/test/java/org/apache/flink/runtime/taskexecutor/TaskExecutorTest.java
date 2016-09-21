@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.NonHaServices;
@@ -28,8 +29,6 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
 
@@ -56,7 +55,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManager.start();
 
 			verify(rmGateway, timeout(5000)).registerTaskExecutor(
-					any(UUID.class), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
+					any(UUID.class), eq(taskManagerAddress), eq(resourceID), any(Time.class));
 		}
 		finally {
 			rpc.stopService();
@@ -97,7 +96,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address1, leaderId1);
 
 			verify(rmGateway1, timeout(5000)).registerTaskExecutor(
-					eq(leaderId1), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
+					eq(leaderId1), eq(taskManagerAddress), eq(resourceID), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// cancel the leader 
@@ -107,7 +106,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address2, leaderId2);
 
 			verify(rmGateway2, timeout(5000)).registerTaskExecutor(
-					eq(leaderId2), eq(taskManagerAddress), eq(resourceID), any(FiniteDuration.class));
+					eq(leaderId2), eq(taskManagerAddress), eq(resourceID), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 		}
 		finally {

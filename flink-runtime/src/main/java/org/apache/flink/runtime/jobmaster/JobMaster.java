@@ -36,7 +36,7 @@ import java.util.UUID;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single
- * {@link org.apache.flink.runtime.jobgraph.JobGraph}.
+ * {@link JobGraph}.
  * <p>
  * It offers the following methods as part of its rpc interface to interact with the JobMaster
  * remotely:
