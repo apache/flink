@@ -18,16 +18,15 @@
 
 package org.apache.flink.runtime.rpc;
 
-import akka.util.Timeout;
-
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ReflectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
-
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -49,8 +48,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * thread, we don't have to reason about concurrent accesses, in the same way in the Actor Model
  * of Erlang or Akka.
  *
- * <p>The RPC endpoint provides provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Timeout)}
-  * and the {@link #getMainThreadExecutionContext()} to execute code in the RPC endoint's main thread.
+ * <p>The RPC endpoint provides provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)}
+  * and the {@link #getMainThreadExecutor()} to execute code in the RPC endoint's main thread.
  *
  * @param <C> The RPC gateway counterpart for the implementing RPC endpoint
  */
@@ -69,9 +68,9 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	/** Self gateway which can be used to schedule asynchronous calls on yourself */
 	private final C self;
 
-	/** The main thread execution context to be used to execute future callbacks in the main thread
+	/** The main thread executor to be used to execute future callbacks in the main thread
 	 * of the executing rpc server. */
-	private final ExecutionContext mainThreadExecutionContext;
+	private final Executor mainThreadExecutor;
 
 	/** A reference to the endpoint's main thread, if the current method is called by the main thread */
 	final AtomicReference<Thread> currentMainThread = new AtomicReference<>(null); 
@@ -89,7 +88,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 		this.selfGatewayType = ReflectionUtil.getTemplateType1(getClass());
 		this.self = rpcService.startServer(this);
 		
-		this.mainThreadExecutionContext = new MainThreadExecutionContext((MainThreadExecutor) self);
+		this.mainThreadExecutor = new MainThreadExecutor((MainThreadExecutable) self);
 	}
 
 	/**
@@ -120,7 +119,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * Shuts down the underlying RPC endpoint via the RPC service.
 	 * After this method was called, the RPC endpoint will no longer be reachable, neither remotely,
 	 * not via its {@link #getSelf() self gateway}. It will also not accepts executions in main thread
-	 * any more (via {@link #callAsync(Callable, Timeout)} and {@link #runAsync(Runnable)}).
+	 * any more (via {@link #callAsync(Callable, Time)} and {@link #runAsync(Runnable)}).
 	 * 
 	 * <p>This method can be overridden to add RPC endpoint specific shut down code.
 	 * The overridden method should always call the parent shut down method.
@@ -161,8 +160,8 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 *
 	 * @return Main thread execution context
 	 */
-	protected ExecutionContext getMainThreadExecutionContext() {
-		return mainThreadExecutionContext;
+	protected Executor getMainThreadExecutor() {
+		return mainThreadExecutor;
 	}
 
 	/**
@@ -185,7 +184,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @param runnable Runnable to be executed in the main thread of the underlying RPC endpoint
 	 */
 	protected void runAsync(Runnable runnable) {
-		((MainThreadExecutor) self).runAsync(runnable);
+		((MainThreadExecutable) self).runAsync(runnable);
 	}
 
 	/**
@@ -196,7 +195,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @param delay    The delay after which the runnable will be executed
 	 */
 	protected void scheduleRunAsync(Runnable runnable, long delay, TimeUnit unit) {
-		((MainThreadExecutor) self).scheduleRunAsync(runnable, unit.toMillis(delay));
+		((MainThreadExecutable) self).scheduleRunAsync(runnable, unit.toMillis(delay));
 	}
 
 	/**
@@ -209,8 +208,8 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 * @param <V> Return type of the callable
 	 * @return Future for the result of the callable.
 	 */
-	protected <V> Future<V> callAsync(Callable<V> callable, Timeout timeout) {
-		return ((MainThreadExecutor) self).callAsync(callable, timeout);
+	protected <V> Future<V> callAsync(Callable<V> callable, Time timeout) {
+		return ((MainThreadExecutable) self).callAsync(callable, timeout);
 	}
 
 	// ------------------------------------------------------------------------
@@ -241,36 +240,19 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * Execution context which executes runnables in the main thread context. A reported failure
-	 * will cause the underlying rpc server to shut down.
+	 * Executor which executes runnables in the main thread context.
 	 */
-	private class MainThreadExecutionContext implements ExecutionContext {
+	private class MainThreadExecutor implements Executor {
 
-		private final MainThreadExecutor gateway;
+		private final MainThreadExecutable gateway;
 
-		MainThreadExecutionContext(MainThreadExecutor gateway) {
-			this.gateway = gateway;
+		MainThreadExecutor(MainThreadExecutable gateway) {
+			this.gateway = Preconditions.checkNotNull(gateway);
 		}
 
 		@Override
 		public void execute(Runnable runnable) {
 			gateway.runAsync(runnable);
-		}
-
-		@Override
-		public void reportFailure(final Throwable t) {
-			gateway.runAsync(new Runnable() {
-				@Override
-				public void run() {
-					log.error("Encountered failure in the main thread execution context.", t);
-					shutDown();
-				}
-			});
-		}
-
-		@Override
-		public ExecutionContext prepare() {
-			return this;
 		}
 	}
 }

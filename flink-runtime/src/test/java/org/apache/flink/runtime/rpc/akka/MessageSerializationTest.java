@@ -19,10 +19,11 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorSystem;
-import akka.util.Timeout;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcMethod;
@@ -32,13 +33,9 @@ import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -52,7 +49,7 @@ public class MessageSerializationTest extends TestLogger {
 	private static AkkaRpcService akkaRpcService1;
 	private static AkkaRpcService akkaRpcService2;
 
-	private static final FiniteDuration timeout = new FiniteDuration(10L, TimeUnit.SECONDS);
+	private static final Time timeout = Time.seconds(10L);
 	private static final int maxFrameSize = 32000;
 
 	@BeforeClass
@@ -63,8 +60,8 @@ public class MessageSerializationTest extends TestLogger {
 		actorSystem1 = AkkaUtils.createActorSystem(modifiedAkkaConfig);
 		actorSystem2 = AkkaUtils.createActorSystem(modifiedAkkaConfig);
 
-		akkaRpcService1 = new AkkaRpcService(actorSystem1, new Timeout(timeout));
-		akkaRpcService2 = new AkkaRpcService(actorSystem2, new Timeout(timeout));
+		akkaRpcService1 = new AkkaRpcService(actorSystem1, timeout);
+		akkaRpcService2 = new AkkaRpcService(actorSystem2, timeout);
 	}
 
 	@AfterClass
@@ -113,7 +110,7 @@ public class MessageSerializationTest extends TestLogger {
 
 		Future<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
 
-		TestGateway remoteGateway = Await.result(remoteGatewayFuture, timeout);
+		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
 		remoteGateway.foobar(new Object());
 
@@ -134,7 +131,7 @@ public class MessageSerializationTest extends TestLogger {
 
 		Future<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
 
-		TestGateway remoteGateway = Await.result(remoteGatewayFuture, timeout);
+		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
 		int expected = 42;
 
@@ -158,7 +155,7 @@ public class MessageSerializationTest extends TestLogger {
 
 		Future<TestGateway> remoteGatewayFuture = akkaRpcService2.connect(address, TestGateway.class);
 
-		TestGateway remoteGateway = Await.result(remoteGatewayFuture, timeout);
+		TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
 
 		int bufferSize = maxFrameSize + 1;
 		byte[] buffer = new byte[bufferSize];

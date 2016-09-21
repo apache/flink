@@ -18,18 +18,14 @@
 
 package org.apache.flink.runtime.rpc;
 
-import akka.dispatch.Futures;
-import akka.util.Timeout;
-
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
-
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -69,7 +65,7 @@ public class TestingRpcService extends AkkaRpcService {
 	 * Creates a new {@code TestingRpcService}, using the given configuration. 
 	 */
 	public TestingRpcService(Configuration configuration) {
-		super(AkkaUtils.createLocalActorSystem(configuration), new Timeout(new FiniteDuration(10, TimeUnit.SECONDS)));
+		super(AkkaUtils.createLocalActorSystem(configuration), Time.seconds(10));
 
 		this.registeredConnections = new ConcurrentHashMap<>();
 	}
@@ -103,13 +99,13 @@ public class TestingRpcService extends AkkaRpcService {
 			if (clazz.isAssignableFrom(gateway.getClass())) {
 				@SuppressWarnings("unchecked")
 				C typedGateway = (C) gateway;
-				return Futures.successful(typedGateway);
+				return FlinkCompletableFuture.completed(typedGateway);
 			} else {
-				return Futures.failed(
-						new Exception("Gateway registered under " + address + " is not of type " + clazz));
+				return FlinkCompletableFuture.completedExceptionally(
+					new Exception("Gateway registered under " + address + " is not of type " + clazz));
 			}
 		} else {
-			return Futures.failed(new Exception("No gateway registered under that name"));
+			return FlinkCompletableFuture.completedExceptionally(new Exception("No gateway registered under that name"));
 		}
 	}
 

@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.jobmaster.JobMaster;
-
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
 
@@ -42,7 +41,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 */
 	Future<RegistrationResponse> registerJobMaster(
 		JobMasterRegistration jobMasterRegistration,
-		@RpcTimeout FiniteDuration timeout);
+		@RpcTimeout Time timeout);
 
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
@@ -73,5 +72,5 @@ public interface ResourceManagerGateway extends RpcGateway {
 			UUID resourceManagerLeaderId,
 			String taskExecutorAddress,
 			ResourceID resourceID,
-			@RpcTimeout FiniteDuration timeout);
+			@RpcTimeout Time timeout);
 }

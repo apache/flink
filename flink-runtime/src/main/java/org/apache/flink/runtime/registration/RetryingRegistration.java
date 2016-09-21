@@ -18,18 +18,16 @@
 
 package org.apache.flink.runtime.registration;
 
-import akka.dispatch.OnFailure;
-import akka.dispatch.OnSuccess;
-
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.concurrent.AcceptFunction;
+import org.apache.flink.runtime.concurrent.ApplyFunction;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import org.slf4j.Logger;
-
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
-import scala.concurrent.impl.Promise.DefaultPromise;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -86,7 +84,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 
 	private final UUID leaderId;
 
-	private final Promise<Tuple2<Gateway, Success>> completionPromise;
+	private final CompletableFuture<Tuple2<Gateway, Success>> completionFuture;
 
 	private final long initialRegistrationTimeout;
 
@@ -140,7 +138,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 		this.delayOnError = delayOnError;
 		this.delayOnRefusedRegistration = delayOnRefusedRegistration;
 
-		this.completionPromise = new DefaultPromise<>();
+		this.completionFuture = new FlinkCompletableFuture<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -148,7 +146,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	// ------------------------------------------------------------------------
 
 	public Future<Tuple2<Gateway, Success>> getFuture() {
-		return completionPromise.future();
+		return completionFuture;
 	}
 
 	/**
@@ -184,28 +182,30 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			Future<Gateway> resourceManagerFuture = rpcService.connect(targetAddress, targetType);
 	
 			// upon success, start the registration attempts
-			resourceManagerFuture.onSuccess(new OnSuccess<Gateway>() {
+			resourceManagerFuture.thenAcceptAsync(new AcceptFunction<Gateway>() {
 				@Override
-				public void onSuccess(Gateway result) {
+				public void accept(Gateway result) {
 					log.info("Resolved {} address, beginning registration", targetName);
 					register(result, 1, initialRegistrationTimeout);
 				}
-			}, rpcService.getExecutionContext());
-	
+			}, rpcService.getExecutor());
+
 			// upon failure, retry, unless this is cancelled
-			resourceManagerFuture.onFailure(new OnFailure() {
+			resourceManagerFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 				@Override
-				public void onFailure(Throwable failure) {
+				public Void apply(Throwable failure) {
 					if (!isCanceled()) {
 						log.warn("Could not resolve {} address {}, retrying...", targetName, targetAddress, failure);
 						startRegistration();
 					}
+
+					return null;
 				}
-			}, rpcService.getExecutionContext());
+			}, rpcService.getExecutor());
 		}
 		catch (Throwable t) {
 			cancel();
-			completionPromise.tryFailure(t);
+			completionFuture.completeExceptionally(t);
 		}
 	}
 
@@ -225,15 +225,14 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			Future<RegistrationResponse> registrationFuture = invokeRegistration(gateway, leaderId, timeoutMillis);
 	
 			// if the registration was successful, let the TaskExecutor know
-			registrationFuture.onSuccess(new OnSuccess<RegistrationResponse>() {
-				
+			registrationFuture.thenAcceptAsync(new AcceptFunction<RegistrationResponse>() {
 				@Override
-				public void onSuccess(RegistrationResponse result) throws Throwable {
+				public void accept(RegistrationResponse result) {
 					if (!isCanceled()) {
 						if (result instanceof RegistrationResponse.Success) {
 							// registration successful!
 							Success success = (Success) result;
-							completionPromise.success(new Tuple2<>(gateway, success));
+							completionFuture.complete(Tuple2.of(gateway, success));
 						}
 						else {
 							// registration refused or unknown
@@ -241,7 +240,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 								RegistrationResponse.Decline decline = (RegistrationResponse.Decline) result;
 								log.info("Registration at {} was declined: {}", targetName, decline.getReason());
 							} else {
-								log.error("Received unknown response to registration attempt: " + result);
+								log.error("Received unknown response to registration attempt: {}", result);
 							}
 
 							log.info("Pausing and re-attempting registration in {} ms", delayOnRefusedRegistration);
@@ -249,12 +248,12 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 						}
 					}
 				}
-			}, rpcService.getExecutionContext());
+			}, rpcService.getExecutor());
 	
 			// upon failure, retry
-			registrationFuture.onFailure(new OnFailure() {
+			registrationFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 				@Override
-				public void onFailure(Throwable failure) {
+				public Void apply(Throwable failure) {
 					if (!isCanceled()) {
 						if (failure instanceof TimeoutException) {
 							// we simply have not received a response in time. maybe the timeout was
@@ -262,26 +261,28 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 							// currently down.
 							if (log.isDebugEnabled()) {
 								log.debug("Registration at {} ({}) attempt {} timed out after {} ms",
-										targetName, targetAddress, attempt, timeoutMillis);
+									targetName, targetAddress, attempt, timeoutMillis);
 							}
-	
+
 							long newTimeoutMillis = Math.min(2 * timeoutMillis, maxRegistrationTimeout);
 							register(gateway, attempt + 1, newTimeoutMillis);
 						}
 						else {
 							// a serious failure occurred. we still should not give up, but keep trying
-							log.error("Registration at " + targetName + " failed due to an error", failure);
+							log.error("Registration at {} failed due to an error", targetName, failure);
 							log.info("Pausing and re-attempting registration in {} ms", delayOnError);
-	
+
 							registerLater(gateway, 1, initialRegistrationTimeout, delayOnError);
 						}
 					}
+
+					return null;
 				}
-			}, rpcService.getExecutionContext());
+			}, rpcService.getExecutor());
 		}
 		catch (Throwable t) {
 			cancel();
-			completionPromise.tryFailure(t);
+			completionFuture.completeExceptionally(t);
 		}
 	}
 

@@ -18,10 +18,12 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.NonHaServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.resourcemanager.JobMasterRegistration;
@@ -40,10 +42,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.Collections;
 import java.util.UUID;
@@ -99,7 +97,7 @@ public class SlotProtocolTest extends TestLogger {
 		Future<RegistrationResponse> registrationFuture =
 			resourceManager.registerJobMaster(new JobMasterRegistration(jmAddress, jobID));
 		try {
-			Await.ready(registrationFuture, Duration.create(5, TimeUnit.SECONDS));
+			registrationFuture.get(5, TimeUnit.SECONDS);
 		} catch (Exception e) {
 			Assert.fail("JobManager registration Future didn't become ready.");
 		}
@@ -141,7 +139,7 @@ public class SlotProtocolTest extends TestLogger {
 		slotManager.updateSlotStatus(slotReport);
 
 		// 4) Slot becomes available and TaskExecutor gets a SlotRequest
-		verify(taskExecutorGateway, timeout(5000)).requestSlot(eq(allocationID), any(UUID.class), any(FiniteDuration.class));
+		verify(taskExecutorGateway, timeout(5000)).requestSlot(eq(allocationID), any(UUID.class), any(Time.class));
 	}
 
 	/**
@@ -171,7 +169,7 @@ public class SlotProtocolTest extends TestLogger {
 		Future<RegistrationResponse> registrationFuture =
 			resourceManager.registerJobMaster(new JobMasterRegistration(jmAddress, jobID));
 		try {
-			Await.ready(registrationFuture, Duration.create(5, TimeUnit.SECONDS));
+			registrationFuture.get(5, TimeUnit.SECONDS);
 		} catch (Exception e) {
 			Assert.fail("JobManager registration Future didn't become ready.");
 		}
@@ -207,7 +205,7 @@ public class SlotProtocolTest extends TestLogger {
 
 
 		// 4) a SlotRequest is routed to the TaskExecutor
-		verify(taskExecutorGateway, timeout(5000)).requestSlot(eq(allocationID), any(UUID.class), any(FiniteDuration.class));
+		verify(taskExecutorGateway, timeout(5000)).requestSlot(eq(allocationID), any(UUID.class), any(Time.class));
 	}
 
 

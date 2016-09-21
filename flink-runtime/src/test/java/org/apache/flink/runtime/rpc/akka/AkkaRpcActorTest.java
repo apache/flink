@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorSystem;
-import akka.util.Timeout;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcMethod;
@@ -30,13 +31,12 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class AkkaRpcActorTest extends TestLogger {
@@ -47,7 +47,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 	private static ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 
-	private static Timeout timeout = new Timeout(10000, TimeUnit.MILLISECONDS);
+	private static Time timeout = Time.milliseconds(10000L);
 
 	private static AkkaRpcService akkaRpcService =
 		new AkkaRpcService(actorSystem, timeout);
@@ -69,7 +69,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		Future<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), DummyRpcGateway.class);
 
-		DummyRpcGateway rpcGateway = Await.result(futureRpcGateway, timeout.duration());
+		DummyRpcGateway rpcGateway = futureRpcGateway.get(timeout.getSize(), timeout.getUnit());
 
 		assertEquals(rpcEndpoint.getAddress(), rpcGateway.getAddress());
 	}
@@ -82,11 +82,12 @@ public class AkkaRpcActorTest extends TestLogger {
 		Future<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect("foobar", DummyRpcGateway.class);
 
 		try {
-			DummyRpcGateway gateway = Await.result(futureRpcGateway, timeout.duration());
+			DummyRpcGateway gateway = futureRpcGateway.get(timeout.getSize(), timeout.getUnit());
 
 			fail("The rpc connection resolution should have failed.");
-		} catch (RpcConnectionException exception) {
+		} catch (ExecutionException exception) {
 			// we're expecting a RpcConnectionException
+			assertTrue(exception.getCause() instanceof RpcConnectionException);
 		}
 	}
 
@@ -111,7 +112,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		// now process the rpc
 		rpcEndpoint.start();
 
-		Integer actualValue = Await.result(result, timeout.duration());
+		Integer actualValue = result.get(timeout.getSize(), timeout.getUnit());
 
 		assertThat("The new foobar value should have been returned.", actualValue, Is.is(expectedValue));
 
