@@ -35,7 +35,8 @@ import org.apache.flink.runtime.rpc.akka.messages.RemoteRpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 import org.apache.flink.util.Preconditions;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -53,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * executed.
  */
 class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutable, StartStoppable {
-	private static final Logger LOG = Logger.getLogger(AkkaInvocationHandler.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AkkaInvocationHandler.class);
 
 	private final String address;
 

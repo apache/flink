@@ -29,4 +29,4 @@ case class NetworkEnvironmentConfiguration(
     ioMode: IOMode,
     partitionRequestInitialBackoff : Int,
     partitionRequestMaxBackoff : Int,
-    nettyConfig: Option[NettyConfig] = None)
+    nettyConfig: NettyConfig = null)

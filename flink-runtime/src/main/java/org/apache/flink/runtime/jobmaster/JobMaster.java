@@ -54,8 +54,6 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -254,24 +252,25 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	public void startJob() {
 		log.info("Starting job {} ({}).", jobGraph.getName(), jobGraph.getJobID());
 
-		if (executionGraph != null) {
-			executionGraph = new ExecutionGraph(
-				ExecutionContext$.MODULE$.fromExecutor(executionContext),
-				jobGraph.getJobID(),
-				jobGraph.getName(),
-				jobGraph.getJobConfiguration(),
-				jobGraph.getSerializedExecutionConfig(),
-				new FiniteDuration(timeout.getSize(), timeout.getUnit()),
-				restartStrategy,
-				jobGraph.getUserJarBlobKeys(),
-				jobGraph.getClasspaths(),
-				userCodeLoader,
-				jobMetrics);
-		} else {
-			// TODO: update last active time in JobInfo
-		}
-
 		try {
+			if (executionGraph != null) {
+				executionGraph = new ExecutionGraph(
+						executionContext,
+						executionContext,
+						jobGraph.getJobID(),
+						jobGraph.getName(),
+						jobGraph.getJobConfiguration(),
+						jobGraph.getSerializedExecutionConfig(),
+						timeout,
+						restartStrategy,
+						jobGraph.getUserJarBlobKeys(),
+						jobGraph.getClasspaths(),
+						userCodeLoader,
+						jobMetrics);
+			} else {
+				// TODO: update last active time in JobInfo
+			}
+
 			executionGraph.setScheduleMode(jobGraph.getScheduleMode());
 			executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling());
 
@@ -350,17 +349,21 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 					checkpointStatsTracker = new SimpleCheckpointStatsTracker(historySize, ackVertices, jobMetrics);
 				}
 
+				String externalizedCheckpointsDir = configuration.getString(
+						ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
+
 				executionGraph.enableSnapshotCheckpointing(
 					snapshotSettings.getCheckpointInterval(),
 					snapshotSettings.getCheckpointTimeout(),
 					snapshotSettings.getMinPauseBetweenCheckpoints(),
 					snapshotSettings.getMaxConcurrentCheckpoints(),
+					snapshotSettings.getExternalizedCheckpointSettings(),
 					triggerVertices,
 					ackVertices,
 					confirmVertices,
 					checkpointIdCounter,
 					completedCheckpoints,
-					savepointStore,
+					externalizedCheckpointsDir,
 					checkpointStatsTracker);
 			}
 
@@ -480,9 +483,9 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 * @throws JobExecutionException
 	 */
 	private static List<ExecutionJobVertex> getExecutionJobVertexWithId(
-		final ExecutionGraph executionGraph, final List<JobVertexID> vertexIDs)
-		throws JobExecutionException
-	{
+			final ExecutionGraph executionGraph,
+			final List<JobVertexID> vertexIDs) throws JobExecutionException {
+
 		final List<ExecutionJobVertex> ret = new ArrayList<>(vertexIDs.size());
 		for (JobVertexID vertexID : vertexIDs) {
 			final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(vertexID);

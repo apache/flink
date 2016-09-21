@@ -1936,7 +1936,7 @@ object TaskManager {
       netConfig.networkBufferSize,
       netConfig.memoryType)
 
-    val connectionManager = netConfig.nettyConfig match {
+    val connectionManager = Option(netConfig.nettyConfig) match {
       case Some(nettyConfig) => new NettyConnectionManager(nettyConfig)
       case None => new LocalConnectionManager()
     }
@@ -2273,7 +2273,7 @@ object TaskManager {
       ioMode,
       initialRequestBackoff,
       maxRequestBackoff,
-      nettyConfig)
+      nettyConfig.getOrElse(null))
 
     // ----> timeouts, library caching, profiling
 
