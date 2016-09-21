@@ -60,6 +60,10 @@ public class FlinkFuture<T> implements Future<T> {
 		this.scalaFuture = Preconditions.checkNotNull(scalaFuture);
 	}
 
+	public scala.concurrent.Future<T> getScalaFuture() {
+		return scalaFuture;
+	}
+
 	//-----------------------------------------------------------------------------------
 	// Future's methods
 	//-----------------------------------------------------------------------------------

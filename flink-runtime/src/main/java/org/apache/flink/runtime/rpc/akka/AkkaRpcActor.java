@@ -21,8 +21,11 @@ package org.apache.flink.runtime.rpc.akka;
 import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.actor.UntypedActorWithStash;
+import akka.dispatch.Futures;
 import akka.japi.Procedure;
 import akka.pattern.Patterns;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -35,7 +38,6 @@ import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -146,8 +148,23 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 					Object result = rpcMethod.invoke(rpcEndpoint, rpcInvocation.getArgs());
 
 					if (result instanceof Future) {
+						final Future<?> future = (Future<?>) result;
+
 						// pipe result to sender
-						Patterns.pipe((Future<?>) result, getContext().dispatcher()).to(getSender());
+						if (future instanceof FlinkFuture) {
+							// FlinkFutures are currently backed by Scala's futures
+							FlinkFuture<?> flinkFuture = (FlinkFuture<?>) future;
+
+							Patterns.pipe(flinkFuture.getScalaFuture(), getContext().dispatcher()).to(getSender());
+						} else {
+							// We have to unpack the Flink future and pack it into a Scala future
+							Patterns.pipe(Futures.future(new Callable<Object>() {
+								@Override
+								public Object call() throws Exception {
+									return future.get();
+								}
+							}, getContext().dispatcher()), getContext().dispatcher());
+						}
 					} else {
 						// tell the sender the result of the computation
 						getSender().tell(new Status.Success(result), getSelf());
