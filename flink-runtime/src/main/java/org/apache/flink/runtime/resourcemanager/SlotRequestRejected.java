@@ -20,12 +20,12 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 
-import java.io.Serializable;
-
 /**
  * Rejection message by the ResourceManager for a SlotRequest from the JobManager
  */
 public class SlotRequestRejected extends SlotRequestReply {
+
+	private static final long serialVersionUID = 9049346740895325144L;
 
 	public SlotRequestRejected(AllocationID allocationID) {
 		super(allocationID);
