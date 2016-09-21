@@ -299,7 +299,10 @@ public final class InstantiationUtil {
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(InputStream in, ClassLoader cl) throws IOException, ClassNotFoundException {
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		try (ObjectInputStream oois = new ClassLoaderObjectInputStream(in, cl)) {
+		ObjectInputStream oois;
+		// not using resource try to avoid AutoClosable's close() on the given stream
+		try {
+			oois = new ClassLoaderObjectInputStream(in, cl);
 			Thread.currentThread().setContextClassLoader(cl);
 			return (T) oois.readObject();
 		}
@@ -332,7 +335,6 @@ public final class InstantiationUtil {
 	public static void serializeObject(OutputStream out, Object o) throws IOException {
 		ObjectOutputStream oos = new ObjectOutputStream(out);
 		oos.writeObject(o);
-		oos.flush();
 	}
 
 	/**

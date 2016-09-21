@@ -186,6 +186,7 @@ public class FsStateBackend extends AbstractStateBackend {
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
+				env.getUserClassLoader(),
 				numberOfKeyGroups,
 				keyGroupRange);
 	}
@@ -203,6 +204,7 @@ public class FsStateBackend extends AbstractStateBackend {
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
+				env.getUserClassLoader(),
 				numberOfKeyGroups,
 				keyGroupRange,
 				restoredState);
