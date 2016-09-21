@@ -30,6 +30,7 @@ import org.reflections.Reflections;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -69,7 +70,8 @@ public class RpcCompletenessTest extends TestLogger {
 
 	@SuppressWarnings("rawtypes")
 	private void checkCompleteness(Class<? extends RpcEndpoint> rpcEndpoint, Class<? extends RpcGateway> rpcGateway) {
-		Method[] gatewayMethods = getRpcMethodsFromGateway(rpcGateway).toArray(new Method[0]);
+		List<Method> rpcMethodsFromGateway = getRpcMethodsFromGateway(rpcGateway);
+		Method[] gatewayMethods = rpcMethodsFromGateway.toArray(new Method[rpcMethodsFromGateway.size()]);
 		Method[] serverMethods = rpcEndpoint.getMethods();
 
 		Map<String, Set<Method>> rpcMethods = new HashMap<>();
@@ -360,13 +362,13 @@ public class RpcCompletenessTest extends TestLogger {
 		}
 
 		// Get all methods declared in current interface
-		for(Method method : interfaceClass.getDeclaredMethods()) {
-			allMethods.add(method);
-		}
+		Collections.addAll(allMethods, interfaceClass.getDeclaredMethods());
 
 		// Get all method inherited from super interface
-		for(Class superClass : interfaceClass.getInterfaces()) {
-			allMethods.addAll(getRpcMethodsFromGateway(superClass));
+		for (Class<?> superClass : interfaceClass.getInterfaces()) {
+			@SuppressWarnings("unchecked")
+			Class<? extends RpcGateway> gatewayClass = (Class<? extends RpcGateway>) superClass;
+			allMethods.addAll(getRpcMethodsFromGateway(gatewayClass));
 		}
 		return allMethods;
 	}

@@ -43,9 +43,9 @@ public class AsyncCallsTest extends TestLogger {
 	//  shared test members
 	// ------------------------------------------------------------------------
 
-	private static ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+	private static final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 
-	private static AkkaRpcService akkaRpcService =
+	private static final AkkaRpcService akkaRpcService =
 			new AkkaRpcService(actorSystem, Time.milliseconds(10000L));
 
 	@AfterClass
