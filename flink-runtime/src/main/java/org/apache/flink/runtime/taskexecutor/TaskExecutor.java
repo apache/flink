@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import akka.actor.ActorSystem;
 import akka.util.Timeout;
 import com.typesafe.config.Config;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -30,6 +31,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateServer;
+import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
+import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -198,6 +201,18 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					getMainThreadExecutionContext());
 			resourceManagerConnection.start();
 		}
+	}
+
+	/**
+	 * Requests a slot from the TaskManager
+	 *
+	 * @param allocationID id for the request
+	 * @param resourceManagerLeaderID current leader id of the ResourceManager
+	 * @return answer to the slot request
+	 */
+	@RpcMethod
+	public SlotRequestReply requestSlot(AllocationID allocationID, UUID resourceManagerLeaderID) {
+		return new SlotRequestRegistered(allocationID);
 	}
 
 	/**
