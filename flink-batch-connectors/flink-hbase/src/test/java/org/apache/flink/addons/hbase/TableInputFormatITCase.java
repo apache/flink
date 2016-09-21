@@ -36,9 +36,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class TestTableInputFormatITCase extends HBaseTestingClusterAutostarter {
+public class TableInputFormatITCase extends HBaseTestingClusterAutostarter {
 	private static final String TEST_TABLE_NAME = "TableInputFormatTestTable";
 	private static final byte[] TEST_TABLE_FAMILY_NAME = "F".getBytes();
 	private static final byte[] TEST_TABLE_COLUMN_NAME = "Col".getBytes();
@@ -107,6 +108,7 @@ public class TestTableInputFormatITCase extends HBaseTestingClusterAutostarter {
 			assertTrue("Missing rowId from table: " + rowId, resultSet.contains(rowId));
 		}
 
+		assertEquals("The number of records is wrong.", ROW_IDS.length, resultSet.size());
 	}
 
 }
