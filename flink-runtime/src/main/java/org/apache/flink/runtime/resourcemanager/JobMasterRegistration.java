@@ -18,59 +18,47 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-<<<<<<< HEAD
 import org.apache.flink.api.common.JobID;
-=======
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
->>>>>>> db98efb... rsourceManager registration with JobManager
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 
-import java.io.Serializable;
 import java.util.UUID;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class is responsible for group the JobMasterGateway and the LeaderSessionID of a registered job master
  */
-public class JobMasterRegistration implements Serializable {
+public class JobMasterRegistration implements LeaderRetrievalListener {
 
-<<<<<<< HEAD
-	private final String address;
+	private final JobMasterGateway gateway;
 	private final JobID jobID;
+	private final UUID leaderSessionID;
+	private LeaderRetrievalListener retriever;
 
-	public JobMasterRegistration(String address, JobID jobID) {
-		this.address = address;
+	public JobMasterRegistration(JobMasterGateway gateway, JobID jobID, UUID leaderSessionID) {
+		this.gateway = gateway;
 		this.jobID = jobID;
-=======
-	private static final long serialVersionUID = -2316627821716999527L;
-
-	private final JobMasterGateway jobMasterGateway;
-
-	private UUID jobMasterLeaderSessionID;
-
-	public JobMasterRegistration(JobMasterGateway jobMasterGateway) {
-		this.jobMasterGateway = checkNotNull(jobMasterGateway);
+		this.leaderSessionID = leaderSessionID;
 	}
 
-	public JobMasterRegistration(JobMasterGateway jobMasterGateway, UUID jobMasterLeaderSessionID) {
-		this.jobMasterGateway = checkNotNull(jobMasterGateway);
-		this.jobMasterLeaderSessionID = jobMasterLeaderSessionID;
+	public JobMasterGateway getGateway() {
+		return gateway;
 	}
 
-	public JobMasterGateway getJobMasterGateway() {
-		return jobMasterGateway;
-	}
-
-	public void setJobMasterLeaderSessionID(UUID leaderSessionID) {
-		this.jobMasterLeaderSessionID = jobMasterLeaderSessionID;
->>>>>>> db98efb... rsourceManager registration with JobManager
-	}
-
-	public UUID getJobMasterLeaderSessionID() {
-		return jobMasterLeaderSessionID;
+	public UUID getLeaderSessionID() {
+		return leaderSessionID;
 	}
 
 	public JobID getJobID() {
 		return jobID;
+	}
+
+	@Override
+	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
+		
+	}
+
+	@Override
+	public void handleError(Exception exception) {
+
 	}
 }
