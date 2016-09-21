@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -89,4 +90,34 @@ public interface RpcService {
 	 * @param delay    The delay after which the runnable will be executed
 	 */
 	void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit);
+
+	/**
+	 * Execute the given runnable in the executor of the RPC service. This method can be used to run
+	 * code outside of the main thread of a {@link RpcEndpoint}.
+	 *
+	 * <p><b>IMPORTANT:</b> This executor does not isolate the method invocations against
+	 * any concurrent invocations and is therefore not suitable to run completion methods of futures
+	 * that modify state of an {@link RpcEndpoint}. For such operations, one needs to use the
+	 * {@link RpcEndpoint#getMainThreadExecutor() MainThreadExecutionContext} of that
+	 * {@code RpcEndpoint}.
+	 *
+	 * @param runnable to execute
+	 */
+	void execute(Runnable runnable);
+
+	/**
+	 * Execute the given callable and return its result as a {@link Future}. This method can be used
+	 * to run code outside of the main thread of a {@link RpcEndpoint}.
+	 *
+	 * <p><b>IMPORTANT:</b> This executor does not isolate the method invocations against
+	 * any concurrent invocations and is therefore not suitable to run completion methods of futures
+	 * that modify state of an {@link RpcEndpoint}. For such operations, one needs to use the
+	 * {@link RpcEndpoint#getMainThreadExecutor() MainThreadExecutionContext} of that
+	 * {@code RpcEndpoint}.
+	 *
+	 * @param callable to execute
+	 * @param <T> is the return value type
+	 * @return Future containing the callable's future result
+	 */
+	<T> Future<T> execute(Callable<T> callable);
 }
