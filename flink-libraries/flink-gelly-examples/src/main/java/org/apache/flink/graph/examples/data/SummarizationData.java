@@ -33,7 +33,72 @@ import java.util.List;
  */
 public class SummarizationData {
 
+	/**
+	 * Used to parse vertex and edge values of the input graph
+	 * @param <VV>
+	 */
+	abstract static class ValueReader<VV> {
+		abstract VV readValue(String value);
+	}
+
+	/**
+	 * Reads String values
+	 */
+	public static class StringValueReader extends ValueReader<String> {
+		@Override
+		String readValue(String value) {
+			return value;
+		}
+	}
+
+	/**
+	 * Reads Long values
+	 */
+	public static class LongValueReader extends ValueReader<Long> {
+		@Override
+		Long readValue(String value) {
+			return Long.parseLong(value);
+		}
+	}
+
 	private SummarizationData() {}
+
+
+	/**
+	 * Vertices of the input graph.
+	 *
+	 * Format:
+	 *
+	 * "vertex-id;vertex-value"
+	 */
+	private static final String[] INPUT_VERTICES = new String[] {
+		"0;1",
+		"1;1",
+		"2;2",
+		"3;2",
+		"4;2",
+		"5;3"
+	};
+
+	/**
+	 * Edges of the input graph.
+	 *
+	 * Format:
+	 *
+	 * "source-id;target-id;edge-value
+	 */
+	private static final String[] INPUT_EDGES = new String[] {
+		"0;1;1",
+		"1;0;1",
+		"1;2;1",
+		"2;1;1",
+		"2;3;2",
+		"3;2;2",
+		"4;0;3",
+		"4;1;3",
+		"5;2;4",
+		"5;3;4"
+	};
 
 	/**
 	 * The resulting vertex id can be any id of the vertices summarized by the single vertex.
@@ -43,9 +108,9 @@ public class SummarizationData {
 	 * "possible-id[,possible-id];group-value,group-count"
 	 */
 	public static final String[] EXPECTED_VERTICES = new String[] {
-			"0,1;A,2",
-			"2,3,4;B,3",
-			"5;C,1"
+			"0,1;1,2",
+			"2,3,4;2,3",
+			"5;3,1"
 	};
 
 	/**
@@ -54,12 +119,12 @@ public class SummarizationData {
 	 * "possible-source-id[,possible-source-id];possible-target-id[,possible-target-id];group-value,group-count"
 	 */
 	public static final String[] EXPECTED_EDGES_WITH_VALUES = new String[] {
-			"0,1;0,1;A,2",
-			"0,1;2,3,4;A,1",
-			"2,3,4;0,1;A,1",
-			"2,3,4;0,1;C,2",
-			"2,3,4;2,3,4;B,2",
-			"5;2,3,4;D,2"
+			"0,1;0,1;1,2",
+			"0,1;2,3,4;1,1",
+			"2,3,4;0,1;1,1",
+			"2,3,4;0,1;3,2",
+			"2,3,4;2,3,4;2,2",
+			"5;2,3,4;4,2"
 	};
 
 	/**
@@ -81,14 +146,12 @@ public class SummarizationData {
 	 * @param env execution environment
 	 * @return vertex data set with string values
 	 */
-	public static DataSet<Vertex<Long, String>> getVertices(ExecutionEnvironment env) {
-		List<Vertex<Long, String>> vertices = new ArrayList<>(6);
-		vertices.add(new Vertex<>(0L, "A"));
-		vertices.add(new Vertex<>(1L, "A"));
-		vertices.add(new Vertex<>(2L, "B"));
-		vertices.add(new Vertex<>(3L, "B"));
-		vertices.add(new Vertex<>(4L, "B"));
-		vertices.add(new Vertex<>(5L, "C"));
+	public static <VV> DataSet<Vertex<Long, VV>> getVertices(ExecutionEnvironment env, ValueReader<VV> valueReader) {
+		List<Vertex<Long, VV>> vertices = new ArrayList<>(INPUT_VERTICES.length);
+		for (String vertex : INPUT_VERTICES) {
+			String[] tokens = vertex.split(";");
+			vertices.add(new Vertex<>(Long.parseLong(tokens[0]), valueReader.readValue(tokens[1])));
+		}
 
 		return env.fromCollection(vertices);
 	}
@@ -99,18 +162,12 @@ public class SummarizationData {
 	 * @param env execution environment
 	 * @return edge data set with string values
 	 */
-	public static DataSet<Edge<Long, String>> getEdges(ExecutionEnvironment env) {
-		List<Edge<Long, String>> edges = new ArrayList<>(10);
-		edges.add(new Edge<>(0L, 1L, "A"));
-		edges.add(new Edge<>(1L, 0L, "A"));
-		edges.add(new Edge<>(1L, 2L, "A"));
-		edges.add(new Edge<>(2L, 1L, "A"));
-		edges.add(new Edge<>(2L, 3L, "B"));
-		edges.add(new Edge<>(3L, 2L, "B"));
-		edges.add(new Edge<>(4L, 0L, "C"));
-		edges.add(new Edge<>(4L, 1L, "C"));
-		edges.add(new Edge<>(5L, 2L, "D"));
-		edges.add(new Edge<>(5L, 3L, "D"));
+	public static <EV> DataSet<Edge<Long, EV>> getEdges(ExecutionEnvironment env, ValueReader<EV> valueReader) {
+		List<Edge<Long, EV>> edges = new ArrayList<>(INPUT_EDGES.length);
+		for (String edge : INPUT_EDGES) {
+			String[] tokens = edge.split(";");
+			edges.add(new Edge<>(Long.parseLong(tokens[0]), Long.parseLong(tokens[1]), valueReader.readValue(tokens[2])));
+		}
 
 		return env.fromCollection(edges);
 	}
@@ -123,7 +180,7 @@ public class SummarizationData {
 	 */
 	@SuppressWarnings("serial")
 	public static DataSet<Edge<Long, NullValue>> getEdgesWithAbsentValues(ExecutionEnvironment env) {
-		return getEdges(env).map(new MapFunction<Edge<Long, String>, Edge<Long, NullValue>>() {
+		return getEdges(env, new StringValueReader()).map(new MapFunction<Edge<Long, String>, Edge<Long, NullValue>>() {
 			@Override
 			public Edge<Long, NullValue> map(Edge<Long, String> value) throws Exception {
 				return new Edge<>(value.getSource(), value.getTarget(), NullValue.getInstance());
