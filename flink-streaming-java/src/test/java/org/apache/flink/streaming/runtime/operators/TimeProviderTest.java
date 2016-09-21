@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.hadoop.shaded.org.apache.http.impl.conn.SystemDefaultDnsResolver;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -47,6 +49,8 @@ public class TimeProviderTest {
 
 	@Test
 	public void testDefaultTimeProvider() throws InterruptedException {
+		final OneShotLatch latch = new OneShotLatch();
+
 		final Object lock = new Object();
 		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider
 			.createForTesting(Executors.newSingleThreadScheduledExecutor(), lock);
@@ -56,7 +60,11 @@ public class TimeProviderTest {
 		long start = System.currentTimeMillis();
 		long interval = 50L;
 
-		long noOfTimers = 5;
+		final long noOfTimers = 20;
+
+		// we add 2 timers per iteration minus the first that would have a negative timestamp
+		final long expectedNoOfTimers = 2 * noOfTimers - 1;
+
 		for (int i = 0; i < noOfTimers; i++) {
 			double nextTimer = start + i * interval;
 
@@ -64,6 +72,9 @@ public class TimeProviderTest {
 				@Override
 				public void trigger(long timestamp) throws Exception {
 					timestamps.add(timestamp);
+					if (timestamps.size() == expectedNoOfTimers) {
+						latch.trigger();
+					}
 				}
 			});
 
@@ -75,12 +86,19 @@ public class TimeProviderTest {
 					@Override
 					public void trigger(long timestamp) throws Exception {
 						timestamps.add(timestamp);
+						if (timestamps.size() == expectedNoOfTimers) {
+							latch.trigger();
+						}
 					}
 				});
 			}
 		}
 
-		Thread.sleep(1000);
+		if (!latch.isTriggered()) {
+			latch.await();
+		}
+
+		Assert.assertEquals(timestamps.size(), expectedNoOfTimers);
 
 		// verify that the tasks are executed
 		// in ascending timestamp order
@@ -95,8 +113,6 @@ public class TimeProviderTest {
 			Assert.assertEquals(timestamp, (expectedTs + ((counter % 2 == 0) ? 0 : 40)));
 			counter++;
 		}
-		Assert.assertEquals(counter, timestamps.size());
-		Assert.assertEquals(counter, 9);
 	}
 
 	@Test

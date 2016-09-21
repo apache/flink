@@ -212,6 +212,16 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		timerService = timeProvider;
 	}
 
+	/**
+	 * Returns the current processing time.
+	 */
+	public long getCurrentProcessingTime() {
+		if (timerService == null) {
+			throw new IllegalStateException("The timer service has not been initialized.");
+		}
+		return timerService.getCurrentProcessingTime();
+	}
+
 	@Override
 	public final void invoke() throws Exception {
 
@@ -324,8 +334,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				try {
 					if (!timerService.isTerminated()) {
 						LOG.info("Timer service is shutting down.");
+						timerService.shutdownService();
 					}
-					timerService.shutdownService();
 				}
 				catch (Throwable t) {
 					// catch and log the exception to not replace the original exception
@@ -474,8 +484,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		if (timerService != null) {
 			if (!timerService.isTerminated()) {
 				LOG.info("Timer service is shutting down.");
+				timerService.shutdownService();
 			}
-			timerService.shutdownService();
 		}
 
 		closeAllClosables();
@@ -808,16 +818,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		return operator.getClass().getSimpleName() +
 				"_" + vertexId +
 				"_" + getEnvironment().getTaskInfo().getIndexOfThisSubtask();
-	}
-
-	/**
-	 * Returns the current processing time.
-	 */
-	public long getCurrentProcessingTime() {
-		if (timerService == null) {
-			throw new IllegalStateException("The timer service has not been initialized.");
-		}
-		return timerService.getCurrentProcessingTime();
 	}
 
 	/**
