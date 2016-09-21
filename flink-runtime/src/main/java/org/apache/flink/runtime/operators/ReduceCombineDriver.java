@@ -83,8 +83,6 @@ public class ReduceCombineDriver<T> implements ResettableDriver<ReduceFunction<T
 
 	private boolean objectReuseEnabled = false;
 
-	private boolean reset = false;
-
 
 	// ------------------------------------------------------------------------
 
@@ -124,14 +122,12 @@ public class ReduceCombineDriver<T> implements ResettableDriver<ReduceFunction<T
 		reducer = taskContext.getStub();
 		output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
-		MemoryManager memManager = taskContext.getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(
-			taskContext.getTaskConfig().getRelativeMemoryDriver());
+		if (memory == null) {
+			MemoryManager memManager = taskContext.getMemoryManager();
+			final int numMemoryPages = memManager.computeNumberOfPages(
+				taskContext.getTaskConfig().getRelativeMemoryDriver());
 
-		if (!reset) {
 			memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
-		} else {
-			reset = false;
 		}
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
@@ -339,17 +335,6 @@ public class ReduceCombineDriver<T> implements ResettableDriver<ReduceFunction<T
 
 	@Override
 	public void cleanup() {
-		try {
-			if (sorter != null) {
-				sorter.dispose();
-			}
-			if (table != null) {
-				table.close();
-			}
-		} catch (Exception e) {
-			// may happen during concurrent modification
-		}
-		taskContext.getMemoryManager().release(memory);
 	}
 
 	@Override
@@ -366,16 +351,29 @@ public class ReduceCombineDriver<T> implements ResettableDriver<ReduceFunction<T
 
 	@Override
 	public void initialize() throws Exception {
-
 	}
 
 	@Override
 	public void reset() throws Exception {
-		reset = true;
+		closeAndDispose();
 	}
 
 	@Override
 	public void teardown() throws Exception {
-		cleanup();
+		closeAndDispose();
+		taskContext.getMemoryManager().release(memory);
+	}
+
+	private void closeAndDispose() {
+		try {
+			if (sorter != null) {
+				sorter.dispose();
+			}
+			if (table != null) {
+				table.close();
+			}
+		} catch (Exception e) {
+			// may happen during concurrent modification
+		}
 	}
 }

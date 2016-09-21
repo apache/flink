@@ -96,7 +96,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
 			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -130,7 +130,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
 			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -166,7 +166,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
 			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -202,7 +202,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
 			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -238,7 +238,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
 			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -274,7 +274,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
 			addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -310,7 +310,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		try {
 			addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
 			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -346,7 +346,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 		
 		try {
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -382,7 +382,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 		
 		try {
-			testDriver(testTask, MockFailingMatchStub.class);
+			testResettableDriver(testTask, MockFailingMatchStub.class, 3);
 			Assert.fail("Driver did not forward Exception.");
 		} catch (ExpectedTestException e) {
 			// good!
@@ -422,7 +422,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 				@Override
 				public void run() {
 					try {
-						testDriver(testTask, MockMatchStub.class);
+						testResettableDriver(testTask, MockMatchStub.class, 1);
 					}
 					catch (Throwable t) {
 						error.set(t);
@@ -482,7 +482,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 				@Override
 				public void run() {
 					try {
-						testDriver(testTask, MockMatchStub.class);
+						testResettableDriver(testTask, MockMatchStub.class, 1);
 					}
 					catch (Throwable t) {
 						error.set(t);
@@ -537,7 +537,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 				@Override
 				public void run() {
 					try {
-						testDriver(testTask, MockDelayingMatchStub.class);
+						testResettableDriver(testTask, MockDelayingMatchStub.class, 3);
 					}
 					catch (Throwable t) {
 						error.set(t);
@@ -587,7 +587,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test caused an exception.");
@@ -618,7 +618,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test caused an exception.");
@@ -649,7 +649,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test caused an exception.");
@@ -680,7 +680,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test caused an exception.");
@@ -711,7 +711,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test caused an exception.");
@@ -742,7 +742,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockFailingMatchStub.class);
+			testResettableDriver(testTask, MockFailingMatchStub.class, 3);
 			Assert.fail("Function exception was not forwarded.");
 		} catch (ExpectedTestException etex) {
 			// good!
@@ -772,7 +772,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockFailingMatchStub.class);
+			testResettableDriver(testTask, MockFailingMatchStub.class, 3);
 			Assert.fail("Function exception was not forwarded.");
 		} catch (ExpectedTestException etex) {
 			// good!
@@ -809,7 +809,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 				@Override
 				public void run() {
 					try {
-						testDriver(testTask, MockMatchStub.class);
+						testResettableDriver(testTask, MockMatchStub.class, 1);
 						success.set(true);
 					} catch (Exception ie) {
 						ie.printStackTrace();
@@ -863,7 +863,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 				@Override
 				public void run() {
 					try {
-						testDriver(testTask, MockMatchStub.class);
+						testResettableDriver(testTask, MockMatchStub.class, 1);
 						success.set(true);
 					} catch (Exception ie) {
 						ie.printStackTrace();
@@ -912,7 +912,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockMatchStub.class);
+					testResettableDriver(testTask, MockMatchStub.class, 1);
 					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
@@ -956,7 +956,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockMatchStub.class);
+					testResettableDriver(testTask, MockMatchStub.class, 3);
 					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();

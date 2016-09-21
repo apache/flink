@@ -167,7 +167,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		
 		addInputSorted(new UniformIntTupleGenerator(keyCnt1, valCnt1, false), this.serializer, this.comparator1.duplicate());
 		addInputSorted(new UniformIntTupleGenerator(keyCnt2, valCnt2, false), this.serializer, this.comparator2.duplicate());
-		testDriver(testTask, MockJoinStub.class);
+		testResettableDriver(testTask, MockJoinStub.class, 3);
 		
 		final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 		
@@ -196,7 +196,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		
 		addInputSorted(new UniformIntTupleGenerator(keyCnt1, valCnt1, false), this.serializer, this.comparator1.duplicate());
 		addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
-		testDriver(testTask, MockJoinStub.class);
+		testResettableDriver(testTask, MockJoinStub.class, 3);
 		
 		final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 		
@@ -225,7 +225,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		
 		addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
 		addInputSorted(new UniformIntTupleGenerator(keyCnt2, valCnt2, false), this.serializer, this.comparator2.duplicate());
-		testDriver(testTask, MockJoinStub.class);
+		testResettableDriver(testTask, MockJoinStub.class, 3);
 		
 		final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 		
@@ -254,8 +254,8 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		
 		addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
 		addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
-		
-		testDriver(testTask, MockJoinStub.class);
+
+		testResettableDriver(testTask, MockJoinStub.class, 3);
 		
 		final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 		
@@ -284,8 +284,8 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		
 		addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
 		addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
-		
-		testDriver(testTask, MockFailingJoinStub.class);
+
+		testResettableDriver(testTask, MockFailingJoinStub.class, 1);
 	}
 	
 	@Test
@@ -309,7 +309,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockJoinStub.class);
+					testResettableDriver(testTask, MockJoinStub.class, 1);
 				} catch (Throwable t) {
 					error.set(t);
 				}
@@ -353,7 +353,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockJoinStub.class);
+					testResettableDriver(testTask, MockJoinStub.class, 1);
 				} catch (Throwable t) {
 					error.set(t);
 				}
@@ -397,7 +397,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockJoinStub.class);
+					testResettableDriver(testTask, MockJoinStub.class, 1);
 				} catch (Throwable t) {
 					error.set(t);
 				}

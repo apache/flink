@@ -73,7 +73,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<>();
 		
 		try {
-			testDriver(testTask, MockCombiningReduceStub.class);
+			testResettableDriver(testTask, MockCombiningReduceStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Invoke method caused exception.");
@@ -127,7 +127,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<>();
 
 		try {
-			testDriver(testTask, MockCombiningReduceStub.class);
+			testResettableDriver(testTask, MockCombiningReduceStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Invoke method caused exception.");

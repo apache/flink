@@ -72,7 +72,7 @@ public class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExter
 
 		addInputSorted(new UniformIntTupleGenerator(keyCnt1, valCnt1, false), serializer, this.comparator1.duplicate());
 		addInputSorted(new UniformIntTupleGenerator(keyCnt2, valCnt2, false), serializer, this.comparator2.duplicate());
-		testDriver(testTask, MockJoinStub.class);
+		testResettableDriver(testTask, MockJoinStub.class, 3);
 
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}

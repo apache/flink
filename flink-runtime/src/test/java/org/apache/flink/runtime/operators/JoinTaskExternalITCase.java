@@ -83,7 +83,7 @@ public class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Reco
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
 			addInputSorted(new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("The test caused an exception.");
@@ -114,7 +114,7 @@ public class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Reco
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test caused an exception.");
@@ -145,7 +145,7 @@ public class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Reco
 		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
-			testDriver(testTask, MockMatchStub.class);
+			testResettableDriver(testTask, MockMatchStub.class, 3);
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test caused an exception.");

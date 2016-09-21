@@ -133,7 +133,7 @@ public class CombinerOversizedRecordsTest
 			GroupReduceCombineDriver<Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>> testTask = 
 					new GroupReduceCombineDriver<Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>>();
 			
-			testDriver(testTask, TestCombiner.class);
+			testResettableDriver(testTask, TestCombiner.class, 3);
 
 			assertEquals(3, testTask.getOversizedRecordCount());
 			assertTrue(keyCnt + 3 == outList.size() || 2*keyCnt + 3 == outList.size());

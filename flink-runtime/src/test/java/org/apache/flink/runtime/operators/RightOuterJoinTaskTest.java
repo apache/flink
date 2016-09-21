@@ -143,7 +143,7 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
 		addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, false), this.serializer);
 		addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, false), this.serializer);
-		testDriver(testTask, MockJoinStub.class);
+		testResettableDriver(testTask, MockJoinStub.class, 3);
 
 		final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
@@ -173,7 +173,7 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 		addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
 		addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
 
-		testDriver(testTask, MockFailingJoinStub.class);
+		testResettableDriver(testTask, MockFailingJoinStub.class, 3);
 	}
 
 	@Test
@@ -196,7 +196,7 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockJoinStub.class);
+					testResettableDriver(testTask, MockJoinStub.class, 1);
 				} catch (Throwable t) {
 					error.set(t);
 				}
@@ -237,7 +237,7 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 			@Override
 			public void run() {
 				try {
-					testDriver(testTask, MockJoinStub.class);
+					testResettableDriver(testTask, MockJoinStub.class, 1);
 				} catch (Throwable t) {
 					error.set(t);
 				}

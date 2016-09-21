@@ -529,14 +529,9 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				// throw only if task was not cancelled. in the case of canceling, exceptions are expected 
 				BatchTask.logAndThrowException(ex, this);
 			}
+		} finally {
+			this.driver.cleanup();
 		}
-		finally {
-			postRun();
-		}
-	}
-
-	protected void postRun() throws Exception {
-		this.driver.cleanup();
 	}
 
 	protected void closeLocalStrategiesAndCaches() {

@@ -49,9 +49,6 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Resettabl
 	
 	protected volatile JoinTaskIterator<IT1, IT2, OT> outerJoinIterator; // the iterator that does the actual outer join
 	protected volatile boolean running;
-
-	protected boolean reset;
-
 	// ------------------------------------------------------------------------
 	
 	@Override
@@ -80,45 +77,41 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Resettabl
 	@Override
 	public void prepare() throws Exception {
 		final TaskConfig config = this.taskContext.getTaskConfig();
-		
+
 		// obtain task manager's memory manager and I/O manager
 		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
 		final IOManager ioManager = this.taskContext.getIOManager();
-		
+
 		// set up memory and I/O parameters
 		final double driverMemFraction = config.getRelativeMemoryDriver();
-		
+
 		final DriverStrategy ls = config.getDriverStrategy();
 
 		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
 		final MutableObjectIterator<IT1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<IT1>getInput(0), numRecordsIn);
 		final MutableObjectIterator<IT2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<IT2>getInput(1), numRecordsIn);
-		
+
 		// get serializers and comparators
 		final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
 		final TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
 		final TypeComparator<IT1> comparator1 = this.taskContext.getDriverComparator(0);
 		final TypeComparator<IT2> comparator2 = this.taskContext.getDriverComparator(1);
-		
+
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = config.getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
-		
+
 		if (pairComparatorFactory == null) {
 			throw new Exception("Missing pair comparator factory for outer join driver");
 		}
-		
+
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
 		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Outer Join Driver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
 
-		if (reset) {
-			resetForIterativeTasks(in1, in2, serializer1, serializer2, comparator1, comparator2, pairComparatorFactory);
-			reset = false;
-		}
 		// create and return outer join iterator according to provided local strategy.
-		if(outerJoinIterator == null) {
+		if (outerJoinIterator == null) {
 			if (objectReuseEnabled) {
 				this.outerJoinIterator = getReusingOuterJoinIterator(
 					ls,
@@ -148,12 +141,16 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Resettabl
 					driverMemFraction
 				);
 			}
-		}
-		
-		this.outerJoinIterator.open();
-		
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(this.taskContext.formatLogString("outer join task iterator ready."));
+
+
+			this.outerJoinIterator.open();
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(this.taskContext.formatLogString("outer join task iterator ready."));
+			}
+		} else {
+			outerJoinIterator.reset(in1, in2);
+			outerJoinIterator.open();
 		}
 	}
 	
@@ -171,10 +168,6 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Resettabl
 	
 	@Override
 	public void cleanup() throws Exception {
-		if (this.outerJoinIterator != null) {
-			this.outerJoinIterator.close();
-			this.outerJoinIterator = null;
-		}
 	}
 	
 	@Override
@@ -220,20 +213,17 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Resettabl
 
 	@Override
 	public void teardown() throws Exception {
-		cleanup();
+		if (this.outerJoinIterator != null) {
+			this.outerJoinIterator.close();
+			this.outerJoinIterator = null;
+		}
 	}
 
 	@Override
 	public void initialize() throws Exception {
-
 	}
 
 	@Override
 	public void reset() throws Exception {
-		reset = true;
-	}
-
-	private void resetForIterativeTasks(MutableObjectIterator<IT1> in1, MutableObjectIterator<IT2> in2, TypeSerializer<IT1> serializer1, TypeSerializer<IT2> serializer2, TypeComparator<IT1> comp1, TypeComparator<IT2> comp2, TypePairComparatorFactory<IT1, IT2> pairComparatorFactory) {
-		outerJoinIterator.reset(in1, in2, serializer1, serializer2, comp1, comp2, pairComparatorFactory);
 	}
 }

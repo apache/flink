@@ -59,7 +59,6 @@ public class JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFuncti
 	
 	protected volatile boolean running;
 
-	protected boolean reset;
 
 	// ------------------------------------------------------------------------
 
@@ -87,22 +86,22 @@ public class JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFuncti
 	}
 
 	@Override
-	public void prepare() throws Exception{
+	public void prepare() throws Exception {
 		final TaskConfig config = this.taskContext.getTaskConfig();
 
 		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
-		
+
 		// obtain task manager's memory manager and I/O manager
 		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
 		final IOManager ioManager = this.taskContext.getIOManager();
-		
+
 		// set up memory and I/O parameters
 		final double fractionAvailableMemory = config.getRelativeMemoryDriver();
 		final int numPages = memoryManager.computeNumberOfPages(fractionAvailableMemory);
-		
+
 		// test minimum memory requirements
 		final DriverStrategy ls = config.getDriverStrategy();
-		
+
 		final MutableObjectIterator<IT1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<IT1>getInput(0), numRecordsIn);
 		final MutableObjectIterator<IT2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<IT2>getInput(1), numRecordsIn);
 
@@ -111,9 +110,9 @@ public class JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFuncti
 		final TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
 		final TypeComparator<IT1> comparator1 = this.taskContext.getDriverComparator(0);
 		final TypeComparator<IT2> comparator2 = this.taskContext.getDriverComparator(1);
-		
+
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = config.getPairComparatorFactory(
-				this.taskContext.getUserCodeClassLoader());
+			this.taskContext.getUserCodeClassLoader());
 		if (pairComparatorFactory == null) {
 			throw new Exception("Missing pair comparator factory for join driver");
 		}
@@ -124,16 +123,12 @@ public class JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFuncti
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Join Driver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
-		
+
 		boolean hashJoinUseBitMaps = taskContext.getTaskManagerInfo().getConfiguration().getBoolean(
-				ConfigConstants.RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY,
-				ConfigConstants.DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS);
+			ConfigConstants.RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY,
+			ConfigConstants.DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS);
 
 		// create and return joining iterator according to provided local strategy.
-		if (reset) {
-			resetForIterativeTasks(in1, in2, serializer1, serializer2, comparator1, comparator2, pairComparatorFactory);
-			reset = false;
-		}
 		if (joinIterator == null) {
 			if (objectReuseEnabled) {
 				switch (ls) {
@@ -208,15 +203,19 @@ public class JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFuncti
 					default:
 						throw new Exception("Unsupported driver strategy for join driver: " + ls.name());
 				}
+
 			}
-		}
-		
-		// open the iterator - this triggers the sorting or hash-table building
-		// and blocks until the iterator is ready
-		this.joinIterator.open();
-		
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(this.taskContext.formatLogString("join task iterator ready."));
+
+			// open the iterator - this triggers the sorting or hash-table building
+			// and blocks until the iterator is ready
+			this.joinIterator.open();
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(this.taskContext.formatLogString("join task iterator ready."));
+			}
+		} else {
+			this.joinIterator.reset(in1, in2);
+			this.joinIterator.open();
 		}
 	}
 
@@ -232,12 +231,8 @@ public class JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFuncti
 
 	@Override
 	public void cleanup() throws Exception {
-		if (this.joinIterator != null) {
-			this.joinIterator.close();
-			this.joinIterator = null;
-		}
 	}
-	
+
 	@Override
 	public void cancel() {
 		this.running = false;
@@ -253,20 +248,17 @@ public class JoinDriver<IT1, IT2, OT> implements ResettableDriver<FlatJoinFuncti
 
 	@Override
 	public void initialize() throws Exception {
-
 	}
 
 	@Override
 	public void reset() throws Exception {
-		reset = true;
 	}
 
 	@Override
 	public void teardown() throws Exception {
-		cleanup();
-	}
-
-	private void resetForIterativeTasks(MutableObjectIterator<IT1> in1, MutableObjectIterator<IT2> in2, TypeSerializer<IT1> serializer1, TypeSerializer<IT2> serializer2, TypeComparator<IT1> comp1, TypeComparator<IT2> comp2, TypePairComparatorFactory<IT1, IT2> pairComparatorFactory) {
-		this.joinIterator.reset(in1, in2, serializer1, serializer2, comp1, comp2, pairComparatorFactory);
+		if (this.joinIterator != null) {
+			this.joinIterator.close();
+			this.joinIterator = null;
+		}
 	}
 }

@@ -23,9 +23,6 @@ package org.apache.flink.runtime.operators.util;
 import java.io.IOException;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
@@ -76,5 +73,5 @@ public interface JoinTaskIterator<V1, V2, O>
 	/**
 	 * Allows to reset the iterator
 	 */
-	void reset(MutableObjectIterator<V1> in1, MutableObjectIterator<V2> in2, TypeSerializer<V1> serializer1, TypeSerializer<V2> serializer2, TypeComparator<V1> comp1, TypeComparator<V2> comp2, TypePairComparatorFactory<V1, V2> pairComparatorFactory);
+	void reset(MutableObjectIterator<V1> in1, MutableObjectIterator<V2> in2);
 }

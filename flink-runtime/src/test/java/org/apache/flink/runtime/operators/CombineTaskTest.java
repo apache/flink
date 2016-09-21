@@ -92,7 +92,7 @@ public class CombineTaskTest
 			final GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask =
 					new GroupReduceCombineDriver<>();
 			
-			testDriver(testTask, MockCombiningReduceStub.class);
+			testResettableDriver(testTask, MockCombiningReduceStub.class, 3);
 			
 			int expSum = 0;
 			for (int i = 1;i < valCnt; i++) {
@@ -132,7 +132,7 @@ public class CombineTaskTest
 					new GroupReduceCombineDriver<>();
 			
 			try {
-				testDriver(testTask, MockFailingCombiningReduceStub.class);
+				testResettableDriver(testTask, MockFailingCombiningReduceStub.class, 3);
 				fail("Exception not forwarded.");
 			}
 			catch (ExpectedTestException etex) {
@@ -167,7 +167,7 @@ public class CombineTaskTest
 				@Override
 				public void run() {
 					try {
-						testDriver(testTask, MockFailingCombiningReduceStub.class);
+						testResettableDriver(testTask, MockFailingCombiningReduceStub.class, 1);
 					}
 					catch (Exception e) {
 						// exceptions may happen during canceling

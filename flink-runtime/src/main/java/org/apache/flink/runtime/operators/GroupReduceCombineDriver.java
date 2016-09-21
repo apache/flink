@@ -129,14 +129,11 @@ public class GroupReduceCombineDriver<IN, OUT> implements ResettableDriver<Group
 		this.combiner = this.taskContext.getStub();
 		this.output = this.taskContext.getOutputCollector();
 
-		MemoryManager memManager = this.taskContext.getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
-		if (!reset) {
+		if (memory == null) {
+			MemoryManager memManager = this.taskContext.getMemoryManager();
+			final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
 			memory = memManager.allocatePages(taskContext.getContainingTask(), numMemoryPages);
-		} else {
-			reset = false;
 		}
-
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
 				this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
@@ -241,11 +238,12 @@ public class GroupReduceCombineDriver<IN, OUT> implements ResettableDriver<Group
 
 	@Override
 	public void cleanup() throws Exception {
+	}
+
+	private void disposeSorter() {
 		if (this.sorter != null) {
 			this.sorter.dispose();
 		}
-
-		this.taskContext.getMemoryManager().release(this.memory);
 	}
 
 	@Override
@@ -285,11 +283,12 @@ public class GroupReduceCombineDriver<IN, OUT> implements ResettableDriver<Group
 
 	@Override
 	public void reset() throws Exception {
-		reset = true;
+		disposeSorter();
 	}
 
 	@Override
 	public void teardown() throws Exception {
-
+		disposeSorter();
+		this.taskContext.getMemoryManager().release(this.memory);
 	}
 }

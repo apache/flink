@@ -25,7 +25,6 @@ import java.util.List;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
-import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -178,14 +177,9 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 	}
 
 	@Override
-	public void reset(MutableObjectIterator<V1> in1, MutableObjectIterator<V2> in2, TypeSerializer<V1> serializer1, TypeSerializer<V2> serializer2, TypeComparator<V1> comp1, TypeComparator<V2> comp2, TypePairComparatorFactory<V1, V2> pairComparatorFactory) {
+	public void reset(MutableObjectIterator<V1> in1, MutableObjectIterator<V2> in2) {
 		this.hashJoin.close();
 		this.firstInput = in1;
 		this.secondInput = in2;
-		this.comparator1 = comp1;
-		this.comparator2 = comp2;
-		this.serializer1 = serializer1;
-		this.probeSideSerializer = serializer2;
-		this.typePairComparator = pairComparatorFactory.createComparator21(comp1, comp2);
 	}
 }

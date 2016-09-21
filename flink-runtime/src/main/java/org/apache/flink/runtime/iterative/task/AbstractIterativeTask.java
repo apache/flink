@@ -125,16 +125,6 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	}
 
 	@Override
-	protected void postRun() throws Exception {
-		if (this.driver instanceof ResettableDriver) {
-			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
-			resDriver.reset();
-		} else {
-			super.postRun();
-		}
-	}
-
-	@Override
 	public void run() throws Exception {
 		if (inFirstIteration()) {
 			if (this.driver instanceof ResettableDriver) {
@@ -212,7 +202,10 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	}
 
 	private void reinstantiateDriver() throws Exception {
-		if (!(this.driver instanceof ResettableDriver)) {
+		if (this.driver instanceof ResettableDriver) {
+			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
+			resDriver.reset();
+		} else {
 			Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
 			this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 
