@@ -65,6 +65,22 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
+	public void execute(Runnable runnable) {
+		runnable.run();
+	}
+
+	@Override
+	public <T> Future<T> execute(Callable<T> callable) {
+		try {
+			T result = callable.call();
+
+			return FlinkCompletableFuture.completed(result);
+		} catch (Exception e) {
+			return FlinkCompletableFuture.completedExceptionally(e);
+		}
+	}
+
+	@Override
 	public Executor getExecutor() {
 		return executorService;
 	}
