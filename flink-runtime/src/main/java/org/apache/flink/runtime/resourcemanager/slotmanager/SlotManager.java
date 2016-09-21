@@ -59,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ul>
  * <b>IMPORTANT:</b> This class is <b>Not Thread-safe</b>.
  */
-public abstract class SlotManager implements LeaderRetrievalListener {
+public abstract class SlotManager {
 
 	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
@@ -514,20 +514,31 @@ public abstract class SlotManager implements LeaderRetrievalListener {
 		public int size() {
 			return allocatedSlots.size();
 		}
+
+		public void clear() {
+			allocatedSlots.clear();
+			allocatedSlotsByAllocationId.clear();
+		}
+	}
+
+	/**
+	 * Clears the state of the SlotManager after leadership revokal
+	 */
+	public void clearState() {
+		taskManagerGateways.clear();
+		registeredSlots.clear();
+		pendingSlotRequests.clear();
+		freeSlots.clear();
+		allocationMap.clear();
+		leaderID = null;
 	}
 
 	// ------------------------------------------------------------------------
-	//  High availability
+	//  High availability (called by the ResourceManager)
 	// ------------------------------------------------------------------------
 
-	@Override
-	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
+	public void setLeaderUUID(UUID leaderSessionID) {
 		this.leaderID = leaderSessionID;
-	}
-
-	@Override
-	public void handleError(Exception exception) {
-		LOG.error("Slot Manager received an error from the leader service", exception);
 	}
 
 	// ------------------------------------------------------------------------
