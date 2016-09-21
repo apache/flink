@@ -953,7 +953,7 @@ alias = logic | ( logic , "AS" , fieldReference ) ;
 
 logic = comparison , [ ( "&&" | "||" ) , comparison ] ;
 
-comparison = term , [ ( "=" | "===" | "!=" | "!==" | ">" | ">=" | "<" | "<=" ) , term ] ;
+comparison = term , [ ( "=" | "==" | "===" | "!=" | "!==" | ">" | ">=" | "<" | "<=" ) , term ] ;
 
 term = product , [ ( "+" | "-" ) , product ] ;
 

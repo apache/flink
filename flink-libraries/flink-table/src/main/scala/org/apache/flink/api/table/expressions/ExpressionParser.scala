@@ -154,9 +154,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val literalExpr: PackratParser[Expression] =
-    numberLiteral |
-      stringLiteralFlink | singleQuoteStringLiteral |
-      boolLiteral | nullLiteral
+    numberLiteral | stringLiteralFlink | singleQuoteStringLiteral | boolLiteral | nullLiteral
 
   lazy val fieldReference: PackratParser[NamedExpression] = (STAR | ident) ^^ {
     sym => UnresolvedFieldReference(sym)
@@ -334,7 +332,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // suffix/prefix composite
 
-  lazy val composite: PackratParser[Expression] = suffixed | prefixed | atom
+  lazy val composite: PackratParser[Expression] = suffixed | prefixed | atom |
+    failure("Composite expression expected.")
 
   // unary ops
 
@@ -342,22 +341,25 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val unaryMinus: PackratParser[Expression] = "-" ~> composite ^^ { e => UnaryMinus(e) }
 
-  lazy val unary = composite | unaryNot | unaryMinus
+  lazy val unary = composite | unaryNot | unaryMinus |
+    failure("Unary expression expected.")
 
   // arithmetic
 
   lazy val product = unary * (
     "*" ^^^ { (a:Expression, b:Expression) => Mul(a,b) } |
-      "/" ^^^ { (a:Expression, b:Expression) => Div(a,b) } |
-      "%" ^^^ { (a:Expression, b:Expression) => Mod(a,b) } )
+    "/" ^^^ { (a:Expression, b:Expression) => Div(a,b) } |
+    "%" ^^^ { (a:Expression, b:Expression) => Mod(a,b) } ) |
+    failure("Product expected.")
 
   lazy val term = product * (
     "+" ^^^ { (a:Expression, b:Expression) => Plus(a,b) } |
-     "-" ^^^ { (a:Expression, b:Expression) => Minus(a,b) } )
+    "-" ^^^ { (a:Expression, b:Expression) => Minus(a,b) } ) |
+    failure("Term expected.")
 
   // Comparison
 
-  lazy val equalTo: PackratParser[Expression] = term ~ ("===" | "=") ~ term ^^ {
+  lazy val equalTo: PackratParser[Expression] = term ~ ("===" | "==" | "=") ~ term ^^ {
     case l ~ _ ~ r => EqualTo(l, r)
   }
 
@@ -382,23 +384,26 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val comparison: PackratParser[Expression] =
-      equalTo | notEqualTo |
-      greaterThan | greaterThanOrEqual |
-      lessThan | lessThanOrEqual | term
+    equalTo | notEqualTo |
+    greaterThan | greaterThanOrEqual |
+    lessThan | lessThanOrEqual | term |
+    failure("Comparison expected.")
 
   // logic
 
   lazy val logic = comparison * (
     "&&" ^^^ { (a:Expression, b:Expression) => And(a,b) } |
-      "||" ^^^ { (a:Expression, b:Expression) => Or(a,b) } )
+    "||" ^^^ { (a:Expression, b:Expression) => Or(a,b) } ) |
+    failure("Logic expected.")
 
   // alias
 
   lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
-    case e ~ _ ~ name => Alias(e, name.name)
-  } | logic
+      case e ~ _ ~ name => Alias(e, name.name)
+    } | logic
 
-  lazy val expression: PackratParser[Expression] = alias
+  lazy val expression: PackratParser[Expression] = alias |
+    failure("Invalid expression.")
 
   lazy val expressionList: Parser[List[Expression]] = rep1sep(expression, ",")
 
@@ -406,11 +411,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     parseAll(expressionList, expression) match {
       case Success(lst, _) => lst
 
-      case Failure(msg, _) => throw ExpressionParserException(
-        "Could not parse expression: " + msg)
-
-      case Error(msg, _) => throw ExpressionParserException(
-        "Could not parse expression: " + msg)
+      case NoSuccess(msg, next) =>
+        throwError(msg, next)
     }
   }
 
@@ -418,8 +420,16 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     parseAll(expression, exprString) match {
       case Success(lst, _) => lst
 
-      case fail =>
-        throw ExpressionParserException("Could not parse expression: " + fail.toString)
+      case NoSuccess(msg, next) =>
+        throwError(msg, next)
     }
+  }
+
+  private def throwError(msg: String, next: Input): Nothing = {
+    val improvedMsg = msg.replace("string matching regex `\\z'", "End of expression")
+
+    throw ExpressionParserException(
+      s"""Could not parse expression at column ${next.pos.column}: $improvedMsg
+        |${next.pos.longString}""".stripMargin)
   }
 }
