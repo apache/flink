@@ -78,7 +78,8 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	@Override
 	public <K> KeyedStateBackend<K> createKeyedStateBackend(
 			Environment env, JobID jobID,
-			String operatorIdentifier, TypeSerializer<K> keySerializer,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry) throws IOException {
@@ -86,6 +87,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
+				env.getUserClassLoader(),
 				numberOfKeyGroups,
 				keyGroupRange);
 	}
@@ -103,6 +105,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
+				env.getUserClassLoader(),
 				numberOfKeyGroups,
 				keyGroupRange,
 				restoredState);

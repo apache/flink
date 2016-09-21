@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.test.testdata.KMeansData;
+import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -46,7 +47,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
@@ -78,6 +78,8 @@ public class ClassLoaderITCase extends TestLogger {
 	private static final String USERCODETYPE_JAR_PATH = "usercodetype-test-jar.jar";
 
 	private static final String CUSTOM_KV_STATE_JAR_PATH = "custom_kv_state-test-jar.jar";
+
+	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
@@ -199,9 +201,26 @@ public class ClassLoaderITCase extends TestLogger {
 					});
 
 			userCodeTypeProg.invokeInteractiveModeForExecution();
+
+			File checkpointDir = FOLDER.newFolder();
+			File outputDir = FOLDER.newFolder();
+
+			final PackagedProgram program = new PackagedProgram(
+					new File(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH),
+					new String[] {
+							CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH,
+							"localhost",
+							String.valueOf(port),
+							checkpointDir.toURI().toString(),
+							outputDir.toURI().toString()
+					});
+
+			program.invokeInteractiveModeForExecution();
+
 		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			if (!(e.getCause().getCause() instanceof SuccessException)) {
+				fail(e.getMessage());
+			}
 		}
 	}
 
