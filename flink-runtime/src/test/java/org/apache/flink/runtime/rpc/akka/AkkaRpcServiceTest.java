@@ -22,13 +22,18 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Test;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class AkkaRpcServiceTest extends TestLogger {
@@ -69,5 +74,45 @@ public class AkkaRpcServiceTest extends TestLogger {
 		final long stop = System.nanoTime();
 
 		assertTrue("call was not properly delayed", ((stop - start) / 1000000) >= delay);
+	}
+
+	/**
+	 * Tests that the {@link AkkaRpcService} can execute runnables
+	 */
+	@Test
+	public void testExecuteRunnable() throws Exception {
+		final OneShotLatch latch = new OneShotLatch();
+
+		akkaRpcService.execute(new Runnable() {
+			@Override
+			public void run() {
+				latch.trigger();
+			}
+		});
+
+		latch.await(30L, TimeUnit.SECONDS);
+	}
+
+	/**
+	 * Tests that the {@link AkkaRpcService} can execute callables and returns their result as
+	 * a {@link Future}.
+	 */
+	@Test
+	public void testExecuteCallable() throws InterruptedException, ExecutionException, TimeoutException {
+		final OneShotLatch latch = new OneShotLatch();
+		final int expected = 42;
+
+		Future<Integer> result = akkaRpcService.execute(new Callable<Integer>() {
+			@Override
+			public Integer call() throws Exception {
+				latch.trigger();
+				return expected;
+			}
+		});
+
+		int actual = result.get(30L, TimeUnit.SECONDS);
+
+		assertEquals(expected, actual);
+		assertTrue(latch.isTriggered());
 	}
 }
