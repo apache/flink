@@ -1685,12 +1685,9 @@ class JobManager(
           }(context.dispatcher))
 
           try {
-            eg.prepareForArchiving()
-
-            archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
+            archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg.archive()))
           } catch {
-            case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
-              "archiving.", t)
+            case t: Throwable => log.error(s"Could not archive the execution graph $eg.", t)
           }
 
           futureOption

@@ -111,7 +111,7 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		assertTrue(responseExecutionGraph instanceof TestingJobManagerMessages.ExecutionGraphFound);
 
-		ExecutionGraph executionGraph = ((TestingJobManagerMessages.ExecutionGraphFound) responseExecutionGraph).executionGraph();
+		ExecutionGraph executionGraph = (ExecutionGraph) ((TestingJobManagerMessages.ExecutionGraphFound) responseExecutionGraph).executionGraph();
 
 		TestJobStatusListener testListener = new TestJobStatusListener();
 		executionGraph.registerJobStatusListener(testListener);

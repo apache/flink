@@ -81,7 +81,7 @@ public class CoordinatorShutdownTest {
 					new JobManagerMessages.RequestJob(testGraph.getJobID()),
 					timeout);
 			
-			ExecutionGraph graph = ((JobManagerMessages.JobFound) Await.result(jobRequestFuture, timeout)).executionGraph();
+			ExecutionGraph graph = (ExecutionGraph)((JobManagerMessages.JobFound) Await.result(jobRequestFuture, timeout)).executionGraph();
 			
 			assertNotNull(graph);
 			graph.waitUntilFinished();
@@ -133,7 +133,7 @@ public class CoordinatorShutdownTest {
 					new JobManagerMessages.RequestJob(testGraph.getJobID()),
 					timeout);
 
-			ExecutionGraph graph = ((JobManagerMessages.JobFound) Await.result(jobRequestFuture, timeout)).executionGraph();
+			ExecutionGraph graph = (ExecutionGraph)((JobManagerMessages.JobFound) Await.result(jobRequestFuture, timeout)).executionGraph();
 
 			assertNotNull(graph);
 			graph.waitUntilFinished();

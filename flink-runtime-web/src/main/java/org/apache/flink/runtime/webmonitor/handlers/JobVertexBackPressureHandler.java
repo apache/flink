@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.BackPressureStatsTracker;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
@@ -56,9 +58,12 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 
 	@Override
 	public String handleRequest(
-			ExecutionJobVertex jobVertex,
+			AccessExecutionJobVertex accessJobVertex,
 			Map<String, String> params) throws Exception {
-
+		if (accessJobVertex instanceof ArchivedExecutionJobVertex) {
+			return "";
+		}
+		ExecutionJobVertex jobVertex = (ExecutionJobVertex) accessJobVertex;
 		try (StringWriter writer = new StringWriter();
 				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer)) {
 
