@@ -86,7 +86,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 		this.jobGraph = jobGraph;
 		this.toNotify = toNotify;
 		this.submittedJobGraphStore = haServices.getSubmittedJobGraphStore();
-		this.leaderElectionService = haServices.getJobMasterLeaderElectionService(jobGraph.getJobID());
+		this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 		this.leaderSessionID = null;
 
 		this.jobManager = new JobMaster(

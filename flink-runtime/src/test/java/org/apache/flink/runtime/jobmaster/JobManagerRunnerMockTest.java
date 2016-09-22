@@ -79,7 +79,7 @@ public class JobManagerRunnerMockTest {
 		when(submittedJobGraphStore.contains(any(JobID.class))).thenReturn(true);
 
 		HighAvailabilityServices haServices = mock(HighAvailabilityServices.class);
-		when(haServices.getJobMasterLeaderElectionService(any(JobID.class))).thenReturn(leaderElectionService);
+		when(haServices.getJobManagerLeaderElectionService(any(JobID.class))).thenReturn(leaderElectionService);
 		when(haServices.getSubmittedJobGraphStore()).thenReturn(submittedJobGraphStore);
 
 		runner = PowerMockito.spy(new JobManagerRunner(
