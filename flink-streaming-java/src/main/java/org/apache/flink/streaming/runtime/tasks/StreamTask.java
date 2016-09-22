@@ -49,6 +49,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +67,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
@@ -135,9 +135,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	/** The configuration of this streaming task */
 	private StreamConfig configuration;
 
-	/** The class loader used to load dynamic classes of a job */
-	private ClassLoader userClassLoader;
-
 	/** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
 	private AbstractStateBackend stateBackend;
 
@@ -179,9 +176,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	/** Thread pool for async snapshot workers */
 	private ExecutorService asyncOperationsThreadPool;
-
-	/** Timeout to await the termination of the thread pool in milliseconds */
-	private long threadPoolTerminationTimeout = 0L;
 
 	// ------------------------------------------------------------------------
 	//  Life cycle methods for specific implementations
@@ -227,8 +221,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 			asyncOperationsThreadPool = Executors.newCachedThreadPool();
 
-			userClassLoader = getUserCodeClassLoader();
-
 			configuration = new StreamConfig(getTaskConfiguration());
 
 			stateBackend = createStateBackend();
@@ -248,7 +240,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				timerService = DefaultTimeServiceProvider.create(executor);
 			}
 
-			headOperator = configuration.getStreamOperator(userClassLoader);
+			headOperator = configuration.getStreamOperator(getUserCodeClassLoader());
 			operatorChain = new OperatorChain<>(this, headOperator, 
 						getEnvironment().getAccumulatorRegistry().getReadWriteReporter());
 
@@ -446,10 +438,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		if (!asyncOperationsThreadPool.isShutdown()) {
 			asyncOperationsThreadPool.shutdownNow();
 		}
-
-		if(threadPoolTerminationTimeout > 0L) {
-			asyncOperationsThreadPool.awaitTermination(threadPoolTerminationTimeout, TimeUnit.MILLISECONDS);
-		}
 	}
 
 	/**
@@ -581,17 +569,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					if (state == null) {
 						continue;
 					}
-					if (state != null) {
-						StreamOperator<?> operator = allOperators[i];
+					StreamOperator<?> operator = allOperators[i];
 
-						if (operator != null) {
-							LOG.debug("Restore state of task {} in chain ({}).", i, getName());
-							FSDataInputStream inputStream = state.openInputStream();
-							try {
-								operator.restoreState(inputStream);
-							} finally {
-								inputStream.close();
-							}
+					if (operator != null) {
+						LOG.debug("Restore state of task {} in chain ({}).", i, getName());
+						try (FSDataInputStream inputStream = state.openInputStream()) {
+							operator.restoreState(inputStream);
 						}
 					}
 				}
@@ -803,7 +786,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					getEnvironment().getTaskKvStateRegistry());
 		}
 
-		return (KeyedStateBackend<K>) keyedStateBackend;
+		@SuppressWarnings("unchecked")
+		KeyedStateBackend<K> typedBackend = (KeyedStateBackend<K>) keyedStateBackend;
+		return typedBackend;
 	}
 
 	/**
@@ -812,7 +797,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	 * checkpoint stream factory to write write-ahead logs. <b>This should not be used for
 	 * anything else.</b>
 	 */
-	public CheckpointStreamFactory createCheckpointStreamFactory(StreamOperator operator) throws IOException {
+	public CheckpointStreamFactory createCheckpointStreamFactory(StreamOperator<?> operator) throws IOException {
 		return stateBackend.createStreamFactory(
 				getEnvironment().getJobID(),
 				createOperatorIdentifier(
@@ -821,7 +806,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	}
 
-	private String createOperatorIdentifier(StreamOperator operator, int vertexId) {
+	private String createOperatorIdentifier(StreamOperator<?> operator, int vertexId) {
 		return operator.getClass().getSimpleName() +
 				"_" + vertexId +
 				"_" + getEnvironment().getTaskInfo().getIndexOfThisSubtask();
@@ -875,15 +860,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				}
 			}
 		};
-	}
-
-	/**
-	 * Sets a timeout for the async thread pool. Default should always be 0 to avoid blocking restarts of task.
-	 *
-	 * @param threadPoolTerminationTimeout timeout for the async thread pool in milliseconds
-	 */
-	public void setThreadPoolTerminationTimeout(long threadPoolTerminationTimeout) {
-		this.threadPoolTerminationTimeout = threadPoolTerminationTimeout;
 	}
 
 	// ------------------------------------------------------------------------
@@ -969,7 +945,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 					KeyGroupsStateHandle keyGroupsStateHandle = this.keyGroupsStateHandleFuture.get();
 					if (keyGroupsStateHandle != null) {
-						keyedStates = Arrays.asList(keyGroupsStateHandle);
+						keyedStates = Collections.singletonList(keyGroupsStateHandle);
 					}
 				}
 
