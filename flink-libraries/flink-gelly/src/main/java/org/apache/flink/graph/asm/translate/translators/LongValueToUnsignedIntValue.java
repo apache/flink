@@ -16,25 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.asm.translate;
+package org.apache.flink.graph.asm.translate.translators;
 
+import org.apache.flink.graph.asm.translate.TranslateFunction;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.types.StringValue;
 
 /**
- * Translate {@link LongValue} to {@link StringValue}.
+ * Translate {@link LongValue} to {@link IntValue}.
+ *
+ * Throws {@link RuntimeException} for integer overflow.
  */
-public class LongValueToStringValue
-implements TranslateFunction<LongValue, StringValue> {
+public class LongValueToUnsignedIntValue
+implements TranslateFunction<LongValue, IntValue> {
 
 	@Override
-	public StringValue translate(LongValue value, StringValue reuse)
+	public IntValue translate(LongValue value, IntValue reuse)
 			throws Exception {
 		if (reuse == null) {
-			reuse = new StringValue();
+			reuse = new IntValue();
 		}
 
-		reuse.setValue(Long.toString(value.getValue()));
+		long l = value.getValue();
+
+		if (l < 0 || l >= (1L << 32)) {
+			throw new IllegalArgumentException("Cannot cast long value " + value + " to integer.");
+		} else {
+			reuse.setValue((int)(l & 0xffffffffL));
+		}
+
 		return reuse;
 	}
 }

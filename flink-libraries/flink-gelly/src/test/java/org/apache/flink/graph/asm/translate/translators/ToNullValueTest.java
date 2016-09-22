@@ -16,34 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.asm.translate;
+package org.apache.flink.graph.asm.translate.translators;
 
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.types.NullValue;
+import org.apache.flink.types.StringValue;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class LongValueToSignedIntValueTest {
-
-	private TranslateFunction<LongValue, IntValue> translator = new LongValueToSignedIntValue();
-
-	private IntValue reuse = new IntValue();
+public class ToNullValueTest {
 
 	@Test
 	public void testTranslation() throws Exception {
-		assertEquals(new IntValue(Integer.MIN_VALUE), translator.translate(new LongValue((long)Integer.MIN_VALUE), reuse));
-		assertEquals(new IntValue(0), translator.translate(new LongValue(0L), reuse));
-		assertEquals(new IntValue(Integer.MAX_VALUE), translator.translate(new LongValue((long)Integer.MAX_VALUE), reuse));
-	}
+		NullValue reuse = NullValue.getInstance();
 
-	@Test(expected=IllegalArgumentException.class)
-	public void testUpperOutOfRange() throws Exception {
-		assertEquals(new IntValue(), translator.translate(new LongValue((long)Integer.MAX_VALUE + 1), reuse));
-	}
-
-	@Test(expected=IllegalArgumentException.class)
-	public void testLowerOutOfRange() throws Exception {
-		assertEquals(new IntValue(), translator.translate(new LongValue((long)Integer.MIN_VALUE - 1), reuse));
+		assertEquals(NullValue.getInstance(), new ToNullValue<>().translate(new DoubleValue(), reuse));
+		assertEquals(NullValue.getInstance(), new ToNullValue<>().translate(new FloatValue(), reuse));
+		assertEquals(NullValue.getInstance(), new ToNullValue<>().translate(new IntValue(), reuse));
+		assertEquals(NullValue.getInstance(), new ToNullValue<>().translate(new LongValue(), reuse));
+		assertEquals(NullValue.getInstance(), new ToNullValue<>().translate(new StringValue(), reuse));
 	}
 }
