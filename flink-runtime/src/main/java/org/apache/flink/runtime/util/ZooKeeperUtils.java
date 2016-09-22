@@ -21,6 +21,8 @@ package org.apache.flink.runtime.util;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.api.ACLProvider;
+import org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
@@ -39,11 +41,14 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.ConfigurationUtil;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,6 +84,29 @@ public class ZooKeeperUtils {
 
 		String namespace = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 
+		boolean disableSaslClient = configuration.getBoolean(ConfigConstants.ZOOKEEPER_SASL_DISABLE,
+				ConfigConstants.DEFAULT_ZOOKEEPER_SASL_DISABLE);
+
+		ACLProvider aclProvider;
+
+		ZkClientACLMode aclMode = ZkClientACLMode.fromConfig(configuration);
+
+		if(disableSaslClient && aclMode == ZkClientACLMode.CREATOR) {
+			String errorMessage = "Cannot set ACL role to " + aclMode +"  since SASL authentication is " +
+					"disabled through the " + ConfigConstants.ZOOKEEPER_SASL_DISABLE + " property";
+			LOG.warn(errorMessage);
+			throw new IllegalConfigurationException(errorMessage);
+		}
+
+		if(aclMode == ZkClientACLMode.CREATOR) {
+			LOG.info("Enforcing creator for ZK connections");
+			aclProvider = new SecureAclProvider();
+		} else {
+			LOG.info("Enforcing default ACL for ZK connections");
+			aclProvider = new DefaultACLProvider();
+		}
+
+
 		String rootWithNamespace = generateZookeeperPath(root, namespace);
 
 		LOG.info("Using '{}' as Zookeeper namespace.", rootWithNamespace);
@@ -91,6 +119,7 @@ public class ZooKeeperUtils {
 				// Curator prepends a '/' manually and throws an Exception if the
 				// namespace starts with a '/'.
 				.namespace(rootWithNamespace.startsWith("/") ? rootWithNamespace.substring(1) : rootWithNamespace)
+				.aclProvider(aclProvider)
 				.build();
 
 		cf.start();
@@ -304,6 +333,47 @@ public class ZooKeeperUtils {
 		}
 
 		return root + namespace;
+	}
+
+
+	public static class SecureAclProvider implements ACLProvider
+	{
+		@Override
+		public List<ACL> getDefaultAcl()
+		{
+			return ZooDefs.Ids.CREATOR_ALL_ACL;
+		}
+
+		@Override
+		public List<ACL> getAclForPath(String path)
+		{
+			return ZooDefs.Ids.CREATOR_ALL_ACL;
+		}
+	}
+
+	public enum ZkClientACLMode {
+		CREATOR,
+		OPEN;
+
+		/**
+		 * Return the configured {@link ZkClientACLMode}.
+		 *
+		 * @param config The config to parse
+		 * @return Configured ACL mode or {@link ConfigConstants#DEFAULT_HA_ZOOKEEPER_CLIENT_ACL} if not
+		 * configured.
+		 */
+		public static ZkClientACLMode fromConfig(Configuration config) {
+			String aclMode = config.getString(ConfigConstants.HA_ZOOKEEPER_CLIENT_ACL, null);
+			if (aclMode == null || aclMode.equalsIgnoreCase(ZkClientACLMode.OPEN.name())) {
+				return ZkClientACLMode.OPEN;
+			} else if (aclMode.equalsIgnoreCase(ZkClientACLMode.CREATOR.name())) {
+				return ZkClientACLMode.CREATOR;
+			} else {
+				String message = "Unsupported ACL option: [" + aclMode + "] provided";
+				LOG.error(message);
+				throw new IllegalConfigurationException(message);
+			}
+		}
 	}
 
 	/**
