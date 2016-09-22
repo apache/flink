@@ -98,10 +98,10 @@ class FlinkPlannerImpl(
       assert(validatedSqlNode != null)
       val rexBuilder: RexBuilder = createRexBuilder
       val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
+      val config = SqlToRelConverter.configBuilder()
+        .withTrimUnusedFields(false).withConvertTableAccess(false).build()
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl, validator, createCatalogReader, cluster, convertletTable)
-      sqlToRelConverter.setTrimUnusedFields(false)
-      sqlToRelConverter.enableTableAccessConversion(false)
+        new ViewExpanderImpl, validator, createCatalogReader, cluster, convertletTable, config)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
       root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
       root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
@@ -118,7 +118,8 @@ class FlinkPlannerImpl(
     override def expandView(
         rowType: RelDataType,
         queryString: String,
-        schemaPath: util.List[String]): RelRoot = {
+        schemaPath: util.List[String],
+        viewPath: util.List[String]): RelRoot = {
 
       val parser: SqlParser = SqlParser.create(queryString, parserConfig)
       var sqlNode: SqlNode = null
@@ -136,10 +137,10 @@ class FlinkPlannerImpl(
       val validatedSqlNode: SqlNode = validator.validate(sqlNode)
       val rexBuilder: RexBuilder = createRexBuilder
       val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
+      val config: SqlToRelConverter.Config = SqlToRelConverter.configBuilder
+        .withTrimUnusedFields(false).withConvertTableAccess(false).build
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl, validator, catalogReader, cluster, convertletTable)
-      sqlToRelConverter.setTrimUnusedFields(false)
-      sqlToRelConverter.enableTableAccessConversion(false)
+        new ViewExpanderImpl, validator, catalogReader, cluster, convertletTable, config)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, true, false)
       root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
       root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
