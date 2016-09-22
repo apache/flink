@@ -164,9 +164,9 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 				nextPastTriggerTime = Math.min(nextPastEvaluationTime, nextPastSlideTime);
 			}
 		}
-		
+
 		// make sure the first window happens
-		registerTimer(firstTriggerTime, this);
+		getTimerService().registerTimer(firstTriggerTime, this);
 	}
 
 	@Override
@@ -230,7 +230,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		}
 
 		long nextTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
-		registerTimer(nextTriggerTime, this);
+		getTimerService().registerTimer(nextTriggerTime, this);
 	}
 	
 	private void computeWindow(long timestamp) throws Exception {

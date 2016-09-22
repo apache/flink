@@ -91,7 +91,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	 * @param target The target to be triggered.
 	 */
 	public ScheduledFuture<?> registerTimer(long time, Triggerable target) {
-		return operator.registerTimer(time, target);
+		return operator.getTimerService().registerTimer(time, target);
 	}
 
 	/**
@@ -99,7 +99,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	 * {@link org.apache.flink.streaming.runtime.tasks.TimeServiceProvider TimeServiceProvider}
 	 */
 	public long getCurrentProcessingTime() {
-		return operator.getCurrentProcessingTime();
+		return operator.getTimerService().getCurrentProcessingTime();
 	}
 
 	// ------------------------------------------------------------------------
