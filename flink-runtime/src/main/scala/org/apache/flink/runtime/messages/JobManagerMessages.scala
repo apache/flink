@@ -26,7 +26,7 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.blob.BlobKey
 import org.apache.flink.runtime.client.{JobStatusMessage, SerializedJobExecutionResult}
-import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
+import org.apache.flink.runtime.executiongraph.{AccessExecutionGraph, ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{Instance, InstanceID}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
@@ -354,7 +354,7 @@ object JobManagerMessages {
    * @param jobID
    * @param executionGraph
    */
-  case class JobFound(jobID: JobID, executionGraph: ExecutionGraph) extends JobResponse
+  case class JobFound(jobID: JobID, executionGraph: AccessExecutionGraph) extends JobResponse
 
   /**
    * Denotes that there is no job with [[jobID]] retrievable. This message can be the response of

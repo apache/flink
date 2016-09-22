@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 import java.io.StringWriter;
@@ -38,7 +38,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 	}
 
 	@Override
-	public String handleRequest(Execution execAttempt, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecution execAttempt, Map<String, String> params) throws Exception {
 		final StringifiedAccumulatorResult[] accs = execAttempt.getUserAccumulatorsStringified();
 		
 		StringWriter writer = new StringWriter();
@@ -46,7 +46,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 
 		gen.writeStartObject();
 
-		gen.writeNumberField("subtask", execAttempt.getVertex().getParallelSubtaskIndex());
+		gen.writeNumberField("subtask", execAttempt.getParallelSubtaskIndex());
 		gen.writeNumberField("attempt", execAttempt.getAttemptNumber());
 		gen.writeStringField("id", execAttempt.getAttemptId().toString());
 		

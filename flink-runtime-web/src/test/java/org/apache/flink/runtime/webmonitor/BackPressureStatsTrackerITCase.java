@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
@@ -153,7 +152,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 							ExecutionGraphFound executionGraphResponse =
 									expectMsgClass(ExecutionGraphFound.class);
 
-							ExecutionGraph executionGraph = executionGraphResponse.executionGraph();
+							ExecutionGraph executionGraph = (ExecutionGraph) executionGraphResponse.executionGraph();
 							ExecutionJobVertex vertex = executionGraph.getJobVertex(task.getID());
 
 							StackTraceSampleCoordinator coordinator = new StackTraceSampleCoordinator(

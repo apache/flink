@@ -20,12 +20,13 @@ package org.apache.flink.runtime.checkpoint.stats;
 
 import org.apache.flink.configuration.ConfigConstants;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
  * Snapshot of checkpoint statistics for a job.
  */
-public interface JobCheckpointStats {
+public interface JobCheckpointStats extends Serializable {
 
 	// ------------------------------------------------------------------------
 	// General stats

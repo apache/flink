@@ -396,7 +396,7 @@ public class QueryableStateITCase extends TestLogger {
 					.map(new Mapper<TestingJobManagerMessages.ExecutionGraphFound, ExecutionGraph>() {
 						@Override
 						public ExecutionGraph apply(ExecutionGraphFound found) {
-							return found.executionGraph();
+							return (ExecutionGraph) found.executionGraph();
 						}
 					}, TEST_ACTOR_SYSTEM.dispatcher());
 			ExecutionGraph eg = Await.result(egFuture, deadline.timeLeft());
@@ -553,7 +553,7 @@ public class QueryableStateITCase extends TestLogger {
 							.mapTo(ClassTag$.MODULE$.<JobFound>apply(JobFound.class)),
 					deadline.timeLeft());
 
-			Throwable failureCause = jobFound.executionGraph().getFailureCause();
+			Throwable failureCause = ((ExecutionGraph)jobFound.executionGraph()).getFailureCause();
 
 			assertTrue("Not instance of SuppressRestartsException", failureCause instanceof SuppressRestartsException);
 			assertTrue("Not caused by IllegalStateException", failureCause.getCause() instanceof IllegalStateException);

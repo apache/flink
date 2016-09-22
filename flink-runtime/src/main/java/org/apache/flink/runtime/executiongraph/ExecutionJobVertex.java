@@ -28,7 +28,10 @@ import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -43,6 +46,7 @@ import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
+import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
@@ -51,7 +55,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ExecutionJobVertex {
+public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable<ArchivedExecutionJobVertex> {
 
 	/** Use the same log for all ExecutionGraph classes */
 	private static final Logger LOG = ExecutionGraph.LOG;
@@ -197,10 +201,17 @@ public class ExecutionJobVertex {
 		return jobVertex;
 	}
 
+	@Override
+	public String getName() {
+		return getJobVertex().getName();
+	}
+
+	@Override
 	public int getParallelism() {
 		return parallelism;
 	}
 
+	@Override
 	public int getMaxParallelism() {
 		return maxParallelism;
 	}
@@ -209,10 +220,12 @@ public class ExecutionJobVertex {
 		return graph.getJobID();
 	}
 	
+	@Override
 	public JobVertexID getJobVertexId() {
 		return jobVertex.getID();
 	}
 	
+	@Override
 	public ExecutionVertex[] getTaskVertices() {
 		return taskVertices;
 	}
@@ -241,6 +254,7 @@ public class ExecutionJobVertex {
 		return numSubtasksInFinalState == parallelism;
 	}
 	
+	@Override
 	public ExecutionState getAggregateState() {
 		int[] num = new int[ExecutionState.values().length];
 		for (ExecutionVertex vertex : this.taskVertices) {
@@ -250,6 +264,16 @@ public class ExecutionJobVertex {
 		return getAggregateJobVertexState(num, parallelism);
 	}
 	
+	@Override
+	public Option<OperatorCheckpointStats> getCheckpointStats() {
+		CheckpointStatsTracker tracker = getGraph().getCheckpointStatsTracker();
+		if (tracker == null) {
+			return Option.empty();
+		} else {
+			return tracker.getOperatorStats(getJobVertexId());
+		}
+	}
+
 	//---------------------------------------------------------------------------------------------
 	
 	public void connectToPredecessors(Map<IntermediateDataSetID, IntermediateResult> intermediateDataSets) throws JobException {
@@ -367,36 +391,6 @@ public class ExecutionJobVertex {
 			// Reset intermediate results
 			for (IntermediateResult result : producedDataSets) {
 				result.resetForNewExecution();
-			}
-		}
-	}
-	
-	/**
-	 * This method cleans fields that are irrelevant for the archived execution attempt.
-	 */
-	public void prepareForArchiving() {
-		
-		for (ExecutionVertex vertex : taskVertices) {
-			vertex.prepareForArchiving();
-		}
-		
-		// clear intermediate results
-		inputs.clear();
-		producedDataSets = null;
-		
-		// reset shared groups
-		if (slotSharingGroup != null) {
-			slotSharingGroup.clearTaskAssignment();
-		}
-		if (coLocationGroup != null) {
-			coLocationGroup.resetConstraints();
-		}
-		
-		// reset splits and split assigner
-		splitAssigner = null;
-		if (inputSplits != null) {
-			for (int i = 0; i < inputSplits.length; i++) {
-				inputSplits[i] = null;
 			}
 		}
 	}
@@ -626,5 +620,10 @@ public class ExecutionJobVertex {
 			// all else collapses under created
 			return ExecutionState.CREATED;
 		}
+	}
+
+	@Override
+	public ArchivedExecutionJobVertex archive() {
+		return new ArchivedExecutionJobVertex(this);
 	}
 }

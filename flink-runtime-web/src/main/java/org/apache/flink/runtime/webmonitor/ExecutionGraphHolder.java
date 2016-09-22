@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -47,7 +48,7 @@ public class ExecutionGraphHolder {
 
 	private final FiniteDuration timeout;
 
-	private final WeakHashMap<JobID, ExecutionGraph> cache = new WeakHashMap<JobID, ExecutionGraph>();
+	private final WeakHashMap<JobID, AccessExecutionGraph> cache = new WeakHashMap<>();
 
 	public ExecutionGraphHolder() {
 		this(WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
@@ -63,8 +64,8 @@ public class ExecutionGraphHolder {
 	 * @param jid jobID of the execution graph to be retrieved
 	 * @return the retrieved execution graph or null if it is not retrievable
 	 */
-	public ExecutionGraph getExecutionGraph(JobID jid, ActorGateway jobManager) {
-		ExecutionGraph cached = cache.get(jid);
+	public AccessExecutionGraph getExecutionGraph(JobID jid, ActorGateway jobManager) {
+		AccessExecutionGraph cached = cache.get(jid);
 		if (cached != null) {
 			return cached;
 		}
@@ -78,7 +79,7 @@ public class ExecutionGraphHolder {
 					return null;
 				}
 				else if (result instanceof JobManagerMessages.JobFound) {
-					ExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
+					AccessExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
 					cache.put(jid, eg);
 					return eg;
 				}

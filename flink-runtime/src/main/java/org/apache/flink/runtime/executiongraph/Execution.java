@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
+import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -102,7 +103,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * occasional double-checking to ensure that the state after a completed call is as expected, and trigger correcting
  * actions if it is not. Many actions are also idempotent (like canceling).
  */
-public class Execution {
+public class Execution implements AccessExecution, Archiveable<ArchivedExecution> {
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
@@ -188,14 +189,17 @@ public class Execution {
 		return vertex;
 	}
 
+	@Override
 	public ExecutionAttemptID getAttemptId() {
 		return attemptId;
 	}
 
+	@Override
 	public int getAttemptNumber() {
 		return attemptNumber;
 	}
 
+	@Override
 	public ExecutionState getState() {
 		return state;
 	}
@@ -204,6 +208,7 @@ public class Execution {
 		return assignedResource;
 	}
 
+	@Override
 	public TaskManagerLocation getAssignedResourceLocation() {
 		return assignedResourceLocation;
 	}
@@ -212,10 +217,17 @@ public class Execution {
 		return failureCause;
 	}
 
+	@Override
+	public String getFailureCauseAsString() {
+		return ExceptionUtils.stringifyException(getFailureCause());
+	}
+
+	@Override
 	public long[] getStateTimestamps() {
 		return stateTimestamps;
 	}
 
+	@Override
 	public long getStateTimestamp(ExecutionState state) {
 		return this.stateTimestamps[state.ordinal()];
 	}
@@ -234,21 +246,6 @@ public class Execution {
 
 	public boolean isFinished() {
 		return state.isTerminal();
-	}
-
-	/**
-	 * This method cleans fields that are irrelevant for the archived execution attempt.
-	 */
-	public void prepareForArchiving() {
-		if (assignedResource != null && assignedResource.isAlive()) {
-			throw new IllegalStateException("Cannot archive Execution while the assigned resource is still running.");
-		}
-		assignedResource = null;
-
-		executionContext = null;
-
-		partialInputChannelDeploymentDescriptors.clear();
-		partialInputChannelDeploymentDescriptors = null;
 	}
 
 	/**
@@ -1055,12 +1052,19 @@ public class Execution {
 		return userAccumulators;
 	}
 
+	@Override
 	public StringifiedAccumulatorResult[] getUserAccumulatorsStringified() {
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
 	}
 
+	@Override
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
 		return flinkAccumulators;
+	}
+
+	@Override
+	public int getParallelSubtaskIndex() {
+		return getVertex().getParallelSubtaskIndex();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1071,5 +1075,10 @@ public class Execution {
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
+	}
+
+	@Override
+	public ArchivedExecution archive() {
+		return new ArchivedExecution(this);
 	}
 }

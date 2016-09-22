@@ -27,6 +27,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class OperatorCheckpointStats extends CheckpointStats {
 
+	private static final long serialVersionUID = -1594736655739376140L;
+
 	/** Duration in milliseconds and state sizes in bytes per sub task. */
 	private final long[][] subTaskStats;
 
