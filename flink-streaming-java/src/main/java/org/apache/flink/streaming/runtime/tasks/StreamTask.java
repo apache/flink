@@ -110,13 +110,13 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		extends AbstractInvokable
-		implements StatefulTask {
+		implements StatefulTask, AsyncExceptionHandler {
 
 	/** The thread group that holds all trigger timer threads */
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
 	
 	/** The logger used by the StreamTask and its subclasses */
-	protected static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 	
 	// ------------------------------------------------------------------------
 	
@@ -213,7 +213,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		timerService = timeProvider;
 	}
 
+	/**
+	 * Returns the current processing time.
+	 */
 	public long getCurrentProcessingTime() {
+		if (timerService == null) {
+			throw new IllegalStateException("The timer service has not been initialized.");
+		}
 		return timerService.getCurrentProcessingTime();
 	}
 
@@ -245,7 +251,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				// that timestamp are removed by user
 				executor.setRemoveOnCancelPolicy(true);
 
-				timerService = DefaultTimeServiceProvider.create(executor);
+				timerService = DefaultTimeServiceProvider.create(this, executor, getCheckpointLock());
 			}
 
 			headOperator = configuration.getStreamOperator(userClassLoader);
@@ -327,7 +333,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// stop all timers and threads
 			if (timerService != null) {
 				try {
-					timerService.shutdownService();
+					if (!timerService.isTerminated()) {
+						LOG.info("Timer service is shutting down.");
+						timerService.shutdownService();
+					}
 				}
 				catch (Throwable t) {
 					// catch and log the exception to not replace the original exception
@@ -364,19 +373,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				disposeAllOperators();
 			}
 		}
-	}
-
-	/**
-	 * Marks task execution failed for an external reason (a reason other than the task code itself
-	 * throwing an exception). If the task is already in a terminal state
-	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
-	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
-	 * starts an asynchronous thread that aborts that code.
-	 *
-	 * <p>This method never blocks.</p>
-	 */
-	public void failExternally(Throwable cause) {
-		getEnvironment().failExternally(cause);
 	}
 
 	@Override
@@ -487,7 +483,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	protected void finalize() throws Throwable {
 		super.finalize();
 		if (timerService != null) {
-			timerService.shutdownService();
+			if (!timerService.isTerminated()) {
+				LOG.info("Timer service is shutting down.");
+				timerService.shutdownService();
+			}
 		}
 
 		closeAllClosables();
@@ -834,7 +833,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		if (timerService == null) {
 			throw new IllegalStateException("The timer service has not been initialized.");
 		}
-		return timerService.registerTimer(timestamp, new TriggerTask(this, lock, target, timestamp));
+		return timerService.registerTimer(timestamp, target);
 	}
 
 	/**
@@ -848,6 +847,30 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	public void checkTimerException() throws AsynchronousException {
 		if (asyncException != null) {
 			throw asyncException;
+		}
+	}
+
+	/**
+	 * Marks task execution failed for an external reason (a reason other than the task code itself
+	 * throwing an exception). If the task is already in a terminal state
+	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
+	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
+	 * starts an asynchronous thread that aborts that code.
+	 *
+	 * <p>This method never blocks.</p>
+	 */
+	public void failExternally(Throwable cause) {
+		getEnvironment().failExternally(cause);
+	}
+
+	@Override
+	public void registerAsyncException(String message, AsynchronousException exception) {
+		if (isRunning) {
+			LOG.error(message, exception);
+		}
+
+		if (this.asyncException == null) {
+			this.asyncException = exception;
 		}
 	}
 
@@ -884,42 +907,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	 */
 	public void setThreadPoolTerminationTimeout(long threadPoolTerminationTimeout) {
 		this.threadPoolTerminationTimeout = threadPoolTerminationTimeout;
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Internal task that is invoked by the timer service and triggers the target.
-	 */
-	private static final class TriggerTask implements Runnable {
-
-		private final Object lock;
-		private final Triggerable target;
-		private final long timestamp;
-		private final StreamTask<?, ?> task;
-
-		TriggerTask(StreamTask<?, ?> task, final Object lock, Triggerable target, long timestamp) {
-			this.task = task;
-			this.lock = lock;
-			this.target = target;
-			this.timestamp = timestamp;
-		}
-
-		@Override
-		public void run() {
-			synchronized (lock) {
-				try {
-					target.trigger(timestamp);
-				} catch (Throwable t) {
-					if (task.isRunning) {
-						LOG.error("Caught exception while processing timer.", t);
-					}
-					if (task.asyncException == null) {
-						task.asyncException = new TimerException(t);
-					}
-				}
-			}
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -985,12 +972,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				}
 			}
 			catch (Exception e) {
-				if (owner.isRunning()) {
-					LOG.error("Caught exception while materializing asynchronous checkpoints.", e);
-				}
-				if (owner.asyncException == null) {
-					owner.asyncException = new AsynchronousException(e);
-				}
+
+				// registers the exception and tries to fail the whole task
+				AsynchronousException asyncException = new AsynchronousException(e);
+				owner.registerAsyncException("Caught exception while materializing asynchronous checkpoints.", asyncException);
 			}
 			finally {
 				synchronized (cancelables) {

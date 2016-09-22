@@ -115,7 +115,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	public long getCurrentProcessingTime() {
 		if (!(task instanceof StreamTask)) {
-			System.currentTimeMillis();
+			throw new UnsupportedOperationException("getCurrentProcessingTime() only supported on StreamTasks.");
 		}
 		return ((StreamTask) task).getCurrentProcessingTime();
 	}
