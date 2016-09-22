@@ -1585,7 +1585,7 @@ temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
 {% endhighlight %}
       </td>
       <td>
-        <p>Determines whether two anchored time intervals overlap. It evaluates <code>leftTemporal >= rightTimePoint && rightTemporal >= leftTimePoint</code>. E.g. <code>temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour)</code> leads to true.</p>
+        <p>Determines whether two anchored time intervals overlap. Time point and temporal are transformed into a range defined by two time points (start, end). The function evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>. E.g. <code>temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour)</code> leads to true.</p>
       </td>
     </tr>
 
@@ -1958,7 +1958,7 @@ temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
 {% endhighlight %}
       </td>
       <td>
-        <p>Determines whether two anchored time intervals overlap. It evaluates <code>leftTemporal >= rightTimePoint && rightTemporal >= leftTimePoint</code>. E.g. <code>temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hour)</code> leads to true.</p>
+        <p>Determines whether two anchored time intervals overlap. Time point and temporal are transformed into a range defined by two time points (start, end). The function evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>. E.g. <code>temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hour)</code> leads to true.</p>
       </td>
     </tr>
 

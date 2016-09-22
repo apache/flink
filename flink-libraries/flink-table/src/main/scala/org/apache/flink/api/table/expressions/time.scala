@@ -279,7 +279,7 @@ case class TemporalOverlaps(
     if (TypeCheckUtils.isTimePoint(leftTemporal.resultType)) {
       if (leftTemporal.resultType != leftTimePoint.resultType) {
         return ValidationFailure(s"TemporalOverlaps operator requires leftTemporal and " +
-          s"leftTimePoint to be of same type if leftPointOrInterval is of type Time Point.")
+          s"leftTimePoint to be of same type if leftTemporal is of type Time Point.")
       }
     } else if (!isTimeInterval(leftTemporal.resultType)) {
       return ValidationFailure(s"TemporalOverlaps operator requires leftTemporal to be of " +
@@ -290,7 +290,7 @@ case class TemporalOverlaps(
     if (TypeCheckUtils.isTimePoint(rightTemporal.resultType)) {
       if (rightTemporal.resultType != rightTimePoint.resultType) {
         return ValidationFailure(s"TemporalOverlaps operator requires rightTemporal and " +
-          s"rightTimePoint to be of same type if rightPointOrInterval is of type Time Point.")
+          s"rightTimePoint to be of same type if rightTemporal is of type Time Point.")
       }
     } else if (!isTimeInterval(rightTemporal.resultType)) {
       return ValidationFailure(s"TemporalOverlaps operator requires rightTemporal to be of " +
@@ -321,24 +321,24 @@ case class TemporalOverlaps(
       rightT: RexNode,
       relBuilder: FlinkRelBuilder)
     : RexNode = {
-    // t1 = t0 + t1 if t1 is an interval
+    // leftT = leftP + leftT if leftT is an interval
     val convLeftT = if (isTimeInterval(leftTemporal.resultType)) {
         relBuilder.call(SqlStdOperatorTable.PLUS, leftP, leftT)
       } else {
         leftT
       }
-    // t3 = t2 + t3 if t3 is an interval
+    // rightT = rightP + rightT if rightT is an interval
     val convRightT = if (isTimeInterval(rightTemporal.resultType)) {
         relBuilder.call(SqlStdOperatorTable.PLUS, rightP, rightT)
       } else {
         rightT
       }
-    // t1 >= t2
+    // leftT >= rightP
     val leftPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, convLeftT, rightP)
-    // t3 >= t0
+    // rightT >= leftP
     val rightPred = relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, convRightT, leftP)
 
-    // t1 >= t2 and t3 >= t0
+    // leftT >= rightP and rightT >= leftP
     relBuilder.call(SqlStdOperatorTable.AND, leftPred, rightPred)
   }
 }
