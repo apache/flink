@@ -35,7 +35,7 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, BigDecimal reusable) {
-		final int endPos = nextNumericStringEndPos(bytes, startPos, limit, delimiter);
+		final int endPos = nextStringEndPos(bytes, startPos, limit, delimiter);
 		if (endPos < 0) {
 			return -1;
 		}
@@ -48,7 +48,8 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 			for (int j = 0; j < length; j++) {
 				final byte b = bytes[startPos + j];
 				if ((b < '0' || b > '9') && b != '-' && b != '+' && b != '.' && b != 'E' && b != 'e') {
-					throw new NumberFormatException();
+					setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
+					return -1;
 				}
 				reuse[j] = (char) bytes[startPos + j];
 			}
@@ -80,7 +81,7 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 	 * @param startPos The offset to start the parsing.
 	 * @param length   The length of the byte sequence (counting from the offset).
 	 * @return The parsed value.
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * @throws IllegalArgumentException Thrown when the value cannot be parsed because the text
 	 * represents not a correct number.
 	 */
 	public static final BigDecimal parseField(byte[] bytes, int startPos, int length) {
@@ -97,7 +98,7 @@ public class BigDecParser extends FieldParser<BigDecimal> {
 	 * @param length    The length of the byte sequence (counting from the offset).
 	 * @param delimiter The delimiter that terminates the field.
 	 * @return The parsed value.
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * @throws IllegalArgumentException Thrown when the value cannot be parsed because the text
 	 * represents not a correct number.
 	 */
 	public static final BigDecimal parseField(byte[] bytes, int startPos, int length, char delimiter) {

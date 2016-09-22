@@ -176,12 +176,11 @@ public abstract class FieldParser<T> {
 	}
 
 	/**
-	 * Returns the end position of a numeric string. A numeric string does not start or end with whitespaces.
-	 * Sets the error state if the string contains leading/trailing whitespaces or if the column is empty.
+	 * Returns the end position of a string. Sets the error state if the column is empty.
 	 *
 	 * @return the end position of the string or -1 if an error occurred
 	 */
-	protected final int nextNumericStringEndPos(byte[] bytes, int startPos, int limit, byte[] delimiter) {
+	protected final int nextStringEndPos(byte[] bytes, int startPos, int limit, byte[] delimiter) {
 		int endPos = startPos;
 
 		final int delimLimit = limit - delimiter.length + 1;
@@ -197,38 +196,26 @@ public abstract class FieldParser<T> {
 			endPos++;
 		}
 
-		if (endPos > startPos &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(endPos - 1)]))) {
-			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
-			return -1;
-		}
-
 		return endPos;
 	}
 
 	/**
-	 * Returns a numeric string. A numeric string does not start or end with whitespaces. Throws an
-	 * exception if the string contains leading/trailing whitespaces or if the column is empty.
+	 * Returns the length of a string. Throws an exception if the column is empty.
 	 *
-	 * @return the parsed string
+	 * @return the length of the string
 	 */
-	protected static final String nextNumericString(byte[] bytes, int startPos, int length, char delimiter) {
+	protected static final int nextStringLength(byte[] bytes, int startPos, int length, char delimiter) {
 		if (length <= 0) {
-			throw new NumberFormatException("Invalid input: Empty string");
+			throw new IllegalArgumentException("Invalid input: Empty string");
 		}
-		int i = 0;
+		int limitedLength = 0;
 		final byte delByte = (byte) delimiter;
 
-		while (i < length && bytes[startPos + i] != delByte) {
-			i++;
+		while (limitedLength < length && bytes[startPos + limitedLength] != delByte) {
+			limitedLength++;
 		}
 
-		if (i > 0 &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + i - 1]))) {
-			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
-		}
-
-		return new String(bytes, startPos, i);
+		return limitedLength;
 	}
 	
 	// --------------------------------------------------------------------------------------------

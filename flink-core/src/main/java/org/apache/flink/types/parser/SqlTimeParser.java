@@ -34,7 +34,7 @@ public class SqlTimeParser extends FieldParser<Time> {
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Time reusable) {
-		final int endPos = nextNumericStringEndPos(bytes, startPos, limit, delimiter);
+		final int endPos = nextStringEndPos(bytes, startPos, limit, delimiter);
 		if (endPos < 0) {
 			return -1;
 		}
@@ -68,7 +68,7 @@ public class SqlTimeParser extends FieldParser<Time> {
 	 * @param startPos The offset to start the parsing.
 	 * @param length   The length of the byte sequence (counting from the offset).
 	 * @return The parsed value.
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * @throws IllegalArgumentException Thrown when the value cannot be parsed because the text
 	 * represents not a correct number.
 	 */
 	public static final Time parseField(byte[] bytes, int startPos, int length) {
@@ -85,19 +85,18 @@ public class SqlTimeParser extends FieldParser<Time> {
 	 * @param length    The length of the byte sequence (counting from the offset).
 	 * @param delimiter The delimiter that terminates the field.
 	 * @return The parsed value.
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * @throws IllegalArgumentException Thrown when the value cannot be parsed because the text
 	 * represents not a correct number.
 	 */
 	public static final Time parseField(byte[] bytes, int startPos, int length, char delimiter) {
-		final String str = nextNumericString(bytes, startPos, length, delimiter);
-		try {
-			return Time.valueOf(str);
+		final int limitedLen = nextStringLength(bytes, startPos, length, delimiter);
+
+		if (limitedLen > 0 &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + limitedLen - 1]))) {
+			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
 		}
-		catch (NumberFormatException e) {
-			throw e;
-		}
-		catch (IllegalArgumentException e) {
-			throw new NumberFormatException(); // needed for consistent behavior of other parsers
-		}
+
+		final String str = new String(bytes, startPos, limitedLen);
+		return Time.valueOf(str);
 	}
 }
