@@ -58,7 +58,7 @@ import java.util.Objects;
  * </ul>
  */
 @Public
-public class ExecutionConfig implements Serializable {
+public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecutionConfig> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -769,6 +769,11 @@ public class ExecutionConfig implements Serializable {
 
 	public boolean canEqual(Object obj) {
 		return obj instanceof ExecutionConfig;
+	}
+	
+	@Override
+	public ArchivedExecutionConfig archive() {
+		return new ArchivedExecutionConfig(this);
 	}
 
 

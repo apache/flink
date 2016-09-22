@@ -27,9 +27,9 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -164,7 +164,7 @@ public final class WebMonitorUtils {
 		}
 	}
 
-	public static JobDetails createDetailsForJob(ExecutionGraph job) {
+	public static JobDetails createDetailsForJob(AccessExecutionGraph job) {
 		JobStatus status = job.getState();
 
 		long started = job.getStatusTimestamp(JobStatus.CREATED);
@@ -174,11 +174,11 @@ public final class WebMonitorUtils {
 		long lastChanged = 0;
 		int numTotalTasks = 0;
 
-		for (ExecutionJobVertex ejv : job.getVerticesTopologically()) {
-			ExecutionVertex[] vertices = ejv.getTaskVertices();
+		for (AccessExecutionJobVertex ejv : job.getVerticesTopologically()) {
+			AccessExecutionVertex[] vertices = ejv.getTaskVertices();
 			numTotalTasks += vertices.length;
 
-			for (ExecutionVertex vertex : vertices) {
+			for (AccessExecutionVertex vertex : vertices) {
 				ExecutionState state = vertex.getExecutionState();
 				countsPerStatus[state.ordinal()]++;
 				lastChanged = Math.max(lastChanged, vertex.getStateTimestamp(state));

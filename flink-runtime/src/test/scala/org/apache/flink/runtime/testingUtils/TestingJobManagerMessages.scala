@@ -25,7 +25,7 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.accumulators.Accumulator
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
-import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
+import org.apache.flink.runtime.executiongraph.{AccessExecutionGraph, ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.ActorGateway
 import org.apache.flink.runtime.jobgraph.JobStatus
 
@@ -37,7 +37,7 @@ object TestingJobManagerMessages {
     def jobID: JobID
   }
 
-  case class ExecutionGraphFound(jobID: JobID, executionGraph: ExecutionGraph) extends
+  case class ExecutionGraphFound(jobID: JobID, executionGraph: AccessExecutionGraph) extends
   ResponseExecutionGraph
 
   case class ExecutionGraphNotFound(jobID: JobID) extends ResponseExecutionGraph

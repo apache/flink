@@ -22,7 +22,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStats;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.JobCheckpointStats;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import scala.Option;
 
@@ -39,7 +39,7 @@ public class JobCheckpointsHandler extends AbstractExecutionGraphRequestHandler 
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 

@@ -19,14 +19,14 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.api.common.JobID
-import org.apache.flink.runtime.executiongraph.ExecutionGraph
+import org.apache.flink.runtime.executiongraph.{ArchivedExecutionGraph, ExecutionGraph}
 
 /**
  * This object contains the archive specific messages.
  */
 object ArchiveMessages {
   
-  case class ArchiveExecutionGraph(jobID: JobID, graph: ExecutionGraph)
+  case class ArchiveExecutionGraph(jobID: JobID, graph: ArchivedExecutionGraph)
 
   /**
    * Request the currently archived jobs in the archiver. The resulting response is [[ArchivedJobs]]
@@ -44,19 +44,19 @@ object ArchiveMessages {
    */
   case class RequestArchivedJob(jobID: JobID)
 
-  case class ArchivedJob(job: Option[ExecutionGraph])
+  case class ArchivedJob(job: Option[ArchivedExecutionGraph])
 
   /**
    * Response to [[RequestArchivedJobs]] message. The response contains the archived jobs.
    * @param jobs
    */
-  case class ArchivedJobs(jobs: Iterable[ExecutionGraph]){
-    def asJavaIterable: java.lang.Iterable[ExecutionGraph] = {
+  case class ArchivedJobs(jobs: Iterable[ArchivedExecutionGraph]){
+    def asJavaIterable: java.lang.Iterable[ArchivedExecutionGraph] = {
       import scala.collection.JavaConverters._
       jobs.asJava
     }
 
-    def asJavaCollection: java.util.Collection[ExecutionGraph] = {
+    def asJavaCollection: java.util.Collection[ArchivedExecutionGraph] = {
       import scala.collection.JavaConverters._
       jobs.asJavaCollection
     }

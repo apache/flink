@@ -23,8 +23,9 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
@@ -46,18 +47,18 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 	}
 
 	@Override
-	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		// Build a map that groups tasks by TaskManager
-		Map<String, List<ExecutionVertex>> taskManagerVertices = new HashMap<>();
+		Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
 
-		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
+		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String taskManager = location == null ? "(unassigned)" : location.getHostname() + ":" + location.dataPort();
 
-			List<ExecutionVertex> vertices = taskManagerVertices.get(taskManager);
+			List<AccessExecutionVertex> vertices = taskManagerVertices.get(taskManager);
 
 			if (vertices == null) {
-				vertices = new ArrayList<ExecutionVertex>();
+				vertices = new ArrayList<>();
 				taskManagerVertices.put(taskManager, vertices);
 			}
 
@@ -73,13 +74,13 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 		gen.writeStartObject();
 
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
-		gen.writeStringField("name", jobVertex.getJobVertex().getName());
+		gen.writeStringField("name", jobVertex.getName());
 		gen.writeNumberField("now", now);
 
 		gen.writeArrayFieldStart("taskmanagers");
-		for (Entry<String, List<ExecutionVertex>> entry : taskManagerVertices.entrySet()) {
+		for (Entry<String, List<AccessExecutionVertex>> entry : taskManagerVertices.entrySet()) {
 			String host = entry.getKey();
-			List<ExecutionVertex> taskVertices = entry.getValue();
+			List<AccessExecutionVertex> taskVertices = entry.getValue();
 
 			int[] tasksPerState = new int[ExecutionState.values().length];
 
@@ -92,7 +93,7 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 			LongCounter tmReadRecords = new LongCounter();
 			LongCounter tmWriteRecords = new LongCounter();
 
-			for (ExecutionVertex vertex : taskVertices) {
+			for (AccessExecutionVertex vertex : taskVertices) {
 				final ExecutionState state = vertex.getExecutionState();
 				tasksPerState[state.ordinal()]++;
 

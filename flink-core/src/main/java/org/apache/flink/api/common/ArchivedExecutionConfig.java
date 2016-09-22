@@ -15,9 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.executiongraph.archive;
-
-import org.apache.flink.api.common.ExecutionConfig;
+package org.apache.flink.api.common;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -28,7 +26,7 @@ import java.util.Map;
  * It can be used to display job information on the web interface
  * without having to keep the classloader around after job completion.
  */
-public class ExecutionConfigSummary implements Serializable {
+public class ArchivedExecutionConfig implements Serializable {
 
 	private final String executionMode;
 	private final String restartStrategyDescription;
@@ -36,7 +34,7 @@ public class ExecutionConfigSummary implements Serializable {
 	private final boolean objectReuseEnabled;
 	private final Map<String, String> globalJobParameters;
 
-	public ExecutionConfigSummary(ExecutionConfig ec) {
+	public ArchivedExecutionConfig(ExecutionConfig ec) {
 		executionMode = ec.getExecutionMode().name();
 		if (ec.getRestartStrategy() != null) {
 			restartStrategyDescription = ec.getRestartStrategy().getDescription();

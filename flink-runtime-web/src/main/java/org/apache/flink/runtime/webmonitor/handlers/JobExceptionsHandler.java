@@ -19,11 +19,10 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
-import org.apache.flink.util.ExceptionUtils;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -40,16 +39,16 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 	}
 
 	@Override
-	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 		
 		// most important is the root failure cause
-		Throwable rootException = graph.getFailureCause();
+		String rootException = graph.getFailureCauseAsString();
 		if (rootException != null) {
-			gen.writeStringField("root-exception", ExceptionUtils.stringifyException(rootException));
+			gen.writeStringField("root-exception", rootException);
 		}
 
 		// we additionally collect all exceptions (up to a limit) that occurred in the individual tasks
@@ -58,8 +57,8 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 		int numExceptionsSoFar = 0;
 		boolean truncated = false;
 		
-		for (ExecutionVertex task : graph.getAllExecutionVertices()) {
-			Throwable t = task.getFailureCause();
+		for (AccessExecutionVertex task : graph.getAllExecutionVertices()) {
+			String t = task.getFailureCauseAsString();
 			if (t != null) {
 				if (numExceptionsSoFar >= MAX_NUMBER_EXCEPTION_TO_REPORT) {
 					truncated = true;
@@ -71,8 +70,8 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 						location.getFQDNHostname() + ':' + location.dataPort() : "(unassigned)";
 
 				gen.writeStartObject();
-				gen.writeStringField("exception", ExceptionUtils.stringifyException(t));
-				gen.writeStringField("task", task.getSimpleName());
+				gen.writeStringField("exception", t);
+				gen.writeStringField("task", task.getTaskNameWithSubtaskIndex());
 				gen.writeStringField("location", locationString);
 				gen.writeEndObject();
 				numExceptionsSoFar++;

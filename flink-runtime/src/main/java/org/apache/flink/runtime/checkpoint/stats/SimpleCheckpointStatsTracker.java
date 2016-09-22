@@ -348,6 +348,8 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 	 */
 	private static class JobCheckpointStatsSnapshot implements JobCheckpointStats {
 
+		private static final long serialVersionUID = 7558212015099742418L;
+
 		// General
 		private final List<CheckpointStats> recentHistory;
 		private final long count;

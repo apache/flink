@@ -28,7 +28,7 @@ import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils
 import org.apache.flink.runtime.{FlinkActor, LogMessages}
 import org.apache.flink.runtime.messages.webmonitor._
-import org.apache.flink.runtime.executiongraph.ExecutionGraph
+import org.apache.flink.runtime.executiongraph.{ArchivedExecutionGraph, ExecutionGraph}
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
 
@@ -66,7 +66,7 @@ class MemoryArchivist(private val max_entries: Int)
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
    * received job event. The insert order is preserved through a LinkedHashMap.
    */
-  protected val graphs = mutable.LinkedHashMap[JobID, ExecutionGraph]()
+  protected val graphs = mutable.LinkedHashMap[JobID, ArchivedExecutionGraph]()
 
   /* Counters for finished, canceled, and failed jobs */
   private[this] var finishedCnt: Int = 0
