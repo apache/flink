@@ -34,6 +34,11 @@ class DataSetConvention extends Convention {
 
   def register(planner: RelOptPlanner): Unit = { }
 
+  override def useAbstractConvertersForConversion(
+    fromTraits: RelTraitSet,
+    toTraits: RelTraitSet): Boolean = false
+
+  override def canConvertConvention(toConvention: Convention): Boolean = false
 }
 
 object DataSetConvention {

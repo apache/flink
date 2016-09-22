@@ -18,6 +18,7 @@
 package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.IntervalSqlType
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
@@ -68,7 +69,15 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
     } else if (isTimeInterval(left.resultType) && left.resultType == right.resultType) {
       relBuilder.call(SqlStdOperatorTable.PLUS, left.toRexNode, right.toRexNode)
     } else if (isTemporal(left.resultType) && isTemporal(right.resultType)) {
-      relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, left.toRexNode, right.toRexNode)
+      val leftRex = left.toRexNode
+      val rightRex = right.toRexNode
+      // Calcite has a bug that can't apply INTERVAL + DATETIME (INTERVAL at left) introduced by
+      // [CALCITE-1312]. So we manually switch them here. We can revert this once Calcite fix it.
+      if (leftRex.getType.isInstanceOf[IntervalSqlType]) {
+        relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, rightRex, leftRex)
+      } else {
+        relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, leftRex, rightRex)
+      }
     } else {
       val castedLeft = Cast(left, resultType)
       val castedRight = Cast(right, resultType)
