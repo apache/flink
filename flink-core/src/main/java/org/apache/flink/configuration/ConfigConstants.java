@@ -759,6 +759,9 @@ public final class ConfigConstants {
 	public static final String HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS = "high-availability.zookeeper.client.max-retry-attempts";
 
 	@PublicEvolving
+	public static final String HA_ZOOKEEPER_CLIENT_ACL = "high-availability.zookeeper.client.acl";
+
+	@PublicEvolving
 	public static final String ZOOKEEPER_SASL_DISABLE = "zookeeper.sasl.disable";
 
 	@PublicEvolving
@@ -1241,6 +1244,10 @@ public final class ConfigConstants {
 
 	/** Defaults for ZK client security **/
 	public static final boolean DEFAULT_ZOOKEEPER_SASL_DISABLE = true;
+
+	/** ACL options supported "creator" or "open" */
+	public static final String DEFAULT_HA_ZOOKEEPER_CLIENT_ACL = "open";
+
 
 	// ------------------------- Queryable state ------------------------------
 
