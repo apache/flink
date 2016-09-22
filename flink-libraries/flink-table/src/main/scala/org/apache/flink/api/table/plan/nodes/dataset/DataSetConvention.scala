@@ -24,6 +24,12 @@ class DataSetConvention extends Convention {
 
   override def toString: String = getName
 
+  override def useAbstractConvertersForConversion(
+    fromTraits: RelTraitSet,
+    toTraits: RelTraitSet): Boolean = false
+
+  override def canConvertConvention(toConvention: Convention): Boolean = false
+
   def getInterface: Class[_] = classOf[DataSetRel]
 
   def getName: String = "DATASET"
@@ -33,7 +39,6 @@ class DataSetConvention extends Convention {
   def satisfies(`trait`: RelTrait): Boolean = this eq `trait`
 
   def register(planner: RelOptPlanner): Unit = { }
-
 }
 
 object DataSetConvention {

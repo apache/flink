@@ -53,7 +53,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
           createSqlIntervalType(
             new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO))
 
-        case INTERVAL_DAY_TIME =>
+        case INTERVAL_DAY_SECOND =>
           createSqlIntervalType(
             new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
 
@@ -97,7 +97,7 @@ object FlinkTypeFactory {
       case SqlTimeTypeInfo.TIME => TIME
       case SqlTimeTypeInfo.TIMESTAMP => TIMESTAMP
       case IntervalTypeInfo.INTERVAL_MONTHS => INTERVAL_YEAR_MONTH
-      case IntervalTypeInfo.INTERVAL_MILLIS => INTERVAL_DAY_TIME
+      case IntervalTypeInfo.INTERVAL_MILLIS => INTERVAL_DAY_SECOND
 
       case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
         throw TableException("Character type is not supported.")
@@ -121,8 +121,8 @@ object FlinkTypeFactory {
     case DATE => SqlTimeTypeInfo.DATE
     case TIME => SqlTimeTypeInfo.TIME
     case TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
-    case INTERVAL_YEAR_MONTH => IntervalTypeInfo.INTERVAL_MONTHS
-    case INTERVAL_DAY_TIME => IntervalTypeInfo.INTERVAL_MILLIS
+    case typeName if YEAR_INTERVAL_TYPES.contains(typeName) => IntervalTypeInfo.INTERVAL_MONTHS
+    case typeName if DAY_INTERVAL_TYPES.contains(typeName) => IntervalTypeInfo.INTERVAL_MILLIS
 
     case NULL =>
       throw TableException("Type NULL is not supported. " +
