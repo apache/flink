@@ -39,6 +39,7 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 import org.apache.flink.runtime.executiongraph.archive.ExecutionConfigSummary;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -62,7 +63,6 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -948,11 +948,11 @@ public class ExecutionGraph {
 		jobStatusListeners.clear();
 		executionListeners.clear();
 
-		if (userClassLoader instanceof Closeable) {
+		if (userClassLoader instanceof FlinkUserCodeClassLoader) {
 			try {
 				// close the classloader to free space of user jars immediately
 				// otherwise we have to wait until garbage collection
-				((Closeable) userClassLoader).close();
+				((FlinkUserCodeClassLoader) userClassLoader).close();
 			} catch (IOException e) {
 				LOG.warn("Failed to close the user classloader for job {}", jobID, e);
 			}

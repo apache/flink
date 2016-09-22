@@ -25,6 +25,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -63,7 +64,6 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
@@ -702,8 +702,8 @@ public class Task implements Runnable {
 				removeCachedFiles(distributedCacheEntries, fileCache);
 
 				// release any referenced jar files to cleanup blob entries
-				if (userCodeClassLoader instanceof Closeable) {
-					((Closeable) userCodeClassLoader).close();
+				if (userCodeClassLoader instanceof FlinkUserCodeClassLoader) {
+					((FlinkUserCodeClassLoader) userCodeClassLoader).close();
 				}
 				userCodeClassLoader = null;
 
