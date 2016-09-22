@@ -20,9 +20,10 @@ package org.apache.flink.api.table.runtime.io
 
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.io.ParseException
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.api.table.Row
 import org.apache.flink.api.table.runtime.io.RowCsvInputFormatTest.{PATH, createTempFile, testRemovingTrailingCR}
 import org.apache.flink.api.table.typeutils.RowTypeInfo
@@ -785,6 +786,45 @@ class RowCsvInputFormatTest {
     val record = inputFormat.nextRecord(new Row(2))
     assertEquals("\\\"Hello\\\" World", record.productElement(0))
     assertEquals("We are\\\" young", record.productElement(1))
+  }
+
+  @Test
+  def testSqlTimeFields() {
+    val fileContent = "1990-10-14|02:42:25|1990-10-14 02:42:25.123|1990-1-4 2:2:5\n" +
+      "1990-10-14|02:42:25|1990-10-14 02:42:25.123|1990-1-4 2:2:5.3\n"
+
+    val split = createTempFile(fileContent)
+
+    val typeInfo = new RowTypeInfo(Seq(
+      SqlTimeTypeInfo.DATE,
+      SqlTimeTypeInfo.TIME,
+      SqlTimeTypeInfo.TIMESTAMP,
+      SqlTimeTypeInfo.TIMESTAMP))
+
+    val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo)
+    format.setFieldDelimiter("|")
+    format.configure(new Configuration)
+    format.open(split)
+
+    var result = new Row(4)
+
+    result = format.nextRecord(result)
+    assertNotNull(result)
+    assertEquals(Date.valueOf("1990-10-14"), result.productElement(0))
+    assertEquals(Time.valueOf("02:42:25"), result.productElement(1))
+    assertEquals(Timestamp.valueOf("1990-10-14 02:42:25.123"), result.productElement(2))
+    assertEquals(Timestamp.valueOf("1990-01-04 02:02:05"), result.productElement(3))
+
+    result = format.nextRecord(result)
+    assertNotNull(result)
+    assertEquals(Date.valueOf("1990-10-14"), result.productElement(0))
+    assertEquals(Time.valueOf("02:42:25"), result.productElement(1))
+    assertEquals(Timestamp.valueOf("1990-10-14 02:42:25.123"), result.productElement(2))
+    assertEquals(Timestamp.valueOf("1990-01-04 02:02:05.3"), result.productElement(3))
+
+    result = format.nextRecord(result)
+    assertNull(result)
+    assertTrue(format.reachedEnd)
   }
 }
 
