@@ -302,7 +302,7 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 			@Override
 			public void run() {
 				try {
-					testResettableDriver(testTask, MockFailingMatchStub.class, 1);
+					testDriver(testTask, MockFailingMatchStub.class);
 					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
@@ -346,7 +346,7 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 			@Override
 			public void run() {
 				try {
-					testResettableDriver(testTask, MockMatchStub.class, 1);
+					testDriver(testTask, MockMatchStub.class);
 					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
@@ -390,7 +390,7 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 			@Override
 			public void run() {
 				try {
-					testResettableDriver(testTask, MockMatchStub.class, 1);
+					testDriver(testTask, MockMatchStub.class);
 					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
@@ -435,7 +435,7 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 			@Override
 			public void run() {
 				try {
-					testResettableDriver(testTask, MockMatchStub.class, 3);
+					testResettableDriver(testTask, MockMatchStub.class, 1);
 					success.set(true);
 				} catch (Exception ie) {
 					ie.printStackTrace();
