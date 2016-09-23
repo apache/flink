@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.library;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.graph.Edge;
@@ -35,6 +34,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -63,8 +63,8 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 				SummarizationData.getEdges(env),
 				env);
 
-		List<Vertex<Long, Summarization.VertexValue<String>>> summarizedVertices = Lists.newArrayList();
-		List<Edge<Long, EdgeValue<String>>> summarizedEdges = Lists.newArrayList();
+		List<Vertex<Long, Summarization.VertexValue<String>>> summarizedVertices = new ArrayList<>();
+		List<Edge<Long, EdgeValue<String>>> summarizedEdges = new ArrayList<>();
 
 		Graph<Long, Summarization.VertexValue<String>, EdgeValue<String>> output =
 				input.run(new Summarization<Long, String, String>());
@@ -87,8 +87,8 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 				env)
 			.run(new TranslateEdgeValues<Long, String, String, NullValue>(new ToNullValue<String>()));
 
-		List<Vertex<Long, Summarization.VertexValue<String>>> summarizedVertices = Lists.newArrayList();
-		List<Edge<Long, EdgeValue<NullValue>>> summarizedEdges = Lists.newArrayList();
+		List<Vertex<Long, Summarization.VertexValue<String>>> summarizedVertices = new ArrayList<>();
+		List<Edge<Long, EdgeValue<NullValue>>> summarizedEdges = new ArrayList<>();
 
 		Graph<Long, Summarization.VertexValue<String>, EdgeValue<NullValue>> output =
 				input.run(new Summarization<Long, String, NullValue>());
@@ -113,8 +113,8 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 			.run(new TranslateVertexValues<Long, String, Long, String>(new StringToLong()))
 			.run(new TranslateEdgeValues<Long, Long, String, Long>(new StringToLong()));
 
-		List<Vertex<Long, Summarization.VertexValue<Long>>> summarizedVertices = Lists.newArrayList();
-		List<Edge<Long, EdgeValue<Long>>> summarizedEdges = Lists.newArrayList();
+		List<Vertex<Long, Summarization.VertexValue<Long>>> summarizedVertices = new ArrayList<>();
+		List<Edge<Long, EdgeValue<Long>>> summarizedEdges = new ArrayList<>();
 
 		Graph<Long, Summarization.VertexValue<Long>, EdgeValue<Long>> output =
 			input.run(new Summarization<Long, Long, Long>());
@@ -184,7 +184,7 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 	}
 
 	private List<Long> getListFromIdRange(String idRange) {
-		List<Long> result = Lists.newArrayList();
+		List<Long> result = new ArrayList<>();
 		for (String id : ID_SEPARATOR.split(idRange)) {
 			result.add(Long.parseLong(id));
 		}

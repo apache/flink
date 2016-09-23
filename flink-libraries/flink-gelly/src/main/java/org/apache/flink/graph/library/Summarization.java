@@ -220,6 +220,8 @@ public class Summarization<K, VV, EV>
 	@SuppressWarnings("serial")
 	public static final class VertexGroupItem<K, VGV> extends Tuple4<K, K, Either<VGV, NullValue>, Long> {
 
+		private final Either.Right<VGV, NullValue> nullValue = new Either.Right<>(NullValue.getInstance());
+
 		public VertexGroupItem() {
 			reset();
 		}
@@ -246,7 +248,7 @@ public class Summarization<K, VV, EV>
 
 		public void setVertexGroupValue(VGV vertexGroupValue) {
 			if (vertexGroupValue == null) {
-				f2 = new Either.Right<>(NullValue.getInstance());
+				f2 = nullValue;
 			} else {
 				f2 = new Either.Left<>(vertexGroupValue);
 			}
@@ -266,7 +268,7 @@ public class Summarization<K, VV, EV>
 		public void reset() {
 			f0 = null;
 			f1 = null;
-			f2 = new Either.Right<>(NullValue.getInstance());
+			f2 = nullValue;
 			f3 = 0L;
 		}
 	}
