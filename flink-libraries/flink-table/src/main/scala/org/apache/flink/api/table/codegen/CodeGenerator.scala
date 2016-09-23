@@ -976,6 +976,27 @@ class CodeGenerator(
         requireString(left)
         generateArithmeticOperator("+", nullCheck, resultType, left, right)
 
+      // arrays
+      case ARRAY_VALUE_CONSTRUCTOR =>
+        generateArray(this, resultType, operands)
+
+      case ITEM =>
+        val array = operands.head
+        val index = operands(1)
+        requireArray(array)
+        requireInteger(index)
+        generateArrayElementAt(this, array, index)
+
+      case CARDINALITY =>
+        val array = operands.head
+        requireArray(array)
+        generateArrayCardinality(nullCheck, array)
+
+      case ELEMENT =>
+        val array = operands.head
+        requireArray(array)
+        generateArrayElement(this, array)
+
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
         val callGen = FunctionGenerator.getCallGenerator(
@@ -1390,6 +1411,22 @@ class CodeGenerator(
         |$fieldTerm = ($classQualifier) $constructorTerm.newInstance();
        """.stripMargin
     reusableInitStatements.add(constructorAccessibility)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable array to the member area of the generated [[Function]].
+    */
+  def addReusableArray(clazz: Class[_], size: Int): String = {
+    val fieldTerm = newName("array")
+    val classQualifier = clazz.getCanonicalName // works also for int[] etc.
+    val initArray = classQualifier.replaceFirst("\\[", s"[$size")
+    val fieldArray =
+      s"""
+        |transient $classQualifier $fieldTerm =
+        |    new $initArray;
+        |""".stripMargin
+    reusableMemberStatements.add(fieldArray)
     fieldTerm
   }
 
