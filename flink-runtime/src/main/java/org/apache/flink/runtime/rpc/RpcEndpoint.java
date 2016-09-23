@@ -73,7 +73,7 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	private final Executor mainThreadExecutor;
 
 	/** A reference to the endpoint's main thread, if the current method is called by the main thread */
-	final AtomicReference<Thread> currentMainThread = new AtomicReference<>(null); 
+	final AtomicReference<Thread> currentMainThread = new AtomicReference<>(null);
 
 	/**
 	 * Initializes the RPC endpoint.
@@ -152,6 +152,43 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	 */
 	public String getAddress() {
 		return self.getAddress();
+	}
+
+	/**
+	 * Add a rpc gateway to watch on
+	 *
+	 * @param rpcGateway the rpc gateway to watch on
+	 */
+	public void watch(RpcGateway rpcGateway) {
+		if(self instanceof WatchOperationHandler) {
+			((WatchOperationHandler) self).watch(rpcGateway);
+		} else {
+			throw new UnsupportedOperationException("Watch operation is not supported yet!");
+		}
+	}
+
+	/**
+	 * Stop watch a rpc gateway
+	 *
+	 * @param rpcGateway the rpc gateway to unwatch on
+	 */
+	public void unWatch(RpcGateway rpcGateway) {
+		if(self instanceof WatchOperationHandler) {
+			((WatchOperationHandler) self).unWatch(rpcGateway);
+		} else {
+			throw new UnsupportedOperationException("UnWatch operation is not supported yet!");
+		}
+	}
+
+	/**
+	 * Notify a rpc gateway unreachable event. The notification could come under two cases:
+	 * 1. watch a unreachable gateway at first
+	 * 2. after the service on watched gateway dead
+	 *
+	 * @param rpcGateway the dead rpc gateway
+	 */
+	public void notifyUnreachableRpcGateway(RpcGateway rpcGateway) {
+		log.warn("Rpc gateway on address {} is unreachable", rpcGateway.getAddress());
 	}
 
 	/**
