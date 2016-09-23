@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expression
+package org.apache.flink.api.table.expressions
 
 import java.sql.{Date, Time, Timestamp}
 
