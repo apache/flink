@@ -16,35 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.asm.translate;
+package org.apache.flink.graph.asm.translate.translators;
 
+import org.apache.flink.graph.asm.translate.TranslateFunction;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.util.MathUtils;
 
 /**
- * Translate {@link LongValue} by adding a constant offset value.
+ * Translate {@link LongValue} to {@link IntValue}.
+ *
+ * Throws {@link RuntimeException} for integer overflow.
  */
-public class LongValueAddOffset
-implements TranslateFunction<LongValue, LongValue> {
-
-	private final long offset;
-
-	/**
-	 * Translate {@link LongValue} by adding a constant offset value.
-	 *
-	 * @param offset value to be added to each element
-	 */
-	public LongValueAddOffset(long offset) {
-		this.offset = offset;
-	}
+public class LongValueToSignedIntValue
+implements TranslateFunction<LongValue, IntValue> {
 
 	@Override
-	public LongValue translate(LongValue value, LongValue reuse)
+	public IntValue translate(LongValue value, IntValue reuse)
 			throws Exception {
 		if (reuse == null) {
-			reuse = new LongValue();
+			reuse = new IntValue();
 		}
 
-		reuse.setValue(offset + value.getValue());
+		reuse.setValue(MathUtils.checkedDownCast(value.getValue()));
+
 		return reuse;
 	}
 }

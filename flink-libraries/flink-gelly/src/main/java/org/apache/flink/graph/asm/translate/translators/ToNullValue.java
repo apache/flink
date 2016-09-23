@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.asm.translate;
+package org.apache.flink.graph.asm.translate.translators;
 
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.StringValue;
+import org.apache.flink.graph.asm.translate.TranslateFunction;
+import org.apache.flink.types.NullValue;
 
 /**
- * Translate {@link LongValue} to {@link StringValue}.
+ * Replace any type with {@link NullValue}.
+ *
+ * @param <T> the type of the source value
  */
-public class LongValueToStringValue
-implements TranslateFunction<LongValue, StringValue> {
+public class ToNullValue<T>
+implements TranslateFunction<T, NullValue> {
 
 	@Override
-	public StringValue translate(LongValue value, StringValue reuse)
+	public NullValue translate(T value, NullValue reuse)
 			throws Exception {
-		if (reuse == null) {
-			reuse = new StringValue();
-		}
-
-		reuse.setValue(Long.toString(value.getValue()));
-		return reuse;
+		return NullValue.getInstance();
 	}
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.asm.translate;
+package org.apache.flink.graph.asm.translate.translators;
 
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.FloatValue;
@@ -33,6 +33,7 @@ public class ToNullValueTest {
 	@Test
 	public void testTranslation() throws Exception {
 		NullValue reuse = NullValue.getInstance();
+
 		assertEquals(NullValue.getInstance(), new ToNullValue<>().translate(new DoubleValue(), reuse));
 		assertEquals(NullValue.getInstance(), new ToNullValue<>().translate(new FloatValue(), reuse));
 		assertEquals(NullValue.getInstance(), new ToNullValue<>().translate(new IntValue(), reuse));

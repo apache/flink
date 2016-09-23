@@ -16,29 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.asm.translate;
+package org.apache.flink.graph.asm.translate.translators;
 
-import org.apache.flink.types.IntValue;
+import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.MathUtils;
+import org.apache.flink.types.StringValue;
+import org.junit.Test;
 
-/**
- * Translate {@link LongValue} to {@link IntValue}.
- *
- * Throws {@link RuntimeException} for integer overflow.
- */
-public class LongValueToSignedIntValue
-implements TranslateFunction<LongValue, IntValue> {
+import static org.junit.Assert.assertEquals;
 
-	@Override
-	public IntValue translate(LongValue value, IntValue reuse)
-			throws Exception {
-		if (reuse == null) {
-			reuse = new IntValue();
-		}
+public class LongValueToStringValueTest {
 
-		reuse.setValue(MathUtils.checkedDownCast(value.getValue()));
+	private TranslateFunction<LongValue, StringValue> translator = new LongValueToStringValue();
 
-		return reuse;
+	@Test
+	public void testTranslation() throws Exception {
+		StringValue reuse = new StringValue();
+
+		assertEquals(new StringValue("-9223372036854775808"), translator.translate(new LongValue(Long.MIN_VALUE), reuse));
+		assertEquals(new StringValue("0"), translator.translate(new LongValue(0), reuse));
+		assertEquals(new StringValue("9223372036854775807"), translator.translate(new LongValue(Long.MAX_VALUE), reuse));
 	}
 }
