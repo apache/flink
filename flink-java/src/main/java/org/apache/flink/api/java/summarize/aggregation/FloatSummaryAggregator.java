@@ -89,7 +89,7 @@ public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 		@Override
 		public Float result() {
 			// overflow will go to infinity
-			return new Double(sum.value()).floatValue();
+			return (float) sum.value();
 		}
 	}
 
