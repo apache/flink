@@ -45,8 +45,8 @@ import java.util.Properties;
 public class ParameterTool extends ExecutionConfig.GlobalJobParameters implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 
-	protected static String NO_VALUE_KEY = "__NO_VALUE_KEY";
-	protected static String DEFAULT_UNDEFINED = "<undefined>";
+	protected static final String NO_VALUE_KEY = "__NO_VALUE_KEY";
+	protected static final String DEFAULT_UNDEFINED = "<undefined>";
 
 
 	// ------------------ Constructors ------------------------
