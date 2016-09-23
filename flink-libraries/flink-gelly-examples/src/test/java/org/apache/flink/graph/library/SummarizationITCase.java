@@ -24,6 +24,9 @@ import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.asm.translate.TranslateEdgeValues;
+import org.apache.flink.graph.asm.translate.TranslateFunction;
+import org.apache.flink.graph.asm.translate.TranslateVertexValues;
 import org.apache.flink.graph.examples.data.SummarizationData;
 import org.apache.flink.graph.library.Summarization.EdgeValue;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -56,10 +59,9 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 	public void testWithVertexAndEdgeStringValues() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, String, String> input = Graph.fromDataSet(
-				SummarizationData.getVertices(env, new SummarizationData.StringValueReader()),
-				SummarizationData.getEdges(env, new SummarizationData.StringValueReader()),
-				env
-		);
+				SummarizationData.getVertices(env),
+				SummarizationData.getEdges(env),
+				env);
 
 		List<Vertex<Long, Summarization.VertexValue<String>>> summarizedVertices = Lists.newArrayList();
 		List<Edge<Long, EdgeValue<String>>> summarizedEdges = Lists.newArrayList();
@@ -80,10 +82,10 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 	public void testWithVertexAndAbsentEdgeStringValues() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, String, NullValue> input = Graph.fromDataSet(
-				SummarizationData.getVertices(env, new SummarizationData.StringValueReader()),
-				SummarizationData.getEdgesWithAbsentValues(env),
-				env
-		);
+				SummarizationData.getVertices(env),
+				SummarizationData.getEdges(env),
+				env)
+			.run(new TranslateEdgeValues<Long, String, String, NullValue>(new ToNullValue<String>()));
 
 		List<Vertex<Long, Summarization.VertexValue<String>>> summarizedVertices = Lists.newArrayList();
 		List<Edge<Long, EdgeValue<NullValue>>> summarizedEdges = Lists.newArrayList();
@@ -103,11 +105,13 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testWithVertexAndEdgeLongValues() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
 		Graph<Long, Long, Long> input = Graph.fromDataSet(
-			SummarizationData.getVertices(env, new SummarizationData.LongValueReader()),
-			SummarizationData.getEdges(env, new SummarizationData.LongValueReader()),
-			env
-		);
+				SummarizationData.getVertices(env),
+				SummarizationData.getEdges(env),
+				env)
+			.run(new TranslateVertexValues<Long, String, Long, String>(new StringToLong()))
+			.run(new TranslateEdgeValues<Long, Long, String, Long>(new StringToLong()));
 
 		List<Vertex<Long, Summarization.VertexValue<Long>>> summarizedVertices = Lists.newArrayList();
 		List<Edge<Long, EdgeValue<Long>>> summarizedEdges = Lists.newArrayList();
@@ -193,5 +197,22 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 
 	private Long getGroupCount(String token) {
 		return Long.valueOf(ID_SEPARATOR.split(token)[1]);
+	}
+
+	private static class StringToLong implements TranslateFunction<String, Long> {
+
+		@Override
+		public Long translate(String value, Long reuse) throws Exception {
+			return Long.parseLong(value);
+		}
+	}
+
+	private static class ToNullValue<T> implements TranslateFunction<T, NullValue> {
+
+		private static final NullValue nullValue = NullValue.getInstance();
+		@Override
+		public NullValue translate(T value, NullValue reuse) throws Exception {
+			return nullValue;
+		}
 	}
 }

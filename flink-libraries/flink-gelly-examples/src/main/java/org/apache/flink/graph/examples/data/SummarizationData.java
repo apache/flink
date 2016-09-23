@@ -18,12 +18,10 @@
 
 package org.apache.flink.graph.examples.data;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.types.NullValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,34 +30,6 @@ import java.util.List;
  * Provides the default data set used for Summarization tests.
  */
 public class SummarizationData {
-
-	/**
-	 * Used to parse vertex and edge values of the input graph
-	 * @param <VV>
-	 */
-	abstract static class ValueReader<VV> {
-		abstract VV readValue(String value);
-	}
-
-	/**
-	 * Reads String values
-	 */
-	public static class StringValueReader extends ValueReader<String> {
-		@Override
-		String readValue(String value) {
-			return value;
-		}
-	}
-
-	/**
-	 * Reads Long values
-	 */
-	public static class LongValueReader extends ValueReader<Long> {
-		@Override
-		Long readValue(String value) {
-			return Long.parseLong(value);
-		}
-	}
 
 	private SummarizationData() {}
 
@@ -146,11 +116,11 @@ public class SummarizationData {
 	 * @param env execution environment
 	 * @return vertex data set with string values
 	 */
-	public static <VV> DataSet<Vertex<Long, VV>> getVertices(ExecutionEnvironment env, ValueReader<VV> valueReader) {
-		List<Vertex<Long, VV>> vertices = new ArrayList<>(INPUT_VERTICES.length);
+	public static DataSet<Vertex<Long, String>> getVertices(ExecutionEnvironment env) {
+		List<Vertex<Long, String>> vertices = new ArrayList<>(INPUT_VERTICES.length);
 		for (String vertex : INPUT_VERTICES) {
 			String[] tokens = vertex.split(";");
-			vertices.add(new Vertex<>(Long.parseLong(tokens[0]), valueReader.readValue(tokens[1])));
+			vertices.add(new Vertex<>(Long.parseLong(tokens[0]), tokens[1]));
 		}
 
 		return env.fromCollection(vertices);
@@ -162,29 +132,13 @@ public class SummarizationData {
 	 * @param env execution environment
 	 * @return edge data set with string values
 	 */
-	public static <EV> DataSet<Edge<Long, EV>> getEdges(ExecutionEnvironment env, ValueReader<EV> valueReader) {
-		List<Edge<Long, EV>> edges = new ArrayList<>(INPUT_EDGES.length);
+	public static DataSet<Edge<Long, String>> getEdges(ExecutionEnvironment env) {
+		List<Edge<Long, String>> edges = new ArrayList<>(INPUT_EDGES.length);
 		for (String edge : INPUT_EDGES) {
 			String[] tokens = edge.split(";");
-			edges.add(new Edge<>(Long.parseLong(tokens[0]), Long.parseLong(tokens[1]), valueReader.readValue(tokens[2])));
+			edges.add(new Edge<>(Long.parseLong(tokens[0]), Long.parseLong(tokens[1]), tokens[2]));
 		}
 
 		return env.fromCollection(edges);
-	}
-
-	/**
-	 * Creates a set of edges with {@link NullValue} as edge value.
-	 *
-	 * @param env execution environment
-	 * @return edge data set with null values
-	 */
-	@SuppressWarnings("serial")
-	public static DataSet<Edge<Long, NullValue>> getEdgesWithAbsentValues(ExecutionEnvironment env) {
-		return getEdges(env, new StringValueReader()).map(new MapFunction<Edge<Long, String>, Edge<Long, NullValue>>() {
-			@Override
-			public Edge<Long, NullValue> map(Edge<Long, String> value) throws Exception {
-				return new Edge<>(value.getSource(), value.getTarget(), NullValue.getInstance());
-			}
-		});
 	}
 }

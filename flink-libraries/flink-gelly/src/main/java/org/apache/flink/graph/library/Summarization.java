@@ -31,7 +31,6 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
@@ -101,10 +100,6 @@ public class Summarization<K, VV, EV>
 		// create type infos for correct return type definitions
 		TypeInformation<K> keyType = ((TupleTypeInfo<?>) input.getVertices().getType()).getTypeAt(0);
 		TypeInformation<VV> valueType = ((TupleTypeInfo<?>) input.getVertices().getType()).getTypeAt(1);
-		EitherTypeInfo<VV, NullValue> eitherType = new EitherTypeInfo<>(valueType, TypeInformation.of(NullValue.class));
-		@SuppressWarnings("unchecked")
-		TypeInformation<VertexGroupItem<K, VV>> tupleTypeInfo = (TypeInformation<VertexGroupItem<K, VV>>) new TupleTypeInfo(
-			VertexGroupItem.class, keyType, keyType, eitherType, BasicTypeInfo.LONG_TYPE_INFO);
 		@SuppressWarnings("unchecked")
 		TupleTypeInfo<Vertex<K, VertexValue<VV>>> vertexType = (TupleTypeInfo<Vertex<K, VertexValue<VV>>>) new TupleTypeInfo(
 			Vertex.class, keyType, new TupleTypeInfo(VertexValue.class, valueType, BasicTypeInfo.LONG_TYPE_INFO));
@@ -118,8 +113,7 @@ public class Summarization<K, VV, EV>
 				.groupBy(1);
 		// reduce vertex group and create vertex group items
 		GroupReduceOperator<Vertex<K, VV>, VertexGroupItem<K, VV>> vertexGroupItems = vertexUnsortedGrouping
-				.reduceGroup(new VertexGroupReducer<K, VV>())
-				.returns(tupleTypeInfo);
+				.reduceGroup(new VertexGroupReducer<K, VV>());
 		// create super vertices
 		DataSet<Vertex<K, VertexValue<VV>>> summarizedVertices = vertexGroupItems
 				.filter(new VertexGroupItemToSummarizedVertexFilter<K, VV>())
