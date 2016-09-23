@@ -198,15 +198,8 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
-	public long getCurrentProcessingTime() {
-		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
-		return timerService.getCurrentProcessingTime();
-	}
-
-	@Override
-	public ScheduledFuture<?> registerTimer(final long time, final Triggerable target) {
-		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
-		return timerService.registerTimer(time, target);
+	public TimeServiceProvider getTimeServiceProvider() {
+		return timerService;
 	}
 
 	// ------------------------------------------------------------------------

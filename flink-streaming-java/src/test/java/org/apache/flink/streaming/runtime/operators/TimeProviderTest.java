@@ -22,6 +22,8 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.runtime.tasks.AsyncExceptionHandler;
+import org.apache.flink.streaming.runtime.tasks.AsynchronousException;
 import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
@@ -50,8 +52,15 @@ public class TimeProviderTest {
 		final OneShotLatch latch = new OneShotLatch();
 
 		final Object lock = new Object();
-		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider
-			.createForTesting(Executors.newSingleThreadScheduledExecutor(), lock);
+		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider.create(
+				new AsyncExceptionHandler() {
+					@Override
+					public void registerAsyncException(AsynchronousException exception) {
+						exception.printStackTrace();
+					}
+				},
+				Executors.newSingleThreadScheduledExecutor(),
+				lock);
 
 		final List<Long> timestamps = new ArrayList<>();
 
