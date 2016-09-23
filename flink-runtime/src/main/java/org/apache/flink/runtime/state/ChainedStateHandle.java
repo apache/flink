@@ -85,7 +85,7 @@ public class ChainedStateHandle<T extends StateObject> implements StateObject {
 	}
 
 	@Override
-	public long getStateSize() throws Exception {
+	public long getStateSize() throws IOException {
 		long sumStateSize = 0;
 
 		if (operatorStateHandles != null) {
