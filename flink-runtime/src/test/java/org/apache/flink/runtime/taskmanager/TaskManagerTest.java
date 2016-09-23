@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Kill;
 import akka.actor.Props;
 import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
@@ -55,6 +56,7 @@ import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackT
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleSuccess;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.PartitionState;
@@ -1367,6 +1369,28 @@ public class TaskManagerTest extends TestLogger {
 		}};
 	}
 
+	@Test
+	public void testTerminationOnFatalError() {
+		new JavaTestKit(system){{
+
+			final ActorGateway taskManager = TestingUtils.createTaskManager(
+					system,
+					system.deadLetters(), // no jobmanager
+					new Configuration(),
+					true,
+					false);
+
+			try {
+				watch(taskManager.actor());
+				taskManager.tell(new FatalError("test fatal error", new Exception("something super bad")));
+				expectTerminated(d, taskManager.actor());
+			}
+			finally {
+				taskManager.tell(Kill.getInstance());
+			}
+		}};
+	}
+	
 	// --------------------------------------------------------------------------------------------
 
 	public static class SimpleJobManager extends FlinkUntypedActor {
@@ -1547,11 +1571,14 @@ public class TaskManagerTest extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			Object o = new Object();
+			final Object o = new Object();
+			//noinspection SynchronizationOnLocalVariableOrMethodParameter
 			synchronized (o) {
-				o.wait();
+				//noinspection InfiniteLoopStatement
+				while (true) {
+					o.wait();
+				}
 			}
 		}
 	}
-
 }
