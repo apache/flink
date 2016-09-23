@@ -157,10 +157,12 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		Preconditions.checkNotNull(task, "The task execution id must not be null.");
 
 		synchronized (lockObject) {
-			LibraryCacheEntry entry = cacheEntries.remove(jobId);
+			LibraryCacheEntry entry = cacheEntries.get(jobId);
 
 			if (entry != null) {
 				if (entry.unregister(task)) {
+					cacheEntries.remove(jobId);
+
 					entry.releaseClassLoader();
 
 					for (BlobKey key : entry.getLibraries()) {
