@@ -18,14 +18,12 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 /**
- * An interface marking a task as capable to register exceptions thrown by different
- * threads, other than the one executing the taks itself.
+ * Interface for reporting exceptions that are thrown in (possibly) a different thread.
  */
 public interface AsyncExceptionHandler {
 
 	/**
-	 * Registers to the main thread an exception that was thrown by another thread
-	 * (e.g. a TriggerTask), other than the one executing the main task.
+	 * Registers the given exception.
 	 */
-	void registerAsyncException(String message, AsynchronousException exception);
+	void registerAsyncException(AsynchronousException exception);
 }

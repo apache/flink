@@ -39,10 +39,11 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 	/** The executor service that schedules and calls the triggers of this task*/
 	private final ScheduledExecutorService timerService;
 
-	public static DefaultTimeServiceProvider create(AsyncExceptionHandler task,
-													ScheduledExecutorService executor,
-													Object checkpointLock) {
-		return new DefaultTimeServiceProvider(task, executor, checkpointLock);
+	public static DefaultTimeServiceProvider create(
+			AsyncExceptionHandler exceptionHandler,
+			ScheduledExecutorService executor,
+			Object checkpointLock) {
+		return new DefaultTimeServiceProvider(exceptionHandler, executor, checkpointLock);
 	}
 
 	private DefaultTimeServiceProvider(AsyncExceptionHandler task,
@@ -82,10 +83,10 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 		private final Object lock;
 		private final Triggerable target;
 		private final long timestamp;
-		private final AsyncExceptionHandler task;
+		private final AsyncExceptionHandler exceptionHandler;
 
-		TriggerTask(AsyncExceptionHandler task, final Object lock, Triggerable target, long timestamp) {
-			this.task = task;
+		TriggerTask(AsyncExceptionHandler exceptionHandler, final Object lock, Triggerable target, long timestamp) {
+			this.exceptionHandler = exceptionHandler;
 			this.lock = lock;
 			this.target = target;
 			this.timestamp = timestamp;
@@ -97,17 +98,8 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 				try {
 					target.trigger(timestamp);
 				} catch (Throwable t) {
-
-					if (task != null) {
-						// registers the exception with the calling task
-						// so that it can be logged and (later) detected
-						TimerException asyncException = new TimerException(t);
-						task.registerAsyncException("Caught exception while processing timer.", asyncException);
-					} else {
-						// this is for when we are in testing mode and we
-						// want to have real processing time.
-						t.printStackTrace();
-					}
+					TimerException asyncException = new TimerException(t);
+					exceptionHandler.registerAsyncException(asyncException);
 				}
 			}
 		}
@@ -115,6 +107,11 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 
 	@VisibleForTesting
 	public static DefaultTimeServiceProvider createForTesting(ScheduledExecutorService executor, Object checkpointLock) {
-		return new DefaultTimeServiceProvider(null, executor, checkpointLock);
+		return new DefaultTimeServiceProvider(new AsyncExceptionHandler() {
+			@Override
+			public void registerAsyncException(AsynchronousException exception) {
+				exception.printStackTrace();
+			}
+		}, executor, checkpointLock);
 	}
 }

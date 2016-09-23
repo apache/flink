@@ -838,9 +838,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public void registerAsyncException(String message, AsynchronousException exception) {
+	public void registerAsyncException(AsynchronousException exception) {
 		if (isRunning) {
-			LOG.error(message, exception);
+			LOG.error("Asynchronous exception registered.", exception);
 		}
 
 		if (this.asyncException == null) {
@@ -940,7 +940,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 				// registers the exception and tries to fail the whole task
 				AsynchronousException asyncException = new AsynchronousException(e);
-				owner.registerAsyncException("Caught exception while materializing asynchronous checkpoints.", asyncException);
+				owner.registerAsyncException(asyncException);
 			}
 			finally {
 				synchronized (cancelables) {

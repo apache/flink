@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -80,7 +81,8 @@ public abstract class AbstractFetcher<T, KPH> {
 			List<KafkaTopicPartition> assignedPartitions,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext, boolean useMetrics) throws Exception
+			StreamingRuntimeContext runtimeContext,
+			boolean useMetrics) throws Exception
 	{
 		this.sourceContext = checkNotNull(sourceContext);
 		this.checkpointLock = sourceContext.getCheckpointLock();
@@ -116,7 +118,7 @@ public abstract class AbstractFetcher<T, KPH> {
 					(KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?>[]) allPartitions;
 			
 			PeriodicWatermarkEmitter periodicEmitter = 
-					new PeriodicWatermarkEmitter(parts, sourceContext, runtimeContext);
+					new PeriodicWatermarkEmitter(parts, sourceContext, runtimeContext.getTimeServiceProvider(), runtimeContext.getExecutionConfig().getAutoWatermarkInterval());
 			periodicEmitter.start();
 		}
 	}
@@ -458,7 +460,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		
 		private final SourceContext<?> emitter;
 		
-		private final StreamingRuntimeContext triggerContext;
+		private final TimeServiceProvider timerService;
 
 		private final long interval;
 		
@@ -469,19 +471,20 @@ public abstract class AbstractFetcher<T, KPH> {
 		PeriodicWatermarkEmitter(
 				KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?>[] allPartitions,
 				SourceContext<?> emitter,
-				StreamingRuntimeContext runtimeContext)
+				TimeServiceProvider timerService,
+				long autoWatermarkInterval)
 		{
 			this.allPartitions = checkNotNull(allPartitions);
 			this.emitter = checkNotNull(emitter);
-			this.triggerContext = checkNotNull(runtimeContext);
-			this.interval = runtimeContext.getExecutionConfig().getAutoWatermarkInterval();
+			this.timerService = checkNotNull(timerService);
+			this.interval = autoWatermarkInterval;
 			this.lastWatermarkTimestamp = Long.MIN_VALUE;
 		}
 
 		//-------------------------------------------------
 		
 		public void start() {
-			triggerContext.registerTimer(triggerContext.getCurrentProcessingTime() + interval, this);
+			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
 		}
 		
 		@Override
@@ -510,7 +513,7 @@ public abstract class AbstractFetcher<T, KPH> {
 			}
 			
 			// schedule the next watermark
-			triggerContext.registerTimer(triggerContext.getCurrentProcessingTime() + interval, this);
+			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
 		}
 	}
 }

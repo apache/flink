@@ -35,11 +35,10 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ScheduledFuture;
 
 import static java.util.Objects.requireNonNull;
 
@@ -81,6 +80,10 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	 */
 	public InputSplitProvider getInputSplitProvider() {
 		return taskEnvironment.getInputSplitProvider();
+	}
+
+	public TimeServiceProvider getTimeServiceProvider() {
+		return operator.getTimerService();
 	}
 
 	// ------------------------------------------------------------------------

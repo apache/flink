@@ -135,7 +135,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				// do nothing
 				return null;
 			}
-		}).when(mockTask).registerAsyncException(any(String.class), any(AsynchronousException.class));
+		}).when(mockTask).registerAsyncException(any(AsynchronousException.class));
 
 		try {
 			doAnswer(new Answer<CheckpointStreamFactory>() {
