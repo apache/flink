@@ -87,12 +87,10 @@ public class AbstractCloseableHandleTest {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void discardState() throws Exception {
-
-		}
+		public void discardState() {}
 
 		@Override
-		public long getStateSize() throws Exception {
+		public long getStateSize() {
 			return 0;
 		}
 	}
