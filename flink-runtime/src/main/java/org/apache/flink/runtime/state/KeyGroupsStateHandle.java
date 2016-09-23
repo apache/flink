@@ -118,7 +118,7 @@ public class KeyGroupsStateHandle implements StateObject {
 	}
 
 	@Override
-	public long getStateSize() throws Exception {
+	public long getStateSize() throws IOException {
 		return stateHandle.getStateSize();
 	}
 

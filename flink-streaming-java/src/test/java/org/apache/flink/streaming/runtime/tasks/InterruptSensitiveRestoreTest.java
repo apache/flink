@@ -198,6 +198,7 @@ public class InterruptSensitiveRestoreTest {
 			// an interrupt on a waiting object leads to an infinite loop
 			try {
 				synchronized (this) {
+					//noinspection WaitNotInLoop
 					wait();
 				}
 			}
@@ -216,7 +217,7 @@ public class InterruptSensitiveRestoreTest {
 		public void discardState() throws Exception {}
 
 		@Override
-		public long getStateSize() throws Exception {
+		public long getStateSize() throws IOException {
 			return 0;
 		}
 	}
