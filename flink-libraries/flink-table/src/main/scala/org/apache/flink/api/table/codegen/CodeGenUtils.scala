@@ -155,7 +155,6 @@ object CodeGenUtils {
   def enumValueOf[T <: Enum[T]](cls: Class[_], stringValue: String): Enum[_] =
     Enum.valueOf(cls.asInstanceOf[Class[T]], stringValue).asInstanceOf[Enum[_]]
 
-
   // ----------------------------------------------------------------------------------------------
 
   def requireNumeric(genExpr: GeneratedExpression) =
@@ -187,6 +186,16 @@ object CodeGenUtils {
   def requireTimeInterval(genExpr: GeneratedExpression) =
     if (!TypeCheckUtils.isTimeInterval(genExpr.resultType)) {
       throw new CodeGenException("Interval expression type expected.")
+    }
+
+  def requireArray(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isArray(genExpr.resultType)) {
+      throw new CodeGenException("Array expression type expected.")
+    }
+
+  def requireInteger(genExpr: GeneratedExpression) =
+    if (!TypeCheckUtils.isInteger(genExpr.resultType)) {
+      throw new CodeGenException("Integer expression type expected.")
     }
 
   // ----------------------------------------------------------------------------------------------

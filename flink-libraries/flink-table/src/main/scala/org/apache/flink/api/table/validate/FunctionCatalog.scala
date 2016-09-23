@@ -185,7 +185,12 @@ object FunctionCatalog {
     "localTime" -> classOf[LocalTime],
     "localTimestamp" -> classOf[LocalTimestamp],
     "quarter" -> classOf[Quarter],
-    "temporalOverlaps" -> classOf[TemporalOverlaps]
+    "temporalOverlaps" -> classOf[TemporalOverlaps],
+
+    // array
+    "cardinality" -> classOf[ArrayCardinality],
+    "at" -> classOf[ArrayElementAt],
+    "element" -> classOf[ArrayElement]
 
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
@@ -258,6 +263,11 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.MIN,
     SqlStdOperatorTable.MAX,
     SqlStdOperatorTable.AVG,
+    // ARRAY OPERATORS
+    SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
+    SqlStdOperatorTable.ITEM,
+    SqlStdOperatorTable.CARDINALITY,
+    SqlStdOperatorTable.ELEMENT,
     // SPECIAL OPERATORS
     SqlStdOperatorTable.ROW,
     SqlStdOperatorTable.OVERLAPS,

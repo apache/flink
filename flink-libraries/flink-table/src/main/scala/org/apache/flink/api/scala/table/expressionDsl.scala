@@ -21,9 +21,10 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval, toRowInterval}
+import org.apache.flink.api.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions._
+import java.math.{BigDecimal => JBigDecimal}
 
 import scala.language.implicitConversions
 
@@ -461,6 +462,29 @@ trait ImplicitExpressionOperations {
     * into a flat representation where every subtype is a separate field.
     */
   def flatten() = Flattening(expr)
+
+  /**
+    * Accesses the element of an array based on an index (starting at 1).
+    *
+    * @param index position of the element (starting at 1)
+    * @return value of the element
+    */
+  def at(index: Expression) = ArrayElementAt(expr, index)
+
+  /**
+    * Returns the number of elements of an array.
+    *
+    * @return number of elements
+    */
+  def cardinality() = ArrayCardinality(expr)
+
+  /**
+    * Returns the sole element of an array with a single element. Returns null if the array is
+    * empty. Throws an exception if the array has more than one element.
+    *
+    * @return the first and only element of an array with a single element
+    */
+  def element() = ArrayElement(expr)
 }
 
 /**
@@ -540,17 +564,23 @@ trait ImplicitExpressionConversions {
   implicit def float2Literal(d: Float): Expression = Literal(d)
   implicit def string2Literal(str: String): Expression = Literal(str)
   implicit def boolean2Literal(bool: Boolean): Expression = Literal(bool)
-  implicit def javaDec2Literal(javaDec: java.math.BigDecimal): Expression = Literal(javaDec)
-  implicit def scalaDec2Literal(scalaDec: scala.math.BigDecimal): Expression =
+  implicit def javaDec2Literal(javaDec: JBigDecimal): Expression = Literal(javaDec)
+  implicit def scalaDec2Literal(scalaDec: BigDecimal): Expression =
     Literal(scalaDec.bigDecimal)
   implicit def sqlDate2Literal(sqlDate: Date): Expression = Literal(sqlDate)
   implicit def sqlTime2Literal(sqlTime: Time): Expression = Literal(sqlTime)
-  implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression = Literal(sqlTimestamp)
+  implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
+    Literal(sqlTimestamp)
+  implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
 }
 
 // ------------------------------------------------------------------------------------------------
 // Expressions with no parameters
 // ------------------------------------------------------------------------------------------------
+
+// we disable the object checker here as it checks for capital letters of objects
+// but we want that objects look like functions in certain cases e.g. array(1, 2, 3)
+// scalastyle:off object.name
 
 /**
   * Returns the current SQL date in UTC time zone.
@@ -645,5 +675,17 @@ object temporalOverlaps {
   }
 }
 
+/**
+  * Creates an array of literals. The array will be an array of objects (not primitives).
+  */
+object array {
 
+  /**
+    * Creates an array of literals. The array will be an array of objects (not primitives).
+    */
+  def apply(head: Expression, tail: Expression*): Expression = {
+    ArrayConstructor(head +: tail.toSeq)
+  }
+}
 
+// scalastyle:on object.name

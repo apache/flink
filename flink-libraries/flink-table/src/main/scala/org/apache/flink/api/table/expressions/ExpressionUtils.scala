@@ -18,13 +18,16 @@
 
 package org.apache.flink.api.table.expressions
 
-import java.math.BigDecimal
+import java.lang.{Boolean => JBoolean, Byte => JByte, Short => JShort, Integer => JInteger, Long => JLong, Float => JFloat, Double => JDouble}
+import java.math.{BigDecimal => JBigDecimal}
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.table.ValidationException
 import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 object ExpressionUtils {
@@ -54,6 +57,48 @@ object ExpressionUtils {
       throw new IllegalArgumentException("Invalid value for row interval literal.")
   }
 
+  private[flink] def convertArray(array: Array[_]): Expression = {
+    def createArray(): Expression = {
+      ArrayConstructor(array.map(Literal(_)))
+    }
+
+    array match {
+      // primitives
+      case _: Array[Boolean] => createArray()
+      case _: Array[Byte] => createArray()
+      case _: Array[Short] => createArray()
+      case _: Array[Int] => createArray()
+      case _: Array[Long] => createArray()
+      case _: Array[Float] => createArray()
+      case _: Array[Double] => createArray()
+
+      // boxed types
+      case _: Array[JBoolean] => createArray()
+      case _: Array[JByte] => createArray()
+      case _: Array[JShort] => createArray()
+      case _: Array[JInteger] => createArray()
+      case _: Array[JLong] => createArray()
+      case _: Array[JFloat] => createArray()
+      case _: Array[JDouble] => createArray()
+
+      // others
+      case _: Array[String] => createArray()
+      case _: Array[JBigDecimal] => createArray()
+      case _: Array[Date] => createArray()
+      case _: Array[Time] => createArray()
+      case _: Array[Timestamp] => createArray()
+      case bda: Array[BigDecimal] => ArrayConstructor(bda.map { bd => Literal(bd.bigDecimal) })
+
+      case _ =>
+        // nested
+        if (array.length > 0 && array.head.isInstanceOf[Array[_]]) {
+          ArrayConstructor(array.map { na => convertArray(na.asInstanceOf[Array[_]]) })
+        } else {
+          throw ValidationException("Unsupported array type.")
+        }
+    }
+  }
+
   // ----------------------------------------------------------------------------------------------
   // RexNode conversion functions (see org.apache.calcite.sql2rel.StandardConvertletTable)
   // ----------------------------------------------------------------------------------------------
@@ -61,7 +106,7 @@ object ExpressionUtils {
   /**
     * Copy of [[org.apache.calcite.sql2rel.StandardConvertletTable#getFactor()]].
     */
-  private[flink] def getFactor(unit: TimeUnit): BigDecimal = unit match {
+  private[flink] def getFactor(unit: TimeUnit): JBigDecimal = unit match {
     case TimeUnit.DAY => java.math.BigDecimal.ONE
     case TimeUnit.HOUR => TimeUnit.DAY.multiplier
     case TimeUnit.MINUTE => TimeUnit.HOUR.multiplier
@@ -78,20 +123,20 @@ object ExpressionUtils {
       rexBuilder: RexBuilder,
       resType: RelDataType,
       res: RexNode,
-      value: BigDecimal)
+      value: JBigDecimal)
     : RexNode = {
-    if (value == BigDecimal.ONE) return res
+    if (value == JBigDecimal.ONE) return res
     rexBuilder.makeCall(SqlStdOperatorTable.MOD, res, rexBuilder.makeExactLiteral(value, resType))
   }
 
   /**
     * Copy of [[org.apache.calcite.sql2rel.StandardConvertletTable#divide()]].
     */
-  private[flink] def divide(rexBuilder: RexBuilder, res: RexNode, value: BigDecimal): RexNode = {
-    if (value == BigDecimal.ONE) return res
-    if (value.compareTo(BigDecimal.ONE) < 0 && value.signum == 1) {
+  private[flink] def divide(rexBuilder: RexBuilder, res: RexNode, value: JBigDecimal): RexNode = {
+    if (value == JBigDecimal.ONE) return res
+    if (value.compareTo(JBigDecimal.ONE) < 0 && value.signum == 1) {
       try {
-        val reciprocal = BigDecimal.ONE.divide(value, BigDecimal.ROUND_UNNECESSARY)
+        val reciprocal = JBigDecimal.ONE.divide(value, JBigDecimal.ROUND_UNNECESSARY)
         return rexBuilder.makeCall(
           SqlStdOperatorTable.MULTIPLY,
           res,

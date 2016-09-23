@@ -143,7 +143,13 @@ object ProjectionTranslator {
       case sfc @ ScalarFunctionCall(clazz, args) =>
         val newArgs: Seq[Expression] = args
           .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-        sfc.makeCopy(Array(clazz,newArgs))
+        sfc.makeCopy(Array(clazz, newArgs))
+
+      // array constructor
+      case c @ ArrayConstructor(args) =>
+        val newArgs = c.elements
+          .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
+        c.makeCopy(Array(newArgs))
 
       // General expression
       case e: Expression =>

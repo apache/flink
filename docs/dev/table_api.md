@@ -1470,7 +1470,14 @@ The Table API is built on top of Flink's DataSet and DataStream API. Internally,
 | `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
 | `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
 
-Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and arrays can be fields of a row. Generic types and arrays are treated as a black box within Table API and SQL yet. Composite types, however, are fully supported types where fields of a composite type can be accessed using the `.get()` operator in Table API and dot operator (e.g. `MyTable.pojoColumn.myField`) in SQL. Composite types can also be flattened using `.flatten()` in Table API or `MyTable.pojoColumn.*` in SQL.
+
+Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row. 
+
+Generic types are treated as a black box within Table API and SQL yet.
+
+Composite types, however, are fully supported types where fields of a composite type can be accessed using the `.get()` operator in Table API and dot operator (e.g. `MyTable.pojoColumn.myField`) in SQL. Composite types can also be flattened using `.flatten()` in Table API or `MyTable.pojoColumn.*` in SQL.
+
+Array types can be accessed using the `myArray.at(1)` operator in Table API and `myArray[1]` operator in SQL. Array literals can be created using `array(1, 2, 3)` in Table API and `ARRAY[1, 2, 3]` in SQL.
 
 {% top %}
 
@@ -2038,6 +2045,50 @@ COMPOSITE.get(INT)
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+ARRAY.at(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+array(ANY [, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ARRAY.cardinality()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the number of elements of an array.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ARRAY.element()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
@@ -2596,6 +2647,50 @@ COMPOSITE.get(INT)
       </td>
       <td>
         <p>Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index or name and returns it's value. E.g. <code>'pojo.get("myField")</code> or <code>'tuple.get(0)</code>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ARRAY.at(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+array(ANY [, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ARRAY.cardinality()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the number of elements of an array.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ARRAY.element()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
       </td>
     </tr>
 
@@ -3368,8 +3463,6 @@ CAST(value AS type)
   </tbody>
 </table>
 
-
-<!-- Disabled temporarily in favor of composite type support
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -3379,6 +3472,7 @@ CAST(value AS type)
   </thead>
 
   <tbody>
+  <!-- Disabled temporarily in favor of composite type support
     <tr>
       <td>
         {% highlight text %}
@@ -3400,9 +3494,32 @@ ROW (value [, value]* )
         <p>Creates a row from a list of values.</p>
       </td>
     </tr>
+-->
+
+    <tr>
+      <td>
+        {% highlight text %}
+array ‘[’ index ‘]’
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ARRAY ‘[’ value [, value ]* ‘]’
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an array from a list of values.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
--->
 
 <table class="table table-bordered">
   <thead>
@@ -3652,6 +3769,39 @@ tableName.compositeType.*
       </td>
       <td>
         <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Array functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+CARDINALITY(ARRAY)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the number of elements of an array.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ELEMENT(ARRAY)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
       </td>
     </tr>
   </tbody>
