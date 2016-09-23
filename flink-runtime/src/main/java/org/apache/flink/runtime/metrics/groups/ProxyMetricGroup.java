@@ -123,12 +123,7 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 	}
 
 	@Override
-	public String getMetricIdentifier(String metricName, String metricReporter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, metricReporter);
-	}
-
-	@Override
-	public String getMetricIdentifier(String metricName, String metricReporter, CharacterFilter filter) {
-		return parentMetricGroup.getMetricIdentifier(metricName, metricReporter, filter);
+	public String getMetricIdentifier(String metricName, CharacterFilter filter,int indexReporter) {
+		return parentMetricGroup.getMetricIdentifier(metricName,filter,indexReporter);
 	}
 }

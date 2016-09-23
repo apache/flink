@@ -157,41 +157,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @return fully qualified metric name
 	 */
 	public String getMetricIdentifier(String metricName) {
-		return getMetricIdentifier(metricName, null,null);
-	}
-
-	/**
-	 * Returns the fully qualified metric name for specific reporter, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
-	 *
-	 * @param metricName     metric name
-	 * @param metricReporter specific reporter name for metric
-	 * @return fully qualified metric name
-	 */
-	public String getMetricIdentifier(String metricName,String metricReporter) {
-		return getMetricIdentifier(metricName,metricReporter,null);
-	}
-
-	/**
-	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
-	 *
-	 * @param metricName metric name
-	 * @param metricReporter specific reporter name for metric
-	 * @param filter character filter which is applied to the scope components if not null.
-	 * @return fully qualified metric name
-	 */
-	public String getMetricIdentifier(String metricName, String metricReporter,CharacterFilter filter) {
-		if (filter != null){
-			scopeString = ScopeFormat.concat(filter, registry.getDelimiter(metricReporter), scopeComponents);
-		} else {
-			scopeString = ScopeFormat.concat(registry.getDelimiter(metricReporter), scopeComponents);
-		}
-		if (filter != null){
-			return scopeString + registry.getDelimiter(metricReporter) + filter.filterCharacters(metricName);
-		} else {
-			return scopeString + registry.getDelimiter(metricReporter) + metricName;
-		}
+		return getMetricIdentifier(metricName, null);
 	}
 
 	/**
@@ -202,8 +168,39 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param filter character filter which is applied to the scope components if not null.
 	 * @return fully qualified metric name
 	 */
-	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return getMetricIdentifier(metricName,null,filter);
+	public String getMetricIdentifier(String metricName,CharacterFilter filter) {
+		if (filter != null){
+			scopeString = ScopeFormat.concat(filter, registry.getDelimiter(), scopeComponents);
+		} else {
+			scopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
+		}
+		if (filter != null){
+			return scopeString + registry.getDelimiter() + filter.filterCharacters(metricName);
+		} else {
+			return scopeString + registry.getDelimiter() + metricName;
+		}
+	}
+
+	/**
+	 * Returns the fully qualified metric name for reporter with certain number position in group, for example
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 *
+	 * @param metricName metric name
+	 * @param filter character filter which is applied to the scope components if not null.
+	 * @param indexReporter position number of reporter in group reporters
+	 * @return fully qualified metric name
+	 */
+	public String getMetricIdentifier(String metricName, CharacterFilter filter, int indexReporter) {
+		if (filter != null){
+			scopeString = ScopeFormat.concat(filter, registry.getDelimiter(indexReporter), scopeComponents);
+		} else {
+			scopeString = ScopeFormat.concat(registry.getDelimiter(indexReporter), scopeComponents);
+		}
+		if (filter != null){
+			return scopeString + registry.getDelimiter(indexReporter) + filter.filterCharacters(metricName);
+		} else {
+			return scopeString + registry.getDelimiter(indexReporter) + metricName;
+		}
 	}
 	
 	// ------------------------------------------------------------------------

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.groups;
+package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
@@ -24,99 +24,109 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.SimpleCounter;
 
-import java.util.Collections;
 import java.util.Map;
 
 /**
- * A special {@link MetricGroup} that does not register any metrics at the metrics registry
- * and any reporters.
+ * When need know position number for reporter in  metric group
+ *
+ * @param <A> reference to {@link MetricGroup MetricGroup}
  */
-public class UnregisteredMetricsGroup implements MetricGroup {
+public class FrontMetricGroup<A extends MetricGroup> implements MetricGroup {
+
+	protected A reference;
+	protected int index;
+
+	public FrontMetricGroup(int index) {
+		this.index = index;
+	}
+
+	public void setReference(A group) {
+		this.reference=group;
+	}
 
 	@Override
 	public Counter counter(int name) {
-		return new SimpleCounter();
+		return reference.counter(name);
 	}
 
 	@Override
 	public Counter counter(String name) {
-		return new SimpleCounter();
+		return reference.counter(name);
 	}
 
 	@Override
 	public <C extends Counter> C counter(int name, C counter) {
-		return counter;
+		return reference.counter(name, counter);
 	}
 
 	@Override
 	public <C extends Counter> C counter(String name, C counter) {
-		return counter;
+		return reference.counter(name, counter);
 	}
 
 	@Override
 	public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
-		return gauge;
+		return reference.gauge(name, gauge);
 	}
 
 	@Override
 	public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
-		return gauge;
-	}
-
-	@Override
-	public <H extends Histogram> H histogram(int name, H histogram) {
-		return histogram;
-	}
-
-	@Override
-	public <M extends Meter> M meter(String name, M meter) {
-		return meter;
-	}
-
-	@Override
-	public <M extends Meter> M meter(int name, M meter) {
-		return meter;
+		return reference.gauge(name, gauge);
 	}
 
 	@Override
 	public <H extends Histogram> H histogram(String name, H histogram) {
-		return histogram;
+		return reference.histogram(name, histogram);
+	}
+
+	@Override
+	public <H extends Histogram> H histogram(int name, H histogram) {
+		return reference.histogram(name, histogram);
+	}
+
+	@Override
+	public <M extends Meter> M meter(String name, M meter) {
+		return reference.meter(name, meter);
+	}
+
+	@Override
+	public <M extends Meter> M meter(int name, M meter) {
+		return reference.meter(name, meter);
 	}
 
 	@Override
 	public MetricGroup addGroup(int name) {
-		return addGroup(String.valueOf(name));
+		return reference.addGroup(name);
 	}
 
 	@Override
 	public MetricGroup addGroup(String name) {
-		return new UnregisteredMetricsGroup();
+		return reference.addGroup(name);
 	}
 
 	@Override
 	public String[] getScopeComponents() {
-		return new String[0];
+		return reference.getScopeComponents();
 	}
 
 	@Override
 	public Map<String, String> getAllVariables() {
-		return Collections.emptyMap();
+		return reference.getAllVariables();
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName) {
-		return metricName;
+		return reference.getMetricIdentifier(metricName,null,this.index);
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return metricName;
+		return reference.getMetricIdentifier(metricName, filter, this.index);
 	}
 
 	@Override
-	public String getMetricIdentifier(String metricName, CharacterFilter filter,int indexReporter ) {
-		return metricName;
+	public String getMetricIdentifier(String metricName, CharacterFilter filter, int indexReporter) {
+		return reference.getMetricIdentifier(metricName, filter, this.index);
 	}
 }

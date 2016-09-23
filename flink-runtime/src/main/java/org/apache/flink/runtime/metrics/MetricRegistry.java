@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.slf4j.Logger;
@@ -38,8 +39,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TimerTask;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +55,9 @@ public class MetricRegistry {
 	private ActorRef queryService;
 
 	private final ScopeFormats scopeFormats;
-	private final Map<String,Character> delimiter = new HashMap<>();
+	private final List<FrontMetricGroup> groups = new ArrayList<>();
+	private final List<Character> delimiters = new ArrayList<>();
+	private final char globalDelimiter;
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
@@ -75,10 +76,10 @@ public class MetricRegistry {
 
 		String defaultDelimiter = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".");
 		if(defaultDelimiter.length()!=1){
-			LOG.warn("Failed to parse delimiter, using default delimiter.Actual delimiter value: \""+defaultDelimiter+"\"");
+			LOG.warn("Failed to parse delimiter, using default delimiter.");
 			defaultDelimiter=".";
 		}
-		this.delimiter.put("default", defaultDelimiter.charAt(0));
+		this.globalDelimiter = defaultDelimiter.charAt(0);
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>();
@@ -96,12 +97,18 @@ public class MetricRegistry {
 			for (String namedReporter : namedReporters) {
 
 				DelegatingConfiguration reporterConfig = new DelegatingConfiguration(config, ConfigConstants.METRICS_REPORTER_PREFIX + namedReporter + ".");
-				this.delimiter.put(namedReporter,reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,defaultDelimiter).charAt(0));
 				final String className = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, null);
 				if (className == null) {
-					LOG.error("No reporter class set for reporter " + namedReporter + ". Metrics might not be exposed/reported.");
+					LOG.error("No reporter class set for reporter {}. Metrics might not be exposed/reported.",namedReporter);
 					continue;
 				}
+
+				String delimiterForReporter = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,defaultDelimiter);
+				if(delimiterForReporter.length()!=1){
+					LOG.warn("Failed to parse delimiter for reporter {}, using global delimiter.",namedReporter);
+					delimiterForReporter=".";
+				}
+				this.delimiters.add(delimiterForReporter.charAt(0));
 
 				try {
 					String configuredPeriod = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, null);
@@ -163,21 +170,16 @@ public class MetricRegistry {
 	}
 
 	public char getDelimiter() {
-		return getDelimiter(null);
+		return this.globalDelimiter;
 	}
 
-	public char getDelimiter(String metricReporter) {
-		Character defaultDelimiter = this.delimiter.get("default");
-		if(metricReporter==null){
-			return defaultDelimiter;
+	public char getDelimiter(int reporterIndex) {
+		try {
+			return delimiters.get(reporterIndex);
+		}catch (IndexOutOfBoundsException e){
+			LOG.warn("Delimiter for index {} not found return global delimiter",reporterIndex);
+			return this.globalDelimiter;
 		}
-
-		Character delimForReporter=this.delimiter.get(metricReporter);
-		if(delimForReporter==null){
-			return defaultDelimiter;
-		}
-
-		return delimForReporter;
 	}
 
 	public List<MetricReporter> getReporters() {
@@ -233,9 +235,19 @@ public class MetricRegistry {
 	public void register(Metric metric, String metricName, MetricGroup group) {
 		try {
 			if (reporters != null) {
-				for (MetricReporter reporter : reporters) {
-					if (reporter != null) {
-						reporter.notifyOfAddedMetric(metric, metricName, group);
+				for (int i= 0; i<reporters.size();i++) {
+					MetricReporter reporter = reporters.get(i);
+					if (reporter != null){
+
+						FrontMetricGroup front;
+						try {
+							front= groups.get(i);
+						} catch (IndexOutOfBoundsException e){
+							front=new FrontMetricGroup(groups.size());
+							groups.add(front);
+						}
+						front.setReference(group);
+						reporter.notifyOfAddedMetric(metric, metricName, front);
 					}
 				}
 			}
