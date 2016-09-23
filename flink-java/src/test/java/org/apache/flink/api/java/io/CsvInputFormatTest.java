@@ -116,19 +116,19 @@ public class CsvInputFormatTest {
 					if (recordCounter == 1) {
 						assertNotNull(result);
 						assertEquals("this is", result.f0);
-						assertEquals(new Integer(1), result.f1);
+						assertEquals(Integer.valueOf(1), result.f1);
 						assertEquals(new Double(2.0), result.f2);
 						assertEquals((long) format.getCurrentState(), 15);
 					} else if (recordCounter == 2) {
 						assertNotNull(result);
 						assertEquals("a test", result.f0);
-						assertEquals(new Integer(3), result.f1);
+						assertEquals(Integer.valueOf(3), result.f1);
 						assertEquals(new Double(4.0), result.f2);
 						assertEquals((long) format.getCurrentState(), 29);
 					} else if (recordCounter == 3) {
 						assertNotNull(result);
 						assertEquals("#next", result.f0);
-						assertEquals(new Integer(5), result.f1);
+						assertEquals(Integer.valueOf(5), result.f1);
 						assertEquals(new Double(6.0), result.f2);
 						assertEquals((long) format.getCurrentState(), 42);
 					} else {
@@ -196,21 +196,21 @@ public class CsvInputFormatTest {
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("this is", result.f0);
-			assertEquals(new Integer(1), result.f1);
+			assertEquals(Integer.valueOf(1), result.f1);
 			assertEquals(new Double(2.0), result.f2);
 			assertEquals((long) format.getCurrentState(), 65);
 
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("a test", result.f0);
-			assertEquals(new Integer(3), result.f1);
+			assertEquals(Integer.valueOf(3), result.f1);
 			assertEquals(new Double(4.0), result.f2);
 			assertEquals((long) format.getCurrentState(), 91);
 
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("#next", result.f0);
-			assertEquals(new Integer(5), result.f1);
+			assertEquals(Integer.valueOf(5), result.f1);
 			assertEquals(new Double(6.0), result.f2);
 			assertEquals((long) format.getCurrentState(), 104);
 
@@ -248,13 +248,13 @@ public class CsvInputFormatTest {
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("this is", result.f0);
-			assertEquals(new Integer(1), result.f1);
+			assertEquals(Integer.valueOf(1), result.f1);
 			assertEquals(new Double(2.0), result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("a test", result.f0);
-			assertEquals(new Integer(3), result.f1);
+			assertEquals(Integer.valueOf(3), result.f1);
 			assertEquals(new Double(4.0), result.f2);
 
 			result = format.nextRecord(result);
@@ -292,13 +292,13 @@ public class CsvInputFormatTest {
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("this is", result.f0);
-			assertEquals(new Integer(1), result.f1);
+			assertEquals(Integer.valueOf(1), result.f1);
 			assertEquals(new Double(2.0), result.f2);
 			
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("a test", result.f0);
-			assertEquals(new Integer(3), result.f1);
+			assertEquals(Integer.valueOf(3), result.f1);
 			assertEquals(new Double(4.0), result.f2);
 			
 			result = format.nextRecord(result);
