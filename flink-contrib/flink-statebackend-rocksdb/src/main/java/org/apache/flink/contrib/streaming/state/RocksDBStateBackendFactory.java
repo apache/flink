@@ -23,6 +23,10 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
 
 /**
  * A factory that creates an {@link org.apache.flink.contrib.streaming.state.RocksDBStateBackend}
@@ -30,14 +34,19 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
  */
 public class RocksDBStateBackendFactory implements StateBackendFactory<FsStateBackend> {
 
+	protected static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackendFactory.class);
+
 	private static final long serialVersionUID = 4906988360901930371L;
 
 	/** The key under which the config stores the directory where checkpoints should be stored */
 	public static final String CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.fs.checkpointdir";
+	/** The key under which the config stores the directory where RocksDB should be stored */
+	public static final String ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.rocksdb.checkpointdir";
 
 	@Override
 	public AbstractStateBackend createFromConfig(Configuration config) throws Exception {
 		String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
+		String rocksdbLocalPath = config.getString(ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
 
 		if (checkpointDirURI == null) {
 			throw new IllegalConfigurationException(
@@ -47,7 +56,15 @@ public class RocksDBStateBackendFactory implements StateBackendFactory<FsStateBa
 
 		try {
 			Path path = new Path(checkpointDirURI);
-			return new RocksDBStateBackend(path.toUri());
+			RocksDBStateBackend backend = new RocksDBStateBackend(path.toUri());
+			if (rocksdbLocalPath != null) {
+				String[] directories = rocksdbLocalPath.split(",|" + File.pathSeparator);
+				backend.setDbStoragePaths(directories);
+			}
+			LOG.info("State backend is set to RocksDB (configured DB storage paths {}, checkpoints to filesystem {} ) ",
+					backend.getDbStoragePaths(), path);
+
+			return backend;
 		}
 		catch (IllegalArgumentException e) {
 			throw new Exception("Cannot initialize RocksDB State Backend with URI '"

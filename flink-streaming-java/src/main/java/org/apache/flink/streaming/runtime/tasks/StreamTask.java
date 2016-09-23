@@ -739,6 +739,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					stateBackend = backend;
 					break;
 
+				case "rocksdb":
+					// use reflect to keep rocksdb module separate
+					backendName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
+
 				default:
 					try {
 						@SuppressWarnings("rawtypes")
