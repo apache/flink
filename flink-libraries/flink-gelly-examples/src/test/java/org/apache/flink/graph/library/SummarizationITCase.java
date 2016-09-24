@@ -26,6 +26,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.translate.TranslateEdgeValues;
 import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.graph.asm.translate.TranslateVertexValues;
+import org.apache.flink.graph.asm.translate.translators.ToNullValue;
 import org.apache.flink.graph.examples.data.SummarizationData;
 import org.apache.flink.graph.library.Summarization.EdgeValue;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -204,15 +205,6 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 		@Override
 		public Long translate(String value, Long reuse) throws Exception {
 			return Long.parseLong(value);
-		}
-	}
-
-	private static class ToNullValue<T> implements TranslateFunction<T, NullValue> {
-
-		private static final NullValue nullValue = NullValue.getInstance();
-		@Override
-		public NullValue translate(T value, NullValue reuse) throws Exception {
-			return nullValue;
 		}
 	}
 }
