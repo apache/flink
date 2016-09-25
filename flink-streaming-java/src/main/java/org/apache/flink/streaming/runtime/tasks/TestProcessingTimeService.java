@@ -31,10 +31,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * This is a {@link TimeServiceProvider} used <b>strictly for testing</b> the
+ * This is a {@link ProcessingTimeService} used <b>strictly for testing</b> the
  * processing time functionality.
  * */
-public class TestTimeServiceProvider extends TimeServiceProvider {
+public class TestProcessingTimeService extends ProcessingTimeService {
 
 	private volatile long currentTime = 0;
 

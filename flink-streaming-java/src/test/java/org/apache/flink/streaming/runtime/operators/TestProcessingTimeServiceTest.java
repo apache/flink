@@ -25,8 +25,8 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.AsyncExceptionHandler;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -41,14 +41,14 @@ import static org.junit.Assert.assertEquals;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ResultPartitionWriter.class})
 @PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
-public class TestTimeProviderTest {
+public class TestProcessingTimeServiceTest {
 
 	@Test
 	public void testCustomTimeServiceProvider() throws Throwable {
-		TestTimeServiceProvider tp = new TestTimeServiceProvider();
+		TestProcessingTimeService tp = new TestProcessingTimeService();
 
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
-		mapTask.setTimeService(tp);
+		mapTask.setProcessingTimeService(tp);
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
 			mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
@@ -60,24 +60,24 @@ public class TestTimeProviderTest {
 
 		testHarness.invoke();
 
-		assertEquals(testHarness.getTimerService().getCurrentProcessingTime(), 0);
+		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 0);
 
 		tp.setCurrentTime(11);
-		assertEquals(testHarness.getTimerService().getCurrentProcessingTime(), 11);
+		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 11);
 
 		tp.setCurrentTime(15);
 		tp.setCurrentTime(16);
-		assertEquals(testHarness.getTimerService().getCurrentProcessingTime(), 16);
+		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 16);
 
 		// register 2 tasks
-		mapTask.getTimerService().registerTimer(30, new Triggerable() {
+		mapTask.getProcessingTimeService().registerTimer(30, new Triggerable() {
 			@Override
 			public void trigger(long timestamp) {
 
 			}
 		});
 
-		mapTask.getTimerService().registerTimer(40, new Triggerable() {
+		mapTask.getProcessingTimeService().registerTimer(40, new Triggerable() {
 			@Override
 			public void trigger(long timestamp) {
 

@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -64,7 +64,7 @@ public class StreamTaskTimerTest {
 		testHarness.waitForTaskRunning();
 
 		// first one spawns thread
-		mapTask.getTimerService().registerTimer(System.currentTimeMillis(), new Triggerable() {
+		mapTask.getProcessingTimeService().registerTimer(System.currentTimeMillis(), new Triggerable() {
 			@Override
 			public void trigger(long timestamp) {
 			}
@@ -106,7 +106,7 @@ public class StreamTaskTimerTest {
 			final long t3 = System.currentTimeMillis() + 100;
 			final long t4 = System.currentTimeMillis() + 200;
 
-			TimeServiceProvider timeService = mapTask.getTimerService();
+			ProcessingTimeService timeService = mapTask.getProcessingTimeService();
 			timeService.registerTimer(t1, new ValidatingTriggerable(errorRef, t1, 0));
 			timeService.registerTimer(t2, new ValidatingTriggerable(errorRef, t2, 1));
 			timeService.registerTimer(t3, new ValidatingTriggerable(errorRef, t3, 2));

@@ -32,9 +32,9 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -50,7 +50,7 @@ import static org.mockito.Mockito.doAnswer;
 
 /**
  * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
- * a {@link AbstractKeyedStateBackend}.
+ * a {@link KeyedStateBackend}.
  *
  */
 public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
@@ -94,7 +94,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
 	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
-			TestTimeServiceProvider testTimeProvider,
+			ProcessingTimeService testTimeProvider,
 			KeySelector<IN, K> keySelector,
 			TypeInformation<K> keyType) {
 		super(operator, executionConfig, testTimeProvider);
@@ -187,7 +187,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	}
 
 	/**
-	 *
+	 * 
 	 */
 	@Override
 	public void restore(StreamStateHandle snapshot) throws Exception {
