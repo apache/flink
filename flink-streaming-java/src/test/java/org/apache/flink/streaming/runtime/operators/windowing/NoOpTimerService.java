@@ -19,11 +19,11 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.concurrent.ScheduledFuture;
 
-class NoOpTimerService extends TimeServiceProvider {
+class NoOpTimerService extends ProcessingTimeService {
 
 	private volatile boolean terminated;
 

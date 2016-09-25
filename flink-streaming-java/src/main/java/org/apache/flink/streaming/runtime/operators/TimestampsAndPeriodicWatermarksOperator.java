@@ -54,8 +54,8 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 		
 		if (watermarkInterval > 0) {
-			long now = getTimerService().getCurrentProcessingTime();
-			getTimerService().registerTimer(now + watermarkInterval, this);
+			long now = getProcessingTimeService().getCurrentProcessingTime();
+			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
 	}
 
@@ -77,8 +77,8 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 			output.emitWatermark(newWatermark);
 		}
 
-		long now = getTimerService().getCurrentProcessingTime();
-		getTimerService().registerTimer(now + watermarkInterval, this);
+		long now = getProcessingTimeService().getCurrentProcessingTime();
+		getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 	}
 
 	@Override

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.streaming.runtime.operators.TestTimeProviderTest.ReferenceSettingExceptionHandler;
+import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTest.ReferenceSettingExceptionHandler;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import org.junit.Test;
@@ -36,7 +36,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class DefaultTimeServiceProviderTest {
+public class DefaultProcessingTimeServiceTest {
 
 	@Test
 	public void testTriggerHoldsLock() throws Exception {
@@ -44,7 +44,7 @@ public class DefaultTimeServiceProviderTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-		final DefaultTimeServiceProvider timer = new DefaultTimeServiceProvider(
+		final DefaultProcessingTimeService timer = new DefaultProcessingTimeService(
 				new ReferenceSettingExceptionHandler(errorRef), lock);
 
 		try {
@@ -78,7 +78,7 @@ public class DefaultTimeServiceProviderTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-		final DefaultTimeServiceProvider timer = new DefaultTimeServiceProvider(
+		final DefaultProcessingTimeService timer = new DefaultProcessingTimeService(
 				new ReferenceSettingExceptionHandler(errorRef), lock);
 
 		try {
@@ -133,7 +133,7 @@ public class DefaultTimeServiceProviderTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-		final DefaultTimeServiceProvider timer = new DefaultTimeServiceProvider(
+		final DefaultProcessingTimeService timer = new DefaultProcessingTimeService(
 				new ReferenceSettingExceptionHandler(errorRef), lock);
 
 		try {
@@ -191,7 +191,7 @@ public class DefaultTimeServiceProviderTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-		final DefaultTimeServiceProvider timer = new DefaultTimeServiceProvider(
+		final DefaultProcessingTimeService timer = new DefaultProcessingTimeService(
 				new ReferenceSettingExceptionHandler(errorRef), lock);
 
 		try {
@@ -224,7 +224,7 @@ public class DefaultTimeServiceProviderTest {
 		final OneShotLatch latch = new OneShotLatch();
 		final Object lock = new Object();
 
-		TimeServiceProvider timeServiceProvider = new DefaultTimeServiceProvider(
+		ProcessingTimeService timeServiceProvider = new DefaultProcessingTimeService(
 				new AsyncExceptionHandler() {
 					@Override
 					public void handleAsyncException(String message, Throwable exception) {
@@ -249,7 +249,7 @@ public class DefaultTimeServiceProviderTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-		final DefaultTimeServiceProvider timer = new DefaultTimeServiceProvider(
+		final DefaultProcessingTimeService timer = new DefaultProcessingTimeService(
 				new ReferenceSettingExceptionHandler(errorRef), lock);
 
 		try {

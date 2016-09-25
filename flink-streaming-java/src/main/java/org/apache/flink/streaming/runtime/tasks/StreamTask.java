@@ -144,11 +144,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private AbstractKeyedStateBackend<?> keyedStateBackend;
 
 	/**
-	 * The internal {@link TimeServiceProvider} used to define the current
+	 * The internal {@link ProcessingTimeService} used to define the current
 	 * processing time (default = {@code System.currentTimeMillis()}) and
 	 * register timers for tasks to be executed in the future.
 	 */
-	private TimeServiceProvider timerService;
+	private ProcessingTimeService timerService;
 
 	/** The map of user-defined accumulators of this task */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
@@ -193,13 +193,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Allows the user to specify his own {@link TimeServiceProvider TimerServiceProvider}.
-	 * By default a {@link DefaultTimeServiceProvider DefaultTimerService} is going to be provided.
+	 * Allows the user to specify his own {@link ProcessingTimeService TimerServiceProvider}.
+	 * By default a {@link DefaultProcessingTimeService DefaultTimerService} is going to be provided.
 	 * Changing it can be useful for testing processing time functionality, such as
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner WindowAssigners}
 	 * and {@link org.apache.flink.streaming.api.windowing.triggers.Trigger Triggers}.
 	 * */
-	public void setTimeService(TimeServiceProvider timeProvider) {
+	public void setProcessingTimeService(ProcessingTimeService timeProvider) {
 		if (timeProvider == null) {
 			throw new RuntimeException("The timeProvider cannot be set to null.");
 		}
@@ -227,7 +227,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				ThreadFactory timerThreadFactory =
 					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
 
-				timerService = new DefaultTimeServiceProvider(this, getCheckpointLock(), timerThreadFactory);
+				timerService = new DefaultProcessingTimeService(this, getCheckpointLock(), timerThreadFactory);
 			}
 
 			operatorChain = new OperatorChain<>(this, getEnvironment().getAccumulatorRegistry().getReadWriteReporter());
@@ -865,10 +865,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Returns the {@link TimeServiceProvider} responsible for telling the current
+	 * Returns the {@link ProcessingTimeService} responsible for telling the current
 	 * processing time and registering timers.
 	 */
-	public TimeServiceProvider getTimerService() {
+	public ProcessingTimeService getProcessingTimeService() {
 		if (timerService == null) {
 			throw new IllegalStateException("The timer service has not been initialized.");
 		}

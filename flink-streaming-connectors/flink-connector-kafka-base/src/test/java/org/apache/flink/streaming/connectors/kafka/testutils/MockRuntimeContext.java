@@ -38,7 +38,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -53,7 +53,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	private final ExecutionConfig execConfig;
 
-	private final TimeServiceProvider timeServiceProvider;
+	private final ProcessingTimeService timeServiceProvider;
 	
 	public MockRuntimeContext(int numberOfParallelSubtasks, int indexOfThisSubtask) {
 		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig());
@@ -70,7 +70,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 			int numberOfParallelSubtasks,
 			int indexOfThisSubtask,
 			ExecutionConfig execConfig,
-			TimeServiceProvider timeServiceProvider) {
+			ProcessingTimeService timeServiceProvider) {
 		
 		super(new MockStreamOperator(),
 			new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
@@ -188,7 +188,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
-	public TimeServiceProvider getTimeServiceProvider() {
+	public ProcessingTimeService getProcessingTimeService() {
 		if (timeServiceProvider == null) {
 			throw new UnsupportedOperationException();
 		} else {

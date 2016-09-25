@@ -38,9 +38,9 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -280,11 +280,11 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Returns the {@link TimeServiceProvider} responsible for getting  the current
+	 * Returns the {@link ProcessingTimeService} responsible for getting  the current
 	 * processing time and registering timers.
 	 */
-	protected TimeServiceProvider getTimerService() {
-		return container.getTimerService();
+	protected ProcessingTimeService getProcessingTimeService() {
+		return container.getProcessingTimeService();
 	}
 
 	/**

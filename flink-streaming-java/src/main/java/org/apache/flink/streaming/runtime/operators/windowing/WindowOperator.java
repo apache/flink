@@ -223,7 +223,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		windowAssignerContext = new WindowAssigner.WindowAssignerContext() {
 			@Override
 			public long getCurrentProcessingTime() {
-				return WindowOperator.this.getTimerService().getCurrentProcessingTime();
+				return WindowOperator.this.getProcessingTimeService().getCurrentProcessingTime();
 			}
 		};
 
@@ -233,7 +233,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		// re-register the restored timers (if any)
 		if (processingTimeTimersQueue.size() > 0) {
-			nextTimer = getTimerService().registerTimer(processingTimeTimersQueue.peek().timestamp, this);
+			nextTimer = getProcessingTimeService().registerTimer(processingTimeTimersQueue.peek().timestamp, this);
 		}
 	}
 
@@ -495,7 +495,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		if (timer != null) {
-			nextTimer = getTimerService().registerTimer(timer.timestamp, this);
+			nextTimer = getProcessingTimeService().registerTimer(timer.timestamp, this);
 		}
 	}
 
@@ -697,7 +697,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public long getCurrentProcessingTime() {
-			return WindowOperator.this.getTimerService().getCurrentProcessingTime();
+			return WindowOperator.this.getProcessingTimeService().getCurrentProcessingTime();
 		}
 
 		@Override
@@ -717,7 +717,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					if (nextTimer != null) {
 						nextTimer.cancel(false);
 					}
-					nextTimer = getTimerService().registerTimer(time, WindowOperator.this);
+					nextTimer = getProcessingTimeService().registerTimer(time, WindowOperator.this);
 				}
 			}
 		}

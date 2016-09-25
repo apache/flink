@@ -35,10 +35,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link TimeServiceProvider} which assigns as current processing time the result of calling
+ * A {@link ProcessingTimeService} which assigns as current processing time the result of calling
  * {@link System#currentTimeMillis()} and registers timers using a {@link ScheduledThreadPoolExecutor}.
  */
-public class DefaultTimeServiceProvider extends TimeServiceProvider {
+public class DefaultProcessingTimeService extends ProcessingTimeService {
 
 	private static final int STATUS_ALIVE = 0;
 	private static final int STATUS_QUIESCED = 1;
@@ -58,11 +58,11 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 	private final AtomicInteger status;
 
 
-	public DefaultTimeServiceProvider(AsyncExceptionHandler failureHandler, Object checkpointLock) {
+	public DefaultProcessingTimeService(AsyncExceptionHandler failureHandler, Object checkpointLock) {
 		this(failureHandler, checkpointLock, null);
 	}
 
-	public DefaultTimeServiceProvider(
+	public DefaultProcessingTimeService(
 			AsyncExceptionHandler task,
 			Object checkpointLock,
 			ThreadFactory threadFactory) {

@@ -307,7 +307,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		}
 
 		if (timer != null) {
-			nextTimer = getTimerService().registerTimer(timer.timestamp, this);
+			nextTimer = getProcessingTimeService().registerTimer(timer.timestamp, this);
 		}
 	}
 

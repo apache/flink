@@ -39,7 +39,7 @@ import java.util.concurrent.ScheduledFuture;
  *         will result in a hard exception.</li>
  * </ol>
  */
-public abstract class TimeServiceProvider {
+public abstract class ProcessingTimeService {
 
 	/**
 	 * Returns the current processing time.

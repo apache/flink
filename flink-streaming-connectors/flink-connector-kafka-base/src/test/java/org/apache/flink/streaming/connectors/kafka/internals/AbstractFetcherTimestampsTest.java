@@ -25,10 +25,10 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
-import org.apache.flink.streaming.runtime.operators.TestTimeProviderTest.ReferenceSettingExceptionHandler;
+import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTest.ReferenceSettingExceptionHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.DefaultProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -128,7 +128,7 @@ public class AbstractFetcherTimestampsTest {
 		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
 
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-		final TimeServiceProvider timerService = new DefaultTimeServiceProvider(
+		final ProcessingTimeService timerService = new DefaultProcessingTimeService(
 				new ReferenceSettingExceptionHandler(errorRef), sourceContext.getCheckpointLock());
 
 		try {
