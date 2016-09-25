@@ -346,4 +346,27 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 		}
 		return sum;
 	}
+
+	/**
+	 * Returns the total number of state entries across all keys for the given namespace.
+	 */
+	@VisibleForTesting
+	@SuppressWarnings("unchecked")
+	public <N> int numStateEntries(N namespace) {
+		int sum = 0;
+		for (StateTable<K, ?, ?> stateTable : stateTables.values()) {
+			for (Map namespaceMap : stateTable.getState()) {
+				if (namespaceMap == null) {
+					continue;
+				}
+				Map<?, Map> typedMap = (Map<?, Map>) namespaceMap;
+				Map singleNamespace = typedMap.get(namespace);
+				if (singleNamespace != null) {
+					sum += singleNamespace.size();
+				}
+			}
+		}
+		return sum;
+	}
+
 }

@@ -124,19 +124,19 @@ public class WindowOperatorTest extends TestLogger {
 		return Mockito.any();
 	}
 
-	private static Trigger.TriggerContext anyTriggerContext() {
+	public static Trigger.TriggerContext anyTriggerContext() {
 		return Mockito.any();
 	}
 
-	private static TimeWindow anyTimeWindow() {
+	public static TimeWindow anyTimeWindow() {
 		return Mockito.any();
 	}
 
-	private static Trigger.OnMergeContext anyOnMergeContext() {
+	public static Trigger.OnMergeContext anyOnMergeContext() {
 		return Mockito.any();
 	}
 
-	private static MergingWindowAssigner.MergeCallback anyMergeCallback() {
+	public static MergingWindowAssigner.MergeCallback anyMergeCallback() {
 		return Mockito.any();
 	}
 
