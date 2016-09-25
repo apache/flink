@@ -22,6 +22,7 @@ limitations under the License.
     <div job-plan="job-plan" plan="plan" jobid="{{jobid}}" set-node="changeNode(nodeid)" class="main-canvas"></div>
   </div>
 </div>
+<split></split>
 <div id="job-panel" class="split">
   <div ng-if="plan" class="panel panel-default panel-multi">
     <nav class="navbar navbar-default navbar-secondary-additional">
@@ -33,6 +34,6 @@ limitations under the License.
         <li ng-if="job.state == 'RUNNING'" ui-sref-active="active"><a ui-sref=".backpressure({nodeid: nodeid})">Back Pressure</a></li>
       </ul>
     </nav>
-    <div ui-view="node-details" style="height: 100%" class="panel-body clean"></div>
+    <div id="node-details" ui-view="node-details" class="panel-body clean"></div>
   </div>
 </div>

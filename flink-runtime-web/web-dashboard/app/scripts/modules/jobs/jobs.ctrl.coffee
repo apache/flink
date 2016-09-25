@@ -93,12 +93,6 @@ angular.module('flinkApp')
 .controller 'JobPlanController', ($scope, $state, $stateParams, $window, JobsService) ->
   console.log 'JobPlanController'
 
-  jQuery () ->
-    Split(['#canvas', '#job-panel'], (
-      sizes: [50, 50]
-      direction: 'vertical'
-    ))
-
   $scope.nodeid = null
   $scope.nodeUnfolded = false
   $scope.stateList = JobsService.stateList()

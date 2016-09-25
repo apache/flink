@@ -21,6 +21,9 @@ html {
 body {
   height: 100%;
 }
+#main {
+  height: 100%;
+}
 .gutter {
   background-color: transparent;
   background-repeat: no-repeat;
@@ -721,4 +724,7 @@ svg.graph .node-label {
 }
 #job-panel {
   overflow-y: auto;
+}
+#details {
+  height: 100%;
 }

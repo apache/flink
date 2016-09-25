@@ -19,6 +19,8 @@
   .canvas-wrapper
     div.main-canvas(job-plan, plan="plan", jobid="{{jobid}}", set-node="changeNode(nodeid)")
 
+split
+
 .split#job-panel
   .panel.panel-default.panel-multi(ng-if="plan")
     nav.navbar.navbar-default.navbar-secondary-additional
@@ -38,4 +40,4 @@
         li(ng-if="job.state == 'RUNNING'" ui-sref-active='active')
           a(ui-sref=".backpressure({nodeid: nodeid})") Back Pressure
 
-    .panel-body.clean(ui-view="node-details" style="height: 100%")
+    .panel-body.clean#node-details(ui-view="node-details")
