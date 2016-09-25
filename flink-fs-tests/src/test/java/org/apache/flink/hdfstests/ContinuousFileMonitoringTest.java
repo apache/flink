@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
@@ -127,7 +127,7 @@ public class ContinuousFileMonitoringTest {
 		ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
 		reader.setOutputType(typeInfo, executionConfig);
 
-		final TestTimeServiceProvider timeServiceProvider = new TestTimeServiceProvider();
+		final TestProcessingTimeService timeServiceProvider = new TestProcessingTimeService();
 		final OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
 			new OneInputStreamOperatorTestHarness<>(reader, executionConfig, timeServiceProvider);
 		tester.setTimeCharacteristic(TimeCharacteristic.IngestionTime);

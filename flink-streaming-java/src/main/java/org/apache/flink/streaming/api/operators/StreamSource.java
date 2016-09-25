@@ -69,7 +69,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 
 		this.ctx = StreamSourceContexts.getSourceContext(
-			timeCharacteristic, getTimerService(), lockingObject, collector, watermarkInterval);
+			timeCharacteristic, getProcessingTimeService(), lockingObject, collector, watermarkInterval);
 
 		try {
 			userFunction.run(ctx);

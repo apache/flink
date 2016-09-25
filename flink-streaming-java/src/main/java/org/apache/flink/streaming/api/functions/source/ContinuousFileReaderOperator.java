@@ -107,7 +107,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 		this.readerContext = StreamSourceContexts.getSourceContext(
-			timeCharacteristic, getTimerService(), checkpointLock, output, watermarkInterval);
+			timeCharacteristic, getProcessingTimeService(), checkpointLock, output, watermarkInterval);
 
 		// and initialize the split reading thread
 		this.reader = new SplitReader<>(format, serializer, readerContext, checkpointLock, readerState);
