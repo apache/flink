@@ -38,8 +38,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -67,7 +67,7 @@ public class StreamSourceOperatorTest {
 		
 		final List<StreamElement> output = new ArrayList<>();
 		
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0, null);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		operator.run(new Object(), new CollectorOutput<String>(output));
 		
 		assertEquals(1, output.size());
@@ -84,7 +84,7 @@ public class StreamSourceOperatorTest {
 				new StreamSource<>(new InfiniteSource<String>());
 
 
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0, null);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		operator.cancel();
 
 		// run and exit
@@ -104,7 +104,7 @@ public class StreamSourceOperatorTest {
 				new StreamSource<>(new InfiniteSource<String>());
 
 		
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0, null);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		
 		// trigger an async cancel in a bit
 		new Thread("canceler") {
@@ -137,7 +137,7 @@ public class StreamSourceOperatorTest {
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
 
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0, null);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		operator.stop();
 
 		// run and stop
@@ -156,7 +156,7 @@ public class StreamSourceOperatorTest {
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
 
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0, null);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 
 		// trigger an async cancel in a bit
 		new Thread("canceler") {
@@ -189,7 +189,7 @@ public class StreamSourceOperatorTest {
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
 		// emit latency marks every 10 milliseconds.
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 10, null);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 10);
 
 		// trigger an async cancel in a bit
 		new Thread("canceler") {
@@ -225,15 +225,15 @@ public class StreamSourceOperatorTest {
 			new StoppableStreamSource<>(new InfiniteSource<String>());
 
 		long watermarkInterval = 10;
-		TestTimeServiceProvider timeProvider = new TestTimeServiceProvider();
-		timeProvider.setCurrentTime(0);
+		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+		processingTimeService.setCurrentTime(0);
 
-		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, 0, timeProvider);
+		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, 0, processingTimeService);
 
 		final List<StreamElement> output = new ArrayList<>();
 
 		StreamSourceContexts.getSourceContext(TimeCharacteristic.IngestionTime,
-			operator.getContainingTask().getTimerService(),
+			operator.getContainingTask().getProcessingTimeService(),
 			operator.getContainingTask().getCheckpointLock(),
 			new CollectorOutput<String>(output),
 			operator.getExecutionConfig().getAutoWatermarkInterval());
@@ -243,7 +243,7 @@ public class StreamSourceOperatorTest {
 		// going to be aligned with the watermark interval.
 
 		for (long i = 1; i < 100; i += watermarkInterval)  {
-			timeProvider.setCurrentTime(i);
+			processingTimeService.setCurrentTime(i);
 		}
 
 		assertTrue(output.size() == 9);
@@ -257,13 +257,21 @@ public class StreamSourceOperatorTest {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
+	@SuppressWarnings("unchecked")
+	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
+			TimeCharacteristic timeChar,
+			long watermarkInterval,
+			long latencyMarkInterval) {
+		setupSourceOperator(operator, timeChar, watermarkInterval, latencyMarkInterval, new TestProcessingTimeService());
+	}
+
 	@SuppressWarnings("unchecked")
 	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
 												TimeCharacteristic timeChar,
 												long watermarkInterval,
 												long latencyMarkInterval,
-												final TimeServiceProvider timeProvider) {
+												final ProcessingTimeService timeProvider) {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setAutoWatermarkInterval(watermarkInterval);
@@ -284,12 +292,15 @@ public class StreamSourceOperatorTest {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
 
-		doAnswer(new Answer<TimeServiceProvider>() {
+		doAnswer(new Answer<ProcessingTimeService>() {
 			@Override
-			public TimeServiceProvider answer(InvocationOnMock invocation) throws Throwable {
+			public ProcessingTimeService answer(InvocationOnMock invocation) throws Throwable {
+				if (timeProvider == null) {
+					throw new RuntimeException("The time provider is null.");
+				}
 				return timeProvider;
 			}
-		}).when(mockTask).getTimerService();
+		}).when(mockTask).getProcessingTimeService();
 
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
 	}

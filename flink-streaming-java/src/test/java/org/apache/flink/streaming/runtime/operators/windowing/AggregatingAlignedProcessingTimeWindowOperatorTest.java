@@ -40,12 +40,13 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.runtime.operators.TestTimeProviderTest.ReferenceSettingExceptionHandler;
+import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTest.ReferenceSettingExceptionHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.SystemProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -194,8 +195,8 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		try {
 			@SuppressWarnings("unchecked")
 			final Output<StreamRecord<String>> mockOut = mock(Output.class);
-			final TimeServiceProvider timerService = new NoOpTimerService();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, new Object());
+			final ProcessingTimeService timerService = new NoOpTimerService();
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			AggregatingProcessingTimeWindowOperator<String, String> op;
 
@@ -242,7 +243,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 
-		final TimeServiceProvider timerService = new DefaultTimeServiceProvider(
+		final ProcessingTimeService timerService = new SystemProcessingTimeService(
 				new ReferenceSettingExceptionHandler(error), lock);
 
 		try {
@@ -255,7 +256,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							windowSize, windowSize);
 
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out);
 			op.open();
@@ -311,13 +312,13 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 
-		final TimeServiceProvider timerService = new DefaultTimeServiceProvider(
+		final ProcessingTimeService timerService = new SystemProcessingTimeService(
 				new ReferenceSettingExceptionHandler(error), lock);
 		try {
 			final int windowSize = 50;
 			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>(windowSize);
 
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
 					new AggregatingProcessingTimeWindowOperator<>(
@@ -389,13 +390,13 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 
-		final TimeServiceProvider timerService = new DefaultTimeServiceProvider(
+		final ProcessingTimeService timerService = new SystemProcessingTimeService(
 				new ReferenceSettingExceptionHandler(error), lock);
 
 		try {
 			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>(50);
 
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			// tumbling window that triggers every 20 milliseconds
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
@@ -471,12 +472,12 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 
-		final TimeServiceProvider timerService = new DefaultTimeServiceProvider(
+		final ProcessingTimeService timerService = new SystemProcessingTimeService(
 				new ReferenceSettingExceptionHandler(error), lock);
 
 		try {
 			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>(50);
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			// tumbling window that triggers every 20 milliseconds
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
@@ -541,12 +542,12 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 
-		final TimeServiceProvider timerService = new DefaultTimeServiceProvider(
+		final ProcessingTimeService timerService = new SystemProcessingTimeService(
 				new ReferenceSettingExceptionHandler(error), lock);
 
 		try {
 			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			ReduceFunction<Tuple2<Integer, Integer>> failingFunction = new FailingFunction(100);
 
@@ -605,7 +606,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		try {
 			final int windowSize = 200;
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
+			TestProcessingTimeService timerService = new TestProcessingTimeService();
 
 			// tumbling window that triggers every 50 milliseconds
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
@@ -655,7 +656,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSize);
 
-			timerService = new TestTimeServiceProvider();
+			timerService = new TestProcessingTimeService();
 			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();
@@ -698,7 +699,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final int windowSlide = 50;
 			final int windowSize = factor * windowSlide;
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
+			TestProcessingTimeService timerService = new TestProcessingTimeService();
 
 			// sliding window (200 msecs) every 50 msecs
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
@@ -748,7 +749,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSlide);
 
-			timerService = new TestTimeServiceProvider();
+			timerService = new TestProcessingTimeService();
 			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();
@@ -796,7 +797,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		try {
 			final long twoSeconds = 2000;
 			
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
+			TestProcessingTimeService timerService = new TestProcessingTimeService();
 
 			StatefulFunction.globalCounts.clear();
 			
@@ -850,7 +851,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final int windowSlide = 50;
 			final int windowSize = factor * windowSlide;
 
-			TestTimeServiceProvider timerService = new TestTimeServiceProvider();
+			TestProcessingTimeService timerService = new TestProcessingTimeService();
 
 			StatefulFunction.globalCounts.clear();
 			
@@ -977,7 +978,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 	
-	private static StreamTask<?, ?> createMockTask(Object lock) {
+	private static StreamTask<?, ?> createMockTask() {
 		Configuration configuration = new Configuration();
 		configuration.setString(ConfigConstants.STATE_BACKEND, "jobmanager");
 
@@ -985,7 +986,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		when(task.getAccumulatorMap()).thenReturn(new HashMap<String, Accumulator<?, ?>>());
 		when(task.getName()).thenReturn("Test task name");
 		when(task.getExecutionConfig()).thenReturn(new ExecutionConfig());
-		when(task.getCheckpointLock()).thenReturn(lock);
 
 		final TaskManagerRuntimeInfo mockTaskManagerRuntimeInfo = mock(TaskManagerRuntimeInfo.class);
 		when(mockTaskManagerRuntimeInfo.getConfiguration()).thenReturn(configuration);
@@ -996,10 +996,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		return task;
 	}
 
-	private static StreamTask<?, ?> createMockTaskWithTimer(final TimeServiceProvider timerService, final Object lock)
+	private static StreamTask<?, ?> createMockTaskWithTimer(final ProcessingTimeService timerService)
 	{
-		StreamTask<?, ?> mockTask = createMockTask(lock);
-		when(mockTask.getTimerService()).thenReturn(timerService);
+		StreamTask<?, ?> mockTask = createMockTask();
+		when(mockTask.getProcessingTimeService()).thenReturn(timerService);
 		return mockTask;
 	}
 
@@ -1018,7 +1018,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		return result;
 	}
 
-	private static void shutdownTimerServiceAndWait(TimeServiceProvider timers) throws Exception {
+	private static void shutdownTimerServiceAndWait(ProcessingTimeService timers) throws Exception {
 		timers.shutdownService();
 
 		while (!timers.isTerminated()) {

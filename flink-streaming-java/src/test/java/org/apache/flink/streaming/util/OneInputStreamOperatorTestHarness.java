@@ -43,11 +43,11 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.util.Preconditions;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -79,9 +79,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	final ExecutionConfig executionConfig;
 
-	final Object checkpointLock;
-
-	final TimeServiceProvider timeServiceProvider;
+	final ProcessingTimeService processingTimeService;
 
 	StreamTask<?, ?> mockTask;
 
@@ -105,36 +103,36 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig) {
-		this(operator, executionConfig, null);
+		this(operator, executionConfig, new TestProcessingTimeService());
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
-			TestTimeServiceProvider testTimeProvider) {
-		this(operator, executionConfig, new Object(), testTimeProvider);
+			ProcessingTimeService processingTimeService) {
+		this(operator, executionConfig, new Object(), processingTimeService);
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
 			Object checkpointLock,
-			TimeServiceProvider testTimeProvider) {
+			ProcessingTimeService processingTimeService) {
 
+		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 		this.operator = operator;
-		this.outputList = new ConcurrentLinkedQueue<Object>();
+		this.outputList = new ConcurrentLinkedQueue<>();
 		Configuration underlyingConfig = new Configuration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = executionConfig;
-		this.checkpointLock = checkpointLock;
 		this.closableRegistry = new ClosableRegistry();
 
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
 
 		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(this.checkpointLock);
+		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
 		when(mockTask.getEnvironment()).thenReturn(env);
@@ -183,15 +181,12 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			throw new RuntimeException(e.getMessage(), e);
 		}
 
-		timeServiceProvider = testTimeProvider != null ? testTimeProvider :
-			new DefaultTimeServiceProvider(mockTask, this.checkpointLock);
-
-		doAnswer(new Answer<TimeServiceProvider>() {
+		doAnswer(new Answer<ProcessingTimeService>() {
 			@Override
-			public TimeServiceProvider answer(InvocationOnMock invocation) throws Throwable {
-				return timeServiceProvider;
+			public ProcessingTimeService answer(InvocationOnMock invocation) throws Throwable {
+				return OneInputStreamOperatorTestHarness.this.processingTimeService;
 			}
-		}).when(mockTask).getTimerService();
+		}).when(mockTask).getProcessingTimeService();
 	}
 
 	public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
@@ -219,9 +214,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
-	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
-	 * to extract only the StreamRecords.
+	 * Get all the output from the task. This contains StreamRecords and Events interleaved.
 	 */
 	public ConcurrentLinkedQueue<Object> getOutput() {
 		return outputList;
@@ -316,8 +309,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public void close() throws Exception {
 		operator.close();
 		operator.dispose();
-		if (timeServiceProvider != null) {
-			timeServiceProvider.shutdownService();
+		if (processingTimeService != null) {
+			processingTimeService.shutdownService();
 		}
 		setupCalled = false;
 	}

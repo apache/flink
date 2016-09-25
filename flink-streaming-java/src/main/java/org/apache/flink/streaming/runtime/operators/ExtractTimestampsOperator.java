@@ -54,8 +54,8 @@ public class ExtractTimestampsOperator<T>
 		super.open();
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 		if (watermarkInterval > 0) {
-			long now = getTimerService().getCurrentProcessingTime();
-			getTimerService().registerTimer(now + watermarkInterval, this);
+			long now = getProcessingTimeService().getCurrentProcessingTime();
+			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
 		currentWatermark = Long.MIN_VALUE;
 	}
@@ -81,8 +81,8 @@ public class ExtractTimestampsOperator<T>
 			output.emitWatermark(new Watermark(currentWatermark));
 		}
 
-		long now = getTimerService().getCurrentProcessingTime();
-		getTimerService().registerTimer(now + watermarkInterval, this);
+		long now = getProcessingTimeService().getCurrentProcessingTime();
+		getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 	}
 
 	@Override

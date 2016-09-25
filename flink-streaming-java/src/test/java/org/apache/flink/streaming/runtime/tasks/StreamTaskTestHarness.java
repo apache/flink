@@ -113,11 +113,11 @@ public class StreamTaskTestHarness<OUT> {
 		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
 	}
 
-	public TimeServiceProvider getTimerService() {
+	public ProcessingTimeService getProcessingTimeService() {
 		if (!(task instanceof StreamTask)) {
-			throw new UnsupportedOperationException("getTimerService() only supported on StreamTasks.");
+			throw new UnsupportedOperationException("getProcessingTimeService() only supported on StreamTasks.");
 		}
-		return ((StreamTask) task).getTimerService();
+		return ((StreamTask) task).getProcessingTimeService();
 	}
 
 	/**
