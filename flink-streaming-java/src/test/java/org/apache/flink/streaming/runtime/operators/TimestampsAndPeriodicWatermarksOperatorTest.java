@@ -45,6 +45,8 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
 				new OneInputStreamOperatorTestHarness<Long, Long>(operator, config);
 
+		long currentTime = 0;
+
 		testHarness.open();
 		
 		testHarness.processElement(new StreamRecord<>(1L, 1));
@@ -71,7 +73,8 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					// check the invariant
 					assertTrue(lastWatermark < nextElementValue);
 				} else {
-					Thread.sleep(10);
+					currentTime = currentTime + 10;
+					testHarness.setProcessingTime(currentTime);
 				}
 			}
 			
@@ -102,7 +105,8 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					// check the invariant
 					assertTrue(lastWatermark < nextElementValue);
 				} else {
-					Thread.sleep(10);
+					currentTime = currentTime + 10;
+					testHarness.setProcessingTime(currentTime);
 				}
 			}
 
