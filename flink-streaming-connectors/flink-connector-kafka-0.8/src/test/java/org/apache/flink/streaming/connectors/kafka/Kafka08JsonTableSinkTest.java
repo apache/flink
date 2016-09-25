@@ -19,8 +19,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.table.Row;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 import java.util.Properties;

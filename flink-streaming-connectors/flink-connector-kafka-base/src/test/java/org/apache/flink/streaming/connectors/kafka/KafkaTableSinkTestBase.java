@@ -23,13 +23,19 @@ import org.apache.flink.api.table.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.kafka.internals.TypeUtil;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.util.serialization.JsonRowSerializationSchema;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.Properties;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 public abstract class KafkaTableSinkTestBase implements Serializable {
@@ -47,6 +53,19 @@ public abstract class KafkaTableSinkTestBase implements Serializable {
 		kafkaTableSink.emitDataStream(dataStream);
 
 		verify(dataStream).addSink(kafkaProducer);
+	}
+
+	@Test
+	public void testCorrectProducerIsCreated() throws Exception {
+		DataStream dataStream = mock(DataStream.class);
+		KafkaTableSink kafkaTableSink = spy(createTableSink());
+		kafkaTableSink.emitDataStream(dataStream);
+
+		verify(kafkaTableSink).createKafkaProducer(
+			eq(TOPIC),
+			eq(createSinkProperties()),
+			any(JsonRowSerializationSchema.class),
+			any(CustomPartitioner.class));
 	}
 
 	@Test
