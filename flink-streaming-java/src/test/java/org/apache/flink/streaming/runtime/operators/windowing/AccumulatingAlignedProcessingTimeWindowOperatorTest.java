@@ -19,8 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -28,22 +26,13 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
-import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
@@ -54,20 +43,17 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-@SuppressWarnings({"serial", "SynchronizationOnLocalVariableOrMethodParameter"})
+@SuppressWarnings({"serial"})
 public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	@SuppressWarnings("unchecked")
@@ -182,68 +168,68 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	@Test
 	public void testWindowTriggerTimeAlignment() throws Exception {
-		final Object lock = new Object();
-		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
-			Executors.newSingleThreadScheduledExecutor(), lock);
 
 		try {
-			@SuppressWarnings("unchecked")
-			final Output<StreamRecord<String>> mockOut = mock(Output.class);
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
+			AccumulatingProcessingTimeWindowOperator<String, String, String> op =
+					new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+							StringSerializer.INSTANCE, StringSerializer.INSTANCE, 5000, 1000);
 
-			AccumulatingProcessingTimeWindowOperator<String, String, String> op;
+			KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness =
+					new KeyedOneInputStreamOperatorTestHarness<>(op, mockKeySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
-			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
-					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 5000, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
-			op.open();
+			testHarness.open();
+
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
-			op.dispose();
+			testHarness.close();
 
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1000, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
-			op.open();
+
+			testHarness =
+					new KeyedOneInputStreamOperatorTestHarness<>(op, mockKeySelector, BasicTypeInfo.STRING_TYPE_INFO);
+
+			testHarness.open();
+
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
-			op.dispose();
+			testHarness.close();
+
 
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1500, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
-			op.open();
+
+			testHarness =
+					new KeyedOneInputStreamOperatorTestHarness<>(op, mockKeySelector, BasicTypeInfo.STRING_TYPE_INFO);
+
+			testHarness.open();
+
 			assertTrue(op.getNextSlideTime() % 500 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
-			op.dispose();
+			testHarness.close();
 
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1200, 1100);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
-			op.open();
-			assertTrue(op.getNextSlideTime() % 100 == 0);
-			assertTrue(op.getNextEvaluationTime() % 1100 == 0);
-			op.dispose();
+
+			testHarness =
+					new KeyedOneInputStreamOperatorTestHarness<>(op, mockKeySelector, BasicTypeInfo.STRING_TYPE_INFO);
+
+			testHarness.open();
+
+			assertEquals(0, op.getNextSlideTime() % 100);
+			assertEquals(0, op.getNextEvaluationTime() % 1100);
+			testHarness.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			timerService.shutdownService();
-		}
 	}
 
 	@Test
 	public void testTumblingWindow() throws Exception {
-		final Object lock = new Object();
-		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
-			Executors.newSingleThreadScheduledExecutor(), lock);
-
 		try {
 			final int windowSize = 50;
-			final CollectingOutput<Integer> out = new CollectingOutput<>(windowSize);
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			// tumbling window that triggers every 20 milliseconds
 			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
@@ -252,114 +238,94 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
+			KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+					new KeyedOneInputStreamOperatorTestHarness<>(op, identitySelector, BasicTypeInfo.INT_TYPE_INFO);
+
+			testHarness.open();
 
 			final int numElements = 1000;
 
+			long currentTime = 0;
+
 			for (int i = 0; i < numElements; i++) {
-				synchronized (lock) {
-					op.processElement(new StreamRecord<Integer>(i));
-				}
-				Thread.sleep(1);
+				testHarness.processElement(new StreamRecord<>(i));
+				currentTime = currentTime + 10;
+				testHarness.setProcessingTime(currentTime);
 			}
 
-			// get and verify the result
-			out.waitForNElements(numElements, 60_000);
 
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
-
-			List<Integer> result = out.getElements();
+			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(numElements, result.size());
 
 			Collections.sort(result);
 			for (int i = 0; i < numElements; i++) {
 				assertEquals(i, result.get(i).intValue());
 			}
+
+			testHarness.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			timerService.shutdownService();
-		}
 	}
 
 	@Test
 	public void testSlidingWindow() throws Exception {
-		final Object lock = new Object();
-		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
-			Executors.newSingleThreadScheduledExecutor(), lock);
 
-		try {
-			final CollectingOutput<Integer> out = new CollectingOutput<>(50);
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
-			
-			// tumbling window that triggers every 20 milliseconds
-			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
-					new AccumulatingProcessingTimeWindowOperator<>(
-							validatingIdentityFunction, identitySelector,
-							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 150, 50);
+		// tumbling window that triggers every 20 milliseconds
+		AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
+				new AccumulatingProcessingTimeWindowOperator<>(
+						validatingIdentityFunction, identitySelector,
+						IntSerializer.INSTANCE, IntSerializer.INSTANCE, 150, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+				new KeyedOneInputStreamOperatorTestHarness<>(op, identitySelector, BasicTypeInfo.INT_TYPE_INFO);
 
-			final int numElements = 1000;
+		testHarness.open();
 
-			for (int i = 0; i < numElements; i++) {
-				synchronized (lock) {
-					op.processElement(new StreamRecord<Integer>(i));
-				}
-				Thread.sleep(1);
-			}
+		final int numElements = 1000;
 
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
+		long currentTime = 0;
 
-			// get and verify the result
-			List<Integer> result = out.getElements();
-
-			// if we kept this running, each element would be in the result three times (for each slide).
-			// we are closing the window before the final panes are through three times, so we may have less
-			// elements.
-			if (result.size() < numElements || result.size() > 3 * numElements) {
-				fail("Wrong number of results: " + result.size());
-			}
-
-			Collections.sort(result);
-			int lastNum = -1;
-			int lastCount = -1;
-			
-			for (int num : result) {
-				if (num == lastNum) {
-					lastCount++;
-					assertTrue(lastCount <= 3);
-				}
-				else {
-					lastNum = num;
-					lastCount = 1;
-				}
-			}
-		} finally {
-			timerService.shutdownService();
+		for (int i = 0; i < numElements; i++) {
+			testHarness.processElement(new StreamRecord<>(i));
+			currentTime = currentTime + 10;
+			testHarness.setProcessingTime(currentTime);
 		}
+
+		// get and verify the result
+		List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
+
+		// if we kept this running, each element would be in the result three times (for each slide).
+		// we are closing the window before the final panes are through three times, so we may have less
+		// elements.
+		if (result.size() < numElements || result.size() > 3 * numElements) {
+			fail("Wrong number of results: " + result.size());
+		}
+
+		Collections.sort(result);
+		int lastNum = -1;
+		int lastCount = -1;
+
+		for (int num : result) {
+			if (num == lastNum) {
+				lastCount++;
+				assertTrue(lastCount <= 3);
+			}
+			else {
+				lastNum = num;
+				lastCount = 1;
+			}
+		}
+
+		testHarness.close();
 	}
 
 	@Test
 	public void testTumblingWindowSingleElements() throws Exception {
-		final Object lock = new Object();
-		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
-			Executors.newSingleThreadScheduledExecutor(), lock);
 
 		try {
-			final CollectingOutput<Integer> out = new CollectingOutput<>(50);
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			// tumbling window that triggers every 20 milliseconds
 			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
@@ -367,56 +333,46 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 50, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
+			KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+					new KeyedOneInputStreamOperatorTestHarness<>(op, identitySelector, BasicTypeInfo.INT_TYPE_INFO);
 
-			synchronized (lock) {
-				op.processElement(new StreamRecord<Integer>(1));
-				op.processElement(new StreamRecord<Integer>(2));
-			}
-			out.waitForNElements(2, 60000);
+			testHarness.open();
 
-			synchronized (lock) {
-				op.processElement(new StreamRecord<Integer>(3));
-				op.processElement(new StreamRecord<Integer>(4));
-				op.processElement(new StreamRecord<Integer>(5));
-			}
-			out.waitForNElements(5, 60000);
+			testHarness.setProcessingTime(0);
 
-			synchronized (lock) {
-				op.processElement(new StreamRecord<Integer>(6));
-			}
-			out.waitForNElements(6, 60000);
-			
-			List<Integer> result = out.getElements();
+			testHarness.processElement(new StreamRecord<>(1));
+			testHarness.processElement(new StreamRecord<>(2));
+
+			testHarness.setProcessingTime(50);
+
+			testHarness.processElement(new StreamRecord<>(3));
+			testHarness.processElement(new StreamRecord<>(4));
+			testHarness.processElement(new StreamRecord<>(5));
+
+			testHarness.setProcessingTime(100);
+
+			testHarness.processElement(new StreamRecord<>(6));
+
+			testHarness.setProcessingTime(200);
+
+
+			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(6, result.size());
 
 			Collections.sort(result);
 			assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), result);
 
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
+			testHarness.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			timerService.shutdownService();
-		}
 	}
 	
 	@Test
 	public void testSlidingWindowSingleElements() throws Exception {
-		final Object lock = new Object();
-		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
-			Executors.newSingleThreadScheduledExecutor(), lock);
-
 		try {
-			final CollectingOutput<Integer> out = new CollectingOutput<>(50);
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			// tumbling window that triggers every 20 milliseconds
 			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
@@ -424,35 +380,32 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 150, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
+			KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+					new KeyedOneInputStreamOperatorTestHarness<>(op, identitySelector, BasicTypeInfo.INT_TYPE_INFO);
 
-			synchronized (lock) {
-				op.processElement(new StreamRecord<Integer>(1));
-				op.processElement(new StreamRecord<Integer>(2));
-			}
+			testHarness.setProcessingTime(0);
 
-			// each element should end up in the output three times
-			// wait until the elements have arrived 6 times in the output
-			out.waitForNElements(6, 120000);
-			
-			List<Integer> result = out.getElements();
+			testHarness.open();
+
+			testHarness.processElement(new StreamRecord<>(1));
+			testHarness.processElement(new StreamRecord<>(2));
+
+			testHarness.setProcessingTime(50);
+			testHarness.setProcessingTime(100);
+			testHarness.setProcessingTime(150);
+
+			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
+
 			assertEquals(6, result.size());
 			
 			Collections.sort(result);
 			assertEquals(Arrays.asList(1, 1, 1, 2, 2, 2), result);
 
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
+			testHarness.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			timerService.shutdownService();
 		}
 	}
 
@@ -484,7 +437,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			// draw a snapshot and dispose the window
-			System.out.println("GOT: " + testHarness.getOutput());
 			int beforeSnapShot = testHarness.getOutput().size();
 			StreamStateHandle state = testHarness.snapshot(1L, System.currentTimeMillis());
 			List<Integer> resultAtSnapshot = extractFromStreamRecords(testHarness.getOutput());
@@ -498,7 +450,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			testHarness.close();
-			op.dispose();
 
 			// re-create the operator and restore the state
 			op = new AccumulatingProcessingTimeWindowOperator<>(
@@ -531,7 +482,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				assertEquals(i, finalResult.get(i).intValue());
 			}
 			testHarness.close();
-			op.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -584,7 +534,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			testHarness.close();
-			op.dispose();
 
 			// re-create the operator and restore the state
 			op = new AccumulatingProcessingTimeWindowOperator<>(
@@ -624,7 +573,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			testHarness.close();
-			op.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -654,12 +602,12 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			testHarness.processElement(new StreamRecord<>(1));
 			testHarness.processElement(new StreamRecord<>(2));
 
-			op.processElement(new StreamRecord<>(1));
-			op.processElement(new StreamRecord<>(2));
-			op.processElement(new StreamRecord<>(1));
-			op.processElement(new StreamRecord<>(1));
-			op.processElement(new StreamRecord<>(2));
-			op.processElement(new StreamRecord<>(2));
+			testHarness.processElement(new StreamRecord<>(1));
+			testHarness.processElement(new StreamRecord<>(2));
+			testHarness.processElement(new StreamRecord<>(1));
+			testHarness.processElement(new StreamRecord<>(1));
+			testHarness.processElement(new StreamRecord<>(2));
+			testHarness.processElement(new StreamRecord<>(2));
 
 			testHarness.setProcessingTime(1000);
 
@@ -673,7 +621,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			assertEquals(4, StatefulFunction.globalCounts.get(2).intValue());
 			
 			testHarness.close();
-			op.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -685,7 +632,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	
 	private void assertInvalidParameter(long windowSize, long windowSlide) {
 		try {
-			new AccumulatingProcessingTimeWindowOperator<String, String, String>(
+			new AccumulatingProcessingTimeWindowOperator<>(
 					mockFunction, mockKeySelector, 
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE,
 					windowSize, windowSlide);
@@ -735,37 +682,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 
-	private static StreamTask<?, ?> createMockTask() {
-		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.STATE_BACKEND, "jobmanager");
-
-		StreamTask<?, ?> task = mock(StreamTask.class);
-		when(task.getAccumulatorMap()).thenReturn(new HashMap<String, Accumulator<?, ?>>());
-		when(task.getName()).thenReturn("Test task name");
-		when(task.getExecutionConfig()).thenReturn(new ExecutionConfig());
-
-		final TaskManagerRuntimeInfo mockTaskManagerRuntimeInfo = mock(TaskManagerRuntimeInfo.class);
-		when(mockTaskManagerRuntimeInfo.getConfiguration()).thenReturn(configuration);
-
-		final Environment env = mock(Environment.class);
-		when(env.getTaskInfo()).thenReturn(new TaskInfo("Test task name", 1, 0, 1, 0));
-		when(env.getUserClassLoader()).thenReturn(AggregatingAlignedProcessingTimeWindowOperatorTest.class.getClassLoader());
-		when(env.getMetricGroup()).thenReturn(new UnregisteredTaskMetricsGroup());
-
-		when(task.getEnvironment()).thenReturn(env);
-		return task;
-	}
-
-	private static StreamTask<?, ?> createMockTaskWithTimer(
-		final TimeServiceProvider timerService)
-	{
-		StreamTask<?, ?> mockTask = createMockTask();
-		when(mockTask.getTimerService()).thenReturn(timerService);
-		return mockTask;
-	}
-
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	private <T> List<T> extractFromStreamRecords(Iterable<Object> input) {
+	private <T> List<T> extractFromStreamRecords(Iterable<?> input) {
 		List<T> result = new ArrayList<>();
 		for (Object in : input) {
 			if (in instanceof StreamRecord) {
