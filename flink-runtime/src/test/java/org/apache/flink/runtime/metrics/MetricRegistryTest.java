@@ -321,26 +321,26 @@ public class MetricRegistryTest extends TestLogger {
 
 		MetricRegistry registry = new MetricRegistry(config);
 		List<MetricReporter> reporters = registry.getReporters();
-		((TestReporter8)reporters.get(0)).expectedDelimiter='_'; //test1  reporter
-		((TestReporter8)reporters.get(1)).expectedDelimiter='-';//test2 reporter
-		((TestReporter8)reporters.get(2)).expectedDelimiter='.';//test3 reporter, because 'AA' - not correct delimiter
+		((TestReporter8)reporters.get(0)).expectedDelimiter = '_'; //test1  reporter
+		((TestReporter8)reporters.get(1)).expectedDelimiter = '-'; //test2 reporter
+		((TestReporter8)reporters.get(2)).expectedDelimiter = '.'; //test3 reporter, because 'AA' - not correct delimiter
 		//for test4 reporter use global delimiter
 
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
 		group.counter("C");
 		registry.shutdown();
-		assertTrue(TestReporter8.moreOnceCall);
+		assertTrue(TestReporter8.countCall == 4);
 	}
 
 	public static class TestReporter8 extends TestReporter {
 		char expectedDelimiter='.'; //if delimiter not set then use default delimiter
-		public static boolean moreOnceCall = false;
+		public static int countCall = 0;
 
 		@Override
 		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-			moreOnceCall = true;
-			String expectedMetric = String.format("A%cB%1$cC",expectedDelimiter);
-			assertEquals(expectedMetric,group.getMetricIdentifier(metricName, this));
+			countCall++;
+			String expectedMetric = String.format("A%cB%1$cC", expectedDelimiter);
+			assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
 		}
 	}
 }

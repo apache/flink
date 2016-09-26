@@ -74,12 +74,14 @@ public class MetricRegistry {
 		}
 		this.scopeFormats = scopeFormats;
 
-		String defaultDelimiter = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".");
-		if(defaultDelimiter.length()!=1){
-			LOG.warn("Failed to parse delimiter, using default delimiter.");
-			defaultDelimiter=".";
+		String delim;
+		try {
+			delim = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".");
+		} catch (Exception e) {
+			LOG.warn("Failed to parse delimiter, using default delimiter.", e);
+			delim = ".";
 		}
-		this.globalDelimiter = defaultDelimiter.charAt(0);
+		this.globalDelimiter = delim.charAt(0);
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>();
@@ -99,17 +101,9 @@ public class MetricRegistry {
 				DelegatingConfiguration reporterConfig = new DelegatingConfiguration(config, ConfigConstants.METRICS_REPORTER_PREFIX + namedReporter + ".");
 				final String className = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, null);
 				if (className == null) {
-					LOG.error("No reporter class set for reporter {}. Metrics might not be exposed/reported.",namedReporter);
+					LOG.error("No reporter class set for reporter {}. Metrics might not be exposed/reported.", namedReporter);
 					continue;
 				}
-
-				String delimiterForReporter = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,defaultDelimiter);
-				if(delimiterForReporter.length()!=1){
-					LOG.warn("Failed to parse delimiter for reporter {}, using global delimiter.",namedReporter);
-					delimiterForReporter=".";
-				}
-				this.delimiters.add(delimiterForReporter.charAt(0));
-
 				try {
 					String configuredPeriod = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, null);
 					TimeUnit timeunit = TimeUnit.SECONDS;
@@ -147,6 +141,14 @@ public class MetricRegistry {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
 					reporters.add(reporterInstance);
+
+					String delimiterForReporter = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, delim);
+					if (delimiterForReporter.length() != 1) {
+						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, delim);
+						delimiterForReporter = delim;
+					}
+					this.delimiters.add(delimiterForReporter.charAt(0));
+					groups.add(new FrontMetricGroup(groups.size()));
 				}
 				catch (Throwable t) {
 					shutdownExecutor();
@@ -169,15 +171,27 @@ public class MetricRegistry {
 		}
 	}
 
+	/**
+	 * Global delimiter for all reporters
+	 *
+	 * @return global delimiter
+	 */
 	public char getDelimiter() {
 		return this.globalDelimiter;
 	}
 
+	/**
+	 * Specific delimiter for reporter with index.
+	 * if reporter not found, return global delimiter.
+	 *
+	 * @param reporterIndex index of the reporter whose delimiter should be used
+	 * @return specific delimiter for reporter
+	 */
 	public char getDelimiter(int reporterIndex) {
 		try {
 			return delimiters.get(reporterIndex);
-		}catch (IndexOutOfBoundsException e){
-			LOG.warn("Delimiter for index {} not found return global delimiter",reporterIndex);
+		} catch (IndexOutOfBoundsException e) {
+			LOG.warn("Delimiter for index {} not found, returning global delimiter.", reporterIndex);
 			return this.globalDelimiter;
 		}
 	}
@@ -235,19 +249,16 @@ public class MetricRegistry {
 	public void register(Metric metric, String metricName, MetricGroup group) {
 		try {
 			if (reporters != null) {
-				for (int i= 0; i<reporters.size();i++) {
+				for (int i = 0; i < reporters.size(); i++) {
 					MetricReporter reporter = reporters.get(i);
-					if (reporter != null){
-
-						FrontMetricGroup front;
-						try {
-							front= groups.get(i);
-						} catch (IndexOutOfBoundsException e){
-							front=new FrontMetricGroup(groups.size());
-							groups.add(front);
+					if (reporter != null) {
+						if (group instanceof AbstractMetricGroup) {
+							FrontMetricGroup front = groups.get(i);
+							front.setReference((AbstractMetricGroup) group);
+							reporter.notifyOfAddedMetric(metric, metricName, front);
+						} else {
+							reporter.notifyOfAddedMetric(metric, metricName, group);
 						}
-						front.setReference(group);
-						reporter.notifyOfAddedMetric(metric, metricName, front);
 					}
 				}
 			}

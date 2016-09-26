@@ -168,13 +168,16 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param filter character filter which is applied to the scope components if not null.
 	 * @return fully qualified metric name
 	 */
-	public String getMetricIdentifier(String metricName,CharacterFilter filter) {
-		if (filter != null){
-			scopeString = ScopeFormat.concat(filter, registry.getDelimiter(), scopeComponents);
-		} else {
-			scopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
+	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
+		if (scopeString == null) {
+			if (filter != null) {
+				scopeString = ScopeFormat.concat(filter, registry.getDelimiter(), scopeComponents);
+			} else {
+				scopeString = ScopeFormat.concat(registry.getDelimiter(), scopeComponents);
+			}
 		}
-		if (filter != null){
+
+		if (filter != null) {
 			return scopeString + registry.getDelimiter() + filter.filterCharacters(metricName);
 		} else {
 			return scopeString + registry.getDelimiter() + metricName;
@@ -182,24 +185,21 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	}
 
 	/**
-	 * Returns the fully qualified metric name for reporter with certain number position in group, for example
+	 * Returns the fully qualified metric name using the configured delimiter for the reporter with the given index, for example
 	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
 	 *
 	 * @param metricName metric name
 	 * @param filter character filter which is applied to the scope components if not null.
-	 * @param indexReporter position number of reporter in group reporters
+	 * @param reporterIndex index of the reporter whose delimiter should be used
 	 * @return fully qualified metric name
 	 */
-	public String getMetricIdentifier(String metricName, CharacterFilter filter, int indexReporter) {
-		if (filter != null){
-			scopeString = ScopeFormat.concat(filter, registry.getDelimiter(indexReporter), scopeComponents);
+	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex) {
+		if (filter != null) {
+			scopeString = ScopeFormat.concat(filter, registry.getDelimiter(reporterIndex), scopeComponents);
+			return scopeString + registry.getDelimiter(reporterIndex) + filter.filterCharacters(metricName);
 		} else {
-			scopeString = ScopeFormat.concat(registry.getDelimiter(indexReporter), scopeComponents);
-		}
-		if (filter != null){
-			return scopeString + registry.getDelimiter(indexReporter) + filter.filterCharacters(metricName);
-		} else {
-			return scopeString + registry.getDelimiter(indexReporter) + metricName;
+			scopeString = ScopeFormat.concat(registry.getDelimiter(reporterIndex), scopeComponents);
+			return scopeString + registry.getDelimiter(reporterIndex) + metricName;
 		}
 	}
 	

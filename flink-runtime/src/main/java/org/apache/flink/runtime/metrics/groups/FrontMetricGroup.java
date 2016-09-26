@@ -27,12 +27,14 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * When need know position number for reporter in  metric group
  *
- * @param <A> reference to {@link MetricGroup MetricGroup}
+ * @param <A> reference to {@link AbstractMetricGroup AbstractMetricGroup}
  */
-public class FrontMetricGroup<A extends MetricGroup> implements MetricGroup {
+public class FrontMetricGroup<A extends AbstractMetricGroup<?>> implements MetricGroup {
 
 	protected A reference;
 	protected int index;
@@ -42,7 +44,7 @@ public class FrontMetricGroup<A extends MetricGroup> implements MetricGroup {
 	}
 
 	public void setReference(A group) {
-		this.reference=group;
+		this.reference = checkNotNull(group);
 	}
 
 	@Override
@@ -117,16 +119,11 @@ public class FrontMetricGroup<A extends MetricGroup> implements MetricGroup {
 
 	@Override
 	public String getMetricIdentifier(String metricName) {
-		return reference.getMetricIdentifier(metricName,null,this.index);
+		return reference.getMetricIdentifier(metricName, null, this.index);
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return reference.getMetricIdentifier(metricName, filter, this.index);
-	}
-
-	@Override
-	public String getMetricIdentifier(String metricName, CharacterFilter filter, int indexReporter) {
 		return reference.getMetricIdentifier(metricName, filter, this.index);
 	}
 }

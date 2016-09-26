@@ -189,15 +189,4 @@ public interface MetricGroup {
 	 * @return fully qualified metric name
 	 */
 	String getMetricIdentifier(String metricName, CharacterFilter filter);
-
-	/**
-	 * Returns the fully qualified metric name for reporter with certain number position in group, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
-	 *
-	 * @param metricName metric name
-	 * @param filter character filter which is applied to the scope components if not null.
-	 * @param indexReporter position number of reporter in group reporters
-	 * @return fully qualified metric name
-	 */
-	String getMetricIdentifier(String metricName, CharacterFilter filter,int indexReporter);
 }
