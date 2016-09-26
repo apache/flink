@@ -36,7 +36,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers = new ConcurrentHashMap<>();
 
-	private volatile LeaderElectionService jobMasterLeaderElectionService;
+	private ConcurrentHashMap<JobID, LeaderElectionService> jobManagerLeaderElectionServices = new ConcurrentHashMap<>();
 
 	private volatile LeaderElectionService resourceManagerLeaderElectionService;
 
@@ -56,8 +56,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.jobMasterLeaderRetrievers.put(jobID, jobMasterLeaderRetriever);
 	}
 
-	public void setJobMasterLeaderElectionService(LeaderElectionService leaderElectionService) {
-		this.jobMasterLeaderElectionService = leaderElectionService;
+	public void setJobMasterLeaderElectionService(JobID jobID, LeaderElectionService leaderElectionService) {
+		this.jobManagerLeaderElectionServices.put(jobID, leaderElectionService);
 	}
 
 	public void setResourceManagerLeaderElectionService(LeaderElectionService leaderElectionService) {
@@ -87,23 +87,12 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
-	public LeaderRetrievalService getJobMasterLeaderRetriever(JobID jobID) throws Exception {
+	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) throws Exception {
 		LeaderRetrievalService service = this.jobMasterLeaderRetrievers.get(jobID);
 		if (service != null) {
 			return service;
 		} else {
 			throw new IllegalStateException("JobMasterLeaderRetriever has not been set");
-		}
-	}
-
-	@Override
-	public LeaderElectionService getJobMasterLeaderElectionService(JobID jobID) throws Exception {
-		LeaderElectionService service = jobMasterLeaderElectionService;
-
-		if (service != null) {
-			return service;
-		} else {
-			throw new IllegalStateException("JobMasterLeaderElectionService has not been set");
 		}
 	}
 
@@ -115,6 +104,17 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 			return service;
 		} else {
 			throw new IllegalStateException("ResourceManagerLeaderElectionService has not been set");
+		}
+	}
+
+	@Override
+	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) throws Exception {
+		LeaderElectionService service = this.jobManagerLeaderElectionServices.get(jobID);
+
+		if (service != null) {
+			return service;
+		} else {
+			throw new IllegalStateException("JobMasterLeaderElectionService has not been set");
 		}
 	}
 

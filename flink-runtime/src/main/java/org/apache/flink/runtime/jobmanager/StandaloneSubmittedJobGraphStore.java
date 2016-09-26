@@ -62,4 +62,9 @@ public class StandaloneSubmittedJobGraphStore implements SubmittedJobGraphStore 
 	public List<SubmittedJobGraph> recoverJobGraphs() throws Exception {
 		return Collections.emptyList();
 	}
+
+	@Override
+	public boolean contains(JobID jobId) throws Exception {
+		return false;
+	}
 }
