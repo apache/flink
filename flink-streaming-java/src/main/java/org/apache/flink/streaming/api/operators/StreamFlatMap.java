@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
@@ -39,17 +38,12 @@ public class StreamFlatMap<IN, OUT>
 	@Override
 	public void open() throws Exception {
 		super.open();
-		collector = new TimestampedCollector<OUT>(output);
+		collector = new TimestampedCollector<>(output);
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		collector.setTimestamp(element);
 		userFunction.flatMap(element.getValue(), collector);
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		output.emitWatermark(mark);
 	}
 }

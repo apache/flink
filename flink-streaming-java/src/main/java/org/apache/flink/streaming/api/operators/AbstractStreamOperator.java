@@ -21,12 +21,17 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -82,7 +87,7 @@ import java.util.Map;
  */
 @PublicEvolving
 public abstract class AbstractStreamOperator<OUT>
-		implements StreamOperator<OUT>, java.io.Serializable {
+		implements StreamOperator<OUT>, java.io.Serializable, KeyContext, StreamCheckpointedOperator {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -99,13 +104,12 @@ public abstract class AbstractStreamOperator<OUT>
 	/** The task that contains this operator (and other operators in the same chain) */
 	private transient StreamTask<?, ?> container;
 	
-	private transient StreamConfig config;
+	protected transient StreamConfig config;
 
 	protected transient Output<StreamRecord<OUT>> output;
 
 	/** The runtime context for UDFs */
 	private transient StreamingRuntimeContext runtimeContext;
-
 
 
 	// ---------------- key/value state ------------------
@@ -130,6 +134,20 @@ public abstract class AbstractStreamOperator<OUT>
 	protected MetricGroup metrics;
 
 	protected LatencyGauge latencyGauge;
+
+	// ---------------- timers ------------------
+
+	private transient Map<String, HeapInternalTimerService<?, ?>> timerServices;
+	private transient Map<String, HeapInternalTimerService.RestoredTimers<?, ?>> restoredServices;
+
+
+	// ---------------- two-input operator watermarks ------------------
+
+	// We keep track of watermarks from both inputs, the combined input is the minimum
+	// Once the minimum advances we emit a new watermark for downstream operators
+	private long combinedWatermark = Long.MIN_VALUE;
+	private long input1Watermark = Long.MIN_VALUE;
+	private long input2Watermark = Long.MIN_VALUE;
 
 	// ------------------------------------------------------------------------
 	//  Life Cycle
@@ -230,7 +248,9 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@Override
 	public void open() throws Exception {
-
+		if (timerServices == null) {
+			timerServices = new HashMap<>();
+		}
 	}
 
 	private void initKeyedState() {
@@ -449,12 +469,12 @@ public abstract class AbstractStreamOperator<OUT>
 	private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
 		if (selector != null) {
 			Object key = selector.getKey(record.getValue());
-			setKeyContext(key);
+			setCurrentKey(key);
 		}
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	public void setKeyContext(Object key) {
+	public void setCurrentKey(Object key) {
 		if (keyedStateBackend != null) {
 			try {
 				// need to work around type restrictions
@@ -465,6 +485,15 @@ public abstract class AbstractStreamOperator<OUT>
 			} catch (Exception e) {
 				throw new RuntimeException("Exception occurred while setting the current key context.", e);
 			}
+		}
+	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public Object getCurrentKey() {
+		if (keyedStateBackend != null) {
+			return keyedStateBackend.getCurrentKey();
+		} else {
+			throw new UnsupportedOperationException("Key can only be retrieven on KeyedStream.");
 		}
 	}
 
@@ -666,4 +695,140 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//  Watermark handling
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns a {@link InternalTimerService} that can be used to query current processing time
+	 * and event time and to set timers. An operator can have several timer services, where
+	 * each has its own namespace serializer. Timer services are differentiated by the string
+	 * key that is given when requesting them, if you call this method with the same key
+	 * multiple times you will get the same timer service instance in subsequent requests.
+	 *
+	 * <p>Timers are always scoped to a key, the currently active key of a keyed stream operation.
+	 * When a timer fires, this key will also be set as the currently active key.
+	 *
+	 * <p>Each timer has attached metadata, the namespace. Different timer services
+	 * can have a different namespace type. If you don't need namespace differentiation you
+	 * can use {@link VoidNamespaceSerializer} as the namespace serializer.
+	 *
+	 * @param name The name of the requested timer service. If no service exists under the given
+	 *             name a new one will be created and returned.
+	 * @param keySerializer {@code TypeSerializer} for the keys of the timers.
+	 * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
+	 * @param triggerable The {@link Triggerable} that should be invoked when timers fire
+	 *
+	 * @param <K> The type of the timer keys.
+	 * @param <N> The type of the timer namespace.
+	 */
+	public <K, N> InternalTimerService<N> getInternalTimerService(
+			String name,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer,
+			Triggerable<K, N> triggerable) {
+
+		@SuppressWarnings("unchecked")
+		HeapInternalTimerService<K, N> service = (HeapInternalTimerService<K, N>) timerServices.get(name);
+
+		if (service == null) {
+			if (restoredServices != null && restoredServices.containsKey(name)) {
+				@SuppressWarnings("unchecked")
+				HeapInternalTimerService.RestoredTimers<K, N> restoredService =
+						(HeapInternalTimerService.RestoredTimers<K, N>) restoredServices.remove(name);
+
+				service = new HeapInternalTimerService<>(
+						keySerializer,
+						namespaceSerializer,
+						triggerable,
+						this,
+						getRuntimeContext().getProcessingTimeService(),
+						restoredService);
+
+			} else {
+				service = new HeapInternalTimerService<>(
+						keySerializer,
+						namespaceSerializer,
+						triggerable,
+						this,
+						getRuntimeContext().getProcessingTimeService());
+			}
+			timerServices.put(name, service);
+		}
+
+		return service;
+	}
+
+	public void processWatermark(Watermark mark) throws Exception {
+		for (HeapInternalTimerService<?, ?> service : timerServices.values()) {
+			service.advanceWatermark(mark.getTimestamp());
+		}
+		output.emitWatermark(mark);
+	}
+
+	public void processWatermark1(Watermark mark) throws Exception {
+		input1Watermark = mark.getTimestamp();
+		long newMin = Math.min(input1Watermark, input2Watermark);
+		if (newMin > combinedWatermark) {
+			combinedWatermark = newMin;
+			processWatermark(new Watermark(combinedWatermark));
+		}
+	}
+
+	public void processWatermark2(Watermark mark) throws Exception {
+		input2Watermark = mark.getTimestamp();
+		long newMin = Math.min(input1Watermark, input2Watermark);
+		if (newMin > combinedWatermark) {
+			combinedWatermark = newMin;
+			processWatermark(new Watermark(combinedWatermark));
+		}
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+		DataOutputViewStreamWrapper dataOutputView = new DataOutputViewStreamWrapper(out);
+
+		dataOutputView.writeInt(timerServices.size());
+
+		for (Map.Entry<String, HeapInternalTimerService<?, ?>> service : timerServices.entrySet()) {
+			dataOutputView.writeUTF(service.getKey());
+			service.getValue().snapshotTimers(dataOutputView);
+		}
+
+	}
+
+	@Override
+	public void restoreState(FSDataInputStream in) throws Exception {
+		DataInputViewStreamWrapper dataInputView = new DataInputViewStreamWrapper(in);
+
+		restoredServices = new HashMap<>();
+
+		int numServices = dataInputView.readInt();
+
+		for (int i = 0; i < numServices; i++) {
+			String name = dataInputView.readUTF();
+			HeapInternalTimerService.RestoredTimers restoredService =
+					new HeapInternalTimerService.RestoredTimers(in, getUserCodeClassloader());
+			restoredServices.put(name, restoredService);
+		}
+	}
+
+	@VisibleForTesting
+	public int numProcessingTimeTimers() {
+		int count = 0;
+		for (HeapInternalTimerService<?, ?> timerService : timerServices.values()) {
+			count += timerService.numProcessingTimeTimers();
+		}
+		return count;
+	}
+
+	@VisibleForTesting
+	public int numEventTimeTimers() {
+		int count = 0;
+		for (HeapInternalTimerService<?, ?> timerService : timerServices.values()) {
+			count += timerService.numEventTimeTimers();
+		}
+		return count;
+	}
 }

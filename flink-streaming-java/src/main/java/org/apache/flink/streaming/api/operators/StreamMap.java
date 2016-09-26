@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
@@ -37,10 +36,5 @@ public class StreamMap<IN, OUT>
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		output.collect(element.replace(userFunction.map(element.getValue())));
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		output.emitWatermark(mark);
 	}
 }

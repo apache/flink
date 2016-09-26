@@ -36,7 +36,6 @@ import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collection;
@@ -318,10 +317,4 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 					MessageId.makeUnanchored()));
 		}
 	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		this.output.emitWatermark(mark);
-	}
-
 }

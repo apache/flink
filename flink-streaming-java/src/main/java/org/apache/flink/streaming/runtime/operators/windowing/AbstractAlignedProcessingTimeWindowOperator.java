@@ -32,7 +32,6 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -205,11 +204,6 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		panes.addElementToLatestPane(element.getValue());
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) {
-		// this operator does not react to watermarks
 	}
 
 	@Override
