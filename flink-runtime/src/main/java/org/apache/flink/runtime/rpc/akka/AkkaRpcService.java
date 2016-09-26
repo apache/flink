@@ -22,6 +22,7 @@ import akka.actor.ActorIdentity;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
+import akka.actor.Address;
 import akka.actor.Identify;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
@@ -75,6 +76,8 @@ public class AkkaRpcService implements RpcService {
 	private final Set<ActorRef> actors = new HashSet<>(4);
 	private final long maximumFramesize;
 
+	private final String address;
+
 	private volatile boolean stopped;
 
 	public AkkaRpcService(final ActorSystem actorSystem, final Time timeout) {
@@ -87,6 +90,19 @@ public class AkkaRpcService implements RpcService {
 			// only local communication
 			maximumFramesize = Long.MAX_VALUE;
 		}
+
+		Address actorSystemAddress = AkkaUtils.getAddress(actorSystem);
+
+		if (actorSystemAddress.host().isDefined()) {
+			address = actorSystemAddress.host().get();
+		} else {
+			address = "";
+		}
+	}
+
+	@Override
+	public String getAddress() {
+		return address;
 	}
 
 	// this method does not mutate state and is thus thread-safe
