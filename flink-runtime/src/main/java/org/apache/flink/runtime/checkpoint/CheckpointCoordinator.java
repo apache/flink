@@ -112,9 +112,6 @@ public class CheckpointCoordinator {
 	 * need to be ascending across job managers. */
 	private final CheckpointIDCounter checkpointIdCounter;
 
-	/** Class loader used to deserialize the state handles (as they may be user-defined) */
-	private final ClassLoader userClassLoader;
-
 	/** The base checkpoint interval. Actual trigger time may be affected by the
 	 * max concurrent checkpoints and minimum-pause values */
 	private final long baseInterval;
@@ -167,7 +164,6 @@ public class CheckpointCoordinator {
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
-			ClassLoader userClassLoader,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			SavepointStore savepointStore,
@@ -198,7 +194,6 @@ public class CheckpointCoordinator {
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.savepointStore = checkNotNull(savepointStore);
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
-		this.userClassLoader = checkNotNull(userClassLoader);
 		this.statsTracker = checkNotNull(statsTracker);
 
 		this.timer = new Timer("Checkpoint Timer", true);

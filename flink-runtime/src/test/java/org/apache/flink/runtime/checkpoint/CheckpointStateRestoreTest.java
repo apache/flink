@@ -32,12 +32,11 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-
 import org.apache.flink.runtime.util.SerializableObject;
+
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -101,7 +100,6 @@ public class CheckpointStateRestoreTest {
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[0],
-					cl,
 					new StandaloneCheckpointIDCounter(),
 					new StandaloneCompletedCheckpointStore(1, cl),
 					new HeapSavepointStore(),
@@ -182,7 +180,6 @@ public class CheckpointStateRestoreTest {
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[0],
-					cl,
 					new StandaloneCheckpointIDCounter(),
 					new StandaloneCompletedCheckpointStore(1, cl),
 					new HeapSavepointStore(),
@@ -231,7 +228,7 @@ public class CheckpointStateRestoreTest {
 					Integer.MAX_VALUE,
 					new ExecutionVertex[] { mock(ExecutionVertex.class) },
 					new ExecutionVertex[] { mock(ExecutionVertex.class) },
-					new ExecutionVertex[0], cl,
+					new ExecutionVertex[0],
 					new StandaloneCheckpointIDCounter(),
 					new StandaloneCompletedCheckpointStore(1, cl),
 					new HeapSavepointStore(),
