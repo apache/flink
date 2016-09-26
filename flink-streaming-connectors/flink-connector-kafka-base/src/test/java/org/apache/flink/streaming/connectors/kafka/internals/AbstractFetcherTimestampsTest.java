@@ -28,7 +28,6 @@ import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
