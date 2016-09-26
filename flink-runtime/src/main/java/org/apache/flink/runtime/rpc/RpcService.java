@@ -33,6 +33,14 @@ import java.util.concurrent.TimeUnit;
 public interface RpcService {
 
 	/**
+	 * Return the address under which the rpc service can be reached. If the rpc service cannot be
+	 * contacted remotely, then it will return an empty string.
+	 *
+	 * @return Address of the rpc service or empty string if local rpc service
+	 */
+	String getAddress();
+
+	/**
 	 * Connect to a remote rpc server under the provided address. Returns a rpc gateway which can
 	 * be used to communicate with the rpc server. If the connection failed, then the returned
 	 * future is failed with a {@link RpcConnectionException}.
