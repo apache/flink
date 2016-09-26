@@ -29,6 +29,8 @@ import org.apache.flink.types.Either;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link TypeInformation} for the {@link Either} type of the Java API.
  *
@@ -46,8 +48,8 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 
 	@PublicEvolving
 	public EitherTypeInfo(TypeInformation<L> leftType, TypeInformation<R> rightType) {
-		this.leftType = leftType;
-		this.rightType = rightType;
+		this.leftType = checkNotNull(leftType);
+		this.rightType = checkNotNull(rightType);
 	}
 
 	@Override

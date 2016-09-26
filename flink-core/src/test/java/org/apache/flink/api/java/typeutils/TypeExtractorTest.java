@@ -18,6 +18,16 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import java.util.Map;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -43,25 +53,16 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
+import org.apache.flink.types.Either;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.Either;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @SuppressWarnings("serial")
 public class TypeExtractorTest {
@@ -1854,6 +1855,12 @@ public class TypeExtractorTest {
 		Either<String, Tuple1<Integer>> either = new Either2();
 		ti = TypeExtractor.getForObject(either);
 		Assert.assertEquals(expected, ti);
+	}
+
+	@Test(expected=InvalidTypesException.class)
+	public void testEitherFromObjectException() {
+		Either<String, Tuple1<Integer>> either = Either.Left("test");
+		TypeExtractor.getForObject(either);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
