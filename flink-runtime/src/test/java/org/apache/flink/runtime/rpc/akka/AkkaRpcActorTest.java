@@ -119,8 +119,42 @@ public class AkkaRpcActorTest extends TestLogger {
 		rpcEndpoint.shutDown();
 	}
 
+	/**
+	 * Tests that we receive a RpcConnectionException when calling a rpc method (with return type)
+	 * on a wrong rpc endpoint.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testWrongGatewayEndpointConnection() throws Exception {
+		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
+
+		rpcEndpoint.start();
+
+		Future<WrongRpcGateway> futureGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), WrongRpcGateway.class);
+
+		WrongRpcGateway gateway = Await.result(futureGateway, timeout.duration());
+
+		// since it is a tell operation we won't receive a RpcConnectionException, it's only logged
+		gateway.tell("foobar");
+
+		Future<Boolean> result = gateway.barfoo();
+
+		try {
+			Await.result(result, timeout.duration());
+			fail("We expected a RpcConnectionException.");
+		} catch (RpcConnectionException rpcConnectionException) {
+			// we expect this exception here
+		}
+	}
+
 	private interface DummyRpcGateway extends RpcGateway {
 		Future<Integer> foobar();
+	}
+
+	private interface WrongRpcGateway extends RpcGateway {
+		Future<Boolean> barfoo();
+		void tell(String message);
 	}
 
 	private static class DummyRpcEndpoint extends RpcEndpoint<DummyRpcGateway> {
