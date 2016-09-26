@@ -20,9 +20,11 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
@@ -42,7 +44,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	private volatile boolean isQuiesced;
 
 	// sorts the timers by timestamp so that they are processed in the correct order.
-	private final Map<Long, List<Triggerable>> registeredTasks = new TreeMap<>();
+	private final Map<Long, List<ScheduledTimerFuture>> registeredTasks = new TreeMap<>();
 
 	
 	public void setCurrentTime(long timestamp) throws Exception {
@@ -53,10 +55,10 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			// we do not fire them here to be able to accommodate timers
 			// that register other timers.
 	
-			Iterator<Map.Entry<Long, List<Triggerable>>> it = registeredTasks.entrySet().iterator();
-			List<Map.Entry<Long, List<Triggerable>>> toRun = new ArrayList<>();
+			Iterator<Map.Entry<Long, List<ScheduledTimerFuture>>> it = registeredTasks.entrySet().iterator();
+			List<Map.Entry<Long, List<ScheduledTimerFuture>>> toRun = new ArrayList<>();
 			while (it.hasNext()) {
-				Map.Entry<Long, List<Triggerable>> t = it.next();
+				Map.Entry<Long, List<ScheduledTimerFuture>> t = it.next();
 				if (t.getKey() <= this.currentTime) {
 					toRun.add(t);
 					it.remove();
@@ -64,10 +66,10 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			}
 	
 			// now do the actual firing.
-			for (Map.Entry<Long, List<Triggerable>> tasks: toRun) {
+			for (Map.Entry<Long, List<ScheduledTimerFuture>> tasks: toRun) {
 				long now = tasks.getKey();
-				for (Triggerable task: tasks.getValue()) {
-					task.trigger(now);
+				for (ScheduledTimerFuture task: tasks.getValue()) {
+					task.getTriggerable().trigger(now);
 				}
 			}
 		}
@@ -84,7 +86,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			throw new IllegalStateException("terminated");
 		}
 		if (isQuiesced) {
-			return new DummyFuture();
+			return new ScheduledTimerFuture(null, -1);
 		}
 
 		if (timestamp <= currentTime) {
@@ -94,14 +96,17 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 				throw new RuntimeException(e);
 			}
 		}
-		List<Triggerable> tasks = registeredTasks.get(timestamp);
+
+		ScheduledTimerFuture result = new ScheduledTimerFuture(target, timestamp);
+
+		List<ScheduledTimerFuture> tasks = registeredTasks.get(timestamp);
 		if (tasks == null) {
 			tasks = new ArrayList<>();
 			registeredTasks.put(timestamp, tasks);
 		}
-		tasks.add(target);
+		tasks.add(result);
 
-		return new DummyFuture();
+		return result;
 	}
 
 	@Override
@@ -124,15 +129,34 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 
 	public int getNumRegisteredTimers() {
 		int count = 0;
-		for (List<Triggerable> tasks: registeredTasks.values()) {
+		for (List<ScheduledTimerFuture> tasks: registeredTasks.values()) {
 			count += tasks.size();
 		}
 		return count;
 	}
 
+	public Set<Long> getRegisteredTimerTimestamps() {
+		Set<Long> actualTimestamps = new HashSet<>();
+		for (List<ScheduledTimerFuture> timerFutures : registeredTasks.values()) {
+			for (ScheduledTimerFuture timer : timerFutures) {
+				actualTimestamps.add(timer.getTimestamp());
+			}
+		}
+		return actualTimestamps;
+	}
+
 	// ------------------------------------------------------------------------
 
-	private static class DummyFuture implements ScheduledFuture<Object> {
+	private class ScheduledTimerFuture implements ScheduledFuture<Object> {
+
+		private final Triggerable triggerable;
+
+		private final long timestamp;
+
+		public ScheduledTimerFuture(Triggerable triggerable, long timestamp) {
+			this.triggerable = triggerable;
+			this.timestamp = timestamp;
+		}
 
 		@Override
 		public long getDelay(TimeUnit unit) {
@@ -146,6 +170,10 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 
 		@Override
 		public boolean cancel(boolean mayInterruptIfRunning) {
+			List<ScheduledTimerFuture> scheduledTimerFutures = registeredTasks.get(timestamp);
+			if (scheduledTimerFutures != null) {
+				scheduledTimerFutures.remove(this);
+			}
 			return true;
 		}
 
@@ -167,6 +195,14 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 		@Override
 		public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
 			throw new UnsupportedOperationException();
+		}
+
+		public Triggerable getTriggerable() {
+			return triggerable;
+		}
+
+		public long getTimestamp() {
+			return timestamp;
 		}
 	}
 }

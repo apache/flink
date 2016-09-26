@@ -726,6 +726,8 @@ public class TimestampITCase extends TestLogger {
 
 		@Override
 		public void processWatermark(Watermark mark) throws Exception {
+			super.processWatermark(mark);
+
 			for (Watermark previousMark: watermarks) {
 				assertTrue(previousMark.getTimestamp() < mark.getTimestamp());
 			}
@@ -760,9 +762,6 @@ public class TimestampITCase extends TestLogger {
 			}
 			output.collect(element);
 		}
-
-		@Override
-		public void processWatermark(Watermark mark) throws Exception {}
 	}
 
 	public static class DisabledTimestampCheckingOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
@@ -774,10 +773,6 @@ public class TimestampITCase extends TestLogger {
 			}
 			output.collect(element);
 		}
-
-		@Override
-		public void processWatermark(Watermark mark) throws Exception {}
-
 	}
 
 	public static class IdentityCoMap implements CoMapFunction<Integer, Integer, Integer> {

@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
@@ -30,12 +29,6 @@ public class CoStreamMap<IN1, IN2, OUT>
 		implements TwoInputStreamOperator<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
-
-	// We keep track of watermarks from both inputs, the combined input is the minimum
-	// Once the minimum advances we emit a new watermark for downstream operators
-	private long combinedWatermark = Long.MIN_VALUE;
-	private long input1Watermark = Long.MIN_VALUE;
-	private long input2Watermark = Long.MIN_VALUE;
 
 	public CoStreamMap(CoMapFunction<IN1, IN2, OUT> mapper) {
 		super(mapper);
@@ -49,25 +42,5 @@ public class CoStreamMap<IN1, IN2, OUT>
 	@Override
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
 		output.collect(element.replace(userFunction.map2(element.getValue())));
-	}
-
-	@Override
-	public void processWatermark1(Watermark mark) throws Exception {
-		input1Watermark = mark.getTimestamp();
-		long newMin = Math.min(input1Watermark, input2Watermark);
-		if (newMin > combinedWatermark) {
-			combinedWatermark = newMin;
-			output.emitWatermark(new Watermark(combinedWatermark));
-		}
-	}
-
-	@Override
-	public void processWatermark2(Watermark mark) throws Exception {
-		input2Watermark = mark.getTimestamp();
-		long newMin = Math.min(input1Watermark, input2Watermark);
-		if (newMin > combinedWatermark) {
-			combinedWatermark = newMin;
-			output.emitWatermark(new Watermark(combinedWatermark));
-		}
 	}
 }
