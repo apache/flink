@@ -26,7 +26,6 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -41,7 +40,6 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
-import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
@@ -589,7 +587,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	@Override
 	public boolean triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
 		try {
-			return performCheckpoint(checkpointId, timestamp);
+			return performCheckpoint(checkpointId, timestamp, 0L, 0L);
 		}
 		catch (Exception e) {
 			// propagate exceptions only if the task is still in "running" state
@@ -601,10 +599,30 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		}
 	}
 
-	private boolean performCheckpoint(final long checkpointId, final long timestamp) throws Exception {
+	@Override
+	public void triggerCheckpointOnBarrier(
+			long checkpointId, long timestamp, long bytesAligned, long alignmentDurationNanos) throws Exception {
+
+		try {
+			performCheckpoint(checkpointId, timestamp, bytesAligned, alignmentDurationNanos);
+		}
+		catch (CancelTaskException e) {
+			throw e;
+		}
+		catch (Exception e) {
+			throw new Exception("Error while performing a checkpoint", e);
+		}
+	}
+
+	private boolean performCheckpoint(
+			long checkpointId, long timestamp, long bytesBufferedAlignment, long alignmentDurationNanos) throws Exception {
+
 		LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
+
 		synchronized (lock) {
 			if (isRunning) {
+
+				final long startOfSyncPart = System.nanoTime();
 
 				// Since both state checkpointing and downstream barrier emission occurs in this
 				// lock scope, they are an atomic operation regardless of the order in which they occur.
@@ -654,13 +672,20 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 				LOG.debug("Finished synchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
 
+				final long endOfSyncPart = System.nanoTime();
+				final long syncDurationMillis = (endOfSyncPart - startOfSyncPart) / 1_000_000;
+
 				AsyncCheckpointRunnable asyncCheckpointRunnable = new AsyncCheckpointRunnable(
 						"checkpoint-" + checkpointId + "-" + timestamp,
 						this,
 						cancelables,
 						chainedStateHandles,
 						keyGroupsStateHandleFuture,
-						checkpointId);
+						checkpointId,
+						bytesBufferedAlignment,
+						alignmentDurationNanos,
+						syncDurationMillis,
+						endOfSyncPart);
 
 				synchronized (cancelables) {
 					cancelables.add(asyncCheckpointRunnable);
@@ -851,27 +876,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return getName();
-	}
-
-	final EventListener<CheckpointBarrier> getCheckpointBarrierListener() {
-		return new EventListener<CheckpointBarrier>() {
-			@Override
-			public void onEvent(CheckpointBarrier barrier) {
-				try {
-					performCheckpoint(barrier.getId(), barrier.getTimestamp());
-				}
-				catch (CancelTaskException e) {
-					throw e;
-				}
-				catch (Exception e) {
-					throw new RuntimeException("Error triggering a checkpoint as the result of receiving checkpoint barrier", e);
-				}
-			}
-		};
 	}
 
 	// ------------------------------------------------------------------------
@@ -890,13 +898,25 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 		private final String name;
 
+		private final long bytesBufferedInAlignment;
+
+		private final long alignmentDurationNanos;
+
+		private final long syncDurationMillies;
+
+		private final long asyncStartNanos;
+
 		AsyncCheckpointRunnable(
 				String name,
 				StreamTask<?, ?> owner,
 				Set<Closeable> cancelables,
 				ChainedStateHandle<StreamStateHandle> chainedStateHandles,
 				RunnableFuture<KeyGroupsStateHandle> keyGroupsStateHandleFuture,
-				long checkpointId) {
+				long checkpointId,
+				long bytesBufferedInAlignment,
+				long alignmentDurationNanos,
+				long syncDurationMillies,
+				long asyncStartNanos) {
 
 			this.name = name;
 			this.owner = owner;
@@ -904,6 +924,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			this.chainedStateHandles = chainedStateHandles;
 			this.keyGroupsStateHandleFuture = keyGroupsStateHandleFuture;
 			this.checkpointId = checkpointId;
+			this.bytesBufferedInAlignment = bytesBufferedInAlignment;
+			this.alignmentDurationNanos = alignmentDurationNanos;
+			this.syncDurationMillies = syncDurationMillies;
+			this.asyncStartNanos = asyncStartNanos;
 		}
 
 		@Override
@@ -925,19 +949,26 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					}
 				}
 
+				final long asyncEndNanos = System.nanoTime();
+				final long asyncDurationMillis = (asyncEndNanos - asyncStartNanos) / 1_000_000;
+
 				if (chainedStateHandles.isEmpty() && keyedStates.isEmpty()) {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointId);
+					owner.getEnvironment().acknowledgeCheckpoint(checkpointId,
+							syncDurationMillies, asyncDurationMillis,
+							bytesBufferedInAlignment, alignmentDurationNanos);
 				} else  {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointId, chainedStateHandles, keyedStates);
+					owner.getEnvironment().acknowledgeCheckpoint(checkpointId,
+							chainedStateHandles, keyedStates,
+							syncDurationMillies, asyncDurationMillis,
+							bytesBufferedInAlignment, alignmentDurationNanos);
 				}
 
-				if(LOG.isDebugEnabled()) {
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}. Returning handles on " +
 							"keyed states {}.", checkpointId, name, keyedStates);
 				}
 			}
 			catch (Exception e) {
-
 				// registers the exception and tries to fail the whole task
 				AsynchronousException asyncException = new AsynchronousException(e);
 				owner.registerAsyncException(asyncException);

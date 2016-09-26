@@ -85,8 +85,8 @@ public class BufferSpiller {
 	/** A counter, to created numbered spill files */
 	private int fileCounter;
 	
-	/** A flag to check whether the spiller has written since the last roll over */
-	private boolean hasWritten;
+	/** The number of bytes written since the last roll over */
+	private long bytesWritten;
 	
 	/**
 	 * Creates a new buffer spiller, spilling to one of the I/O manager's temp directories.
@@ -124,7 +124,6 @@ public class BufferSpiller {
 	 * @throws IOException Thrown, if the buffer of event could not be spilled.
 	 */
 	public void add(BufferOrEvent boe) throws IOException {
-		hasWritten = true;
 		try {
 			ByteBuffer contents;
 			if (boe.isBuffer()) {
@@ -133,6 +132,7 @@ public class BufferSpiller {
 			}
 			else {
 				contents = EventSerializer.toSerializedEvent(boe.getEvent());
+				
 			}
 			
 			headBuffer.clear();
@@ -140,7 +140,9 @@ public class BufferSpiller {
 			headBuffer.putInt(contents.remaining());
 			headBuffer.put((byte) (boe.isBuffer() ? 0 : 1));
 			headBuffer.flip();
-			
+
+			bytesWritten += (headBuffer.remaining() + contents.remaining());
+
 			sources[1] = contents;
 			currentChannel.write(sources);
 		}
@@ -186,10 +188,10 @@ public class BufferSpiller {
 	}
 	
 	private SpilledBufferOrEventSequence rollOverInternal(boolean newBuffer) throws IOException {
-		if (!hasWritten) {
+		if (bytesWritten == 0) {
 			return null;
 		}
-		
+
 		ByteBuffer buf;
 		if (newBuffer) {
 			buf = ByteBuffer.allocateDirect(READ_BUFFER_SIZE);
@@ -197,16 +199,16 @@ public class BufferSpiller {
 		} else {
 			buf = readBuffer;
 		}
-		
+
 		// create a reader for the spilled data
 		currentChannel.position(0L);
 		SpilledBufferOrEventSequence seq = 
 				new SpilledBufferOrEventSequence(currentSpillFile, currentChannel, buf, pageSize);
-		
+
 		// create ourselves a new spill file
 		createSpillingChannel();
-		
-		hasWritten = false;
+
+		bytesWritten = 0L;
 		return seq;
 	}
 
@@ -223,6 +225,14 @@ public class BufferSpiller {
 		if (!currentSpillFile.delete()) {
 			throw new IOException("Cannot delete spill file");
 		}
+	}
+
+	/**
+	 * Gets the number of bytes written in the current spill file.
+	 * @return the number of bytes written in the current spill file
+	 */
+	public long getBytesWritten() {
+		return bytesWritten;
 	}
 
 	// ------------------------------------------------------------------------
@@ -255,16 +265,16 @@ public class BufferSpiller {
 	 * method {@link #getNext()}.
 	 */
 	public static class SpilledBufferOrEventSequence {
-		
+
 		/** Header is "channel index" (4 bytes) + length (4 bytes) + buffer/event (1 byte) */
 		private static final int HEADER_LENGTH = 9;
 
 		/** The file containing the data */
 		private final File file;
-		
+
 		/** The file channel to draw the data from */
 		private final FileChannel fileChannel;
-		
+
 		/** The byte buffer for bulk reading */
 		private final ByteBuffer buffer;
 

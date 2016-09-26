@@ -43,18 +43,21 @@ public class ActorGatewayCheckpointResponder implements CheckpointResponder {
 
 	@Override
 	public void acknowledgeCheckpoint(
-		JobID jobID,
-		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-		List<KeyGroupsStateHandle> keyGroupStateHandles) {
+			JobID jobID,
+			ExecutionAttemptID executionAttemptID,
+			long checkpointID,
+			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
+			List<KeyGroupsStateHandle> keyGroupStateHandles,
+			long synchronousDurationMillis,
+			long asynchronousDurationMillis,
+			long bytesBufferedInAlignment,
+			long alignmentDurationNanos) {
 
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
-			jobID,
-			executionAttemptID,
-			checkpointID,
-			chainedStateHandle,
-			keyGroupStateHandles);
+				jobID, executionAttemptID, checkpointID,
+				chainedStateHandle, keyGroupStateHandles,
+				synchronousDurationMillis, asynchronousDurationMillis,
+				bytesBufferedInAlignment, alignmentDurationNanos);
 
 		actorGateway.tell(message);
 	}

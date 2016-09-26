@@ -478,27 +478,32 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		List<KeyGroupsStateHandle> getKeyGroupStates() {
 			List<KeyGroupsStateHandle> result = new ArrayList<>();
-			for (int i = 0; i < keyGroupStates.size(); i++) {
-				if (keyGroupStates.get(i) != null) {
-					result.add(keyGroupStates.get(i));
+			for (KeyGroupsStateHandle keyGroupState : keyGroupStates) {
+				if (keyGroupState != null) {
+					result.add(keyGroupState);
 				}
 			}
 			return result;
 		}
 
-		AcknowledgeStreamMockEnvironment(Configuration jobConfig, Configuration taskConfig,
-		                                 ExecutionConfig executionConfig, long memorySize,
-		                                 MockInputSplitProvider inputSplitProvider, int bufferSize) {
+		AcknowledgeStreamMockEnvironment(
+				Configuration jobConfig, Configuration taskConfig,
+				ExecutionConfig executionConfig, long memorySize,
+				MockInputSplitProvider inputSplitProvider, int bufferSize) {
 			super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
 		}
 
 
 		@Override
-		public void acknowledgeCheckpoint(long checkpointId, ChainedStateHandle<StreamStateHandle> state,
-		                                  List<KeyGroupsStateHandle> keyGroupStates) {
+		public void acknowledgeCheckpoint(
+				long checkpointId,
+				ChainedStateHandle<StreamStateHandle> state, List<KeyGroupsStateHandle> keyGroupStates,
+				long syncDuration, long asymcDuration, long alignmentByte, long alignmentDuration) {
+
 			this.checkpointId = checkpointId;
 			this.state = state;
 			this.keyGroupStates = keyGroupStates;
+
 			checkpointLatch.trigger();
 		}
 

@@ -239,23 +239,34 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId) {
-		acknowledgeCheckpoint(checkpointId, null, null);
+	public void acknowledgeCheckpoint(
+			long checkpointId,
+			long synchronousDurationMillis,
+			long asynchronousDurationMillis,
+			long bytesBufferedInAlignment,
+			long alignmentDurationNanos) {
+
+		acknowledgeCheckpoint(checkpointId, null, null,
+				synchronousDurationMillis, asynchronousDurationMillis,
+				bytesBufferedInAlignment, alignmentDurationNanos);
 	}
 
 	@Override
 	public void acknowledgeCheckpoint(
 			long checkpointId,
 			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			List<KeyGroupsStateHandle> keyGroupStateHandles) {
+			List<KeyGroupsStateHandle> keyGroupStateHandles,
+			long synchronousDurationMillis,
+			long asynchronousDurationMillis,
+			long bytesBufferedInAlignment,
+			long alignmentDurationNanos) {
 
 
 		checkpointResponder.acknowledgeCheckpoint(
-			jobId,
-			executionId,
-			checkpointId,
-			chainedStateHandle,
-			keyGroupStateHandles);
+				jobId, executionId, checkpointId,
+				chainedStateHandle, keyGroupStateHandles,
+				synchronousDurationMillis, asynchronousDurationMillis,
+				bytesBufferedInAlignment, alignmentDurationNanos);
 	}
 
 	@Override

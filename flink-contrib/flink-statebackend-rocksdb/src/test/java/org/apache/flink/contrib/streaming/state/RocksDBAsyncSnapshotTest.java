@@ -136,15 +136,16 @@ public class RocksDBAsyncSnapshotTest {
 				testHarness.bufferSize) {
 
 			@Override
-			public void acknowledgeCheckpoint(long checkpointId) {
-				super.acknowledgeCheckpoint(checkpointId);
-			}
+			public void acknowledgeCheckpoint(
+					long checkpointId,
+					ChainedStateHandle<StreamStateHandle> chainedStateHandle, 
+					List<KeyGroupsStateHandle> keyGroupStateHandles,
+					long synchronousDurationMillis, long asynchronousDurationMillis,
+					long bytesBufferedInAlignment, long alignmentDurationNanos) {
 
-			@Override
-			public void acknowledgeCheckpoint(long checkpointId,
-			                                  ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			                                  List<KeyGroupsStateHandle> keyGroupStateHandles) {
-				super.acknowledgeCheckpoint(checkpointId, chainedStateHandle, keyGroupStateHandles);
+				super.acknowledgeCheckpoint(checkpointId, chainedStateHandle, keyGroupStateHandles,
+						synchronousDurationMillis, asynchronousDurationMillis,
+						bytesBufferedInAlignment, alignmentDurationNanos);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish

@@ -164,23 +164,52 @@ public interface Environment {
 	 * to for the checkpoint with the give checkpoint-ID. This method does not include
 	 * any state in the checkpoint.
 	 * 
-	 * @param checkpointId The ID of the checkpoint.
+	 * @param checkpointId
+	 *             The ID of the checkpoint.
+	 * @param synchronousDurationMillis
+	 *             The duration (in milliseconds) of the synchronous part of the operator checkpoint
+	 * @param asynchronousDurationMillis
+	 *             The duration (in milliseconds) of the asynchronous part of the operator checkpoint 
+	 * @param bytesBufferedInAlignment
+	 *             The number of bytes that were buffered during the checkpoint alignment phase
+	 * @param alignmentDurationNanos
+	 *             The duration (in nanoseconds) that the stream alignment for the checkpoint took   
 	 */
-	void acknowledgeCheckpoint(long checkpointId);
+	void acknowledgeCheckpoint(
+			long checkpointId,
+			long synchronousDurationMillis,
+			long asynchronousDurationMillis,
+			long bytesBufferedInAlignment,
+			long alignmentDurationNanos);
 
 	/**
 	 * Confirms that the invokable has successfully completed all required steps for
 	 * the checkpoint with the give checkpoint-ID. This method does include
 	 * the given state in the checkpoint.
 	 *
-	 * @param checkpointId The ID of the checkpoint.
-	 * @param chainedStateHandle Handle for the chained operator state
-	 * @param keyGroupStateHandles  Handles for key group state
+	 * @param checkpointId
+	 *             The ID of the checkpoint.
+	 * @param chainedStateHandle
+	 *             Handle for the chained operator state
+	 * @param keyGroupStateHandles
+	 *             Handles for key group state
+	 * @param synchronousDurationMillis
+	 *             The duration (in milliseconds) of the synchronous part of the operator checkpoint
+	 * @param asynchronousDurationMillis
+	 *             The duration (in milliseconds) of the asynchronous part of the operator checkpoint 
+	 * @param bytesBufferedInAlignment
+	 *             The number of bytes that were buffered during the checkpoint alignment phase
+	 * @param alignmentDurationNanos
+	 *             The duration (in nanoseconds) that the stream alignment for the checkpoint took   
 	 */
 	void acknowledgeCheckpoint(
 			long checkpointId,
 			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			List<KeyGroupsStateHandle> keyGroupStateHandles);
+			List<KeyGroupsStateHandle> keyGroupStateHandles,
+			long synchronousDurationMillis,
+			long asynchronousDurationMillis,
+			long bytesBufferedInAlignment,
+			long alignmentDurationNanos);
 
 	/**
 	 * Marks task execution failed for an external reason (a reason other than the task code itself
@@ -189,7 +218,7 @@ public interface Environment {
 	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
 	 * starts an asynchronous thread that aborts that code.
 	 *
-	 * <p>This method never blocks.</p>
+	 * <p>This method never blocks.
 	 */
 	void failExternally(Throwable cause);
 

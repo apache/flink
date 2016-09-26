@@ -22,12 +22,16 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -346,22 +350,42 @@ public class BarrierTrackerTest {
 	//  Testing Mocks
 	// ------------------------------------------------------------------------
 	
-	private static class CheckpointSequenceValidator implements EventListener<CheckpointBarrier> {
+	private static class CheckpointSequenceValidator implements StatefulTask {
 
 		private final long[] checkpointIDs;
-		
+
 		private int i = 0;
 
 		private CheckpointSequenceValidator(long... checkpointIDs) {
 			this.checkpointIDs = checkpointIDs;
 		}
-		
+
 		@Override
-		public void onEvent(CheckpointBarrier barrier) {
+		public void setInitialState(
+				ChainedStateHandle<StreamStateHandle> chainedState,
+				List<KeyGroupsStateHandle> keyGroupsState) throws Exception {
+
+			throw new UnsupportedOperationException("should never be called");
+		}
+
+		@Override
+		public boolean triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
+			throw new UnsupportedOperationException("should never be called");
+		}
+
+		@Override
+		public void triggerCheckpointOnBarrier(
+				long checkpointId, long timestamp,
+				long bytesAligned, long alignmentTimeNanos) throws Exception {
+
 			assertTrue("More checkpoints than expected", i < checkpointIDs.length);
-			assertNotNull(barrier);
-			assertEquals("wrong checkpoint id", checkpointIDs[i++], barrier.getId());
-			assertTrue(barrier.getTimestamp() > 0);
+			assertEquals("wrong checkpoint id", checkpointIDs[i++], checkpointId);
+			assertTrue(timestamp > 0);
+		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			throw new UnsupportedOperationException("should never be called");
 		}
 	}
 }
