@@ -20,9 +20,9 @@ package org.apache.flink.runtime.metrics;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
@@ -30,7 +30,6 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,43 +59,26 @@ public class MetricRegistry {
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
-	public MetricRegistry(Configuration config) {
-		// first parse the scope formats, these are needed for all reporters
-		ScopeFormats scopeFormats;
-		try {
-			scopeFormats = createScopeConfig(config);
-		}
-		catch (Exception e) {
-			LOG.warn("Failed to parse scope format, using default scope formats", e);
-			scopeFormats = new ScopeFormats();
-		}
-		this.scopeFormats = scopeFormats;
-
-		char delim;
-		try {
-			delim = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".").charAt(0);
-		} catch (Exception e) {
-			LOG.warn("Failed to parse delimiter, using default delimiter.", e);
-			delim = '.';
-		}
-		this.delimiter = delim;
+	public MetricRegistry(MetricRegistryConfiguration config) {
+		this.scopeFormats = config.getScopeFormats();
+		this.delimiter = config.getDelimiter();
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>();
 
-		final String definedReporters = config.getString(ConfigConstants.METRICS_REPORTERS_LIST, null);
+		List<Tuple2<String, Configuration>> reporterConfigurations = config.getReporterConfigurations();
 
-		if (definedReporters == null) {
+		if (reporterConfigurations.isEmpty()) {
 			// no reporters defined
 			// by default, don't report anything
 			LOG.info("No metrics reporter configured, no metrics will be exposed/reported.");
 			this.executor = null;
 		} else {
 			// we have some reporters so
-			String[] namedReporters = definedReporters.split("\\s*,\\s*");
-			for (String namedReporter : namedReporters) {
+			for (Tuple2<String, Configuration> reporterConfiguration: reporterConfigurations) {
+				String namedReporter = reporterConfiguration.f0;
+				Configuration reporterConfig = reporterConfiguration.f1;
 
-				DelegatingConfiguration reporterConfig = new DelegatingConfiguration(config, ConfigConstants.METRICS_REPORTER_PREFIX + namedReporter + ".");
 				final String className = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, null);
 				if (className == null) {
 					LOG.error("No reporter class set for reporter " + namedReporter + ". Metrics might not be exposed/reported.");
@@ -129,13 +111,13 @@ public class MetricRegistry {
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
-						if (this.executor == null) {
+						if (executor == null) {
 							executor = Executors.newSingleThreadScheduledExecutor();
 						}
 						LOG.info("Periodically reporting metrics in intervals of {} {} for reporter {} of type {}.", period, timeunit.name(), namedReporter, className);
 
 						executor.scheduleWithFixedDelay(
-								new ReporterTask((Scheduled) reporterInstance), period, period, timeunit);
+								new MetricRegistry.ReporterTask((Scheduled) reporterInstance), period, period, timeunit);
 					} else {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
@@ -143,7 +125,7 @@ public class MetricRegistry {
 				}
 				catch (Throwable t) {
 					shutdownExecutor();
-					LOG.error("Could not instantiate metrics reporter " + namedReporter + ". Metrics might not be exposed/reported.", t);
+					LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", namedReporter, t);
 				}
 			}
 		}
@@ -171,7 +153,7 @@ public class MetricRegistry {
 	}
 
 	/**
-	 * Shuts down this registry and the associated {@link org.apache.flink.metrics.reporter.MetricReporter}.
+	 * Shuts down this registry and the associated {@link MetricReporter}.
 	 */
 	public void shutdown() {
 		if (reporters != null) {
@@ -234,7 +216,7 @@ public class MetricRegistry {
 	}
 
 	/**
-	 * Un-registers the given {@link org.apache.flink.metrics.Metric} with this registry.
+	 * Un-registers the given {@link Metric} with this registry.
 	 *
 	 * @param metric      the metric that should be removed
 	 * @param metricName  the name of the metric
@@ -255,27 +237,6 @@ public class MetricRegistry {
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
-
-	static ScopeFormats createScopeConfig(Configuration config) {
-		String jmFormat = config.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_JM, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_GROUP);
-		String jmJobFormat = config.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_JM_JOB, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_JOB_GROUP);
-		String tmFormat = config.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_TM, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_GROUP);
-		String tmJobFormat = config.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP);
-		String taskFormat = config.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_TASK, ScopeFormat.DEFAULT_SCOPE_TASK_GROUP);
-		String operatorFormat = config.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_OPERATOR, ScopeFormat.DEFAULT_SCOPE_OPERATOR_GROUP);
-
-		return new ScopeFormats(jmFormat, jmJobFormat, tmFormat, tmJobFormat, taskFormat, operatorFormat);
 	}
 
 	// ------------------------------------------------------------------------

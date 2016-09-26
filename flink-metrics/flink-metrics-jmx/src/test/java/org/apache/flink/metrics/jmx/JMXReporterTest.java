@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
@@ -90,7 +91,7 @@ public class JMXReporterTest extends TestLogger {
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.port", "9020-9035");
 
-		MetricRegistry reg = new MetricRegistry(cfg);
+		MetricRegistry reg = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
 
@@ -144,7 +145,7 @@ public class JMXReporterTest extends TestLogger {
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.port", "9040-9055");
 
-		MetricRegistry reg = new MetricRegistry(cfg);
+		MetricRegistry reg = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
 
@@ -208,7 +209,7 @@ public class JMXReporterTest extends TestLogger {
 			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "jmx_test");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 
-			registry = new MetricRegistry(config);
+			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
@@ -258,7 +259,7 @@ public class JMXReporterTest extends TestLogger {
 			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "jmx_test");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 
-			registry = new MetricRegistry(config);
+			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
