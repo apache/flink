@@ -298,12 +298,12 @@ public class RetryingRegistrationTest extends TestLogger {
 	//  test registration
 	// ------------------------------------------------------------------------
 
-	private static class TestRegistrationSuccess extends RegistrationResponse.Success {
+	protected static class TestRegistrationSuccess extends RegistrationResponse.Success {
 		private static final long serialVersionUID = 5542698790917150604L;
 
 		private final String correlationId;
 
-		private TestRegistrationSuccess(String correlationId) {
+		public TestRegistrationSuccess(String correlationId) {
 			this.correlationId = correlationId;
 		}
 
@@ -312,7 +312,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 	}
 
-	private static class TestRetryingRegistration extends RetryingRegistration<TestRegistrationGateway, TestRegistrationSuccess> {
+	protected static class TestRetryingRegistration extends RetryingRegistration<TestRegistrationGateway, TestRegistrationSuccess> {
 
 		// we use shorter timeouts here to speed up the tests
 		static final long INITIAL_TIMEOUT = 20;
