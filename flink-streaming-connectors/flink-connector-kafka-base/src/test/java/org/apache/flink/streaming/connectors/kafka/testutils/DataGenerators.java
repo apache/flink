@@ -23,14 +23,16 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
@@ -178,16 +180,18 @@ public class DataGenerators {
 		@Override
 		public void run() {
 			// we manually feed data into the Kafka sink
-			FlinkKafkaProducerBase<String> producer = null;
 			try {
 				Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(server.getBrokerConnectionString());
 				producerProperties.setProperty("retries", "3");
-				producer = server.getProducer(topic,
+				FlinkKafkaProducerBase<String> producer = server.getProducer(topic,
 						new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
 						producerProperties, new FixedPartitioner<String>());
-				producer.setRuntimeContext(new MockRuntimeContext(1,0));
-				producer.open(new Configuration());
-				
+
+				OneInputStreamOperatorTestHarness<String, Object> testHarness =
+						new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+
+				testHarness.open();
+
 				final StringBuilder bld = new StringBuilder();
 				final Random rnd = new Random();
 				
@@ -200,21 +204,13 @@ public class DataGenerators {
 					}
 					
 					String next = bld.toString();
-					producer.invoke(next);
+					testHarness.processElement(new StreamRecord<>(next));
 				}
+
+				testHarness.close();
 			}
 			catch (Throwable t) {
 				this.error = t;
-			}
-			finally {
-				if (producer != null) {
-					try {
-						producer.close();
-					}
-					catch (Throwable t) {
-						// ignore
-					}
-				}
 			}
 		}
 		

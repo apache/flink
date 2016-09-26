@@ -23,7 +23,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
@@ -81,7 +80,9 @@ public abstract class AbstractFetcher<T, KPH> {
 			List<KafkaTopicPartition> assignedPartitions,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext,
+			TimeServiceProvider processingTimeProvider,
+			long autoWatermarkInterval,
+			ClassLoader userCodeClassLoader,
 			boolean useMetrics) throws Exception
 	{
 		this.sourceContext = checkNotNull(sourceContext);
@@ -110,7 +111,7 @@ public abstract class AbstractFetcher<T, KPH> {
 				assignedPartitions,
 				timestampWatermarkMode,
 				watermarksPeriodic, watermarksPunctuated,
-				runtimeContext.getUserCodeClassLoader());
+				userCodeClassLoader);
 		
 		// if we have periodic watermarks, kick off the interval scheduler
 		if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
@@ -118,7 +119,7 @@ public abstract class AbstractFetcher<T, KPH> {
 					(KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?>[]) allPartitions;
 			
 			PeriodicWatermarkEmitter periodicEmitter = 
-					new PeriodicWatermarkEmitter(parts, sourceContext, runtimeContext.getTimeServiceProvider(), runtimeContext.getExecutionConfig().getAutoWatermarkInterval());
+					new PeriodicWatermarkEmitter(parts, sourceContext, processingTimeProvider, autoWatermarkInterval);
 			periodicEmitter.start();
 		}
 	}
@@ -489,9 +490,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		
 		@Override
 		public void trigger(long timestamp) throws Exception {
-			// sanity check
-			assert Thread.holdsLock(emitter.getCheckpointLock());
-			
+
 			long minAcrossAll = Long.MAX_VALUE;
 			for (KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?> state : allPartitions) {
 				
