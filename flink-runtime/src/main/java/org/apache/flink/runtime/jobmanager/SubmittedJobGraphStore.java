@@ -64,6 +64,14 @@ public interface SubmittedJobGraphStore {
 	void removeJobGraph(JobID jobId) throws Exception;
 
 	/**
+	 * Check whether the given {@link JobID} is exist.
+	 *
+	 * <p>It's also a flag indicates whether we should recover this job before we can do anything else, since all
+	 * global terminated job will be removed from this store.
+	 */
+	boolean contains(final JobID jobId) throws Exception;
+
+	/**
 	 * A listener for {@link SubmittedJobGraph} instances. This is used to react to races between
 	 * multiple running {@link SubmittedJobGraphStore} instances (on multiple job managers).
 	 */

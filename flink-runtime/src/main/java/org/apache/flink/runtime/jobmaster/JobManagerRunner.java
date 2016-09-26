@@ -21,20 +21,18 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.RpcService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
-import java.util.concurrent.Executor;
 
 /**
  * The runner for the job manager. It deals with job level leader election and make underlying job manager
@@ -52,11 +50,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 
 	private final OnCompletionActions toNotify;
 
-	/** The execution context which is used to execute futures */
-	private final Executor executionContext;
-
-	// TODO: use this to decide whether the job is finished by other
-	private final CheckpointRecoveryFactory checkpointRecoveryFactory;
+	/** Used to check whether a job needs to be run */
+	private final SubmittedJobGraphStore submittedJobGraphStore;
 
 	/** Leader election for this job */
 	private final LeaderElectionService leaderElectionService;
@@ -87,9 +82,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 	{
 		this.jobGraph = jobGraph;
 		this.toNotify = toNotify;
-		this.executionContext = rpcService.getExecutor();
-		this.checkpointRecoveryFactory = haServices.getCheckpointRecoveryFactory();
-		this.leaderElectionService = haServices.getJobMasterLeaderElectionService(jobGraph.getJobID());
+		this.submittedJobGraphStore = haServices.getSubmittedJobGraphStore();
+		this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
 		this.jobManager = new JobMaster(
 			jobGraph, configuration, rpcService, haServices,
@@ -271,7 +265,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 
 	@VisibleForTesting
 	boolean isJobFinishedByOthers() {
-		// TODO
+		// TODO: Fix
 		return false;
 	}
 

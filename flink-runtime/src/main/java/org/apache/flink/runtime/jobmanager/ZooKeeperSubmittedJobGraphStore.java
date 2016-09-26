@@ -266,6 +266,13 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 		}
 	}
 
+	@Override
+	public boolean contains(JobID jobId) throws Exception {
+		checkNotNull(jobId, "Job ID");
+		String path = getPathForJob(jobId);
+		return jobGraphsInZooKeeper.exists(path) != -1;
+	}
+
 	/**
 	 * Monitors ZooKeeper for changes.
 	 *
