@@ -473,9 +473,6 @@ public class StreamGraphGeneratorTest {
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) {}
-
-		@Override
 		public void setOutputType(TypeInformation<Integer> outTypeInfo, ExecutionConfig executionConfig) {
 			tpeInformation = outTypeInfo;
 		}

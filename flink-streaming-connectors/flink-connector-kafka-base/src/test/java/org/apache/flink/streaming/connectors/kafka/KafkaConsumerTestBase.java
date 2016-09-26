@@ -1930,6 +1930,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		@Override
 		public void processWatermark(Watermark mark) throws Exception {
+			super.processWatermark(mark);
+
 			int partition = -1;
 			long minTS = Long.MAX_VALUE;
 			for (Integer part : perPartitionMaxTs.keySet()) {

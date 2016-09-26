@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
@@ -37,10 +36,5 @@ public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFuncti
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		userFunction.invoke(element.getValue());
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		// ignore it for now, we are a sink, after all
 	}
 }

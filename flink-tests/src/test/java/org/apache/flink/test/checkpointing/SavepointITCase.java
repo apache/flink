@@ -158,6 +158,7 @@ public class SavepointITCase extends TestLogger {
 			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
 			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
 					checkpointDir.toURI().toString());
+			config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
 			config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
 			config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY,
 					savepointDir.toURI().toString());
@@ -438,8 +439,8 @@ public class SavepointITCase extends TestLogger {
 
 			config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "jobmanager");
 			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
-					checkpointDir.toURI().toString());
+			config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
+			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,checkpointDir.toURI().toString());
 
 			LOG.info("Flink configuration: " + config + ".");
 

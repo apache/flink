@@ -93,7 +93,7 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 		@Override
 		public void startNewKey(Key key) {
 			currentValue = null;
-			operator.setKeyContext(key);
+			operator.setCurrentKey(key);
 		}
 
 		@Override
