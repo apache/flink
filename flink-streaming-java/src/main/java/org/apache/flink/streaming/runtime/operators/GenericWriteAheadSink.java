@@ -30,7 +30,6 @@ import org.apache.flink.runtime.util.ReusingMutableToRegularIteratorWrapper;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
@@ -76,6 +75,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 	@Override
 	public void open() throws Exception {
+		super.open();
 		committer.setOperatorId(id);
 		committer.setOperatorSubtaskId(getRuntimeContext().getIndexOfThisSubtask());
 		committer.open();
@@ -113,6 +113,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	public void snapshotState(FSDataOutputStream out,
 			long checkpointId,
 			long timestamp) throws Exception {
+		super.snapshotState(out, checkpointId, timestamp);
 
 		saveHandleInState(checkpointId, timestamp);
 
@@ -121,6 +122,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
+		super.restoreState(in);
 
 		this.state = InstantiationUtil.deserializeObject(in, getUserCodeClassloader());
 	}
@@ -201,11 +203,6 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 			out = checkpointStreamFactory.createCheckpointStateOutputStream(0, 0);
 		}
 		serializer.serialize(value, new DataOutputViewStreamWrapper(out));
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		//don't do anything, since we are a sink
 	}
 
 	/**
