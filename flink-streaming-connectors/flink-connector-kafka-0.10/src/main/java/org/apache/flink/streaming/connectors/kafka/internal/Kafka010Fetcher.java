@@ -62,7 +62,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 
 	@Override
 	protected void emitRecord(T record, KafkaTopicPartitionState<TopicPartition> partition, long offset, ConsumerRecord consumerRecord) throws Exception {
-		// pass timestamp
+		// get timestamp from provided ConsumerRecord (only possible with kafka 0.10.x)
 		super.emitRecord(record, partition, offset, consumerRecord.timestamp());
 	}
 

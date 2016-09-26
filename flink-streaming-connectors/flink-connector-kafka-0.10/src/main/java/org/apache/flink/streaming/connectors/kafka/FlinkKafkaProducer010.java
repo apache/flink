@@ -54,11 +54,11 @@ import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase
  *  Pre Kafka 0.10 producers only follow approach (a), allowing users to use the producer using the
  *  DataStream.addSink() method.
  *  Since the APIs exposed in that variant do not allow accessing the the timestamp attached to the record
- *  the Kafka 0.10 producer has a section invocation option, approach (b).
+ *  the Kafka 0.10 producer has a second invocation option, approach (b).
  *
  * Details about approach (b):
  *  Kafka 0.10 supports writing the timestamp attached to a record to Kafka. When adding the
- *  FlinkKafkaProducer010 using the FlinkKafkaProducer010.writeToKafka() method, the Kafka producer
+ *  FlinkKafkaProducer010 using the FlinkKafkaProducer010.writeToKafkaWithTimestamps() method, the Kafka producer
  *  can access the internal record timestamp of the record and write it to Kafka.
  *
  * All methods and constructors in this class are marked with the approach they are needed for.
@@ -83,11 +83,11 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 	 * @param serializationSchema User defined serialization schema supporting key/value messages
 	 * @param producerConfig Properties with the producer configuration.
 	 */
-	public static <T> FlinkKafkaProducer010Configuration writeToKafka(DataStream<T> inStream,
-										String topicId,
-										KeyedSerializationSchema<T> serializationSchema,
-										Properties producerConfig) {
-		return writeToKafka(inStream, topicId, serializationSchema, producerConfig, new FixedPartitioner<T>());
+	public static <T> FlinkKafkaProducer010Configuration writeToKafkaWithTimestamps(DataStream<T> inStream,
+																					String topicId,
+																					KeyedSerializationSchema<T> serializationSchema,
+																					Properties producerConfig) {
+		return writeToKafkaWithTimestamps(inStream, topicId, serializationSchema, producerConfig, new FixedPartitioner<T>());
 	}
 
 
@@ -102,11 +102,11 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 	 * @param serializationSchema User defined (keyless) serialization schema.
 	 * @param producerConfig Properties with the producer configuration.
 	 */
-	public static <T> FlinkKafkaProducer010Configuration writeToKafka(DataStream<T> inStream,
-										String topicId,
-										SerializationSchema<T> serializationSchema,
-										Properties producerConfig) {
-		return writeToKafka(inStream, topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, new FixedPartitioner<T>());
+	public static <T> FlinkKafkaProducer010Configuration writeToKafkaWithTimestamps(DataStream<T> inStream,
+																					String topicId,
+																					SerializationSchema<T> serializationSchema,
+																					Properties producerConfig) {
+		return writeToKafkaWithTimestamps(inStream, topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, new FixedPartitioner<T>());
 	}
 
 	/**
@@ -121,11 +121,11 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 	 *  @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
 	 *  @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions.
 	 */
-	public static <T> FlinkKafkaProducer010Configuration<T> writeToKafka(DataStream<T> inStream,
-																String topicId,
-																KeyedSerializationSchema<T> serializationSchema,
-																Properties producerConfig,
-																KafkaPartitioner<T> customPartitioner) {
+	public static <T> FlinkKafkaProducer010Configuration<T> writeToKafkaWithTimestamps(DataStream<T> inStream,
+																					   String topicId,
+																					   KeyedSerializationSchema<T> serializationSchema,
+																					   Properties producerConfig,
+																					   KafkaPartitioner<T> customPartitioner) {
 
 		GenericTypeInfo<Object> objectTypeInfo = new GenericTypeInfo<>(Object.class);
 		FlinkKafkaProducer010<T> kafkaProducer = new FlinkKafkaProducer010<>(topicId, serializationSchema, producerConfig, customPartitioner);
@@ -176,7 +176,6 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 	 */
 	public FlinkKafkaProducer010(String topicId, SerializationSchema<T> serializationSchema, Properties producerConfig, KafkaPartitioner<T> customPartitioner) {
 		this(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, customPartitioner);
-
 	}
 
 	// ------------------- Key/Value serialization schema constructors ----------------------
@@ -347,7 +346,7 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 	}
 
 	/**
-	 * Configuration object returned by the writeToKafka() call.
+	 * Configuration object returned by the writeToKafkaWithTimestamps() call.
 	 */
 	public static class FlinkKafkaProducer010Configuration<T> extends DataStreamSink<T> {
 

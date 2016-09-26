@@ -264,7 +264,7 @@ stream.addSink(new FlinkKafkaProducer08<String>("localhost:9092", "my-topic", ne
 </div>
 <div data-lang="java, Kafka 0.10+" markdown="1">
 {% highlight java %}
-FlinkKafkaProducer010.writeToKafka(stream, "my-topic", new SimpleStringSchema(), properties);
+FlinkKafkaProducer010.writeToKafkaWithTimestamps(stream, "my-topic", new SimpleStringSchema(), properties);
 {% endhighlight %}
 </div>
 <div data-lang="scala, Kafka 0.8+" markdown="1">
@@ -274,7 +274,7 @@ stream.addSink(new FlinkKafkaProducer08[String]("localhost:9092", "my-topic", ne
 </div>
 <div data-lang="scala, Kafka 0.10+" markdown="1">
 {% highlight scala %}
-FlinkKafkaProducer010.writeToKafka(stream, "my-topic", new SimpleStringSchema(), properties);
+FlinkKafkaProducer010.writeToKafkaWithTimestamps(stream, "my-topic", new SimpleStringSchema(), properties);
 {% endhighlight %}
 </div>
 </div>
@@ -325,7 +325,7 @@ public long extractTimestamp(Long element, long previousElementTimestamp) {
 The `FlinkKafkaProducer010` only emits the record timestamp, if `setWriteTimestampToKafka(true)` is set.
 
 {% highlight java %}
-FlinkKafkaProducer010.FlinkKafkaProducer010Configuration config = FlinkKafkaProducer010.writeToKafka(streamWithTimestamps, topic, new SimpleStringSchema(), standardProps);
+FlinkKafkaProducer010.FlinkKafkaProducer010Configuration config = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new SimpleStringSchema(), standardProps);
 config.setWriteTimestampToKafka(true);
 {% endhighlight %}
 

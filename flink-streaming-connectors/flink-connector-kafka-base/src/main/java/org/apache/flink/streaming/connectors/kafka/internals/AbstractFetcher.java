@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkElementIndex;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -223,7 +224,12 @@ public abstract class AbstractFetcher<T, KPH> {
 			// emit the record, using the checkpoint lock to guarantee
 			// atomicity of record emission and offset state update
 			synchronized (checkpointLock) {
-				sourceContext.collect(record);
+				if(timestamp != Long.MIN_VALUE) {
+					// this case is true for Kafka 0.10
+					sourceContext.collectWithTimestamp(record, timestamp);
+				} else {
+					sourceContext.collect(record);
+				}
 				partitionState.setOffset(offset);
 			}
 		}
