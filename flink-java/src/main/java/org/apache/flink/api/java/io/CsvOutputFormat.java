@@ -115,14 +115,14 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 
 		this.fieldDelimiter = fieldDelimiter;
 		this.recordDelimiter = recordDelimiter;
-		this.allowNullValues = true;
+		this.allowNullValues = false;
 	}
 
 	/**
 	 * Configures the format to either allow null values (writing an empty field),
 	 * or to throw an exception when encountering a null field.
 	 * <p>
-	 * by default, null values are allowed.
+	 * by default, null values are disallowed.
 	 *
 	 * @param allowNulls Flag to indicate whether the output format should accept null values.
 	 */

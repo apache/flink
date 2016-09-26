@@ -34,10 +34,11 @@ public class CsvOutputFormatTest {
 	private static final Path PATH = new Path("csv_output_test_file.csv");
 
 	@Test
-	public void testNullAllowOnDefault() throws Exception {
+	public void testNullAllow() throws Exception {
 		CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<Tuple3<String, String, Integer>>(PATH);
 		csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 		csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
+		csvOutputFormat.setAllowNullValues(true);
 		csvOutputFormat.open(0, 1);
 		csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
 		csvOutputFormat.close();
@@ -50,11 +51,10 @@ public class CsvOutputFormatTest {
 	}
 
 	@Test(expected = RuntimeException.class)
-	public void testNullNotAllow() throws Exception {
+	public void testNullDisallowOnDefault() throws Exception {
 		CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<Tuple3<String, String, Integer>>(PATH);
 		csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
 		csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
-		csvOutputFormat.setAllowNullValues(false);
 		csvOutputFormat.open(0, 1);
 		csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
 		csvOutputFormat.close();
