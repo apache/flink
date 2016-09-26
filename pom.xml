@@ -1081,6 +1081,15 @@ under the License.
 				</executions>
 			</plugin>
 
+			<!-- Pull bundled transitive dependencies (e.g. Mini-KDC see DIRSHARED-134) -->
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>3.0.1</version>
+				<inherited>true</inherited>
+				<extensions>true</extensions>
+			</plugin>
+
 		</plugins>
 
 		<!-- Plugin configurations for plugins activated in sub-projects --> 
