@@ -34,18 +34,35 @@ public interface CheckpointResponder {
 	/**
 	 * Acknowledges the given checkpoint.
 	 *
-	 * @param jobID Job ID of the running job
-	 * @param executionAttemptID Execution attempt ID of the running task
-	 * @param checkpointID Checkpoint ID of the checkpoint
-	 * @param chainedStateHandle Chained state handle
-	 * @param keyGroupStateHandles State handles for key groups
+	 * @param jobID
+	 *             Job ID of the running job
+	 * @param executionAttemptID
+	 *             Execution attempt ID of the running task
+	 * @param checkpointID
+	 *             Checkpoint ID of the checkpoint
+	 * @param chainedStateHandle
+	 *             Chained state handle
+	 * @param keyGroupStateHandles
+	 *             State handles for key groups
+	 * @param synchronousDurationMillis
+	 *             The duration (in milliseconds) of the synchronous part of the operator checkpoint
+	 * @param asynchronousDurationMillis
+	 *             The duration (in milliseconds) of the asynchronous part of the operator checkpoint 
+	 * @param bytesBufferedInAlignment
+	 *             The number of bytes that were buffered during the checkpoint alignment phase
+	 * @param alignmentDurationNanos
+	 *             The duration (in nanoseconds) that the stream alignment for the checkpoint took
 	 */
 	void acknowledgeCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
 		long checkpointID,
 		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-		List<KeyGroupsStateHandle> keyGroupStateHandles);
+		List<KeyGroupsStateHandle> keyGroupStateHandles,
+		long synchronousDurationMillis,
+		long asynchronousDurationMillis,
+		long bytesBufferedInAlignment,
+		long alignmentDurationNanos);
 
 	/**
 	 * Declines the given checkpoint.

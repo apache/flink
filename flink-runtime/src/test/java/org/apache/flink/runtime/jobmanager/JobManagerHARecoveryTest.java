@@ -453,16 +453,25 @@ public class JobManagerHARecoveryTest {
 			try {
 				ByteStreamStateHandle byteStreamStateHandle = new ByteStreamStateHandle(
 						InstantiationUtil.serializeObject(checkpointId));
+
 				RetrievableStreamStateHandle<Long> state = new RetrievableStreamStateHandle<Long>(byteStreamStateHandle);
 				ChainedStateHandle<StreamStateHandle> chainedStateHandle = new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(state));
+
 				getEnvironment().acknowledgeCheckpoint(
 						checkpointId,
 						chainedStateHandle,
-						Collections.<KeyGroupsStateHandle>emptyList());
+						Collections.<KeyGroupsStateHandle>emptyList(),
+						0L, 0L, 0L, 0L);
 				return true;
 			} catch (Exception ex) {
 				throw new RuntimeException(ex);
 			}
+		}
+
+		@Override
+		public void triggerCheckpointOnBarrier(
+				long checkpointId, long timestamp, long bytesAligned, long alignmentTimeNanos) throws Exception {
+			throw new UnsupportedOperationException("should not be called!");
 		}
 
 		@Override

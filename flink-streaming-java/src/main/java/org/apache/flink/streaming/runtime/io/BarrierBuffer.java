@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import org.slf4j.Logger;
@@ -37,22 +37,22 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>To avoid back-pressuring the input streams (which may cause distributed deadlocks), the
  * BarrierBuffer continues receiving buffers from the blocked channels and stores them internally until 
- * the blocks are released.</p>
+ * the blocks are released.
  */
 @Internal
 public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
-	
+
 	/** The gate that the buffer draws its input from */
 	private final InputGate inputGate;
 
 	/** Flags that indicate whether a channel is currently blocked/buffered */
 	private final boolean[] blockedChannels;
-	
+
 	/** The total number of channels that this buffer handles data from */
 	private final int totalNumberOfInputChannels;
-	
+
 	/** To utility to write blocked data to a file channel */
 	private final BufferSpiller bufferSpiller;
 
@@ -65,17 +65,23 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private BufferSpiller.SpilledBufferOrEventSequence currentBuffered;
 
 	/** Handler that receives the checkpoint notifications */
-	private EventListener<CheckpointBarrier> checkpointHandler;
+	private StatefulTask toNotifyOnCheckpoint;
 
 	/** The ID of the checkpoint for which we expect barriers */
 	private long currentCheckpointId = -1L;
 
 	/** The number of received barriers (= number of blocked/buffered channels) */
 	private int numBarriersReceived;
-	
+
 	/** The number of already closed channels */
 	private int numClosedChannels;
-	
+
+	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started */
+	private long startOfAlignmentTimestamp;
+
+	/** The time (in nanoseconds) that the latest alignment took */
+	private long latestAlignmentDurationNanos;
+
 	/** Flag to indicate whether we have drawn all available input */
 	private boolean endOfStream;
 
@@ -100,7 +106,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException {
+	public BufferOrEvent getNextNonBlocked() throws Exception {
 		while (true) {
 			// process buffered BufferOrEvents before grabbing new ones
 			BufferOrEvent next;
@@ -114,7 +120,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 					return getNextNonBlocked();
 				}
 			}
-			
+
 			if (next != null) {
 				if (isBlocked(next.getChannelIndex())) {
 					// if the channel is blocked we, we just store the BufferOrEvent
@@ -139,12 +145,13 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				}
 			}
 			else if (!endOfStream) {
-				// end of stream. we feed the data that is still buffered
+				// end of input stream. stream continues with the buffered data
 				endOfStream = true;
 				releaseBlocks();
 				return getNextNonBlocked();
 			}
 			else {
+				// final end of both input and buffered data
 				return null;
 			}
 		}
@@ -158,7 +165,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		}
 	}
 	
-	private void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws IOException {
+	private void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception {
 		final long barrierId = receivedBarrier.getId();
 
 		if (numBarriersReceived > 0) {
@@ -175,6 +182,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				releaseBlocks();
 				currentCheckpointId = barrierId;
 				onBarrier(channelIndex);
+
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Starting stream alignment for checkpoint {}", barrierId);
+				}
+				startOfAlignmentTimestamp = System.nanoTime();
 			}
 			else {
 				// ignore trailing barrier from aborted checkpoint
@@ -186,6 +198,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			// first barrier of a new checkpoint
 			currentCheckpointId = barrierId;
 			onBarrier(channelIndex);
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Starting stream alignment for checkpoint {}", barrierId);
+			}
+			startOfAlignmentTimestamp = System.nanoTime();
 		}
 		else {
 			// trailing barrier from previous (skipped) checkpoint
@@ -199,21 +216,23 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 						receivedBarrier.getId(), receivedBarrier.getTimestamp());
 			}
 
-			if (checkpointHandler != null) {
-				checkpointHandler.onEvent(receivedBarrier);
-			}
-			
 			releaseBlocks();
+
+			if (toNotifyOnCheckpoint != null) {
+				toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
+						receivedBarrier.getId(), receivedBarrier.getTimestamp(),
+						bufferSpiller.getBytesWritten(), latestAlignmentDurationNanos);
+			}
 		}
 	}
 	
 	@Override
-	public void registerCheckpointEventHandler(EventListener<CheckpointBarrier> checkpointHandler) {
-		if (this.checkpointHandler == null) {
-			this.checkpointHandler = checkpointHandler;
+	public void registerCheckpointEventHandler(StatefulTask toNotifyOnCheckpoint) {
+		if (this.toNotifyOnCheckpoint == null) {
+			this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 		}
 		else {
-			throw new IllegalStateException("BarrierBuffer already has a registered checkpoint handler");
+			throw new IllegalStateException("BarrierBuffer already has a registered checkpoint notifyee");
 		}
 	}
 	
@@ -267,9 +286,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 * is the next to be consumed.
 	 */
 	private void releaseBlocks() throws IOException {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Releasing blocks");
-		}
+		LOG.debug("End of stream alignment, feeding buffered data back");
 
 		for (int i = 0; i < blockedChannels.length; i++) {
 			blockedChannels[i] = false;
@@ -295,10 +312,16 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				currentBuffered = bufferedNow;
 			}
 		}
+
+		final long now = System.nanoTime();
+		if (startOfAlignmentTimestamp > 0) {
+			latestAlignmentDurationNanos = now - startOfAlignmentTimestamp;
+			startOfAlignmentTimestamp = 0;
+		}
 	}
 
 	// ------------------------------------------------------------------------
-	// For Testing
+	//  Properties
 	// ------------------------------------------------------------------------
 
 	/**
@@ -309,7 +332,17 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	public long getCurrentCheckpointId() {
 		return this.currentCheckpointId;
 	}
-	
+
+	@Override
+	public long getAlignmentDurationNanos() {
+		long start = this.startOfAlignmentTimestamp;
+		if (start <= 0) {
+			return latestAlignmentDurationNanos;
+		} else {
+			return System.nanoTime() - start;
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	// Utilities 
 	// ------------------------------------------------------------------------
