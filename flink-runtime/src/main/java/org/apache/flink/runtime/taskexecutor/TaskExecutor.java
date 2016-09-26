@@ -178,12 +178,12 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			if (newLeaderAddress != null) {
 				// the resource manager switched to a new leader
 				log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
-					resourceManagerConnection.getResourceManagerAddress(), newLeaderAddress);
+					resourceManagerConnection.getTargetAddress(), newLeaderAddress);
 			}
 			else {
 				// address null means that the current leader is lost without a new leader being there, yet
 				log.info("Current ResourceManager {} lost leader status. Waiting for new ResourceManager leader.",
-					resourceManagerConnection.getResourceManagerAddress());
+					resourceManagerConnection.getTargetAddress());
 			}
 
 			// drop the current connection or connection attempt
