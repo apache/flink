@@ -115,4 +115,9 @@ public class AkkaRpcServiceTest extends TestLogger {
 		assertEquals(expected, actual);
 		assertTrue(latch.isTriggered());
 	}
+
+	@Test
+	public void testGetAddress() {
+		assertEquals(AkkaUtils.getAddress(actorSystem).host().get(), akkaRpcService.getAddress());
+	}
 }

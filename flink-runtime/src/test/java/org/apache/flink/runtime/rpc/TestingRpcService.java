@@ -25,6 +25,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 
+import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -57,14 +58,14 @@ public class TestingRpcService extends AkkaRpcService {
 	/**
 	 * Creates a new {@code TestingRpcService}. 
 	 */
-	public TestingRpcService() {
+	public TestingRpcService() throws UnknownHostException {
 		this(new Configuration());
 	}
 
 	/**
 	 * Creates a new {@code TestingRpcService}, using the given configuration. 
 	 */
-	public TestingRpcService(Configuration configuration) {
+	public TestingRpcService(Configuration configuration) throws UnknownHostException {
 		super(AkkaUtils.createLocalActorSystem(configuration), Time.seconds(10));
 
 		this.registeredConnections = new ConcurrentHashMap<>();
