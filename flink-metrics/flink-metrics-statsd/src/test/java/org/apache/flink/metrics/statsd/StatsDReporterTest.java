@@ -29,6 +29,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -82,7 +83,7 @@ public class StatsDReporterTest extends TestLogger {
 		configuration.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 		configuration.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
 
-		MetricRegistry metricRegistry = new MetricRegistry(configuration);
+		MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration));
 
 		char delimiter = metricRegistry.getDelimiter();
 
@@ -150,7 +151,7 @@ public class StatsDReporterTest extends TestLogger {
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
 
-			registry = new MetricRegistry(config);
+			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
@@ -224,7 +225,7 @@ public class StatsDReporterTest extends TestLogger {
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
 
-			registry = new MetricRegistry(config);
+			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 			TestMeter meter = new TestMeter();
 			metricGroup.meter(meterName, meter);
