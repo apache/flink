@@ -1746,6 +1746,125 @@ public class WindowOperatorTest extends TestLogger {
 		assertEquals(0, testHarness.numEventTimeTimers()); // window timers/gc timers
 	}
 
+	/**
+	 * Verify that we correctly clean up even when a purging trigger has purged
+	 * window state.
+	 */
+	@Test
+	public void testStateAndTimerCleanupAtEventTimeGCWithPurgingTrigger() throws Exception {
+
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, WindowedValue<List<Integer>, TimeWindow>> testHarness =
+				createListWindowOperator(mockAssigner, mockTrigger, 20L);
+
+		testHarness.open();
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Arrays.asList(new TimeWindow(0, 20)));
+
+		assertEquals(0, testHarness.getOutput().size());
+		assertEquals(0, testHarness.numKeyedStateEntries());
+
+		doAnswer(new Answer<TriggerResult>() {
+			@Override
+			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[3];
+				// very far in the future so our watermark does not trigger it
+				context.registerEventTimeTimer(1000);
+				context.getPartitionedState(valueStateDescriptor).update("hello");
+				return TriggerResult.PURGE;
+			}
+		}).when(mockTrigger).onElement(Matchers.<Integer>anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext());
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocation) throws Exception {
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[1];
+				context.deleteEventTimeTimer(1000);
+				context.getPartitionedState(valueStateDescriptor).clear();
+				return null;
+			}
+		}).when(mockTrigger).clear(anyTimeWindow(), anyTriggerContext());
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		// clear is only called at cleanup time/GC time
+		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(1, testHarness.numKeyedStateEntries()); // just the trigger state remains
+		assertEquals(2, testHarness.numEventTimeTimers()); // window timers/gc timers
+		assertEquals(0, testHarness.numProcessingTimeTimers());
+
+		testHarness.processWatermark(new Watermark(19 + 20)); // 19 is maxTime of the window
+
+		verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(0, testHarness.numKeyedStateEntries()); // window contents plus trigger state
+		assertEquals(0, testHarness.numEventTimeTimers()); // window timers/gc timers
+	}
+
+	/**
+	 * Verify that we correctly clean up even when a purging trigger has purged
+	 * window state.
+	 */
+	@Test
+	public void testStateAndTimerCleanupAtEventTimeGCWithPurgingTriggerAndMergingWindows() throws Exception {
+
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockMergingAssigner();
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, WindowedValue<List<Integer>, TimeWindow>> testHarness =
+				createListWindowOperator(mockAssigner, mockTrigger, 20L);
+
+		testHarness.open();
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Arrays.asList(new TimeWindow(0, 20)));
+
+		assertEquals(0, testHarness.getOutput().size());
+		assertEquals(0, testHarness.numKeyedStateEntries());
+
+		doAnswer(new Answer<TriggerResult>() {
+			@Override
+			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[3];
+				// very far in the future so our watermark does not trigger it
+				context.registerEventTimeTimer(1000);
+				context.getPartitionedState(valueStateDescriptor).update("hello");
+				return TriggerResult.PURGE;
+			}
+		}).when(mockTrigger).onElement(Matchers.<Integer>anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext());
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocation) throws Exception {
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[1];
+				context.deleteEventTimeTimer(1000);
+				context.getPartitionedState(valueStateDescriptor).clear();
+				return null;
+			}
+		}).when(mockTrigger).clear(anyTimeWindow(), anyTriggerContext());
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		// clear is only called at cleanup time/GC time
+		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(2, testHarness.numKeyedStateEntries()); // trigger state plus merging window set
+		assertEquals(2, testHarness.numEventTimeTimers()); // window timers/gc timers
+		assertEquals(0, testHarness.numProcessingTimeTimers());
+
+		testHarness.processWatermark(new Watermark(19 + 20)); // 19 is maxTime of the window
+
+		verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(0, testHarness.numKeyedStateEntries()); // window contents plus trigger state
+		assertEquals(0, testHarness.numEventTimeTimers()); // window timers/gc timers
+	}
+
+
 	@Test
 	public void testStateAndTimerCleanupAtProcessingTimeGC() throws Exception {
 
@@ -1791,6 +1910,126 @@ public class WindowOperatorTest extends TestLogger {
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
 		assertEquals(2, testHarness.numKeyedStateEntries()); // window contents plus trigger state
+		assertEquals(2, testHarness.numProcessingTimeTimers());
+		assertEquals(0, testHarness.numEventTimeTimers());
+
+		testHarness.setProcessingTime(19 + 20); // 19 is maxTime of the window
+
+		verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(0, testHarness.numKeyedStateEntries()); // window contents plus trigger state
+		assertEquals(0, testHarness.numProcessingTimeTimers()); // window timers/gc timers
+	}
+
+	/**
+	 * Verify that we correctly clean up even when a purging trigger has purged
+	 * window state.
+	 */
+	@Test
+	public void testStateAndTimerCleanupAtProcessingTimeGCWithPurgingTrigger() throws Exception {
+
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
+		when(mockAssigner.isEventTime()).thenReturn(false);
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, WindowedValue<List<Integer>, TimeWindow>> testHarness =
+				createListWindowOperator(mockAssigner, mockTrigger, 20L);
+
+		testHarness.open();
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Arrays.asList(new TimeWindow(0, 20)));
+
+		assertEquals(0, testHarness.getOutput().size());
+		assertEquals(0, testHarness.numKeyedStateEntries());
+
+		doAnswer(new Answer<TriggerResult>() {
+			@Override
+			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[3];
+				// very far in the future so our cleanup trigger does not require triggering this
+				context.registerProcessingTimeTimer(1000);
+				context.getPartitionedState(valueStateDescriptor).update("hello");
+				return TriggerResult.PURGE;
+			}
+		}).when(mockTrigger).onElement(Matchers.<Integer>anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext());
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocation) throws Exception {
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[1];
+				context.deleteProcessingTimeTimer(1000);
+				context.getPartitionedState(valueStateDescriptor).clear();
+				return null;
+			}
+		}).when(mockTrigger).clear(anyTimeWindow(), anyTriggerContext());
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		// clear is only called at cleanup time/GC time
+		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(1, testHarness.numKeyedStateEntries()); // just the trigger state
+		assertEquals(2, testHarness.numProcessingTimeTimers());
+		assertEquals(0, testHarness.numEventTimeTimers());
+
+		testHarness.setProcessingTime(19 + 20); // 19 is maxTime of the window
+
+		verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(0, testHarness.numKeyedStateEntries()); // window contents plus trigger state
+		assertEquals(0, testHarness.numProcessingTimeTimers()); // window timers/gc timers
+	}
+
+	/**
+	 * Verify that we correctly clean up even when a purging trigger has purged
+	 * window state.
+	 */
+	@Test
+	public void testStateAndTimerCleanupAtProcessingTimeGCWithPurgingTriggerAndMergingWindows() throws Exception {
+
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockMergingAssigner();
+		when(mockAssigner.isEventTime()).thenReturn(false);
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, WindowedValue<List<Integer>, TimeWindow>> testHarness =
+				createListWindowOperator(mockAssigner, mockTrigger, 20L);
+
+		testHarness.open();
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Arrays.asList(new TimeWindow(0, 20)));
+
+		assertEquals(0, testHarness.getOutput().size());
+		assertEquals(0, testHarness.numKeyedStateEntries());
+
+		doAnswer(new Answer<TriggerResult>() {
+			@Override
+			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[3];
+				// very far in the future so our cleanup trigger does not require triggering this
+				context.registerProcessingTimeTimer(1000);
+				context.getPartitionedState(valueStateDescriptor).update("hello");
+				return TriggerResult.PURGE;
+			}
+		}).when(mockTrigger).onElement(Matchers.<Integer>anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext());
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocation) throws Exception {
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[1];
+				context.deleteProcessingTimeTimer(1000);
+				context.getPartitionedState(valueStateDescriptor).clear();
+				return null;
+			}
+		}).when(mockTrigger).clear(anyTimeWindow(), anyTriggerContext());
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		// clear is only called at cleanup time/GC time
+		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
+
+		assertEquals(2, testHarness.numKeyedStateEntries()); // trigger state and merging window set
 		assertEquals(2, testHarness.numProcessingTimeTimers());
 		assertEquals(0, testHarness.numEventTimeTimers());
 

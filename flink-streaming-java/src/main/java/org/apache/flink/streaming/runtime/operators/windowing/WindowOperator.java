@@ -448,20 +448,19 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				}
 
 				ACC contents = windowState.get();
-				if (contents == null) {
-					// if we have no state, there is nothing to do
-					continue;
+				if (contents != null) {
+					TriggerResult triggerResult = context.onEventTime(timer.timestamp);
+					if (triggerResult.isFire()) {
+						emitWindowContents(context.window, contents);
+					}
+					if (triggerResult.isPurge()) {
+						windowState.clear();
+					}
 				}
 
-				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
-				if (triggerResult.isFire()) {
-					emitWindowContents(context.window, contents);
-				}
 
 				if (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp)) {
 					clearAllState(context.window, windowState, mergingWindows);
-				} else if (triggerResult.isPurge()) {
-					windowState.clear();
 				}
 
 				if (mergingWindows != null) {
@@ -516,20 +515,18 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				}
 
 				ACC contents = windowState.get();
-				if (contents == null) {
-					// if we have no state, there is nothing to do
-					continue;
-				}
-
-				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
-				if (triggerResult.isFire()) {
-					emitWindowContents(context.window, contents);
+				if (contents != null) {
+					TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
+					if (triggerResult.isFire()) {
+						emitWindowContents(context.window, contents);
+					}
+					if (triggerResult.isPurge()) {
+						windowState.clear();
+					}
 				}
 
 				if (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp)) {
 					clearAllState(context.window, windowState, mergingWindows);
-				} else if (triggerResult.isPurge()) {
-					windowState.clear();
 				}
 
 				if (mergingWindows != null) {
