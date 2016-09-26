@@ -21,6 +21,7 @@ package org.apache.flink.runtime.query;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -52,8 +53,8 @@ public class KvStateLocationRegistryTest {
 		// IDs for each key group of each vertex
 		KvStateID[][] ids = new KvStateID[vertices.length][];
 		for (int i = 0; i < ids.length; i++) {
-			ids[i] = new KvStateID[vertices[i].getParallelism()];
-			for (int j = 0; j < vertices[i].getParallelism(); j++) {
+			ids[i] = new KvStateID[vertices[i].getMaxParallelism()];
+			for (int j = 0; j < vertices[i].getMaxParallelism(); j++) {
 				ids[i][j] = new KvStateID();
 			}
 		}
@@ -66,12 +67,12 @@ public class KvStateLocationRegistryTest {
 
 		// Register
 		for (int i = 0; i < vertices.length; i++) {
-			int numKeyGroups = vertices[i].getParallelism();
+			int numKeyGroups = vertices[i].getMaxParallelism();
 			for (int keyGroupIndex = 0; keyGroupIndex < numKeyGroups; keyGroupIndex++) {
 				// Register
 				registry.notifyKvStateRegistered(
 						vertices[i].getJobVertexId(),
-						keyGroupIndex,
+						new KeyGroupRange(keyGroupIndex, keyGroupIndex),
 						registrationNames[i],
 						ids[i][keyGroupIndex],
 						server);
@@ -83,8 +84,8 @@ public class KvStateLocationRegistryTest {
 			KvStateLocation location = registry.getKvStateLocation(registrationNames[i]);
 			assertNotNull(location);
 
-			int parallelism = vertices[i].getParallelism();
-			for (int keyGroupIndex = 0; keyGroupIndex < parallelism; keyGroupIndex++) {
+			int maxParallelism = vertices[i].getMaxParallelism();
+			for (int keyGroupIndex = 0; keyGroupIndex < maxParallelism; keyGroupIndex++) {
 				assertEquals(ids[i][keyGroupIndex], location.getKvStateID(keyGroupIndex));
 				assertEquals(server, location.getKvStateServerAddress(keyGroupIndex));
 			}
@@ -92,10 +93,10 @@ public class KvStateLocationRegistryTest {
 
 		// Unregister
 		for (int i = 0; i < vertices.length; i++) {
-			int numKeyGroups = vertices[i].getParallelism();
+			int numKeyGroups = vertices[i].getMaxParallelism();
 			JobVertexID jobVertexId = vertices[i].getJobVertexId();
 			for (int keyGroupIndex = 0; keyGroupIndex < numKeyGroups; keyGroupIndex++) {
-				registry.notifyKvStateUnregistered(jobVertexId, keyGroupIndex, registrationNames[i]);
+				registry.notifyKvStateUnregistered(jobVertexId, new KeyGroupRange(keyGroupIndex, keyGroupIndex), registrationNames[i]);
 			}
 		}
 
@@ -121,7 +122,7 @@ public class KvStateLocationRegistryTest {
 		// First operator registers
 		registry.notifyKvStateRegistered(
 				vertices[0].getJobVertexId(),
-				0,
+				new KeyGroupRange(0, 0),
 				registrationName,
 				new KvStateID(),
 				new KvStateServerAddress(InetAddress.getLocalHost(), 12328));
@@ -130,7 +131,7 @@ public class KvStateLocationRegistryTest {
 			// Second operator registers same name
 			registry.notifyKvStateRegistered(
 					vertices[1].getJobVertexId(),
-					0,
+					new KeyGroupRange(0, 0),
 					registrationName,
 					new KvStateID(),
 					new KvStateServerAddress(InetAddress.getLocalHost(), 12032));
@@ -151,7 +152,7 @@ public class KvStateLocationRegistryTest {
 
 		KvStateLocationRegistry registry = new KvStateLocationRegistry(new JobID(), vertexMap);
 		try {
-			registry.notifyKvStateUnregistered(vertex.getJobVertexId(), 0, "any-name");
+			registry.notifyKvStateUnregistered(vertex.getJobVertexId(), new KeyGroupRange(0, 0), "any-name");
 			fail("Did not throw expected Exception, because of missing registration");
 		} catch (IllegalArgumentException ignored) {
 			// Expected
@@ -179,7 +180,7 @@ public class KvStateLocationRegistryTest {
 		// First operator registers name
 		registry.notifyKvStateRegistered(
 				vertices[0].getJobVertexId(),
-				0,
+				new KeyGroupRange(0, 0),
 				name,
 				new KvStateID(),
 				mock(KvStateServerAddress.class));
@@ -190,7 +191,7 @@ public class KvStateLocationRegistryTest {
 
 			registry.notifyKvStateUnregistered(
 					vertices[0].getJobVertexId(),
-					notRegisteredKeyGroupIndex,
+					new KeyGroupRange(notRegisteredKeyGroupIndex, notRegisteredKeyGroupIndex),
 					name);
 
 			fail("Did not throw expected Exception");
@@ -201,7 +202,7 @@ public class KvStateLocationRegistryTest {
 			// Wrong operator tries to unregister
 			registry.notifyKvStateUnregistered(
 					vertices[1].getJobVertexId(),
-					0,
+					new KeyGroupRange(0, 0),
 					name);
 
 			fail("Did not throw expected Exception");
@@ -210,13 +211,13 @@ public class KvStateLocationRegistryTest {
 	}
 
 	// ------------------------------------------------------------------------
-	
-	private ExecutionJobVertex createJobVertex(int parallelism) {
+
+	private ExecutionJobVertex createJobVertex(int maxParallelism) {
 		JobVertexID id = new JobVertexID();
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
 
 		when(vertex.getJobVertexId()).thenReturn(id);
-		when(vertex.getParallelism()).thenReturn(parallelism);
+		when(vertex.getMaxParallelism()).thenReturn(maxParallelism);
 
 		return vertex;
 	}

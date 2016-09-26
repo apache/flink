@@ -20,6 +20,7 @@ package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.Preconditions;
 
@@ -160,44 +161,50 @@ public class KvStateLocation implements Serializable {
 	/**
 	 * Registers a KvState instance for the given key group index.
 	 *
-	 * @param keyGroupIndex  Key group index to register
+	 * @param keyGroupRange  Key group range to register
 	 * @param kvStateId      ID of the KvState instance at the key group index.
 	 * @param kvStateAddress Server address of the KvState instance at the key group index.
-	 * @throws IndexOutOfBoundsException If key group index < 0 or >= Number of key groups
+	 * @throws IndexOutOfBoundsException If key group range start < 0 or key group range end >= Number of key groups
 	 */
-	void registerKvState(int keyGroupIndex, KvStateID kvStateId, KvStateServerAddress kvStateAddress) {
-		if (keyGroupIndex < 0 || keyGroupIndex >= numKeyGroups) {
+	void registerKvState(KeyGroupRange keyGroupRange, KvStateID kvStateId, KvStateServerAddress kvStateAddress) {
+
+		if (keyGroupRange.getStartKeyGroup() < 0 || keyGroupRange.getEndKeyGroup() >= numKeyGroups) {
 			throw new IndexOutOfBoundsException("Key group index");
 		}
 
-		if (kvStateIds[keyGroupIndex] == null && kvStateAddresses[keyGroupIndex] == null) {
-			numRegisteredKeyGroups++;
-		}
+		for (int kgIdx = keyGroupRange.getStartKeyGroup(); kgIdx <= keyGroupRange.getEndKeyGroup(); ++kgIdx) {
 
-		kvStateIds[keyGroupIndex] = kvStateId;
-		kvStateAddresses[keyGroupIndex] = kvStateAddress;
+			if (kvStateIds[kgIdx] == null && kvStateAddresses[kgIdx] == null) {
+				numRegisteredKeyGroups++;
+			}
+
+			kvStateIds[kgIdx] = kvStateId;
+			kvStateAddresses[kgIdx] = kvStateAddress;
+		}
 	}
 
 	/**
 	 * Registers a KvState instance for the given key group index.
 	 *
-	 * @param keyGroupIndex Key group index to unregister.
-	 * @throws IndexOutOfBoundsException If key group index < 0 or >= Number of key groups
-	 * @throws IllegalArgumentException If no location information registered for key group index.
+	 * @param keyGroupRange Key group range to unregister.
+	 * @throws IndexOutOfBoundsException If key group range start < 0 or key group range end >= Number of key groups
+	 * @throws IllegalArgumentException  If no location information registered for a key group index in the range.
 	 */
-	void unregisterKvState(int keyGroupIndex) {
-		if (keyGroupIndex < 0 || keyGroupIndex >= numKeyGroups) {
+	void unregisterKvState(KeyGroupRange keyGroupRange) {
+		if (keyGroupRange.getStartKeyGroup() < 0 || keyGroupRange.getEndKeyGroup() >= numKeyGroups) {
 			throw new IndexOutOfBoundsException("Key group index");
 		}
 
-		if (kvStateIds[keyGroupIndex] == null || kvStateAddresses[keyGroupIndex] == null) {
-			throw new IllegalArgumentException("Not registered. Probably registration/unregistration race.");
+		for (int kgIdx = keyGroupRange.getStartKeyGroup(); kgIdx <= keyGroupRange.getEndKeyGroup(); ++kgIdx) {
+			if (kvStateIds[kgIdx] == null || kvStateAddresses[kgIdx] == null) {
+				throw new IllegalArgumentException("Not registered. Probably registration/unregistration race.");
+			}
+
+			numRegisteredKeyGroups--;
+
+			kvStateIds[kgIdx] = null;
+			kvStateAddresses[kgIdx] = null;
 		}
-
-		numRegisteredKeyGroups--;
-
-		kvStateIds[keyGroupIndex] = null;
-		kvStateAddresses[keyGroupIndex] = null;
 	}
 
 	@Override

@@ -111,7 +111,7 @@ which we could process the aggregated elements.
 ### Tumbling Windows
 
 A *tumbling windows* assigner assigns elements to fixed length, non-overlapping windows of a
-specified *window size*.. For example, if you specify a window size of 5 minutes, the window
+specified *window size*. For example, if you specify a window size of 5 minutes, the window
 function will get 5 minutes worth of elements in each invocation.
 
 <img src="{{ site.baseurl }}/fig/tumbling-windows.svg" class="center" style="width: 80%;" />
@@ -381,7 +381,7 @@ a concatenation of all the `Long` fields of the input.
 
 ### WindowFunction - The Generic Case
 
-Using a `WindowFunction` provides most flexibility, at the cost of performance. The reason for this
+Using a `WindowFunction` provides the most flexibility, at the cost of performance. The reason for this
 is that elements cannot be incrementally aggregated for a window and instead need to be buffered
 internally until the window is considered ready for processing. A `WindowFunction` gets an
 `Iterable` containing all the elements of the window being processed. The signature of

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,10 +35,11 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.AsynchronousException;
 import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -48,7 +49,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -87,7 +87,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 */
 	private boolean setupCalled = false;
 
-
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
 		this(operator, new ExecutionConfig());
 	}
@@ -95,27 +94,35 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig) {
-		this(operator, executionConfig, DefaultTimeServiceProvider.create(Executors.newSingleThreadScheduledExecutor()));
+		this(operator, executionConfig, null);
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
 			TimeServiceProvider testTimeProvider) {
+		this(operator, executionConfig, new Object(), testTimeProvider);
+	}
+
+	public OneInputStreamOperatorTestHarness(
+			OneInputStreamOperator<IN, OUT> operator,
+			ExecutionConfig executionConfig,
+			Object checkpointLock,
+			TimeServiceProvider testTimeProvider) {
+
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<Object>();
 		Configuration underlyingConfig = new Configuration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = executionConfig;
-		this.checkpointLock = new Object();
+		this.checkpointLock = checkpointLock;
 
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
-		timeServiceProvider = testTimeProvider;
 
 		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
+		when(mockTask.getCheckpointLock()).thenReturn(this.checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
 		when(mockTask.getEnvironment()).thenReturn(env);
@@ -125,21 +132,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		doAnswer(new Answer<Void>() {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Throwable {
-				final long execTime = (Long) invocation.getArguments()[0];
-				final Triggerable target = (Triggerable) invocation.getArguments()[1];
-
-				timeServiceProvider.registerTimer(
-						execTime, new TriggerTask(checkpointLock, target, execTime));
+				// do nothing
 				return null;
 			}
-		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
-
-		doAnswer(new Answer<Long>() {
-			@Override
-			public Long answer(InvocationOnMock invocation) throws Throwable {
-				return timeServiceProvider.getCurrentProcessingTime();
-			}
-		}).when(mockTask).getCurrentProcessingTime();
+		}).when(mockTask).registerAsyncException(any(AsynchronousException.class));
 
 		try {
 			doAnswer(new Answer<CheckpointStreamFactory>() {
@@ -154,6 +150,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			throw new RuntimeException(e.getMessage(), e);
 		}
 
+		timeServiceProvider = testTimeProvider != null ? testTimeProvider :
+			DefaultTimeServiceProvider.create(mockTask, Executors.newSingleThreadScheduledExecutor(), this.checkpointLock);
+
+		doAnswer(new Answer<TimeServiceProvider>() {
+			@Override
+			public TimeServiceProvider answer(InvocationOnMock invocation) throws Throwable {
+				return timeServiceProvider;
+			}
+		}).when(mockTask).getTimerService();
 	}
 
 	public void setStateBackend(AbstractStateBackend stateBackend) {
@@ -216,7 +221,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		operator.notifyOfCompletedCheckpoint(checkpointId);
 	}
 
-
 	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(org.apache.flink.core.fs.FSDataInputStream)} ()}
 	 */
@@ -273,34 +277,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		@Override
 		public void close() {
 			// ignore
-		}
-	}
-
-	private static final class TriggerTask implements Runnable {
-
-		private final Object lock;
-		private final Triggerable target;
-		private final long timestamp;
-
-		TriggerTask(final Object lock, Triggerable target, long timestamp) {
-			this.lock = lock;
-			this.target = target;
-			this.timestamp = timestamp;
-		}
-
-		@Override
-		public void run() {
-			synchronized (lock) {
-				try {
-					target.trigger(timestamp);
-				} catch (Throwable t) {
-					try {
-						throw t;
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				}
-			}
 		}
 	}
 }

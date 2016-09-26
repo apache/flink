@@ -66,7 +66,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -982,25 +982,7 @@ public class CliFrontend {
 		// do action
 		switch (action) {
 			case ACTION_RUN:
-				// run() needs to run in a secured environment for the optimizer.
-				if (SecurityUtils.isSecurityEnabled()) {
-					String message = "Secure Hadoop environment setup detected. Running in secure context.";
-					LOG.info(message);
-
-					try {
-						return SecurityUtils.runSecured(new SecurityUtils.FlinkSecuredRunner<Integer>() {
-							@Override
-							public Integer run() throws Exception {
-								return CliFrontend.this.run(params);
-							}
-						});
-					}
-					catch (Exception e) {
-						return handleError(e);
-					}
-				} else {
-					return run(params);
-				}
+				return CliFrontend.this.run(params);
 			case ACTION_LIST:
 				return list(params);
 			case ACTION_INFO:
@@ -1037,12 +1019,19 @@ public class CliFrontend {
 	/**
 	 * Submits the job based on the arguments
 	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
 		try {
-			CliFrontend cli = new CliFrontend();
-			int retCode = cli.parseParameters(args);
+			final CliFrontend cli = new CliFrontend();
+			SecurityContext.install(new SecurityContext.SecurityConfiguration().setFlinkConfiguration(cli.config));
+			int retCode = SecurityContext.getInstalled()
+					.runSecured(new SecurityContext.FlinkSecuredRunner<Integer>() {
+						@Override
+						public Integer run() {
+							return cli.parseParameters(args);
+						}
+					});
 			System.exit(retCode);
 		}
 		catch (Throwable t) {

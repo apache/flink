@@ -577,8 +577,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializerClass
 	 * 		The class of the serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type,
-			Class<? extends Serializer<?>> serializerClass) {
+	@SuppressWarnings("rawtypes")
+	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer> serializerClass) {
 		config.registerTypeWithKryoSerializer(type, serializerClass);
 	}
 
@@ -1094,8 +1094,11 @@ public abstract class StreamExecutionEnvironment {
 	 * 		contents
 	 * 		of files.
 	 * @return The DataStream containing the given directory.
+	 * 
+	 * @deprecated Use {@link #readFile(FileInputFormat, String, FileProcessingMode, long)} instead.
 	 */
 	@Deprecated
+	@SuppressWarnings("deprecation")
 	public DataStream<String> readFileStream(String filePath, long intervalMillis,
 											FileMonitoringFunction.WatchType watchType) {
 		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
@@ -1169,6 +1172,8 @@ public abstract class StreamExecutionEnvironment {
 	 * 		while
 	 * 		a	negative value ensures retrying forever.
 	 * @return A data stream containing the strings received from the socket
+	 * 
+	 * @deprecated Use {@link #socketTextStream(String, int, String, long)} instead.
 	 */
 	@Deprecated
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, long maxRetry) {
@@ -1215,8 +1220,11 @@ public abstract class StreamExecutionEnvironment {
 	 * @param delimiter
 	 * 		A character which splits received strings into records
 	 * @return A data stream containing the strings received from the socket
+	 * 
+	 * @deprecated Use {@link #socketTextStream(String, int, String)} instead.
 	 */
 	@Deprecated
+	@SuppressWarnings("deprecation")
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
 		return socketTextStream(hostname, port, delimiter, 0);
 	}
@@ -1313,7 +1321,9 @@ public abstract class StreamExecutionEnvironment {
 		DataStreamSource<OUT> source;
 
 		if (inputFormat instanceof FileInputFormat) {
+			@SuppressWarnings("unchecked")
 			FileInputFormat<OUT> format = (FileInputFormat<OUT>) inputFormat;
+			
 			source = createFileInput(format, typeInfo, "Custom File source",
 				FileProcessingMode.PROCESS_ONCE, -1);
 		} else {

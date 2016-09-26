@@ -32,6 +32,7 @@ import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.connectors.fs.Writer;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -284,6 +285,8 @@ public class BucketingSink<T>
 
 	private transient Clock clock;
 
+	private transient TimeServiceProvider processingTimeService;
+
 	/**
 	 * Creates a new {@code BucketingSink} that writes files to the given base directory.
 	 *
@@ -320,18 +323,19 @@ public class BucketingSink<T>
 		FileSystem fs = baseDirectory.getFileSystem(hadoopConf);
 		refTruncate = reflectTruncate(fs);
 
-		long currentProcessingTime =
-				((StreamingRuntimeContext) getRuntimeContext()).getCurrentProcessingTime();
+		processingTimeService =
+				((StreamingRuntimeContext) getRuntimeContext()).getTimeServiceProvider();
+
+		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
 		checkForInactiveBuckets(currentProcessingTime);
 
-		((StreamingRuntimeContext) getRuntimeContext()).registerTimer(
-				currentProcessingTime + inactiveBucketCheckInterval, this);
+		processingTimeService.registerTimer(currentProcessingTime + inactiveBucketCheckInterval, this);
 
 		this.clock = new Clock() {
 			@Override
 			public long currentTimeMillis() {
-				return ((StreamingRuntimeContext) getRuntimeContext()).getCurrentProcessingTime();
+				return processingTimeService.getCurrentProcessingTime();
 			}
 		};
 
@@ -376,8 +380,7 @@ public class BucketingSink<T>
 	public void invoke(T value) throws Exception {
 		Path bucketPath = bucketer.getBucketPath(clock, new Path(basePath), value);
 
-		long currentProcessingTime =
-				((StreamingRuntimeContext) getRuntimeContext()).getCurrentProcessingTime();
+		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
 		if (!state.hasBucketState(bucketPath)) {
 			state.addBucketState(bucketPath, new BucketState<T>(currentProcessingTime));
@@ -420,13 +423,11 @@ public class BucketingSink<T>
 
 	@Override
 	public void trigger(long timestamp) throws Exception {
-		long currentProcessingTime =
-				((StreamingRuntimeContext) getRuntimeContext()).getCurrentProcessingTime();
+		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 
 		checkForInactiveBuckets(currentProcessingTime);
 
-		((StreamingRuntimeContext) getRuntimeContext()).registerTimer(
-				currentProcessingTime + inactiveBucketCheckInterval, this);
+		processingTimeService.registerTimer(currentProcessingTime + inactiveBucketCheckInterval, this);
 	}
 
 	/**

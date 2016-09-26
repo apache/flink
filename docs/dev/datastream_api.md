@@ -357,7 +357,7 @@ windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>() {
                The example function, when applied on the sequence (1,2,3,4,5),
                folds the sequence into the string "start-1-2-3-4-5":</p>
     {% highlight java %}
-windowedStream.fold("start-", new FoldFunction<Integer, String>() {
+windowedStream.fold("start", new FoldFunction<Integer, String>() {
     public String fold(String current, Integer value) {
         return current + "-" + value;
     }
@@ -1324,7 +1324,7 @@ File-based:
 
     *IMPORTANT NOTES:*
 
-    1. If the `watchType` is set to `FileProcessingMode.PROCESS_CONTINUOUSLY`, when a file is modified, its contents are re-processed entirely. This can brake the "exactly-once" semantics, as appending data at the end of a file will lead to **all** its contents being re-processed.
+    1. If the `watchType` is set to `FileProcessingMode.PROCESS_CONTINUOUSLY`, when a file is modified, its contents are re-processed entirely. This can break the "exactly-once" semantics, as appending data at the end of a file will lead to **all** its contents being re-processed.
 
     2. If the `watchType` is set to `FileProcessingMode.PROCESS_ONCE`, the source scans the path **once** and exits, without waiting for the readers to finish reading the file contents. Of course the readers will continue reading until all file contents are read. Closing the source leads to no more checkpoints after that point. This may lead to slower recovery after a node failure, as the job will resume reading from the last checkpoint.
 
@@ -1382,7 +1382,7 @@ File-based:
 
     *IMPORTANT NOTES:*
 
-    1. If the `watchType` is set to `FileProcessingMode.PROCESS_CONTINUOUSLY`, when a file is modified, its contents are re-processed entirely. This can brake the "exactly-once" semantics, as appending data at the end of a file will lead to **all** its contents being re-processed.
+    1. If the `watchType` is set to `FileProcessingMode.PROCESS_CONTINUOUSLY`, when a file is modified, its contents are re-processed entirely. This can break the "exactly-once" semantics, as appending data at the end of a file will lead to **all** its contents being re-processed.
 
     2. If the `watchType` is set to `FileProcessingMode.PROCESS_ONCE`, the source scans the path **once** and exits, without waiting for the readers to finish reading the file contents. Of course the readers will continue reading until all file contents are read. Closing the source leads to no more checkpoints after that point. This may lead to slower recovery after a node failure, as the job will resume reading from the last checkpoint.
 

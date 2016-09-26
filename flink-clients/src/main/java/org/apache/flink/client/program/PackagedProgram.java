@@ -679,7 +679,7 @@ public class PackagedProgram {
 					
 						File tempFile;
 						try {
-							tempFile = File.createTempFile(String.valueOf(Math.abs(rnd.nextInt()) + "_"), name);
+							tempFile = File.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name);
 							tempFile.deleteOnExit();
 						}
 						catch (IOException e) {

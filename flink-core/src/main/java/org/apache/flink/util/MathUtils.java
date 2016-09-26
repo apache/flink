@@ -80,12 +80,14 @@ public final class MathUtils {
 	 * 
 	 * @param value The value to be cast to an integer.
 	 * @return The given value as an integer.
+	 * @see Math#toIntExact(long)
 	 */
 	public static int checkedDownCast(long value) {
-		if (value > Integer.MAX_VALUE) {
+		int downCast = (int) value;
+		if (downCast != value) {
 			throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.");
 		}
-		return (int) value;
+		return downCast;
 	}
 
 	/**

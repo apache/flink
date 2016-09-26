@@ -36,6 +36,8 @@ import org.apache.flink.util.InstantiationUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
+import org.junit.ClassRule;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,11 +62,18 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	private static Properties standardProps;
 	private static LocalFlinkMiniCluster flink;
 
+	@ClassRule
+	public static TemporaryFolder tempFolder = new TemporaryFolder();
+
+	protected static Properties secureProps = new Properties();
+
 	@BeforeClass
 	public static void prepare() throws IOException, ClassNotFoundException {
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Starting KafkaShortRetentionTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
+
+		Configuration flinkConfig = new Configuration();
 
 		// dynamically load the implementation for the test
 		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
@@ -72,17 +81,20 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
+		if(kafkaServer.isSecureRunSupported()) {
+			secureProps = kafkaServer.getSecureProperties();
+		}
+
 		Properties specificProperties = new Properties();
 		specificProperties.setProperty("log.retention.hours", "0");
 		specificProperties.setProperty("log.retention.minutes", "0");
 		specificProperties.setProperty("log.retention.ms", "250");
 		specificProperties.setProperty("log.retention.check.interval.ms", "100");
-		kafkaServer.prepare(1, specificProperties);
+		kafkaServer.prepare(1, specificProperties, false);
 
 		standardProps = kafkaServer.getStandardProperties();
 
 		// start also a re-usable Flink mini cluster
-		Configuration flinkConfig = new Configuration();
 		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
@@ -98,6 +110,8 @@ public class KafkaShortRetentionTestBase implements Serializable {
 			flink.shutdown();
 		}
 		kafkaServer.shutdown();
+
+		secureProps.clear();
 	}
 
 	/**
@@ -151,12 +165,17 @@ public class KafkaShortRetentionTestBase implements Serializable {
 				running = false;
 			}
 		});
-		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), standardProps, null));
+
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+
+		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), props, null));
 
 		// ----------- add consumer dataflow ----------
 
 		NonContinousOffsetsDeserializationSchema deserSchema = new NonContinousOffsetsDeserializationSchema();
-		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, deserSchema, standardProps);
+		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, deserSchema, props);
 
 		DataStreamSource<String> consuming = env.addSource(source);
 		consuming.addSink(new DiscardingSink<String>());
@@ -224,6 +243,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		Properties customProps = new Properties();
 		customProps.putAll(standardProps);
+		customProps.putAll(secureProps);
 		customProps.setProperty("auto.offset.reset", "none"); // test that "none" leads to an exception
 		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
 
@@ -255,6 +275,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		Properties customProps = new Properties();
 		customProps.putAll(standardProps);
+		customProps.putAll(secureProps);
 		customProps.setProperty("auto.offset.reset", "none"); // test that "none" leads to an exception
 		
 		try {

@@ -45,12 +45,9 @@ import org.mockito.stubbing.Answer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.Assert.*;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -184,6 +181,8 @@ public class StreamSourceOperatorTest {
 
 		long watermarkInterval = 10;
 		TestTimeServiceProvider timeProvider = new TestTimeServiceProvider();
+		timeProvider.setCurrentTime(0);
+
 		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, timeProvider);
 
 		final List<StreamElement> output = new ArrayList<>();
@@ -239,40 +238,15 @@ public class StreamSourceOperatorTest {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
 
-		doAnswer(new Answer<ScheduledFuture>() {
+		doAnswer(new Answer<TimeServiceProvider>() {
 			@Override
-			public ScheduledFuture answer(InvocationOnMock invocation) throws Throwable {
-				final long execTime = (Long) invocation.getArguments()[0];
-				final Triggerable target = (Triggerable) invocation.getArguments()[1];
-
+			public TimeServiceProvider answer(InvocationOnMock invocation) throws Throwable {
 				if (timeProvider == null) {
-					throw new RuntimeException("The time provider is null");
+					throw new RuntimeException("The time provider is null.");
 				}
-
-				timeProvider.registerTimer(execTime, new Runnable() {
-
-					@Override
-					public void run() {
-						try {
-							target.trigger(execTime);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					}
-				});
-				return null;
+				return timeProvider;
 			}
-		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
-
-		doAnswer(new Answer<Long>() {
-			@Override
-			public Long answer(InvocationOnMock invocation) throws Throwable {
-				if (timeProvider == null) {
-					throw new RuntimeException("The time provider is null");
-				}
-				return timeProvider.getCurrentProcessingTime();
-			}
-		}).when(mockTask).getCurrentProcessingTime();
+		}).when(mockTask).getTimerService();
 
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
 	}

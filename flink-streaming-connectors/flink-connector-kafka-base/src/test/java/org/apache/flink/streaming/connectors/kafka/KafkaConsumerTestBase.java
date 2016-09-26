@@ -181,6 +181,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			properties.setProperty("session.timeout.ms", "2000");
 			properties.setProperty("fetch.max.wait.ms", "2000");
 			properties.setProperty("heartbeat.interval.ms", "1000");
+			properties.putAll(secureProps);
 			FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer("doesntexist", new SimpleStringSchema(), properties);
 			DataStream<String> stream = see.addSource(source);
 			stream.print();
@@ -275,6 +276,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		});
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
+		producerProperties.putAll(secureProps);
 		FlinkKafkaProducerBase<Tuple2<Long, String>> prod = kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
 		stream.addSink(prod);
 
@@ -283,7 +285,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		List<String> topics = new ArrayList<>();
 		topics.add(topic);
 		topics.add(additionalEmptyTopic);
-		FlinkKafkaConsumerBase<Tuple2<Long, String>> source = kafkaServer.getConsumer(topics, sourceSchema, standardProps);
+
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		FlinkKafkaConsumerBase<Tuple2<Long, String>> source = kafkaServer.getConsumer(topics, sourceSchema, props);
 
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(source).setParallelism(parallelism);
 
@@ -371,7 +377,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 		env.getConfig().disableSysoutLogging();
 
-		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+
+		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, props);
 
 		env
 				.addSource(kafkaSource)
@@ -416,7 +426,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 		env.getConfig().disableSysoutLogging();
 
-		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, props);
 
 		env
 				.addSource(kafkaSource)
@@ -463,7 +476,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.getConfig().disableSysoutLogging();
 		env.setBufferTimeout(0);
 
-		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, props);
 
 		env
 			.addSource(kafkaSource)
@@ -506,7 +522,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env.enableCheckpointing(100);
 					env.getConfig().disableSysoutLogging();
 
-					FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), standardProps);
+					Properties props = new Properties();
+					props.putAll(standardProps);
+					props.putAll(secureProps);
+					FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), props);
 
 					env.addSource(source).addSink(new DiscardingSink<String>());
 
@@ -577,7 +596,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env.enableCheckpointing(100);
 					env.getConfig().disableSysoutLogging();
 
-					FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), standardProps);
+					Properties props = new Properties();
+					props.putAll(standardProps);
+					props.putAll(secureProps);
+					FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), props);
 
 					env.addSource(source).addSink(new DiscardingSink<String>());
 
@@ -629,7 +651,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setParallelism(12); // needs to be more that the mini cluster has slots
 		env.getConfig().disableSysoutLogging();
 
-		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, props);
 
 		env
 				.addSource(kafkaSource)
@@ -700,15 +725,19 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		Tuple2WithTopicSchema schema = new Tuple2WithTopicSchema(env.getConfig());
 
-		stream.addSink(kafkaServer.getProducer("dummy", schema, standardProps, null));
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+
+		stream.addSink(kafkaServer.getProducer("dummy", schema, props, null));
 
 		env.execute("Write to topics");
 
 		// run second job consuming from multiple topics
 		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.getConfig().disableSysoutLogging();
-		
-		stream = env.addSource(kafkaServer.getConsumer(topics, schema, standardProps));
+
+		stream = env.addSource(kafkaServer.getConsumer(topics, schema, props));
 
 		stream.flatMap(new FlatMapFunction<Tuple3<Integer, Integer, String>, Integer>() {
 			Map<String, Integer> countPerTopic = new HashMap<>(NUM_TOPICS);
@@ -787,6 +816,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		// Produce serialized JSON data
 		createTestTopic(topic, 1, 1);
 
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createRemoteEnvironment("localhost", flinkPort);
 		env.getConfig().disableSysoutLogging();
@@ -805,7 +838,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}).addSink(kafkaServer.getProducer(
 				topic,
 				new ByteArraySerializationSchema(),
-				standardProps,
+				props,
 				null));
 
 		// Execute blocks
@@ -940,6 +973,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		consumerProps.setProperty("fetch.message.max.bytes", Integer.toString(1024 * 1024 * 14));
 		consumerProps.setProperty("max.partition.fetch.bytes", Integer.toString(1024 * 1024 * 14)); // for the new fetcher
 		consumerProps.setProperty("queued.max.message.chunks", "1");
+		consumerProps.putAll(secureProps);
 
 		FlinkKafkaConsumerBase<Tuple2<Long, byte[]>> source = kafkaServer.getConsumer(topic, serSchema, consumerProps);
 		DataStreamSource<Tuple2<Long, byte[]>> consuming = env.addSource(source);
@@ -969,6 +1003,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Properties producerProps = new Properties();
 		producerProps.setProperty("max.request.size", Integer.toString(1024 * 1024 * 15));
 		producerProps.setProperty("retries", "3");
+		producerProps.putAll(secureProps);
 		producerProps.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerConnectionStrings);
 
 		DataStream<Tuple2<Long, byte[]>> stream = env.addSource(new RichSourceFunction<Tuple2<Long, byte[]>>() {
@@ -1047,8 +1082,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 
-
-		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, props);
 
 		env
 				.addSource(kafkaSource)
@@ -1097,6 +1134,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		KeyedSerializationSchema<Tuple2<Long, PojoValue>> schema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
+		producerProperties.putAll(secureProps);
 		kvStream.addSink(kafkaServer.getProducer(topic, schema, producerProperties, null));
 		env.execute("Write KV to Kafka");
 
@@ -1110,7 +1148,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		KeyedDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
 
-		DataStream<Tuple2<Long, PojoValue>> fromKafka = env.addSource(kafkaServer.getConsumer(topic, readSchema, standardProps));
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		DataStream<Tuple2<Long, PojoValue>> fromKafka = env.addSource(kafkaServer.getConsumer(topic, readSchema, props));
 		fromKafka.flatMap(new RichFlatMapFunction<Tuple2<Long,PojoValue>, Object>() {
 			long counter = 0;
 			@Override
@@ -1178,6 +1219,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
+		producerProperties.putAll(secureProps);
+
 		kvStream.addSink(kafkaServer.getProducer(topic, schema, producerProperties, null));
 
 		env.execute("Write deletes to Kafka");
@@ -1189,7 +1232,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 
-		DataStream<Tuple2<byte[], PojoValue>> fromKafka = env.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+		DataStream<Tuple2<byte[], PojoValue>> fromKafka = env.addSource(kafkaServer.getConsumer(topic, schema, props));
 
 		fromKafka.flatMap(new RichFlatMapFunction<Tuple2<byte[], PojoValue>, Object>() {
 			long counter = 0;
@@ -1226,7 +1272,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env1.getConfig().disableSysoutLogging();
 
-		DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, new FixedNumberDeserializationSchema(ELEMENT_COUNT), standardProps));
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
+
+		DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, new FixedNumberDeserializationSchema(ELEMENT_COUNT), props));
 		fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer,Integer>, Void>() {
 			@Override
 			public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {
@@ -1262,8 +1312,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env1.getConfig().disableSysoutLogging();
 					env1.disableOperatorChaining(); // let the source read everything into the network buffers
 
+					Properties props = new Properties();
+					props.putAll(standardProps);
+					props.putAll(secureProps);
+
 					TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
-					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
+					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, props));
 					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 						@Override
 						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
@@ -1288,7 +1342,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 						}
 					});
 
-					fromGen.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null));
+					fromGen.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(schema), props, null));
 
 					env1.execute("Metrics test job");
 				} catch(Throwable t) {
@@ -1403,6 +1457,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final TypeInformationSerializationSchema<Tuple2<Integer, Integer>> deser =
 				new TypeInformationSerializationSchema<>(intIntTupleType, env.getConfig());
 
+		cc.putAll(secureProps);
 		// create the consumer
 		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deser, cc);
 
@@ -1505,6 +1560,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// the producer must not produce duplicates
 			Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 			producerProperties.setProperty("retries", "0");
+			producerProperties.putAll(secureProps);
 			
 			stream.addSink(kafkaServer.getProducer(
 							topicName, serSchema, producerProperties,
@@ -1537,7 +1593,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			
 			Properties readProps = (Properties) standardProps.clone();
 			readProps.setProperty("group.id", "flink-tests-validator");
-			
+			readProps.putAll(secureProps);
 			FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deserSchema, readProps);
 
 			readEnv
@@ -1672,6 +1728,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		newProps.setProperty("group.id", "topic-printer"+ UUID.randomUUID().toString());
 		newProps.setProperty("auto.offset.reset", "smallest");
 		newProps.setProperty("zookeeper.connect", standardProps.getProperty("zookeeper.connect"));
+		newProps.putAll(secureProps);
 
 		ConsumerConfig printerConfig = new ConsumerConfig(newProps);
 		printTopic(topicName, printerConfig, deserializer, elements);
@@ -1893,8 +1950,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		TypeInformationSerializationSchema<Tuple2<Long, Integer>> sourceSchema =
 			new TypeInformationSerializationSchema<>(inputTypeInfo, env.getConfig());
 
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(secureProps);
 		FlinkKafkaConsumerBase<Tuple2<Long, Integer>> source = kafkaServer
-			.getConsumer(topics, sourceSchema, standardProps)
+			.getConsumer(topics, sourceSchema, props)
 			.assignTimestampsAndWatermarks(new TestPunctuatedTSExtractor());
 
 		DataStreamSource<Tuple2<Long, Integer>> consuming = env.setParallelism(1).addSource(source);

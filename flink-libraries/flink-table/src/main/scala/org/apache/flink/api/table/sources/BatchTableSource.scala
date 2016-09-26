@@ -26,6 +26,11 @@ import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
   */
 trait BatchTableSource[T] extends TableSource[T] {
 
-  /** Returns the data of the table as a [[DataSet]]. */
+  /**
+    * Returns the data of the table as a [[DataSet]].
+    *
+    * NOTE: This method is for internal use only for defining a [[TableSource]].
+    *       Do not use it in Table API programs.
+    */
   def getDataSet(execEnv: ExecutionEnvironment): DataSet[T]
 }

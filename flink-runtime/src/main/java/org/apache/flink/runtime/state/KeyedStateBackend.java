@@ -77,14 +77,18 @@ public abstract class KeyedStateBackend<K> {
 	/** KvStateRegistry helper for this task */
 	protected final TaskKvStateRegistry kvStateRegistry;
 
+	protected final ClassLoader userCodeClassLoader;
+
 	public KeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
+			ClassLoader userCodeClassLoader,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange) {
 
 		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.numberOfKeyGroups = Preconditions.checkNotNull(numberOfKeyGroups);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 	}
@@ -265,8 +269,7 @@ public abstract class KeyedStateBackend<K> {
 			}
 
 			String name = stateDescriptor.getQueryableStateName();
-			// TODO: deal with key group indices here
-			kvStateRegistry.registerKvState(0, name, kvState);
+			kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
 		}
 
 		return state;
@@ -332,4 +335,9 @@ public abstract class KeyedStateBackend<K> {
 			long checkpointId,
 			long timestamp,
 			CheckpointStreamFactory streamFactory) throws Exception;
+
+
+	public KeyGroupRange getKeyGroupRange() {
+		return keyGroupRange;
+	}
 }
