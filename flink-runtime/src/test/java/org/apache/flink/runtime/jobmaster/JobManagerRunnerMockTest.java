@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.junit.After;
@@ -72,8 +73,11 @@ public class JobManagerRunnerMockTest {
 		leaderElectionService = mock(LeaderElectionService.class);
 		when(leaderElectionService.hasLeadership()).thenReturn(true);
 
+		SubmittedJobGraphStore submittedJobGraphStore = mock(SubmittedJobGraphStore.class);
+
 		HighAvailabilityServices haServices = mock(HighAvailabilityServices.class);
-		when(haServices.getJobMasterLeaderElectionService(any(JobID.class))).thenReturn(leaderElectionService);
+		when(haServices.getJobManagerLeaderElectionService(any(JobID.class))).thenReturn(leaderElectionService);
+		when(haServices.getSubmittedJobGraphStore()).thenReturn(submittedJobGraphStore);
 
 		runner = PowerMockito.spy(new JobManagerRunner(
 			new JobGraph("test"),
@@ -127,7 +131,6 @@ public class JobManagerRunnerMockTest {
 	public void testJobFinishedByOtherBeforeGrantLeadership() throws Exception {
 		runner.start();
 
-		when(runner.isJobFinishedByOthers()).thenReturn(true);
 		runner.grantLeadership(UUID.randomUUID());
 
 		// runner should shutdown automatic and informed the job completion

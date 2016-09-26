@@ -161,13 +161,45 @@ public class ZooKeeperUtils {
 	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
 	 */
 	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
-			Configuration configuration) {
-		CuratorFramework client = startCuratorFramework(configuration);
+			Configuration configuration) throws Exception {
+		final CuratorFramework client = startCuratorFramework(configuration);
+		return createLeaderRetrievalService(client, configuration);
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperLeaderRetrievalService} instance.
+	 *
+	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
+	 * @param configuration {@link Configuration} object containing the configuration values
+	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
+	 * @throws Exception
+	 */
+	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
+		final CuratorFramework client,
+		final Configuration configuration) throws Exception
+	{
+		return createLeaderRetrievalService(client, configuration, "");
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperLeaderRetrievalService} instance.
+	 *
+	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
+	 * @param configuration {@link Configuration} object containing the configuration values
+	 * @param pathSuffix    The path suffix which we want to append
+	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
+	 * @throws Exception
+	 */
+	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
+		final CuratorFramework client,
+		final Configuration configuration,
+		final String pathSuffix) throws Exception
+	{
 		String leaderPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_LEADER_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH,
-				ConfigConstants.ZOOKEEPER_LEADER_PATH);
+			configuration,
+			ConfigConstants.HA_ZOOKEEPER_LEADER_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH,
+			ConfigConstants.ZOOKEEPER_LEADER_PATH) + pathSuffix;
 
 		return new ZooKeeperLeaderRetrievalService(client, leaderPath);
 	}
@@ -180,7 +212,7 @@ public class ZooKeeperUtils {
 	 * @return {@link ZooKeeperLeaderElectionService} instance.
 	 */
 	public static ZooKeeperLeaderElectionService createLeaderElectionService(
-			Configuration configuration) {
+			Configuration configuration) throws Exception {
 
 		CuratorFramework client = startCuratorFramework(configuration);
 
@@ -196,18 +228,35 @@ public class ZooKeeperUtils {
 	 */
 	public static ZooKeeperLeaderElectionService createLeaderElectionService(
 			CuratorFramework client,
-			Configuration configuration) {
+			Configuration configuration) throws Exception {
 
-		String latchPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_LATCH_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_LATCH_PATH,
-				ConfigConstants.ZOOKEEPER_LATCH_PATH);
-		String leaderPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_LEADER_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH,
-				ConfigConstants.ZOOKEEPER_LEADER_PATH);
+		return createLeaderElectionService(client, configuration, "");
+	}
+
+	/**
+	 * Creates a {@link ZooKeeperLeaderElectionService} instance.
+	 *
+	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
+	 * @param configuration {@link Configuration} object containing the configuration values
+	 * @param pathSuffix    The path suffix which we want to append
+	 * @return {@link ZooKeeperLeaderElectionService} instance.
+	 * @throws Exception
+	 */
+	public static ZooKeeperLeaderElectionService createLeaderElectionService(
+		final CuratorFramework client,
+		final Configuration configuration,
+		final String pathSuffix) throws Exception
+	{
+		final String latchPath = ConfigurationUtil.getStringWithDeprecatedKeys(
+			configuration,
+			ConfigConstants.HA_ZOOKEEPER_LATCH_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_LATCH_PATH,
+			ConfigConstants.ZOOKEEPER_LATCH_PATH) + pathSuffix;
+		final String leaderPath = ConfigurationUtil.getStringWithDeprecatedKeys(
+			configuration,
+			ConfigConstants.HA_ZOOKEEPER_LEADER_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH,
+			ConfigConstants.ZOOKEEPER_LEADER_PATH) + pathSuffix;
 
 		return new ZooKeeperLeaderElectionService(client, latchPath, leaderPath);
 	}

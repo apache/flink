@@ -925,12 +925,12 @@ class TaskManager(
 
     val partitionStateChecker = new ActorGatewayPartitionProducerStateChecker(
       jobManagerGateway,
-      new FiniteDuration(config.getTimeout.getSize, config.getTimeout.getUnit))
+      new FiniteDuration(config.getTimeout().toMilliseconds, TimeUnit.MILLISECONDS))
 
     val resultPartitionConsumableNotifier = new ActorGatewayResultPartitionConsumableNotifier(
       context.dispatcher,
       jobManagerGateway,
-      new FiniteDuration(config.getTimeout.getSize, config.getTimeout.getUnit))
+      new FiniteDuration(config.getTimeout().toMilliseconds, TimeUnit.MILLISECONDS))
 
     connectionUtils = Some(
       (checkpointResponder,
