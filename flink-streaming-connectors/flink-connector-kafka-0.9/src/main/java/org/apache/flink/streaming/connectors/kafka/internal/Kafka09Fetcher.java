@@ -99,7 +99,15 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 			long pollTimeout,
 			boolean useMetrics) throws Exception
 	{
-		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, useMetrics);
+		super(
+				sourceContext,
+				assignedPartitions,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				runtimeContext.getTimeServiceProvider(),
+				runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
+				runtimeContext.getUserCodeClassLoader(),
+				useMetrics);
 
 		this.deserializer = deserializer;
 		this.runtimeContext = runtimeContext;
