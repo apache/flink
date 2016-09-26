@@ -92,7 +92,11 @@ public class JobManagerCommunicationUtils {
 					throw new Exception("Could not cancel job - no job matched expected name = '" + name +"' in " + jobs);
 				}
 			} else {
-				throw new Exception("Could not cancel job - more than one running job.");
+				String jobNames = "";
+				for(JobStatusMessage jsm: jobs) {
+					jobNames += jsm.getJobName() + ", ";
+				}
+				throw new Exception("Could not cancel job - more than one running job: " + jobNames);
 			}
 		}
 		

@@ -31,7 +31,6 @@ import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -68,7 +67,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -161,7 +159,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * Test that ensures the KafkaConsumer is properly failing if the topic doesnt exist
 	 * and a wrong broker was specified
 	 *
-	 * @throws Exception
 	 */
 	public void runFailOnNoBrokerTest() throws Exception {
 		try {
@@ -277,8 +274,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
 		producerProperties.putAll(secureProps);
-		FlinkKafkaProducerBase<Tuple2<Long, String>> prod = kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
-		stream.addSink(prod);
+		kafkaServer.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
 
 		// ----------- add consumer dataflow ----------
 
@@ -502,7 +498,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// launch a producer thread
 		DataGenerators.InfiniteStringsGenerator generator =
-				new DataGenerators.InfiniteStringsGenerator(kafkaServer, topic);
+				new DataGenerators.InfiniteStringsGenerator(kafkaServer, topic, flinkPort);
 		generator.start();
 
 		// launch a consumer asynchronously
@@ -525,7 +521,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 					env.addSource(source).addSink(new DiscardingSink<String>());
 
-					env.execute();
+					env.execute("Runner for CancelingOnFullInputTest");
 				}
 				catch (Throwable t) {
 					jobError.set(t);
@@ -546,7 +542,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 
 		// cancel
-		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout), "Runner for CancelingOnFullInputTest");
 
 		// wait for the program to be done and validate that we failed with the right exception
 		runnerThread.join();
@@ -600,7 +596,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 					env.addSource(source).addSink(new DiscardingSink<String>());
 
-					env.execute();
+					env.execute("CancelingOnEmptyInputTest");
 				}
 				catch (Throwable t) {
 					LOG.error("Job Runner failed with exception", t);
@@ -658,7 +654,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				.addSink(new DiscardingSink<Integer>());
 
 		try {
-			env.execute();
+			env.execute("test fail on deploy");
 			fail("this test should fail with an exception");
 		}
 		catch (ProgramInvocationException e) {
@@ -725,7 +721,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Properties props = new Properties();
 		props.putAll(standardProps);
 		props.putAll(secureProps);
-		stream.addSink(kafkaServer.getProducer("dummy", schema, props, null));
+		kafkaServer.produceIntoKafka(stream, "dummy", schema, props, null);
 
 		env.execute("Write to topics");
 
@@ -832,10 +828,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public void cancel() {
 			}
 		});
-		kafkaServer.produceIntoKafka(stream,topic, new ByteArraySerializationSchema(), props, null);
+		kafkaServer.produceIntoKafka(stream, topic, new ByteArraySerializationSchema(), props, null);
 
 		// Execute blocks
-		env.execute();
+		env.execute("runJsonTableSource: data gen");
 
 		// Register as table source
 		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.getTableEnvironment(env);
@@ -1304,7 +1300,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env1.disableOperatorChaining(); // let the source read everything into the network buffers
 
 					TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
-					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, props));
+					DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
 					fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 						@Override
 						public void flatMap(Tuple2<Integer, Integer> value, Collector<Void> out) throws Exception {// no op
@@ -1329,7 +1325,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 						}
 					});
 
-					kafkaServer.produceIntoKafka(fromGen, topic, new KeyedSerializationSchemaWrapper<>(schema), props, null);
+					kafkaServer.produceIntoKafka(fromGen, topic, new KeyedSerializationSchemaWrapper<>(schema), standardProps, null);
 
 					env1.execute("Metrics test job");
 				} catch(Throwable t) {
