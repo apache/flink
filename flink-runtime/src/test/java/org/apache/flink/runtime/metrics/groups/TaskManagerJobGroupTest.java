@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.TestLogger;
@@ -35,7 +36,7 @@ public class TaskManagerJobGroupTest extends TestLogger {
 
 	@Test
 	public void testGenerateScopeDefault() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
 		JobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
@@ -55,7 +56,7 @@ public class TaskManagerJobGroupTest extends TestLogger {
 		Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "abc");
 		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, "some-constant.<job_name>");
-		MetricRegistry registry = new MetricRegistry(cfg);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		JobID jid = new JobID();
 
@@ -77,7 +78,7 @@ public class TaskManagerJobGroupTest extends TestLogger {
 		Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "peter.<tm_id>");
 		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, "*.some-constant.<job_id>");
-		MetricRegistry registry = new MetricRegistry(cfg);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		JobID jid = new JobID();
 
@@ -97,7 +98,7 @@ public class TaskManagerJobGroupTest extends TestLogger {
 	@Test
 	public void testCreateQueryServiceMetricInfo() {
 		JobID jid = new JobID();
-		MetricRegistry registry = new MetricRegistry(new Configuration());
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
 

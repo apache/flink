@@ -26,6 +26,7 @@ import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 
 import org.junit.Assert;
@@ -43,7 +44,7 @@ public class MetricGroupRegistrationTest {
 		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
-		MetricRegistry registry = new MetricRegistry(config);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 
@@ -102,7 +103,7 @@ public class MetricGroupRegistrationTest {
 	public void testDuplicateGroupName() {
 		Configuration config = new Configuration();
 
-		MetricRegistry registry = new MetricRegistry(config);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 

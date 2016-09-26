@@ -48,7 +48,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
-		MetricRegistry metricRegistry = new MetricRegistry(config);
+		MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		assertTrue(metricRegistry.getReporters().size() == 1);
 
@@ -78,7 +78,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter12.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter13.class.getName());
 
-		MetricRegistry metricRegistry = new MetricRegistry(config);
+		MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		assertTrue(metricRegistry.getReporters().size() == 3);
 
@@ -128,7 +128,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg2", "world");
 
-		new MetricRegistry(config).shutdown();
+		new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config)).shutdown();
 	}
 
 	protected static class TestReporter2 extends TestReporter {
@@ -153,7 +153,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "50 MILLISECONDS");
 
-		MetricRegistry registry = new MetricRegistry(config);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		long start = System.currentTimeMillis();
 		for (int x = 0; x < 10; x++) {
@@ -195,7 +195,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter6.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter7.class.getName());
 
-		MetricRegistry registry = new MetricRegistry(config);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		TaskManagerMetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 		root.counter("rootCounter");
@@ -259,7 +259,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "C");
 		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_OPERATOR, "D");
 
-		ScopeFormats scopeConfig = MetricRegistry.createScopeConfig(config);
+		ScopeFormats scopeConfig = MetricRegistryConfiguration.createScopeConfig(config);
 
 		assertEquals("A", scopeConfig.getTaskManagerFormat().format());
 		assertEquals("B", scopeConfig.getTaskManagerJobFormat().format());
@@ -273,7 +273,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
 		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A.B.C.D.E");
 
-		MetricRegistry registry = new MetricRegistry(config);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id");
 		assertEquals("A_B_C_D_E_name", tmGroup.getMetricIdentifier("name"));
