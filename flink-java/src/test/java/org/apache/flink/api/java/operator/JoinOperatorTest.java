@@ -39,7 +39,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -1212,7 +1211,6 @@ public class JoinOperatorTest {
 		public String myString;
 		public Object nothing;
 		public List<String> countries;
-		public Writable interfaceTest;
 		
 		public CustomType() {};
 		
@@ -1221,7 +1219,6 @@ public class JoinOperatorTest {
 			myLong = l;
 			myString = s;
 			countries = null;
-			interfaceTest = null;
 			nested = new NestedCustomType(i, l, s);
 		}
 		

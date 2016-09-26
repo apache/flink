@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.hadoop.mapred
 
 import org.apache.flink.api.scala._
-
+import org.apache.flink.api.scala.hadoop.FlinkHadoopEnvironment
 import org.apache.flink.test.testdata.WordCountData
 import org.apache.flink.test.util.{TestBaseUtils, JavaProgramTestBase}
 import org.apache.hadoop.fs.Path
@@ -42,8 +42,8 @@ class WordCountMapredITCase extends JavaProgramTestBase {
   protected def testProgram() {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val input =
-      env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
+    val input = FlinkHadoopEnvironment.getHadoopEnvironment(env).
+      readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
 
     val text = input map { _._2.toString }
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
