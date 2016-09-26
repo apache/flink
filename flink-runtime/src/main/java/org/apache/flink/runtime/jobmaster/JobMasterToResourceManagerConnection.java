@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
-import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.concurrent.Future;
 
 import org.slf4j.Logger;
@@ -36,52 +35,47 @@ import java.util.concurrent.Executor;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The connection between a TaskExecutor and the ResourceManager.
+ * The connection between a JobMaster and the ResourceManager.
  */
-public class TaskExecutorToResourceManagerConnection
-		extends RegisteredRpcConnection<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+public class JobMasterToResourceManagerConnection 
+		extends RegisteredRpcConnection<ResourceManagerGateway, JobMasterRegistrationSuccess> {
 
-	/** the TaskExecutor whose connection to the ResourceManager this represents */
-	private final TaskExecutor taskExecutor;
+	/** the JobMaster whose connection to the ResourceManager this represents */
+	private final JobMaster jobMaster;
 
-	private InstanceID registrationId;
+	private final JobID jobID;
 
-	public TaskExecutorToResourceManagerConnection(
+	private final UUID jobMasterLeaderId;
+
+	public JobMasterToResourceManagerConnection(
 			Logger log,
-			TaskExecutor taskExecutor,
+			JobID jobID,
+			JobMaster jobMaster,
+			UUID jobMasterLeaderId,
 			String resourceManagerAddress,
 			UUID resourceManagerLeaderId,
 			Executor executor) {
 
 		super(log, resourceManagerAddress, resourceManagerLeaderId, executor);
-		this.taskExecutor = checkNotNull(taskExecutor);
+		this.jobMaster = checkNotNull(jobMaster);
+		this.jobID = checkNotNull(jobID);
+		this.jobMasterLeaderId = checkNotNull(jobMasterLeaderId);
 	}
 
-
 	@Override
-	protected RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> generateRegistration() {
-		return new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
-			log, taskExecutor.getRpcService(),
+	protected RetryingRegistration<ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
+		return new JobMasterToResourceManagerConnection.ResourceManagerRegistration(
+			log, jobMaster.getRpcService(),
 			getTargetAddress(), getTargetLeaderId(),
-			taskExecutor.getAddress(),taskExecutor.getResourceID());
+			jobMaster.getAddress(),jobID, jobMasterLeaderId);
 	}
 
 	@Override
-	protected void onRegistrationSuccess(TaskExecutorRegistrationSuccess success) {
-		registrationId = success.getRegistrationId();
+	protected void onRegistrationSuccess(JobMasterRegistrationSuccess success) {
 	}
 
 	@Override
 	protected void onRegistrationFailure(Throwable failure) {
-		taskExecutor.onFatalErrorAsync(failure);
-	}
-
-	/**
-	 * Gets the ID under which the TaskExecutor is registered at the ResourceManager.
-	 * This returns null until the registration is completed.
-	 */
-	public InstanceID getRegistrationId() {
-		return registrationId;
 	}
 
 	// ------------------------------------------------------------------------
@@ -89,31 +83,35 @@ public class TaskExecutorToResourceManagerConnection
 	// ------------------------------------------------------------------------
 
 	private static class ResourceManagerRegistration
-			extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+		extends RetryingRegistration<ResourceManagerGateway, JobMasterRegistrationSuccess> {
 
-		private final String taskExecutorAddress;
-		
-		private final ResourceID resourceID;
+		private final String jobMasterAddress;
+
+		private final JobID jobID;
+
+		private final UUID jobMasterLeaderId;
 
 		ResourceManagerRegistration(
-				Logger log,
-				RpcService rpcService,
-				String targetAddress,
-				UUID leaderId,
-				String taskExecutorAddress,
-				ResourceID resourceID) {
+			Logger log,
+			RpcService rpcService,
+			String targetAddress,
+			UUID leaderId,
+			String jobMasterAddress,
+			JobID jobID,
+			UUID jobMasterLeaderId) {
 
 			super(log, rpcService, "ResourceManager", ResourceManagerGateway.class, targetAddress, leaderId);
-			this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
-			this.resourceID = checkNotNull(resourceID);
+			this.jobMasterAddress = checkNotNull(jobMasterAddress);
+			this.jobID = checkNotNull(jobID);
+			this.jobMasterLeaderId = checkNotNull(jobMasterLeaderId);
 		}
 
 		@Override
 		protected Future<RegistrationResponse> invokeRegistration(
-				ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
+			ResourceManagerGateway gateway, UUID leaderId, long timeoutMillis) throws Exception {
 
 			Time timeout = Time.milliseconds(timeoutMillis);
-			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, timeout);
+			return gateway.registerJobMaster(leaderId, jobMasterLeaderId,jobMasterAddress, jobID, timeout);
 		}
 	}
 }
