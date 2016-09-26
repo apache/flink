@@ -24,8 +24,7 @@ import org.junit.Test;
 
 import static org.mockito.Mockito.mock;
 
-public class  
- SpoutOutputCollectorObserverTest {
+public class SpoutOutputCollectorObserverTest {
 
 	@Test
 	public void testFlag() {
