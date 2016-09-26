@@ -404,7 +404,8 @@ public class JobManagerHARecoveryTest {
 			storedJobs.remove(jobId);
 		}
 
-		boolean contains(JobID jobId) {
+		@Override
+		public boolean contains(JobID jobId) {
 			return storedJobs.containsKey(jobId);
 		}
 	}
