@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -34,31 +37,45 @@ import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.jobmaster.message.NextInputSplit;
+import org.apache.flink.runtime.jobmaster.message.PartitionState;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.util.SerializedThrowable;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.SerializedValue;
+
 import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -452,9 +469,12 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 * @return Acknowledge the task execution state update
 	 */
 	@RpcMethod
-	public Acknowledge updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-		System.out.println("TaskExecutionState: " + taskExecutionState);
-		return Acknowledge.get();
+	public boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
+		if (taskExecutionState == null) {
+			return false;
+		} else {
+			return executionGraph.updateState(taskExecutionState);
+		}
 	}
 
 	/**
@@ -466,6 +486,128 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	public void registerAtResourceManager(final String address) {
 		//TODO:: register at the RM
 	}
+
+	@RpcMethod
+	public NextInputSplit requestNextInputSplit(final JobVertexID vertexID, final ExecutionAttemptID executionAttempt) {
+		final byte[] serializedInputSplit;
+
+		final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttempt);
+		if (execution == null) {
+			log.error("Can not find Execution for attempt {}.", executionAttempt);
+			return null;
+		} else {
+			final Slot slot = execution.getAssignedResource();
+			final int taskId = execution.getVertex().getParallelSubtaskIndex();
+			final String host = slot != null ? slot.getTaskManagerLocation().getHostname() : null;
+
+			final ExecutionJobVertex vertex = executionGraph.getJobVertex(vertexID);
+			if (vertex != null) {
+				final InputSplitAssigner splitAssigner = vertex.getSplitAssigner();
+				if (splitAssigner != null) {
+					final InputSplit nextInputSplit = splitAssigner.getNextInputSplit(host, taskId);
+
+					log.debug("Send next input split {}.", nextInputSplit);
+					try {
+						serializedInputSplit = InstantiationUtil.serializeObject(nextInputSplit);
+					} catch (Exception ex) {
+						log.error("Could not serialize the next input split of class {}.", nextInputSplit.getClass(), ex);
+						vertex.fail(new RuntimeException("Could not serialize the next input split of class " +
+							nextInputSplit.getClass() + ".", ex));
+						return null;
+					}
+				} else {
+					log.error("No InputSplitAssigner for vertex ID {}.", vertexID);
+					return null;
+				}
+			} else {
+				log.error("Cannot find execution vertex for vertex ID {}.", vertexID);
+				return null;
+			}
+		}
+		return new NextInputSplit(serializedInputSplit);
+	}
+
+	@RpcMethod
+	public PartitionState requestPartitionState(
+		final ResultPartitionID partitionId,
+		final ExecutionAttemptID taskExecutionId,
+		final IntermediateDataSetID taskResultId)
+	{
+		final Execution execution = executionGraph.getRegisteredExecutions().get(partitionId.getProducerId());
+		final ExecutionState state = execution != null ? execution.getState() : null;
+		return new PartitionState(taskExecutionId, taskResultId, partitionId.getPartitionId(), state);
+	}
+
+	@RpcMethod
+	public void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error) {
+		final JobID jobID = executionGraph.getJobID();
+		final String jobName = executionGraph.getJobName();
+		log.info("Status of job {} ({}) changed to {}.", jobID, jobName, newJobStatus, error);
+
+		if (newJobStatus.isGloballyTerminalState()) {
+			// TODO set job end time in JobInfo
+
+			/*
+			  TODO
+			  if (jobInfo.sessionAlive) {
+                jobInfo.setLastActive()
+                val lastActivity = jobInfo.lastActive
+                context.system.scheduler.scheduleOnce(jobInfo.sessionTimeout seconds) {
+                  // remove only if no activity occurred in the meantime
+                  if (lastActivity == jobInfo.lastActive) {
+                    self ! decorateMessage(RemoveJob(jobID, removeJobFromStateBackend = true))
+                  }
+                }(context.dispatcher)
+              } else {
+                self ! decorateMessage(RemoveJob(jobID, removeJobFromStateBackend = true))
+              }
+			 */
+
+			if (newJobStatus == JobStatus.FINISHED) {
+				try {
+					final Map<String, SerializedValue<Object>> accumulatorResults =
+						executionGraph.getAccumulatorsSerialized();
+					final SerializedJobExecutionResult result = new SerializedJobExecutionResult(
+						jobID, 0, accumulatorResults // TODO get correct job duration
+					);
+					jobCompletionActions.jobFinished(result.toJobExecutionResult(userCodeLoader));
+				} catch (Exception e) {
+					log.error("Cannot fetch final accumulators for job {} ({})", jobName, jobID, e);
+					final JobExecutionException exception = new JobExecutionException(
+						jobID, "Failed to retrieve accumulator results.", e);
+					// TODO should we also notify client?
+					jobCompletionActions.jobFailed(exception);
+				}
+			}
+			else if (newJobStatus == JobStatus.CANCELED) {
+				final Throwable unpackedError = SerializedThrowable.get(error, userCodeLoader);
+				final JobExecutionException exception = new JobExecutionException(
+					jobID, "Job was cancelled.", unpackedError);
+				// TODO should we also notify client?
+				jobCompletionActions.jobFailed(exception);
+			}
+			else if (newJobStatus == JobStatus.FAILED) {
+				final Throwable unpackedError = SerializedThrowable.get(error, userCodeLoader);
+				final JobExecutionException exception = new JobExecutionException(
+					jobID, "Job execution failed.", unpackedError);
+				// TODO should we also notify client?
+				jobCompletionActions.jobFailed(exception);
+			}
+			else {
+				final JobExecutionException exception = new JobExecutionException(
+					jobID, newJobStatus + " is not a terminal state.");
+				// TODO should we also notify client?
+				jobCompletionActions.jobFailed(exception);
+				throw new RuntimeException(exception);
+			}
+		}
+	}
+
+	@RpcMethod
+	public void scheduleOrUpdateConsumers(final ResultPartitionID partitionID) {
+		executionGraph.scheduleOrUpdateConsumers(partitionID);
+	}
+
 
 	//----------------------------------------------------------------------------------------------
 	// Helper methods
