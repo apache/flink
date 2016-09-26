@@ -52,6 +52,8 @@ import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.memory.MemoryManager
@@ -944,12 +946,12 @@ class TaskManager(
 
     val partitionStateChecker = new ActorGatewayPartitionStateChecker(
       jobManagerGateway,
-      config.timeout)
+      new FiniteDuration(config.getTimeout().toMilliseconds, TimeUnit.MILLISECONDS))
 
     val resultPartitionConsumableNotifier = new ActorGatewayResultPartitionConsumableNotifier(
       context.dispatcher,
       jobManagerGateway,
-      config.timeout)
+      new FiniteDuration(config.getTimeout().toMilliseconds, TimeUnit.MILLISECONDS))
 
     connectionUtils = Some(
       (checkpointResponder,
