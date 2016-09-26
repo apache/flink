@@ -19,16 +19,14 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.registration.RpcConnection;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.concurrent.Future;
 
 import org.slf4j.Logger;
 
@@ -36,35 +34,16 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The connection between a TaskExecutor and the ResourceManager.
  */
-public class TaskExecutorToResourceManagerConnection {
-
-	/** the logger for all log messages of this class */
-	private final Logger log;
+public class TaskExecutorToResourceManagerConnection extends RpcConnection<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 	/** the TaskExecutor whose connection to the ResourceManager this represents */
 	private final TaskExecutor taskExecutor;
 
-	private final UUID resourceManagerLeaderId;
-
-	private final String resourceManagerAddress;
-
-	/** Execution context to be used to execute the on complete action of the ResourceManagerRegistration */
-	private final Executor executor;
-
-	private TaskExecutorToResourceManagerConnection.ResourceManagerRegistration pendingRegistration;
-
-	private volatile ResourceManagerGateway registeredResourceManager;
-
 	private InstanceID registrationId;
-
-	/** flag indicating that the connection is closed */
-	private volatile boolean closed;
-
 
 	public TaskExecutorToResourceManagerConnection(
 		Logger log,
@@ -73,78 +52,27 @@ public class TaskExecutorToResourceManagerConnection {
 		UUID resourceManagerLeaderId,
 		Executor executor) {
 
-		this.log = checkNotNull(log);
+		super(log, resourceManagerAddress, resourceManagerLeaderId, executor);
 		this.taskExecutor = checkNotNull(taskExecutor);
-		this.resourceManagerAddress = checkNotNull(resourceManagerAddress);
-		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
-		this.executor = checkNotNull(executor);
 	}
 
-	// ------------------------------------------------------------------------
-	//  Life cycle
-	// ------------------------------------------------------------------------
 
-	@SuppressWarnings("unchecked")
-	public void start() {
-		checkState(!closed, "The connection is already closed");
-		checkState(!isRegistered() && pendingRegistration == null, "The connection is already started");
-
-		pendingRegistration = new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
-				log, taskExecutor.getRpcService(),
-				resourceManagerAddress, resourceManagerLeaderId,
-				taskExecutor.getAddress(), taskExecutor.getResourceID());
-		pendingRegistration.startRegistration();
-
-		Future<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>> future = pendingRegistration.getFuture();
-
-		future.thenAcceptAsync(new AcceptFunction<Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess>>() {
-			@Override
-			public void accept(Tuple2<ResourceManagerGateway, TaskExecutorRegistrationSuccess> result) {
-				registrationId = result.f1.getRegistrationId();
-				registeredResourceManager = result.f0;
-			}
-		}, executor);
-		
-		// this future should only ever fail if there is a bug, not if the registration is declined
-		future.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-			@Override
-			public Void apply(Throwable failure) {
-				taskExecutor.onFatalErrorAsync(failure);
-				return null;
-			}
-		}, executor);
+	@Override
+	protected RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> generateRegistration() {
+		return new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
+			log, taskExecutor.getRpcService(),
+			getTargetAddress(), getTargetLeaderId(),
+			taskExecutor.getAddress(),taskExecutor.getResourceID());
 	}
 
-	public void close() {
-		closed = true;
-
-		// make sure we do not keep re-trying forever
-		if (pendingRegistration != null) {
-			pendingRegistration.cancel();
-		}
+	@Override
+	protected void onRegistrationSuccess(TaskExecutorRegistrationSuccess success) {
+		registrationId = success.getRegistrationId();
 	}
 
-	public boolean isClosed() {
-		return closed;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Properties
-	// ------------------------------------------------------------------------
-
-	public UUID getResourceManagerLeaderId() {
-		return resourceManagerLeaderId;
-	}
-
-	public String getResourceManagerAddress() {
-		return resourceManagerAddress;
-	}
-
-	/**
-	 * Gets the ResourceManagerGateway. This returns null until the registration is completed.
-	 */
-	public ResourceManagerGateway getResourceManager() {
-		return registeredResourceManager;
+	@Override
+	protected void onRegistrationFailure(Throwable failure) {
+		taskExecutor.onFatalErrorAsync(failure);
 	}
 
 	/**
@@ -153,18 +81,6 @@ public class TaskExecutorToResourceManagerConnection {
 	 */
 	public InstanceID getRegistrationId() {
 		return registrationId;
-	}
-
-	public boolean isRegistered() {
-		return registeredResourceManager != null;
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public String toString() {
-		return String.format("Connection to ResourceManager %s (leaderId=%s)",
-				resourceManagerAddress, resourceManagerLeaderId); 
 	}
 
 	// ------------------------------------------------------------------------
