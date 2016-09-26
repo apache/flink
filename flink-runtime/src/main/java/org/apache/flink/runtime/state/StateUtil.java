@@ -69,7 +69,7 @@ public class StateUtil {
 	 * occurring exceptions are suppressed and collected until the iteration is over and emitted as a single exception.
 	 *
 	 * @param handlesToDiscard State handles to discard. Passed iterable is allowed to deliver null values.
-	 * @throws Exception exception that is a collection of all suppressed exceptions that were caught during iteration
+	 * @throws IOException exception that is a collection of all suppressed exceptions that were caught during iteration
 	 */
 	public static void bestEffortCloseAllStateObjects(
 			Iterable<? extends StateObject> handlesToDiscard) throws IOException {
