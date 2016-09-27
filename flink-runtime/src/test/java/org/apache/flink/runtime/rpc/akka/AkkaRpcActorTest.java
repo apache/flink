@@ -133,7 +133,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		Future<WrongRpcGateway> futureGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), WrongRpcGateway.class);
 
-		WrongRpcGateway gateway = Await.result(futureGateway, timeout.duration());
+		WrongRpcGateway gateway = futureGateway.get(timeout.getSize(), timeout.getUnit());
 
 		// since it is a tell operation we won't receive a RpcConnectionException, it's only logged
 		gateway.tell("foobar");
@@ -141,10 +141,11 @@ public class AkkaRpcActorTest extends TestLogger {
 		Future<Boolean> result = gateway.barfoo();
 
 		try {
-			Await.result(result, timeout.duration());
+			result.get(timeout.getSize(), timeout.getUnit());
 			fail("We expected a RpcConnectionException.");
-		} catch (RpcConnectionException rpcConnectionException) {
+		} catch (ExecutionException ex) {
 			// we expect this exception here
+			assertTrue(ex.getCause() instanceof RpcConnectionException);
 		}
 	}
 

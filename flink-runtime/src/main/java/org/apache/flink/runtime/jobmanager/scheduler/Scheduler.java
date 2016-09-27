@@ -40,6 +40,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -142,15 +144,17 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 
 	@Override
-	public SlotAllocationFuture allocateSlot(ScheduledUnit task, boolean allowQueued) 
+	public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued)
 			throws NoResourceAvailableException {
 
 		final Object ret = scheduleTask(task, allowQueued);
 		if (ret instanceof SimpleSlot) {
-			return new SlotAllocationFuture((SimpleSlot) ret);
+			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			future.complete((SimpleSlot) ret);
+			return future;
 		}
-		else if (ret instanceof SlotAllocationFuture) {
-			return (SlotAllocationFuture) ret;
+		else if (ret instanceof Future) {
+			return (Future) ret;
 		}
 		else {
 			throw new RuntimeException();
@@ -158,7 +162,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	}
 
 	/**
-	 * Returns either a {@link org.apache.flink.runtime.instance.SimpleSlot}, or a {@link SlotAllocationFuture}.
+	 * Returns either a {@link org.apache.flink.runtime.instance.SimpleSlot}, or a {@link Future}.
 	 */
 	private Object scheduleTask(ScheduledUnit task, boolean queueIfNoResource) throws NoResourceAvailableException {
 		if (task == null) {
@@ -321,7 +325,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				else {
 					// no resource available now, so queue the request
 					if (queueIfNoResource) {
-						SlotAllocationFuture future = new SlotAllocationFuture();
+						FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
 						this.taskQueue.add(new QueuedTask(task, future));
 						return future;
 					}
@@ -569,7 +573,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 						taskQueue.poll();
 						if (queued.getFuture() != null) {
 							try {
-								queued.getFuture().setSlot(newSlot);
+								queued.getFuture().complete(newSlot);
 							}
 							catch (Throwable t) {
 								LOG.error("Error calling allocation future for task " + vertex.getSimpleName(), t);
@@ -838,10 +842,10 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 		
 		private final ScheduledUnit task;
 		
-		private final SlotAllocationFuture future;
+		private final FlinkCompletableFuture<SimpleSlot> future;
 		
 		
-		public QueuedTask(ScheduledUnit task, SlotAllocationFuture future) {
+		public QueuedTask(ScheduledUnit task, FlinkCompletableFuture<SimpleSlot> future) {
 			this.task = task;
 			this.future = future;
 		}
@@ -850,7 +854,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			return task;
 		}
 
-		public SlotAllocationFuture getFuture() {
+		public FlinkCompletableFuture<SimpleSlot> getFuture() {
 			return future;
 		}
 	}
