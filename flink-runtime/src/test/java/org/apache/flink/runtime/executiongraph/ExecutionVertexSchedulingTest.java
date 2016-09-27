@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.Instance;
@@ -26,7 +27,6 @@ import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
@@ -58,8 +58,9 @@ public class ExecutionVertexSchedulingTest {
 			assertTrue(slot.isReleased());
 
 			Scheduler scheduler = mock(Scheduler.class);
-			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean()))
-				.thenReturn(new SlotAllocationFuture(slot));
+			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			future.complete(slot);
+			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
@@ -88,7 +89,7 @@ public class ExecutionVertexSchedulingTest {
 			slot.releaseSlot();
 			assertTrue(slot.isReleased());
 
-			final SlotAllocationFuture future = new SlotAllocationFuture();
+			final FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
 
 			Scheduler scheduler = mock(Scheduler.class);
 			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
@@ -100,7 +101,10 @@ public class ExecutionVertexSchedulingTest {
 			// future has not yet a slot
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 
-			future.setSlot(slot);
+			future.complete(slot);
+
+			// wait a second for future's future action be executed
+			Thread.sleep(1000);
 
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
@@ -122,8 +126,9 @@ public class ExecutionVertexSchedulingTest {
 			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
 
 			Scheduler scheduler = mock(Scheduler.class);
-			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean()))
-				.thenReturn(new SlotAllocationFuture(slot));
+			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			future.complete(slot);
+			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 

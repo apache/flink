@@ -29,11 +29,11 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Slot;
@@ -136,10 +136,9 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			when(simpleSlot.setExecutedVertex(Matchers.any(Execution.class))).thenReturn(true);
 			when(simpleSlot.getRoot()).thenReturn(rootSlot);
 
-			when(scheduler.allocateSlot(any(ScheduledUnit.class), anyBoolean()))
-					.thenReturn(new SlotAllocationFuture(simpleSlot));
-
-			
+			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+			future.complete(simpleSlot);
+			when(scheduler.allocateSlot(any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
 
 			when(rootSlot.getSlotNumber()).thenReturn(0);
 
