@@ -173,6 +173,15 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 		return rpcService;
 	}
 
+	/**
+	 * Return a future which is completed when the rpc endpoint has been terminated.
+	 *
+	 * @return Future which is completed when the rpc endpoint has been terminated.
+	 */
+	public Future<Void> getTerminationFuture() {
+		return ((SelfGateway)self).getTerminationFuture();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Asynchronous executions
 	// ------------------------------------------------------------------------
