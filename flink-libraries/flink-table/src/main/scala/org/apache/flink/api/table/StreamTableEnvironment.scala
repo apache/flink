@@ -23,16 +23,14 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.Programs
-
+import org.apache.calcite.tools.{Programs, RuleSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.sinks.{StreamTableSink, TableSink}
-import org.apache.flink.api.table.plan.schema.
-  {StreamableTableSourceTable, TransStreamTable, DataStreamTable}
+import org.apache.flink.api.table.plan.schema.{DataStreamTable, StreamableTableSourceTable, TransStreamTable}
 import org.apache.flink.api.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -228,6 +226,11 @@ abstract class StreamTableEnvironment(
   }
 
   /**
+    * Returns the built-in rules that are defined by the environment.
+    */
+  protected def getBuiltInRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
+
+  /**
     * Translates a [[Table]] into a [[DataStream]].
     *
     * The transformation involves optimizing the relational expression tree as defined by
@@ -248,7 +251,7 @@ abstract class StreamTableEnvironment(
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
 
     // optimize the logical Flink plan
-    val optProgram = Programs.ofRules(FlinkRuleSets.DATASTREAM_OPT_RULES)
+    val optProgram = Programs.ofRules(getRuleSet)
     val flinkOutputProps = relNode.getTraitSet.replace(DataStreamConvention.INSTANCE).simplify()
 
     val dataStreamPlan = try {

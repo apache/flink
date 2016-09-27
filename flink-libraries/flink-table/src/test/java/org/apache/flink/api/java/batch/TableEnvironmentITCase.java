@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.batch;
 
+import org.apache.calcite.tools.RuleSets;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.BatchTableEnvironment;
@@ -144,5 +145,18 @@ public class TableEnvironmentITCase extends TableProgramsTestBase {
 		Table t = tableEnv1.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
 		// Must fail. Table is bound to different TableEnvironment.
 		tableEnv2.registerTable("MyTable", t);
+	}
+
+	@Test(expected = TableException.class)
+	public void testCustomCalciteConfig() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		CalciteConfig cc = new CalciteConfigBuilder().replaceRuleSet(RuleSets.ofList()).build();
+		tableEnv.getConfig().setCalciteConfig(cc);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		Table t = tableEnv.fromDataSet(ds);
+		tableEnv.toDataSet(t, Row.class);
 	}
 }
