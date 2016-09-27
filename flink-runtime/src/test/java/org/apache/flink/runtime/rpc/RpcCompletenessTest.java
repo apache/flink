@@ -57,12 +57,12 @@ public class RpcCompletenessTest extends TestLogger {
 		Class<? extends RpcEndpoint> c;
 
 		for (Class<? extends RpcEndpoint> rpcEndpoint :classes){
-			// ignore abstract class
+			// ignore abstract class, e.g abstract ResourceManager.
 			if(Modifier.isAbstract(rpcEndpoint.getModifiers())) {
 				continue;
 			}
 			c = rpcEndpoint;
-			
+
 			Class<?> rpcGatewayType = ReflectionUtil.getTemplateType1(c);
 
 			if (rpcGatewayType != null) {
