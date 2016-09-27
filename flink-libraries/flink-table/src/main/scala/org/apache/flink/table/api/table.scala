@@ -63,9 +63,23 @@ class Table(
     private[flink] val tableEnv: TableEnvironment,
     private[flink] val logicalPlan: LogicalNode) {
 
+  private val tableSchema: TableSchema = new TableSchema(
+    logicalPlan.output.map(_.name).toArray,
+    logicalPlan.output.map(_.resultType).toArray)
+
   def relBuilder = tableEnv.getRelBuilder
 
   def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
+
+  /**
+    * Returns the schema of this table.
+    */
+  def getSchema: TableSchema = tableSchema
+
+  /**
+    * Prints the schema of this table to the console in a tree format.
+    */
+  def printSchema(): Unit = print(tableSchema.toString)
 
   /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
