@@ -26,6 +26,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.BiFunction;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -52,7 +53,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 
 import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
@@ -297,49 +297,38 @@ public class Execution {
 
 			// IMPORTANT: To prevent leaks of cluster resources, we need to make sure that slots are returned
 			//     in all cases where the deployment failed. we use many try {} finally {} clauses to assure that
-			final Future<SimpleSlot> future = slotProvider.allocateSlot(toSchedule, queued);
+			final Future<SimpleSlot> slotAllocationFuture = slotProvider.allocateSlot(toSchedule, queued);
 
-			if (queued) {
-				future.handleAsync(new BiFunction<SimpleSlot, Throwable, Void>() {
-					@Override
-					public Void apply(SimpleSlot simpleSlot, Throwable throwable) {
-						if (simpleSlot != null) {
+			// IMPORTANT: We have to use the direct executor here so that we directly deploy the tasks
+			// if the slot allocation future is completed. This is necessary for immediate deployment
+			final Future<Void> deploymentFuture = slotAllocationFuture.handleAsync(new BiFunction<SimpleSlot, Throwable, Void>() {
+				@Override
+				public Void apply(SimpleSlot simpleSlot, Throwable throwable) {
+					if (simpleSlot != null) {
+						try {
+							deployToSlot(simpleSlot);
+						} catch (Throwable t) {
 							try {
-								deployToSlot(simpleSlot);
-							} catch (Throwable t) {
-								try {
-									simpleSlot.releaseSlot();
-								} finally {
-									markFailed(t);
-								}
+								simpleSlot.releaseSlot();
+							} finally {
+								markFailed(t);
 							}
 						}
-						else {
-							markFailed(throwable);
-						}
-						return null;
 					}
-				}, ExecutionContext$.MODULE$.global());
-			}
-			else {
-				SimpleSlot slot = null;
-				try {
-					// when queued is not allowed, we will get a slot or NoResourceAvailableException will be
-					// thrown earlier (when allocateSlot).
-					slot = checkNotNull(future.getNow(null));
-					deployToSlot(slot);
-				}
-				catch (Throwable t) {
-					try {
-						if (slot != null) {
-							slot.releaseSlot();
-						}
-					} finally {
-						markFailed(t);
+					else {
+						markFailed(throwable);
 					}
+					return null;
 				}
-			}
+			}, Executors.directExecutor());
 
+			// if tasks have to scheduled immediately check that the task has been deployed
+			if (!queued) {
+				if (!deploymentFuture.isDone()) {
+					markFailed(new IllegalArgumentException("The slot allocation future has not been completed yet."));
+				}
+			}
+			
 			return true;
 		}
 		else {

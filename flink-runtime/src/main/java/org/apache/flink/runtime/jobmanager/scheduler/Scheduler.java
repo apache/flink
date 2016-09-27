@@ -39,6 +39,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -140,9 +141,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 		final Object ret = scheduleTask(task, allowQueued);
 		if (ret instanceof SimpleSlot) {
-			FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
-			future.complete((SimpleSlot) ret);
-			return future;
+			return FlinkCompletableFuture.completed((SimpleSlot) ret);
 		}
 		else if (ret instanceof Future) {
 			return (Future) ret;
@@ -153,7 +152,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	}
 
 	/**
-	 * Returns either a {@link org.apache.flink.runtime.instance.SimpleSlot}, or a {@link Future}.
+	 * Returns either a {@link SimpleSlot}, or a {@link Future}.
 	 */
 	private Object scheduleTask(ScheduledUnit task, boolean queueIfNoResource) throws NoResourceAvailableException {
 		if (task == null) {
@@ -316,7 +315,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				else {
 					// no resource available now, so queue the request
 					if (queueIfNoResource) {
-						FlinkCompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
+						CompletableFuture<SimpleSlot> future = new FlinkCompletableFuture<>();
 						this.taskQueue.add(new QueuedTask(task, future));
 						return future;
 					}
@@ -833,10 +832,10 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 		
 		private final ScheduledUnit task;
 		
-		private final FlinkCompletableFuture<SimpleSlot> future;
+		private final CompletableFuture<SimpleSlot> future;
 		
 		
-		public QueuedTask(ScheduledUnit task, FlinkCompletableFuture<SimpleSlot> future) {
+		public QueuedTask(ScheduledUnit task, CompletableFuture<SimpleSlot> future) {
 			this.task = task;
 			this.future = future;
 		}
@@ -845,7 +844,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			return task;
 		}
 
-		public FlinkCompletableFuture<SimpleSlot> getFuture() {
+		public CompletableFuture<SimpleSlot> getFuture() {
 			return future;
 		}
 	}
