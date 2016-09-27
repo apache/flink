@@ -280,6 +280,7 @@ Metrics can be exposed to an external system by configuring one or several repor
 - `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
 - `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
+- `metrics.reporter.<name>.scope.delimiter`: The delimiter to use for the identifier (default value use `metrics.scope.delimiter`) for the reporter named `<name>`.
 
 All reporters must at least have the `class` property, some allow specifying a reporting `interval`. Below,
 we will list more settings specific to each reporter.

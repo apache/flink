@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.slf4j.Logger;
@@ -54,8 +55,8 @@ public class MetricRegistry {
 	private ActorRef queryService;
 
 	private final ScopeFormats scopeFormats;
-
-	private final char delimiter;
+	private final List<Character> delimiters = new ArrayList<>();
+	private final char globalDelimiter;
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
@@ -72,14 +73,14 @@ public class MetricRegistry {
 		}
 		this.scopeFormats = scopeFormats;
 
-		char delim;
+		String delim;
 		try {
-			delim = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".").charAt(0);
+			delim = config.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".");
 		} catch (Exception e) {
 			LOG.warn("Failed to parse delimiter, using default delimiter.", e);
-			delim = '.';
+			delim = ".";
 		}
-		this.delimiter = delim;
+		this.globalDelimiter = delim.charAt(0);
 
 		// second, instantiate any custom configured reporters
 		this.reporters = new ArrayList<>();
@@ -99,10 +100,9 @@ public class MetricRegistry {
 				DelegatingConfiguration reporterConfig = new DelegatingConfiguration(config, ConfigConstants.METRICS_REPORTER_PREFIX + namedReporter + ".");
 				final String className = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, null);
 				if (className == null) {
-					LOG.error("No reporter class set for reporter " + namedReporter + ". Metrics might not be exposed/reported.");
+					LOG.error("No reporter class set for reporter {}. Metrics might not be exposed/reported.", namedReporter);
 					continue;
 				}
-
 				try {
 					String configuredPeriod = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, null);
 					TimeUnit timeunit = TimeUnit.SECONDS;
@@ -140,6 +140,13 @@ public class MetricRegistry {
 						LOG.info("Reporting metrics for reporter {} of type {}.", namedReporter, className);
 					}
 					reporters.add(reporterInstance);
+
+					String delimiterForReporter = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, delim);
+					if (delimiterForReporter.length() != 1) {
+						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, delim);
+						delimiterForReporter = delim;
+					}
+					this.delimiters.add(delimiterForReporter.charAt(0));
 				}
 				catch (Throwable t) {
 					shutdownExecutor();
@@ -162,8 +169,29 @@ public class MetricRegistry {
 		}
 	}
 
+	/**
+	 * Global delimiter for all reporters
+	 *
+	 * @return global delimiter
+	 */
 	public char getDelimiter() {
-		return this.delimiter;
+		return this.globalDelimiter;
+	}
+
+	/**
+	 * Specific delimiter for reporter with index.
+	 * if reporter not found, return global delimiter.
+	 *
+	 * @param reporterIndex index of the reporter whose delimiter should be used
+	 * @return specific delimiter for reporter
+	 */
+	public char getDelimiter(int reporterIndex) {
+		try {
+			return delimiters.get(reporterIndex);
+		} catch (IndexOutOfBoundsException e) {
+			LOG.warn("Delimiter for index {} not found, returning global delimiter.", reporterIndex);
+			return this.globalDelimiter;
+		}
 	}
 
 	public List<MetricReporter> getReporters() {
@@ -186,7 +214,7 @@ public class MetricRegistry {
 		}
 		shutdownExecutor();
 	}
-	
+
 	private void shutdownExecutor() {
 		if (executor != null) {
 			executor.shutdown();
@@ -216,17 +244,20 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void register(Metric metric, String metricName, MetricGroup group) {
+	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
 			if (reporters != null) {
-				for (MetricReporter reporter : reporters) {
+				for (int i = 0; i < reporters.size(); i++) {
+					MetricReporter reporter = reporters.get(i);
 					if (reporter != null) {
-						reporter.notifyOfAddedMetric(metric, metricName, group);
+						FrontMetricGroup front = new FrontMetricGroup(i);
+						front.setReference(group);
+						reporter.notifyOfAddedMetric(metric, metricName, front);
 					}
 				}
 			}
 			if (queryService != null) {
-				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, (AbstractMetricGroup) group);
+				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);

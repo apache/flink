@@ -144,7 +144,7 @@ public class MetricGroupTest extends TestLogger {
 		}
 
 		@Override
-		public void register(Metric metric, String name, MetricGroup parent) {
+		public void register(Metric metric, String name, AbstractMetricGroup parent) {
 			fail("Metric should never be registered");
 		}
 
