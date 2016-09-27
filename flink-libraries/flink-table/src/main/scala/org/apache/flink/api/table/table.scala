@@ -66,6 +66,17 @@ class Table(
   def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
 
   /**
+    * Returns the schema of this Table
+    */
+  def schema: Schema = new Schema(logicalPlan.output.map(_.name).toArray,
+                                  logicalPlan.output.map(_.resultType).toArray)
+
+  /**
+    * Print the schema to the console in a nice tree format
+    */
+  def printSchema(): Unit = print(schema.toString)
+
+  /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
     * can contain complex expressions and aggregations.
     *

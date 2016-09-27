@@ -60,3 +60,8 @@ object ValidationException {
   * Exception for unwanted method calling on unresolved expression.
   */
 case class UnresolvedException(msg: String) extends RuntimeException(msg)
+
+/**
+  * Exception for the table doesn't have a field of a specified name.
+  */
+case class FieldNotFoundException(msg: String) extends RuntimeException(msg)
