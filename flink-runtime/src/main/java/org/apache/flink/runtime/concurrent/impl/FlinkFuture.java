@@ -104,7 +104,6 @@ public class FlinkFuture<T> implements Future<T> {
 	@Override
 	public T getNow(T valueIfAbsent) throws ExecutionException {
 		Preconditions.checkNotNull(scalaFuture);
-		Preconditions.checkNotNull(valueIfAbsent);
 
 		Option<Try<T>> value = scalaFuture.value();
 

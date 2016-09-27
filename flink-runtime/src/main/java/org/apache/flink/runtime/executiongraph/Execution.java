@@ -20,18 +20,18 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
-
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.BiFunction;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -41,20 +41,18 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.slf4j.Logger;
 
 import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
+import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
@@ -299,32 +297,43 @@ public class Execution {
 
 			// IMPORTANT: To prevent leaks of cluster resources, we need to make sure that slots are returned
 			//     in all cases where the deployment failed. we use many try {} finally {} clauses to assure that
-			final SlotAllocationFuture future = slotProvider.allocateSlot(toSchedule, queued);
+			final Future<SimpleSlot> future = slotProvider.allocateSlot(toSchedule, queued);
+
 			if (queued) {
-				future.setFutureAction(new SlotAllocationFutureAction() {
+				future.handleAsync(new BiFunction<SimpleSlot, Throwable, Void>() {
 					@Override
-					public void slotAllocated(SimpleSlot slot) {
-						try {
-							deployToSlot(slot);
-						}
-						catch (Throwable t) {
+					public Void apply(SimpleSlot simpleSlot, Throwable throwable) {
+						if (simpleSlot != null) {
 							try {
-								slot.releaseSlot();
-							} finally {
-								markFailed(t);
+								deployToSlot(simpleSlot);
+							} catch (Throwable t) {
+								try {
+									simpleSlot.releaseSlot();
+								} finally {
+									markFailed(t);
+								}
 							}
 						}
+						else {
+							markFailed(throwable);
+						}
+						return null;
 					}
-				});
+				}, ExecutionContext$.MODULE$.global());
 			}
 			else {
-				SimpleSlot slot = future.get();
+				SimpleSlot slot = null;
 				try {
+					// when queued is not allowed, we will get a slot or NoResourceAvailableException will be
+					// thrown earlier (when allocateSlot).
+					slot = checkNotNull(future.getNow(null));
 					deployToSlot(slot);
 				}
 				catch (Throwable t) {
 					try {
-						slot.releaseSlot();
+						if (slot != null) {
+							slot.releaseSlot();
+						}
 					} finally {
 						markFailed(t);
 					}
@@ -394,7 +403,7 @@ public class Execution {
 			
 			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
-			final Future<Object> deployAction = gateway.ask(new SubmitTask(deployment), timeout);
+			final scala.concurrent.Future<Object> deployAction = gateway.ask(new SubmitTask(deployment), timeout);
 
 			deployAction.onComplete(new OnComplete<Object>(){
 
@@ -436,7 +445,7 @@ public class Execution {
 		if (slot != null) {
 			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
-			Future<Object> stopResult = gateway.retry(
+			scala.concurrent.Future<Object> stopResult = gateway.retry(
 				new StopTask(attemptId),
 				NUM_STOP_CALL_TRIES,
 				timeout,
@@ -916,7 +925,7 @@ public class Execution {
 
 			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
-			Future<Object> cancelResult = gateway.retry(
+			scala.concurrent.Future<Object> cancelResult = gateway.retry(
 				new CancelTask(attemptId),
 				NUM_CANCEL_CALL_TRIES,
 				timeout,
@@ -965,7 +974,7 @@ public class Execution {
 			final ActorGateway gateway = consumerSlot.getTaskManagerActorGateway();
 			final TaskManagerLocation taskManagerLocation = consumerSlot.getTaskManagerLocation();
 
-			Future<Object> futureUpdate = gateway.ask(updatePartitionInfo, timeout);
+			scala.concurrent.Future<Object> futureUpdate = gateway.ask(updatePartitionInfo, timeout);
 
 			futureUpdate.onFailure(new OnFailure() {
 				@Override

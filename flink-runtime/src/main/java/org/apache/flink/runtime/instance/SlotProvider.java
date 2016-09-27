@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 
 /**
  * The slot provider is responsible for preparing slots for ready-to-run tasks.
@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
  * <p>It supports two allocating modes:
  * <ul>
  *     <li>Immediate allocating: A request for a task slot immediately gets satisfied, we can call
- *         {@link SlotAllocationFuture#get()} to get the allocated slot.</li>
+ *         {@link Future#getNow(Object)} to get the allocated slot.</li>
  *     <li>Queued allocating: A request for a task slot is queued and returns a future that will be
  *         fulfilled as soon as a slot becomes available.</li>
  * </ul>
@@ -44,5 +44,5 @@ public interface SlotProvider {
 	 * 
 	 * @throws NoResourceAvailableException
 	 */
-	SlotAllocationFuture allocateSlot(ScheduledUnit task, boolean allowQueued) throws NoResourceAvailableException;
+	Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) throws NoResourceAvailableException;
 }
