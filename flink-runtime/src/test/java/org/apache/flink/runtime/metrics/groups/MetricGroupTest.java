@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
@@ -37,6 +37,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class MetricGroupTest extends TestLogger {
+
+	private static final MetricRegistryConfiguration defaultMetricRegistryConfiguration = MetricRegistryConfiguration.defaultMetricRegistryConfiguration();
 	
 	private MetricRegistry registry;
 
@@ -44,7 +46,7 @@ public class MetricGroupTest extends TestLogger {
 
 	@Before
 	public void createRegistry() {
-		this.registry = new MetricRegistry(new Configuration());
+		this.registry = new MetricRegistry(defaultMetricRegistryConfiguration);
 	}
 
 	@After
@@ -122,7 +124,7 @@ public class MetricGroupTest extends TestLogger {
 		JobID jid = new JobID();
 		AbstractID vid = new AbstractID();
 		AbstractID eid = new AbstractID();
-		MetricRegistry registry = new MetricRegistry(new Configuration());
+		MetricRegistry registry = new MetricRegistry(defaultMetricRegistryConfiguration);
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
 		TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
@@ -140,7 +142,7 @@ public class MetricGroupTest extends TestLogger {
 	private static class ExceptionOnRegisterRegistry extends MetricRegistry {
 		
 		public ExceptionOnRegisterRegistry() {
-			super(new Configuration());
+			super(defaultMetricRegistryConfiguration);
 		}
 
 		@Override

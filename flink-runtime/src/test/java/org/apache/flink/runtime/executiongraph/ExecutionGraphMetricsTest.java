@@ -34,6 +34,7 @@ import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Slot;
@@ -99,7 +100,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 	
 			FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 	
-			MetricRegistry metricRegistry = new MetricRegistry(config);
+			MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 	
 			assertTrue(metricRegistry.getReporters().size() == 1);
 	

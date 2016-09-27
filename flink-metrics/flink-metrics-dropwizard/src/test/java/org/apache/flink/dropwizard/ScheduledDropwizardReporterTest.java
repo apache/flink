@@ -29,6 +29,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -78,7 +79,9 @@ public class ScheduledDropwizardReporterTest {
 		configuration.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 		configuration.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
 
-		MetricRegistry metricRegistry = new MetricRegistry(configuration);
+		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
+
+		MetricRegistry metricRegistry = new MetricRegistry(metricRegistryConfiguration);
 
 		char delimiter = metricRegistry.getDelimiter();
 

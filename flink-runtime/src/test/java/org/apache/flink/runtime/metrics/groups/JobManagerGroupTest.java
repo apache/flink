@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.TestLogger;
@@ -39,7 +40,7 @@ public class JobManagerGroupTest extends TestLogger {
 
 	@Test
 	public void addAndRemoveJobs() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		final JobManagerMetricGroup group = new JobManagerMetricGroup(registry, "localhost");
 
 		final JobID jid1 = new JobID();
@@ -71,7 +72,7 @@ public class JobManagerGroupTest extends TestLogger {
 
 	@Test
 	public void testCloseClosesAll() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		final JobManagerMetricGroup group = new JobManagerMetricGroup(registry, "localhost");
 
 		final JobID jid1 = new JobID();
@@ -97,7 +98,7 @@ public class JobManagerGroupTest extends TestLogger {
 
 	@Test
 	public void testGenerateScopeDefault() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		JobManagerMetricGroup group = new JobManagerMetricGroup(registry, "localhost");
 
 		assertArrayEquals(new String[]{"localhost", "jobmanager"}, group.getScopeComponents());
@@ -110,7 +111,7 @@ public class JobManagerGroupTest extends TestLogger {
 	public void testGenerateScopeCustom() {
 		Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_JM, "constant.<host>.foo.<host>");
-		MetricRegistry registry = new MetricRegistry(cfg);
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		JobManagerMetricGroup group = new JobManagerMetricGroup(registry, "host");
 
@@ -122,7 +123,7 @@ public class JobManagerGroupTest extends TestLogger {
 
 	@Test
 	public void testCreateQueryServiceMetricInfo() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		JobManagerMetricGroup jm = new JobManagerMetricGroup(registry, "host");
 
 		QueryScopeInfo.JobManagerQueryScopeInfo info = jm.createQueryServiceMetricInfo(new DummyCharacterFilter());
