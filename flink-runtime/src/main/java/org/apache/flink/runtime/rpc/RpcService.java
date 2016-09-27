@@ -77,6 +77,13 @@ public interface RpcService {
 	void stopService();
 
 	/**
+	 * Returns a future indicating when the RPC service has been shut down.
+	 *
+	 * @return Termination future
+	 */
+	Future<Void> getTerminationFuture();
+
+	/**
 	 * Gets the executor, provided by this RPC service. This executor can be used for example for
 	 * the {@code handleAsync(...)} or {@code thenAcceptAsync(...)} methods of futures.
 	 * 
