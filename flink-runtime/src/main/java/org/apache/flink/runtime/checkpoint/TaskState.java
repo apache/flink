@@ -62,7 +62,7 @@ public class TaskState implements StateObject {
 				"Parallelism " + parallelism + " is not smaller or equal to max parallelism " + maxParallelism + ".");
 
 		this.jobVertexID = jobVertexID;
-		//preallocate lists of the required size, so that we can randomly set values to indexes
+
 		this.subtaskStates = new HashMap<>(parallelism);
 		this.keyGroupsStateHandles = new HashMap<>(parallelism);
 
@@ -152,7 +152,7 @@ public class TaskState implements StateObject {
 
 
 	@Override
-	public long getStateSize() throws Exception {
+	public long getStateSize() throws IOException {
 		long result = 0L;
 
 		for (int i = 0; i < parallelism; i++) {

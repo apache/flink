@@ -334,7 +334,7 @@ public class SimpleCheckpointStatsTrackerTest {
 					StreamStateHandle proxy = new StateHandleProxy(new Path(), proxySize);
 
 					SubtaskState subtaskState = new SubtaskState(
-						new ChainedStateHandle<>(Arrays.asList(proxy)),
+						new ChainedStateHandle<>(Collections.singletonList(proxy)),
 						duration);
 
 					taskState.putState(subtaskIndex, subtaskState);
@@ -371,21 +371,11 @@ public class SimpleCheckpointStatsTrackerTest {
 
 		private static final long serialVersionUID = 35356735683568L;
 
-		public StateHandleProxy(Path filePath, long proxySize) {
-			super(filePath);
-			this.proxySize = proxySize;
-		}
-
-		private long proxySize;
-
-		@Override
-		public void discardState() throws Exception {
-
+		public StateHandleProxy(Path filePath, long size) {
+			super(filePath, size);
 		}
 
 		@Override
-		public long getStateSize() {
-			return proxySize;
-		}
+		public void discardState() {}
 	}
 }

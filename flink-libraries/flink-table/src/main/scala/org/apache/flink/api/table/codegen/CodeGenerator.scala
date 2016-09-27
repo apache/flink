@@ -638,7 +638,7 @@ class CodeGenerator(
       case TIMESTAMP =>
         generateNonNullLiteral(resultType, value.toString + "L")
 
-      case INTERVAL_YEAR_MONTH =>
+      case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidInt) {
           generateNonNullLiteral(resultType, decimal.intValue().toString)
@@ -646,7 +646,7 @@ class CodeGenerator(
           throw new CodeGenException("Decimal can not be converted to interval of months.")
         }
 
-      case INTERVAL_DAY_TIME =>
+      case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
         val decimal = BigDecimal(value.asInstanceOf[JBigDecimal])
         if (decimal.isValidLong) {
           generateNonNullLiteral(resultType, decimal.longValue().toString + "L")

@@ -20,8 +20,6 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -41,6 +39,7 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 		StreamStateHandle, RetrievableStateHandle<T>, Closeable {
 
 	private static final long serialVersionUID = 314567453677355L;
+
 	/** wrapped inner stream state handle from which we deserialize on retrieval */
 	private final StreamStateHandle wrappedStreamStateHandle;
 
@@ -48,9 +47,9 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 		this.wrappedStreamStateHandle = Preconditions.checkNotNull(streamStateHandle);
 	}
 
-	public RetrievableStreamStateHandle(Path filePath) {
+	public RetrievableStreamStateHandle(Path filePath, long stateSize) {
 		Preconditions.checkNotNull(filePath);
-		this.wrappedStreamStateHandle = new FileStateHandle(filePath);
+		this.wrappedStreamStateHandle = new FileStateHandle(filePath, stateSize);
 	}
 
 	@Override
@@ -71,7 +70,7 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 	}
 
 	@Override
-	public long getStateSize() throws Exception {
+	public long getStateSize() throws IOException {
 		return wrappedStreamStateHandle.getStateSize();
 	}
 

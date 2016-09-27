@@ -108,7 +108,7 @@ public class CompletedCheckpoint implements StateObject {
 	}
 
 	@Override
-	public long getStateSize() throws Exception {
+	public long getStateSize() throws IOException {
 		long result = 0L;
 
 		for (TaskState taskState : taskStates.values()) {

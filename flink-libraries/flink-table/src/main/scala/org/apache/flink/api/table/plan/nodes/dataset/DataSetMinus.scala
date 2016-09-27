@@ -38,14 +38,14 @@ import scala.collection.JavaConverters._
 class DataSetMinus(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    left: RelNode,
-    right: RelNode,
-    rowType: RelDataType,
+    leftNode: RelNode,
+    rightNode: RelNode,
+    rowRelDataType: RelDataType,
     all: Boolean)
-  extends BiRel(cluster, traitSet, left, right)
+  extends BiRel(cluster, traitSet, leftNode, rightNode)
     with DataSetRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetMinus(
@@ -53,7 +53,7 @@ class DataSetMinus(
       traitSet,
       inputs.get(0),
       inputs.get(1),
-      rowType,
+      getRowType,
       all
     )
   }
@@ -73,6 +73,17 @@ class DataSetMinus(
       val rowSize = this.estimateRowSize(child.getRowType)
       cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
     }
+  }
+
+  override def estimateRowCount(mq: RelMetadataQuery): Double = {
+    // from org.apache.calcite.rel.metadata.RelMdUtil.getMinusRowCount
+    val children = this.getInputs
+    var rowCnt = mq.getRowCount(children.head)
+    getInputs.tail.foreach(rowCnt -= 0.5 * mq.getRowCount(_))
+    if (rowCnt < 0) {
+      rowCnt = 0.0
+    }
+    rowCnt
   }
 
   override def translateToPlan(
@@ -108,14 +119,14 @@ class DataSetMinus(
         // conversion
         if (determinedType != leftType) {
           val mapFunc = getConversionMapper(
-            config,
-            false,
-            leftType,
-            determinedType,
-            "DataSetMinusConversion",
-            getRowType.getFieldNames)
+            config = config,
+            nullableInput = false,
+            inputType = leftType,
+            expectedType = determinedType,
+            conversionOperatorName = "DataSetMinusConversion",
+            fieldNames = getRowType.getFieldNames)
 
-          val opName = s"convert: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+          val opName = s"convert: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
           minusDs.map(mapFunc).name(opName)
         }
@@ -127,7 +138,7 @@ class DataSetMinus(
   }
 
   private def minusSelectionToString: String = {
-    rowType.getFieldNames.asScala.toList.mkString(", ")
+    getRowType.getFieldNames.asScala.toList.mkString(", ")
   }
 
 }

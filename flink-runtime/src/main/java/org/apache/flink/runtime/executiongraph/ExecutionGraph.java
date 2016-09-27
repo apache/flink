@@ -390,7 +390,6 @@ public class ExecutionGraph {
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
-				userClassLoader,
 				checkpointIDCounter,
 				checkpointStore,
 				savepointStore,

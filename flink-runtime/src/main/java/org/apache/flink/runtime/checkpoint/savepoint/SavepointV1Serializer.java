@@ -197,6 +197,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 		} else if (stateHandle instanceof FileStateHandle) {
 			dos.writeByte(FILE_STREAM_STATE_HANDLE);
 			FileStateHandle fileStateHandle = (FileStateHandle) stateHandle;
+			dos.writeLong(stateHandle.getStateSize());
 			dos.writeUTF(fileStateHandle.getFilePath().toString());
 
 		} else if (stateHandle instanceof ByteStreamStateHandle) {
@@ -218,12 +219,13 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 		if (NULL_HANDLE == type) {
 			return null;
 		} else if (FILE_STREAM_STATE_HANDLE == type) {
+			long size = dis.readLong();
 			String pathString = dis.readUTF();
-			return new FileStateHandle(new Path(pathString));
+			return new FileStateHandle(new Path(pathString), size);
 		} else if (BYTE_STREAM_STATE_HANDLE == type) {
 			int numBytes = dis.readInt();
 			byte[] data = new byte[numBytes];
-			dis.read(data);
+			dis.readFully(data);
 			return new ByteStreamStateHandle(data);
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
