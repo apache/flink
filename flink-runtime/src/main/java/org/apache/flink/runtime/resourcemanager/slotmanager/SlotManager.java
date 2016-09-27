@@ -22,16 +22,18 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
 import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +84,9 @@ public abstract class SlotManager {
 	/** The current leader id set by the ResourceManager */
 	private UUID leaderID;
 
+	/** The Resource allocation provider */
+	private ResourceManagerServices resourceManagerServices;
+
 	public SlotManager() {
 		this.registeredSlots = new HashMap<>(16);
 		this.pendingSlotRequests = new LinkedHashMap<>(16);
@@ -89,6 +94,16 @@ public abstract class SlotManager {
 		this.allocationMap = new AllocationMap();
 		this.taskManagerGateways = new HashMap<>();
 		this.timeout = Time.seconds(10);
+	}
+
+	/**
+	 * Initializes the resource supplier which is needed to request new resources.
+	 */
+	public void setupResourceManagerServices(ResourceManagerServices resourceManagerServices) {
+		if (this.resourceManagerServices != null) {
+			throw new IllegalStateException("ResourceManagerServices may only be set once.");
+		}
+		this.resourceManagerServices = resourceManagerServices;
 	}
 
 
@@ -120,17 +135,32 @@ public abstract class SlotManager {
 
 			// record this allocation in bookkeeping
 			allocationMap.addAllocation(slot.getSlotId(), allocationId);
-
 			// remove selected slot from free pool
-			freeSlots.remove(slot.getSlotId());
+			final ResourceSlot removedSlot = freeSlots.remove(slot.getSlotId());
 
 			final Future<SlotRequestReply> slotRequestReplyFuture =
 				slot.getTaskExecutorGateway().requestSlot(allocationId, leaderID, timeout);
-			// TODO handle timeouts and response
+
+			slotRequestReplyFuture.handleAsync(new BiFunction<SlotRequestReply, Throwable, Object>() {
+				@Override
+				public Object apply(SlotRequestReply slotRequestReply, Throwable throwable) {
+					if (throwable != null) {
+						// we failed, put the slot and the request back again
+						if (allocationMap.isAllocated(slot.getSlotId())) {
+							// only re-add if the slot hasn't been removed in the meantime
+							freeSlots.put(slot.getSlotId(), removedSlot);
+						}
+						pendingSlotRequests.put(allocationId, request);
+					}
+					return null;
+				}
+			}, resourceManagerServices.getExecutor());
 		} else {
 			LOG.info("Cannot fulfil slot request, try to allocate a new container for it, " +
 				"AllocationID:{}, JobID:{}", allocationId, request.getJobId());
-			allocateContainer(request.getResourceProfile());
+			Preconditions.checkState(resourceManagerServices != null,
+				"Attempted to allocate resources but no ResourceManagerServices set.");
+			resourceManagerServices.allocateResource(request.getResourceProfile());
 			pendingSlotRequests.put(allocationId, request);
 		}
 
@@ -343,7 +373,7 @@ public abstract class SlotManager {
 
 		if (chosenRequest != null) {
 			final AllocationID allocationId = chosenRequest.getAllocationId();
-			pendingSlotRequests.remove(allocationId);
+			final SlotRequest removedSlotRequest = pendingSlotRequests.remove(allocationId);
 
 			LOG.info("Assigning SlotID({}) to AllocationID({}), JobID:{}", freeSlot.getSlotId(),
 				allocationId, chosenRequest.getJobId());
@@ -351,7 +381,19 @@ public abstract class SlotManager {
 
 			final Future<SlotRequestReply> slotRequestReplyFuture =
 				freeSlot.getTaskExecutorGateway().requestSlot(allocationId, leaderID, timeout);
-			// TODO handle timeouts and response
+
+			slotRequestReplyFuture.handleAsync(new BiFunction<SlotRequestReply, Throwable, Object>() {
+				@Override
+				public Object apply(SlotRequestReply slotRequestReply, Throwable throwable) {
+					if (throwable != null) {
+						// we failed, add the request back again
+						if (allocationMap.isAllocated(freeSlot.getSlotId())) {
+							pendingSlotRequests.put(allocationId, removedSlotRequest);
+						}
+					}
+					return null;
+				}
+			}, resourceManagerServices.getExecutor());
 		} else {
 			freeSlots.put(freeSlot.getSlotId(), freeSlot);
 		}
@@ -416,13 +458,6 @@ public abstract class SlotManager {
 	 */
 	protected abstract SlotRequest chooseRequestToFulfill(final ResourceSlot offeredSlot,
 		final Map<AllocationID, SlotRequest> pendingRequests);
-
-	/**
-	 * The framework specific code for allocating a container for specified resource profile.
-	 *
-	 * @param resourceProfile The resource profile
-	 */
-	protected abstract void allocateContainer(final ResourceProfile resourceProfile);
 
 	// ------------------------------------------------------------------------
 	//  Helper classes

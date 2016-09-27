@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -49,11 +48,6 @@ public class SimpleSlotManager extends SlotManager {
 		} else {
 			return null;
 		}
-	}
-
-	@Override
-	protected void allocateContainer(ResourceProfile resourceProfile) {
-		// TODO
 	}
 
 }
