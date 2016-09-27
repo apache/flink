@@ -22,6 +22,8 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcMethod;
@@ -32,9 +34,15 @@ import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.Test;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -146,6 +154,34 @@ public class AkkaRpcActorTest extends TestLogger {
 		} catch (ExecutionException executionException) {
 			assertTrue(executionException.getCause() instanceof RpcConnectionException);
 		}
+	}
+
+	/**
+	 * Tests that we can wait for a RpcEndpoint to terminate.
+	 *
+	 * @throws ExecutionException
+	 * @throws InterruptedException
+	 */
+	@Test(timeout=1000)
+	public void testRpcEndpointTerminationFuture() throws ExecutionException, InterruptedException {
+		final DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
+		rpcEndpoint.start();
+
+		Future<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
+
+		assertFalse(terminationFuture.isDone());
+
+		FlinkFuture.supplyAsync(new Callable<Void>() {
+			@Override
+			public Void call() throws Exception {
+				rpcEndpoint.shutDown();
+
+				return null;
+			}
+		}, actorSystem.dispatcher());
+
+		// wait until the rpc endpoint has terminated
+		terminationFuture.get();
 	}
 
 	private interface DummyRpcGateway extends RpcGateway {

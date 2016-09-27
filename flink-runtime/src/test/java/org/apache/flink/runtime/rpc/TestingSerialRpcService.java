@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc;
 import akka.dispatch.Futures;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.util.DirectExecutorService;
@@ -39,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-
 /**
  * An RPC Service implementation for testing. This RPC service directly executes all asynchronous
  * calls one by one in the calling thread.
@@ -48,10 +48,12 @@ public class TestingSerialRpcService implements RpcService {
 
 	private final DirectExecutorService executorService;
 	private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
+	private final CompletableFuture<Void> terminationFuture;
 
 	public TestingSerialRpcService() {
 		executorService = new DirectExecutorService();
 		this.registeredConnections = new ConcurrentHashMap<>(16);
+		this.terminationFuture = new FlinkCompletableFuture<>();
 	}
 
 	@Override
@@ -89,6 +91,12 @@ public class TestingSerialRpcService implements RpcService {
 	public void stopService() {
 		executorService.shutdown();
 		registeredConnections.clear();
+		terminationFuture.complete(null);
+	}
+
+	@Override
+	public Future<Void> getTerminationFuture() {
+		return terminationFuture;
 	}
 
 	@Override
