@@ -15,37 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
-import java.io.Serializable;
+import java.util.concurrent.Executor;
 
 /**
- * This class is responsible for group the TaskExecutorGateway and the InstanceID of a registered task executor.
+ * Interface which provides access to services of the ResourceManager.
  */
-public class TaskExecutorRegistration implements Serializable {
+public interface ResourceManagerServices {
 
-	private static final long serialVersionUID = -2062957799469434614L;
+	/**
+	 * Allocates a resource according to the resource profile.
+	 */
+	void allocateResource(ResourceProfile resourceProfile);
 
-	private TaskExecutorGateway taskExecutorGateway;
+	/**
+	 * Gets the async excutor which executes outside of the main thread of the ResourceManager
+	 */
+	Executor getAsyncExecutor();
 
-	private InstanceID instanceID;
-
-	public TaskExecutorRegistration(TaskExecutorGateway taskExecutorGateway,
-									InstanceID instanceID) {
-		this.taskExecutorGateway = taskExecutorGateway;
-		this.instanceID = instanceID;
-	}
-
-	public InstanceID getInstanceID() {
-		return instanceID;
-	}
-
-	public TaskExecutorGateway getTaskExecutorGateway() {
-		return taskExecutorGateway;
-	}
+	/**
+	 * Gets the executor which executes in the main thread of the ResourceManager
+	 */
+	Executor getExecutor();
 
 }

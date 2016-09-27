@@ -24,18 +24,14 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.NonHaServices;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
-import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
+import org.apache.flink.runtime.resourcemanager.*;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -47,9 +43,12 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Matchers.any;
@@ -99,9 +98,9 @@ public class SlotProtocolTest extends TestLogger {
 		TestingLeaderElectionService rmLeaderElectionService =
 			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
-		TestingSlotManager slotManager = Mockito.spy(new TestingSlotManager());
+		SlotManager slotManager = Mockito.spy(new SimpleSlotManager());
 		ResourceManager resourceManager =
-			new StandaloneResourceManager(testRpcService, testingHaServices, slotManager);
+			Mockito.spy(new StandaloneResourceManager(testRpcService, testingHaServices, slotManager));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
 
@@ -118,7 +117,7 @@ public class SlotProtocolTest extends TestLogger {
 
 		SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile);
 		SlotRequestReply slotRequestReply =
-			resourceManager.requestSlot(slotRequest);
+			resourceManager.requestSlot(jmLeaderID, rmLeaderID, slotRequest);
 
 		// 1) SlotRequest is routed to the SlotManager
 		verify(slotManager).requestSlot(slotRequest);
@@ -129,13 +128,15 @@ public class SlotProtocolTest extends TestLogger {
 			allocationID);
 
 		// 3) SlotRequest leads to a container allocation
-		verify(slotManager, timeout(5000)).allocateContainer(resourceProfile);
+		verify(resourceManager, timeout(5000)).startNewWorker(resourceProfile);
 
 		Assert.assertFalse(slotManager.isAllocated(allocationID));
 
 		// slot becomes available
 		final String tmAddress = "/tm1";
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
+		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
+			.thenReturn(new FlinkCompletableFuture<SlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
 		final ResourceID resourceID = ResourceID.generate();
@@ -176,11 +177,13 @@ public class SlotProtocolTest extends TestLogger {
 			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
+		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
+			.thenReturn(new FlinkCompletableFuture<SlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
-		TestingSlotManager slotManager = Mockito.spy(new TestingSlotManager());
+		SlotManager slotManager = Mockito.spy(new SimpleSlotManager());
 		ResourceManager resourceManager =
-			new StandaloneResourceManager(testRpcService, testingHaServices, slotManager);
+			Mockito.spy(new StandaloneResourceManager(testRpcService, testingHaServices, slotManager));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
 
@@ -207,7 +210,7 @@ public class SlotProtocolTest extends TestLogger {
 
 		SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile);
 		SlotRequestReply slotRequestReply =
-			resourceManager.requestSlot(slotRequest);
+			resourceManager.requestSlot(jmLeaderID, rmLeaderID, slotRequest);
 
 		// 1) a SlotRequest is routed to the SlotManager
 		verify(slotManager).requestSlot(slotRequest);
@@ -239,17 +242,6 @@ public class SlotProtocolTest extends TestLogger {
 		testingHA.setJobMasterLeaderRetriever(jobID, jmLeaderRetrievalService);
 
 		return rmLeaderElectionService;
-	}
-
-	private static class TestingSlotManager extends SimpleSlotManager {
-
-		// change visibility of function to public for testing
-		@Override
-		public void allocateContainer(ResourceProfile resourceProfile) {
-			super.allocateContainer(resourceProfile);
-		}
-
-
 	}
 
 }
