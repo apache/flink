@@ -18,17 +18,12 @@
 
 package org.apache.flink.test.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -37,14 +32,10 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
-
 import org.apache.hadoop.fs.FileSystem;
-
 import org.junit.Assert;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.concurrent.Await;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
@@ -77,6 +68,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 public class TestBaseUtils extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
@@ -92,32 +86,32 @@ public class TestBaseUtils extends TestLogger {
 	public static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
 	// ------------------------------------------------------------------------
-	
+
 	protected static File logDir;
 
 	protected TestBaseUtils(){
 		verifyJvmOptions();
 	}
-	
+
 	private static void verifyJvmOptions() {
 		long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
-	
-	
+
+
 	public static LocalFlinkMiniCluster startCluster(
 		int numTaskManagers,
 		int taskManagerNumSlots,
 		boolean startWebserver,
 		boolean startZooKeeper,
 		boolean singleActorSystem) throws Exception {
-		
+
 		Configuration config = new Configuration();
 
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
-		
+
 		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, startWebserver);
 
 		if (startZooKeeper) {
@@ -146,7 +140,7 @@ public class TestBaseUtils extends TestLogger {
 
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
-		
+
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toString());
 
 		LocalFlinkMiniCluster cluster =  new LocalFlinkMiniCluster(config, singleActorSystem);
@@ -164,7 +158,7 @@ public class TestBaseUtils extends TestLogger {
 		if (executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
-			
+
 			if (executor.running()) {
 				List<ActorRef> tms = executor.getTaskManagersAsJava();
 				List<Future<Object>> bcVariableManagerResponseFutures = new ArrayList<>();
@@ -249,7 +243,7 @@ public class TestBaseUtils extends TestLogger {
 		}
 		return readers;
 	}
-	
+
 	public static BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
 		return getResultInputStream(resultPath, new String[]{});
 	}
@@ -268,13 +262,13 @@ public class TestBaseUtils extends TestLogger {
 		readAllResultLines(target, resultPath, new String[]{});
 	}
 
-	public static void readAllResultLines(List<String> target, String resultPath, String[] excludePrefixes) 
+	public static void readAllResultLines(List<String> target, String resultPath, String[] excludePrefixes)
 			throws IOException {
-		
+
 		readAllResultLines(target, resultPath, excludePrefixes, false);
 	}
 
-	public static void readAllResultLines(List<String> target, String resultPath, 
+	public static void readAllResultLines(List<String> target, String resultPath,
 											String[] excludePrefixes, boolean inOrderOfFiles) throws IOException {
 
 		final BufferedReader[] readers = getResultReader(resultPath, excludePrefixes, inOrderOfFiles);
@@ -453,14 +447,14 @@ public class TestBaseUtils extends TestLogger {
 	public static <T> void compareOrderedResultAsText(List<T> result, String expected, boolean asTuples) {
 		compareResult(result, expected, asTuples, false);
 	}
-	
+
 	private static <T> void compareResult(List<T> result, String expected, boolean asTuples, boolean sort) {
 		String[] expectedStrings = expected.split("\n");
 		String[] resultStrings = new String[result.size()];
-		
+
 		for (int i = 0; i < resultStrings.length; i++) {
 			T val = result.get(i);
-			
+
 			if (asTuples) {
 				if (val instanceof Tuple) {
 					Tuple t = (Tuple) val;
@@ -480,19 +474,25 @@ public class TestBaseUtils extends TestLogger {
 				resultStrings[i] = (val == null) ? "null" : val.toString();
 			}
 		}
-		
-		assertEquals("Wrong number of elements result", expectedStrings.length, resultStrings.length);
 
 		if (sort) {
 			Arrays.sort(expectedStrings);
 			Arrays.sort(resultStrings);
 		}
-		
+
+		// Include content of both arrays to provide more context in case of a test failure
+		String msg = String.format(
+			"Different elements in arrays: expected %d elements and received %d\n expected: %s\n received: %s",
+			expectedStrings.length, resultStrings.length,
+			Arrays.toString(expectedStrings), Arrays.toString(resultStrings));
+
+		assertEquals(msg, expectedStrings.length, resultStrings.length);
+
 		for (int i = 0; i < expectedStrings.length; i++) {
-			assertEquals(expectedStrings[i], resultStrings[i]);
+			assertEquals(msg, expectedStrings[i], resultStrings[i]);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Comparison methods for tests using sample
 	// --------------------------------------------------------------------------------------------
@@ -523,7 +523,7 @@ public class TestBaseUtils extends TestLogger {
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous helper methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected static Collection<Object[]> toParameterList(Configuration ... testConfigs) {
 		ArrayList<Object[]> configs = new ArrayList<>();
 		for (Configuration testConfig : testConfigs) {
@@ -560,7 +560,7 @@ public class TestBaseUtils extends TestLogger {
 			System.err.println("Failed to delete file " + f.getAbsolutePath());
 		}
 	}
-	
+
 	public static String constructTestPath(Class<?> forClass, String folder) {
 		// we create test path that depends on class to prevent name clashes when two tests
 		// create temp files with the same name
@@ -571,7 +571,7 @@ public class TestBaseUtils extends TestLogger {
 		path += (forClass.getName() + "-" + folder);
 		return path;
 	}
-	
+
 	public static String constructTestURI(Class<?> forClass, String folder) {
 		return new File(constructTestPath(forClass, folder)).toURI().toString();
 	}
@@ -597,7 +597,7 @@ public class TestBaseUtils extends TestLogger {
 
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
 	}
-	
+
 	public static class TupleComparator<T extends Tuple> implements Comparator<T> {
 
 		@Override
@@ -612,7 +612,7 @@ public class TestBaseUtils extends TestLogger {
 				for (int i = 0; i < o1.getArity(); i++) {
 					Object val1 = o1.getField(i);
 					Object val2 = o2.getField(i);
-					
+
 					int cmp;
 					if (val1 != null && val2 != null) {
 						cmp = compareValues(val1, val2);
@@ -620,16 +620,16 @@ public class TestBaseUtils extends TestLogger {
 					else {
 						cmp = val1 == null ? (val2 == null ? 0 : -1) : 1;
 					}
-					
+
 					if (cmp != 0) {
 						return cmp;
 					}
 				}
-				
+
 				return 0;
 			}
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		private static <X extends Comparable<X>> int compareValues(Object o1, Object o2) {
 			if (o1 instanceof Comparable && o2 instanceof Comparable) {
