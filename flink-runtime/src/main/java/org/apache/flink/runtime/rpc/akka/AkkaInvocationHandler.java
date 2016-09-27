@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
+import org.apache.flink.runtime.rpc.SelfGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
@@ -53,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * rpc in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
  * executed.
  */
-class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutable, StartStoppable {
+class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutable, StartStoppable, SelfGateway {
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaInvocationHandler.class);
 
 	private final String address;
@@ -68,12 +69,22 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 	private final long maximumFramesize;
 
-	AkkaInvocationHandler(String address, ActorRef rpcEndpoint, Time timeout, long maximumFramesize) {
+	// null if gateway; otherwise non-null
+	private final Future<Void> terminationFuture;
+
+	AkkaInvocationHandler(
+			String address,
+			ActorRef rpcEndpoint,
+			Time timeout,
+			long maximumFramesize,
+			Future<Void> terminationFuture) {
+
 		this.address = Preconditions.checkNotNull(address);
 		this.rpcEndpoint = Preconditions.checkNotNull(rpcEndpoint);
 		this.isLocal = this.rpcEndpoint.path().address().hasLocalScope();
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.maximumFramesize = maximumFramesize;
+		this.terminationFuture = terminationFuture;
 	}
 
 	@Override
@@ -84,7 +95,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 		if (declaringClass.equals(AkkaGateway.class) || declaringClass.equals(MainThreadExecutable.class) ||
 			declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class) ||
-			declaringClass.equals(RpcGateway.class)) {
+			declaringClass.equals(RpcGateway.class) || declaringClass.equals(SelfGateway.class)) {
 			result = method.invoke(this, args);
 		} else {
 			String methodName = method.getName();
@@ -300,5 +311,10 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	@Override
 	public String getAddress() {
 		return address;
+	}
+
+	@Override
+	public Future<Void> getTerminationFuture() {
+		return terminationFuture;
 	}
 }

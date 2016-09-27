@@ -24,6 +24,7 @@ import akka.actor.UntypedActorWithStash;
 import akka.dispatch.Futures;
 import akka.japi.Procedure;
 import akka.pattern.Patterns;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
@@ -76,9 +77,23 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	/** the helper that tracks whether calls come from the main thread */
 	private final MainThreadValidatorUtil mainThreadValidator;
 
-	AkkaRpcActor(final T rpcEndpoint) {
+	private final CompletableFuture<Void> terminationFuture;
+
+	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Void> terminationFuture) {
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
+		this.terminationFuture = checkNotNull(terminationFuture);
+	}
+
+	@Override
+	public void postStop() {
+		super.postStop();
+
+		// IMPORTANT: This only works if we don't use a restarting supervisor strategy. Otherwise
+		// we would complete the future and let the actor system restart the actor with a completed
+		// future.
+		// Complete the termination future so that others know that we've stopped.
+		terminationFuture.complete(null);
 	}
 
 	@Override
