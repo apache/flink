@@ -25,7 +25,6 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.evaluation.RegressionScores
 import org.apache.flink.ml.math.{DenseVector, BLAS}
 import org.apache.flink.ml.pipeline._
 import org.apache.flink.types.Value
@@ -122,12 +121,26 @@ import scala.util.Random
   * [[https://github.com/apache/spark/blob/master/mllib/src/main/scala/org/apache/spark/mllib/
   * recommendation/ALS.scala here]].
   */
-class ALS extends Predictor[ALS] {
+class ALS extends Predictor[ALS] with RankingPredictor[ALS] with TrainingRatingsProvider {
+
 
   import ALS._
 
   // Stores the matrix factorization after the fitting phase
   var factorsOption: Option[(DataSet[Factors], DataSet[Factors])] = None
+  private var trainingData: Option[DataSet[(Int,Int,Double)]] = None
+
+  override def getTrainingData: DataSet[(Int, Int, Double)] = this.trainingData match {
+    case None => throw new RuntimeException("The ALS model has not been fitted to data. " +
+      "Prior to predicting values, it has to be trained on data.")
+    case Some(data) => data
+  }
+
+  override def getTrainingItems: (DataSet[Int]) = this.factorsOption match {
+    case None => throw new RuntimeException("The ALS model has not been fitted to data. " +
+      "Prior to predicting values, it has to be trained on data.")
+    case Some(factors) => factors._2.map(_.id)
+  }
 
   /** Sets the number of latent factors/row dimension of the latent model
     *
@@ -391,7 +404,6 @@ object ALS {
   }
 
   // ===================================== Operations ==============================================
-
   /** Predict operation which calculates the matrix entry for the given indices  */
   implicit val predictRating = new PredictDataSetOperation[ALS, (Int, Int), (Int ,Int, Double)] {
     override def predictDataSet(
@@ -452,6 +464,8 @@ object ALS {
     }
   }
 
+  implicit val rankingPredictOperation = new RankingFromRatingPredictOperation(this.predictRating)
+
   /** Calculates the matrix factorization for the given ratings. A rating is defined as
     * a tuple of user ID, item ID and the corresponding rating.
     *
@@ -463,6 +477,8 @@ object ALS {
         fitParameters: ParameterMap,
         input: DataSet[(Int, Int, Double)])
       : Unit = {
+      instance.trainingData = Some(input)
+
       val resultParameters = instance.parameters ++ fitParameters
 
       val userBlocks = resultParameters.get(Blocks).getOrElse(input.count.toInt)

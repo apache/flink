@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.ml.evaluation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
+
 
 class ScoreITSuite extends FlatSpec with Matchers with FlinkTestBase {
 

@@ -19,21 +19,42 @@ package org.apache.flink.ml.evaluation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.{ParameterMap, WithParameters}
-import org.apache.flink.ml.pipeline.{EvaluateDataSetOperation, Predictor}
+import org.apache.flink.ml.pipeline._
 
 //TODO: Need to generalize type of Score (and evaluateOperation)
-class Scorer(val score: Score[Double]) extends WithParameters {
-
-  def evaluate[Testing, PredictorInstance <: Predictor[PredictorInstance]](
-      testing: DataSet[Testing],
+class Scorer[
+  PredictorType[PredictorInstanceType] <: WithParameters,
+  PreparedTesting
+] (val score: Score[PredictorType, PreparedTesting])
+  extends WithParameters {
+  def evaluate[InputTesting, PredictorInstance <: PredictorType[PredictorInstance]](
+      testing: DataSet[InputTesting],
       predictorInstance: PredictorInstance,
-      evaluateParameters: ParameterMap = ParameterMap.Empty)
-      (implicit evaluateOperation: EvaluateDataSetOperation[PredictorInstance, Testing, Double]):
+      evaluateParameters: ParameterMap = ParameterMap.Empty)(implicit
+    prepareOperation: PrepareOperation[PredictorInstance, InputTesting, PreparedTesting]):
     DataSet[Double] = {
 
     val resultingParameters = predictorInstance.parameters ++ evaluateParameters
-    val predictions = predictorInstance.evaluate[Testing, Double](testing, resultingParameters)
-    score.evaluate(predictions)
+    val preparedTesting = prepareOperation.prepare(predictorInstance, testing, resultingParameters)
+    score.evaluate(preparedTesting)
   }
+}
 
+object Scorer {
+
+  /**
+    * The default prepare operation for ranking evaluation.
+    * Creates a tuple of the test [[DataSet]] and the rankings.
+    */
+  implicit def defaultRankingEvalPrepare[Instance <: RankingPredictor[Instance]]
+  (implicit ev: RankingPredictOperation[Instance]) =
+    new PrepareOperation[Instance,
+      (Int,Int,Double), (DataSet[(Int,Int,Double)], DataSet[(Int,Int,Int)])] {
+      override def prepare(als: Instance,
+                           test: DataSet[(Int, Int, Double)],
+                           parameters: ParameterMap):
+      (DataSet[(Int, Int, Double)], DataSet[(Int, Int, Int)]) = {
+        (test, als.evaluateRankings(test, parameters))
+      }
+    }
 }
