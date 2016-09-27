@@ -30,17 +30,20 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * When need know position number for reporter in  metric group
+ * Metric group which forwards all registration calls to a variable parent metric group that injects a variable reporter
+ * index into calls to {@link org.apache.flink.metrics.MetricGroup#getMetricIdentifier(String)}
+ * or {@link org.apache.flink.metrics.MetricGroup#getMetricIdentifier(String, CharacterFilter)}.
+ * This allows us to use reporter-specific delimiters, without requiring any action by the reporter.
  *
  * @param <A> reference to {@link AbstractMetricGroup AbstractMetricGroup}
  */
 public class FrontMetricGroup<A extends AbstractMetricGroup<?>> implements MetricGroup {
 
 	protected A reference;
-	protected int index;
+	protected int reporterIndex;
 
-	public FrontMetricGroup(int index) {
-		this.index = index;
+	public FrontMetricGroup(int reporterIndex) {
+		this.reporterIndex = reporterIndex;
 	}
 
 	public void setReference(A group) {
@@ -119,11 +122,11 @@ public class FrontMetricGroup<A extends AbstractMetricGroup<?>> implements Metri
 
 	@Override
 	public String getMetricIdentifier(String metricName) {
-		return reference.getMetricIdentifier(metricName, null, this.index);
+		return reference.getMetricIdentifier(metricName, null, this.reporterIndex);
 	}
 
 	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return reference.getMetricIdentifier(metricName, filter, this.index);
+		return reference.getMetricIdentifier(metricName, filter, this.reporterIndex);
 	}
 }

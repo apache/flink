@@ -155,7 +155,7 @@ public class TaskMetricGroupTest extends TestLogger {
 		}
 
 		@Override
-		public void register(Metric metric, String metricName, MetricGroup group) {
+		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 			super.register(metric, metricName, group);
 			counter++;
 		}

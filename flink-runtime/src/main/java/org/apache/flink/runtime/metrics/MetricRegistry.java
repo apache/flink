@@ -55,7 +55,6 @@ public class MetricRegistry {
 	private ActorRef queryService;
 
 	private final ScopeFormats scopeFormats;
-	private final List<FrontMetricGroup> groups = new ArrayList<>();
 	private final List<Character> delimiters = new ArrayList<>();
 	private final char globalDelimiter;
 
@@ -148,7 +147,6 @@ public class MetricRegistry {
 						delimiterForReporter = delim;
 					}
 					this.delimiters.add(delimiterForReporter.charAt(0));
-					groups.add(new FrontMetricGroup(groups.size()));
 				}
 				catch (Throwable t) {
 					shutdownExecutor();
@@ -246,24 +244,20 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void register(Metric metric, String metricName, MetricGroup group) {
+	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
 			if (reporters != null) {
 				for (int i = 0; i < reporters.size(); i++) {
 					MetricReporter reporter = reporters.get(i);
 					if (reporter != null) {
-						if (group instanceof AbstractMetricGroup) {
-							FrontMetricGroup front = groups.get(i);
-							front.setReference((AbstractMetricGroup) group);
-							reporter.notifyOfAddedMetric(metric, metricName, front);
-						} else {
-							reporter.notifyOfAddedMetric(metric, metricName, group);
-						}
+						FrontMetricGroup front = new FrontMetricGroup(i);
+						front.setReference(group);
+						reporter.notifyOfAddedMetric(metric, metricName, front);
 					}
 				}
 			}
 			if (queryService != null) {
-				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, (AbstractMetricGroup) group);
+				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
 			}
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);

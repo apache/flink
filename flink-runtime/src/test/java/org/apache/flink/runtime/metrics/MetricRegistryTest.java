@@ -269,6 +269,12 @@ public class MetricRegistryTest extends TestLogger {
 		assertEquals("D", scopeConfig.getOperatorFormat().format());
 	}
 
+	/**
+	 * Verifies delimiter configurations
+	 */
+
+	static final char GLOBAL_DEFAULT_DELIMITER = '.';
+
 	@Test
 	public void testConfigurableDelimiter() {
 		Configuration config = new Configuration();
@@ -296,12 +302,12 @@ public class MetricRegistryTest extends TestLogger {
 
 		MetricRegistry registry = new MetricRegistry(config);
 
-		assertEquals('.', registry.getDelimiter());
+		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter());
 		assertEquals('_', registry.getDelimiter(0));
 		assertEquals('-', registry.getDelimiter(1));
-		assertEquals('.', registry.getDelimiter(2));
-		assertEquals('.', registry.getDelimiter(3));
-		assertEquals('.', registry.getDelimiter(-1));
+		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter(2));
+		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter(3));
+		assertEquals(GLOBAL_DEFAULT_DELIMITER, registry.getDelimiter(-1));
 
 		registry.shutdown();
 	}
@@ -323,24 +329,25 @@ public class MetricRegistryTest extends TestLogger {
 		List<MetricReporter> reporters = registry.getReporters();
 		((TestReporter8)reporters.get(0)).expectedDelimiter = '_'; //test1  reporter
 		((TestReporter8)reporters.get(1)).expectedDelimiter = '-'; //test2 reporter
-		((TestReporter8)reporters.get(2)).expectedDelimiter = '.'; //test3 reporter, because 'AA' - not correct delimiter
-		//for test4 reporter use global delimiter
+		((TestReporter8)reporters.get(2)).expectedDelimiter = GLOBAL_DEFAULT_DELIMITER; //test3 reporter, because 'AA' - not correct delimiter
+		((TestReporter8)reporters.get(3)).expectedDelimiter = GLOBAL_DEFAULT_DELIMITER; //for test4 reporter use global delimiter
 
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
 		group.counter("C");
 		registry.shutdown();
-		assertTrue(TestReporter8.countCall == 4);
+		assertTrue(TestReporter8.numCorrectDelimiters == 4);
 	}
 
 	public static class TestReporter8 extends TestReporter {
-		char expectedDelimiter='.'; //if delimiter not set then use default delimiter
-		public static int countCall = 0;
+		char expectedDelimiter;
+		public static int numCorrectDelimiters = 0;
 
 		@Override
 		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-			countCall++;
 			String expectedMetric = String.format("A%cB%1$cC", expectedDelimiter);
 			assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
+			assertEquals(expectedMetric, group.getMetricIdentifier(metricName));
+			numCorrectDelimiters++;
 		}
 	}
 }
