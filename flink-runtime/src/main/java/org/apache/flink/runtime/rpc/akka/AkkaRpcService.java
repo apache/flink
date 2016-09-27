@@ -32,9 +32,12 @@ import akka.dispatch.Mapper;
 import akka.pattern.Patterns;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
+import org.apache.flink.runtime.rpc.SelfGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -131,7 +134,12 @@ public class AkkaRpcService implements RpcService {
 
 					final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
 
-					InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(address, actorRef, timeout, maximumFramesize);
+					InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(
+						address,
+						actorRef,
+						timeout,
+						maximumFramesize,
+						null);
 
 					// Rather than using the System ClassLoader directly, we derive the ClassLoader
 					// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -156,7 +164,8 @@ public class AkkaRpcService implements RpcService {
 	public <C extends RpcGateway, S extends RpcEndpoint<C>> C startServer(S rpcEndpoint) {
 		checkNotNull(rpcEndpoint, "rpc endpoint");
 
-		Props akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint);
+		CompletableFuture<Void> terminationFuture = new FlinkCompletableFuture<>();
+		Props akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint, terminationFuture);
 		ActorRef actorRef;
 
 		synchronized (lock) {
@@ -169,7 +178,12 @@ public class AkkaRpcService implements RpcService {
 
 		final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
 
-		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(address, actorRef, timeout, maximumFramesize);
+		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(
+			address,
+			actorRef,
+			timeout,
+			maximumFramesize,
+			terminationFuture);
 
 		// Rather than using the System ClassLoader directly, we derive the ClassLoader
 		// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -181,6 +195,7 @@ public class AkkaRpcService implements RpcService {
 			classLoader,
 			new Class<?>[]{
 				rpcEndpoint.getSelfGatewayType(),
+				SelfGateway.class,
 				MainThreadExecutable.class,
 				StartStoppable.class,
 				AkkaGateway.class},
@@ -228,6 +243,17 @@ public class AkkaRpcService implements RpcService {
 		}
 
 		actorSystem.awaitTermination();
+	}
+
+	@Override
+	public Future<Void> getTerminationFuture() {
+		return FlinkFuture.supplyAsync(new Callable<Void>(){
+			@Override
+			public Void call() throws Exception {
+				actorSystem.awaitTermination();
+				return null;
+			}
+		}, getExecutor());
 	}
 
 	@Override
