@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.concurrent.AcceptFunction;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -194,24 +196,13 @@ public class SchedulerIsolatedTasksTest {
 			final int totalSlots = scheduler.getNumberOfAvailableSlots();
 
 			// all slots we ever got.
-			List<SlotAllocationFuture> allAllocatedSlots = new ArrayList<SlotAllocationFuture>();
+			List<Future<SimpleSlot>> allAllocatedSlots = new ArrayList<>();
 
 			// slots that need to be released
 			final Set<SimpleSlot> toRelease = new HashSet<SimpleSlot>();
 
 			// flag to track errors in the concurrent thread
 			final AtomicBoolean errored = new AtomicBoolean(false);
-
-
-			SlotAllocationFutureAction action = new SlotAllocationFutureAction() {
-				@Override
-				public void slotAllocated(SimpleSlot slot) {
-					synchronized (toRelease) {
-						toRelease.add(slot);
-						toRelease.notifyAll();
-					}
-				}
-			};
 
 			// thread to asynchronously release slots
 			Runnable disposer = new Runnable() {
@@ -244,8 +235,16 @@ public class SchedulerIsolatedTasksTest {
 			disposeThread.start();
 
 			for (int i = 0; i < NUM_TASKS_TO_SCHEDULE; i++) {
-				SlotAllocationFuture future = scheduler.allocateSlot(new ScheduledUnit(getDummyTask()), true);
-				future.setFutureAction(action);
+				Future<SimpleSlot> future = scheduler.allocateSlot(new ScheduledUnit(getDummyTask()), true);
+				future.thenAcceptAsync(new AcceptFunction<SimpleSlot>() {
+					@Override
+					public void accept(SimpleSlot slot) {
+						synchronized (toRelease) {
+							toRelease.add(slot);
+							toRelease.notifyAll();
+						}
+					}
+				}, TestingUtils.defaultExecutionContext());
 				allAllocatedSlots.add(future);
 			}
 
@@ -254,8 +253,8 @@ public class SchedulerIsolatedTasksTest {
 			assertFalse("The slot releasing thread caused an error.", errored.get());
 
 			List<SimpleSlot> slotsAfter = new ArrayList<SimpleSlot>();
-			for (SlotAllocationFuture future : allAllocatedSlots) {
-				slotsAfter.add(future.waitTillCompleted());
+			for (Future<SimpleSlot> future : allAllocatedSlots) {
+				slotsAfter.add(future.get());
 			}
 
 			assertEquals("All instances should have available slots.", NUM_INSTANCES,
