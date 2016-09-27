@@ -50,18 +50,11 @@ public final class TestUtils {
 	 */
 	public static <K,VV,EV> void compareGraph(Graph<K,VV,EV> graph, String expectedVertices, String expectedEdges)
 			throws Exception {
-		// Vertices
-		if (expectedVertices != null) {
-			List<String> resultVertices = new ArrayList<>();
+		compareVertices(graph, expectedVertices);
+		compareEdges(graph, expectedEdges);
+	}
 
-			for (Vertex<K, VV> vertex : graph.getVertices().collect()) {
-				resultVertices.add(vertex.f0.toString());
-			}
-
-			TestBaseUtils.compareResultAsText(resultVertices, expectedVertices.replaceAll("\\s","").replace(";", "\n"));
-		}
-
-		// Edges
+	private static <K, VV, EV> void compareEdges(Graph<K, VV, EV> graph, String expectedEdges) throws Exception {
 		if (expectedEdges != null) {
 			List<String> resultEdges = new ArrayList<>();
 
@@ -70,6 +63,18 @@ public final class TestUtils {
 			}
 
 			TestBaseUtils.compareResultAsText(resultEdges, expectedEdges.replaceAll("\\s","").replace(";", "\n"));
+		}
+	}
+
+	private static <K, VV, EV> void compareVertices(Graph<K, VV, EV> graph, String expectedVertices) throws Exception {
+		if (expectedVertices != null) {
+			List<String> resultVertices = new ArrayList<>();
+
+			for (Vertex<K, VV> vertex : graph.getVertices().collect()) {
+				resultVertices.add(vertex.f0.toString());
+			}
+
+			TestBaseUtils.compareResultAsText(resultVertices, expectedVertices.replaceAll("\\s","").replace(";", "\n"));
 		}
 	}
 

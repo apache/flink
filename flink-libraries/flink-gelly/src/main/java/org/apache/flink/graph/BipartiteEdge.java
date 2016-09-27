@@ -21,55 +21,49 @@ package org.apache.flink.graph;
 import org.apache.flink.api.java.tuple.Tuple3;
 
 /**
- * An Edge represents a link between two {@link Vertex vertices},
- * the source and the target and can carry an attached value.
- * For edges with no value, use {@link org.apache.flink.types.NullValue} as the value type.
  *
- * @param <K> the key type for the sources and target vertices
+ * A BipartiteEdge represents a link between a top and bottom vertices
+ * in a {@link BipartiteGraph}. It is similar to the {@link Edge} class
+ * with the only difference that key of connected vertices can have
+ * different types.
+ *
+ * @param <KT> the key type of the top vertices
+ * @param <KB> the key type of the bottom vertices
  * @param <V> the edge value type
  */
-public class Edge<K, V> extends Tuple3<K, K, V>{
+public class BipartiteEdge<KT, KB, V> extends Tuple3<KT, KB, V> {
 
 	private static final long serialVersionUID = 1L;
 
-	public Edge(){}
+	public BipartiteEdge(){}
 
-	public Edge(K source, K target, V value) {
-		this.f0 = source;
-		this.f1 = target;
+	public BipartiteEdge(KT topId, KB bottomId, V value) {
+		this.f0 = topId;
+		this.f1 = bottomId;
 		this.f2 = value;
 	}
 
-	/**
-	 * Reverses the direction of this Edge.
-	 * @return a new Edge, where the source is the original Edge's target
-	 * and the target is the original Edge's source.
-	 */
-	public Edge<K, V> reverse() {
-			return new Edge<>(this.f1, this.f0, this.f2);
-	}
-
-	public void setSource(K source) {
-		this.f0 = source;
-	}
-
-	public K getSource() {
+	public KT getTopId() {
 		return this.f0;
 	}
 
-	public void setTarget(K target) {
-		this.f1 = target;
+	public void setTopId(KT i) {
+		this.f0 = i;
 	}
 
-	public K getTarget() {
-		return f1;
+	public KB getBottomId() {
+		return this.f1;
 	}
 
-	public void setValue(V value) {
-		this.f2 = value;
+	public void setBottomId(KB i) {
+		this.f1 = i;
 	}
 
 	public V getValue() {
-		return f2;
+		return this.f2;
+	}
+
+	public void setValue(V newVal) {
+		this.f2 = newVal;
 	}
 }

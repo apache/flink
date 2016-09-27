@@ -481,7 +481,8 @@ public class TestBaseUtils extends TestLogger {
 			}
 		}
 		
-		assertEquals("Wrong number of elements result", expectedStrings.length, resultStrings.length);
+		assertEquals(String.format("Wrong number of elements result. Expected: %s. Result: %s.", Arrays.toString(expectedStrings), Arrays.toString(resultStrings)),
+			expectedStrings.length, resultStrings.length);
 
 		if (sort) {
 			Arrays.sort(expectedStrings);
