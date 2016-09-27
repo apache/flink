@@ -28,12 +28,14 @@ import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.WatchOperationHandler;
 import org.apache.flink.runtime.rpc.akka.messages.CallAsync;
 import org.apache.flink.runtime.rpc.akka.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.akka.messages.RemoteRpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
+import org.apache.flink.runtime.rpc.akka.messages.WatchOperation;
 import org.apache.flink.util.Preconditions;
 import org.apache.log4j.Logger;
 
@@ -52,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * rpc in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
  * executed.
  */
-class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutable, StartStoppable {
+class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutable, StartStoppable, WatchOperationHandler {
 	private static final Logger LOG = Logger.getLogger(AkkaInvocationHandler.class);
 
 	private final String address;
@@ -187,6 +189,16 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	@Override
 	public void stop() {
 		rpcEndpoint.tell(Processing.STOP, ActorRef.noSender());
+	}
+
+	@Override
+	public void watch(RpcGateway rpcGateway) {
+		rpcEndpoint.tell(new WatchOperation.AddWatch(rpcGateway, timeout.toMilliseconds()), ActorRef.noSender());
+	}
+
+	@Override
+	public void unWatch(RpcGateway rpcGateway) {
+		rpcEndpoint.tell(new WatchOperation.RemoveWatch(rpcGateway, timeout.toMilliseconds()), ActorRef.noSender());
 	}
 
 	// ------------------------------------------------------------------------

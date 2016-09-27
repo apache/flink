@@ -19,11 +19,16 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorRef;
+import akka.actor.ActorSelection;
 import akka.actor.Status;
+import akka.actor.Terminated;
 import akka.actor.UntypedActorWithStash;
 import akka.dispatch.Futures;
+import akka.dispatch.OnFailure;
+import akka.dispatch.OnSuccess;
 import akka.japi.Procedure;
 import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
@@ -36,6 +41,7 @@ import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.runtime.rpc.akka.messages.WatchOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +49,8 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -67,7 +75,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> Type of the {@link RpcEndpoint}
  */
 class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends UntypedActorWithStash {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActor.class);
 
 	/** the endpoint to invoke the methods on */
@@ -76,9 +84,13 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 	/** the helper that tracks whether calls come from the main thread */
 	private final MainThreadValidatorUtil mainThreadValidator;
 
+	/** watch actors and gateway relationship */
+	private final Map<ActorRef, RpcGateway> watchActorRefs;
+
 	AkkaRpcActor(final T rpcEndpoint) {
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
+		this.watchActorRefs = new HashMap<>(16);
 	}
 
 	@Override
@@ -112,6 +124,10 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 				handleCallAsync((CallAsync) message);
 			} else if (message instanceof RpcInvocation) {
 				handleRpcInvocation((RpcInvocation) message);
+			} else if (message instanceof WatchOperation) {
+				handleWatchMessage((WatchOperation) message);
+			} else if (message instanceof Terminated) {
+				handleTerminated((Terminated) message);
 			} else {
 				LOG.warn(
 					"Received message of unknown type {} with value {}. Dropping this message!",
@@ -122,6 +138,7 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 			mainThreadValidator.exitMainThread();
 		}
 	}
+
 
 	/**
 	 * Handle rpc invocations by looking up the rpc method on the rpc endpoint and calling this
@@ -249,18 +266,79 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 			RunAsync message = new RunAsync(runAsync.getRunnable(), 0);
 
 			getContext().system().scheduler().scheduleOnce(delay, getSelf(), message,
-					getContext().dispatcher(), ActorRef.noSender());
+				getContext().dispatcher(), ActorRef.noSender());
+		}
+	}
+
+	/**
+	 * Handle watch operation, add watch or remove watch.
+	 *
+	 * @param watchMessage watch operation
+	 */
+	private void handleWatchMessage(final WatchOperation watchMessage) {
+		final RpcGateway watchRpcGateway = watchMessage.getRpcGateway();
+		// fetch underlying actorRef of watch rpc gateway
+		ActorSelection actorSelection = getContext().actorSelection(watchRpcGateway.getAddress());
+		scala.concurrent.Future<ActorRef> actorRefFuture = actorSelection.resolveOne(new Timeout(watchMessage.getTimeoutInMillis(), TimeUnit.MILLISECONDS));
+
+		// if success to fetch underlying actorRef, handle watch operation on actorRef
+		actorRefFuture.onSuccess(new OnSuccess<ActorRef>() {
+			@Override
+			public void onSuccess(ActorRef actorRef) throws Throwable {
+				if (watchMessage instanceof WatchOperation.AddWatch) {
+					RpcGateway existedWatchRpcGateway = watchActorRefs.put(actorRef, watchRpcGateway);
+					if (existedWatchRpcGateway == null) {
+						getContext().watch(actorRef);
+					}
+				} else if (watchMessage instanceof WatchOperation.RemoveWatch) {
+					RpcGateway existedWatchRpcGateway = watchActorRefs.remove(actorRef);
+					if (existedWatchRpcGateway != null) {
+						getContext().unwatch(actorRef);
+					}
+				} else {
+					LOG.warn(
+						"Received watch operation message of unknown type {} with value {}. Dropping this message!",
+						watchMessage.getClass().getName(),
+						watchMessage);
+				}
+			}
+		}, getContext().dispatcher());
+
+		// if fail to fetch underlying actoRef, notify rpcEndpoint that the input rpcGateway is unreachable
+		actorRefFuture.onFailure(new OnFailure() {
+			@Override
+			public void onFailure(Throwable failure) throws Throwable {
+				LOG.warn(
+					"Received watch operation message on unreachable gateway address {} with value {}!",
+					watchRpcGateway.getAddress(),
+					watchMessage);
+				rpcEndpoint.notifyUnreachableRpcGateway(watchRpcGateway);
+			}
+		}, getContext().dispatcher());
+	}
+
+	/**
+	 * Handle the terminated message
+	 *
+	 * @param terminated terminated message which contain dead actorRef
+	 */
+	private void handleTerminated(Terminated terminated) {
+		ActorRef deadActorRef = terminated.getActor();
+		RpcGateway existedWatchRpcGateway = watchActorRefs.remove(deadActorRef);
+		getContext().unwatch(deadActorRef);
+		if (existedWatchRpcGateway != null) {
+			rpcEndpoint.notifyUnreachableRpcGateway(existedWatchRpcGateway);
 		}
 	}
 
 	/**
 	 * Look up the rpc method on the given {@link RpcEndpoint} instance.
 	 *
-	 * @param methodName Name of the method
+	 * @param methodName     Name of the method
 	 * @param parameterTypes Parameter types of the method
 	 * @return Method of the rpc endpoint
 	 * @throws NoSuchMethodException Thrown if the method with the given name and parameter types
-	 * 									cannot be found at the rpc endpoint
+	 *                               cannot be found at the rpc endpoint
 	 */
 	private Method lookupRpcMethod(final String methodName, final Class<?>[] parameterTypes) throws NoSuchMethodException {
 		return rpcEndpoint.getClass().getMethod(methodName, parameterTypes);
