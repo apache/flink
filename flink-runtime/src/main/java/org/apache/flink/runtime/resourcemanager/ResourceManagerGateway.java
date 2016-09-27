@@ -59,7 +59,11 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param slotRequest Slot request
 	 * @return Future slot assignment
 	 */
-	Future<SlotRequestReply> requestSlot(SlotRequest slotRequest);
+	Future<SlotRequestReply> requestSlot(
+		UUID jobMasterLeaderID,
+		UUID resourceManagerLeaderID,
+		SlotRequest slotRequest,
+		@RpcTimeout Time timeout);
 
 	/**
 	 * Register a {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} at the resource manager.

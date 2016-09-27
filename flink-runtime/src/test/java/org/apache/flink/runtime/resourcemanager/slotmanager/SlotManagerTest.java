@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.junit.BeforeClass;
@@ -34,10 +38,13 @@ import org.mockito.Mockito;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 
 public class SlotManagerTest {
@@ -57,6 +64,8 @@ public class SlotManagerTest {
 	@BeforeClass
 	public static void setUp() {
 		taskExecutorGateway = Mockito.mock(TaskExecutorGateway.class);
+		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
+			.thenReturn(new FlinkCompletableFuture<SlotRequestReply>());
 	}
 
 	/**
@@ -498,12 +507,13 @@ public class SlotManagerTest {
 	//  testing classes
 	// ------------------------------------------------------------------------
 
-	private static class TestingSlotManager extends SlotManager {
+	private static class TestingSlotManager extends SlotManager implements ResourceManagerServices {
 
 		private final List<ResourceProfile> allocatedContainers;
 
 		TestingSlotManager() {
 			this.allocatedContainers = new LinkedList<>();
+			setupResourceManagerServices(this);
 		}
 
 		/**
@@ -543,12 +553,23 @@ public class SlotManagerTest {
 		}
 
 		@Override
-		protected void allocateContainer(ResourceProfile resourceProfile) {
+		public void allocateResource(ResourceProfile resourceProfile) {
 			allocatedContainers.add(resourceProfile);
+		}
+
+		@Override
+		public Executor getAsyncExecutor() {
+			return Mockito.mock(Executor.class);
+		}
+
+		@Override
+		public Executor getExecutor() {
+			return Mockito.mock(Executor.class);
 		}
 
 		List<ResourceProfile> getAllocatedContainers() {
 			return allocatedContainers;
 		}
+
 	}
 }
