@@ -40,7 +40,7 @@ public class MetricRegistryConfiguration {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryConfiguration.class);
 
-	private static MetricRegistryConfiguration DEFAULT_CONFIGURATION;
+	private static volatile MetricRegistryConfiguration DEFAULT_CONFIGURATION;
 
 	// regex pattern to split the defined reporters
 	private static final Pattern splitPattern = Pattern.compile("\\s*,\\s*");
@@ -153,7 +153,7 @@ public class MetricRegistryConfiguration {
 	}
 
 	public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {
-		// only create the default metric registry configuration once
+		// create the default metric registry configuration only once
 		if (DEFAULT_CONFIGURATION == null) {
 			synchronized (MetricRegistryConfiguration.class) {
 				if (DEFAULT_CONFIGURATION == null) {
