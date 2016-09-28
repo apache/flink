@@ -41,12 +41,16 @@ public class TaskManagerConfiguration {
 	private final String[] tmpDirPaths;
 
 	private final Time timeout;
+	// null indicates an infinite duration
 	private final Time maxRegistrationDuration;
 	private final Time initialRegistrationPause;
 	private final Time maxRegistrationPause;
 	private final Time refusedRegistrationPause;
 
 	private final long cleanupInterval;
+
+	// TODO: remove necessity for complete configuration object
+	private final Configuration configuration;
 
 	public TaskManagerConfiguration(
 		int numberSlots,
@@ -56,16 +60,18 @@ public class TaskManagerConfiguration {
 		Time initialRegistrationPause,
 		Time maxRegistrationPause,
 		Time refusedRegistrationPause,
-		long cleanupInterval) {
+		long cleanupInterval,
+		Configuration configuration) {
 
 		this.numberSlots = numberSlots;
 		this.tmpDirPaths = Preconditions.checkNotNull(tmpDirPaths);
 		this.timeout = Preconditions.checkNotNull(timeout);
-		this.maxRegistrationDuration = Preconditions.checkNotNull(maxRegistrationDuration);
+		this.maxRegistrationDuration = maxRegistrationDuration;
 		this.initialRegistrationPause = Preconditions.checkNotNull(initialRegistrationPause);
 		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
 		this.cleanupInterval = Preconditions.checkNotNull(cleanupInterval);
+		this.configuration = Preconditions.checkNotNull(configuration);
 	}
 
 	public int getNumberSlots() {
@@ -98,6 +104,10 @@ public class TaskManagerConfiguration {
 
 	public long getCleanupInterval() {
 		return cleanupInterval;
+	}
+
+	public Configuration getConfiguration() {
+		return configuration;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -138,7 +148,7 @@ public class TaskManagerConfiguration {
 				ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
 				ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION));
 			if (maxRegistrationDuration.isFinite()) {
-				finiteRegistrationDuration = Time.seconds(maxRegistrationDuration.toSeconds());
+				finiteRegistrationDuration = Time.milliseconds(maxRegistrationDuration.toMillis());
 			} else {
 				finiteRegistrationDuration = null;
 			}
@@ -153,7 +163,7 @@ public class TaskManagerConfiguration {
 				ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE,
 				ConfigConstants.DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE));
 			if (pause.isFinite()) {
-				initialRegistrationPause = Time.seconds(pause.toSeconds());
+				initialRegistrationPause = Time.milliseconds(pause.toMillis());
 			} else {
 				throw new IllegalArgumentException("The initial registration pause must be finite: " + pause);
 			}
@@ -168,7 +178,7 @@ public class TaskManagerConfiguration {
 				ConfigConstants.TASK_MANAGER_MAX_REGISTARTION_PAUSE,
 				ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE));
 			if (pause.isFinite()) {
-				maxRegistrationPause = Time.seconds(pause.toSeconds());
+				maxRegistrationPause = Time.milliseconds(pause.toMillis());
 			} else {
 				throw new IllegalArgumentException("The maximum registration pause must be finite: " + pause);
 			}
@@ -183,7 +193,7 @@ public class TaskManagerConfiguration {
 				ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE,
 				ConfigConstants.DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE));
 			if (pause.isFinite()) {
-				refusedRegistrationPause = Time.seconds(pause.toSeconds());
+				refusedRegistrationPause = Time.milliseconds(pause.toMillis());
 			} else {
 				throw new IllegalArgumentException("The refused registration pause must be finite: " + pause);
 			}
@@ -200,6 +210,7 @@ public class TaskManagerConfiguration {
 			initialRegistrationPause,
 			maxRegistrationPause,
 			refusedRegistrationPause,
-			cleanupInterval);
+			cleanupInterval,
+			configuration);
 	}
 }
