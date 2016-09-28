@@ -63,7 +63,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private val tables: SchemaPlus = Frameworks.createRootSchema(true)
 
   // Table API/SQL function catalog
-  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuildIns
+  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
 
   // SQL operator and function catalog
   private val sqlOperatorTable: SqlOperatorTable = functionCatalog.getSqlOperatorTable

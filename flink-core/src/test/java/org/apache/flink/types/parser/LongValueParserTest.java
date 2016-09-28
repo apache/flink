@@ -20,8 +20,6 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.LongValue;
-import org.apache.flink.types.parser.LongValueParser;
-import org.apache.flink.types.parser.FieldParser;
 
 
 public class LongValueParserTest extends ParserTestBase<LongValue> {

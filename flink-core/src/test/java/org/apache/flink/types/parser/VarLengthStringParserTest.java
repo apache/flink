@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
-import org.apache.flink.types.parser.StringValueParser;
 import org.junit.Test;
 
 public class VarLengthStringParserTest {

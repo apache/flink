@@ -22,8 +22,8 @@ import java.io.StringWriter;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.archive.ExecutionConfigSummary;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
 /**
@@ -45,37 +45,28 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 		gen.writeStringField("jid", graph.getJobID().toString());
 		gen.writeStringField("name", graph.getJobName());
 
-		ExecutionConfig ec;
-		try {
-			ec = graph.getSerializedExecutionConfig().deserializeValue(graph.getUserClassLoader());
-		} catch (Exception e) {
-			throw new RuntimeException("Couldn't deserialize ExecutionConfig.", e);
-		}
+		final ExecutionConfigSummary summary = graph.getExecutionConfigSummary();
 
-		if (ec != null) {
+		if (summary != null) {
 			gen.writeObjectFieldStart("execution-config");
-			
-			gen.writeStringField("execution-mode", ec.getExecutionMode().name());
 
-			final String restartStrategyDescription = ec.getRestartStrategy() != null ? ec.getRestartStrategy().getDescription() : "default";
-			gen.writeStringField("restart-strategy", restartStrategyDescription);
-			gen.writeNumberField("job-parallelism", ec.getParallelism());
-			gen.writeBooleanField("object-reuse-mode", ec.isObjectReuseEnabled());
+			gen.writeStringField("execution-mode", summary.getExecutionMode());
 
-			ExecutionConfig.GlobalJobParameters uc = ec.getGlobalJobParameters();
-			if (uc != null) {
-				Map<String, String> ucVals = uc.toMap();
-				if (ucVals != null) {
-					gen.writeObjectFieldStart("user-config");
-					
-					for (Map.Entry<String, String> ucVal : ucVals.entrySet()) {
-						gen.writeStringField(ucVal.getKey(), ucVal.getValue());
-					}
+			gen.writeStringField("restart-strategy", summary.getRestartStrategyDescription());
+			gen.writeNumberField("job-parallelism", summary.getParallelism());
+			gen.writeBooleanField("object-reuse-mode", summary.getObjectReuseEnabled());
 
-					gen.writeEndObject();
+			Map<String, String> ucVals = summary.getGlobalJobParameters();
+			if (ucVals != null) {
+				gen.writeObjectFieldStart("user-config");
+
+				for (Map.Entry<String, String> ucVal : ucVals.entrySet()) {
+					gen.writeStringField(ucVal.getKey(), ucVal.getValue());
 				}
+
+				gen.writeEndObject();
 			}
-			
+
 			gen.writeEndObject();
 		}
 		gen.writeEndObject();

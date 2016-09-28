@@ -2102,6 +2102,7 @@ public class WindowOperatorTest extends TestLogger {
 					}
 				},
 				inputType);
+		windowStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -2246,6 +2247,7 @@ public class WindowOperatorTest extends TestLogger {
 					}
 				},
 				inputType);
+		windowStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(

@@ -278,7 +278,7 @@ public class KvStateServerHandlerTest {
 		KvStateID kvStateId = registry.registerKvState(
 				new JobID(),
 				new JobVertexID(),
-				0,
+				new KeyGroupRange(0, 0),
 				"vanilla",
 				kvState);
 
@@ -681,18 +681,18 @@ public class KvStateServerHandlerTest {
 	 */
 	static class TestRegistryListener implements KvStateRegistryListener {
 		volatile JobVertexID jobVertexID;
-		volatile int keyGroupIndex;
+		volatile KeyGroupRange keyGroupIndex;
 		volatile String registrationName;
 		volatile KvStateID kvStateId;
 
 		@Override
 		public void notifyKvStateRegistered(JobID jobId,
 				JobVertexID jobVertexId,
-				int keyGroupIndex,
+				KeyGroupRange keyGroupRange,
 				String registrationName,
 				KvStateID kvStateId) {
 			this.jobVertexID = jobVertexId;
-			this.keyGroupIndex = keyGroupIndex;
+			this.keyGroupIndex = keyGroupRange;
 			this.registrationName = registrationName;
 			this.kvStateId = kvStateId;
 		}
@@ -700,7 +700,7 @@ public class KvStateServerHandlerTest {
 		@Override
 		public void notifyKvStateUnregistered(JobID jobId,
 				JobVertexID jobVertexId,
-				int keyGroupIndex,
+				KeyGroupRange keyGroupRange,
 				String registrationName) {
 
 		}

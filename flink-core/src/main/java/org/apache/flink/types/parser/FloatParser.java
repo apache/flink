@@ -30,30 +30,22 @@ public class FloatParser extends FieldParser<Float> {
 	private float result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Float 
-		reusable) {
-
-		int i = startPos;
-
-		final int delimLimit = limit - delimiter.length + 1;
-
-		while (i < limit) {
-			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
-				break;
-			}
-			i++;
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Float reusable) {
+		final int endPos = nextStringEndPos(bytes, startPos, limit, delimiter);
+		if (endPos < 0) {
+			return -1;
 		}
 
-		if (i > startPos &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[i - 1]))) {
+		if (endPos > startPos &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[endPos - 1]))) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
 			return -1;
 		}
 
-		String str = new String(bytes, startPos, i - startPos);
+		String str = new String(bytes, startPos, endPos - startPos);
 		try {
 			this.result = Float.parseFloat(str);
-			return (i == limit) ? limit : i + delimiter.length;
+			return (endPos == limit) ? limit : endPos + delimiter.length;
 		} catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
@@ -79,7 +71,7 @@ public class FloatParser extends FieldParser<Float> {
 	 * @param startPos The offset to start the parsing.
 	 * @param length   The length of the byte sequence (counting from the offset).
 	 * @return The parsed value.
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * @throws IllegalArgumentException Thrown when the value cannot be parsed because the text
 	 * represents not a correct number.
 	 */
 	public static final float parseField(byte[] bytes, int startPos, int length) {
@@ -96,26 +88,18 @@ public class FloatParser extends FieldParser<Float> {
 	 * @param length    The length of the byte sequence (counting from the offset).
 	 * @param delimiter The delimiter that terminates the field.
 	 * @return The parsed value.
-	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text 
+	 * @throws IllegalArgumentException Thrown when the value cannot be parsed because the text
 	 * represents not a correct number.
 	 */
 	public static final float parseField(byte[] bytes, int startPos, int length, char delimiter) {
-		if (length <= 0) {
-			throw new NumberFormatException("Invalid input: Empty string");
-		}
-		int i = 0;
-		final byte delByte = (byte) delimiter;
+		final int limitedLen = nextStringLength(bytes, startPos, length, delimiter);
 
-		while (i < length && bytes[startPos + i] != delByte) {
-			i++;
-		}
-
-		if (i > 0 &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + i - 1]))) {
+		if (limitedLen > 0 &&
+				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + limitedLen - 1]))) {
 			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
 		}
 
-		String str = new String(bytes, startPos, i);
+		final String str = new String(bytes, startPos, limitedLen);
 		return Float.parseFloat(str);
 	}
 }

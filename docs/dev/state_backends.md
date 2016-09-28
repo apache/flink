@@ -41,16 +41,16 @@ chosen **State Backend**.
 
 Out of the box, Flink bundles these state backends:
 
- - *MemoryStateBacked*
+ - *MemoryStateBackend*
  - *FsStateBackend*
  - *RocksDBStateBackend*
 
-If nothing else is configured, the system will use the MemoryStateBacked.
+If nothing else is configured, the system will use the MemoryStateBackend.
 
 
 ### The MemoryStateBackend
 
-The *MemoryStateBacked* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables
+The *MemoryStateBackend* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables
 that store the values, triggers, etc.
 
 Upon checkpoints, this state backend will snapshot the state and send it as part of the checkpoint acknowledgement messages to the

@@ -15,36 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.runtime.execution.librarycache;
 
-package org.apache.flink.graph.asm.translate;
-
-import org.apache.flink.types.LongValue;
+import java.net.URL;
+import java.net.URLClassLoader;
 
 /**
- * Translate {@link LongValue} by adding a constant offset value.
+ * Gives the URLClassLoader a nicer name for debugging purposes.
  */
-public class LongValueAddOffset
-implements TranslateFunction<LongValue, LongValue> {
+public class FlinkUserCodeClassLoader extends URLClassLoader {
 
-	private final long offset;
-
-	/**
-	 * Translate {@link LongValue} by adding a constant offset value.
-	 *
-	 * @param offset value to be added to each element
-	 */
-	public LongValueAddOffset(long offset) {
-		this.offset = offset;
+	public FlinkUserCodeClassLoader(URL[] urls) {
+		this(urls, FlinkUserCodeClassLoader.class.getClassLoader());
 	}
 
-	@Override
-	public LongValue translate(LongValue value, LongValue reuse)
-			throws Exception {
-		if (reuse == null) {
-			reuse = new LongValue();
-		}
-
-		reuse.setValue(offset + value.getValue());
-		return reuse;
+	public FlinkUserCodeClassLoader(URL[] urls, ClassLoader parent) {
+		super(urls, parent);
 	}
 }

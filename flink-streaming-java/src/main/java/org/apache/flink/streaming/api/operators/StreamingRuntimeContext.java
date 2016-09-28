@@ -35,11 +35,10 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ScheduledFuture;
 
 import static java.util.Objects.requireNonNull;
 
@@ -83,23 +82,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		return taskEnvironment.getInputSplitProvider();
 	}
 
-	/**
-	 * Register a timer callback. At the specified time the {@link Triggerable } will be invoked.
-	 * This call is guaranteed to not happen concurrently with method calls on the operator.
-	 *
-	 * @param time The absolute time in milliseconds.
-	 * @param target The target to be triggered.
-	 */
-	public ScheduledFuture<?> registerTimer(long time, Triggerable target) {
-		return operator.registerTimer(time, target);
-	}
-
-	/**
-	 * Returns the current processing time as defined by the task's
-	 * {@link org.apache.flink.streaming.runtime.tasks.TimeServiceProvider TimeServiceProvider}
-	 */
-	public long getCurrentProcessingTime() {
-		return operator.getCurrentProcessingTime();
+	public TimeServiceProvider getTimeServiceProvider() {
+		return operator.getTimerService();
 	}
 
 	// ------------------------------------------------------------------------

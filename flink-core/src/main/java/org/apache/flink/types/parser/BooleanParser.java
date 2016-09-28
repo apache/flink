@@ -44,6 +44,10 @@ public class BooleanParser extends FieldParser<Boolean> {
 
 		while (i < limit) {
 			if (i < delimLimit && delimiterNext(bytes, i, delim)) {
+				if (i == startPos) {
+					setErrorState(ParseErrorState.EMPTY_COLUMN);
+					return -1;
+				}
 				break;
 			}
 			i++;

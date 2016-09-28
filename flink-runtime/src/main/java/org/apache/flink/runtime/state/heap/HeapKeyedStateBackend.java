@@ -39,12 +39,11 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -75,20 +74,23 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 	public HeapKeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
+			ClassLoader userCodeClassLoader,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange) {
 
-		super(kvStateRegistry, keySerializer, numberOfKeyGroups, keyGroupRange);
+		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
 
 		LOG.info("Initializing heap keyed state backend with stream factory.");
 	}
 
-	public HeapKeyedStateBackend(TaskKvStateRegistry kvStateRegistry,
+	public HeapKeyedStateBackend(
+			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
+			ClassLoader userCodeClassLoader,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			List<KeyGroupsStateHandle> restoredState) throws Exception {
-		super(kvStateRegistry, keySerializer, numberOfKeyGroups, keyGroupRange);
+		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
 
 		LOG.info("Initializing heap keyed state backend from snapshot.");
 
@@ -134,7 +136,6 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
 		@SuppressWarnings("unchecked,rawtypes")
 		StateTable<K, N, T> stateTable = (StateTable) stateTables.get(stateDesc.getName());
-
 
 		if (stateTable == null) {
 			stateTable = new StateTable<>(stateDesc.getSerializer(), namespaceSerializer, keyGroupRange);
@@ -190,10 +191,8 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 			TypeSerializer namespaceSerializer = kvState.getValue().getNamespaceSerializer();
 			TypeSerializer stateSerializer = kvState.getValue().getStateSerializer();
 
-			ObjectOutputStream oos = new ObjectOutputStream(outView);
-			oos.writeObject(namespaceSerializer);
-			oos.writeObject(stateSerializer);
-			oos.flush();
+			InstantiationUtil.serializeObject(stream, namespaceSerializer);
+			InstantiationUtil.serializeObject(stream, stateSerializer);
 
 			kVStateToId.put(kvState.getKey(), kVStateToId.size());
 		}
@@ -266,18 +265,20 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 			for (int i = 0; i < numKvStates; ++i) {
 				String stateName = inView.readUTF();
 
-				ObjectInputStream ois = new ObjectInputStream(inView);
+				TypeSerializer namespaceSerializer =
+						InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
+				TypeSerializer stateSerializer =
+						InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
 
-				TypeSerializer namespaceSerializer = (TypeSerializer) ois.readObject();
-				TypeSerializer stateSerializer = (TypeSerializer) ois.readObject();
-				StateTable<K, ?, ?> stateTable = new StateTable(stateSerializer,
+				StateTable<K, ?, ?> stateTable = new StateTable(
+						stateSerializer,
 						namespaceSerializer,
 						keyGroupRange);
 				stateTables.put(stateName, stateTable);
 				kvStatesById.put(i, stateName);
 			}
 
-			for (int keyGroupIndex = keyGroupRange.getStartKeyGroup(); keyGroupIndex <= keyGroupRange.getEndKeyGroup(); keyGroupIndex++) {
+			for (int keyGroupIndex = keyGroupRange.getStartKeyGroup();  keyGroupIndex <= keyGroupRange.getEndKeyGroup(); ++keyGroupIndex) {
 				long offset = keyGroupsHandle.getOffsetForKeyGroup(keyGroupIndex);
 				fsDataInputStream.seek(offset);
 

@@ -271,15 +271,15 @@ public final class UdfAnalyzerUtils {
 		}
 
 		// recursively merge contained mappings
-		Iterator<String> it = resultMapping.keySet().iterator();
+		Iterator<Map.Entry<String, TaggedValue>> it = resultMapping.entrySet().iterator();
 		while (it.hasNext()) {
-			String key = it.next();
-			TaggedValue value = mergeReturnValues(Collections.singletonList(resultMapping.get(key)));
+			Map.Entry<String, TaggedValue> entry = it.next();
+			TaggedValue value = mergeReturnValues(Collections.singletonList(entry.getValue()));
 			if (value == null) {
 				it.remove();
 			}
 			else {
-				resultMapping.put(key, value);
+				entry.setValue(value);
 			}
 		}
 

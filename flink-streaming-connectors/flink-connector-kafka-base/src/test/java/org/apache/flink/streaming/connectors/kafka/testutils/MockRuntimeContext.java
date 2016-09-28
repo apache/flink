@@ -58,38 +58,28 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	private final int indexOfThisSubtask;
 	
 	private final ExecutionConfig execConfig;
-	private final Object checkpointLock;
 
 	private final TimeServiceProvider timerService;
 
 	public MockRuntimeContext(int numberOfParallelSubtasks, int indexOfThisSubtask) {
-		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig(), null);
+		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig(), new Object());
 	}
 
 	public MockRuntimeContext(
-		int numberOfParallelSubtasks, int indexOfThisSubtask,
+		int numberOfParallelSubtasks,
+		int indexOfThisSubtask,
 		ExecutionConfig execConfig,
 		Object checkpointLock) {
 
-		this(numberOfParallelSubtasks, indexOfThisSubtask, execConfig, checkpointLock,
-			DefaultTimeServiceProvider.create(Executors.newSingleThreadScheduledExecutor()));
-	}
-
-	public MockRuntimeContext(
-			int numberOfParallelSubtasks, int indexOfThisSubtask,
-			ExecutionConfig execConfig,
-			Object checkpointLock,
-			TimeServiceProvider timerService) {
-
 		super(new MockStreamOperator(),
-				new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
-				Collections.<String, Accumulator<?, ?>>emptyMap());
-		
+			new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
+			Collections.<String, Accumulator<?, ?>>emptyMap());
+
 		this.numberOfParallelSubtasks = numberOfParallelSubtasks;
 		this.indexOfThisSubtask = indexOfThisSubtask;
 		this.execConfig = execConfig;
-		this.checkpointLock = checkpointLock;
-		this.timerService = timerService;
+		this.timerService = DefaultTimeServiceProvider.
+			createForTesting(Executors.newSingleThreadScheduledExecutor(), checkpointLock);
 	}
 
 	@Override
@@ -208,28 +198,8 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
-	public long getCurrentProcessingTime() {
-		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
-		return timerService.getCurrentProcessingTime();
-	}
-
-	@Override
-	public ScheduledFuture<?> registerTimer(final long time, final Triggerable target) {
-		Preconditions.checkNotNull(timerService, "The processing time timer has not been initialized.");
-		
-		return timerService.registerTimer(time, new Runnable() {
-			@Override
-			public void run() {
-				synchronized (checkpointLock) {
-					try {
-						target.trigger(time);
-					} catch (Throwable t) {
-						System.err.println("!!! Caught exception while processing timer. !!!");
-						t.printStackTrace();
-					}
-				}
-			}
-		});
+	public TimeServiceProvider getTimeServiceProvider() {
+		return timerService;
 	}
 
 	// ------------------------------------------------------------------------

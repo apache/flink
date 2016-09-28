@@ -28,9 +28,12 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 
+import java.util.Map;
 import org.apache.avro.specific.SpecificRecordBase;
 
 import org.apache.commons.lang3.ClassUtils;
@@ -56,6 +59,8 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -63,7 +68,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Value;
-
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,6 +113,34 @@ public class TypeExtractor {
 
 	protected TypeExtractor() {
 		// only create instances for special use cases
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  TypeInfoFactory registry
+	// --------------------------------------------------------------------------------------------
+
+	private static Map<Type, Class<? extends TypeInfoFactory>> registeredTypeInfoFactories = new HashMap<>();
+
+	/**
+	 * Registers a type information factory globally for a certain type. Every following type extraction
+	 * operation will use the provided factory for this type. The factory will have highest precedence
+	 * for this type. In a hierarchy of types the registered factory has higher precedence than annotations
+	 * at the same level but lower precedence than factories defined down the hierarchy.
+	 *
+	 * @param t type for which a new factory is registered
+	 * @param factory type information factory that will produce {@link TypeInformation}
+	 */
+	private static void registerFactory(Type t, Class<? extends TypeInfoFactory> factory) {
+		Preconditions.checkNotNull(t, "Type parameter must not be null.");
+		Preconditions.checkNotNull(factory, "Factory parameter must not be null.");
+
+		if (!TypeInfoFactory.class.isAssignableFrom(factory)) {
+			throw new IllegalArgumentException("Class is not a TypeInfoFactory.");
+		}
+		if (registeredTypeInfoFactories.containsKey(t)) {
+			throw new InvalidTypesException("A TypeInfoFactory for type '" + t + "' is already registered.");
+		}
+		registeredTypeInfoFactories.put(t, factory);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -592,9 +626,14 @@ public class TypeExtractor {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <IN1, IN2, OUT> TypeInformation<OUT> createTypeInfoWithTypeHierarchy(ArrayList<Type> typeHierarchy, Type t,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		
+
+		// check if type information can be created using a type factory
+		final TypeInformation<OUT> typeFromFactory = createTypeInfoFromFactory(t, typeHierarchy, in1Type, in2Type);
+		if (typeFromFactory != null) {
+			return typeFromFactory;
+		}
 		// check if type is a subclass of tuple
-		if (isClassType(t) && Tuple.class.isAssignableFrom(typeToClass(t))) {
+		else if (isClassType(t) && Tuple.class.isAssignableFrom(typeToClass(t))) {
 			Type curT = t;
 			
 			// do not allow usage of Tuple as type
@@ -622,7 +661,7 @@ public class TypeExtractor {
 			typeHierarchy.add(curT);
 
 			// create the type information for the subtypes
-			TypeInformation<?>[] subTypesInfo = createSubTypesInfo(t, (ParameterizedType) curT, typeHierarchy, in1Type, in2Type);
+			final TypeInformation<?>[] subTypesInfo = createSubTypesInfo(t, (ParameterizedType) curT, typeHierarchy, in1Type, in2Type, false);
 			// type needs to be treated a pojo due to additional fields
 			if (subTypesInfo == null) {
 				if (t instanceof ParameterizedType) {
@@ -655,7 +694,7 @@ public class TypeExtractor {
 			typeHierarchy.add(curT);
 
 			// create the type information for the subtypes
-			TypeInformation<?>[] subTypesInfo = createSubTypesInfo(t, (ParameterizedType) curT, typeHierarchy, in1Type, in2Type);
+			final TypeInformation<?>[] subTypesInfo = createSubTypesInfo(t, (ParameterizedType) curT, typeHierarchy, in1Type, in2Type, false);
 			// type needs to be treated a pojo due to additional fields
 			if (subTypesInfo == null) {
 				if (t instanceof ParameterizedType) {
@@ -807,12 +846,40 @@ public class TypeExtractor {
 
 		return null;
 	}
-	
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	private <IN1> TypeInformation<?> createTypeInfoFromInput(TypeVariable<?> returnTypeVar, ArrayList<Type> inputTypeHierarchy, Type inType, TypeInformation<IN1> inTypeInfo) {
 		TypeInformation<?> info = null;
-		
+
+		// use a factory to find corresponding type information to type variable
+		final ArrayList<Type> factoryHierarchy = new ArrayList<>(inputTypeHierarchy);
+		final TypeInfoFactory<?> factory = getClosestFactory(factoryHierarchy, inType);
+		if (factory != null) {
+			// the type that defines the factory is last in factory hierarchy
+			final Type factoryDefiningType = factoryHierarchy.get(factoryHierarchy.size() - 1);
+			// defining type has generics, the factory need to be asked for a mapping of subtypes to type information
+			if (factoryDefiningType instanceof ParameterizedType) {
+				final Type[] typeParams = typeToClass(factoryDefiningType).getTypeParameters();
+				final Type[] actualParams = ((ParameterizedType) factoryDefiningType).getActualTypeArguments();
+				// go thru all elements and search for type variables
+				for (int i = 0; i < actualParams.length; i++) {
+					final Map<String, TypeInformation<?>> componentInfo = inTypeInfo.getGenericParameters();
+					final String typeParamName = typeParams[i].toString();
+					if (!componentInfo.containsKey(typeParamName) || componentInfo.get(typeParamName) == null) {
+						throw new InvalidTypesException("TypeInformation '" + inTypeInfo.getClass().getSimpleName() +
+							"' does not supply a mapping of TypeVariable '" + typeParamName + "' to corresponding TypeInformation. " +
+							"Input type inference can only produce a result with this information. " +
+							"Please implement method 'TypeInformation.getGenericParameters()' for this.");
+					}
+					info = createTypeInfoFromInput(returnTypeVar, factoryHierarchy, actualParams[i], componentInfo.get(typeParamName));
+					if (info != null) {
+						break;
+					}
+				}
+			}
+		}
 		// the input is a type variable
-		if (inType instanceof TypeVariable) {
+		else if (inType instanceof TypeVariable) {
 			inType = materializeTypeVariable(inputTypeHierarchy, (TypeVariable<?>) inType);
 			info = findCorrespondingInfo(returnTypeVar, inType, inTypeInfo, inputTypeHierarchy);
 		}
@@ -873,28 +940,30 @@ public class TypeExtractor {
 	 * @param typeHierarchy necessary for type inference
 	 * @param in1Type necessary for type inference
 	 * @param in2Type necessary for type inference
+	 * @param lenient decides whether exceptions should be thrown if a subtype can not be determined
 	 * @return array containing TypeInformation of sub types or null if definingType contains
 	 *     more subtypes (fields) that defined
 	 */
 	private <IN1, IN2> TypeInformation<?>[] createSubTypesInfo(Type originalType, ParameterizedType definingType,
-			ArrayList<Type> typeHierarchy, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
+			ArrayList<Type> typeHierarchy, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, boolean lenient) {
 		Type[] subtypes = new Type[definingType.getActualTypeArguments().length];
 
 		// materialize possible type variables
 		for (int i = 0; i < subtypes.length; i++) {
+			final Type actualTypeArg = definingType.getActualTypeArguments()[i];
 			// materialize immediate TypeVariables
-			if (definingType.getActualTypeArguments()[i] instanceof TypeVariable<?>) {
-				subtypes[i] = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) definingType.getActualTypeArguments()[i]);
+			if (actualTypeArg instanceof TypeVariable<?>) {
+				subtypes[i] = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) actualTypeArg);
 			}
 			// class or parameterized type
 			else {
-				subtypes[i] = definingType.getActualTypeArguments()[i];
+				subtypes[i] = actualTypeArg;
 			}
 		}
 
 		TypeInformation<?>[] subTypesInfo = new TypeInformation<?>[subtypes.length];
 		for (int i = 0; i < subtypes.length; i++) {
-			ArrayList<Type> subTypeHierarchy = new ArrayList<Type>(typeHierarchy);
+			final ArrayList<Type> subTypeHierarchy = new ArrayList<>(typeHierarchy);
 			subTypeHierarchy.add(subtypes[i]);
 			// sub type could not be determined with materializing
 			// try to derive the type info of the TypeVariable from the immediate base child input as a last attempt
@@ -902,7 +971,7 @@ public class TypeExtractor {
 				subTypesInfo[i] = createTypeInfoFromInputs((TypeVariable<?>) subtypes[i], subTypeHierarchy, in1Type, in2Type);
 
 				// variable could not be determined
-				if (subTypesInfo[i] == null) {
+				if (subTypesInfo[i] == null && !lenient) {
 					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) subtypes[i]).getName() + "' in '"
 							+ ((TypeVariable<?>) subtypes[i]).getGenericDeclaration()
 							+ "' could not be determined. This is most likely a type erasure problem. "
@@ -910,25 +979,75 @@ public class TypeExtractor {
 							+ "all variables in the return type can be deduced from the input type(s).");
 				}
 			} else {
-				subTypesInfo[i] = createTypeInfoWithTypeHierarchy(subTypeHierarchy, subtypes[i], in1Type, in2Type);
+				// create the type information of the subtype or null/exception
+				try {
+					subTypesInfo[i] = createTypeInfoWithTypeHierarchy(subTypeHierarchy, subtypes[i], in1Type, in2Type);
+				} catch (InvalidTypesException e) {
+					if (lenient) {
+						subTypesInfo[i] = null;
+					} else {
+						throw e;
+					}
+				}
 			}
 		}
 
-		Class<?> originalTypeAsClass = null;
-		if (isClassType(originalType)) {
-			originalTypeAsClass = typeToClass(originalType);
+		// check that number of fields matches the number of subtypes
+		if (!lenient) {
+			Class<?> originalTypeAsClass = null;
+			if (isClassType(originalType)) {
+				originalTypeAsClass = typeToClass(originalType);
+			}
+			checkNotNull(originalTypeAsClass, "originalType has an unexpected type");
+			// check if the class we assumed to conform to the defining type so far is actually a pojo because the
+			// original type contains additional fields.
+			// check for additional fields.
+			int fieldCount = countFieldsInClass(originalTypeAsClass);
+			if(fieldCount > subTypesInfo.length) {
+				return null;
+			}
 		}
-		checkNotNull(originalTypeAsClass, "originalType has an unexpected type");
-		// check if the class we assumed to conform to the defining type so far is actually a pojo because the
-		// original type contains additional fields.
-		// check for additional fields.
-		int fieldCount = countFieldsInClass(originalTypeAsClass);
-		if(fieldCount > subTypesInfo.length) {
-			return null;
-		}
+
 		return subTypesInfo;
 	}
-	
+
+	/**
+	 * Creates type information using a factory if for this type or super types. Returns null otherwise.
+	 */
+	@SuppressWarnings("unchecked")
+	private <IN1, IN2, OUT> TypeInformation<OUT> createTypeInfoFromFactory(
+			Type t, ArrayList<Type> typeHierarchy, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
+
+		final ArrayList<Type> factoryHierarchy = new ArrayList<>(typeHierarchy);
+		final TypeInfoFactory<? super OUT> factory = getClosestFactory(factoryHierarchy, t);
+		if (factory == null) {
+			return null;
+		}
+		final Type factoryDefiningType = factoryHierarchy.get(factoryHierarchy.size() - 1);
+
+		// infer possible type parameters from input
+		final Map<String, TypeInformation<?>> genericParams;
+		if (factoryDefiningType instanceof ParameterizedType) {
+			genericParams = new HashMap<>();
+			final ParameterizedType paramDefiningType = (ParameterizedType) factoryDefiningType;
+			final Type[] args = typeToClass(paramDefiningType).getTypeParameters();
+
+			final TypeInformation<?>[] subtypeInfo = createSubTypesInfo(t, paramDefiningType, factoryHierarchy, in1Type, in2Type, true);
+			assert subtypeInfo != null;
+			for (int i = 0; i < subtypeInfo.length; i++) {
+				genericParams.put(args[i].toString(), subtypeInfo[i]);
+			}
+		} else {
+			genericParams = Collections.emptyMap();
+		}
+
+		final TypeInformation<OUT> createdTypeInfo = (TypeInformation<OUT>) factory.createTypeInfo(t, genericParams);
+		if (createdTypeInfo == null) {
+			throw new InvalidTypesException("TypeInfoFactory returned invalid TypeInformation 'null'");
+		}
+		return createdTypeInfo;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Extract type parameters
 	// --------------------------------------------------------------------------------------------
@@ -1254,6 +1373,31 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * Returns the type information factory for a type using the factory registry or annotations.
+	 */
+	@Internal
+	public static <OUT> TypeInfoFactory<OUT> getTypeInfoFactory(Type t) {
+		final Class<?> factoryClass;
+		if (registeredTypeInfoFactories.containsKey(t)) {
+			factoryClass = registeredTypeInfoFactories.get(t);
+		}
+		else {
+			if (!isClassType(t) || !typeToClass(t).isAnnotationPresent(TypeInfo.class)) {
+				return null;
+			}
+			final TypeInfo typeInfoAnnotation = typeToClass(t).getAnnotation(TypeInfo.class);
+			factoryClass = typeInfoAnnotation.value();
+			// check for valid factory class
+			if (!TypeInfoFactory.class.isAssignableFrom(factoryClass)) {
+				throw new InvalidTypesException("TypeInfo annotation does not specify a valid TypeInfoFactory.");
+			}
+		}
+
+		// instantiate
+		return (TypeInfoFactory<OUT>) InstantiationUtil.instantiate(factoryClass);
+	}
+
+	/**
 	 * @return number of items with equal type or same raw type
 	 */
 	private static int countTypeInHierarchy(ArrayList<Type> typeHierarchy, Type type) {
@@ -1265,27 +1409,46 @@ public class TypeExtractor {
 		}
 		return count;
 	}
-	
-	/**
-	 * @param curT : start type
-	 * @return Type The immediate child of the top class
-	 */
-	private static Type getTypeHierarchy(ArrayList<Type> typeHierarchy, Type curT, Class<?> stopAtClass) {
-		// skip first one
-		if (typeHierarchy.size() > 0 && typeHierarchy.get(0) == curT && isClassType(curT)) {
-			curT = typeToClass(curT).getGenericSuperclass();
-		}
-		while (!(isClassType(curT) && typeToClass(curT).equals(stopAtClass))) {
-			typeHierarchy.add(curT);
-			curT = typeToClass(curT).getGenericSuperclass();
 
-			if (curT == null) {
+	/**
+	 * Traverses the type hierarchy of a type up until a certain stop class is found.
+	 *
+	 * @param t type for which a hierarchy need to be created
+	 * @return type of the immediate child of the stop class
+	 */
+	private static Type getTypeHierarchy(ArrayList<Type> typeHierarchy, Type t, Class<?> stopAtClass) {
+		while (!(isClassType(t) && typeToClass(t).equals(stopAtClass))) {
+			typeHierarchy.add(t);
+			t = typeToClass(t).getGenericSuperclass();
+
+			if (t == null) {
 				break;
 			}
 		}
-		return curT;
+		return t;
 	}
-	
+
+	/**
+	 * Traverses the type hierarchy up until a type information factory can be found.
+	 *
+	 * @param typeHierarchy hierarchy to be filled while traversing up
+	 * @param t type for which a factory needs to be found
+	 * @return closest type information factory or null if there is no factory in the type hierarchy
+	 */
+	private static <OUT> TypeInfoFactory<? super OUT> getClosestFactory(ArrayList<Type> typeHierarchy, Type t) {
+		TypeInfoFactory factory = null;
+		while (factory == null && isClassType(t) && !(typeToClass(t).equals(Object.class))) {
+			typeHierarchy.add(t);
+			factory = getTypeInfoFactory(t);
+			t = typeToClass(t).getGenericSuperclass();
+
+			if (t == null) {
+				break;
+			}
+		}
+		return factory;
+	}
+
 	private int countFieldsInClass(Class<?> clazz) {
 		int fieldCount = 0;
 		for(Field field : clazz.getFields()) { // get all fields
@@ -1486,16 +1649,25 @@ public class TypeExtractor {
 	 * @return TypeInformation that describes the passed Class
 	 */
 	public static <X> TypeInformation<X> getForClass(Class<X> clazz) {
-		return new TypeExtractor().privateGetForClass(clazz, new ArrayList<Type>());
+		final ArrayList<Type> typeHierarchy = new ArrayList<>();
+		typeHierarchy.add(clazz);
+		return new TypeExtractor().privateGetForClass(clazz, typeHierarchy);
 	}
 	
 	private <X> TypeInformation<X> privateGetForClass(Class<X> clazz, ArrayList<Type> typeHierarchy) {
 		return privateGetForClass(clazz, typeHierarchy, null, null, null);
 	}
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <OUT,IN1,IN2> TypeInformation<OUT> privateGetForClass(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
 			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		checkNotNull(clazz);
+
+		// check if type information can be produced using a factory
+		final TypeInformation<OUT> typeFromFactory = createTypeInfoFromFactory(clazz, typeHierarchy, in1Type, in2Type);
+		if (typeFromFactory != null) {
+			return typeFromFactory;
+		}
 
 		// Object is handled as generic type info
 		if (clazz.equals(Object.class)) {
@@ -1858,6 +2030,14 @@ public class TypeExtractor {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <X> TypeInformation<X> privateGetForObject(X value) {
 		checkNotNull(value);
+
+		// check if type information can be produced using a factory
+		final ArrayList<Type> typeHierarchy = new ArrayList<>();
+		typeHierarchy.add(value.getClass());
+		final TypeInformation<X> typeFromFactory = createTypeInfoFromFactory(value.getClass(), typeHierarchy, null, null);
+		if (typeFromFactory != null) {
+			return typeFromFactory;
+		}
 
 		// check if we can extract the types from tuples, otherwise work with the class
 		if (value instanceof Tuple) {
