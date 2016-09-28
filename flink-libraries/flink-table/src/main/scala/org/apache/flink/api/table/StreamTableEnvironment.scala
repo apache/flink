@@ -22,10 +22,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
@@ -228,20 +230,13 @@ abstract class StreamTableEnvironment(
   }
 
   /**
-    * Translates a [[Table]] into a [[DataStream]].
-    *
-    * The transformation involves optimizing the relational expression tree as defined by
-    * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
+    * Generates the optimized [[RelNode]] tree from the relational expression tree as defined by
+    * Table API calls and / or SQL queries and generating corresponding [[DataSet]] operators.
     *
     * @param table The root node of the relational expression tree.
-    * @param tpe The [[TypeInformation]] of the resulting [[DataStream]].
-    * @tparam A The type of the resulting [[DataStream]].
-    * @return The [[DataStream]] that corresponds to the translated [[Table]].
+    * @return The optimized [[RelNode]] tree
     */
-  protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
-
-    validateType(tpe)
-
+  private[flink] def optimize(table: Table): RelNode = {
     val relNode = table.getRelNode
 
     // decorrelate
@@ -262,6 +257,26 @@ abstract class StreamTableEnvironment(
             s"This exception indicates that the query uses an unsupported SQL feature.\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
     }
+    dataStreamPlan
+  }
+
+
+  /**
+    * Translates a [[Table]] into a [[DataStream]].
+    *
+    * The transformation involves optimizing the relational expression tree as defined by
+    * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
+    *
+    * @param table The root node of the relational expression tree.
+    * @param tpe The [[TypeInformation]] of the resulting [[DataStream]].
+    * @tparam A The type of the resulting [[DataStream]].
+    * @return The [[DataStream]] that corresponds to the translated [[Table]].
+    */
+  protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
+
+    validateType(tpe)
+
+   val dataStreamPlan = optimize(table)
 
     dataStreamPlan match {
       case node: DataStreamRel =>

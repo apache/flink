@@ -87,7 +87,8 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
       // Calcite's RelBuilder does not translate identity projects even if they rename fields.
       //   Add a projection ourselves (will be automatically removed by translation rules).
       val project = LogicalProject.create(relBuilder.peek(),
-        projectList.map(_.toRexNode(relBuilder)).asJava,
+        // avoid AS call
+        projectList.map(_.asInstanceOf[Alias].child.toRexNode(relBuilder)).asJava,
         projectList.map(_.name).asJava)
       relBuilder.build()  // pop previous relNode
       relBuilder.push(project)
