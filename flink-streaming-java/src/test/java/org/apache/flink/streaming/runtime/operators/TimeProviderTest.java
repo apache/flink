@@ -125,7 +125,7 @@ public class TimeProviderTest {
 		final Object lock = new Object();
 
 		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider
-			.createForTestingWithHandler(new AsyncExceptionHandler() {
+			.create(new AsyncExceptionHandler() {
 				@Override
 				public void handleAsyncException(String message, Throwable exception) {
 					exceptionWasThrown.compareAndSet(false, true);

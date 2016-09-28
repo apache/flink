@@ -103,32 +103,20 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
 			TestTimeServiceProvider testTimeProvider) {
-		this(operator, executionConfig, new Object(), testTimeProvider, TimeCharacteristic.ProcessingTime);
-	}
-
-	public OneInputStreamOperatorTestHarness(
-		OneInputStreamOperator<IN, OUT> operator,
-		ExecutionConfig executionConfig,
-		TestTimeServiceProvider testTimeProvider,
-		TimeCharacteristic timeCharacteristic) {
-		this(operator, executionConfig, new Object(), testTimeProvider, timeCharacteristic);
+		this(operator, executionConfig, new Object(), testTimeProvider);
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
 			Object checkpointLock,
-			TimeServiceProvider testTimeProvider,
-			TimeCharacteristic timeCharacteristic) {
+			TimeServiceProvider testTimeProvider) {
 
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<Object>();
-
 		Configuration underlyingConfig = new Configuration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
-		this.config.setTimeCharacteristic(timeCharacteristic);
-
 		this.executionConfig = executionConfig;
 		this.checkpointLock = checkpointLock;
 
@@ -173,6 +161,14 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				return timeServiceProvider;
 			}
 		}).when(mockTask).getTimerService();
+	}
+
+	public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
+		this.config.setTimeCharacteristic(timeCharacteristic);
+	}
+
+	public TimeCharacteristic getTimeCharacteristic() {
+		return this.config.getTimeCharacteristic();
 	}
 
 	public boolean wasFailedExternally() {

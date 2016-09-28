@@ -44,8 +44,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
@@ -218,7 +218,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			this.format = checkNotNull(format, "Unspecified FileInputFormat.");
 			this.serializer = checkNotNull(serializer, "Unspecified Serializer.");
 
-			this.pendingSplits = new LinkedList<>();
+			this.pendingSplits = new ArrayDeque<>();
 			this.readerContext = readerContext;
 			this.checkpointLock = checkpointLock;
 			this.isRunning = true;
@@ -230,7 +230,6 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 				S formatState = restoredState.f2;
 
 				for (FileInputSplit split : pending) {
-					Preconditions.checkArgument(!pendingSplits.contains(split), "Duplicate split entry to read: " + split + ".");
 					pendingSplits.add(split);
 				}
 
@@ -242,7 +241,6 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		private void addSplit(FileInputSplit split) {
 			Preconditions.checkNotNull(split);
 			synchronized (checkpointLock) {
-				Preconditions.checkArgument(!pendingSplits.contains(split), "Duplicate split entry to read: " + split + ".");
 				this.pendingSplits.add(split);
 			}
 		}
@@ -414,7 +412,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		FileInputSplit currSplit = (FileInputSplit) ois.readObject();
 
 		// read the pending splits list
-		List<FileInputSplit> pendingSplits = new LinkedList<>();
+		List<FileInputSplit> pendingSplits = new ArrayList<>();
 		int noOfSplits = ois.readInt();
 		for (int i = 0; i < noOfSplits; i++) {
 			FileInputSplit split = (FileInputSplit) ois.readObject();
