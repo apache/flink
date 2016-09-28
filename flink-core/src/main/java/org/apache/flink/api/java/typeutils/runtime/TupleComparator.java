@@ -22,28 +22,37 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.KeyFieldOutOfBoundsException;
 import org.apache.flink.types.NullFieldException;
 import org.apache.flink.types.NullKeyFieldException;
 
+import java.io.IOException;
+
 @Internal
 public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<T> {
 
 	private static final long serialVersionUID = 1L;
-	
+
+	/**
+	 * @param keyPositions positions of key fields
+	 * @param comparators comparators for key fields
+	 * @param serializers serializers for all fields
+	 */
 	public TupleComparator(int[] keyPositions, TypeComparator<?>[] comparators, TypeSerializer<?>[] serializers) {
 		super(keyPositions, comparators, serializers);
 	}
-	
+
 	private TupleComparator(TupleComparator<T> toClone) {
 		super(toClone);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Comparator Methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public int hash(T value) {
@@ -100,7 +109,7 @@ public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public int compare(T first, T second) {
@@ -154,5 +163,48 @@ public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<
 
 	public TypeComparator<T> duplicate() {
 		return new TupleComparator<T>(this);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public boolean supportsSerializationWithKeyNormalization() {
+		return supportsSerializationWithKeyNormalization;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void writeWithKeyNormalization(T record, DataOutputView target) throws IOException {
+		// serialize key fields with normalization
+		for (int i = 0 ; i < comparators.length ; i++) {
+			Object field = record.getFieldNotNull(keyPositions[i]);
+			comparators[i].writeWithKeyNormalization(field, target);
+		}
+		// serialize remaining value fields
+		for (int pos : valuePositions) {
+			Object field = record.getField(pos);
+			serializers[pos].serialize(field, target);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException {
+		// deserialize key fields with normalization
+		for (int i = 0 ; i < comparators.length ; i++) {
+			int keyPosition = keyPositions[i];
+			Object field = reuse.getField(keyPosition);
+			Object deserialized = comparators[i].readWithKeyDenormalization(field, source);
+			reuse.setField(deserialized, keyPosition);
+		}
+		// deserialize remaining value fields
+		for (int pos : valuePositions) {
+			Object field = reuse.getField(pos);
+			Object deserialized = serializers[pos].deserialize(field, source);
+			reuse.setField(deserialized, pos);
+		}
+		return reuse;
 	}
 }

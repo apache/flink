@@ -290,12 +290,12 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
 		TypeComparator<Tuple2<Integer, String>> comparator1 = new TupleComparator<>(
 				new int[]{0},
 				new TypeComparator<?>[]{new IntComparator(true)},
-				new TypeSerializer<?>[]{IntSerializer.INSTANCE}
+				new TypeSerializer<?>[]{IntSerializer.INSTANCE, StringSerializer.INSTANCE}
 		);
 		TypeComparator<Tuple2<Integer, String>> comparator2 = new TupleComparator<>(
 				new int[]{0},
 				new TypeComparator<?>[]{new IntComparator(true)},
-				new TypeSerializer<?>[]{IntSerializer.INSTANCE}
+				new TypeSerializer<?>[]{IntSerializer.INSTANCE, StringSerializer.INSTANCE}
 		);
 
 		TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> pairComparator = new GenericPairComparator<>(comparator1, comparator2);

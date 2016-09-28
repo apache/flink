@@ -49,6 +49,31 @@ public class FloatValueComparator extends TypeComparator<FloatValue> {
 	}
 
 	@Override
+	public TypeComparator<FloatValue> duplicate() {
+		return new FloatValueComparator(ascendingComparison);
+	}
+
+	@Override
+	public boolean invertNormalizedKey() {
+		return !ascendingComparison;
+	}
+
+	@Override
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
+	}
+
+	@Override
+	public TypeComparator<?>[] getFlatComparators() {
+		return comparators;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// comparison
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public int hash(FloatValue record) {
 		return record.hashCode();
 	}
@@ -84,6 +109,10 @@ public class FloatValueComparator extends TypeComparator<FloatValue> {
 		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public boolean supportsNormalizedKey() {
 		return NormalizableKey.class.isAssignableFrom(FloatValue.class);
@@ -91,8 +120,7 @@ public class FloatValueComparator extends TypeComparator<FloatValue> {
 
 	@Override
 	public int getNormalizeKeyLen() {
-		NormalizableKey<?> key = (NormalizableKey<?>) reference;
-		return key.getMaxNormalizedKeyLen();
+		return reference.getMaxNormalizedKeyLen();
 	}
 
 	@Override
@@ -102,47 +130,36 @@ public class FloatValueComparator extends TypeComparator<FloatValue> {
 
 	@Override
 	public void putNormalizedKey(FloatValue record, MemorySegment target, int offset, int numBytes) {
-		NormalizableKey<?> key = (NormalizableKey<?>) record;
-		key.copyNormalizedKey(target, offset, numBytes);
-	}
-
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
-
-	@Override
-	public TypeComparator<FloatValue> duplicate() {
-		return new FloatValueComparator(ascendingComparison);
-	}
-
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
-
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return comparators;
+		record.copyNormalizedKey(target, offset, numBytes);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
+	// serialization with key normalization
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public void writeWithKeyNormalization(FloatValue record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
+		float value = record.getValue();
+
+		int bits = Float.floatToIntBits(value);
+		bits = (value < 0) ? ~bits : bits - Integer.MIN_VALUE;
+
+		target.writeInt(bits);
 	}
 
 	@Override
 	public FloatValue readWithKeyDenormalization(FloatValue reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
+		int bits = source.readInt();
+		bits = (bits >= 0) ? ~bits : bits + Integer.MIN_VALUE;
+
+		float value = Float.intBitsToFloat(bits);
+		reuse.setValue(value);
+
+		return reuse;
 	}
 }

@@ -55,7 +55,7 @@ public class HashTableRecordWidthCombinations {
 		final TypeComparator<Tuple2<Long, byte[]>> buildComparator = new TupleComparator<Tuple2<Long, byte[]>>(
 				new int[] {0},
 				new TypeComparator<?>[] { new LongComparator(true) },
-				new TypeSerializer<?>[] { LongSerializer.INSTANCE });
+				new TypeSerializer<?>[] { LongSerializer.INSTANCE, BytePrimitiveArraySerializer.INSTANCE });
 		
 		final TypeComparator<Long> probeComparator = new LongComparator(true);
 

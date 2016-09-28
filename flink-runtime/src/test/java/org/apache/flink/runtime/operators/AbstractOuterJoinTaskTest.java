@@ -64,14 +64,14 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 	protected final TypeComparator<Tuple2<Integer, Integer>> comparator1 = new TupleComparator<>(
 			new int[]{0},
 			new TypeComparator<?>[]{new IntComparator(true)},
-			new TypeSerializer<?>[]{IntSerializer.INSTANCE}
+			new TypeSerializer<?>[]{IntSerializer.INSTANCE, IntSerializer.INSTANCE}
 	);
 	
 	@SuppressWarnings("unchecked")
 	protected final TypeComparator<Tuple2<Integer, Integer>> comparator2 = new TupleComparator<>(
 			new int[]{0},
 			new TypeComparator<?>[]{new IntComparator(true)},
-			new TypeSerializer<?>[]{IntSerializer.INSTANCE}
+			new TypeSerializer<?>[]{IntSerializer.INSTANCE, IntSerializer.INSTANCE}
 	);
 	
 	protected final List<Tuple2<Integer, Integer>> outList = new ArrayList<>();

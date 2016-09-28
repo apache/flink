@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.IOException;
@@ -76,24 +77,41 @@ public final class DateComparator extends BasicTypeComparator<Date> {
 		return ascendingComparison ? comp : -comp;
 	}
 
-	public static void putNormalizedKeyDate(Date record, MemorySegment target, int offset, int numBytes) {
-		final long value = record.getTime() - Long.MIN_VALUE;
+	public static void putNormalizedKeyDate(Date value, MemorySegment target, int offset, int numBytes) {
+		long normalizedValue = value.getTime() - Long.MIN_VALUE;
 
 		// see IntValue for an explanation of the logic
-		if (numBytes == 8) {
-			// default case, full normalized key
-			target.putLongBigEndian(offset, value);
-		}
-		else if (numBytes < 8) {
-			for (int i = 0; numBytes > 0; numBytes--, i++) {
-				target.put(offset + i, (byte) (value >>> ((7-i)<<3)));
-			}
-		}
-		else {
-			target.putLongBigEndian(offset, value);
+		// see IntValue for an explanation of the logic
+		if (numBytes > 7) {
+			target.putLongBigEndian(offset, normalizedValue);
+
 			for (int i = 8; i < numBytes; i++) {
 				target.put(offset + i, (byte) 0);
 			}
+		} else if (numBytes > 0) {
+			for (int i = 0; numBytes > 0; numBytes--, i++) {
+				target.put(offset + i, (byte) (normalizedValue >>> ((7-i)<<3)));
+			}
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// serialization with key normalization
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(Date record, DataOutputView target) throws IOException {
+		target.writeLong(record.getTime() - Long.MIN_VALUE);
+	}
+
+	@Override
+	public Date readWithKeyDenormalization(Date reuse, DataInputView source) throws IOException {
+		reuse.setTime(source.readLong() + Long.MIN_VALUE);
+		return reuse;
 	}
 }

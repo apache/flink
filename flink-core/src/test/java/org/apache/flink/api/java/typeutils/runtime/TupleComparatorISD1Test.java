@@ -47,7 +47,7 @@ public class TupleComparatorISD1Test extends TupleComparatorTestBase<Tuple3<Inte
 		return new TupleComparator<Tuple3<Integer, String, Double>>(
 				new int[]{0},
 				new TypeComparator[]{ new IntComparator(ascending) },
-				new TypeSerializer[]{ IntSerializer.INSTANCE });
+				new TypeSerializer[]{ IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE });
 	}
 
 	@SuppressWarnings("unchecked")

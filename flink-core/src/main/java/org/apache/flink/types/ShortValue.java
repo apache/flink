@@ -19,21 +19,21 @@
 
 package org.apache.flink.types;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
+
 /**
  * Boxed serializable and comparable short integer type, representing the primitive
- * type {@code short}.
+ * type {@code short} (signed 16-bit integer).
  */
 @Public
 public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<ShortValue>, CopyableValue<ShortValue> {
 	private static final long serialVersionUID = 1L;
-	
+
 	private short value;
 
 	/**
@@ -51,7 +51,9 @@ public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<
 	public ShortValue(short value) {
 		this.value = value;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Returns the value of the encapsulated short.
 	 * 
@@ -72,17 +74,23 @@ public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<
 	}
 
 	@Override
-	public void setValue(ShortValue value) {
-		this.value = value.value;
-	}
-
-	@Override
 	public String toString() {
 		return String.valueOf(this.value);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// ResettableValue
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void setValue(ShortValue value) {
+		this.value = value.value;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// IOReadableWritable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void read(DataInputView in) throws IOException {
 		this.value = in.readShort();
@@ -94,12 +102,18 @@ public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// Comparable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int compareTo(ShortValue o) {
 		final int other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Key
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
@@ -113,7 +127,9 @@ public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<
 		}
 		return false;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	// NormalizableKey
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -122,34 +138,23 @@ public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<
 	}
 
 	@Override
-	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
-		if (len == 2) {
-			// default case, full normalized key
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-			target.put(offset + 1, (byte) ((value) & 0xff));
-		}
-		else if (len <= 0) {
-		}
-		else if (len == 1) {
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-		}
-		else {
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-			target.put(offset + 1, (byte) ((value) & 0xff));
+	public void copyNormalizedKey(MemorySegment memory, int offset, int len) {
+		// see IntValue for an explanation of the logic
+		short normalizedValue = (short) (value - Short.MIN_VALUE);
+
+		if (len > 1) {
+			memory.putShortBigEndian(offset, normalizedValue);
+
 			for (int i = 2; i < len; i++) {
-				target.put(offset + i, (byte) 0);
+				memory.put(offset + i, (byte) 0);
 			}
+		} else if (len > 0) {
+			memory.put(offset, (byte) ((normalizedValue >>> 8) & 0xff));
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int getBinaryLength() {
 		return 2;

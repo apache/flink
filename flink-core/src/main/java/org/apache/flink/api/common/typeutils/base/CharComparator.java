@@ -18,20 +18,25 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 @Internal
 public final class CharComparator extends BasicTypeComparator<Character> {
 
 	private static final long serialVersionUID = 1L;
 
-	
 	public CharComparator(boolean ascending) {
 		super(ascending);
+	}
+
+	@Override
+	public CharComparator duplicate() {
+		return new CharComparator(ascendingComparison);
 	}
 
 	@Override
@@ -41,6 +46,10 @@ public final class CharComparator extends BasicTypeComparator<Character> {
 		int comp = (c1 < c2 ? -1 : (c1 == c2 ? 0 : 1)); 
 		return ascendingComparison ? comp : -comp; 
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsNormalizedKey() {
@@ -60,29 +69,36 @@ public final class CharComparator extends BasicTypeComparator<Character> {
 	@Override
 	public void putNormalizedKey(Character value, MemorySegment target, int offset, int numBytes) {
 		// note that the char is an unsigned data type in java and consequently needs
-		// no code that transforms the signed representation to an offsetted representation
+		// no code that transforms the signed representation to an offset representation
 		// that is equivalent to unsigned, when compared byte by byte
-		if (numBytes == 2) {
+		if (numBytes > 1) {
 			// default case, full normalized key
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-			target.put(offset + 1, (byte) ((value      ) & 0xff));
-		}
-		else if (numBytes <= 0) {
-		}
-		else if (numBytes == 1) {
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-		}
-		else {
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-			target.put(offset + 1, (byte) ((value      ) & 0xff));
+			target.putCharBigEndian(offset, value);
+
 			for (int i = 2; i < numBytes; i++) {
 				target.put(offset + i, (byte) 0);
 			}
+		} else if (numBytes > 0) {
+			target.put(offset, (byte) ((value >>> 8) & 0xff));
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// serialization with key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
-	public CharComparator duplicate() {
-		return new CharComparator(ascendingComparison);
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(Character record, DataOutputView target) throws IOException {
+		target.writeChar(record);
+	}
+
+	@Override
+	public Character readWithKeyDenormalization(Character reuse, DataInputView source) throws IOException {
+		return source.readChar();
 	}
 }

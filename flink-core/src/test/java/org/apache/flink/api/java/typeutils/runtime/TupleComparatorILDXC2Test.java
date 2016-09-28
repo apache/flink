@@ -51,7 +51,7 @@ public class TupleComparatorILDXC2Test extends TupleComparatorTestBase<Tuple3<In
 					new DoubleComparator(ascending),
 					new LongComparator(ascending)
 				},
-		new TypeSerializer[]{ IntSerializer.INSTANCE, DoubleSerializer.INSTANCE, LongSerializer.INSTANCE });
+		new TypeSerializer[]{ IntSerializer.INSTANCE, LongSerializer.INSTANCE, DoubleSerializer.INSTANCE });
 	}
 
 	@SuppressWarnings("unchecked")

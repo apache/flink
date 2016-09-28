@@ -19,16 +19,16 @@
 
 package org.apache.flink.types;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
+
 /**
  * Boxed serializable and comparable long integer type, representing the primitive
- * type {@code long}.
+ * type {@code long} (signed 64-bit integer).
  */
 @Public
 public class LongValue implements NormalizableKey<LongValue>, ResettableValue<LongValue>, CopyableValue<LongValue> {
@@ -48,9 +48,11 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	 * 
 	 * @param value Initial value of the encapsulated long.
 	 */
-	public LongValue(final long value) {
+	public LongValue(long value) {
 		this.value = value;
 	}
+
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Returns the value of the encapsulated long.
@@ -72,21 +74,23 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	}
 
 	@Override
-	public void setValue(LongValue value) {
-		this.value = value.value;
-	}
-	
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
-	@Override
 	public String toString() {
 		return String.valueOf(this.value);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// ResettableValue
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void setValue(LongValue value) {
+		this.value = value.value;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// IOReadableWritable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void read(final DataInputView in) throws IOException {
 		this.value = in.readLong();
@@ -98,22 +102,24 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// Comparable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int compareTo(LongValue o) {
 		final long other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Key
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int hashCode() {
 		return 43 + (int) (this.value ^ this.value >>> 32);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
 	@Override
 	public boolean equals(final Object obj) {
 		if (obj instanceof LongValue) {
@@ -121,41 +127,38 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 		}
 		return false;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+	// NormalizableKey
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public int getMaxNormalizedKeyLen()
-	{
+	public int getMaxNormalizedKeyLen() {
 		return 8;
 	}
 
 	@Override
-	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
+	public void copyNormalizedKey(MemorySegment memory, int offset, int len) {
 		// see IntValue for an explanation of the logic
-		if (len == 8) {
-			// default case, full normalized key
-			target.putLongBigEndian(offset, value - Long.MIN_VALUE);
-		}
-		else if (len <= 0) {
-		}
-		else if (len < 8) {
-			long value = this.value - Long.MIN_VALUE;
-			for (int i = 0; len > 0; len--, i++) {
-				target.put(offset + i, (byte) (value >>> ((7-i)<<3)));
-			}
-		}
-		else {
-			target.putLongBigEndian(offset, value - Long.MIN_VALUE);
+		long normalizedValue = value - Long.MIN_VALUE;
+
+		if (len > 7) {
+			memory.putLongBigEndian(offset, normalizedValue);
+
 			for (int i = 8; i < len; i++) {
-				target.put(offset + i, (byte) 0);
+				memory.put(offset + i, (byte) 0);
+			}
+		} else if (len > 0) {
+			for (int i = 0; len > 0; len--, i++) {
+				memory.put(offset + i, (byte) (normalizedValue >>> ((7-i)<<3)));
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+	// CopyableValue
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int getBinaryLength() {
 		return 8;

@@ -19,18 +19,22 @@
 
 package org.apache.flink.types;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 /**
  * Boxed serializable and comparable double precision floating point type, representing the primitive
  * type {@code double}.
+ *
+ * Comparable and Key are super-interfaces of NormalizableKey but are required for API compatibility.
  */
 @Public
-public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue>, Key<DoubleValue> {
+public class DoubleValue implements NormalizableKey<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue>, Comparable<DoubleValue>, Key<DoubleValue> {
+
 	private static final long serialVersionUID = 1L;
 
 	private double value;
@@ -52,6 +56,8 @@ public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<Dou
 		this.value = value;
 	}
 
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Returns the value of the encapsulated primitive double.
 	 * 
@@ -72,12 +78,23 @@ public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<Dou
 	}
 
 	@Override
+	public String toString() {
+		return String.valueOf(this.value);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// ResettableValue
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public void setValue(DoubleValue value) {
 		this.value = value.value;
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// IOReadableWritable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void read(DataInputView in) throws IOException {
 		this.value = in.readDouble();
@@ -87,19 +104,20 @@ public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<Dou
 	public void write(DataOutputView out) throws IOException {
 		out.writeDouble(this.value);
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	// Comparable
 	// --------------------------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return String.valueOf(this.value);
-	}
-	
 	@Override
 	public int compareTo(DoubleValue o) {
 		final double other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Key
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
@@ -117,7 +135,40 @@ public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<Dou
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// NormalizableKey
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 8;
+	}
+
+	@Override
+	public void copyNormalizedKey(MemorySegment memory, int offset, int len) {
+		// double representation is the same for positive and negative values
+		// except for the leading sign bit; representations for positive values
+		// are normalized and representations for negative values need inversion
+		long bits = Double.doubleToLongBits(value);
+		bits = (value < 0) ? ~bits : bits - Long.MIN_VALUE;
+
+		// see LongValue for an explanation of the logic
+		if (len > 7) {
+			memory.putLongBigEndian(offset, bits);
+
+			for (int i = 8; i < len; i++) {
+				memory.put(offset + i, (byte) 0);
+			}
+		} else if (len > 0) {
+			for (int i = 0; len > 0; len--, i++) {
+				memory.put(offset + i, (byte) (bits >>> ((7-i)<<3)));
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// CopyableValue
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int getBinaryLength() {
 		return 8;

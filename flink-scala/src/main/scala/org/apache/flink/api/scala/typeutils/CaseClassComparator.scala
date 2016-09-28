@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.TupleComparatorBase
-import org.apache.flink.core.memory.MemorySegment
+import org.apache.flink.core.memory.{DataInputView, DataOutputView, MemorySegment}
 import org.apache.flink.types.{KeyFieldOutOfBoundsException, NullKeyFieldException}
 
 /**
@@ -163,5 +163,19 @@ class CaseClassComparator[T <: Product](
     }
 
     localIndex - index
+  }
+
+  // --------------------------------------------------------------------------------------------
+  // key normalization
+  // --------------------------------------------------------------------------------------------
+
+  override def supportsSerializationWithKeyNormalization(): Boolean = false
+
+  override def writeWithKeyNormalization(record: T, target: DataOutputView) {
+    throw new UnsupportedOperationException
+  }
+
+  override def readWithKeyDenormalization(reuse: T, source: DataInputView): T = {
+    throw new UnsupportedOperationException
   }
 }

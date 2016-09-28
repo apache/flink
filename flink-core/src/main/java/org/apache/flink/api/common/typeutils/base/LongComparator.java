@@ -18,20 +18,25 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 @Internal
 public final class LongComparator extends BasicTypeComparator<Long> {
 
 	private static final long serialVersionUID = 1L;
 
-	
 	public LongComparator(boolean ascending) {
 		super(ascending);
+	}
+
+	@Override
+	public LongComparator duplicate() {
+		return new LongComparator(ascendingComparison);
 	}
 
 	@Override
@@ -42,6 +47,9 @@ public final class LongComparator extends BasicTypeComparator<Long> {
 		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsNormalizedKey() {
@@ -59,31 +67,39 @@ public final class LongComparator extends BasicTypeComparator<Long> {
 	}
 
 	@Override
-	public void putNormalizedKey(Long lValue, MemorySegment target, int offset, int numBytes) {
-		long value = lValue.longValue() - Long.MIN_VALUE;
-		
+	public void putNormalizedKey(Long value, MemorySegment target, int offset, int numBytes) {
+		long normalizedValue = value - Long.MIN_VALUE;
+
 		// see IntValue for an explanation of the logic
-		if (numBytes == 8) {
-			// default case, full normalized key
-			target.putLongBigEndian(offset, value);
-		}
-		else if (numBytes <= 0) {
-		}
-		else if (numBytes < 8) {
-			for (int i = 0; numBytes > 0; numBytes--, i++) {
-				target.put(offset + i, (byte) (value >>> ((7-i)<<3)));
-			}
-		}
-		else {
-			target.putLongBigEndian(offset, value);
+		if (numBytes > 7) {
+			target.putLongBigEndian(offset, normalizedValue);
+
 			for (int i = 8; i < numBytes; i++) {
 				target.put(offset + i, (byte) 0);
+			}
+		} else if (numBytes > 0) {
+			for (int i = 0; numBytes > 0; numBytes--, i++) {
+				target.put(offset + i, (byte) (normalizedValue >>> ((7-i)<<3)));
 			}
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// serialization with key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
-	public LongComparator duplicate() {
-		return new LongComparator(ascendingComparison);
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(Long record, DataOutputView target) throws IOException {
+		target.writeLong(record - Long.MIN_VALUE);
+	}
+
+	@Override
+	public Long readWithKeyDenormalization(Long reuse, DataInputView source) throws IOException {
+		return source.readLong() + Long.MIN_VALUE;
 	}
 }

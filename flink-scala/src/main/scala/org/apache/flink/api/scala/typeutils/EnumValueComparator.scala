@@ -84,14 +84,6 @@ class EnumValueComparator[E <: Enumeration](ascComp: Boolean) extends TypeCompar
     intComparator.invertNormalizedKey()
   }
 
-  override def writeWithKeyNormalization(record: T, target: DataOutputView): Unit = {
-    intComparator.writeWithKeyNormalization(record.id, target)
-  }
-
-  override def supportsSerializationWithKeyNormalization(): Boolean = {
-    intComparator.supportsSerializationWithKeyNormalization()
-  }
-
   override def extractKeys(record: AnyRef, target: Array[AnyRef], index: Int): Int = {
     target(index) = record
     1
@@ -99,6 +91,12 @@ class EnumValueComparator[E <: Enumeration](ascComp: Boolean) extends TypeCompar
 
   override lazy val getFlatComparators: Array[TypeComparator[_]] = {
     Array(this)
+  }
+
+  override def supportsSerializationWithKeyNormalization(): Boolean = false
+
+  override def writeWithKeyNormalization(record: T, target: DataOutputView): Unit = {
+    throw new UnsupportedOperationException
   }
 
   override def readWithKeyDenormalization(reuse: T, source: DataInputView): T = {

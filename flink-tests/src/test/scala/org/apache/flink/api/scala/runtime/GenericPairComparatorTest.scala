@@ -18,9 +18,8 @@
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.typeutils.{GenericPairComparator, TypeComparator, TypeSerializer}
-import org.apache.flink.api.common.typeutils.base.{DoubleComparator, DoubleSerializer, IntComparator, IntSerializer}
+import org.apache.flink.api.common.typeutils.base.{DoubleComparator, DoubleSerializer, FloatSerializer, IntComparator, IntSerializer, LongSerializer, StringSerializer}
 
-import org.apache.flink.api.java.typeutils.runtime.TupleComparator
 import org.apache.flink.api.scala.runtime.tuple.base.PairComparatorTestBase
 import org.apache.flink.api.scala.typeutils.CaseClassComparator
 
@@ -38,9 +37,16 @@ class GenericPairComparatorTest
       Array[TypeComparator[_]](new IntComparator(ascending), new DoubleComparator(ascending))
 
     val sers1 =
-      Array[TypeSerializer[_]](IntSerializer.INSTANCE, DoubleSerializer.INSTANCE)
+      Array[TypeSerializer[_]](
+        IntSerializer.INSTANCE,
+        StringSerializer.INSTANCE,
+        DoubleSerializer.INSTANCE)
     val sers2 =
-      Array[TypeSerializer[_]](IntSerializer.INSTANCE, DoubleSerializer.INSTANCE)
+      Array[TypeSerializer[_]](
+        IntSerializer.INSTANCE,
+        FloatSerializer.INSTANCE,
+        LongSerializer.INSTANCE,
+        DoubleSerializer.INSTANCE)
 
     val comp1 = new CaseClassComparator[(Int, String, Double)](fields1, comps1, sers1)
     val comp2 = new CaseClassComparator[(Int, Float, Long, Double)](fields2, comps2, sers2)

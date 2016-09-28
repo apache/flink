@@ -18,20 +18,25 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 @Internal
 public final class DoubleComparator extends BasicTypeComparator<Double> {
 
 	private static final long serialVersionUID = 1L;
 
-	
 	public DoubleComparator(boolean ascending) {
 		super(ascending);
+	}
+
+	@Override
+	public DoubleComparator duplicate() {
+		return new DoubleComparator(ascendingComparison);
 	}
 
 	@Override 
@@ -42,29 +47,63 @@ public final class DoubleComparator extends BasicTypeComparator<Double> {
 		return ascendingComparison ? comp : -comp; 
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsNormalizedKey() {
-		return false;
-	}
-
-	@Override
-	public int getNormalizeKeyLen() {
-		return 0;
-	}
-
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return true;
 	}
 
 	@Override
-	public void putNormalizedKey(Double value, MemorySegment target, int offset, int numBytes) {
-		throw new UnsupportedOperationException();
+	public int getNormalizeKeyLen() {
+		return 8;
 	}
 
 	@Override
-	public DoubleComparator duplicate() {
-		return new DoubleComparator(ascendingComparison);
+	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+		return keyBytes < 8;
+	}
+
+	@Override
+	public void putNormalizedKey(Double value, MemorySegment target, int offset, int numBytes) {
+		// double representation is the same for positive and negative values
+		// except for the leading sign bit; representations for positive values
+		// are normalized and representations for negative values need inversion
+		long bits = Double.doubleToLongBits(value);
+		bits = (value < 0) ? ~bits : bits - Long.MIN_VALUE;
+
+		// see LongValue for an explanation of the logic
+		if (numBytes > 7) {
+			target.putLongBigEndian(offset, bits);
+
+			for (int i = 8; i < numBytes; i++) {
+				target.put(offset + i, (byte) 0);
+			}
+		} else if (numBytes > 0) {
+			for (int i = 0; numBytes > 0; numBytes--, i++) {
+				target.put(offset + i, (byte) (bits >>> ((7-i)<<3)));
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// serialization with key normalization
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(Double record, DataOutputView target) throws IOException {
+		target.writeDouble(-record);
+	}
+
+	@Override
+	public Double readWithKeyDenormalization(Double reuse, DataInputView source) throws IOException {
+		return -source.readDouble();
 	}
 }

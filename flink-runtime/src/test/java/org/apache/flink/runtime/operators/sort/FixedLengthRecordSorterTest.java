@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import java.util.List;
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
@@ -46,7 +43,15 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Random;
+
+@RunWith(Parameterized.class)
 public class FixedLengthRecordSorterTest {
 	
 	private static final long SEED = 649180756312423613L;
@@ -63,6 +68,15 @@ public class FixedLengthRecordSorterTest {
 	
 	private TypeComparator<IntPair> comparator;
 
+	// test parameters
+	private final IndexedSorter sort;
+
+	private final boolean objectReuse;
+
+	public FixedLengthRecordSorterTest(IndexedSorter sort, boolean objectReuse) {
+		this.sort = sort;
+		this.objectReuse = objectReuse;
+	}
 
 	@Before
 	public void beforeTest() {
@@ -101,7 +115,7 @@ public class FixedLengthRecordSorterTest {
 		IntPair record = new IntPair();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record) && num < 3354624);
@@ -114,9 +128,14 @@ public class FixedLengthRecordSorterTest {
 //		startTime = System.currentTimeMillis();
 		int i = 0;
 		while (i < num) {
-			generator.next(record);
-			readTarget = sorter.getRecord(readTarget, i++);
-			
+			if (objectReuse) {
+				record = generator.next(record);
+				readTarget = sorter.getRecord(readTarget, i++);
+			} else {
+				record = generator.next();
+				readTarget = sorter.getRecord(i++);
+			}
+
 			int rk = readTarget.getKey();
 			int gk = record.getKey();
 			
@@ -150,7 +169,7 @@ public class FixedLengthRecordSorterTest {
 		IntPair record = new IntPair();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record));
@@ -162,10 +181,10 @@ public class FixedLengthRecordSorterTest {
 		IntPair readTarget = new IntPair();
 		int count = 0;
 		
-		while ((readTarget = iter.next(readTarget)) != null) {
+		while ((readTarget = objectReuse ? iter.next(readTarget) : iter.next()) != null) {
 			count++;
-			
-			generator.next(record);
+
+			record = objectReuse ? generator.next(record) : generator.next();
 			
 			int rk = readTarget.getKey();
 			int gk = record.getKey();
@@ -196,7 +215,7 @@ public class FixedLengthRecordSorterTest {
 		IntPair record = new IntPair();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record) && num < 3354624);
@@ -209,7 +228,7 @@ public class FixedLengthRecordSorterTest {
 		// write the buffer full with the first set of records
 		int num2 = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num2++;
 		}
 		while (sorter.write(record) && num2 < 3354624);
@@ -222,8 +241,13 @@ public class FixedLengthRecordSorterTest {
 		
 		int i = 0;
 		while (i < num) {
-			generator.next(record);
-			readTarget = sorter.getRecord(readTarget, i++);
+			if (objectReuse) {
+				record = generator.next(record);
+				readTarget = sorter.getRecord(readTarget, i++);
+			} else {
+				record = generator.next();
+				readTarget = sorter.getRecord(i++);
+			}
 			
 			int rk = readTarget.getKey();
 			int gk = record.getKey();
@@ -257,7 +281,7 @@ public class FixedLengthRecordSorterTest {
 		IntPair record = new IntPair();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record) && num < 3354624);
@@ -274,8 +298,13 @@ public class FixedLengthRecordSorterTest {
 		
 		int i = num - 1;
 		while (i >= 0) {
-			generator.next(record);
-			readTarget = sorter.getRecord(readTarget, i--);
+			if (objectReuse) {
+				record = generator.next(record);
+				readTarget = sorter.getRecord(readTarget, i--);
+			} else {
+				record = generator.next();
+				readTarget = sorter.getRecord(i--);
+			}
 			
 			int rk = readTarget.getKey();
 			int gk = record.getKey();
@@ -309,7 +338,7 @@ public class FixedLengthRecordSorterTest {
 		IntPair record = new IntPair();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record) && num < 3354624);
@@ -348,24 +377,23 @@ public class FixedLengthRecordSorterTest {
 		IntPair record = new IntPair();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record) && num < NUM_RECORDS);
 		
-		QuickSort qs = new QuickSort();
-		qs.sort(sorter);
+		this.sort.sort(sorter);
 		
 		MutableObjectIterator<IntPair> iter = sorter.getIterator();
 		IntPair readTarget = new IntPair();
 		
 		int current;
 		int last;
-		
-		iter.next(readTarget);
+
+		readTarget = objectReuse ? iter.next(readTarget) : iter.next();
 		last = readTarget.getKey();
 		
-		while ((readTarget = iter.next(readTarget)) != null) {
+		while ((readTarget = objectReuse ? iter.next(readTarget) : iter.next()) != null) {
 			current = readTarget.getKey();
 			
 			final int cmp = last - current;
@@ -393,7 +421,7 @@ public class FixedLengthRecordSorterTest {
 		IntPair record = new IntPair();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record) && num < NUM_RECORDS);
@@ -411,13 +439,13 @@ public class FixedLengthRecordSorterTest {
 		final List<MemorySegment> readBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
 		ChannelReaderInputView readerInputView = new ChannelReaderInputView(blockChannelReader, readBuffer, false);
 		final List<MemorySegment> dataBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
-		ChannelReaderInputViewIterator<IntPair> iterator = new ChannelReaderInputViewIterator(readerInputView, dataBuffer, this.serializer);
+		ChannelReaderInputViewIterator<IntPair> iterator = new ChannelReaderInputViewIterator<>(readerInputView, dataBuffer, this.serializer);
 
-		record = iterator.next(record);
-		int i =0;
+		record = objectReuse ? iterator.next(record) : iterator.next();
+		int i = 0;
 		while (record != null) {
 			Assert.assertEquals(i, record.getKey());
-			record = iterator.next(record);
+			record = objectReuse ? iterator.next(record) : iterator.next();
 			i++;
 		}
 
@@ -442,7 +470,7 @@ public class FixedLengthRecordSorterTest {
 		IntPair record = new IntPair();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record) && num < NUM_RECORDS);
@@ -460,13 +488,13 @@ public class FixedLengthRecordSorterTest {
 		final List<MemorySegment> readBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
 		ChannelReaderInputView readerInputView = new ChannelReaderInputView(blockChannelReader, readBuffer, false);
 		final List<MemorySegment> dataBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
-		ChannelReaderInputViewIterator<IntPair> iterator = new ChannelReaderInputViewIterator(readerInputView, dataBuffer, this.serializer);
+		ChannelReaderInputViewIterator<IntPair> iterator = new ChannelReaderInputViewIterator<>(readerInputView, dataBuffer, this.serializer);
 
-		record = iterator.next(record);
-		int i =1;
+		record = objectReuse ? iterator.next(record) : iterator.next();
+		int i = 1;
 		while (record != null) {
 			Assert.assertEquals(i, record.getKey());
-			record = iterator.next(record);
+			record = objectReuse ? iterator.next(record) : iterator.next();
 			i++;
 		}
 
@@ -476,5 +504,18 @@ public class FixedLengthRecordSorterTest {
 		// release the memory occupied by the buffers
 		sorter.dispose();
 		this.memoryManager.release(memory);
+	}
+
+	// ------------------------------------------------------------------------
+	//  parametrization
+	// ------------------------------------------------------------------------
+
+	@Parameterized.Parameters(name = "Object reuse = {0}")
+	public static Collection<Object[]> objectReuseModes() {
+		return Arrays.asList(
+			new Object[] { new QuickSort(), Boolean.FALSE },
+			new Object[] { new QuickSort(), Boolean.TRUE },
+			new Object[] { new HeapSort(), Boolean.FALSE },
+			new Object[] { new HeapSort(), Boolean.TRUE });
 	}
 }

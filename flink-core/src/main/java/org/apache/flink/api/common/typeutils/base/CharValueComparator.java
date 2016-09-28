@@ -49,6 +49,31 @@ public class CharValueComparator extends TypeComparator<CharValue> {
 	}
 
 	@Override
+	public TypeComparator<CharValue> duplicate() {
+		return new CharValueComparator(ascendingComparison);
+	}
+
+	@Override
+	public boolean invertNormalizedKey() {
+		return !ascendingComparison;
+	}
+
+	@Override
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
+	}
+
+	@Override
+	public TypeComparator<?>[] getFlatComparators() {
+		return comparators;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// comparison
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public int hash(CharValue record) {
 		return record.hashCode();
 	}
@@ -84,6 +109,10 @@ public class CharValueComparator extends TypeComparator<CharValue> {
 		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public boolean supportsNormalizedKey() {
 		return NormalizableKey.class.isAssignableFrom(CharValue.class);
@@ -104,43 +133,23 @@ public class CharValueComparator extends TypeComparator<CharValue> {
 		record.copyNormalizedKey(target, offset, numBytes);
 	}
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
-
-	@Override
-	public TypeComparator<CharValue> duplicate() {
-		return new CharValueComparator(ascendingComparison);
-	}
-
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
-
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return comparators;
-	}
-
 	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
+	// serialization with key normalization
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public void writeWithKeyNormalization(CharValue record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
+		target.writeChar(record.getValue());
 	}
 
 	@Override
 	public CharValue readWithKeyDenormalization(CharValue reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
+		reuse.setValue(source.readChar());
+		return reuse;
 	}
 }

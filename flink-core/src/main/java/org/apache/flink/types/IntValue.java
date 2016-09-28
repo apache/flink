@@ -19,21 +19,22 @@
 
 package org.apache.flink.types;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
+
 /**
  * Boxed serializable and comparable integer type, representing the primitive
- * type {@code int}.
+ * type {@code int} (signed 32-bit integer).
  */
 @Public
 public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntValue>, CopyableValue<IntValue> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private int value;
 
 	/**
@@ -51,7 +52,9 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 	public IntValue(int value) {
 		this.value = value;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Returns the value of the encapsulated int.
 	 * 
@@ -72,17 +75,23 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 	}
 
 	@Override
-	public void setValue(IntValue value) {
-		this.value = value.value;
-	}
-
-	@Override
 	public String toString() {
 		return String.valueOf(this.value);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// ResettableValue
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void setValue(IntValue value) {
+		this.value = value.value;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// IOReadableWritable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void read(DataInputView in) throws IOException {
 		this.value = in.readInt();
@@ -94,12 +103,18 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// Comparable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int compareTo(IntValue o) {
 		final int other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Key
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
@@ -113,7 +128,9 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 		}
 		return false;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	// NormalizableKey
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -122,32 +139,30 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 	}
 
 	@Override
-	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
-		// take out value and add the integer min value. This gets an offsetted
+	public void copyNormalizedKey(MemorySegment memory, int offset, int len) {
+		// take out value and subtract the integer min value. This gets an offset
 		// representation when interpreted as an unsigned integer (as is the case
-		// with normalized keys). write this value as big endian to ensure the
+		// with normalized keys); write this value as big endian to ensure the
 		// most significant byte comes first.
-		if (len == 4) {
-			target.putIntBigEndian(offset, value - Integer.MIN_VALUE);
-		}
-		else if (len <= 0) {
-		}
-		else if (len < 4) {
-			int value = this.value - Integer.MIN_VALUE;
-			for (int i = 0; len > 0; len--, i++) {
-				target.put(offset + i, (byte) ((value >>> ((3-i)<<3)) & 0xff));
-			}
-		}
-		else {
-			target.putIntBigEndian(offset, value - Integer.MIN_VALUE);
+		int normalizedValue = value - Integer.MIN_VALUE;
+
+		if (len > 3) {
+			memory.putIntBigEndian(offset, normalizedValue);
+
 			for (int i = 4; i < len; i++) {
-				target.put(offset + i, (byte) 0);
+				memory.put(offset + i, (byte) 0);
+			}
+		} else if (len > 0) {
+			for (int i = 0; len > 0; len--, i++) {
+				memory.put(offset + i, (byte) (normalizedValue >>> ((3-i)<<3)));
 			}
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// CopyableValue
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int getBinaryLength() {
 		return 4;

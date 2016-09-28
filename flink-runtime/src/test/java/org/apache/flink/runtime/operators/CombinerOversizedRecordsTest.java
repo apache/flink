@@ -71,7 +71,7 @@ public class CombinerOversizedRecordsTest
 			new TupleComparator<Tuple3<Integer, Integer, String>>(
 				new int[] { 0 },
 				new TypeComparator<?>[] { new IntComparator(true) },
-				new TypeSerializer<?>[] { IntSerializer.INSTANCE });
+				new TypeSerializer<?>[] { IntSerializer.INSTANCE, IntSerializer.INSTANCE, StringSerializer.INSTANCE });
 	
 	// ------------------------------------------------------------------------
 	

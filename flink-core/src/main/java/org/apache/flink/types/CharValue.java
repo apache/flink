@@ -16,24 +16,24 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
-
-import java.io.IOException;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
+
 /**
  * Boxed serializable and comparable character type, representing the primitive
- * type {@code char}.
+ * type {@code char} (unsigned 16-bit integer).
  */
 @Public
 public class CharValue implements NormalizableKey<CharValue>, ResettableValue<CharValue>, CopyableValue<CharValue> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private char value;
 
 	/**
@@ -51,7 +51,9 @@ public class CharValue implements NormalizableKey<CharValue>, ResettableValue<Ch
 	public CharValue(char value) {
 		this.value = value;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Returns the value of the encapsulated char.
 	 * 
@@ -72,17 +74,23 @@ public class CharValue implements NormalizableKey<CharValue>, ResettableValue<Ch
 	}
 
 	@Override
-	public void setValue(CharValue value) {
-		this.value = value.value;
-	}
-
-	@Override
 	public String toString() {
 		return String.valueOf(this.value);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// ResettableValue
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void setValue(CharValue value) {
+		this.value = value.value;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// IOReadableWritable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void read(DataInputView in) throws IOException {
 		this.value = in.readChar();
@@ -94,12 +102,18 @@ public class CharValue implements NormalizableKey<CharValue>, ResettableValue<Ch
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// Comparable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int compareTo(CharValue o) {
 		final int other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Key
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
@@ -113,7 +127,9 @@ public class CharValue implements NormalizableKey<CharValue>, ResettableValue<Ch
 		}
 		return false;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	// NormalizableKey
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -122,31 +138,26 @@ public class CharValue implements NormalizableKey<CharValue>, ResettableValue<Ch
 	}
 
 	@Override
-	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
+	public void copyNormalizedKey(MemorySegment memory, int offset, int len) {
 		// note that the char is an unsigned data type in java and consequently needs
-		// no code that transforms the signed representation to an offsetted representation
+		// no code that transforms the signed representation to an offset representation
 		// that is equivalent to unsigned, when compared byte by byte
-		if (len == 2) {
+		if (len > 1) {
 			// default case, full normalized key
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-			target.put(offset + 1, (byte) ((value      ) & 0xff));
-		}
-		else if (len <= 0) {
-		}
-		else if (len == 1) {
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-		}
-		else {
-			target.put(offset,     (byte) ((value >>> 8) & 0xff));
-			target.put(offset + 1, (byte) ((value      ) & 0xff));
+			memory.putCharBigEndian(offset, value);
+
 			for (int i = 2; i < len; i++) {
-				target.put(offset + i, (byte) 0);
+				memory.put(offset + i, (byte) 0);
 			}
+		} else if (len > 0) {
+			memory.put(offset, (byte) ((value >>> 8) & 0xff));
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// CopyableValue
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int getBinaryLength() {
 		return 2;

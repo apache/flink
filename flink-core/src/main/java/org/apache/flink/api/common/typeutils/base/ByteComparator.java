@@ -18,20 +18,25 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 @Internal
 public final class ByteComparator extends BasicTypeComparator<Byte> {
 
 	private static final long serialVersionUID = 1L;
 
-	
 	public ByteComparator(boolean ascending) {
 		super(ascending);
+	}
+
+	@Override
+	public ByteComparator duplicate() {
+		return new ByteComparator(ascendingComparison);
 	}
 
 	@Override
@@ -42,6 +47,9 @@ public final class ByteComparator extends BasicTypeComparator<Byte> {
 		return ascendingComparison ? comp : -comp; 
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsNormalizedKey() {
@@ -60,28 +68,31 @@ public final class ByteComparator extends BasicTypeComparator<Byte> {
 
 	@Override
 	public void putNormalizedKey(Byte value, MemorySegment target, int offset, int numBytes) {
-		if (numBytes == 1) {
-			// default case, full normalized key. need to explicitly convert to int to
-			// avoid false results due to implicit type conversion to int when subtracting
-			// the min byte value
-			int highByte = value & 0xff;
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-		}
-		else if (numBytes <= 0) {
-		}
-		else {
-			int highByte = value & 0xff;
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
+		if (numBytes > 0) {
+			target.put(offset, (byte) (value - Byte.MIN_VALUE));
+
 			for (int i = 1; i < numBytes; i++) {
 				target.put(offset + i, (byte) 0);
 			}
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// serialization with key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
-	public ByteComparator duplicate() {
-		return new ByteComparator(ascendingComparison);
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(Byte record, DataOutputView target) throws IOException {
+		target.writeByte(record - Byte.MIN_VALUE);
+	}
+
+	@Override
+	public Byte readWithKeyDenormalization(Byte reuse, DataInputView source) throws IOException {
+		return (byte)(source.readByte() + Byte.MIN_VALUE);
 	}
 }

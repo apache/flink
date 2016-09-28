@@ -18,11 +18,6 @@
 
 package org.apache.flink.runtime.operators.hash;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -52,7 +47,16 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 
 public abstract class MutableHashTableTestBase {
@@ -91,7 +95,7 @@ public abstract class MutableHashTableTestBase {
 		new TupleComparator<>(
 			new int[] {0},
 			new TypeComparator<?>[] { new LongComparator(true) },
-			new TypeSerializer<?>[] { LongSerializer.INSTANCE });
+			new TypeSerializer<?>[] { LongSerializer.INSTANCE, StringSerializer.INSTANCE });
 	
 	public final int SIZE = 75;
 

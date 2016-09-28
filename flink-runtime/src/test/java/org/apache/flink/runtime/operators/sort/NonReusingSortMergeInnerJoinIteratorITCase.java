@@ -98,11 +98,11 @@ public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
 		comparator1 =  new TupleComparator<Tuple2<Integer, String>>(
 				new int[]{0},
 				new TypeComparator<?>[] { new IntComparator(true) },
-				new TypeSerializer<?>[] { IntSerializer.INSTANCE });
+				new TypeSerializer<?>[] { IntSerializer.INSTANCE, StringSerializer.INSTANCE });
 		comparator2 =  new TupleComparator<Tuple2<Integer, String>>(
 				new int[]{0},
 				new TypeComparator<?>[] { new IntComparator(true) },
-				new TypeSerializer<?>[] { IntSerializer.INSTANCE });
+				new TypeSerializer<?>[] { IntSerializer.INSTANCE, StringSerializer.INSTANCE });
 		pairComparator = new GenericPairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>>(comparator1, comparator2);
 		
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);

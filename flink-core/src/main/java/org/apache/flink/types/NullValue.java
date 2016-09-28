@@ -19,20 +19,21 @@
 
 package org.apache.flink.types;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 /**
  * Null base type for programs that implements the Key interface.
  */
 @Public
 public final class NullValue implements NormalizableKey<NullValue>, CopyableValue<NullValue> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	/**
 	 * The singleton NullValue instance.
 	 */
@@ -48,21 +49,23 @@ public final class NullValue implements NormalizableKey<NullValue>, CopyableValu
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Creates a NullValue object.
 	 */
 	public NullValue() {}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
 		return "(null)";
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+	// IOReadableWritable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void read(DataInputView in) throws IOException {
 		in.readBoolean();
@@ -72,7 +75,9 @@ public final class NullValue implements NormalizableKey<NullValue>, CopyableValu
 	public void write(DataOutputView out) throws IOException {
 		out.writeBoolean(false);
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	// Comparable
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -80,16 +85,22 @@ public final class NullValue implements NormalizableKey<NullValue>, CopyableValu
 		return 0;
 	}
 
-	@Override
-	public boolean equals(Object o) {
-		return (o != null && o.getClass() == NullValue.class);
-	}
+	// --------------------------------------------------------------------------------------------
+	// Key
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
 		return 53;
 	}
-	
+
+	@Override
+	public boolean equals(Object o) {
+		return (o != null && o.getClass() == NullValue.class);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// NormalizableKey
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -103,12 +114,14 @@ public final class NullValue implements NormalizableKey<NullValue>, CopyableValu
 			target.put(i, (byte) 0);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+	// CopyableValue
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int getBinaryLength() {
-		return 1;
+		return 0;
 	}
 
 	@Override
@@ -121,8 +134,5 @@ public final class NullValue implements NormalizableKey<NullValue>, CopyableValu
 	}
 
 	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		source.readBoolean();
-		target.writeBoolean(false);
-	}
+	public void copy(DataInputView source, DataOutputView target) throws IOException {}
 }

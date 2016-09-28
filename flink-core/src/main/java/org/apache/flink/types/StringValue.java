@@ -47,34 +47,32 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		CopyableValue<StringValue>, Appendable
 {
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final char[] EMPTY_STRING = new char[0];
-	
+
 	private static final int HIGH_BIT = 0x1 << 7;
-	
+
 	private static final int HIGH_BIT2 = 0x1 << 13;
-	
+
 	private static final int HIGH_BIT2_MASK = 0x3 << 6;
-	
-	
+
 	private char[] value;		// character value of the string value, not necessarily completely filled
-	
+
 	private int len;			// length of the string value
-	
+
 	private int hashCode;		// cache for the hashCode
 
-	
 	// --------------------------------------------------------------------------------------------
 	//                                      Constructors
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
-	 * Initializes the encapsulated String object with an empty string.	
+	 * Initializes the encapsulated String object with an empty string.
 	 */
 	public StringValue() {
 		this.value = EMPTY_STRING;
 	}
-	
+
 	/**
 	 * Initializes this StringValue to the value of the given string.
 	 * 
@@ -84,7 +82,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		this.value = EMPTY_STRING;
 		setValue(value);
 	}
-	
+
 	/**
 	 * Initializes this StringValue to a copy the given StringValue.
 	 * 
@@ -94,7 +92,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		this.value = EMPTY_STRING;
 		setValue(value);
 	}
-	
+
 	/**
 	 * Initializes the StringValue to a sub-string of the given StringValue. 
 	 * 
@@ -110,7 +108,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	// --------------------------------------------------------------------------------------------
 	//                                Getters and Setters
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Sets a new length for the string.
 	 * 
@@ -131,7 +129,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public char[] getCharArray() {
 		return this.value;
 	}
-	
+
 	/**
 	 * Gets this StringValue as a String.
 	 * 
@@ -150,7 +148,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		checkNotNull(value);
 		setValue(value, 0, value.length());
 	}
-	
+
 	/**
 	 * Sets the value of the StringValue to the given string.
 	 * 
@@ -173,7 +171,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		checkNotNull(value);
 		setValue(value.value, offset, len);
 	}
-	
+
 	/**
 	 * Sets the value of the StringValue to a substring of the given string.
 	 * 
@@ -188,14 +186,14 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		}
 
 		ensureSize(len);
-		this.len = len;		
+		this.len = len;
 		for (int i = 0; i < len; i++) {
 			this.value[i] = value.charAt(offset + i);
 		}
 		this.len = len;
 		this.hashCode = 0;
 	}
-	
+
 	/**
 	 * Sets the contents of this string to the contents of the given <tt>CharBuffer</tt>.
 	 * The characters between the buffer's current position (inclusive) and the buffer's
@@ -211,7 +209,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		this.len = len;
 		this.hashCode = 0;
 	}
-	
+
 	/**
 	 * Sets the value of the StringValue to a substring of the given value.
 	 * 
@@ -230,7 +228,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		this.len = len;
 		this.hashCode = 0;
 	}
-	
+
 	/**
 	 * Sets the value of this <code>StringValue</code>, assuming that the binary data is ASCII coded. The n-th character of the
 	 * <code>StringValue</code> corresponds directly to the n-th byte in the given array after the offset.
@@ -246,22 +244,22 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		if (len < 0 | offset < 0 | offset > bytes.length - len) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		ensureSize(len);
 		this.len = len;
 		this.hashCode = 0;
-		
+
 		final char[] chars = this.value;
-		
+
 		for (int i = 0, limit = offset + len; offset < limit; offset++, i++) {
 			chars[i] = (char) (bytes[offset] & 0xff);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                    String Methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Returns a new <tt>StringValue</tt>string that is a substring of this string. The
 	 * substring begins at the given <code>start</code> index and ends at end of the string
@@ -273,7 +271,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public StringValue substring(int start) {
 		return substring(start, this.len);
 	}
-	
+
 	/**
 	 * Returns a new <tt>StringValue</tt>string that is a substring of this string. The
 	 * substring begins at the given <code>start</code> index and ends at <code>end - 1</code>.
@@ -287,7 +285,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public StringValue substring(int start, int end) {
 		return new StringValue(this, start, end - start);
 	}
-	
+
 	/**
 	 * Copies a substring of this string into the given target StringValue. The
 	 * substring begins at the given <code>start</code> index and ends at end of the string
@@ -299,7 +297,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public void substring(StringValue target, int start) {
 		substring(target, start, this.len);
 	}
-	
+
 	/**
 	 * Copies a substring of this string into the given target StringValue. The
 	 * substring begins at the given <code>start</code> index and ends at <code>end - 1</code>.
@@ -313,7 +311,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public void substring(StringValue target, int start, int end) {
 		target.setValue(this, start, end - start);
 	}
-	
+
 	/**
 	 * Finds any occurrence of the <code>str</code> character sequence in this StringValue.
 	 * 
@@ -334,22 +332,22 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public int find(CharSequence str, int start) {
 		final int pLen = this.len;
 		final int sLen = str.length();
-		
+
 		if (sLen == 0) {
 			throw new IllegalArgumentException("Cannot find empty string.");
 		}
-		
+
 		int pPos = start;
-		
+
 		final char first = str.charAt(0);
-		
+
 		while (pPos < pLen) {
 			if (first == this.value[pPos++]) {
 				// matching first character
 				final int fallBackPosition = pPos;
 				int sPos = 1;
 				boolean found = true;
-				
+
 				while (sPos < sLen) {
 					if (pPos >= pLen) {
 						// no more characters in string value
@@ -357,7 +355,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 						found = false;
 						break;
 					}
-					
+
 					if (str.charAt(sPos++) != this.value[pPos++]) {
 						pPos = fallBackPosition;
 						found = false;
@@ -371,7 +369,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		}
 		return -1;
 	}
-	
+
 	/**
 	 * Checks whether the substring, starting at the specified index, starts with the given prefix string.
 	 * 
@@ -385,11 +383,11 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		final char[] thisChars = this.value;
 		final int pLen = this.len;
 		final int sLen = prefix.length();
-	
+
 		if ((startIndex < 0) || (startIndex > pLen - sLen)) {
 			return false;
 		}
-		
+
 		int sPos = 0;
 		while (sPos < sLen) {
 			if (thisChars[startIndex++] != prefix.charAt(sPos++)) {
@@ -409,7 +407,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public boolean startsWith(CharSequence prefix) {
 		return startsWith(prefix, 0);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Appendable Methods
 	// --------------------------------------------------------------------------------------------
@@ -470,11 +468,11 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		this.len += otherLen;
 		return this;
 	}
-		
+
 	// --------------------------------------------------------------------------------------------
 	//                            Serialization / De-Serialization
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public void read(final DataInputView in) throws IOException {
 		int len = in.readUnsignedByte();
@@ -489,7 +487,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			}
 			len |= curr << shift;
 		}
-		
+
 		this.len = len;
 		this.hashCode = 0;
 		ensureSize(len);
@@ -537,7 +535,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return new String(this.value, 0, this.len);
@@ -581,16 +579,16 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		if (this == obj) {
 			return true;
 		}
-		
+
 		if (obj instanceof StringValue) {
 			final StringValue other = (StringValue) obj;
 			int len = this.len;
-			
+
 			if (len == other.len) {
 				final char[] tc = this.value;
 				final char[] oc = other.value;
 				int i = 0, j = 0;
-				
+
 				while (len-- != 0) {
 					if (tc[i++] != oc[j++]) {
 						return false;
@@ -610,11 +608,11 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public int length() {
 		return this.len;
 	}
-	
+
 	@Override
 	public char charAt(int index) {
 		if (index < len) {
-			return this.value[index];	
+			return this.value[index];
 		}
 		else {
 			throw new IndexOutOfBoundsException();
@@ -625,11 +623,11 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public CharSequence subSequence(int start, int end) {
 		return new StringValue(this, start, end - start);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                   Normalized Key
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int getMaxNormalizedKeyLen() {
 		return Integer.MAX_VALUE;
@@ -642,7 +640,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		final int limit = offset + len;
 		final int end = this.len;
 		int pos = 0;
-		
+
 		while (pos < end && offset < limit) {
 			char c = chars[pos++];
 			if (c < HIGH_BIT) {
@@ -668,14 +666,14 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			target.put(offset++, (byte) 0);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int getBinaryLength() {
 		return -1;
 	}
-	
+
 	@Override
 	public void copyTo(StringValue target) {
 		target.len = this.len;
@@ -716,7 +714,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                      Utilities
 	// --------------------------------------------------------------------------------------------
@@ -726,7 +724,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			this.value = new char[size];
 		}
 	}
-	
+
 	/**
 	 * Grow and retain content.
 	 */
@@ -737,15 +735,15 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			this.value = value;
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                           Static Helpers for String Serialization
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static String readString(DataInput in) throws IOException {
 		// the length we read is offset by one, because a length of zero indicates a null value
 		int len = in.readUnsignedByte();
-		
+
 		if (len == 0) {
 			return null;
 		}
@@ -760,10 +758,10 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			}
 			len |= curr << shift;
 		}
-		
+
 		// subtract one for the null length
 		len -= 1;
-		
+
 		final char[] data = new char[len];
 
 		for (int i = 0; i < len; i++) {
@@ -782,7 +780,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 				data[i] = (char) c;
 			}
 		}
-		
+
 		return new String(data, 0, len);
 	}
 
@@ -793,18 +791,18 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			if (lenToWrite < 0) {
 				throw new IllegalArgumentException("CharSequence is too long.");
 			}
-	
+
 			// write the length, variable-length encoded
 			while (lenToWrite >= HIGH_BIT) {
 				out.write(lenToWrite | HIGH_BIT);
 				lenToWrite >>>= 7;
 			}
 			out.write(lenToWrite);
-	
+
 			// write the char data, variable length encoded
 			for (int i = 0; i < cs.length(); i++) {
 				int c = cs.charAt(i);
-	
+
 				while (c >= HIGH_BIT) {
 					out.write(c | HIGH_BIT);
 					c >>>= 7;
@@ -815,7 +813,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			out.write(0);
 		}
 	}
-	
+
 	public static final void copyString(DataInput in, DataOutput out) throws IOException {
 		int len = in.readUnsignedByte();
 		out.writeByte(len);

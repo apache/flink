@@ -72,9 +72,8 @@ public class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
 		this.serializer = new TupleSerializer<Tuple2<Long, String>>(clazz, fieldSerializers);
 
 		TypeComparator<?>[] comparators = { new LongComparator(true) };
-		TypeSerializer<?>[] comparatorSerializers = { LongSerializer.INSTANCE };
 
-		this.comparator = new TupleComparator<Tuple2<Long, String>>(new int[] {0}, comparators, comparatorSerializers);
+		this.comparator = new TupleComparator<>(new int[] {0}, comparators, fieldSerializers);
 
 		this.probeComparator = new LongComparator(true);
 

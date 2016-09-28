@@ -49,6 +49,31 @@ public class LongValueComparator extends TypeComparator<LongValue> {
 	}
 
 	@Override
+	public TypeComparator<LongValue> duplicate() {
+		return new LongValueComparator(ascendingComparison);
+	}
+
+	@Override
+	public boolean invertNormalizedKey() {
+		return !ascendingComparison;
+	}
+
+	@Override
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
+	}
+
+	@Override
+	public TypeComparator<?>[] getFlatComparators() {
+		return comparators;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// comparison
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public int hash(LongValue record) {
 		return record.hashCode();
 	}
@@ -84,6 +109,10 @@ public class LongValueComparator extends TypeComparator<LongValue> {
 		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public boolean supportsNormalizedKey() {
 		return NormalizableKey.class.isAssignableFrom(LongValue.class);
@@ -104,43 +133,23 @@ public class LongValueComparator extends TypeComparator<LongValue> {
 		record.copyNormalizedKey(target, offset, numBytes);
 	}
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
-
-	@Override
-	public TypeComparator<LongValue> duplicate() {
-		return new LongValueComparator(ascendingComparison);
-	}
-
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
-
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return comparators;
-	}
-
 	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
+	// serialization with key normalization
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public void writeWithKeyNormalization(LongValue record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
+		target.writeLong(record.getValue() - Long.MIN_VALUE);
 	}
 
 	@Override
 	public LongValue readWithKeyDenormalization(LongValue reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
+		reuse.setValue(source.readLong() + Long.MIN_VALUE);
+		return reuse;
 	}
 }

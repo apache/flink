@@ -18,27 +18,31 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.StringValue;
 
+import java.io.IOException;
+
 @Internal
 public final class StringComparator extends BasicTypeComparator<String> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final int HIGH_BIT = 0x1 << 7;
-	
+
 	private static final int HIGH_BIT2 = 0x1 << 13;
-	
+
 	private static final int HIGH_BIT2_MASK = 0x3 << 6;
-	
-	
+
 	public StringComparator(boolean ascending) {
 		super(ascending);
+	}
+
+	@Override
+	public StringComparator duplicate() {
+		return new StringComparator(ascendingComparison);
 	}
 
 	@Override
@@ -49,16 +53,13 @@ public final class StringComparator extends BasicTypeComparator<String> {
 		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsNormalizedKey() {
 		return true;
-	}
-
-
-	@Override
-	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
 	}
 
 	@Override
@@ -71,13 +72,12 @@ public final class StringComparator extends BasicTypeComparator<String> {
 		return true;
 	}
 
-
 	@Override
 	public void putNormalizedKey(String record, MemorySegment target, int offset, int len) {;
 		final int limit = offset + len;
 		final int end = record.length();
 		int pos = 0;
-		
+
 		while (pos < end && offset < limit) {
 			char c = record.charAt(pos++);
 			if (c < HIGH_BIT) {
@@ -104,9 +104,12 @@ public final class StringComparator extends BasicTypeComparator<String> {
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// unsupported serialization with key normalization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public StringComparator duplicate() {
-		return new StringComparator(ascendingComparison);
+	public boolean supportsSerializationWithKeyNormalization() {
+		return false;
 	}
 }

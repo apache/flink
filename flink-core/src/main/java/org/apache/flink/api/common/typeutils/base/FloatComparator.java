@@ -18,20 +18,25 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 @Internal
 public final class FloatComparator extends BasicTypeComparator<Float> {
 
 	private static final long serialVersionUID = 1L;
 
-	
 	public FloatComparator(boolean ascending) {
 		super(ascending);
+	}
+
+	@Override
+	public FloatComparator duplicate() {
+		return new FloatComparator(ascendingComparison);
 	}
 
 	@Override
@@ -42,29 +47,63 @@ public final class FloatComparator extends BasicTypeComparator<Float> {
 		return ascendingComparison ? comp : -comp; 
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsNormalizedKey() {
-		return false;
-	}
-
-	@Override
-	public int getNormalizeKeyLen() {
-		return 0;
-	}
-
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
 		return true;
 	}
 
 	@Override
-	public void putNormalizedKey(Float value, MemorySegment target, int offset, int numBytes) {
-		throw new UnsupportedOperationException();
+	public int getNormalizeKeyLen() {
+		return 4;
 	}
 
 	@Override
-	public FloatComparator duplicate() {
-		return new FloatComparator(ascendingComparison);
+	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+		return keyBytes < 4;
+	}
+
+	@Override
+	public void putNormalizedKey(Float value, MemorySegment target, int offset, int numBytes) {
+		// float representation is the same for positive and negative values
+		// except for the leading sign bit; representations for positive values
+		// are normalized and representations for negative values need inversion
+		int bits = Float.floatToIntBits(value);
+		bits = (value < 0) ? ~bits : bits - Integer.MIN_VALUE;
+
+		// see IntValue for an explanation of the logic
+		if (numBytes > 3) {
+			target.putIntBigEndian(offset, bits);
+
+			for (int i = 4; i < numBytes; i++) {
+				target.put(offset + i, (byte) 0);
+			}
+		} else if (numBytes > 0) {
+			for (int i = 0; numBytes > 0; numBytes--, i++) {
+				target.put(offset + i, (byte) (bits >>> ((3-i)<<3)));
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// serialization with key normalization
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(Float record, DataOutputView target) throws IOException {
+		target.writeFloat(-record);
+	}
+
+	@Override
+	public Float readWithKeyDenormalization(Float reuse, DataInputView source) throws IOException {
+		return -source.readFloat();
 	}
 }

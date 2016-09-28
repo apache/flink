@@ -19,21 +19,22 @@
 
 package org.apache.flink.types;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
+
 /**
  * Boxed serializable and comparable byte type, representing the primitive
- * type {@code byte} (signed 8 bit integer).
+ * type {@code byte} (signed 8-bit integer).
  */
 @Public
 public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<ByteValue>, CopyableValue<ByteValue> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private byte value;
 
 	/**
@@ -51,7 +52,9 @@ public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<By
 	public ByteValue(byte value) {
 		this.value = value;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Returns the value of the encapsulated byte.
 	 * 
@@ -72,12 +75,23 @@ public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<By
 	}
 
 	@Override
+	public String toString() {
+		return String.valueOf(this.value);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// ResettableValue
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public void setValue(ByteValue value) {
 		this.value = value.value;
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// IOReadableWritable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void read(DataInputView in) throws IOException {
 		this.value = in.readByte();
@@ -89,17 +103,18 @@ public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<By
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public String toString() {
-		return String.valueOf(this.value);
-	}
-	
+	// Comparable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int compareTo(ByteValue o) {
 		final byte other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Key
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
@@ -113,7 +128,9 @@ public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<By
 		}
 		return false;
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	// NormalizableKey
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -122,27 +139,20 @@ public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<By
 	}
 
 	@Override
-	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
-		if (len == 1) {
-			// default case, full normalized key. need to explicitly convert to int to
-			// avoid false results due to implicit type conversion to int when subtracting
-			// the min byte value
-			int highByte = this.value & 0xff;
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-		}
-		else if (len > 1) {
-			int highByte = this.value & 0xff;
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
+	public void copyNormalizedKey(MemorySegment memory, int offset, int len) {
+		if (len > 0) {
+			memory.put(offset, (byte) (this.value - Byte.MIN_VALUE));
+
 			for (int i = 1; i < len; i++) {
-				target.put(offset + i, (byte) 0);
+				memory.put(offset + i, (byte) 0);
 			}
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// CopyableValue
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int getBinaryLength() {
 		return 1;

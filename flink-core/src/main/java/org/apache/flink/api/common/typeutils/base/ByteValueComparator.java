@@ -49,6 +49,31 @@ public class ByteValueComparator extends TypeComparator<ByteValue> {
 	}
 
 	@Override
+	public TypeComparator<ByteValue> duplicate() {
+		return new ByteValueComparator(ascendingComparison);
+	}
+
+	@Override
+	public boolean invertNormalizedKey() {
+		return !ascendingComparison;
+	}
+
+	@Override
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
+	}
+
+	@Override
+	public TypeComparator<?>[] getFlatComparators() {
+		return comparators;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// comparison
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public int hash(ByteValue record) {
 		return record.hashCode();
 	}
@@ -84,6 +109,10 @@ public class ByteValueComparator extends TypeComparator<ByteValue> {
 		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public boolean supportsNormalizedKey() {
 		return NormalizableKey.class.isAssignableFrom(ByteValue.class);
@@ -104,43 +133,23 @@ public class ByteValueComparator extends TypeComparator<ByteValue> {
 		record.copyNormalizedKey(target, offset, numBytes);
 	}
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
-
-	@Override
-	public TypeComparator<ByteValue> duplicate() {
-		return new ByteValueComparator(ascendingComparison);
-	}
-
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
-
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return comparators;
-	}
-
 	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
+	// serialization with key normalization
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public void writeWithKeyNormalization(ByteValue record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
+		target.writeByte(record.getValue() - Byte.MIN_VALUE);
 	}
 
 	@Override
 	public ByteValue readWithKeyDenormalization(ByteValue reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
+		reuse.setValue((byte) (source.readByte() + Byte.MIN_VALUE));
+		return reuse;
 	}
 }

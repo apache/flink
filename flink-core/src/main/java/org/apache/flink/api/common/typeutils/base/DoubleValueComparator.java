@@ -49,6 +49,31 @@ public class DoubleValueComparator extends TypeComparator<DoubleValue> {
 	}
 
 	@Override
+	public TypeComparator<DoubleValue> duplicate() {
+		return new DoubleValueComparator(ascendingComparison);
+	}
+
+	@Override
+	public boolean invertNormalizedKey() {
+		return !ascendingComparison;
+	}
+
+	@Override
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
+	}
+
+	@Override
+	public TypeComparator<?>[] getFlatComparators() {
+		return comparators;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// comparison
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public int hash(DoubleValue record) {
 		return record.hashCode();
 	}
@@ -84,6 +109,10 @@ public class DoubleValueComparator extends TypeComparator<DoubleValue> {
 		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public boolean supportsNormalizedKey() {
 		return NormalizableKey.class.isAssignableFrom(DoubleValue.class);
@@ -91,8 +120,7 @@ public class DoubleValueComparator extends TypeComparator<DoubleValue> {
 
 	@Override
 	public int getNormalizeKeyLen() {
-		NormalizableKey<?> key = (NormalizableKey<?>) reference;
-		return key.getMaxNormalizedKeyLen();
+		return reference.getMaxNormalizedKeyLen();
 	}
 
 	@Override
@@ -102,47 +130,36 @@ public class DoubleValueComparator extends TypeComparator<DoubleValue> {
 
 	@Override
 	public void putNormalizedKey(DoubleValue record, MemorySegment target, int offset, int numBytes) {
-		NormalizableKey<?> key = (NormalizableKey<?>) record;
-		key.copyNormalizedKey(target, offset, numBytes);
-	}
-
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
-
-	@Override
-	public TypeComparator<DoubleValue> duplicate() {
-		return new DoubleValueComparator(ascendingComparison);
-	}
-
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
-
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return comparators;
+		record.copyNormalizedKey(target, offset, numBytes);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
+	// serialization with key normalization
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public void writeWithKeyNormalization(DoubleValue record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
+		double value = record.getValue();
+
+		long bits = Double.doubleToLongBits(value);
+		bits = (value < 0) ? ~bits : bits - Long.MIN_VALUE;
+
+		target.writeLong(bits);
 	}
 
 	@Override
 	public DoubleValue readWithKeyDenormalization(DoubleValue reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
+		long bits = source.readLong();
+		bits = (bits >= 0) ? ~bits : bits + Long.MIN_VALUE;
+
+		double value = Double.longBitsToDouble(bits);
+		reuse.setValue(value);
+
+		return reuse;
 	}
 }

@@ -395,36 +395,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	 */
 	@Override
 	public void writeToOutput(final ChannelWriterOutputView output) throws IOException {
-		final TypeComparator<T> comparator = this.comparator;
-		final TypeSerializer<T> serializer = this.serializer;
-		T record = this.recordInstance;
-		
-		final SingleSegmentInputView inView = this.inView;
-		
-		final int recordsPerSegment = this.recordsPerSegment;
-		int recordsLeft = this.numRecords;
-		int currentMemSeg = 0;
-		
-		while (recordsLeft > 0) {
-			final MemorySegment currentIndexSegment = this.sortBuffer.get(currentMemSeg++);
-			inView.set(currentIndexSegment, 0);
-			
-			// check whether we have a full or partially full segment
-			if (recordsLeft >= recordsPerSegment) {
-				// full segment
-				for (int numInMemSeg = 0; numInMemSeg < recordsPerSegment; numInMemSeg++) {
-					record = comparator.readWithKeyDenormalization(record, inView);
-					serializer.serialize(record, output);
-				}
-				recordsLeft -= recordsPerSegment;
-			} else {
-				// partially filled segment
-				for (; recordsLeft > 0; recordsLeft--) {
-					record = comparator.readWithKeyDenormalization(record, inView);
-					serializer.serialize(record, output);
-				}
-			}
-		}
+		writeToOutput(output, 0, this.numRecords);
 	}
 	
 	@Override

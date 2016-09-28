@@ -49,6 +49,31 @@ public class StringValueComparator extends TypeComparator<StringValue> {
 	}
 
 	@Override
+	public TypeComparator<StringValue> duplicate() {
+		return new StringValueComparator(ascendingComparison);
+	}
+
+	@Override
+	public boolean invertNormalizedKey() {
+		return !ascendingComparison;
+	}
+
+	@Override
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
+	}
+
+	@Override
+	public TypeComparator<?>[] getFlatComparators() {
+		return comparators;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// comparison
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public int hash(StringValue record) {
 		return record.hashCode();
 	}
@@ -84,6 +109,10 @@ public class StringValueComparator extends TypeComparator<StringValue> {
 		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public boolean supportsNormalizedKey() {
 		return NormalizableKey.class.isAssignableFrom(StringValue.class);
@@ -104,29 +133,8 @@ public class StringValueComparator extends TypeComparator<StringValue> {
 		record.copyNormalizedKey(target, offset, numBytes);
 	}
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
-
-	@Override
-	public TypeComparator<StringValue> duplicate() {
-		return new StringValueComparator(ascendingComparison);
-	}
-
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
-
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return comparators;
-	}
-
 	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
+	// unsupported serialization with key normalization
 	// --------------------------------------------------------------------------------------------
 
 	@Override

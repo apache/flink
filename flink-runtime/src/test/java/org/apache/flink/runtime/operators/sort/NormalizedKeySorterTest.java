@@ -19,10 +19,7 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import java.util.List;
-import java.util.Random;
 import org.apache.flink.api.common.typeutils.TypeComparator;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
@@ -37,8 +34,15 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Random;
 
+@RunWith(Parameterized.class)
 public class NormalizedKeySorterTest {
 	
 	private static final long SEED = 649180756312423613L;
@@ -55,6 +59,15 @@ public class NormalizedKeySorterTest {
 
 	private MemoryManager memoryManager;
 
+	private final boolean objectReuse;
+
+	// test parameters
+	private final IndexedSorter sort;
+
+	public NormalizedKeySorterTest(IndexedSorter sort, boolean objectReuse) {
+		this.sort = sort;
+		this.objectReuse = objectReuse;
+	}
 
 	@Before
 	public void beforeTest() {
@@ -91,7 +104,7 @@ public class NormalizedKeySorterTest {
 		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record));
@@ -102,9 +115,14 @@ public class NormalizedKeySorterTest {
 		
 		int i = 0;
 		while (i < num) {
-			generator.next(record);
-			readTarget = sorter.getRecord(readTarget, i++);
-			
+			if (objectReuse) {
+				record = generator.next(record);
+				readTarget = sorter.getRecord(readTarget, i++);
+			} else {
+				record = generator.next();
+				readTarget = sorter.getRecord(i++);
+			}
+
 			int rk = readTarget.f0;
 			int gk = record.f0;
 			
@@ -132,7 +150,7 @@ public class NormalizedKeySorterTest {
 		// write the records
 		Tuple2<Integer, String> record = new Tuple2<>();
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 		}
 		while (sorter.write(record));
 		
@@ -141,8 +159,8 @@ public class NormalizedKeySorterTest {
 		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
 		Tuple2<Integer, String> readTarget = new Tuple2<>();
 		
-		while ((readTarget = iter.next(readTarget)) != null) {
-			generator.next(record);
+		while ((readTarget = objectReuse ? iter.next(readTarget) : iter.next()) != null) {
+			record = objectReuse ? generator.next(record) : generator.next();
 			
 			int rk = readTarget.f0;
 			int gk = record.f0;
@@ -171,7 +189,7 @@ public class NormalizedKeySorterTest {
 		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record));
@@ -184,7 +202,7 @@ public class NormalizedKeySorterTest {
 		// write the buffer full with the first set of records
 		int num2 = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num2++;
 		}
 		while (sorter.write(record));
@@ -197,9 +215,14 @@ public class NormalizedKeySorterTest {
 		
 		int i = 0;
 		while (i < num) {
-			generator.next(record);
-			readTarget = sorter.getRecord(readTarget, i++);
-			
+			if (objectReuse) {
+				record = generator.next(record);
+				readTarget = sorter.getRecord(readTarget, i++);
+			} else {
+				record = generator.next();
+				readTarget = sorter.getRecord(i++);
+			}
+
 			int rk = readTarget.f0;
 			int gk = record.f0;
 			
@@ -233,7 +256,7 @@ public class NormalizedKeySorterTest {
 		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record));
@@ -250,9 +273,14 @@ public class NormalizedKeySorterTest {
 		
 		int i = num - 1;
 		while (i >= 0) {
-			generator.next(record);
-			readTarget = sorter.getRecord(readTarget, i--);
-			
+			if (objectReuse) {
+				record = generator.next(record);
+				readTarget = sorter.getRecord(readTarget, i--);
+			} else {
+				record = generator.next();
+				readTarget = sorter.getRecord(i--);
+			}
+
 			int rk = readTarget.f0;
 			int gk = record.f0;
 			
@@ -286,7 +314,7 @@ public class NormalizedKeySorterTest {
 		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = -1;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record));
@@ -327,21 +355,20 @@ public class NormalizedKeySorterTest {
 		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = 0;
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 			num++;
 		}
 		while (sorter.write(record) && num < NUM_RECORDS);
 		
-		QuickSort qs = new QuickSort();
-		qs.sort(sorter);
+		sort.sort(sorter);
 		
 		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
 		Tuple2<Integer, String> readTarget = new Tuple2<>();
 
-		iter.next(readTarget);
+		readTarget = objectReuse ? iter.next(readTarget) : iter.next();
 		int last = readTarget.f0;
 		
-		while ((readTarget = iter.next(readTarget)) != null) {
+		while ((readTarget = objectReuse ? iter.next(readTarget) : iter.next()) != null) {
 			int current = readTarget.f0;
 			
 			final int cmp = last - current;
@@ -372,20 +399,19 @@ public class NormalizedKeySorterTest {
 		// write the records
 		Tuple2<Integer, String> record = new Tuple2<>();
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 		}
 		while (sorter.write(record));
 		
-		QuickSort qs = new QuickSort();
-		qs.sort(sorter);
+		sort.sort(sorter);
 		
 		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
 		Tuple2<Integer, String> readTarget = new Tuple2<>();
-	
-		iter.next(readTarget);
+
+		readTarget = objectReuse ? iter.next(readTarget) : iter.next();
 		String last = readTarget.f1;
 		
-		while ((readTarget = iter.next(readTarget)) != null) {
+		while ((readTarget = objectReuse ? iter.next(readTarget) : iter.next()) != null) {
 			String current = readTarget.f1;
 			
 			final int cmp = last.compareTo(current);
@@ -416,20 +442,19 @@ public class NormalizedKeySorterTest {
 		// write the records
 		Tuple2<Integer, String> record = new Tuple2<>();
 		do {
-			generator.next(record);
+			record = objectReuse ? generator.next(record) : generator.next();
 		}
 		while (sorter.write(record));
 		
-		QuickSort qs = new QuickSort();
-		qs.sort(sorter);
+		sort.sort(sorter);
 		
 		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
 		Tuple2<Integer, String> readTarget = new Tuple2<>();
 		
-		iter.next(readTarget);
+		readTarget = objectReuse ? iter.next(readTarget) : iter.next();
 		String last = readTarget.f1;
 		
-		while ((readTarget = iter.next(readTarget)) != null) {
+		while ((readTarget = objectReuse ? iter.next(readTarget) : iter.next()) != null) {
 			String current = readTarget.f1;
 			
 			final int cmp = last.compareTo(current);
@@ -443,5 +468,18 @@ public class NormalizedKeySorterTest {
 		// release the memory occupied by the buffers
 		sorter.dispose();
 		this.memoryManager.release(memory);
+	}
+
+	// ------------------------------------------------------------------------
+	//  parametrization
+	// ------------------------------------------------------------------------
+
+	@Parameterized.Parameters(name = "Sort = {0}, Object reuse = {1}")
+	public static Collection<Object[]> objectReuseModes() {
+		return Arrays.asList(
+			new Object[] { new QuickSort(), Boolean.FALSE },
+			new Object[] { new QuickSort(), Boolean.TRUE },
+			new Object[] { new HeapSort(), Boolean.FALSE },
+			new Object[] { new HeapSort(), Boolean.TRUE });
 	}
 }

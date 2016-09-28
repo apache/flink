@@ -18,30 +18,42 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 @Internal
 public final class BooleanComparator extends BasicTypeComparator<Boolean> {
 
 	private static final long serialVersionUID = 1L;
 
-	
 	public BooleanComparator(boolean ascending) {
 		super(ascending);
 	}
 
 	@Override
+	public BooleanComparator duplicate() {
+		return new BooleanComparator(ascendingComparison);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// comparison
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		final int fs = firstSource.readBoolean() ? 1 : 0;
 		final int ss = secondSource.readBoolean() ? 1 : 0;
-		int comp = fs - ss; 
-		return ascendingComparison ? comp : -comp; 
+		int comp = fs - ss;
+		return ascendingComparison ? comp : -comp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// key normalization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean supportsNormalizedKey() {
@@ -61,16 +73,30 @@ public final class BooleanComparator extends BasicTypeComparator<Boolean> {
 	@Override
 	public void putNormalizedKey(Boolean value, MemorySegment target, int offset, int numBytes) {
 		if (numBytes > 0) {
-			target.put(offset, (byte) (value.booleanValue() ? 1 : 0));
-			
-			for (offset = offset + 1; numBytes > 1; numBytes--) {
-				target.put(offset++, (byte) 0);
+			target.putBoolean(offset, value);
+
+			for (int i = 1; i < numBytes; i++) {
+				target.put(offset + i, (byte) 0);
 			}
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// serialization with key normalization
+	// --------------------------------------------------------------------------------------------
+
 	@Override
-	public BooleanComparator duplicate() {
-		return new BooleanComparator(ascendingComparison);
+	public boolean supportsSerializationWithKeyNormalization() {
+		return true;
+	}
+
+	@Override
+	public void writeWithKeyNormalization(Boolean record, DataOutputView target) throws IOException {
+		target.writeBoolean(record);
+	}
+
+	@Override
+	public Boolean readWithKeyDenormalization(Boolean reuse, DataInputView source) throws IOException {
+		return source.readBoolean();
 	}
 }

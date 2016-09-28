@@ -70,9 +70,8 @@ public class HashTableTest {
 		this.probeSerializer = LongSerializer.INSTANCE;
 
 		TypeComparator<?>[] comparators = { new LongComparator(true) };
-		TypeSerializer<?>[] comparatorSerializers = { LongSerializer.INSTANCE };
 
-		this.buildComparator = new TupleComparator<Tuple2<Long, byte[]>>(new int[] {0}, comparators, comparatorSerializers);
+		this.buildComparator = new TupleComparator<>(new int[] {0}, comparators, fieldSerializers);
 
 		this.probeComparator = new LongComparator(true);
 

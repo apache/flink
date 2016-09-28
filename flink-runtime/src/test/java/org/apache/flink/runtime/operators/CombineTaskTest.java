@@ -64,7 +64,7 @@ public class CombineTaskTest
 	private final TypeComparator<Tuple2<Integer, Integer>> comparator = new TupleComparator<>(
 			new int[]{0},
 			new TypeComparator<?>[] { new IntComparator(true) },
-			new TypeSerializer<?>[] { IntSerializer.INSTANCE });
+			new TypeSerializer<?>[] { IntSerializer.INSTANCE, IntSerializer.INSTANCE });
 
 	
 	public CombineTaskTest(ExecutionConfig config) {

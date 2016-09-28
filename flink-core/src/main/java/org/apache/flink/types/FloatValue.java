@@ -19,18 +19,22 @@
 
 package org.apache.flink.types;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemorySegment;
+
+import java.io.IOException;
 
 /**
  * Boxed serializable and comparable single precision floating point type, representing the primitive
  * type {@code float}.
+ *
+ * Comparable and Key are super-interfaces of NormalizableKey but are required for API compatibility.
  */
 @Public
-public class FloatValue implements Comparable<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue>, Key<FloatValue> {
+public class FloatValue implements NormalizableKey<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue>, Comparable<FloatValue>, Key<FloatValue> {
+
 	private static final long serialVersionUID = 1L;
 
 	private float value;
@@ -52,6 +56,8 @@ public class FloatValue implements Comparable<FloatValue>, ResettableValue<Float
 		this.value = value;
 	}
 
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Returns the value of the encapsulated primitive float.
 	 * 
@@ -72,12 +78,23 @@ public class FloatValue implements Comparable<FloatValue>, ResettableValue<Float
 	}
 
 	@Override
+	public String toString() {
+		return String.valueOf(this.value);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// ResettableValue
+	// --------------------------------------------------------------------------------------------
+
+	@Override
 	public void setValue(FloatValue value) {
 		this.value = value.value;
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// IOReadableWritable
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public void read(DataInputView in) throws IOException {
 		this.value = in.readFloat();
@@ -87,19 +104,20 @@ public class FloatValue implements Comparable<FloatValue>, ResettableValue<Float
 	public void write(DataOutputView out) throws IOException {
 		out.writeFloat(this.value);
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	// Comparable
 	// --------------------------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return String.valueOf(this.value);
-	}
-	
 	@Override
 	public int compareTo(FloatValue o) {
 		final double other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Key
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
@@ -116,7 +134,40 @@ public class FloatValue implements Comparable<FloatValue>, ResettableValue<Float
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+	// NormalizableKey
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public int getMaxNormalizedKeyLen() {
+		return 8;
+	}
+
+	@Override
+	public void copyNormalizedKey(MemorySegment memory, int offset, int len) {
+		// float representation is the same for positive and negative values
+		// except for the leading sign bit; representations for positive values
+		// are normalized and representations for negative values need inversion
+		int bits = Float.floatToIntBits(value);
+		bits = (value < 0) ? ~bits : bits - Integer.MIN_VALUE;
+
+		// see IntValue for an explanation of the logic
+		if (len > 3) {
+			memory.putIntBigEndian(offset, bits);
+
+			for (int i = 4; i < len; i++) {
+				memory.put(offset + i, (byte) 0);
+			}
+		} else if (len > 0) {
+			for (int i = 0; len > 0; len--, i++) {
+				memory.put(offset + i, (byte) (bits >>> ((3-i)<<3)));
+			}
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// CopyableValue
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public int getBinaryLength() {
 		return 4;
