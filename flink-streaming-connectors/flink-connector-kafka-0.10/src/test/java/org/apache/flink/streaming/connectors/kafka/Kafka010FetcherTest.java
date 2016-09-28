@@ -20,10 +20,12 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
@@ -115,7 +117,20 @@ public class Kafka010FetcherTest {
         StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
 
         final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
-                sourceContext, topics, null, null, context, schema, new Properties(), 0L, false);
+                sourceContext,
+                topics,
+                null, /* periodic assigner */
+                null, /* punctuated assigner */
+                new TestProcessingTimeService(),
+                10,
+                getClass().getClassLoader(),
+                false, /* checkpointing */
+                "taskname-with-subtask",
+                mock(MetricGroup.class),
+                schema,
+                new Properties(),
+                0L,
+                false);
 
         // ----- run the fetcher -----
 
@@ -235,7 +250,21 @@ public class Kafka010FetcherTest {
         StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
 
         final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
-                sourceContext, topics, null, null, context, schema, new Properties(), 0L, false);
+                sourceContext,
+                topics,
+                null, /* periodic assigner */
+                null, /* punctuated assigner */
+                new TestProcessingTimeService(),
+                10,
+                getClass().getClassLoader(),
+                false, /* checkpointing */
+                "taskname-with-subtask",
+                mock(MetricGroup.class),
+                schema,
+                new Properties(),
+                0L,
+                false);
+
 
         // ----- run the fetcher -----
 

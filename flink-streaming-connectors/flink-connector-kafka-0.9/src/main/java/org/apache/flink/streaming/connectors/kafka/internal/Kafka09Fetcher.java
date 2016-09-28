@@ -18,17 +18,16 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.ExceptionProxy;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
@@ -67,9 +66,6 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	/** The schema to convert between Kafka's byte messages, and Flink's objects */
 	private final KeyedDeserializationSchema<T> deserializer;
 
-	/** The subtask's runtime context */
-	private final RuntimeContext runtimeContext;
-
 	/** The configuration for the Kafka consumer */
 	private final Properties kafkaProperties;
 
@@ -94,6 +90,12 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	/** Flag tracking whether the latest commit request has completed */
 	private volatile boolean commitInProgress;
 
+	/** For Debug output **/
+	private String taskNameWithSubtasks;
+
+	/** We get this from the outside to publish metrics. **/
+	private MetricGroup metricGroup;
+
 	// ------------------------------------------------------------------------
 
 	public Kafka09Fetcher(
@@ -101,24 +103,38 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 			List<KafkaTopicPartition> assignedPartitions,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext,
+			ProcessingTimeService processingTimeProvider,
+			long autoWatermarkInterval,
+			ClassLoader userCodeClassLoader,
+			boolean enableCheckpointing,
+			String taskNameWithSubtasks,
+			MetricGroup metricGroup,
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
 			boolean useMetrics) throws Exception
 	{
-		super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, useMetrics);
+		super(
+				sourceContext,
+				assignedPartitions,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				processingTimeProvider,
+				autoWatermarkInterval,
+				userCodeClassLoader,
+				useMetrics);
 
 		this.deserializer = deserializer;
-		this.runtimeContext = runtimeContext;
 		this.kafkaProperties = kafkaProperties;
 		this.pollTimeout = pollTimeout;
 		this.nextOffsetsToCommit = new AtomicReference<>();
 		this.offsetCommitCallback = new CommitCallback();
+		this.taskNameWithSubtasks = taskNameWithSubtasks;
+		this.metricGroup = metricGroup;
 
 		// if checkpointing is enabled, we are not automatically committing to Kafka.
 		kafkaProperties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
-				Boolean.toString(!runtimeContext.isCheckpointingEnabled()));
+				Boolean.toString(!enableCheckpointing));
 	}
 
 	// ------------------------------------------------------------------------
@@ -131,7 +147,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 		// rather than running the main fetch loop directly here, we spawn a dedicated thread
 		// this makes sure that no interrupt() call upon canceling reaches the Kafka consumer code
-		Thread runner = new Thread(this, getFetcherName() + " for " + runtimeContext.getTaskNameWithSubtasks());
+		Thread runner = new Thread(this, getFetcherName() + " for " + taskNameWithSubtasks);
 		runner.setDaemon(true);
 		runner.start();
 
@@ -187,7 +203,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 
 			if (useMetrics) {
-				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup("KafkaConsumer");
+				final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
 				addOffsetStateGauge(kafkaMetricGroup);
 				// register Kafka metrics to Flink
 				Map<MetricName, ? extends Metric> metrics = consumer.metrics();
