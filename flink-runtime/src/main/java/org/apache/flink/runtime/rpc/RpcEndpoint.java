@@ -85,9 +85,9 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 
 		// IMPORTANT: Don't change order of selfGatewayType and self because rpcService.startServer
 		// requires that selfGatewayType has been initialized
-		this.selfGatewayType = ReflectionUtil.getTemplateType1(getClass());
+		this.selfGatewayType = determineSelfGatewayType();
 		this.self = rpcService.startServer(this);
-		
+
 		this.mainThreadExecutor = new MainThreadExecutor((MainThreadExecutable) self);
 	}
 
@@ -254,5 +254,24 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 		public void execute(Runnable runnable) {
 			gateway.runAsync(runnable);
 		}
+	}
+
+	/**
+	 * Determines the self gateway type specified in one of the subclasses which extend this class.
+	 * May traverse multiple class hierarchies until a Gateway type is found as a first type argument.
+	 * @return Class<C> The determined self gateway type
+	 */
+	private Class<C> determineSelfGatewayType() {
+
+		// determine self gateway type
+		Class c = getClass();
+		Class<C> determinedSelfGatewayType;
+		do {
+			determinedSelfGatewayType = ReflectionUtil.getTemplateType1(c);
+			// check if super class contains self gateway type in next loop
+			c = c.getSuperclass();
+		} while (!RpcGateway.class.isAssignableFrom(determinedSelfGatewayType));
+
+		return determinedSelfGatewayType;
 	}
 }
