@@ -115,10 +115,4 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 			}
 		}, executor, checkpointLock);
 	}
-
-	@VisibleForTesting
-	public static DefaultTimeServiceProvider createForTestingWithHandler(
-			AsyncExceptionHandler handler, ScheduledExecutorService executor, Object checkpointLock) {
-		return new DefaultTimeServiceProvider(handler, executor, checkpointLock);
-	}
 }

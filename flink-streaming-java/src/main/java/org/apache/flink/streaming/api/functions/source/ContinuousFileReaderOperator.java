@@ -35,8 +35,6 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,20 +42,24 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This is the operator that reads the {@link FileInputSplit FileInputSplits} received from
- * the preceding {@link ContinuousFileMonitoringFunction}. This operator will receive just the split descriptors
- * and then read and emit records. This may lead to increased backpressure. To avoid this, we have another
- * thread ({@link SplitReader}) actually reading the splits and emitting the elements, which is separate from
- * the thread forwarding the checkpoint barriers. The two threads sync on the {@link StreamTask#getCheckpointLock()}
- * so that the checkpoints reflect the current state.
+ * the preceding {@link ContinuousFileMonitoringFunction}. This operator can have parallelism
+ * greater than 1, contrary to the {@link ContinuousFileMonitoringFunction} which has
+ * a parallelism of 1.
+ * <p/>
+ * This operator will receive the split descriptors, put them in a queue, and have another
+ * thread read the actual data from the split. This architecture allows the separation of the
+ * reading thread, from the one emitting the checkpoint barriers, thus removing any potential
+ * back-pressure.
  */
 @Internal
 public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends AbstractStreamOperator<OUT>
@@ -67,6 +69,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileReaderOperator.class);
 
+	/** A value that serves as a kill-pill to stop the reading thread when no more splits remain. */
 	private static final FileInputSplit EOS = new FileInputSplit(-1, null, -1, -1, null);
 
 	private FileInputFormat<OUT> format;
@@ -91,13 +94,9 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	public void open() throws Exception {
 		super.open();
 
-		if (this.serializer == null) {
-			throw new IllegalStateException("The serializer has not been set. " +
-				"Probably the setOutputType() was not called and this should not have happened. " +
-				"Please report it.");
-		}
-
-		Preconditions.checkState(reader == null, "The reader is already initialized.");
+		checkState(this.reader == null, "The reader is already initialized.");
+		checkState(this.serializer != null, "The serializer has not been set. " +
+			"Probably the setOutputType() was not called. Please report it.");
 
 		this.format.setRuntimeContext(getRuntimeContext());
 		this.format.configure(new Configuration());
@@ -108,11 +107,9 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 		this.readerContext = StreamSourceContexts.getSourceContext(
 			timeCharacteristic, getTimerService(), checkpointLock, output, watermarkInterval);
-		this.reader = new SplitReader<>(format, serializer, readerContext, checkpointLock, readerState);
 
-		// the readerState is needed for the initialization of the reader
-		// when recovering from a failure. So after the initialization,
-		// we can set it to null.
+		// and initialize the split reading thread
+		this.reader = new SplitReader<>(format, serializer, readerContext, checkpointLock, readerState);
 		this.readerState = null;
 		this.reader.start();
 	}
@@ -159,6 +156,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		}
 		reader = null;
 		readerContext = null;
+		readerState = null;
 		format = null;
 		serializer = null;
 	}
@@ -217,10 +215,10 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 			this.format = checkNotNull(format, "Unspecified FileInputFormat.");
 			this.serializer = checkNotNull(serializer, "Unspecified Serializer.");
+			this.readerContext = checkNotNull(readerContext, "Unspecified Reader Context.");
+			this.checkpointLock = checkNotNull(checkpointLock, "Unspecified checkpoint lock.");
 
-			this.pendingSplits = new LinkedList<>();
-			this.readerContext = readerContext;
-			this.checkpointLock = checkpointLock;
+			this.pendingSplits = new ArrayDeque<>();
 			this.isRunning = true;
 
 			// this is the case where a task recovers from a previous failed attempt
@@ -230,7 +228,6 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 				S formatState = restoredState.f2;
 
 				for (FileInputSplit split : pending) {
-					Preconditions.checkArgument(!pendingSplits.contains(split), "Duplicate split entry to read: " + split + ".");
 					pendingSplits.add(split);
 				}
 
@@ -240,9 +237,8 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		}
 
 		private void addSplit(FileInputSplit split) {
-			Preconditions.checkNotNull(split);
+			checkNotNull(split, "Cannot insert a null value in the pending splits queue.");
 			synchronized (checkpointLock) {
-				Preconditions.checkArgument(!pendingSplits.contains(split), "Duplicate split entry to read: " + split + ".");
 				this.pendingSplits.add(split);
 			}
 		}
@@ -278,7 +274,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 								checkpointableFormat.reopen(currentSplit, restoredFormatState);
 							} else {
 								// this is the case of a non-checkpointable input format that will reprocess the last split.
-								LOG.info("Format " + this.format.getClass().getName() + " used is not checkpointable.");
+								LOG.info("Format " + this.format.getClass().getName() + " does not support checkpointing.");
 								format.open(currentSplit);
 							}
 							// reset the restored state to null for the next iteration
@@ -366,7 +362,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 							restoredFormatState;
 					return new Tuple3<>(snapshot, currentSplit, formatState);
 				} else {
-					LOG.info("The format used is not checkpointable. The current input split will be restarted upon recovery.");
+					LOG.info("The format does not support checkpointing. The current input split will be re-read from start upon recovery.");
 					return new Tuple3<>(snapshot, currentSplit, null);
 				}
 			} else {
@@ -414,7 +410,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		FileInputSplit currSplit = (FileInputSplit) ois.readObject();
 
 		// read the pending splits list
-		List<FileInputSplit> pendingSplits = new LinkedList<>();
+		List<FileInputSplit> pendingSplits = new ArrayList<>();
 		int noOfSplits = ois.readInt();
 		for (int i = 0; i < noOfSplits; i++) {
 			FileInputSplit split = (FileInputSplit) ois.readObject();
@@ -426,8 +422,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		S formatState = (S) ois.readObject();
 
 		// set the whole reader state for the open() to find.
-		Preconditions.checkState(this.readerState == null,
-			"The reader state has already been initialized.");
+		checkState(this.readerState == null, "The reader state has already been initialized.");
 
 		this.readerState = new Tuple3<>(pendingSplits, currSplit, formatState);
 	}
