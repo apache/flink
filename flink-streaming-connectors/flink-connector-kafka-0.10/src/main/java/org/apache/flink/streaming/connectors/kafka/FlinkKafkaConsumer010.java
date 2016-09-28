@@ -134,9 +134,20 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 		boolean useMetrics = !Boolean.valueOf(properties.getProperty(KEY_DISABLE_METRICS, "false"));
 
-		return new Kafka010Fetcher<>(sourceContext, thisSubtaskPartitions,
-				watermarksPeriodic, watermarksPunctuated,
-				runtimeContext, deserializer,
-				properties, pollTimeout, useMetrics);
+		return new Kafka010Fetcher<>(
+				sourceContext,
+				thisSubtaskPartitions,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				runtimeContext.getProcessingTimeService(),
+				runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
+				runtimeContext.getUserCodeClassLoader(),
+				runtimeContext.isCheckpointingEnabled(),
+				runtimeContext.getTaskNameWithSubtasks(),
+				runtimeContext.getMetricGroup(),
+				deserializer,
+				properties,
+				pollTimeout,
+				useMetrics);
 	}
 }

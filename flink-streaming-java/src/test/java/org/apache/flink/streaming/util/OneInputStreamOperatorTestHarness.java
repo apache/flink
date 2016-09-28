@@ -47,14 +47,16 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.InstantiationUtil;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -90,6 +92,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	// use this as default for tests
 	AbstractStateBackend stateBackend = new MemoryStateBackend();
 
+	private final Object checkpointLock;
+
 	/**
 	 * Whether setup() was called on the operator. This is reset when calling close().
 	 */
@@ -113,13 +117,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		this.executionConfig = executionConfig;
 		this.closableRegistry = new ClosableRegistry();
 
+		this.checkpointLock = new Object();
+
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
 		processingTimeService = new TestProcessingTimeService();
 		processingTimeService.setCurrentTime(0);
 
 		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(new Object());
+		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
 		when(mockTask.getEnvironment()).thenReturn(env);
@@ -330,7 +336,9 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	public void setProcessingTime(long time) throws Exception {
-		processingTimeService.setCurrentTime(time);
+		synchronized (checkpointLock) {
+			processingTimeService.setCurrentTime(time);
+		}
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {

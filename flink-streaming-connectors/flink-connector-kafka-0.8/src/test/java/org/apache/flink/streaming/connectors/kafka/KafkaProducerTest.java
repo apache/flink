@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
+import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.TestLogger;
 
@@ -80,12 +81,14 @@ public class KafkaProducerTest extends TestLogger {
 			FlinkKafkaProducer08<String> producerPropagating = new FlinkKafkaProducer08<>(
 					"mock_topic", new SimpleStringSchema(), new Properties(), null);
 
-			producerPropagating.setRuntimeContext(new MockRuntimeContext(17, 3));
-			producerPropagating.open(new Configuration());
-			
+			OneInputStreamOperatorTestHarness<String, Object> testHarness =
+					new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producerPropagating));
+
+			testHarness.open();
+
 			try {
-				producerPropagating.invoke("value");
-				producerPropagating.invoke("value");
+				testHarness.processElement(new StreamRecord<>("value"));
+				testHarness.processElement(new StreamRecord<>("value"));
 				fail("This should fail with an exception");
 			}
 			catch (Exception e) {
@@ -94,17 +97,22 @@ public class KafkaProducerTest extends TestLogger {
 				assertTrue(e.getCause().getMessage().contains("Test error"));
 			}
 
+			testHarness.close();
+
 			// (2) producer that only logs errors
 
 			FlinkKafkaProducer08<String> producerLogging = new FlinkKafkaProducer08<>(
 					"mock_topic", new SimpleStringSchema(), new Properties(), null);
 			producerLogging.setLogFailuresOnly(true);
-			
-			producerLogging.setRuntimeContext(new MockRuntimeContext(17, 3));
-			producerLogging.open(new Configuration());
 
-			producerLogging.invoke("value");
-			producerLogging.invoke("value");
+			testHarness = new OneInputStreamOperatorTestHarness<>(new StreamSink(producerLogging));
+
+			testHarness.open();
+
+			testHarness.processElement(new StreamRecord<>("value"));
+			testHarness.processElement(new StreamRecord<>("value"));
+
+			testHarness.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
