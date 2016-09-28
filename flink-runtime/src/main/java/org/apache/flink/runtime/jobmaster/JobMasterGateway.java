@@ -72,10 +72,10 @@ public interface JobMasterGateway extends RpcGateway {
 	 * @param vertexID         The job vertex id
 	 * @param executionAttempt The execution attempt id
 	 * @return The future of the input split. If there is no further input split, will return an empty object.
-	 *         But returning null indicates some error occurred.
+	 * @throws Exception if some error occurred or information mismatch.
 	 */
 	Future<NextInputSplit> requestNextInputSplit(
-		final JobVertexID vertexID, final ExecutionAttemptID executionAttempt);
+		final JobVertexID vertexID, final ExecutionAttemptID executionAttempt) throws Exception;
 
 	/**
 	 * Requests the current state of the partition.

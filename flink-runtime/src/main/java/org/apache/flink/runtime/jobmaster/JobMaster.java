@@ -488,7 +488,10 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public NextInputSplit requestNextInputSplit(final JobVertexID vertexID, final ExecutionAttemptID executionAttempt) {
+	public NextInputSplit requestNextInputSplit(
+		final JobVertexID vertexID,
+		final ExecutionAttemptID executionAttempt) throws Exception
+	{
 		final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttempt);
 		if (execution == null) {
 			// can happen when JobManager had already unregistered this execution upon on task failure,
@@ -496,19 +499,20 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			if (log.isDebugEnabled()) {
 				log.debug("Can not find Execution for attempt {}.", executionAttempt);
 			}
-			return null;
+			// but we should TaskManager be aware of this
+			throw new Exception("Can not find Execution for attempt " + executionAttempt);
 		}
 
 		final ExecutionJobVertex vertex = executionGraph.getJobVertex(vertexID);
 		if (vertex == null) {
 			log.error("Cannot find execution vertex for vertex ID {}.", vertexID);
-			return null;
+			throw new Exception("Cannot find execution vertex for vertex ID " + vertexID);
 		}
 
 		final InputSplitAssigner splitAssigner = vertex.getSplitAssigner();
 		if (splitAssigner == null) {
 			log.error("No InputSplitAssigner for vertex ID {}.", vertexID);
-			return null;
+			throw new Exception("No InputSplitAssigner for vertex ID " + vertexID);
 		}
 
 		final Slot slot = execution.getAssignedResource();
@@ -524,9 +528,10 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			return new NextInputSplit(serializedInputSplit);
 		} catch (Exception ex) {
 			log.error("Could not serialize the next input split of class {}.", nextInputSplit.getClass(), ex);
-			vertex.fail(new RuntimeException("Could not serialize the next input split of class " +
-				nextInputSplit.getClass() + ".", ex));
-			return null;
+			RuntimeException reason = new RuntimeException("Could not serialize the next input split of class " +
+				nextInputSplit.getClass() + ".", ex);
+			vertex.fail(reason);
+			throw reason;
 		}
 	}
 
