@@ -119,15 +119,15 @@ import scala.util.{Failure, Success}
  *      requires a clean JVM.
  */
 class TaskManager(
-     protected val config: TaskManagerConfiguration,
-     protected val resourceID: ResourceID,
-     protected val location: TaskManagerLocation,
-     protected val memoryManager: MemoryManager,
-     protected val ioManager: IOManager,
-     protected val network: NetworkEnvironment,
-     protected val numberOfSlots: Int,
-     protected val leaderRetrievalService: LeaderRetrievalService,
-     protected val metricsRegistry: FlinkMetricRegistry)
+    protected val config: TaskManagerConfiguration,
+    protected val resourceID: ResourceID,
+    protected val location: TaskManagerLocation,
+    protected val memoryManager: MemoryManager,
+    protected val ioManager: IOManager,
+    protected val network: NetworkEnvironment,
+    protected val numberOfSlots: Int,
+    protected val leaderRetrievalService: LeaderRetrievalService,
+    protected val metricsRegistry: FlinkMetricRegistry)
   extends FlinkActor
   with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -148,7 +148,7 @@ class TaskManager(
   protected val bcVarManager = new BroadcastVariableManager()
 
   /** Handler for distributed files cached by this TaskManager */
-  protected val fileCache = new FileCache(config.getConfiguration())
+  protected val fileCache = new FileCache(config.getTmpDirPaths())
 
   private var taskManagerMetricGroup : TaskManagerMetricGroup = _
 
@@ -182,7 +182,7 @@ class TaskManager(
     CheckpointResponder,
     PartitionProducerStateChecker,
     ResultPartitionConsumableNotifier,
-    TaskManagerConnection)] = None
+    TaskManagerActions)] = None
 
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
@@ -921,7 +921,7 @@ class TaskManager(
 
     val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway)
 
-    val taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway)
+    val taskManagerConnection = new ActorGatewayTaskManagerActions(taskManagerGateway)
 
     val partitionStateChecker = new ActorGatewayPartitionProducerStateChecker(
       jobManagerGateway,
@@ -1054,6 +1054,7 @@ class TaskManager(
       network.getKvStateRegistry.unregisterListener()
     }
     
+    // failsafe shutdown of the metrics registry
     try {
       taskManagerMetricGroup.close()
     } catch {
@@ -1164,6 +1165,7 @@ class TaskManager(
         jobInformation,
         taskInformation,
         tdd.getExecutionAttemptId,
+        tdd.getAllocationID,
         tdd.getSubtaskIndex,
         tdd.getAttemptNumber,
         tdd.getProducedPartitions,
@@ -1195,12 +1197,11 @@ class TaskManager(
         runningTasks.put(execId, prevTask)
         throw new IllegalStateException("TaskManager already contains a task for id " + execId)
       }
-
+      
       // all good, we kick off the task, which performs its own initialization
       task.startTaskThread()
 
       sender ! decorateMessage(Acknowledge.get())
-
     }
     catch {
       case t: Throwable =>

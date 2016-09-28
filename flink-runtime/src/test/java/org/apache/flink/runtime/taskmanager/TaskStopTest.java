@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -77,6 +78,7 @@ public class TaskStopTest {
 				"foobar",
 				new Configuration()),
 			mock(ExecutionAttemptID.class),
+			mock(AllocationID.class),
 			0,
 			0,
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
@@ -87,7 +89,7 @@ public class TaskStopTest {
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
 			mock(BroadcastVariableManager.class),
-			mock(TaskManagerConnection.class),
+			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
 			mock(LibraryCacheManager.class),

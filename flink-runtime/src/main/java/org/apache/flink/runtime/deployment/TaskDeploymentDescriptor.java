@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
@@ -43,6 +44,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The ID referencing the attempt to execute the task. */
 	private final ExecutionAttemptID executionId;
+
+	/** The allocation ID of the slot in which the task shall be run */
+	private final AllocationID allocationID;
 
 	/** The task's index in the subtask group. */
 	private final int subtaskIndex;
@@ -90,6 +94,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 		this.producedPartitions = Preconditions.checkNotNull(resultPartitionDeploymentDescriptors);
 		this.inputGates = Preconditions.checkNotNull(inputGateDeploymentDescriptors);
+
+		this.allocationID = new AllocationID();
 	}
 
 	/**
@@ -149,6 +155,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public TaskStateHandles getTaskStateHandles() {
 		return taskStateHandles;
+	}
+
+	public AllocationID getAllocationID() {
+		return allocationID;
 	}
 
 	@Override

@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -31,9 +33,11 @@ import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateServer;
+import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -58,19 +62,28 @@ public class TaskManagerServices {
 	private final IOManager ioManager;
 	private final NetworkEnvironment networkEnvironment;
 	private final MetricRegistry metricRegistry;
+	private final TaskManagerMetricGroup taskManagerMetricGroup;
+	private final BroadcastVariableManager broadcastVariableManager;
+	private final FileCache fileCache;
 
 	private TaskManagerServices(
 		TaskManagerLocation taskManagerLocation,
 		MemoryManager memoryManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
-		MetricRegistry metricRegistry) {
+		MetricRegistry metricRegistry,
+		TaskManagerMetricGroup taskManagerMetricGroup,
+		BroadcastVariableManager broadcastVariableManager,
+		FileCache fileCache) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);
 		this.ioManager = Preconditions.checkNotNull(ioManager);
 		this.networkEnvironment = Preconditions.checkNotNull(networkEnvironment);
 		this.metricRegistry = Preconditions.checkNotNull(metricRegistry);
+		this.taskManagerMetricGroup = Preconditions.checkNotNull(taskManagerMetricGroup);
+		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
+		this.fileCache = Preconditions.checkNotNull(fileCache);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -95,6 +108,18 @@ public class TaskManagerServices {
 
 	public MetricRegistry getMetricRegistry() {
 		return metricRegistry;
+	}
+
+	public TaskManagerMetricGroup getTaskManagerMetricGroup() {
+		return taskManagerMetricGroup;
+	}
+
+	public BroadcastVariableManager getBroadcastVariableManager() {
+		return broadcastVariableManager;
+	}
+
+	public FileCache getFileCache() {
+		return fileCache;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -130,10 +155,30 @@ public class TaskManagerServices {
 		// start the I/O manager, it will create some temp directories.
 		final IOManager ioManager = new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
-		final MetricRegistry metricsRegistry = new MetricRegistry(
+		final MetricRegistry metricRegistry = new MetricRegistry(
 				taskManagerServicesConfiguration.getMetricRegistryConfiguration());
 
-		return new TaskManagerServices(taskManagerLocation, memoryManager, ioManager, network, metricsRegistry);
+		final TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
+			metricRegistry,
+			taskManagerLocation.getHostname(),
+			taskManagerLocation.getResourceID().toString());
+
+		// Initialize the TM metrics
+		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, network);
+
+		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
+
+		final FileCache fileCache = new FileCache(taskManagerServicesConfiguration.getTmpDirPaths());
+
+		return new TaskManagerServices(
+			taskManagerLocation,
+			memoryManager,
+			ioManager,
+			network,
+			metricRegistry,
+			taskManagerMetricGroup,
+			broadcastVariableManager,
+			fileCache);
 	}
 
 	/**

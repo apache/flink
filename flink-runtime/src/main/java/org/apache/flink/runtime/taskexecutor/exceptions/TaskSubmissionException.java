@@ -16,24 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.message;
+package org.apache.flink.runtime.taskexecutor.exceptions;
 
-import java.io.Serializable;
+import org.apache.flink.runtime.taskmanager.Task;
 
 /**
- * Contains the next input split for a task.
+ * Exception indicating a problem with the {@link Task} submission at the {@link TaskException}.
  */
-public class NextInputSplit implements Serializable {
+public class TaskSubmissionException extends TaskManagerException {
 
-	private static final long serialVersionUID = -1355784074565856240L;
+	private static final long serialVersionUID = 4589813591317690486L;
 
-	private final byte[] splitData;
-
-	public NextInputSplit(final byte[] splitData) {
-		this.splitData = splitData;
+	public TaskSubmissionException(String message) {
+		super(message);
 	}
 
-	public byte[] getSplitData() {
-		return splitData;
+	public TaskSubmissionException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public TaskSubmissionException(Throwable cause) {
+		super(cause);
 	}
 }

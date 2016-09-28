@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -27,9 +31,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmaster.message.NextInputSplit;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 import java.util.UUID;
@@ -37,7 +40,7 @@ import java.util.UUID;
 /**
  * {@link JobMaster} rpc gateway interface
  */
-public interface JobMasterGateway extends RpcGateway {
+public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 
 	/**
 	 * Starting the job under the given leader session ID.
@@ -58,34 +61,33 @@ public interface JobMasterGateway extends RpcGateway {
 	 * @param taskExecutionState New task execution state for a given task
 	 * @return Future flag of the task execution state update result
 	 */
-	Future<Boolean> updateTaskExecutionState(TaskExecutionState taskExecutionState);
+	Future<Acknowledge> updateTaskExecutionState(TaskExecutionState taskExecutionState);
 
 	/**
 	 * Requesting next input split for the {@link ExecutionJobVertex}. The next input split is sent back to the sender
-	 * as a {@link NextInputSplit} message.
+	 * as a {@link SerializedInputSplit} message.
 	 *
 	 * @param vertexID         The job vertex id
 	 * @param executionAttempt The execution attempt id
 	 * @return The future of the input split. If there is no further input split, will return an empty object.
-	 * @throws Exception if some error occurred or information mismatch.
 	 */
-	Future<NextInputSplit> requestNextInputSplit(
+	Future<SerializedInputSplit> requestNextInputSplit(
 		final JobVertexID vertexID,
-		final ExecutionAttemptID executionAttempt) throws Exception;
+		final ExecutionAttemptID executionAttempt);
 
 	/**
-	 * Requests the current state of the partition.
+	 * Requests the current state of the producer of an intermediate result partition.
 	 * The state of a partition is currently bound to the state of the producing execution.
 	 *
-	 * @param partitionId     The partition ID of the partition to request the state of.
-	 * @param taskExecutionId The execution attempt ID of the task requesting the partition state.
-	 * @param taskResultId    The input gate ID of the task requesting the partition state.
+	 * @param jobId                TheID of job that the intermediate result partition belongs to.
+	 * @param intermediateResultId The execution attempt ID of the task requesting the partition state.
+	 * @param partitionId          The partition ID of the partition to request the state of.
 	 * @return The future of the partition state
 	 */
 	Future<ExecutionState> requestPartitionState(
-		final ResultPartitionID partitionId,
-		final ExecutionAttemptID taskExecutionId,
-		final IntermediateDataSetID taskResultId);
+			JobID jobId,
+			IntermediateDataSetID intermediateResultId,
+			ResultPartitionID partitionId);
 
 	/**
 	 * Notifies the JobManager about available data for a produced partition.
@@ -97,6 +99,16 @@ public interface JobMasterGateway extends RpcGateway {
 	 * The JobManager then can decide when to schedule the partition consumers of the given session.
 	 *
 	 * @param partitionID The partition which has already produced data
+	 * @param timeout before the rpc call fails
+	 * @return Future acknowledge of the schedule or update operation
 	 */
-	Future<Acknowledge> scheduleOrUpdateConsumers(final ResultPartitionID partitionID);
+	Future<Acknowledge> scheduleOrUpdateConsumers(final ResultPartitionID partitionID, @RpcTimeout final Time timeout);
+
+	/**
+	 * Disconnects the given {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} from the
+	 * {@link JobMaster}.
+	 *
+	 * @param resourceID identifying the TaskManager to disconnect
+	 */
+	void disconnectTaskManager(ResourceID resourceID);
 }

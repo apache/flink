@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
@@ -36,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 public class TaskInputSplitProviderTest {
 
 	@Test
-	public void testRequestNextInputSplitWithInvalidExecutionID() {
+	public void testRequestNextInputSplitWithInvalidExecutionID() throws InputSplitProviderException {
 
 		final JobID jobID = new JobID();
 		final JobVertexID vertexID = new JobVertexID();

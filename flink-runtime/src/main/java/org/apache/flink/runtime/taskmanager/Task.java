@@ -33,6 +33,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -86,6 +87,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * The Task represents one execution of a parallel subtask on a TaskManager.
  * A Task wraps a Flink operator (which may be a user function) and
@@ -130,6 +133,9 @@ public class Task implements Runnable, TaskActions {
 
 	/** The execution attempt of the parallel subtask */
 	private final ExecutionAttemptID executionId;
+
+	/** ID which identifies the slot in which the task is supposed to run */
+	private final AllocationID allocationID;
 
 	/** TaskInfo object for this task */
 	private final TaskInfo taskInfo;
@@ -176,7 +182,7 @@ public class Task implements Runnable, TaskActions {
 	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
 
 	/** Connection to the task manager */
-	private final TaskManagerConnection taskManagerConnection;
+	private final TaskManagerActions taskManagerActions;
 
 	/** Input split provider for the task */
 	private final InputSplitProvider inputSplitProvider;
@@ -252,6 +258,7 @@ public class Task implements Runnable, TaskActions {
 		JobInformation jobInformation,
 		TaskInformation taskInformation,
 		ExecutionAttemptID executionAttemptID,
+		AllocationID slotAllocationId,
 		int subtaskIndex,
 		int attemptNumber,
 		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
@@ -262,7 +269,7 @@ public class Task implements Runnable, TaskActions {
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
 		BroadcastVariableManager bcVarManager,
-		TaskManagerConnection taskManagerConnection,
+		TaskManagerActions taskManagerActions,
 		InputSplitProvider inputSplitProvider,
 		CheckpointResponder checkpointResponder,
 		LibraryCacheManager libraryCache,
@@ -290,6 +297,7 @@ public class Task implements Runnable, TaskActions {
 		this.jobId = jobInformation.getJobId();
 		this.vertexId = taskInformation.getJobVertexId();
 		this.executionId  = Preconditions.checkNotNull(executionAttemptID);
+		this.allocationID = Preconditions.checkNotNull(slotAllocationId);
 		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
 		this.jobConfiguration = jobInformation.getJobConfiguration();
 		this.taskConfiguration = taskInformation.getTaskConfiguration();
@@ -310,7 +318,7 @@ public class Task implements Runnable, TaskActions {
 
 		this.inputSplitProvider = Preconditions.checkNotNull(inputSplitProvider);
 		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
-		this.taskManagerConnection = Preconditions.checkNotNull(taskManagerConnection);
+		this.taskManagerActions = checkNotNull(taskManagerActions);
 
 		this.libraryCache = Preconditions.checkNotNull(libraryCache);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
@@ -400,6 +408,10 @@ public class Task implements Runnable, TaskActions {
 
 	public ExecutionAttemptID getExecutionId() {
 		return executionId;
+	}
+
+	public AllocationID getAllocationID() {
+		return allocationID;
 	}
 
 	public TaskInfo getTaskInfo() {
@@ -645,7 +657,7 @@ public class Task implements Runnable, TaskActions {
 
 			// notify everyone that we switched to running
 			notifyObservers(ExecutionState.RUNNING, null);
-			taskManagerConnection.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
+			taskManagerActions.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
 
 			// make sure the user code classloader is accessible thread-locally
 			executingThread.setContextClassLoader(userCodeClassLoader);
@@ -839,11 +851,11 @@ public class Task implements Runnable, TaskActions {
 	}
 
 	private void notifyFinalState() {
-		taskManagerConnection.notifyFinalState(executionId);
+		taskManagerActions.notifyFinalState(executionId);
 	}
 
 	private void notifyFatalError(String message, Throwable cause) {
-		taskManagerConnection.notifyFatalError(message, cause);
+		taskManagerActions.notifyFatalError(message, cause);
 	}
 
 	/**
@@ -902,7 +914,7 @@ public class Task implements Runnable, TaskActions {
 						((StoppableTask)invokable).stop();
 					} catch(RuntimeException e) {
 						LOG.error("Stopping task {} ({}) failed.", taskNameWithSubtask, executionId, e);
-						taskManagerConnection.failTask(executionId, e);
+						taskManagerActions.failTask(executionId, e);
 					}
 				}
 			};
@@ -996,7 +1008,7 @@ public class Task implements Runnable, TaskActions {
 								taskNameWithSubtask,
 								taskCancellationInterval,
 								taskCancellationTimeout,
-								taskManagerConnection,
+								taskManagerActions,
 								producedPartitions,
 								inputGates);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
@@ -1094,7 +1106,6 @@ public class Task implements Runnable, TaskActions {
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointID, checkpointTimestamp);
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-
 			if (invokable instanceof StatefulTask) {
 				// build a local closure
 				final StatefulTask statefulTask = (StatefulTask) invokable;
@@ -1328,7 +1339,7 @@ public class Task implements Runnable, TaskActions {
 		private final long interruptTimeout;
 
 		/** TaskManager to notify about a timeout */
-		private final TaskManagerConnection taskManager;
+		private final TaskManagerActions taskManager;
 
 		/** Watch Dog thread */
 		@Nullable
@@ -1341,7 +1352,7 @@ public class Task implements Runnable, TaskActions {
 				String taskName,
 				long cancellationInterval,
 				long cancellationTimeout,
-				TaskManagerConnection taskManager,
+				TaskManagerActions taskManager,
 				ResultPartition[] producedPartitions,
 				SingleInputGate[] inputGates) {
 

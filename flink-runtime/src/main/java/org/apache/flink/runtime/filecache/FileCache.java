@@ -22,8 +22,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -31,6 +29,8 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,17 +70,15 @@ public class FileCache {
 
 	// ------------------------------------------------------------------------
 
-	public FileCache(Configuration config) throws IOException {
-		
-		String tempDirs = config.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
+	public FileCache(String[] tempDirectories) throws IOException {
 
-		String[] directories = tempDirs.split(",|" + File.pathSeparator);
-		storageDirectories = new File[directories.length];
+		Preconditions.checkNotNull(tempDirectories);
 
-		for (int i = 0; i < directories.length; i++) {
+		storageDirectories = new File[tempDirectories.length];
+
+		for (int i = 0; i < tempDirectories.length; i++) {
 			String cacheDirName = "flink-dist-cache-" + UUID.randomUUID().toString();
-			storageDirectories[i] = new File(directories[i], cacheDirName);
+			storageDirectories[i] = new File(tempDirectories[i], cacheDirName);
 			String path = storageDirectories[i].getAbsolutePath();
 
 			if (storageDirectories[i].mkdirs()) {
