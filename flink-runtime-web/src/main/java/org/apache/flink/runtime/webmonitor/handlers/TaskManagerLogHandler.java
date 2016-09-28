@@ -216,10 +216,8 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 						} catch (IOException ioe) {
 							display(ctx, request, "Displaying TaskManager log failed.");
 							LOG.error("Displaying TaskManager log failed.", ioe);
-							if (raf != null) {
-								raf.close();
-							}
-							return;
+							raf.close();
+							throw ioe;
 						}
 						final FileChannel fc = raf.getChannel();
 
