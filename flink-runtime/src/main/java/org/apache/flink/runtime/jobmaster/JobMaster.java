@@ -489,42 +489,45 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	@RpcMethod
 	public NextInputSplit requestNextInputSplit(final JobVertexID vertexID, final ExecutionAttemptID executionAttempt) {
-		final byte[] serializedInputSplit;
-
 		final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttempt);
 		if (execution == null) {
-			log.error("Can not find Execution for attempt {}.", executionAttempt);
-			return null;
-		} else {
-			final Slot slot = execution.getAssignedResource();
-			final int taskId = execution.getVertex().getParallelSubtaskIndex();
-			final String host = slot != null ? slot.getTaskManagerLocation().getHostname() : null;
-
-			final ExecutionJobVertex vertex = executionGraph.getJobVertex(vertexID);
-			if (vertex != null) {
-				final InputSplitAssigner splitAssigner = vertex.getSplitAssigner();
-				if (splitAssigner != null) {
-					final InputSplit nextInputSplit = splitAssigner.getNextInputSplit(host, taskId);
-
-					log.debug("Send next input split {}.", nextInputSplit);
-					try {
-						serializedInputSplit = InstantiationUtil.serializeObject(nextInputSplit);
-					} catch (Exception ex) {
-						log.error("Could not serialize the next input split of class {}.", nextInputSplit.getClass(), ex);
-						vertex.fail(new RuntimeException("Could not serialize the next input split of class " +
-							nextInputSplit.getClass() + ".", ex));
-						return null;
-					}
-				} else {
-					log.error("No InputSplitAssigner for vertex ID {}.", vertexID);
-					return null;
-				}
-			} else {
-				log.error("Cannot find execution vertex for vertex ID {}.", vertexID);
-				return null;
+			// can happen when JobManager had already unregistered this execution upon on task failure,
+			// but TaskManager get some delay to aware of that situation
+			if (log.isDebugEnabled()) {
+				log.debug("Can not find Execution for attempt {}.", executionAttempt);
 			}
+			return null;
 		}
-		return new NextInputSplit(serializedInputSplit);
+
+		final ExecutionJobVertex vertex = executionGraph.getJobVertex(vertexID);
+		if (vertex == null) {
+			log.error("Cannot find execution vertex for vertex ID {}.", vertexID);
+			return null;
+		}
+
+		final InputSplitAssigner splitAssigner = vertex.getSplitAssigner();
+		if (splitAssigner == null) {
+			log.error("No InputSplitAssigner for vertex ID {}.", vertexID);
+			return null;
+		}
+
+		final Slot slot = execution.getAssignedResource();
+		final int taskId = execution.getVertex().getParallelSubtaskIndex();
+		final String host = slot != null ? slot.getTaskManagerLocation().getHostname() : null;
+		final InputSplit nextInputSplit = splitAssigner.getNextInputSplit(host, taskId);
+
+		if (log.isDebugEnabled()) {
+			log.debug("Send next input split {}.", nextInputSplit);
+		}
+		try {
+			final byte[] serializedInputSplit = InstantiationUtil.serializeObject(nextInputSplit);
+			return new NextInputSplit(serializedInputSplit);
+		} catch (Exception ex) {
+			log.error("Could not serialize the next input split of class {}.", nextInputSplit.getClass(), ex);
+			vertex.fail(new RuntimeException("Could not serialize the next input split of class " +
+				nextInputSplit.getClass() + ".", ex));
+			return null;
+		}
 	}
 
 	@RpcMethod
@@ -539,7 +542,16 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error) {
+	public void scheduleOrUpdateConsumers(final ResultPartitionID partitionID) {
+		executionGraph.scheduleOrUpdateConsumers(partitionID);
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// Internal methods
+	//----------------------------------------------------------------------------------------------
+
+	// TODO - wrap this as StatusListenerMessenger's callback with rpc main thread
+	private void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error) {
 		final JobID jobID = executionGraph.getJobID();
 		final String jobName = executionGraph.getJobName();
 		log.info("Status of job {} ({}) changed to {}.", jobID, jobName, newJobStatus, error);
@@ -602,12 +614,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			}
 		}
 	}
-
-	@RpcMethod
-	public void scheduleOrUpdateConsumers(final ResultPartitionID partitionID) {
-		executionGraph.scheduleOrUpdateConsumers(partitionID);
-	}
-
 
 	//----------------------------------------------------------------------------------------------
 	// Helper methods

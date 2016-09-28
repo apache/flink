@@ -71,7 +71,8 @@ public interface JobMasterGateway extends RpcGateway {
 	 *
 	 * @param vertexID         The job vertex id
 	 * @param executionAttempt The execution attempt id
-	 * @return The future of the input split
+	 * @return The future of the input split. If there is no further input split, will return an empty object.
+	 *         But returning null indicates some error occurred.
 	 */
 	Future<NextInputSplit> requestNextInputSplit(
 		final JobVertexID vertexID, final ExecutionAttemptID executionAttempt);
@@ -88,15 +89,6 @@ public interface JobMasterGateway extends RpcGateway {
 	Future<PartitionState> requestPartitionState(
 		final ResultPartitionID partitionId, final ExecutionAttemptID taskExecutionId,
 		final IntermediateDataSetID taskResultId);
-
-	/**
-	 * Denotes the job state change of a job.
-	 *
-	 * @param newJobStatus The new status
-	 * @param timestamp    The time when the status changed
-	 * @param error        Whether there is an error when status changes
-	 */
-	void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error);
 
 	/**
 	 * Notifies the JobManager about available data for a produced partition.
