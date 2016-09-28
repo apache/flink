@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -65,7 +64,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	public KeyedOneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			final KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
+			TypeInformation<K> keyType) throws Exception {
 		super(operator);
 
 		ClosureCleaner.clean(keySelector, false);
@@ -79,23 +78,8 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
 			KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
+			TypeInformation<K> keyType) throws Exception {
 		super(operator, executionConfig);
-
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
-		config.setNumberOfKeyGroups(MAX_PARALLELISM);
-
-		setupMockTaskCreateKeyedBackend();
-	}
-
-	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig,
-			ProcessingTimeService testTimeProvider,
-			KeySelector<IN, K> keySelector,
-			TypeInformation<K> keyType) {
-		super(operator, executionConfig, testTimeProvider);
 
 		ClosureCleaner.clean(keySelector, false);
 		config.setStatePartitioner(0, keySelector);
