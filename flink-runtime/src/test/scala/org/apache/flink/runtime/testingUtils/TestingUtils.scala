@@ -241,7 +241,6 @@ object TestingUtils {
     )
   }
 
-
   def createTaskManager(
       actorSystem: ActorSystem,
       jobManagerURL: String,
