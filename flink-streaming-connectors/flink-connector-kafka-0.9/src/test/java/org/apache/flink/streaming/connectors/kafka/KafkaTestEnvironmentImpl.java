@@ -31,6 +31,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -96,6 +97,17 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	@Override
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
 		return new FlinkKafkaConsumer09<>(topics, readSchema, props);
+	}
+
+	@Override
+	public <T> StreamSink<T> getProducerSink(
+			String topic,
+			KeyedSerializationSchema<T> serSchema,
+			Properties props,
+			KafkaPartitioner<T> partitioner) {
+		FlinkKafkaProducer09<T> prod = new FlinkKafkaProducer09<>(topic, serSchema, props, partitioner);
+		prod.setFlushOnCheckpoint(true);
+		return new StreamSink<>(prod);
 	}
 
 	@Override

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
@@ -36,6 +37,7 @@ import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
@@ -43,6 +45,8 @@ import org.apache.flink.streaming.util.serialization.TypeInformationSerializatio
 import java.util.Collection;
 import java.util.Properties;
 import java.util.Random;
+
+import static org.mockito.Mockito.mock;
 
 @SuppressWarnings("serial")
 public class DataGenerators {
@@ -145,12 +149,17 @@ public class DataGenerators {
 				producerProperties.setProperty("retries", "3");
 				StreamTransformation<String> mockTransform = new MockStreamTransformation();
 				DataStream<String> stream = new DataStream<>(new DummyStreamExecutionEnvironment(), mockTransform);
-				DataStreamSink<String> sink = server.produceIntoKafka(stream, topic, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
-						producerProperties, new FixedPartitioner<String>());
-				StreamSink<String> producerOperator = sink.getTransformation().getOperator();
-				producer = (RichFunction) producerOperator.getUserFunction();
-				producer.setRuntimeContext(new MockRuntimeContext(1,0));
-				producer.open(new Configuration());
+
+				StreamSink<String> sink = server.getProducerSink(
+						topic,
+						new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
+						producerProperties,
+						new FixedPartitioner<String>());
+
+				OneInputStreamOperatorTestHarness<String, Object> testHarness =
+						new OneInputStreamOperatorTestHarness<>(sink);
+
+				testHarness.open();
 
 				final StringBuilder bld = new StringBuilder();
 				final Random rnd = new Random();
@@ -164,7 +173,7 @@ public class DataGenerators {
 					}
 
 					String next = bld.toString();
-					producerOperator.processElement(new StreamRecord<>(next));
+					testHarness.processElement(new StreamRecord<>(next));
 				}
 			}
 			catch (Throwable t) {
