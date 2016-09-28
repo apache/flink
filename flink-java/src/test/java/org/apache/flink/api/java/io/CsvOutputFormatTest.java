@@ -24,9 +24,11 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public class CsvOutputFormatTest {
@@ -47,7 +49,6 @@ public class CsvOutputFormatTest {
 		FSDataInputStream inputStream = fs.open(PATH);
 		String csvContent = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
 		Assert.assertEquals("One,,8\n", csvContent);
-		fs.delete(PATH, true);
 	}
 
 	@Test(expected = RuntimeException.class)
@@ -58,6 +59,14 @@ public class CsvOutputFormatTest {
 		csvOutputFormat.open(0, 1);
 		csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
 		csvOutputFormat.close();
+	}
+
+	@After
+	public void cleanUp() throws IOException {
+		final FileSystem fs = PATH.getFileSystem();
+		if(fs.exists(PATH)){
+			fs.delete(PATH, true);
+		}
 	}
 
 }
