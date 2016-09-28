@@ -21,8 +21,8 @@ package org.apache.flink.api.table
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.{Context, RelOptCluster, RelOptPlanner, RelOptSchema}
 import org.apache.calcite.prepare.CalciteCatalogReader
-import org.apache.calcite.rex.RexBuilder
-import org.apache.calcite.schema.SchemaPlus
+import org.apache.calcite.rex.{RexExecutorImpl, RexBuilder}
+import org.apache.calcite.schema.{Schemas, SchemaPlus}
 import org.apache.calcite.tools.Frameworks.PlannerAction
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
 
@@ -66,6 +66,7 @@ object FlinkRelBuilder {
       }
     })
     val planner = clusters(0).getPlanner
+    planner.setExecutor(config.getExecutor)
     val defaultRelOptSchema = relOptSchemas(0).asInstanceOf[CalciteCatalogReader]
 
     // create Flink type factory

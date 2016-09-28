@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
 
@@ -228,6 +229,42 @@ abstract class BatchTableEnvironment(
   }
 
   /**
+    * Generates the optimized [[RelNode]] tree from the original relational node tree.
+    *
+    * @param relNode The original [[RelNode]] tree
+    * @return The optimized [[RelNode]] tree
+    */
+  private[flink] def optimize(relNode: RelNode): RelNode = {
+
+    // decorrelate
+    val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
+
+    // optimize the logical Flink plan
+    val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
+    val flinkOutputProps = relNode.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
+
+    val dataSetPlan = try {
+      optProgram.run(getPlanner, decorPlan, flinkOutputProps)
+    } catch {
+      case e: CannotPlanException =>
+        throw new TableException(
+          s"Cannot generate a valid execution plan for the given query: \n\n" +
+            s"${RelOptUtil.toString(relNode)}\n" +
+            s"This exception indicates that the query uses an unsupported SQL feature.\n" +
+            s"Please check the documentation for the set of currently supported SQL features.")
+      case t: TableException =>
+        throw new TableException(
+          s"Cannot generate a valid execution plan for the given query: \n\n" +
+            s"${RelOptUtil.toString(relNode)}\n" +
+            s"${t.msg}\n" +
+            s"Please check the documentation for the set of currently supported SQL features.")
+      case a: AssertionError =>
+        throw a.getCause
+    }
+    dataSetPlan
+  }
+
+  /**
     * Translates a [[Table]] into a [[DataSet]].
     *
     * The transformation involves optimizing the relational expression tree as defined by
@@ -242,34 +279,7 @@ abstract class BatchTableEnvironment(
 
     validateType(tpe)
 
-    val relNode = table.getRelNode
-
-    // decorrelate
-    val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
-
-    // optimize the logical Flink plan
-    val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
-    val flinkOutputProps = relNode.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-
-    val dataSetPlan = try {
-      optProgram.run(getPlanner, decorPlan, flinkOutputProps)
-    }
-    catch {
-      case e: CannotPlanException =>
-        throw new TableException(
-          s"Cannot generate a valid execution plan for the given query: \n\n" +
-            s"${RelOptUtil.toString(relNode)}\n" +
-            s"This exception indicates that the query uses an unsupported SQL feature.\n" +
-            s"Please check the documentation for the set of currently supported SQL features.")
-      case t: TableException =>
-        throw new TableException(
-        s"Cannot generate a valid execution plan for the given query: \n\n" +
-          s"${RelOptUtil.toString(relNode)}\n" +
-          s"${t.msg}\n" +
-          s"Please check the documentation for the set of currently supported SQL features.")
-      case a: AssertionError =>
-        throw a.getCause
-    }
+    val dataSetPlan = optimize(table.getRelNode)
 
     dataSetPlan match {
       case node: DataSetRel =>
