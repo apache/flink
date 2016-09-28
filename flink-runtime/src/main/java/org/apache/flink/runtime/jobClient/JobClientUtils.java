@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +82,7 @@ public class JobClientUtils {
 	 * @throws IOException
 	 */
 	public static RpcService startJobClientRpcService(Configuration config)
-		throws IOException
+		throws Exception
 	{
 		LOG.info("Starting JobClientUtils rpc service");
 		Option<Tuple2<String, Object>> remoting = new Some<>(new Tuple2<String, Object>("", 0));
@@ -96,7 +96,7 @@ public class JobClientUtils {
 			"(unknown)";
 		int port = address.port().isDefined() ? ((Integer) address.port().get()) : -1;
 		LOG.info("Started JobClientUtils actor system at " + hostAddress + ':' + port);
-		return new AkkaRpcService(system, Time.milliseconds(AkkaUtils.getClientTimeout(config).toMillis()));
+		return RpcServiceUtils.createRpcService(hostAddress, port, config);
 	}
 
 	/**
