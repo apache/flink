@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -71,7 +72,7 @@ public class TaskManagerConfiguration {
 		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
 		this.cleanupInterval = Preconditions.checkNotNull(cleanupInterval);
-		this.configuration = Preconditions.checkNotNull(configuration);
+		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 	}
 
 	public int getNumberSlots() {

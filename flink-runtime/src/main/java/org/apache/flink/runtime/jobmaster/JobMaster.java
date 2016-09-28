@@ -38,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -60,9 +61,9 @@ import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.jobmaster.message.NextInputSplit;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -71,6 +72,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.InstantiationUtil;
@@ -507,12 +509,18 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 * @return Acknowledge the task execution state update
 	 */
 	@RpcMethod
-	public boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
+	public Acknowledge updateTaskExecutionState(final TaskExecutionState taskExecutionState) throws ExecutionGraphException {
 		if (taskExecutionState == null) {
-			return false;
-		} else {
-			return executionGraph.updateState(taskExecutionState);
+			throw new NullPointerException("TaskExecutionState must not be null.");
 		}
+
+		if (executionGraph.updateState(taskExecutionState)) {
+			return Acknowledge.get();
+		} else {
+			throw new ExecutionGraphException("The execution attempt " +
+				taskExecutionState.getID() + " was not found.");
+		}
+
 	}
 
 	//---------------------------------------------------------------------------------------------- 
@@ -531,7 +539,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public NextInputSplit requestNextInputSplit(
+	public SerializedInputSplit requestNextInputSplit(
 		final JobVertexID vertexID,
 		final ExecutionAttemptID executionAttempt) throws Exception
 	{
@@ -569,7 +577,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		try {
 			final byte[] serializedInputSplit = InstantiationUtil.serializeObject(nextInputSplit);
-			return new NextInputSplit(serializedInputSplit);
+			return new SerializedInputSplit(serializedInputSplit);
 		} catch (Exception ex) {
 			log.error("Could not serialize the next input split of class {}.", nextInputSplit.getClass(), ex);
 			IOException reason = new IOException("Could not serialize the next input split of class " +
@@ -591,8 +599,36 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public void scheduleOrUpdateConsumers(final ResultPartitionID partitionID) {
+	public Acknowledge scheduleOrUpdateConsumers(final ResultPartitionID partitionID) {
 		executionGraph.scheduleOrUpdateConsumers(partitionID);
+		return Acknowledge.get();
+	}
+
+	@RpcMethod
+	public void disconnectTaskManager(final ResourceID resourceID) {
+		throw new UnsupportedOperationException();
+	}
+
+	@RpcMethod
+	public void acknowledgeCheckpoint(
+		JobID jobID,
+		ExecutionAttemptID executionAttemptID,
+		long checkpointID,
+		CheckpointStateHandles checkpointStateHandles,
+		long synchronousDurationMillis,
+		long asynchronousDurationMillis,
+		long bytesBufferedInAlignment,
+		long alignmentDurationNanos) {
+		throw new UnsupportedOperationException();
+	}
+
+	@RpcMethod
+	public void declineCheckpoint(
+		JobID jobID,
+		ExecutionAttemptID executionAttemptID,
+		long checkpointID,
+		long checkpointTimestamp) {
+		throw new UnsupportedOperationException();
 	}
 
 	//----------------------------------------------------------------------------------------------
