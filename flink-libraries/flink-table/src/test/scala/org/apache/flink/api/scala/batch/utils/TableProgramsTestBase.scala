@@ -62,13 +62,7 @@ object TableProgramsTestBase {
   }
 
   @Parameterized.Parameters(name = "Execution mode = {0}, Table config = {1}")
-  def tableConfigs(): util.Collection[Array[java.lang.Object]] = {
-    Seq(
-      // TODO more tests in cluster mode?
-      Array[AnyRef](TestExecutionMode.CLUSTER, TableConfigMode.DEFAULT),
-      Array[AnyRef](TestExecutionMode.COLLECTION, TableConfigMode.DEFAULT),
-      Array[AnyRef](TestExecutionMode.COLLECTION, TableConfigMode.NULL),
-      Array[AnyRef](TestExecutionMode.COLLECTION, TableConfigMode.EFFICIENT)
-    )
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](Array(TestExecutionMode.COLLECTION, TableConfigMode.DEFAULT))
   }
 }
