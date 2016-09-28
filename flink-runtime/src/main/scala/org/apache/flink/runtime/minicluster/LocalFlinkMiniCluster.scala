@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.minicluster
 
-import java.util.concurrent.{Executor, ExecutorService}
+import java.net.InetAddress
+import java.util.concurrent.Executor
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
@@ -42,7 +43,8 @@ import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
 import org.apache.flink.runtime.metrics.MetricRegistry
-import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerConfiguration, TaskManagerLocation}
+import org.apache.flink.runtime.taskexecutor.{TaskManagerServices, TaskManagerServicesConfiguration, TaskManagerConfiguration}
+import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
 
 import scala.concurrent.Await
@@ -205,31 +207,32 @@ class LocalFlinkMiniCluster(
 
     val resourceID = ResourceID.generate() // generate random resource id
 
-    val (taskManagerConfig,
-    taskManagerLocation,
-    memoryManager,
-    ioManager,
-    network,
-    leaderRetrievalService,
-    metricsRegistry) = TaskManager.createTaskManagerComponents(
+    val taskManagerAddress = InetAddress.getByName(hostname)
+
+    val taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(config)
+    val taskManagerServicesConfiguration = TaskManagerServicesConfiguration.fromConfiguration(
       config,
-      resourceID,
-      hostname, // network interface to bind to
-      localExecution, // start network stack?
-      Some(createLeaderRetrievalService()))
+      taskManagerAddress,
+      localExecution)
+
+    val taskManagerServices = TaskManagerServices.fromConfiguration(
+      taskManagerServicesConfiguration,
+      resourceID)
+
+    val metricRegistry = taskManagerServices.getMetricRegistry()
 
     val props = getTaskManagerProps(
       taskManagerClass,
-      taskManagerConfig,
+      taskManagerConfiguration,
       resourceID,
-      taskManagerLocation,
-      memoryManager,
-      ioManager,
-      network,
-      leaderRetrievalService,
-      metricsRegistry)
+      taskManagerServices.getTaskManagerLocation(),
+      taskManagerServices.getMemoryManager(),
+      taskManagerServices.getIOManager(),
+      taskManagerServices.getNetworkEnvironment,
+      createLeaderRetrievalService(),
+      metricRegistry)
 
-    metricsRegistry.startQueryService(system, resourceID)
+    metricRegistry.startQueryService(system, resourceID)
 
     system.actorOf(props, taskManagerActorName)
   }

@@ -26,6 +26,7 @@ import akka.actor.Kill;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
@@ -50,11 +51,11 @@ import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 
 import org.junit.Test;
 
-import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
@@ -70,7 +71,7 @@ public class TaskManagerComponentsStartupShutdownTest {
 	public void testComponentsStartupShutdown() {
 
 		final String[] TMP_DIR = new String[] { ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH };
-		final FiniteDuration timeout = new FiniteDuration(100, TimeUnit.SECONDS);
+		final Time timeout = Time.seconds(100);
 		final int BUFFER_SIZE = 32 * 1024;
 
 		Configuration config = new Configuration();
@@ -96,14 +97,19 @@ public class TaskManagerComponentsStartupShutdownTest {
 				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager),
 				StandaloneResourceManager.class);
 
+			final int numberOfSlots = 1;
+
 			// create the components for the TaskManager manually
 			final TaskManagerConfiguration tmConfig = new TaskManagerConfiguration(
-					TMP_DIR,
-					1000000,
-					timeout,
-					Option.<FiniteDuration>empty(),
-					1,
-					config);
+				numberOfSlots,
+				TMP_DIR,
+				timeout,
+				null,
+				Time.milliseconds(500),
+				Time.seconds(30),
+				Time.seconds(10),
+				1000000, // cleanup interval
+				config);
 
 			final NetworkEnvironmentConfiguration netConf = new NetworkEnvironmentConfiguration(
 					32, BUFFER_SIZE, MemoryType.HEAP, IOManager.IOMode.SYNC, 0, 0, null);
@@ -126,8 +132,6 @@ public class TaskManagerComponentsStartupShutdownTest {
 				netConf.partitionRequestMaxBackoff());
 
 			network.start();
-
-			final int numberOfSlots = 1;
 
 			LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManager.path().toString());
 
