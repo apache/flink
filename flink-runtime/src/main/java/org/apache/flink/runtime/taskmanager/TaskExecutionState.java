@@ -24,6 +24,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.util.SerializedThrowable;
 
+import java.io.Serializable;
+
 /**
  * This class represents an update about a task's execution state.
  *
@@ -34,7 +36,7 @@ import org.apache.flink.runtime.util.SerializedThrowable;
  * exception field transient and deserialized it lazily, with the
  * appropriate class loader.
  */
-public class TaskExecutionState implements java.io.Serializable {
+public class TaskExecutionState implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
