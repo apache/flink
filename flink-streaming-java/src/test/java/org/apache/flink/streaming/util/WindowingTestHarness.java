@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -50,8 +49,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class WindowingTestHarness<K, IN, W extends Window> {
 
-	private final TestProcessingTimeService timeServiceProvider;
-
 	private final OneInputStreamOperatorTestHarness<IN, IN> testHarness;
 
 	private final ConcurrentLinkedQueue<Object> expectedOutputs = new ConcurrentLinkedQueue<>();
@@ -64,7 +61,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 								TypeInformation<IN> inputType,
 								KeySelector<IN, K> keySelector,
 								Trigger<? super IN, ? super W> trigger,
-								long allowedLateness) {
+								long allowedLateness) throws Exception {
 
 		ListStateDescriptor<IN> windowStateDesc =
 				new ListStateDescriptor<>("window-contents", inputType.createSerializer(executionConfig));
@@ -80,8 +77,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 				trigger,
 				allowedLateness);
 
-		timeServiceProvider = new TestProcessingTimeService();
-		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider, keySelector, keyType);
+		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, keySelector, keyType);
 	}
 
 	/**
@@ -106,7 +102,7 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 	 */
 	public void setProcessingTime(long timestamp) throws Exception {
 		openOperator();
-		timeServiceProvider.setCurrentTime(timestamp);
+		testHarness.setProcessingTime(timestamp);
 	}
 
 	/**
