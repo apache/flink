@@ -20,10 +20,11 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka09Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
@@ -112,10 +113,22 @@ public class Kafka09FetcherTest {
 		SourceContext<String> sourceContext = mock(SourceContext.class);
 		List<KafkaTopicPartition> topics = Collections.singletonList(new KafkaTopicPartition("test", 42));
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
-		StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
-		
+
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
-				sourceContext, topics, null, null, context, schema, new Properties(), 0L, false);
+				sourceContext,
+				topics,
+				null, /* periodic watermark extractor */
+				null, /* punctuated watermark extractor */
+				new TestProcessingTimeService(),
+				10, /* watermark interval */
+				this.getClass().getClassLoader(),
+				true, /* checkpointing */
+				"task_name",
+				mock(MetricGroup.class),
+				schema,
+				new Properties(),
+				0L,
+				false);
 
 		// ----- run the fetcher -----
 
@@ -236,10 +249,23 @@ public class Kafka09FetcherTest {
 		SourceContext<String> sourceContext = mock(SourceContext.class);
 		List<KafkaTopicPartition> topics = Collections.singletonList(new KafkaTopicPartition("test", 42));
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
-		StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
 
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
-				sourceContext, topics, null, null, context, schema, new Properties(), 0L, false);
+				sourceContext,
+				topics,
+				null, /* periodic watermark extractor */
+				null, /* punctuated watermark extractor */
+				new TestProcessingTimeService(),
+				10, /* watermark interval */
+				this.getClass().getClassLoader(),
+				true, /* checkpointing */
+				"task_name",
+				mock(MetricGroup.class),
+				schema,
+				new Properties(),
+				0L,
+				false);
+
 
 		// ----- run the fetcher -----
 

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
@@ -41,12 +42,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.InstantiationUtil;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -80,6 +83,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	// use this as default for tests
 	AbstractStateBackend stateBackend = new MemoryStateBackend();
 
+	private final Object checkpointLock;
+
 	/**
 	 * Whether setup() was called on the operator. This is reset when calling close().
 	 */
@@ -101,13 +106,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = executionConfig;
 
+		this.checkpointLock = new Object();
+
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
 		processingTimeService = new TestProcessingTimeService();
 		processingTimeService.setCurrentTime(0);
 
 		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(new Object());
+		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
 		when(mockTask.getEnvironment()).thenReturn(env);
@@ -214,14 +221,34 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 *
 	 */
 	public StreamStateHandle snapshot(long checkpointId, long timestamp) throws Exception {
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream = stateBackend.createStreamFactory(
-				new JobID(),
-				"test_op").createCheckpointStateOutputStream(checkpointId, timestamp);
-		if(operator instanceof StreamCheckpointedOperator) {
-			((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
+		synchronized (checkpointLock) {
+			CheckpointStreamFactory.CheckpointStateOutputStream outStream = stateBackend.createStreamFactory(
+					new JobID(),
+					"test_op").createCheckpointStateOutputStream(checkpointId, timestamp);
+
+			if (operator instanceof StreamCheckpointedOperator) {
+				((StreamCheckpointedOperator) operator).snapshotState(
+						outStream,
+						checkpointId,
+						timestamp);
+			}
+
+			RunnableFuture<OperatorStateHandle> snapshotRunnable = operator.snapshotState(
+					checkpointId,
+					timestamp,
+					stateBackend.createStreamFactory(new JobID(), "test_op"));
+
+			if (snapshotRunnable != null) {
+				outStream.write(1);
+				snapshotRunnable.run();
+				OperatorStateHandle operatorStateHandle = snapshotRunnable.get();
+
+				InstantiationUtil.serializeObject(outStream, operatorStateHandle);
+			} else {
+				outStream.write(0);
+			}
+
 			return outStream.closeAndGetHandle();
-		} else {
-			throw new RuntimeException("Operator is not StreamCheckpointedOperator");
 		}
 	}
 
@@ -236,12 +263,22 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 *
 	 */
 	public void restore(StreamStateHandle snapshot) throws Exception {
-		if(operator instanceof StreamCheckpointedOperator) {
-			try (FSDataInputStream in = snapshot.openInputStream()) {
+		try (FSDataInputStream in = snapshot.openInputStream()) {
+
+			if (operator instanceof StreamCheckpointedOperator) {
 				((StreamCheckpointedOperator) operator).restoreState(in);
 			}
-		} else {
-			throw new RuntimeException("Operator is not StreamCheckpointedOperator");
+
+			int hasOperatorState = in.read();
+
+			if (hasOperatorState == 1) {
+				OperatorStateHandle operatorStateHandle =
+						InstantiationUtil.deserializeObject(
+								in,
+								this.getClass().getClassLoader());
+
+				operator.restoreState(Collections.singletonList(operatorStateHandle));
+			}
 		}
 	}
 
@@ -270,7 +307,9 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	public void setProcessingTime(long time) throws Exception {
-		processingTimeService.setCurrentTime(time);
+		synchronized (checkpointLock) {
+			processingTimeService.setCurrentTime(time);
+		}
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
