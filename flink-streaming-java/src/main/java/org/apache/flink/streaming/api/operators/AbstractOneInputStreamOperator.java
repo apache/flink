@@ -19,31 +19,31 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Interface for stream operators with one input. Use {@link AbstractOneInputStreamOperator}
- * or {@link AbstractKeyedOneInputStreamOperator} as a base class if you want to implement a
- * custom operator.
- * 
+ * Base class for implementations of {@link OneInputStreamOperator}.
+ *
  * @param <IN> The input type of the operator
  * @param <OUT> The output type of the operator
  */
 @Internal
-public interface OneInputStreamOperator<IN, OUT> extends StreamOperator<OUT> {
+public abstract class AbstractOneInputStreamOperator<IN, OUT>
+		extends AbstractStreamOperator<OUT>
+		implements OneInputStreamOperator<IN, OUT> {
 
-	/**
-	 * Processes one element that arrived at this operator.
-	 * This method is guaranteed to not be called concurrently with other methods of the operator.
-	 */
-	void processElement(StreamRecord<IN> element) throws Exception;
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Processes a {@link Watermark}.
-	 * This method is guaranteed to not be called concurrently with other methods of the operator.
-	 *
-	 * @see org.apache.flink.streaming.api.watermark.Watermark
-	 */
-	void processWatermark(Watermark mark) throws Exception;
+	public AbstractOneInputStreamOperator() {
+	}
+
+	public AbstractOneInputStreamOperator(Function userFunction) {
+		super(userFunction);
+	}
+
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		output.emitWatermark(mark);
+	}
 }

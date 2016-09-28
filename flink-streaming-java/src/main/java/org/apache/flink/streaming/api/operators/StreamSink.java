@@ -22,19 +22,22 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFunction<IN>>
-		implements OneInputStreamOperator<IN, Object> {
+public class StreamSink<IN> extends AbstractOneInputStreamOperator<IN, Object> {
 
 	private static final long serialVersionUID = 1L;
+
+	private final SinkFunction<IN> sinkFunction;
 
 	public StreamSink(SinkFunction<IN> sinkFunction) {
 		super(sinkFunction);
 
 		chainingStrategy = ChainingStrategy.ALWAYS;
+
+		this.sinkFunction = sinkFunction;
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		userFunction.invoke(element.getValue());
+		sinkFunction.invoke(element.getValue());
 	}
 }

@@ -21,7 +21,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 
 /**
@@ -35,7 +35,7 @@ public class DataStreamSink<T> {
 	SinkTransformation<T> transformation;
 
 	@SuppressWarnings("unchecked")
-	protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
+	protected DataStreamSink(DataStream<T> inputStream, OneInputStreamOperator<T, Object> operator) {
 		this.transformation = new SinkTransformation<T>(inputStream.getTransformation(), "Unnamed", operator, inputStream.getExecutionEnvironment().getParallelism());
 	}
 

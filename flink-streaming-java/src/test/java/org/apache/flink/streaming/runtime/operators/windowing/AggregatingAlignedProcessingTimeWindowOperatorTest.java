@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;

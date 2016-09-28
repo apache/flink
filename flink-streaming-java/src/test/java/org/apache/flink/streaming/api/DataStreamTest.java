@@ -44,7 +44,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
@@ -649,49 +649,6 @@ public class DataStreamTest {
 	}
 	
 	@Test
-	public void sinkKeyTest() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSink<Long> sink = env.generateSequence(1, 100).print();
-		assertTrue(env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getStatePartitioner1() == null);
-		assertTrue(env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof ForwardPartitioner);
-
-		KeySelector<Long, Long> key1 = new KeySelector<Long, Long>() {
-
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Long getKey(Long value) throws Exception {
-				return (long) 0;
-			}
-		};
-
-		DataStreamSink<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
-
-		assertNotNull(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStatePartitioner1());
-		assertNotNull(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStateKeySerializer());
-		assertNotNull(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStateKeySerializer());
-		assertEquals(key1, env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getStatePartitioner1());
-		assertTrue(env.getStreamGraph().getStreamNode(sink2.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
-
-		KeySelector<Long, Long> key2 = new KeySelector<Long, Long>() {
-
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Long getKey(Long value) throws Exception {
-				return (long) 0;
-			}
-		};
-
-		DataStreamSink<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
-
-		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1() != null);
-		assertEquals(key2, env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1());
-		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
-	}
-
-	@Test
 	public void testChannelSelectors() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -744,8 +701,8 @@ public class DataStreamTest {
 	}
 
 	private static Function getFunctionForDataStream(DataStream<?> dataStream) {
-		AbstractUdfStreamOperator<?, ?> operator =
-				(AbstractUdfStreamOperator<?, ?>) getOperatorForDataStream(dataStream);
+		AbstractStreamOperator<?> operator =
+				(AbstractStreamOperator<?>) getOperatorForDataStream(dataStream);
 		return operator.getUserFunction();
 	}
 

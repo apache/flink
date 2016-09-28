@@ -57,6 +57,7 @@ import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
+import org.apache.flink.streaming.api.operators.AbstractKeyedStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
@@ -93,6 +94,8 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -958,7 +961,7 @@ public class DataStream<T> {
 			WriteMode writeMode,
 			String rowDelimiter,
 			String fieldDelimiter) {
-		Preconditions.checkArgument(
+		checkArgument(
 			getType().isTupleType(),
 			"The writeAsCsv() method can only be used on data streams of tuples.");
 
@@ -1024,6 +1027,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> transform(String operatorName, TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
+		checkArgument(!(operator instanceof AbstractKeyedStreamOperator), "Operator on DataStream cannot be a keyed operator.");
 
 		// read the output type of the input Transform to coax out errors about MissingTypeInfo
 		transformation.getOutputType();

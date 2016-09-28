@@ -49,7 +49,10 @@ public class TimelyFlatMapTest extends TestLogger {
 	public void testCurrentEventTime() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(IntSerializer.INSTANCE, new WatermarkQueryingFlatMapFunction());
+				new StreamTimelyFlatMap<>(
+						IntSerializer.INSTANCE,
+						new IdentityKeySelector<Integer>(),
+						new WatermarkQueryingFlatMapFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -79,7 +82,10 @@ public class TimelyFlatMapTest extends TestLogger {
 	public void testCurrentProcessingTime() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(IntSerializer.INSTANCE, new ProcessingTimeQueryingFlatMapFunction());
+				new StreamTimelyFlatMap<>(
+						IntSerializer.INSTANCE,
+						new IdentityKeySelector<Integer>(),
+						new ProcessingTimeQueryingFlatMapFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -107,7 +113,10 @@ public class TimelyFlatMapTest extends TestLogger {
 	public void testEventTimeTimers() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, Integer> operator =
-				new StreamTimelyFlatMap<>(IntSerializer.INSTANCE, new EventTimeTriggeringFlatMapFunction());
+				new StreamTimelyFlatMap<>(
+						IntSerializer.INSTANCE,
+						new IdentityKeySelector<Integer>(),
+						new EventTimeTriggeringFlatMapFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -134,7 +143,10 @@ public class TimelyFlatMapTest extends TestLogger {
 	public void testProcessingTimeTimers() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, Integer> operator =
-				new StreamTimelyFlatMap<>(IntSerializer.INSTANCE, new ProcessingTimeTriggeringFlatMapFunction());
+				new StreamTimelyFlatMap<>(
+						IntSerializer.INSTANCE,
+						new IdentityKeySelector<Integer>(),
+						new ProcessingTimeTriggeringFlatMapFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -163,7 +175,10 @@ public class TimelyFlatMapTest extends TestLogger {
 	public void testEventTimeTimerWithState() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(IntSerializer.INSTANCE, new EventTimeTriggeringStatefulFlatMapFunction());
+				new StreamTimelyFlatMap<>(
+						IntSerializer.INSTANCE,
+						new IdentityKeySelector<Integer>(),
+						new EventTimeTriggeringStatefulFlatMapFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -203,7 +218,10 @@ public class TimelyFlatMapTest extends TestLogger {
 	public void testProcessingTimeTimerWithState() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(IntSerializer.INSTANCE, new ProcessingTimeTriggeringStatefulFlatMapFunction());
+				new StreamTimelyFlatMap<>(
+						IntSerializer.INSTANCE,
+						new IdentityKeySelector<Integer>(),
+						new ProcessingTimeTriggeringStatefulFlatMapFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -236,7 +254,10 @@ public class TimelyFlatMapTest extends TestLogger {
 	public void testSnapshotAndRestore() throws Exception {
 
 		StreamTimelyFlatMap<Integer, Integer, String> operator =
-				new StreamTimelyFlatMap<>(IntSerializer.INSTANCE, new BothTriggeringFlatMapFunction());
+				new StreamTimelyFlatMap<>(
+						IntSerializer.INSTANCE,
+						new IdentityKeySelector<Integer>(),
+						new BothTriggeringFlatMapFunction());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
@@ -251,7 +272,10 @@ public class TimelyFlatMapTest extends TestLogger {
 
 		testHarness.close();
 
-		operator = new StreamTimelyFlatMap<>(IntSerializer.INSTANCE, new BothTriggeringFlatMapFunction());
+		operator = new StreamTimelyFlatMap<>(
+				IntSerializer.INSTANCE,
+				new IdentityKeySelector<Integer>(),
+				new BothTriggeringFlatMapFunction());
 
 		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
 

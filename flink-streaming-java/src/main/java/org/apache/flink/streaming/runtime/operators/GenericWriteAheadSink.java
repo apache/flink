@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.disk.InputViewIterator;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.ReusingMutableToRegularIteratorWrapper;
+import org.apache.flink.streaming.api.operators.AbstractOneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -51,8 +52,9 @@ import java.util.UUID;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<IN>
-		implements OneInputStreamOperator<IN, IN>, StreamCheckpointedOperator {
+public abstract class GenericWriteAheadSink<IN>
+		extends AbstractOneInputStreamOperator<IN, IN>
+		implements StreamCheckpointedOperator {
 
 	private static final long serialVersionUID = 1L;
 

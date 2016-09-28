@@ -22,18 +22,21 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFunction<IN>> implements OneInputStreamOperator<IN, IN> {
+public class StreamFilter<IN> extends AbstractOneInputStreamOperator<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
+
+	private final FilterFunction<IN> filterFunction;
 
 	public StreamFilter(FilterFunction<IN> filterFunction) {
 		super(filterFunction);
 		chainingStrategy = ChainingStrategy.ALWAYS;
+		this.filterFunction = filterFunction;
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		if (userFunction.filter(element.getValue())) {
+		if (filterFunction.filter(element.getValue())) {
 			output.collect(element);
 		}
 	}

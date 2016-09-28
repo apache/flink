@@ -274,8 +274,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
           javaStream.getExecutionConfig)
     }
 
-    val invokable =  new StreamGroupedReduce[T](reducer,
-      getType().createSerializer(getExecutionConfig))
+    val invokable = new StreamGroupedReduce[K, T](
+      javaStream.getKeyType.createSerializer(executionConfig),
+      javaStream.getKeySelector(),
+      reducer,
+      getType().createSerializer(executionConfig))
      
     new DataStream[T](javaStream.transform("aggregation", javaStream.getType(),invokable))
       .asInstanceOf[DataStream[T]]
@@ -402,7 +405,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     transform(
       s"Queryable state: $queryableStateName",
-      new QueryableValueStateOperator(queryableStateName, stateDescriptor))(dataType)
+      new QueryableValueStateOperator(
+        javaStream.getKeyType.createSerializer(executionConfig),
+        javaStream.getKeySelector(),
+        queryableStateName, stateDescriptor))(dataType)
 
     stateDescriptor.initializeSerializerUnlessSet(executionConfig)
 
@@ -426,7 +432,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     transform(
       s"Queryable state: $queryableStateName",
-      new QueryableAppendingStateOperator(queryableStateName, stateDescriptor))(dataType)
+      new QueryableAppendingStateOperator(
+        javaStream.getKeyType.createSerializer(executionConfig),
+        javaStream.getKeySelector(),
+        queryableStateName, stateDescriptor))(dataType)
 
     stateDescriptor.initializeSerializerUnlessSet(executionConfig)
 
@@ -450,7 +459,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     transform(
       s"Queryable state: $queryableStateName",
-      new QueryableAppendingStateOperator(queryableStateName, stateDescriptor))(dataType)
+      new QueryableAppendingStateOperator(
+        javaStream.getKeyType.createSerializer(executionConfig),
+        javaStream.getKeySelector(),
+        queryableStateName, stateDescriptor))(dataType)
 
     stateDescriptor.initializeSerializerUnlessSet(executionConfig)
 
@@ -474,7 +486,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     transform(
       s"Queryable state: $queryableStateName",
-      new QueryableAppendingStateOperator(queryableStateName, stateDescriptor))(dataType)
+      new QueryableAppendingStateOperator(
+        javaStream.getKeyType.createSerializer(executionConfig),
+        javaStream.getKeySelector(),
+        queryableStateName, stateDescriptor))(dataType)
 
     stateDescriptor.initializeSerializerUnlessSet(executionConfig)
 

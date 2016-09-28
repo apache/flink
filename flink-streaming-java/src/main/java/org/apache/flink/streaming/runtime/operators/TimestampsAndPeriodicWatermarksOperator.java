@@ -18,9 +18,8 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractOneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -31,8 +30,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <T> The type of the input elements
  */
 public class TimestampsAndPeriodicWatermarksOperator<T>
-		extends AbstractUdfStreamOperator<T, AssignerWithPeriodicWatermarks<T>>
-		implements OneInputStreamOperator<T, T>, Triggerable {
+		extends AbstractOneInputStreamOperator<T, T>
+		implements Triggerable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -40,10 +39,13 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 	private transient long currentWatermark;
 
+	private final AssignerWithPeriodicWatermarks<T> assigner;
 	
 	public TimestampsAndPeriodicWatermarksOperator(AssignerWithPeriodicWatermarks<T> assigner) {
 		super(assigner);
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
+
+		this.assigner = assigner;
 	}
 
 	@Override
@@ -61,7 +63,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 	@Override
 	public void processElement(StreamRecord<T> element) throws Exception {
-		final long newTimestamp = userFunction.extractTimestamp(element.getValue(), 
+		final long newTimestamp = assigner.extractTimestamp(element.getValue(),
 				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
 		
 		output.collect(element.replace(element.getValue(), newTimestamp));
@@ -70,7 +72,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 	@Override
 	public void trigger(long timestamp) throws Exception {
 		// register next timer
-		Watermark newWatermark = userFunction.getCurrentWatermark();
+		Watermark newWatermark = assigner.getCurrentWatermark();
 		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
 			currentWatermark = newWatermark.getTimestamp();
 			// emit watermark
@@ -96,7 +98,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		super.close();
 		
 		// emit a final watermark
-		Watermark newWatermark = userFunction.getCurrentWatermark();
+		Watermark newWatermark = assigner.getCurrentWatermark();
 		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
 			currentWatermark = newWatermark.getTimestamp();
 			// emit watermark

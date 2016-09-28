@@ -82,13 +82,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(final K key, StreamRecord<IN> element) throws Exception {
 		Collection<W> elementWindows = windowAssigner.assignWindows(
 				element.getValue(),
 				element.getTimestamp(),
 				windowAssignerContext);
-
-		final K key = (K) getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
 
@@ -298,7 +296,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 					return input.getValue();
 				}
 			});
-		userFunction.apply(context.key, context.window, projectedContents, timestampedCollector);
+		windowFunction.apply(context.key, context.window, projectedContents, timestampedCollector);
 	}
 
 	private void cleanup(W window,

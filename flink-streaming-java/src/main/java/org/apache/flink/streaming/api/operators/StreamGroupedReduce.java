@@ -22,11 +22,11 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
-		implements OneInputStreamOperator<IN, IN> {
+public class StreamGroupedReduce<K, IN> extends AbstractKeyedOneInputStreamOperator<K, IN, IN> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -36,10 +36,15 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 	
 	private TypeSerializer<IN> serializer;
 
-	
-	public StreamGroupedReduce(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
-		super(reducer);
+	private final ReduceFunction<IN> reduceFunction;
+
+	public StreamGroupedReduce(
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector,
+			ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
+		super(reducer, keySerializer, keySelector);
 		this.serializer = serializer;
+		this.reduceFunction = reducer;
 	}
 
 	@Override
@@ -50,12 +55,12 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
 		IN currentValue = values.value();
 		
 		if (currentValue != null) {
-			IN reduced = userFunction.reduce(currentValue, value);
+			IN reduced = reduceFunction.reduce(currentValue, value);
 			values.update(reduced);
 			output.collect(element.replace(reduced));
 		} else {

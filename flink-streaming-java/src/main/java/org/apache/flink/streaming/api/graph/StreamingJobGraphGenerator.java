@@ -42,7 +42,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
@@ -351,14 +351,8 @@ public class StreamingJobGraphGenerator {
 			// so we use that one if checkpointing is not enabled
 			config.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
 		}
-		config.setStatePartitioner(0, vertex.getStatePartitioner1());
-		config.setStatePartitioner(1, vertex.getStatePartitioner2());
-		config.setStateKeySerializer(vertex.getStateKeySerializer());
 
-		// only set the max parallelism if the vertex uses partitioned state (= KeyedStream).
-		if (vertex.getStatePartitioner1() != null) {
-			config.setNumberOfKeyGroups(vertex.getMaxParallelism());
-		}
+		config.setNumberOfKeyGroups(vertex.getMaxParallelism());
 
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
@@ -716,9 +710,9 @@ public class StreamingJobGraphGenerator {
 
 		if (LOG.isDebugEnabled()) {
 			String udfClassName = "";
-			if (node.getOperator() instanceof AbstractUdfStreamOperator) {
-				udfClassName = ((AbstractUdfStreamOperator<?, ?>) node.getOperator())
-						.getUserFunction().getClass().getName();
+			if (node.getOperator() instanceof AbstractStreamOperator
+					&& ((AbstractStreamOperator) node.getOperator()).getUserFunction() != null) {
+				udfClassName = ((AbstractStreamOperator) node.getOperator()).getUserFunction().getClass().getName();
 			}
 
 			LOG.debug("Generated hash '" + byteToHexString(hash) + "' for node " +
@@ -745,9 +739,9 @@ public class StreamingJobGraphGenerator {
 		// stream graph.
 		hasher.putInt(id);
 
-		if (node.getOperator() instanceof AbstractUdfStreamOperator) {
-			String udfClassName = ((AbstractUdfStreamOperator<?, ?>) node.getOperator())
-					.getUserFunction().getClass().getName();
+		if (node.getOperator() instanceof AbstractStreamOperator
+				&& ((AbstractStreamOperator) node.getOperator()).getUserFunction() != null) {
+			String udfClassName = ((AbstractStreamOperator) node.getOperator()).getUserFunction().getClass().getName();
 
 			hasher.putString(udfClassName, Charset.forName("UTF-8"));
 		}

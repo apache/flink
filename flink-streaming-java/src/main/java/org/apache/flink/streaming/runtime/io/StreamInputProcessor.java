@@ -173,7 +173,6 @@ public class StreamInputProcessor<IN> {
 						StreamRecord<IN> record = recordOrWatermark.asRecord();
 						synchronized (lock) {
 							numRecordsIn.inc();
-							streamOperator.setKeyContextElement1(record);
 							streamOperator.processElement(record);
 						}
 						return true;

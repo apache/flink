@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -488,12 +487,6 @@ public class StreamGraphGenerator {
 			);
 		}
 
-
-		if (sink.getStateKeySelector() != null) {
-			TypeSerializer<?> keySerializer = sink.getStateKeyType().createSerializer(env.getConfig());
-			streamGraph.setOneInputStateKey(sink.getId(), sink.getStateKeySelector(), keySerializer);
-		}
-
 		return Collections.emptyList();
 	}
 
@@ -521,11 +514,6 @@ public class StreamGraphGenerator {
 				transform.getInputType(),
 				transform.getOutputType(),
 				transform.getName());
-
-		if (transform.getStateKeySelector() != null) {
-			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
-			streamGraph.setOneInputStateKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
-		}
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
@@ -568,12 +556,6 @@ public class StreamGraphGenerator {
 				transform.getInputType2(),
 				transform.getOutputType(),
 				transform.getName());
-
-		if (transform.getStateKeySelector1() != null) {
-			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
-			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
-		}
-
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());

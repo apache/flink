@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.transformations;
 import com.google.common.collect.Lists;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 
@@ -41,10 +40,6 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	private final StreamTransformation<IN> input;
 
 	private final OneInputStreamOperator<IN, OUT> operator;
-
-	private KeySelector<IN, ?> stateKeySelector;
-	
-	private TypeInformation<?> stateKeyType;
 
 	/**
 	 * Creates a new {@code OneInputTransformation} from the given input and operator.
@@ -85,33 +80,6 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	 */
 	public OneInputStreamOperator<IN, OUT> getOperator() {
 		return operator;
-	}
-
-	/**
-	 * Sets the {@link KeySelector} that must be used for partitioning keyed state of this operation.
-	 *
-	 * @param stateKeySelector The {@code KeySelector} to set
-	 */
-	public void setStateKeySelector(KeySelector<IN, ?> stateKeySelector) {
-		this.stateKeySelector = stateKeySelector;
-	}
-
-	/**
-	 * Returns the {@code KeySelector} that must be used for partitioning keyed state in this
-	 * Operation.
-	 *
-	 * @see #setStateKeySelector
-	 */
-	public KeySelector<IN, ?> getStateKeySelector() {
-		return stateKeySelector;
-	}
-
-	public void setStateKeyType(TypeInformation<?> stateKeyType) {
-		this.stateKeyType = stateKeyType;
-	}
-
-	public TypeInformation<?> getStateKeyType() {
-		return stateKeyType;
 	}
 
 	@Override

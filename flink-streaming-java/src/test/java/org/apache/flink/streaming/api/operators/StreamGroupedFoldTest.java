@@ -23,6 +23,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.RichFoldFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -67,7 +69,9 @@ public class StreamGroupedFoldTest {
 			}
 		};
 		
-		StreamGroupedFold<Integer, String, String> operator = new StreamGroupedFold<>(new MyFolder(), "100");
+		StreamGroupedFold<String, Integer, String> operator =
+				new StreamGroupedFold<>(StringSerializer.INSTANCE, keySelector, new MyFolder(), "100");
+
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
@@ -104,8 +108,9 @@ public class StreamGroupedFoldTest {
 			}
 		};
 		
-		StreamGroupedFold<Integer, String, Integer> operator = new StreamGroupedFold<>(
-				new TestOpenCloseFoldFunction(), "init");
+		StreamGroupedFold<Integer, Integer, String> operator =
+				new StreamGroupedFold<>(IntSerializer.INSTANCE, keySelector, new TestOpenCloseFoldFunction(), "init");
+
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness =

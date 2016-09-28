@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.operators.AbstractOneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
@@ -544,8 +545,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 	}
 
 	private static class TestingStreamOperator<IN, OUT>
-			extends AbstractStreamOperator<OUT>
-			implements OneInputStreamOperator<IN, OUT>, StreamCheckpointedOperator {
+			extends AbstractOneInputStreamOperator<IN, OUT>
+			implements StreamCheckpointedOperator {
 
 		private static final long serialVersionUID = 774614855940397174L;
 

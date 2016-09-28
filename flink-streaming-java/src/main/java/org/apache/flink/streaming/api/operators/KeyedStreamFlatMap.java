@@ -18,24 +18,38 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamMap<IN, OUT> extends AbstractOneInputStreamOperator<IN, OUT> {
+public class KeyedStreamFlatMap<K, IN, OUT> extends AbstractKeyedOneInputStreamOperator<K, IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final MapFunction<IN, OUT> mapFunction;
+	private transient TimestampedCollector<OUT> collector;
 
-	public StreamMap(MapFunction<IN, OUT> mapper) {
-		super(mapper);
+	private final FlatMapFunction<IN, OUT> flatMapFunction;
+
+	public KeyedStreamFlatMap(
+			FlatMapFunction<IN, OUT> flatMapper,
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector) {
+		super(flatMapper, keySerializer, keySelector);
 		chainingStrategy = ChainingStrategy.ALWAYS;
-		this.mapFunction = mapper;
+		this.flatMapFunction = flatMapper;
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		output.collect(element.replace(mapFunction.map(element.getValue())));
+	public void open() throws Exception {
+		super.open();
+		collector = new TimestampedCollector<>(output);
+	}
+
+	@Override
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
+		collector.setTimestamp(element);
+		flatMapFunction.flatMap(element.getValue(), collector);
 	}
 }

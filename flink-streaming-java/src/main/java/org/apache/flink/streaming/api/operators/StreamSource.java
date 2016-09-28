@@ -27,23 +27,24 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * {@link StreamOperator} for streaming sources.
  *
  * @param <OUT> Type of the output elements
- * @param <SRC> Type of the source function of this stream source operator
  */
 @Internal
-public class StreamSource<OUT, SRC extends SourceFunction<OUT>> 
-		extends AbstractUdfStreamOperator<OUT, SRC> implements StreamOperator<OUT> {
+public class StreamSource<OUT>  extends AbstractStreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
 	
 	private transient SourceFunction.SourceContext<OUT> ctx;
 
 	private transient volatile boolean canceledOrStopped = false;
-	
-	
-	public StreamSource(SRC sourceFunction) {
+
+	private SourceFunction<OUT> sourceFunction;
+
+	public StreamSource(SourceFunction<OUT> sourceFunction) {
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
+
+		this.sourceFunction = sourceFunction;
 	}
 
 	public void run(final Object lockingObject) throws Exception {
@@ -59,7 +60,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			timeCharacteristic, getProcessingTimeService(), lockingObject, collector, watermarkInterval);
 
 		try {
-			userFunction.run(ctx);
+			sourceFunction.run(ctx);
 
 			// if we get here, then the user function either exited after being done (finite source)
 			// or the function was canceled or stopped. For the finite source case, we should emit
@@ -78,7 +79,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		// the flag that tracks this status is volatile, so the memory model also guarantees
 		// the happens-before relationship
 		markCanceledOrStopped();
-		userFunction.cancel();
+		sourceFunction.cancel();
 		
 		// the context may not be initialized if the source was never running.
 		if (ctx != null) {

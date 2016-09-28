@@ -18,21 +18,31 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamCounter<IN> extends AbstractStreamOperator<Long> implements OneInputStreamOperator<IN, Long> {
+public class KeyedStreamFilter<K, IN> extends AbstractKeyedOneInputStreamOperator<K, IN, IN> {
 
 	private static final long serialVersionUID = 1L;
 
-	private Long count = 0L;
+	private final FilterFunction<IN> filterFunction;
 
-	public StreamCounter() {
+	public KeyedStreamFilter(
+			FilterFunction<IN> filterFunction,
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector) {
+		super(filterFunction, keySerializer, keySelector);
 		chainingStrategy = ChainingStrategy.ALWAYS;
+		this.filterFunction = filterFunction;
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) {
-		output.collect(element.replace(++count));
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
+		if (filterFunction.filter(element.getValue())) {
+			output.collect(element);
+		}
 	}
 }

@@ -49,7 +49,11 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	public void testCurrentEventTime() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(StringSerializer.INSTANCE, new WatermarkQueryingFlatMapFunction());
+				new CoStreamTimelyFlatMap<>(
+						StringSerializer.INSTANCE,
+						new IntToStringKeySelector<>(),
+						new IdentityKeySelector<String>(),
+						new WatermarkQueryingFlatMapFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -85,7 +89,11 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	public void testCurrentProcessingTime() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(StringSerializer.INSTANCE, new ProcessingTimeQueryingFlatMapFunction());
+				new CoStreamTimelyFlatMap<>(
+						StringSerializer.INSTANCE,
+						new IntToStringKeySelector<>(),
+						new IdentityKeySelector<String>(),
+						new ProcessingTimeQueryingFlatMapFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -117,7 +125,11 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	public void testEventTimeTimers() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(StringSerializer.INSTANCE, new EventTimeTriggeringFlatMapFunction());
+				new CoStreamTimelyFlatMap<>(
+						StringSerializer.INSTANCE,
+						new IntToStringKeySelector<>(),
+						new IdentityKeySelector<String>(),
+						new EventTimeTriggeringFlatMapFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -156,7 +168,11 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	public void testProcessingTimeTimers() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(StringSerializer.INSTANCE, new ProcessingTimeTriggeringFlatMapFunction());
+				new CoStreamTimelyFlatMap<>(
+						StringSerializer.INSTANCE,
+						new IntToStringKeySelector<>(),
+						new IdentityKeySelector<String>(),
+						new ProcessingTimeTriggeringFlatMapFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -193,7 +209,11 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	public void testEventTimeTimerWithState() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(StringSerializer.INSTANCE, new EventTimeTriggeringStatefulFlatMapFunction());
+				new CoStreamTimelyFlatMap<>(
+						StringSerializer.INSTANCE,
+						new IntToStringKeySelector<>(),
+						new IdentityKeySelector<String>(),
+						new EventTimeTriggeringStatefulFlatMapFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -242,7 +262,11 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	public void testProcessingTimeTimerWithState() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(StringSerializer.INSTANCE, new ProcessingTimeTriggeringStatefulFlatMapFunction());
+				new CoStreamTimelyFlatMap<>(
+						StringSerializer.INSTANCE,
+						new IntToStringKeySelector<>(),
+						new IdentityKeySelector<String>(),
+						new ProcessingTimeTriggeringStatefulFlatMapFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -279,7 +303,11 @@ public class TimelyCoFlatMapTest extends TestLogger {
 	public void testSnapshotAndRestore() throws Exception {
 
 		CoStreamTimelyFlatMap<String, Integer, String, String> operator =
-				new CoStreamTimelyFlatMap<>(StringSerializer.INSTANCE, new BothTriggeringFlatMapFunction());
+				new CoStreamTimelyFlatMap<>(
+						StringSerializer.INSTANCE,
+						new IntToStringKeySelector<>(),
+						new IdentityKeySelector<String>(),
+						new BothTriggeringFlatMapFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -299,7 +327,10 @@ public class TimelyCoFlatMapTest extends TestLogger {
 
 		testHarness.close();
 
-		operator = new CoStreamTimelyFlatMap<>(StringSerializer.INSTANCE, new BothTriggeringFlatMapFunction());
+		operator = new CoStreamTimelyFlatMap<>(
+				StringSerializer.INSTANCE,
+				new IntToStringKeySelector<>(),
+				new IdentityKeySelector<String>(),new BothTriggeringFlatMapFunction());
 
 		testHarness = new KeyedTwoInputStreamOperatorTestHarness<>(
 				operator,

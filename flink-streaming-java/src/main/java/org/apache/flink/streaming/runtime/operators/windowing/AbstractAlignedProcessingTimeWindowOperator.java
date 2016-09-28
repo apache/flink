@@ -28,10 +28,9 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.streaming.api.operators.AbstractKeyedOneInputStreamOperator;
 import org.apache.flink.util.MathUtils;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -40,8 +39,8 @@ import static java.util.Objects.requireNonNull;
 
 @Internal
 public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, STATE, F extends Function> 
-		extends AbstractUdfStreamOperator<OUT, F> 
-		implements OneInputStreamOperator<IN, OUT>, Triggerable {
+		extends AbstractKeyedOneInputStreamOperator<KEY, IN, OUT>
+		implements Triggerable {
 	
 	private static final long serialVersionUID = 3245500864882459867L;
 	
@@ -79,7 +78,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 			long windowLength,
 			long windowSlide)
 	{
-		super(function);
+		super(function, keySerializer, keySelector);
 		
 		if (windowLength < MIN_SLIDE_TIME) {
 			throw new IllegalArgumentException("Window length must be at least " + MIN_SLIDE_TIME + " msecs");
@@ -202,7 +201,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(KEY key, StreamRecord<IN> element) throws Exception {
 		panes.addElementToLatestPane(element.getValue());
 	}
 

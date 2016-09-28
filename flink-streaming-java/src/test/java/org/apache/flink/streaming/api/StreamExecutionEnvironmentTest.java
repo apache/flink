@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.SplittableIterator;
 
@@ -138,8 +138,8 @@ public class StreamExecutionEnvironmentTest {
 	@SuppressWarnings("unchecked")
 	private static <T> SourceFunction<T> getFunctionFromDataSource(DataStreamSource<T> dataStreamSource) {
 		dataStreamSource.addSink(new DiscardingSink<T>());
-		AbstractUdfStreamOperator<?, ?> operator =
-				(AbstractUdfStreamOperator<?, ?>) getOperatorFromDataStream(dataStreamSource);
+		AbstractStreamOperator<?> operator =
+				(AbstractStreamOperator<?>) getOperatorFromDataStream(dataStreamSource);
 		return (SourceFunction<T>) operator.getUserFunction();
 	}
 

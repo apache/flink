@@ -60,7 +60,7 @@ public class StreamSourceOperatorTest {
 	public void testEmitMaxWatermarkForFiniteSource() throws Exception {
 
 		// regular stream source operator
-		StreamSource<String, FiniteSource<String>> operator = 
+		StreamSource<String> operator =
 				new StreamSource<>(new FiniteSource<String>());
 		
 		final List<StreamElement> output = new ArrayList<>();
@@ -78,7 +78,7 @@ public class StreamSourceOperatorTest {
 		final List<StreamElement> output = new ArrayList<>();
 
 		// regular stream source operator
-		final StreamSource<String, InfiniteSource<String>> operator =
+		final StreamSource<String> operator =
 				new StreamSource<>(new InfiniteSource<String>());
 
 
@@ -98,7 +98,7 @@ public class StreamSourceOperatorTest {
 		final Thread runner = Thread.currentThread();
 		
 		// regular stream source operator
-		final StreamSource<String, InfiniteSource<String>> operator =
+		final StreamSource<String> operator =
 				new StreamSource<>(new InfiniteSource<String>());
 
 		
@@ -215,14 +215,14 @@ public class StreamSourceOperatorTest {
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
-	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
+	private static <T> void setupSourceOperator(StreamSource<T> operator,
 			TimeCharacteristic timeChar,
 			long watermarkInterval) {
 		setupSourceOperator(operator, timeChar, watermarkInterval, new TestProcessingTimeService());
 	}
 
 	@SuppressWarnings("unchecked")
-	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
+	private static <T> void setupSourceOperator(StreamSource<T> operator,
 												TimeCharacteristic timeChar,
 												long watermarkInterval,
 												final ProcessingTimeService timeProvider) {

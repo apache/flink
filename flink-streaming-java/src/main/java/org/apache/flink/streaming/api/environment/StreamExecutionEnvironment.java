@@ -1460,7 +1460,7 @@ public abstract class StreamExecutionEnvironment {
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		clean(function);
-		StreamSource<OUT, ?> sourceOperator;
+		StreamSource<OUT> sourceOperator;
 		if (function instanceof StoppableFunction) {
 			sourceOperator = new StoppableStreamSource<>(cast2StoppableSourceFunction(function));
 		} else {

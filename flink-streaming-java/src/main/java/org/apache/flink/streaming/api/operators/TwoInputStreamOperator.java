@@ -18,33 +18,33 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Interface for stream operators with two inputs. Use
- * {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator} as a base class if
- * you want to implement a custom operator.
+ * Interface for stream operators with two inputs. Use {@link AbstractTwoInputStreamOperator}
+ * or {@link AbstractKeyedTwoInputStreamOperator} as a base class if you want to implement a
+ * custom operator.
  * 
- * @param <IN1> The input type of the operator
- * @param <IN2> The input type of the operator
+ * @param <IN1> The first input type of the operator
+ * @param <IN2> The second input type of the operator
  * @param <OUT> The output type of the operator
  */
-@PublicEvolving
+@Internal
 public interface TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OUT> {
 
 	/**
 	 * Processes one element that arrived on the first input of this two-input operator.
 	 * This method is guaranteed to not be called concurrently with other methods of the operator.
 	 */
-	public void processElement1(StreamRecord<IN1> element) throws Exception;
+	void processElement1(StreamRecord<IN1> element) throws Exception;
 
 	/**
 	 * Processes one element that arrived on the second input of this two-input operator.
 	 * This method is guaranteed to not be called concurrently with other methods of the operator.
 	 */
-	public void processElement2(StreamRecord<IN2> element) throws Exception;
+	void processElement2(StreamRecord<IN2> element) throws Exception;
 
 	/**
 	 * Processes a {@link Watermark} that arrived on the first input of this two-input operator.
@@ -52,7 +52,7 @@ public interface TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OU
 	 *
 	 * @see org.apache.flink.streaming.api.watermark.Watermark
 	 */
-	public void processWatermark1(Watermark mark) throws Exception;
+	void processWatermark1(Watermark mark) throws Exception;
 
 	/**
 	 * Processes a {@link Watermark} that arrived on the second input of this two-input operator.
@@ -60,6 +60,5 @@ public interface TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OU
 	 *
 	 * @see org.apache.flink.streaming.api.watermark.Watermark
 	 */
-	public void processWatermark2(Watermark mark) throws Exception;
-
+	void processWatermark2(Watermark mark) throws Exception;
 }

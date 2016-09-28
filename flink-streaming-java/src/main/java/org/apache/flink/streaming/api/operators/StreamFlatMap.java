@@ -22,17 +22,18 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamFlatMap<IN, OUT>
-		extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT> {
+public class StreamFlatMap<IN, OUT> extends AbstractOneInputStreamOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	private transient TimestampedCollector<OUT> collector;
 
+	private final FlatMapFunction<IN, OUT> flatMapFunction;
+
 	public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
 		super(flatMapper);
 		chainingStrategy = ChainingStrategy.ALWAYS;
+		this.flatMapFunction = flatMapper;
 	}
 
 	@Override
@@ -44,6 +45,6 @@ public class StreamFlatMap<IN, OUT>
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		collector.setTimestamp(element);
-		userFunction.flatMap(element.getValue(), collector);
+		flatMapFunction.flatMap(element.getValue(), collector);
 	}
 }

@@ -254,7 +254,7 @@ public class StreamTaskTest {
 	//  Test operators
 	// ------------------------------------------------------------------------
 	
-	public static class SlowlyDeserializingOperator extends StreamSource<Long, SourceFunction<Long>> {
+	public static class SlowlyDeserializingOperator extends StreamSource<Long> {
 		private static final long serialVersionUID = 1L;
 
 		private volatile boolean canceled = false;

@@ -18,9 +18,8 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractOneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -31,28 +30,30 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <T> The type of the input elements
  */
 public class TimestampsAndPunctuatedWatermarksOperator<T>
-		extends AbstractUdfStreamOperator<T, AssignerWithPunctuatedWatermarks<T>>
-		implements OneInputStreamOperator<T, T> {
+		extends AbstractOneInputStreamOperator<T, T> {
 
 	private static final long serialVersionUID = 1L;
 
 	private long currentWatermark = Long.MIN_VALUE;
 
+	private final AssignerWithPunctuatedWatermarks<T> assigner;
 
 	public TimestampsAndPunctuatedWatermarksOperator(AssignerWithPunctuatedWatermarks<T> assigner) {
 		super(assigner);
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
+
+		this.assigner = assigner;
 	}
 
 	@Override
 	public void processElement(StreamRecord<T> element) throws Exception {
 		final T value = element.getValue();
-		final long newTimestamp = userFunction.extractTimestamp(value, 
+		final long newTimestamp = assigner.extractTimestamp(value,
 				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
 
 		output.collect(element.replace(element.getValue(), newTimestamp));
 
-		final Watermark nextWatermark = userFunction.checkAndGetNextWatermark(value, newTimestamp);
+		final Watermark nextWatermark = assigner.checkAndGetNextWatermark(value, newTimestamp);
 		if (nextWatermark != null && nextWatermark.getTimestamp() > currentWatermark) {
 			currentWatermark = nextWatermark.getTimestamp();
 			output.emitWatermark(nextWatermark);

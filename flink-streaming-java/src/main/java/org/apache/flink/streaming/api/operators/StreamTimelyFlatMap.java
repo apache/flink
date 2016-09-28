@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
@@ -29,8 +30,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
 public class StreamTimelyFlatMap<K, IN, OUT>
-		extends AbstractUdfStreamOperator<OUT, TimelyFlatMapFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, Triggerable<K, VoidNamespace> {
+		extends AbstractKeyedOneInputStreamOperator<K, IN, OUT>
+		implements Triggerable<K, VoidNamespace> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -40,8 +41,15 @@ public class StreamTimelyFlatMap<K, IN, OUT>
 
 	private transient TimerService timerService;
 
-	public StreamTimelyFlatMap(TypeSerializer<K> keySerializer, TimelyFlatMapFunction<IN, OUT> flatMapper) {
-		super(flatMapper);
+	private TimelyFlatMapFunction<IN, OUT> flatMapFunction;
+
+	public StreamTimelyFlatMap(
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector,
+			TimelyFlatMapFunction<IN, OUT> flatMapper) {
+		super(flatMapper, keySerializer, keySelector);
+
+		this.flatMapFunction = flatMapper;
 
 		this.keySerializer = keySerializer;
 
@@ -62,18 +70,18 @@ public class StreamTimelyFlatMap<K, IN, OUT>
 	@Override
 	public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
 		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		userFunction.onTimer(timer.getTimestamp(), TimeDomain.EVENT_TIME, timerService, collector);
+		flatMapFunction.onTimer(timer.getTimestamp(), TimeDomain.EVENT_TIME, timerService, collector);
 	}
 
 	@Override
 	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
 		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		userFunction.onTimer(timer.getTimestamp(), TimeDomain.PROCESSING_TIME, timerService, collector);
+		flatMapFunction.onTimer(timer.getTimestamp(), TimeDomain.PROCESSING_TIME, timerService, collector);
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
 		collector.setTimestamp(element);
-		userFunction.flatMap(element.getValue(), timerService, collector);
+		flatMapFunction.flatMap(element.getValue(), timerService, collector);
 	}
 }

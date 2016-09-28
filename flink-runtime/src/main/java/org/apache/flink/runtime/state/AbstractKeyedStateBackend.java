@@ -166,7 +166,13 @@ public abstract class AbstractKeyedStateBackend<K>
 	@Override
 	public void setCurrentKey(K newKey) {
 		this.currentKey = newKey;
-		this.currentKeyGroup = KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups);
+		if (currentKey != null) {
+			this.currentKeyGroup =
+					KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups);
+		} else {
+			currentKeyGroup = -1;
+		}
+
 	}
 
 	/**

@@ -27,9 +27,11 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
  * @param <SRC> Type of the source function which has to be stoppable
  */
 public class StoppableStreamSource<OUT, SRC extends SourceFunction<OUT> & StoppableFunction>
-	extends StreamSource<OUT, SRC> {
+	extends StreamSource<OUT> {
 
 	private static final long serialVersionUID = -4365670858793587337L;
+
+	private final SRC sourceFunction;
 
 	/**
 	 * Takes a {@link SourceFunction} that implements {@link StoppableFunction}.
@@ -39,6 +41,7 @@ public class StoppableStreamSource<OUT, SRC extends SourceFunction<OUT> & Stoppa
 	 */
 	public StoppableStreamSource(SRC sourceFunction) {
 		super(sourceFunction);
+		this.sourceFunction = sourceFunction;
 	}
 
 	/**
@@ -49,6 +52,6 @@ public class StoppableStreamSource<OUT, SRC extends SourceFunction<OUT> & Stoppa
 		// the flag that tracks this status is volatile, so the memory model also guarantees
 		// the happens-before relationship
 		markCanceledOrStopped();
-		userFunction.stop();
+		sourceFunction.stop();
 	}
 }

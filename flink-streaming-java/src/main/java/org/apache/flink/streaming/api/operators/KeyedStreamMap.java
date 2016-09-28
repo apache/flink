@@ -19,23 +19,29 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamMap<IN, OUT> extends AbstractOneInputStreamOperator<IN, OUT> {
+public class KeyedStreamMap<K, IN, OUT> extends AbstractKeyedOneInputStreamOperator<K, IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final MapFunction<IN, OUT> mapFunction;
 
-	public StreamMap(MapFunction<IN, OUT> mapper) {
-		super(mapper);
+	public KeyedStreamMap(
+			MapFunction<IN, OUT> mapper,
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector) {
+		super(mapper, keySerializer, keySelector);
+
 		chainingStrategy = ChainingStrategy.ALWAYS;
 		this.mapFunction = mapper;
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
 		output.collect(element.replace(mapFunction.map(element.getValue())));
 	}
 }

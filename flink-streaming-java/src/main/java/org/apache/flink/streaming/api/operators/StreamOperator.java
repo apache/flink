@@ -17,7 +17,10 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.PublicEvolving;
+import java.io.Serializable;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -35,8 +38,10 @@ import java.util.concurrent.RunnableFuture;
  * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to create operators
  * that process elements.
  * 
- * <p> The class {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
- * offers default implementation for the lifecycle and properties methods.
+ * <p> The classes {@link AbstractOneInputStreamOperator},
+ * {@link AbstractTwoInputStreamOperator}, {@link AbstractKeyedOneInputStreamOperator} and
+ * {@link AbstractKeyedTwoInputStreamOperator} offer default implementation for the lifecycle and
+ * properties methods.
  *
  * <p> Methods of {@code StreamOperator} are guaranteed not to be called concurrently. Also, if using
  * the timer service, timer callbacks are also guaranteed not to be called concurrently with
@@ -44,7 +49,7 @@ import java.util.concurrent.RunnableFuture;
  * 
  * @param <OUT> The output type of the operator
  */
-@PublicEvolving
+@Internal
 public interface StreamOperator<OUT> extends Serializable {
 	
 	// ------------------------------------------------------------------------
@@ -128,10 +133,6 @@ public interface StreamOperator<OUT> extends Serializable {
 	// ------------------------------------------------------------------------
 	//  miscellaneous
 	// ------------------------------------------------------------------------
-	
-	void setKeyContextElement1(StreamRecord<?> record) throws Exception;
-
-	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
 
 	ChainingStrategy getChainingStrategy();
 

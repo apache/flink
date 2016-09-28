@@ -19,10 +19,9 @@ package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSink;
 
 import java.util.Collection;
@@ -38,12 +37,7 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 
 	private final StreamTransformation<T> input;
 
-	private final StreamSink<T> operator;
-
-	// We need this because sinks can also have state that is partitioned by key
-	private KeySelector<T, ?> stateKeySelector;
-	
-	private TypeInformation<?> stateKeyType;
+	private final OneInputStreamOperator<T, Object> operator;
 
 	/**
 	 * Creates a new {@code SinkTransformation} from the given input {@code StreamTransformation}.
@@ -56,7 +50,7 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 	public SinkTransformation(
 			StreamTransformation<T> input,
 			String name,
-			StreamSink<T> operator,
+			OneInputStreamOperator<T, Object> operator,
 			int parallelism) {
 		super(name, TypeExtractor.getForClass(Object.class), parallelism);
 		this.input = input;
@@ -73,35 +67,8 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 	/**
 	 * Returns the {@link StreamSink} that is the operator of this {@code SinkTransformation}.
 	 */
-	public StreamSink<T> getOperator() {
+	public OneInputStreamOperator<T, Object> getOperator() {
 		return operator;
-	}
-
-	/**
-	 * Sets the {@link KeySelector} that must be used for partitioning keyed state of this Sink.
-	 *
-	 * @param stateKeySelector The {@code KeySelector} to set
-	 */
-	public void setStateKeySelector(KeySelector<T, ?> stateKeySelector) {
-		this.stateKeySelector = stateKeySelector;
-	}
-
-	/**
-	 * Returns the {@code KeySelector} that must be used for partitioning keyed state in this
-	 * Sink.
-	 *
-	 * @see #setStateKeySelector
-	 */
-	public KeySelector<T, ?> getStateKeySelector() {
-		return stateKeySelector;
-	}
-
-	public void setStateKeyType(TypeInformation<?> stateKeyType) {
-		this.stateKeyType = stateKeyType;
-	}
-
-	public TypeInformation<?> getStateKeyType() {
-		return stateKeyType;
 	}
 
 	@Override

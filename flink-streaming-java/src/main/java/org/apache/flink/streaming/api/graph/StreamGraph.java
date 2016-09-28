@@ -34,7 +34,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -424,19 +423,6 @@ public class StreamGraph extends StreamingPlan {
 		if (getStreamNode(vertexID) != null) {
 			getStreamNode(vertexID).setMaxParallelism(maxParallelism);
 		}
-	}
-
-	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
-		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner1(keySelector);
-		node.setStateKeySerializer(keySerializer);
-	}
-
-	public void setTwoInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector1, KeySelector<?, ?> keySelector2, TypeSerializer<?> keySerializer) {
-		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner1(keySelector1);
-		node.setStatePartitioner2(keySelector2);
-		node.setStateKeySerializer(keySerializer);
 	}
 
 	public void setBufferTimeout(Integer vertexID, long bufferTimeout) {

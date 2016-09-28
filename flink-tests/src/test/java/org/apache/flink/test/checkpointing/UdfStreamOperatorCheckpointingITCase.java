@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.junit.Assert;
@@ -43,8 +42,8 @@ import java.util.Random;
 
 /**
  * Integration test ensuring that the persistent state defined by the implementations
- * of {@link AbstractUdfStreamOperator} is correctly restored in case of recovery from
- * a failure.
+ * of {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
+ * is correctly restored in case of recovery from a failure.
  *
  * <p>
  * The topology currently tests the proper behaviour of the {@link StreamGroupedReduce}

@@ -18,9 +18,8 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractOneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -35,8 +34,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  */
 @Deprecated
 public class ExtractTimestampsOperator<T>
-		extends AbstractUdfStreamOperator<T, TimestampExtractor<T>>
-		implements OneInputStreamOperator<T, T>, Triggerable {
+		extends AbstractOneInputStreamOperator<T, T>
+		implements Triggerable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -44,9 +43,13 @@ public class ExtractTimestampsOperator<T>
 
 	private transient long currentWatermark;
 
+	private final TimestampExtractor<T> timestampExtractor;
+
 	public ExtractTimestampsOperator(TimestampExtractor<T> extractor) {
 		super(extractor);
 		chainingStrategy = ChainingStrategy.ALWAYS;
+
+		this.timestampExtractor = extractor;
 	}
 
 	@Override
@@ -62,9 +65,9 @@ public class ExtractTimestampsOperator<T>
 
 	@Override
 	public void processElement(StreamRecord<T> element) throws Exception {
-		long newTimestamp = userFunction.extractTimestamp(element.getValue(), element.getTimestamp());
+		long newTimestamp = timestampExtractor.extractTimestamp(element.getValue(), element.getTimestamp());
 		output.collect(element.replace(element.getValue(), newTimestamp));
-		long watermark = userFunction.extractWatermark(element.getValue(), newTimestamp);
+		long watermark = timestampExtractor.extractWatermark(element.getValue(), newTimestamp);
 		if (watermark > currentWatermark) {
 			currentWatermark = watermark;
 			output.emitWatermark(new Watermark(currentWatermark));
@@ -74,7 +77,7 @@ public class ExtractTimestampsOperator<T>
 	@Override
 	public void trigger(long timestamp) throws Exception {
 		// register next timer
-		long newWatermark = userFunction.getCurrentWatermark();
+		long newWatermark = timestampExtractor.getCurrentWatermark();
 		if (newWatermark > currentWatermark) {
 			currentWatermark = newWatermark;
 			// emit watermark

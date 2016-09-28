@@ -62,11 +62,11 @@ public class SourceStreamTaskTest {
 	 */
 	@Test
 	public void testOpenClose() throws Exception {
-		final SourceStreamTask<String, SourceFunction<String>, StreamSource<String, SourceFunction<String>>> sourceTask = new SourceStreamTask<>();
+		final SourceStreamTask<String, StreamSource<String>> sourceTask = new SourceStreamTask<>();
 		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(sourceTask, BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		StreamSource<String, ?> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
+		StreamSource<String> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
 		streamConfig.setStreamOperator(sourceOperator);
 
 		testHarness.invoke();
@@ -103,12 +103,14 @@ public class SourceStreamTaskTest {
 		ExecutorService executor = Executors.newFixedThreadPool(10);
 		try {
 			final TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-			final SourceStreamTask<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>,
-				StreamSource<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>>> sourceTask = new SourceStreamTask<>();
+
+			final SourceStreamTask<Tuple2<Long, Integer>, StreamSource<Tuple2<Long, Integer>>> sourceTask =
+					new SourceStreamTask<>();
+
 			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
-			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
+			StreamSource<Tuple2<Long, Integer>> sourceOperator = new StreamSource<>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
 			streamConfig.setStreamOperator(sourceOperator);
 
 			// prepare the

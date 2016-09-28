@@ -21,8 +21,9 @@ package org.apache.flink.streaming.api.functions.query;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.operators.AbstractKeyedOneInputStreamOperator;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -32,9 +33,8 @@ import org.apache.flink.util.Preconditions;
  * @param <IN> Input type
  */
 @Internal
-abstract class AbstractQueryableStateOperator<S extends State, IN>
-		extends AbstractStreamOperator<IN>
-		implements OneInputStreamOperator<IN, IN> {
+abstract class AbstractQueryableStateOperator<K, S extends State, IN>
+		extends AbstractKeyedOneInputStreamOperator<K, IN, IN> {
 
 	/** State descriptor for the queryable state instance. */
 	protected final StateDescriptor<? extends S, ?> stateDescriptor;
@@ -52,8 +52,11 @@ abstract class AbstractQueryableStateOperator<S extends State, IN>
 	protected transient S state;
 
 	public AbstractQueryableStateOperator(
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector,
 			String registrationName,
 			StateDescriptor<? extends S, ?> stateDescriptor) {
+		super(keySerializer, keySelector);
 
 		this.registrationName = Preconditions.checkNotNull(registrationName, "Registration name");
 		this.stateDescriptor = Preconditions.checkNotNull(stateDescriptor, "State descriptor");

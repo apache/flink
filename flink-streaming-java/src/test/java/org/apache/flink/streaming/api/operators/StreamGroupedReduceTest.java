@@ -51,7 +51,8 @@ public class StreamGroupedReduceTest {
 
 		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
 		
-		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<>(new MyReducer(), IntSerializer.INSTANCE);
+		StreamGroupedReduce<Integer, Integer> operator =
+				new StreamGroupedReduce<>(IntSerializer.INSTANCE, keySelector, new MyReducer(), IntSerializer.INSTANCE);
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
@@ -83,8 +84,9 @@ public class StreamGroupedReduceTest {
 
 		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
 		
-		StreamGroupedReduce<Integer> operator =
-				new StreamGroupedReduce<>(new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
+		StreamGroupedReduce<Integer, Integer> operator =
+				new StreamGroupedReduce<>(IntSerializer.INSTANCE, keySelector, new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
+
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
 

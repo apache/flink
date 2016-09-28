@@ -46,12 +46,10 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>extends AbstractStr
 	}
 
 	public void processElement1(StreamRecord<IN1> element) throws Exception {
-		twoInputOperator.setKeyContextElement1(element);
 		twoInputOperator.processElement1(element);
 	}
 
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		twoInputOperator.setKeyContextElement2(element);
 		twoInputOperator.processElement2(element);
 	}
 

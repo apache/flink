@@ -23,9 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamProject<IN, OUT extends Tuple>
-		extends AbstractStreamOperator<OUT>
-		implements OneInputStreamOperator<IN, OUT> {
+public class StreamProject<IN, OUT extends Tuple> extends AbstractOneInputStreamOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

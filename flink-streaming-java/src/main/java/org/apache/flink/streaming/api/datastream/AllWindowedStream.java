@@ -302,7 +302,7 @@ public class AllWindowedStream<T, W extends Window> {
 					allowedLateness);
 		}
 
-		return input.transform(opName, resultType, operator).forceNonParallel();
+		return input.keyBy(keySel).transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	/**
@@ -391,7 +391,7 @@ public class AllWindowedStream<T, W extends Window> {
 					allowedLateness);
 		}
 
-		return input.transform(opName, resultType, operator).forceNonParallel();
+		return input.keyBy(keySel).transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	/**
@@ -484,7 +484,7 @@ public class AllWindowedStream<T, W extends Window> {
 					allowedLateness);
 		}
 
-		return input.transform(opName, resultType, operator).forceNonParallel();
+		return input.keyBy(keySel).transform(opName, resultType, operator).forceNonParallel();
 	}
 
 	// ------------------------------------------------------------------------

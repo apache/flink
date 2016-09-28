@@ -18,24 +18,30 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamMap<IN, OUT> extends AbstractOneInputStreamOperator<IN, OUT> {
+public class KeyedStreamSink<K, IN> extends AbstractKeyedOneInputStreamOperator<K, IN, Object> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final MapFunction<IN, OUT> mapFunction;
+	private final SinkFunction<IN> sinkFunction;
 
-	public StreamMap(MapFunction<IN, OUT> mapper) {
-		super(mapper);
+	public KeyedStreamSink(
+			SinkFunction<IN> sinkFunction, TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector) {
+		super(sinkFunction, keySerializer, keySelector);
+
 		chainingStrategy = ChainingStrategy.ALWAYS;
-		this.mapFunction = mapper;
+
+		this.sinkFunction = sinkFunction;
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		output.collect(element.replace(mapFunction.map(element.getValue())));
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
+		sinkFunction.invoke(element.getValue());
 	}
 }

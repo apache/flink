@@ -28,14 +28,13 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
-public class StreamGroupedFold<IN, OUT, KEY>
-		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
+public class StreamGroupedFold<K, IN, OUT> extends AbstractKeyedOneInputStreamOperator<K, IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -50,10 +49,18 @@ public class StreamGroupedFold<IN, OUT, KEY>
 	private byte[] serializedInitialValue;
 	
 	private TypeSerializer<OUT> outTypeSerializer;
+
+	private final FoldFunction<IN, OUT> foldFunction;
 	
-	public StreamGroupedFold(FoldFunction<IN, OUT> folder, OUT initialValue) {
-		super(folder);
+	public StreamGroupedFold(
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector,
+			FoldFunction<IN, OUT> folder,
+			OUT initialValue) {
+		super(folder, keySerializer, keySelector);
 		this.initialValue = initialValue;
+
+		this.foldFunction = folder;
 	}
 
 	@Override
@@ -76,15 +83,15 @@ public class StreamGroupedFold<IN, OUT, KEY>
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
 		OUT value = values.value();
 
 		if (value != null) {
-			OUT folded = userFunction.fold(outTypeSerializer.copy(value), element.getValue());
+			OUT folded = foldFunction.fold(outTypeSerializer.copy(value), element.getValue());
 			values.update(folded);
 			output.collect(element.replace(folded));
 		} else {
-			OUT first = userFunction.fold(outTypeSerializer.copy(initialValue), element.getValue());
+			OUT first = foldFunction.fold(outTypeSerializer.copy(initialValue), element.getValue());
 			values.update(first);
 			output.collect(element.replace(first));
 		}

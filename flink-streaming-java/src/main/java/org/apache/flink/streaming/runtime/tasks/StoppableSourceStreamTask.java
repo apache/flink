@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.operators.StoppableStreamSource;
  * @param <SRC> Stoppable source function
  */
 public class StoppableSourceStreamTask<OUT, SRC extends SourceFunction<OUT> & StoppableFunction>
-	extends SourceStreamTask<OUT, SRC, StoppableStreamSource<OUT, SRC>> implements StoppableTask {
+	extends SourceStreamTask<OUT, StoppableStreamSource<OUT, SRC>> implements StoppableTask {
 
 	private volatile boolean stopped;
 

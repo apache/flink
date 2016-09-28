@@ -338,7 +338,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 		public void collect(StreamRecord<T> record) {
 			try {
 				numRecordsIn.inc();
-				operator.setKeyContextElement1(record);
 				operator.processElement(record);
 			}
 			catch (Exception e) {
@@ -381,7 +380,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> {
 			try {
 				numRecordsIn.inc();
 				StreamRecord<T> copy = record.copy(serializer.copy(record.getValue()));
-				operator.setKeyContextElement1(copy);
 				operator.processElement(copy);
 			}
 			catch (Exception e) {

@@ -27,7 +27,6 @@ import java.util.Map;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
@@ -73,12 +72,9 @@ public class StreamConfig implements Serializable {
 	private static final String CHECKPOINT_MODE = "checkpointMode";
 	
 	private static final String STATE_BACKEND = "statebackend";
-	private static final String STATE_PARTITIONER = "statePartitioner";
 
 	private static final String NUMBER_OF_KEY_GROUPS = "numberOfKeyGroups";
 
-	private static final String STATE_KEY_SERIALIZER = "statekeyser";
-	
 	private static final String TIME_CHARACTERISTIC = "timechar";
 	
 	// ------------------------------------------------------------------------
@@ -426,22 +422,6 @@ public class StreamConfig implements Serializable {
 		return this.config.getBytes(STATE_BACKEND, null);
 	}
 	
-	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
-		try {
-			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER + input);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize state partitioner.", e);
-		}
-	}
-	
-	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate state partitioner.", e);
-		}
-	}
-
 	/**
 	 * Sets the number of key-groups to be used for the current {@link StreamOperator}.
 	 *
@@ -467,24 +447,6 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not instantiate virtual state partitioner.", e);
 		}
 	}
-	
-	public void setStateKeySerializer(TypeSerializer<?> serializer) {
-		try {
-			InstantiationUtil.writeObjectToConfig(serializer, this.config, STATE_KEY_SERIALIZER);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize state key serializer.", e);
-		}
-	}
-
-	public <K> TypeSerializer<K> getStateKeySerializer(ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_KEY_SERIALIZER, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate state key serializer from task config.", e);
-		}
-	}
-
-
 	
 	// ------------------------------------------------------------------------
 	//  Miscellansous

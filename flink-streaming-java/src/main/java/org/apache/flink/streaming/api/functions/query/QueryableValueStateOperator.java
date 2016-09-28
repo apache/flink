@@ -21,6 +21,8 @@ package org.apache.flink.streaming.api.functions.query;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -29,17 +31,19 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <IN> Input type
  */
 @Internal
-public class QueryableValueStateOperator<IN> extends AbstractQueryableStateOperator<ValueState<IN>, IN> {
+public class QueryableValueStateOperator<K, IN> extends AbstractQueryableStateOperator<K, ValueState<IN>, IN> {
 
 	public QueryableValueStateOperator(
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector,
 			String registrationName,
 			StateDescriptor<ValueState<IN>, IN> stateDescriptor) {
 
-		super(registrationName, stateDescriptor);
+		super(keySerializer, keySelector, registrationName, stateDescriptor);
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
 		state.update(element.getValue());
 	}
 }

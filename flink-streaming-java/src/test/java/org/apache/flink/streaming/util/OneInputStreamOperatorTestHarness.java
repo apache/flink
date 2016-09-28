@@ -49,13 +49,11 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		operator.setKeyContextElement1(element);
 		oneInputOperator.processElement(element);
 	}
 
 	public void processElements(Collection<StreamRecord<IN>> elements) throws Exception {
 		for (StreamRecord<IN> element: elements) {
-			operator.setKeyContextElement1(element);
 			oneInputOperator.processElement(element);
 		}
 	}

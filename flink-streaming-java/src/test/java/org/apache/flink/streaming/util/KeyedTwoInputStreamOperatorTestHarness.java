@@ -66,9 +66,6 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
 		ClosureCleaner.clean(keySelector1, false);
 		ClosureCleaner.clean(keySelector2, false);
-		config.setStatePartitioner(0, keySelector1);
-		config.setStatePartitioner(1, keySelector2);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
@@ -84,9 +81,6 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
 		ClosureCleaner.clean(keySelector1, false);
 		ClosureCleaner.clean(keySelector2, false);
-		config.setStatePartitioner(0, keySelector1);
-		config.setStatePartitioner(1, keySelector2);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();

@@ -21,6 +21,8 @@ package org.apache.flink.streaming.api.functions.query;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -29,17 +31,19 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <IN> Input type
  */
 @Internal
-public class QueryableAppendingStateOperator<IN> extends AbstractQueryableStateOperator<AppendingState<IN, ?>, IN> {
+public class QueryableAppendingStateOperator<K, IN> extends AbstractQueryableStateOperator<K, AppendingState<IN, ?>, IN> {
 
 	public QueryableAppendingStateOperator(
+			TypeSerializer<K> keySerializer,
+			KeySelector<IN, K> keySelector,
 			String registrationName,
 			StateDescriptor<? extends AppendingState<IN, ?>, ?> stateDescriptor) {
 
-		super(registrationName, stateDescriptor);
+		super(keySerializer, keySelector, registrationName, stateDescriptor);
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(K key, StreamRecord<IN> element) throws Exception {
 		state.add(element.getValue());
 	}
 }

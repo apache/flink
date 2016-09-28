@@ -20,9 +20,9 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.operators.AbstractKeyedStreamOperator;
 import org.apache.flink.util.UnionIterator;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -60,7 +60,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 	@Override
 	public void evaluateWindow(Collector<Result> out, TimeWindow window, 
-								AbstractStreamOperator<Result> operator) throws Exception
+								AbstractKeyedStreamOperator<Key, Result> operator) throws Exception
 	{
 		if (previousPanes.isEmpty()) {
 			// optimized path for single pane case (tumbling window)
@@ -94,13 +94,13 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 		private final TimeWindow window;
 		
-		private final AbstractStreamOperator<Result> contextOperator;
+		private final AbstractKeyedStreamOperator<Key, Result> contextOperator;
 		
 		private Key currentKey;
 		
 
 		WindowFunctionTraversal(WindowFunction<Type, Result, Key, Window> function, TimeWindow window,
-								Collector<Result> out, AbstractStreamOperator<Result> contextOperator) {
+								Collector<Result> out, AbstractKeyedStreamOperator<Key, Result> contextOperator) {
 			this.function = function;
 			this.out = out;
 			this.unionIterator = new UnionIterator<>();

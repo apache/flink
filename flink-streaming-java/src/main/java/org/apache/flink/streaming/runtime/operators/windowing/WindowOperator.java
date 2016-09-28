@@ -40,8 +40,8 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.operators.AbstractKeyedOneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -60,6 +60,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -87,7 +88,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class WindowOperator<K, IN, ACC, OUT, W extends Window>
-	extends AbstractUdfStreamOperator<OUT, InternalWindowFunction<ACC, OUT, K, W>>
+	extends AbstractKeyedOneInputStreamOperator<K, IN, OUT>
 	implements OneInputStreamOperator<IN, OUT>, Triggerable<K, W> {
 
 	private static final long serialVersionUID = 1L;
@@ -103,6 +104,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	protected final Trigger<? super IN, ? super W> trigger;
 
 	protected final StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor;
+
+	protected final InternalWindowFunction<ACC, OUT, K, W> windowFunction;
 
 	/**
 	 * For serializing the key in checkpoints.
@@ -158,7 +161,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness) {
 
-		super(windowFunction);
+		super(windowFunction, keySerializer, keySelector);
+
+		this.windowFunction = requireNonNull(windowFunction);
 
 		checkArgument(allowedLateness >= 0);
 
@@ -219,11 +224,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void processElement(StreamRecord<IN> element) throws Exception {
+	public void processKeyedElement(final K key, StreamRecord<IN> element) throws Exception {
 		Collection<W> elementWindows = windowAssigner.assignWindows(
 			element.getValue(), element.getTimestamp(), windowAssignerContext);
-
-		final K key = (K) getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			MergingWindowSet<W> mergingWindows = getMergingWindowSet();
@@ -434,7 +437,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	@SuppressWarnings("unchecked")
 	private void fire(W window, ACC contents) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
-		userFunction.apply(context.key, context.window, contents, timestampedCollector);
+		windowFunction.apply(context.key, context.window, contents, timestampedCollector);
 	}
 
 	/**

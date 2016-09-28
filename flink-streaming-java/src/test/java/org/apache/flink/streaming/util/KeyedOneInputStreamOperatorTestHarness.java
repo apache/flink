@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -64,8 +65,6 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		super(operator);
 
 		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
@@ -78,8 +77,6 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		super(operator, executionConfig);
 
 		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
-		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();

@@ -20,10 +20,12 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -31,6 +33,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -41,6 +44,10 @@ import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
 import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.operators.KeyedStreamFilter;
+import org.apache.flink.streaming.api.operators.KeyedStreamFlatMap;
+import org.apache.flink.streaming.api.operators.KeyedStreamMap;
+import org.apache.flink.streaming.api.operators.KeyedStreamSink;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
@@ -150,28 +157,145 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	// ------------------------------------------------------------------------
 	//  basic transformations
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> transform(String operatorName,
 			TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
 
-		SingleOutputStreamOperator<R> returnStream = super.transform(operatorName, outTypeInfo,operator);
+		// the only difference from DataStream.transform() is that we allow keyed operators here
 
-		// inject the key selector and key type
-		OneInputTransformation<T, R> transform = (OneInputTransformation<T, R>) returnStream.getTransformation();
-		transform.setStateKeySelector(keySelector);
-		transform.setStateKeyType(keyType);
-		
+		// read the output type of the input Transform to coax out errors about MissingTypeInfo
+		transformation.getOutputType();
+
+		OneInputTransformation<T, R> resultTransform = new OneInputTransformation<>(
+				this.transformation,
+				operatorName,
+				operator,
+				outTypeInfo,
+				environment.getParallelism());
+
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		SingleOutputStreamOperator<R> returnStream = new SingleOutputStreamOperator(environment, resultTransform);
+
+		getExecutionEnvironment().addOperator(resultTransform);
+
 		return returnStream;
 	}
-	
+
+	/**
+	 * Applies a Map transformation on a {@link DataStream}. The transformation
+	 * calls a {@link MapFunction} for each element of the DataStream. Each
+	 * MapFunction call returns exactly one element. The user can also extend
+	 * {@link RichMapFunction} to gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param mapper
+	 *            The MapFunction that is called for each element of the
+	 *            DataStream.
+	 * @param <R>
+	 *            output type
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Override
+	public <R> SingleOutputStreamOperator<R> map(MapFunction<T, R> mapper) {
+
+		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType(),
+				Utils.getCallLocationName(), true);
+
+		KeyedStreamMap<KEY, T, R> mapOperator = new KeyedStreamMap<>(
+				clean(mapper),
+				keyType.createSerializer(getExecutionConfig()),
+				keySelector);
+
+		return transform("Map", outType,
+				mapOperator);
+	}
+
+	/**
+	 * Applies a FlatMap transformation on a {@link DataStream}. The
+	 * transformation calls a {@link FlatMapFunction} for each element of the
+	 * DataStream. Each FlatMapFunction call can return any number of elements
+	 * including none. The user can also extend {@link RichFlatMapFunction} to
+	 * gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param flatMapper
+	 *            The FlatMapFunction that is called for each element of the
+	 *            DataStream
+	 *
+	 * @param <R>
+	 *            output type
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Override
+	public <R> SingleOutputStreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper) {
+
+		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
+				getType(), Utils.getCallLocationName(), true);
+
+		KeyedStreamFlatMap<KEY, T, R> flatMapOperator = new KeyedStreamFlatMap<>(
+				clean(flatMapper),
+				keyType.createSerializer(getExecutionConfig()),
+				keySelector);
+
+		return transform("Flat Map", outType, flatMapOperator);
+
+	}
+
+	/**
+	 * Applies a Filter transformation on a {@link DataStream}. The
+	 * transformation calls a {@link FilterFunction} for each element of the
+	 * DataStream and retains only those element for which the function returns
+	 * true. Elements for which the function returns false are filtered. The
+	 * user can also extend {@link RichFilterFunction} to gain access to other
+	 * features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param filter
+	 *            The FilterFunction that is called for each element of the
+	 *            DataStream.
+	 * @return The filtered DataStream.
+	 */
+	@Override
+	public SingleOutputStreamOperator<T> filter(FilterFunction<T> filter) {
+		KeyedStreamFilter<KEY, T> filterOperator = new KeyedStreamFilter<>(
+				clean(filter),
+				keyType.createSerializer(getExecutionConfig()),
+				keySelector);
+
+		return transform("Filter", getType(), filterOperator);
+	}
+
+	/**
+	 * Adds the given sink to this DataStream. Only streams with sinks added
+	 * will be executed once the {@link StreamExecutionEnvironment#execute()}
+	 * method is called.
+	 *
+	 * @param sinkFunction
+	 *            The object containing the sink's invoke function.
+	 * @return The closed DataStream.
+	 */
 	@Override
 	public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
-		DataStreamSink<T> result = super.addSink(sinkFunction);
-		result.getTransformation().setStateKeySelector(keySelector);
-		result.getTransformation().setStateKeyType(keyType);
-		return result;
+
+		// read the output type of the input Transform to coax out errors about MissingTypeInfo
+		transformation.getOutputType();
+
+		// configure the type if needed
+		if (sinkFunction instanceof InputTypeConfigurable) {
+			((InputTypeConfigurable) sinkFunction).setInputType(getType(), getExecutionConfig() );
+		}
+
+		KeyedStreamSink<KEY, T> sinkOperator = new KeyedStreamSink<>(
+				clean(sinkFunction), keyType.createSerializer(getExecutionConfig()),
+				keySelector
+		);
+
+		DataStreamSink<T> sink = new DataStreamSink<>(this, sinkOperator);
+
+		getExecutionEnvironment().addOperator(sink.getTransformation());
+		return sink;
 	}
 
 	/**
@@ -202,7 +326,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				true);
 
 		StreamTimelyFlatMap<KEY, T, R> operator =
-				new StreamTimelyFlatMap<>(keyType.createSerializer(getExecutionConfig()), clean(flatMapper));
+				new StreamTimelyFlatMap<>(
+						keyType.createSerializer(getExecutionConfig()),
+						keySelector,
+						clean(flatMapper));
 
 		return transform("Flat Map", outType, operator);
 
@@ -306,8 +433,14 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reducer) {
-		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<T>(
-				clean(reducer), getType().createSerializer(getExecutionConfig())));
+		StreamGroupedReduce<KEY, T> reduceOperator = new StreamGroupedReduce<>(
+				keyType.createSerializer(getExecutionConfig()),
+				keySelector,
+				clean(reducer),
+				getType().createSerializer(getExecutionConfig()));
+
+		return transform("Keyed Reduce", getType(),
+				reduceOperator);
 	}
 
 	/**
@@ -328,7 +461,14 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(
 				clean(folder), getType(), Utils.getCallLocationName(), true);
 
-		return transform("Keyed Fold", outType, new StreamGroupedFold<>(clean(folder), initialValue));
+		StreamGroupedFold<KEY, T, R> foldOperator = new StreamGroupedFold<>(
+				keyType.createSerializer(new ExecutionConfig()),
+				keySelector,
+				clean(folder),
+				initialValue);
+
+		return transform("Keyed Fold", outType,
+				foldOperator);
 	}
 
 	/**
@@ -511,7 +651,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> minBy(int positionToMinBy, boolean first) {
-		return aggregate(new ComparableAggregator<T>(positionToMinBy, getType(), AggregationFunction.AggregationType.MINBY, first,
+		return aggregate(new ComparableAggregator<>(positionToMinBy, getType(), AggregationFunction.AggregationType.MINBY, first,
 				getExecutionConfig()));
 	}
 
@@ -563,9 +703,13 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	protected SingleOutputStreamOperator<T> aggregate(AggregationFunction<T> aggregate) {
-		StreamGroupedReduce<T> operator = new StreamGroupedReduce<T>(
-				clean(aggregate), getType().createSerializer(getExecutionConfig()));
-		return transform("Keyed Aggregation", getType(), operator);
+		StreamGroupedReduce<KEY, T> reduceOperator = new StreamGroupedReduce<>(
+				keyType.createSerializer(getExecutionConfig()),
+				keySelector,
+				clean(aggregate),
+				getType().createSerializer(getExecutionConfig()));
+
+		return transform("Keyed Aggregation", getType(), reduceOperator);
 	}
 
 	/**
@@ -576,7 +720,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 */
 	@PublicEvolving
 	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
-		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
+		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<>(
 				UUID.randomUUID().toString(),
 				getType(),
 				null);
@@ -598,7 +742,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		transform("Queryable state: " + queryableStateName,
 				getType(),
-				new QueryableValueStateOperator<>(queryableStateName, stateDescriptor));
+				new QueryableValueStateOperator<>(
+						getKeyType().createSerializer(getExecutionConfig()),
+						keySelector,
+						queryableStateName, stateDescriptor));
 
 		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
 
@@ -622,7 +769,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		transform("Queryable state: " + queryableStateName,
 				getType(),
-				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+				new QueryableAppendingStateOperator<>(
+						getKeyType().createSerializer(getExecutionConfig()),
+						keySelector,
+						queryableStateName, stateDescriptor));
 
 		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
 
@@ -646,7 +796,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		transform("Queryable state: " + queryableStateName,
 				getType(),
-				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+				new QueryableAppendingStateOperator<>(
+						getKeyType().createSerializer(getExecutionConfig()),
+						keySelector,
+						queryableStateName, stateDescriptor));
 
 		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
 
@@ -670,7 +823,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		transform("Queryable state: " + queryableStateName,
 				getType(),
-				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
+				new QueryableAppendingStateOperator<>(
+						getKeyType().createSerializer(getExecutionConfig()),
+						keySelector,
+						queryableStateName, stateDescriptor));
 
 		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
 

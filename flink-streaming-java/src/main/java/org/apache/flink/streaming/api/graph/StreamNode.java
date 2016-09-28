@@ -25,7 +25,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -52,9 +51,6 @@ public class StreamNode implements Serializable {
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
-	private KeySelector<?,?> statePartitioner1;
-	private KeySelector<?,?> statePartitioner2;
-	private TypeSerializer<?> stateKeySerializer;
 
 	private transient StreamOperator<?> operator;
 	private List<OutputSelector<?>> outputSelectors;
@@ -246,30 +242,6 @@ public class StreamNode implements Serializable {
 	@Override
 	public String toString() {
 		return operatorName + "-" + id;
-	}
-
-	public KeySelector<?, ?> getStatePartitioner1() {
-		return statePartitioner1;
-	}
-
-	public KeySelector<?, ?> getStatePartitioner2() {
-		return statePartitioner2;
-	}
-
-	public void setStatePartitioner1(KeySelector<?, ?> statePartitioner) {
-		this.statePartitioner1 = statePartitioner;
-	}
-
-	public void setStatePartitioner2(KeySelector<?, ?> statePartitioner) {
-		this.statePartitioner2 = statePartitioner;
-	}
-
-	public TypeSerializer<?> getStateKeySerializer() {
-		return stateKeySerializer;
-	}
-
-	public void setStateKeySerializer(TypeSerializer<?> stateKeySerializer) {
-		this.stateKeySerializer = stateKeySerializer;
 	}
 
 	String getTransformationId() {

@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.operators.AbstractOneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -457,8 +458,8 @@ public class StreamGraphGeneratorTest {
 	}
 
 	private static class OutputTypeConfigurableOperationWithOneInput
-			extends AbstractStreamOperator<Integer>
-			implements OneInputStreamOperator<Integer, Integer>, OutputTypeConfigurable<Integer> {
+			extends AbstractOneInputStreamOperator<Integer, Integer>
+			implements OutputTypeConfigurable<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		TypeInformation<Integer> tpeInformation;

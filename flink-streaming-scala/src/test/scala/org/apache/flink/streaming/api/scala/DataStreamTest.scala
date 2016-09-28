@@ -25,7 +25,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
+import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, StreamOperator}
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
@@ -499,8 +499,8 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   private def getFunctionForDataStream(dataStream: DataStream[_]): Function = {
     dataStream.print()
     val operator = getOperatorForDataStream(dataStream)
-      .asInstanceOf[AbstractUdfStreamOperator[_, _]]
-    operator.getUserFunction.asInstanceOf[Function]
+      .asInstanceOf[AbstractStreamOperator[_]]
+    operator.getUserFunction
   }
 
   private def getOperatorForDataStream(dataStream: DataStream[_]): StreamOperator[_] = {

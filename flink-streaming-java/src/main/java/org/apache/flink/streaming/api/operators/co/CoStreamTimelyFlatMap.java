@@ -19,24 +19,24 @@ package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.co.TimelyCoFlatMapFunction;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractKeyedTwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 @Internal
 public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
-		extends AbstractUdfStreamOperator<OUT, TimelyCoFlatMapFunction<IN1, IN2, OUT>>
-		implements TwoInputStreamOperator<IN1, IN2, OUT>, Triggerable<K, VoidNamespace> {
+		extends AbstractKeyedTwoInputStreamOperator<K, IN1, IN2, OUT>
+		implements Triggerable<K, VoidNamespace> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -46,11 +46,16 @@ public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 
 	private transient TimerService timerService;
 
+	private TimelyCoFlatMapFunction<IN1, IN2, OUT> flatMapFunction;
+
 	public CoStreamTimelyFlatMap(
 			TypeSerializer<K> keySerializer,
+			KeySelector<IN1, K> keySelector1,
+			KeySelector<IN2, K> keySelector2,
 			TimelyCoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
-		super(flatMapper);
+		super(flatMapper, keySerializer, keySelector1, keySelector2);
 
+		this.flatMapFunction = flatMapper;
 		this.keySerializer = keySerializer;
 	}
 
@@ -66,28 +71,28 @@ public class CoStreamTimelyFlatMap<K, IN1, IN2, OUT>
 	}
 
 	@Override
-	public void processElement1(StreamRecord<IN1> element) throws Exception {
+	public void processKeyedElement1(K key, StreamRecord<IN1> element) throws Exception {
 		collector.setTimestamp(element);
-		userFunction.flatMap1(element.getValue(), timerService, collector);
+		flatMapFunction.flatMap1(element.getValue(), timerService, collector);
 
 	}
 
 	@Override
-	public void processElement2(StreamRecord<IN2> element) throws Exception {
+	public void processKeyedElement2(K key, StreamRecord<IN2> element) throws Exception {
 		collector.setTimestamp(element);
-		userFunction.flatMap2(element.getValue(), timerService, collector);
+		flatMapFunction.flatMap2(element.getValue(), timerService, collector);
 	}
 
 	@Override
 	public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
 		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		userFunction.onTimer(timer.getTimestamp(), TimeDomain.EVENT_TIME, timerService, collector);
+		flatMapFunction.onTimer(timer.getTimestamp(), TimeDomain.EVENT_TIME, timerService, collector);
 	}
 
 	@Override
 	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
 		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		userFunction.onTimer(timer.getTimestamp(), TimeDomain.PROCESSING_TIME, timerService, collector);
+		flatMapFunction.onTimer(timer.getTimestamp(), TimeDomain.PROCESSING_TIME, timerService, collector);
 	}
 
 	protected TimestampedCollector<OUT> getCollector() {

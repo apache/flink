@@ -258,8 +258,8 @@ public class ConnectedStreams<IN1, IN2> {
 						"don't match: " + keyType1 + " and " + keyType2 + ".");
 			}
 
-			transform.setStateKeySelectors(keyedInput1.getKeySelector(), keyedInput2.getKeySelector());
-			transform.setStateKeyType(keyType1);
+//			transform.setStateKeySelectors(keyedInput1.getKeySelector(), keyedInput2.getKeySelector());
+//			transform.setStateKeyType(keyType1);
 		}
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
