@@ -62,7 +62,8 @@ import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
 import org.apache.flink.runtime.security.SecurityContext
-import org.apache.flink.runtime.taskexecutor.{TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
+import org.apache.flink.runtime.taskexecutor._
+import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.NetUtils
@@ -144,7 +145,7 @@ class TaskManager(
   protected val bcVarManager = new BroadcastVariableManager()
 
   /** Handler for distributed files cached by this TaskManager */
-  protected val fileCache = new FileCache(config.getConfiguration())
+  protected val fileCache = new FileCache(config.getTmpDirPaths())
 
   private var taskManagerMetricGroup : TaskManagerMetricGroup = _
 
@@ -178,7 +179,7 @@ class TaskManager(
     CheckpointResponder,
     PartitionStateChecker,
     ResultPartitionConsumableNotifier,
-    TaskManagerConnection)] = None
+    TaskManagerActions)] = None
 
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
@@ -915,9 +916,9 @@ class TaskManager(
     val jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID.orNull)
     val taskManagerGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
 
-    val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway);
+    val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway)
 
-    val taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway)
+    val taskManagerConnection = new ActorGatewayTaskManagerActions(taskManagerGateway)
 
     val partitionStateChecker = new ActorGatewayPartitionStateChecker(
       jobManagerGateway,
@@ -1971,6 +1972,5 @@ object TaskManager {
   // --------------------------------------------------------------------------
 
   /**
-    }
   }
 }

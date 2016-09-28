@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -131,6 +132,9 @@ public class Task implements Runnable, TaskActions {
 	/** The execution attempt of the parallel subtask */
 	private final ExecutionAttemptID executionId;
 
+	/** ID which identifies the slot in which the task is supposed to run */
+	private final AllocationID allocationID;
+
 	/** TaskInfo object for this task */
 	private final TaskInfo taskInfo;
 
@@ -176,7 +180,7 @@ public class Task implements Runnable, TaskActions {
 	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
 
 	/** Connection to the task manager */
-	private final TaskManagerConnection taskManagerConnection;
+	private final TaskManagerActions taskManagerActions;
 
 	/** Input split provider for the task */
 	private final InputSplitProvider inputSplitProvider;
@@ -254,7 +258,7 @@ public class Task implements Runnable, TaskActions {
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
 		BroadcastVariableManager bcVarManager,
-		TaskManagerConnection taskManagerConnection,
+		TaskManagerActions taskManagerActions,
 		InputSplitProvider inputSplitProvider,
 		CheckpointResponder checkpointResponder,
 		LibraryCacheManager libraryCache,
@@ -269,6 +273,7 @@ public class Task implements Runnable, TaskActions {
 		this.jobId = checkNotNull(tdd.getJobID());
 		this.vertexId = checkNotNull(tdd.getVertexID());
 		this.executionId  = checkNotNull(tdd.getExecutionId());
+		this.allocationID = checkNotNull(tdd.getAllocationID());
 		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
 		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
 		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
@@ -289,7 +294,7 @@ public class Task implements Runnable, TaskActions {
 
 		this.inputSplitProvider = checkNotNull(inputSplitProvider);
 		this.checkpointResponder = checkNotNull(checkpointResponder);
-		this.taskManagerConnection = checkNotNull(taskManagerConnection);
+		this.taskManagerActions = checkNotNull(taskManagerActions);
 
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
@@ -380,6 +385,10 @@ public class Task implements Runnable, TaskActions {
 
 	public ExecutionAttemptID getExecutionId() {
 		return executionId;
+	}
+
+	public AllocationID getAllocationID() {
+		return allocationID;
 	}
 
 	public TaskInfo getTaskInfo() {
@@ -619,7 +628,7 @@ public class Task implements Runnable, TaskActions {
 
 			// notify everyone that we switched to running
 			notifyObservers(ExecutionState.RUNNING, null);
-			taskManagerConnection.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
+			taskManagerActions.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
 
 			// make sure the user code classloader is accessible thread-locally
 			executingThread.setContextClassLoader(userCodeClassLoader);
@@ -812,11 +821,11 @@ public class Task implements Runnable, TaskActions {
 	}
 
 	private void notifyFinalState() {
-		taskManagerConnection.notifyFinalState(executionId);
+		taskManagerActions.notifyFinalState(executionId);
 	}
 
 	private void notifyFatalError(String message, Throwable cause) {
-		taskManagerConnection.notifyFatalError(message, cause);
+		taskManagerActions.notifyFatalError(message, cause);
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------
@@ -842,7 +851,7 @@ public class Task implements Runnable, TaskActions {
 						((StoppableTask)Task.this.invokable).stop();
 					} catch(RuntimeException e) {
 						LOG.error("Stopping task " + taskNameWithSubtask + " failed.", e);
-						taskManagerConnection.failTask(executionId, e);
+						taskManagerActions.failTask(executionId, e);
 					}
 				}
 			};

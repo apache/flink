@@ -27,11 +27,11 @@ import org.apache.flink.util.Preconditions;
 /**
  * Implementation using {@link ActorGateway} to forward the messages.
  */
-public class ActorGatewayTaskManagerConnection implements TaskManagerConnection {
+public class ActorGatewayTaskManagerActions implements TaskManagerActions {
 
 	private final ActorGateway actorGateway;
 
-	public ActorGatewayTaskManagerConnection(ActorGateway actorGateway) {
+	public ActorGatewayTaskManagerActions(ActorGateway actorGateway) {
 		this.actorGateway = Preconditions.checkNotNull(actorGateway);
 	}
 
