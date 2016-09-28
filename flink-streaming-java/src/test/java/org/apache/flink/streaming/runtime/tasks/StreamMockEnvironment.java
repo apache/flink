@@ -308,14 +308,18 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId) {
+	public void acknowledgeCheckpoint(
+			long checkpointId,
+			long synchronousDurationMillis, long asynchronousDurationMillis,
+			long bytesBufferedInAlignment, long alignmentDurationNanos) {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId,
-			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			List<KeyGroupsStateHandle> keyGroupStateHandles) {
-
+	public void acknowledgeCheckpoint(
+			long checkpointId,
+			ChainedStateHandle<StreamStateHandle> chainedStateHandle, List<KeyGroupsStateHandle> keyGroupStateHandles,
+			long synchronousDurationMillis, long asynchronousDurationMillis,
+			long bytesBufferedInAlignment, long alignmentDurationNanos) {
 	}
 
 	@Override

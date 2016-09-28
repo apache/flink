@@ -67,13 +67,13 @@ import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, Accum
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint, DeclineCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor.InfoMessage
 import org.apache.flink.runtime.messages.webmonitor._
-import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
 import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, NotifyKvStateRegistered, NotifyKvStateUnregistered}
 import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
-import org.apache.flink.runtime.security.{SecurityContext}
+import org.apache.flink.runtime.security.SecurityContext
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -2635,7 +2635,7 @@ object JobManager {
     }
 
     val metricRegistry = try {
-      Option(new FlinkMetricRegistry(configuration))
+      Option(new FlinkMetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration)))
     } catch {
       case _: Exception =>
         None

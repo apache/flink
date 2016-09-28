@@ -22,7 +22,6 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
-
 import java.util.List;
 
 /**
@@ -41,18 +40,34 @@ public interface StatefulTask {
 	void setInitialState(ChainedStateHandle<StreamStateHandle> chainedState, List<KeyGroupsStateHandle> keyGroupsState) throws Exception;
 
 	/**
-	 * This method is either called directly and asynchronously by the checkpoint
-	 * coordinator (in the case of functions that are directly notified - usually
-	 * the data sources), or called synchronously when all incoming channels have
-	 * reported a checkpoint barrier.
+	 * This method is called to trigger a checkpoint, asynchronously by the checkpoint
+	 * coordinator.
+	 * 
+	 * <p>This method is called for tasks that start the checkpoints by injecting the initial barriers,
+	 * i.e., the source tasks. In contrast, checkpoints on downstream operators, which are the result of
+	 * receiving checkpoint barriers, invoke the {@link #triggerCheckpointOnBarrier(long, long, long, long)}
+	 * method.
 	 *
-	 * @param checkpointId The ID of the checkpoint, incrementing.
+	 * @param checkpointId The ID of the checkpoint, strictly incrementing.
 	 * @param timestamp The timestamp when the checkpoint was triggered at the JobManager.
 	 *
 	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
 	 */
 	boolean triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
 
+	/**
+	 * This method is called when a checkpoint is triggered as a result of receiving checkpoint
+	 * barriers on all input streams.
+	 * 
+	 * @param checkpointId The ID of the checkpoint, strictly incrementing.
+	 * @param timestamp The timestamp when the checkpoint was triggered at the JobManager.
+	 * @param bytesAligned The number of bytes that were buffered during the alignment of the streams.
+	 * @param alignmentTimeNanos The time that the stream alignment took, in nanoseconds.   
+	 * 
+	 * @throws Exception Exceptions thrown as the result of triggering a checkpoint are forwarded.
+	 */
+	void triggerCheckpointOnBarrier(
+			long checkpointId, long timestamp, long bytesAligned, long alignmentTimeNanos) throws Exception;
 
 	/**
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received

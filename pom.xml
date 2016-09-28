@@ -96,6 +96,7 @@ under the License.
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3.7</akka.version>
+		<java.version>1.7</java.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 		<!-- Default scala versions, may be overwritten by build profiles -->
 		<scala.version>2.10.4</scala.version>
@@ -929,8 +930,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<source>1.7</source>
-					<target>1.7</target>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
 					<!-- The output of Xlint is not shown by default, but we activate it for the QA bot
 					to be able to get more warnings -->
 					<compilerArgument>-Xlint:all</compilerArgument>
@@ -999,7 +1000,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>
-				<version>1.3.1</version><!--$NO-MVN-MAN-VER$-->
+				<version>1.4.1</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<id>enforce-maven</id>
@@ -1012,6 +1013,9 @@ under the License.
 									<!-- enforce at least mvn version 3.0.3 -->
 									<version>[3.0.3,)</version>
 								</requireMavenVersion>
+								<requireJavaVersion>
+									<version>${java.version}</version>
+								</requireJavaVersion>
 							</rules>
 						</configuration>
 					</execution>
@@ -1079,6 +1083,16 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<!-- Pull bundled transitive dependencies (i.e. Mini-KDC).
+			See https://issues.apache.org/jira/browse/DIRSHARED-134 -->
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>3.0.1</version>
+				<inherited>true</inherited>
+				<extensions>true</extensions>
 			</plugin>
 
 		</plugins>

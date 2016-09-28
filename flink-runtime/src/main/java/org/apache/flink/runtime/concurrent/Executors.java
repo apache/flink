@@ -16,19 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.scheduler;
+package org.apache.flink.runtime.concurrent;
 
-import org.apache.flink.runtime.instance.SimpleSlot;
+import java.util.concurrent.Executor;
 
 /**
- * An action that is invoked once a {@link SlotAllocationFuture} is triggered.
+ * Collection of {@link Executor} implementations
  */
-public interface SlotAllocationFutureAction {
+public class Executors {
 
 	/**
-	 * This method is called as soon as the SlotAllocationFuture is triggered.
-	 * 
-	 * @param slot The slot that has been allocated.
+	 * Return a direct executor. The direct executor directly executes the runnable in the calling
+	 * thread.
+	 *
+	 * @return Direct executor
 	 */
-	void slotAllocated(SimpleSlot slot);
+	public static Executor directExecutor() {
+		return DirectExecutor.INSTANCE;
+	}
+
+	/**
+	 * Direct executor implementation.
+	 */
+	private static class DirectExecutor implements Executor {
+
+		static final DirectExecutor INSTANCE = new DirectExecutor();
+
+		private DirectExecutor() {}
+
+		@Override
+		public void execute(Runnable command) {
+			command.run();
+		}
+	}
 }
