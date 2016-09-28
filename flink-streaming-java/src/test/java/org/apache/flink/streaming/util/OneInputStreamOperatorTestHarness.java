@@ -52,6 +52,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.mockito.Matchers.any;
@@ -79,7 +81,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	final ExecutionConfig executionConfig;
 
-	final ProcessingTimeService processingTimeService;
+	final TestProcessingTimeService processingTimeService;
 
 	StreamTask<?, ?> mockTask;
 
@@ -96,30 +98,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	private volatile boolean wasFailedExternally = false;
 
-	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
+	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) throws Exception {
 		this(operator, new ExecutionConfig());
 	}
 
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig) {
-		this(operator, executionConfig, new TestProcessingTimeService());
-	}
-
-	public OneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig,
-			ProcessingTimeService processingTimeService) {
-		this(operator, executionConfig, new Object(), processingTimeService);
-	}
-
-	public OneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
-			ExecutionConfig executionConfig,
-			Object checkpointLock,
-			ProcessingTimeService processingTimeService) {
-
-		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
+			ExecutionConfig executionConfig) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
 		Configuration underlyingConfig = new Configuration();
@@ -130,9 +115,11 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
+		processingTimeService = new TestProcessingTimeService();
+		processingTimeService.setCurrentTime(0);
 
 		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
+		when(mockTask.getCheckpointLock()).thenReturn(new Object());
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
 		when(mockTask.getEnvironment()).thenReturn(env);
@@ -184,7 +171,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		doAnswer(new Answer<ProcessingTimeService>() {
 			@Override
 			public ProcessingTimeService answer(InvocationOnMock invocation) throws Throwable {
-				return OneInputStreamOperatorTestHarness.this.processingTimeService;
+				return processingTimeService;
 			}
 		}).when(mockTask).getProcessingTimeService();
 	}
@@ -218,6 +205,21 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 */
 	public ConcurrentLinkedQueue<Object> getOutput() {
 		return outputList;
+	}
+
+	/**
+	 * Get all the output from the task and clear the output buffer.
+	 * This contains only StreamRecords.
+	 */
+	@SuppressWarnings("unchecked")
+	public List<StreamRecord<? extends OUT>> extractOutputStreamRecords() {
+		List<StreamRecord<? extends OUT>> resultElements = new LinkedList<>();
+		for (Object e: getOutput()) {
+			if (e instanceof StreamRecord) {
+				resultElements.add((StreamRecord<OUT>) e);
+			}
+		}
+		return resultElements;
 	}
 
 	/**
@@ -325,6 +327,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 			operator.setKeyContextElement1(element);
 			operator.processElement(element);
 		}
+	}
+
+	public void setProcessingTime(long time) throws Exception {
+		processingTimeService.setCurrentTime(time);
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {

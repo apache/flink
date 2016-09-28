@@ -43,10 +43,8 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		final ExecutionConfig config = new ExecutionConfig();
 		config.setAutoWatermarkInterval(50);
 
-		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
-		
 		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
-				new OneInputStreamOperatorTestHarness<Long, Long>(operator, config, processingTimeService);
+				new OneInputStreamOperatorTestHarness<Long, Long>(operator, config);
 
 		long currentTime = 0;
 
@@ -77,7 +75,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					assertTrue(lastWatermark < nextElementValue);
 				} else {
 					currentTime = currentTime + 10;
-					processingTimeService.setCurrentTime(currentTime);
+					testHarness.setProcessingTime(currentTime);
 				}
 			}
 			
@@ -109,7 +107,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					assertTrue(lastWatermark < nextElementValue);
 				} else {
 					currentTime = currentTime + 10;
-					processingTimeService.setCurrentTime(currentTime);
+					testHarness.setProcessingTime(currentTime);
 				}
 			}
 
