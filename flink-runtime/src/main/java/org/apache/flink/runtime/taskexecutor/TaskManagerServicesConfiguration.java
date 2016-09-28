@@ -208,7 +208,7 @@ public class TaskManagerServicesConfiguration {
 		int dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
 
-		checkConfigParameter(dataport > 0, dataport, ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+		checkConfigParameter(dataport >= 0, dataport, ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
 			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
 
 		checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
