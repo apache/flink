@@ -48,7 +48,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.taskmanager.TaskManagerConnection;
+import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -60,6 +60,7 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
 import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
@@ -161,17 +162,19 @@ public class InterruptSensitiveRestoreTest {
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
+		String[] tmpDirectories = EnvironmentInformation.getTemporaryFileDirectory().split(",|" + File.pathSeparator);
+
 		return new Task(
 				tdd,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				networkEnvironment,
 				mock(BroadcastVariableManager.class),
-				mock(TaskManagerConnection.class),
+				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
 				mock(CheckpointResponder.class),
 				new FallbackLibraryCacheManager(),
-				new FileCache(new Configuration()),
+				new FileCache(tmpDirectories),
 				new TaskManagerRuntimeInfo(
 						"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
 				new UnregisteredTaskMetricsGroup(),

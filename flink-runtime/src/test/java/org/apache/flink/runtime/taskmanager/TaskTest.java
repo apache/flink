@@ -97,7 +97,7 @@ public class TaskTest {
 	private ActorGateway listenerGateway;
 
 	private ActorGatewayTaskExecutionStateListener listener;
-	private ActorGatewayTaskManagerConnection taskManagerConnection;
+	private ActorGatewayTaskManagerActions taskManagerConnection;
 
 	private BlockingQueue<Object> taskManagerMessages;
 	private BlockingQueue<Object> jobManagerMessages;
@@ -113,7 +113,7 @@ public class TaskTest {
 		listenerGateway = new ForwardingActorGateway(listenerMessages);
 
 		listener = new ActorGatewayTaskExecutionStateListener(listenerGateway);
-		taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway);
+		taskManagerConnection = new ActorGatewayTaskManagerActions(taskManagerGateway);
 		
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.TaskStateHandles;
@@ -52,6 +53,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The ID referencing the attempt to execute the task. */
 	private final ExecutionAttemptID executionId;
+
+	/** The allocation ID of the slot in which the task shall be run */
+	private final AllocationID allocationID;
 
 	/** The task's name. */
 	private final String taskName;
@@ -144,6 +148,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.requiredClasspaths = checkNotNull(requiredClasspaths);
 		this.targetSlotNumber = targetSlotNumber;
 		this.taskStateHandles = taskStateHandles;
+		this.allocationID = new AllocationID();
 	}
 
 	public TaskDeploymentDescriptor(
@@ -304,6 +309,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public List<URL> getRequiredClasspaths() {
 		return requiredClasspaths;
+	}
+
+	public AllocationID getAllocationID() {
+		return allocationID;
 	}
 
 	@Override

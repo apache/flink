@@ -23,7 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 /**
  * Interface for the communication of the {@link Task} with the {@link TaskManager}.
  */
-public interface TaskManagerConnection {
+public interface TaskManagerActions {
 
 	/**
 	 * Notifies the task manager that the given task is in a final state.
