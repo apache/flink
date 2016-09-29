@@ -717,6 +717,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				cancelables.registerClosable(asyncCheckpointRunnable);
 				asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
+
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("{} - finished synchronous part of checkpoint {}." +
+							"Alignment duration: {} ms, snapshot duration {} ms",
+							getName(), checkpointId, alignmentDurationNanos / 1_000_000, syncDurationMillis);
+				}
+
 				return true;
 			} else {
 				return false;
@@ -998,12 +1005,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				final long asyncEndNanos = System.nanoTime();
 				final long asyncDurationMillis = (asyncEndNanos - asyncStartNanos) / 1_000_000;
 
-				if (nonPartitionedStateHandles.isEmpty() && keyedStates.isEmpty()) {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointId,
+				if (nonPartitionedStateHandles.isEmpty() && partitioneableStateHandles.isEmpty() && keyedStates.isEmpty()) {
+					owner.getEnvironment().acknowledgeCheckpoint(
+							checkpointId,
 							syncDurationMillies, asyncDurationMillis,
 							bytesBufferedInAlignment, alignmentDurationNanos);
-				} else  {
-
+				} else {
 					CheckpointStateHandles allStateHandles = new CheckpointStateHandles(
 							nonPartitionedStateHandles,
 							partitioneableStateHandles,
@@ -1016,8 +1023,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				}
 
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}. Returning handles on " +
-							"keyed states {}.", checkpointId, name, keyedStates);
+					LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms", 
+							owner.getName(), checkpointId, asyncDurationMillis);
 				}
 			}
 			catch (Exception e) {
