@@ -29,6 +29,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
+import org.apache.flink.runtime.resourcemanager.SlotRequestRejected;
 import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -141,16 +142,11 @@ public abstract class SlotManager {
 			final Future<SlotRequestReply> slotRequestReplyFuture =
 				slot.getTaskExecutorGateway().requestSlot(allocationId, leaderID, timeout);
 
-			slotRequestReplyFuture.handleAsync(new BiFunction<SlotRequestReply, Throwable, Object>() {
+			slotRequestReplyFuture.handleAsync(new BiFunction<SlotRequestReply, Throwable, Void>() {
 				@Override
-				public Object apply(SlotRequestReply slotRequestReply, Throwable throwable) {
-					if (throwable != null) {
-						// we failed, put the slot and the request back again
-						if (allocationMap.isAllocated(slot.getSlotId())) {
-							// only re-add if the slot hasn't been removed in the meantime
-							freeSlots.put(slot.getSlotId(), removedSlot);
-						}
-						pendingSlotRequests.put(allocationId, request);
+				public Void apply(SlotRequestReply slotRequestReply, Throwable throwable) {
+					if (throwable != null || slotRequestReply instanceof SlotRequestRejected) {
+						handleSlotRequestFailedAtTaskManager(request, slot.getSlotId());
 					}
 					return null;
 				}
@@ -205,25 +201,13 @@ public abstract class SlotManager {
 		LOG.info("Slot request failed at TaskManager, SlotID:{}, AllocationID:{}, JobID:{}",
 			slotId, originalAllocationId, originalRequest.getJobId());
 
-		// verify the allocation info before we do anything
-		if (freeSlots.containsKey(slotId)) {
-			// this slot is currently empty, no need to de-allocate it from our allocations
-			LOG.info("Original slot is somehow empty, retrying this request");
-
-			// before retry, we should double check whether this request was allocated by some other ways
-			if (!allocationMap.isAllocated(originalAllocationId)) {
-				requestSlot(originalRequest);
-			} else {
-				LOG.info("The failed request has somehow been allocated, SlotID:{}",
-					allocationMap.getSlotID(originalAllocationId));
-			}
-		} else if (allocationMap.isAllocated(slotId)) {
-			final AllocationID currentAllocationId = allocationMap.getAllocationID(slotId);
+		if (allocationMap.isAllocated(slotId)) {
+			final AllocationID expectedAllocationId = allocationMap.getAllocationID(slotId);
 
 			// check whether we have an agreement on whom this slot belongs to
-			if (originalAllocationId.equals(currentAllocationId)) {
+			if (originalAllocationId.equals(expectedAllocationId)) {
 				LOG.info("De-allocate this request and retry");
-				allocationMap.removeAllocation(currentAllocationId);
+				allocationMap.removeAllocation(expectedAllocationId);
 
 				// put this slot back to free pool
 				ResourceSlot slot = checkNotNull(getRegisteredSlot(slotId));
@@ -232,19 +216,14 @@ public abstract class SlotManager {
 				// retry the request
 				requestSlot(originalRequest);
 			} else {
-				// the slot is taken by someone else, no need to de-allocate it from our allocations
-				LOG.info("Original slot is taken by someone else, current AllocationID:{}", currentAllocationId);
-
-				// before retry, we should double check whether this request was allocated by some other ways
-				if (!allocationMap.isAllocated(originalAllocationId)) {
-					requestSlot(originalRequest);
-				} else {
-					LOG.info("The failed request is somehow been allocated, SlotID:{}",
-						allocationMap.getSlotID(originalAllocationId));
-				}
+				LOG.error("Slot request failed for slot {} with allocation id {}:" +
+						" Allocation id did not match the expected allocation id {}.",
+					slotId, originalAllocationId, expectedAllocationId);
 			}
 		} else {
-			LOG.error("BUG! {} is neither in free pool nor in allocated pool", slotId);
+			LOG.error("Slot request failed for slot {} with allocation id {}: " +
+					"Slot was not previously registered.",
+				slotId, originalAllocationId);
 		}
 	}
 
@@ -314,51 +293,9 @@ public abstract class SlotManager {
 			} else {
 				handleFreeSlot(slot);
 			}
-		} else {
-			// slot exists, update current information
-			if (reportedStatus.getAllocationID() != null) {
-				// slot is reported in use
-				final AllocationID reportedAllocationId = reportedStatus.getAllocationID();
-
-				// check whether we also thought this slot is in use
-				if (allocationMap.isAllocated(slotId)) {
-					// we also think that slot is in use, check whether the AllocationID matches
-					final AllocationID currentAllocationId = allocationMap.getAllocationID(slotId);
-
-					if (!reportedAllocationId.equals(currentAllocationId)) {
-						LOG.info("Slot allocation info mismatch! SlotID:{}, current:{}, reported:{}",
-							slotId, currentAllocationId, reportedAllocationId);
-
-						// seems we have a disagreement about the slot assignments, need to correct it
-						allocationMap.removeAllocation(slotId);
-						allocationMap.addAllocation(slotId, reportedAllocationId);
-					}
-				} else {
-					LOG.info("Slot allocation info mismatch! SlotID:{}, current:null, reported:{}",
-						slotId, reportedAllocationId);
-
-					// we thought the slot is free, should correct this information
-					allocationMap.addAllocation(slotId, reportedStatus.getAllocationID());
-
-					// remove this slot from free slots pool
-					freeSlots.remove(slotId);
-				}
-			} else {
-				// slot is reported empty
-
-				// check whether we also thought this slot is empty
-				if (allocationMap.isAllocated(slotId)) {
-					LOG.info("Slot allocation info mismatch! SlotID:{}, current:{}, reported:null",
-						slotId, allocationMap.getAllocationID(slotId));
-
-					// we thought the slot is in use, correct it
-					allocationMap.removeAllocation(slotId);
-
-					// we have a free slot!
-					handleFreeSlot(slot);
-				}
-			}
 		}
+		// We don't have to do anything else because existing slot states are updated in the course
+		// of trying to allocate them witht the TaskExecutor.
 	}
 
 	/**
@@ -382,14 +319,11 @@ public abstract class SlotManager {
 			final Future<SlotRequestReply> slotRequestReplyFuture =
 				freeSlot.getTaskExecutorGateway().requestSlot(allocationId, leaderID, timeout);
 
-			slotRequestReplyFuture.handleAsync(new BiFunction<SlotRequestReply, Throwable, Object>() {
+			slotRequestReplyFuture.handleAsync(new BiFunction<SlotRequestReply, Throwable, Void>() {
 				@Override
-				public Object apply(SlotRequestReply slotRequestReply, Throwable throwable) {
-					if (throwable != null) {
-						// we failed, add the request back again
-						if (allocationMap.isAllocated(freeSlot.getSlotId())) {
-							pendingSlotRequests.put(allocationId, removedSlotRequest);
-						}
+				public Void apply(SlotRequestReply slotRequestReply, Throwable throwable) {
+					if (throwable != null || slotRequestReply instanceof SlotRequestRejected) {
+						handleSlotRequestFailedAtTaskManager(removedSlotRequest, freeSlot.getSlotId());
 					}
 					return null;
 				}

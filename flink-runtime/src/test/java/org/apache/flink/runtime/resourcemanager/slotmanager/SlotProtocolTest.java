@@ -95,7 +95,7 @@ public class SlotProtocolTest extends TestLogger {
 			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
 		SlotManager slotManager = Mockito.spy(new SimpleSlotManager());
-		ResourceManager resourceManager =
+		StandaloneResourceManager resourceManager =
 			Mockito.spy(new StandaloneResourceManager(testRpcService, testingHaServices, slotManager));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);

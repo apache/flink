@@ -297,15 +297,14 @@ public class SlotManagerTest {
 		assertTrue(slotManager.isAllocated(slotId));
 		assertTrue(slotManager.isAllocated(request1.getAllocationId()));
 
-
-		// but slot is reported empty again, request2 will be fulfilled, request1 will be missing
+		// but slot is reported empty in a report in the meantime which shouldn't affect the state
 		slotManager.updateSlotStatus(slotStatus);
 
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
-		assertEquals(0, slotManager.getPendingRequestCount());
+		assertEquals(1, slotManager.getPendingRequestCount());
 		assertTrue(slotManager.isAllocated(slotId));
-		assertTrue(slotManager.isAllocated(request2.getAllocationId()));
+		assertTrue(slotManager.isAllocated(request1.getAllocationId()));
 	}
 
 	/**
@@ -339,8 +338,8 @@ public class SlotManagerTest {
 		assertEquals(0, slotManager.getFreeSlotCount());
 		assertEquals(0, slotManager.getPendingRequestCount());
 		assertTrue(slotManager.isAllocated(slotId));
-		assertFalse(slotManager.isAllocated(request.getAllocationId()));
-		assertTrue(slotManager.isAllocated(slotStatus2.getAllocationID()));
+		assertTrue(slotManager.isAllocated(request.getAllocationId()));
+		assertFalse(slotManager.isAllocated(slotStatus2.getAllocationID()));
 	}
 
 	/**
@@ -361,7 +360,7 @@ public class SlotManagerTest {
 	}
 
 	/**
-	 * Tests that we had a free slot, and it's reported in-use by TaskManager
+	 * Tests that we had a free slot registered but its then reported as allocated by the task manager
 	 */
 	@Test
 	public void testExistingEmptySlotAdjustedToInUse() {
@@ -372,14 +371,19 @@ public class SlotManagerTest {
 		ResourceSlot slot = new ResourceSlot(slotID, DEFAULT_TESTING_PROFILE, taskExecutorGateway);
 		slotManager.addFreeSlot(slot);
 
+		assertEquals(0, slotManager.getAllocatedSlotCount());
+		assertEquals(1, slotManager.getFreeSlotCount());
+		assertEquals(0, slotManager.getPendingRequestCount());
+		assertFalse(slotManager.isAllocated(slot.getSlotId()));
+
 		SlotStatus slotStatus = new SlotStatus(slot.getSlotId(), DEFAULT_TESTING_PROFILE,
 			new JobID(), new AllocationID());
 		slotManager.updateSlotStatus(slotStatus);
 
-		assertEquals(1, slotManager.getAllocatedSlotCount());
-		assertEquals(0, slotManager.getFreeSlotCount());
+		assertEquals(0, slotManager.getAllocatedSlotCount());
+		assertEquals(1, slotManager.getFreeSlotCount());
 		assertEquals(0, slotManager.getPendingRequestCount());
-		assertTrue(slotManager.isAllocated(slot.getSlotId()));
+		assertFalse(slotManager.isAllocated(slot.getSlotId()));
 	}
 
 	/**
@@ -422,9 +426,17 @@ public class SlotManagerTest {
 		SlotRequest request = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
 		slotManager.requestSlot(request);
 
+		assertEquals(1, slotManager.getAllocatedSlotCount());
+		assertEquals(0, slotManager.getFreeSlotCount());
+		assertEquals(0, slotManager.getPendingRequestCount());
+
 		// slot is set empty by heartbeat
 		SlotStatus slotStatus = new SlotStatus(slot.getSlotId(), slot.getResourceProfile());
 		slotManager.updateSlotStatus(slotStatus);
+
+		assertEquals(1, slotManager.getAllocatedSlotCount());
+		assertEquals(0, slotManager.getFreeSlotCount());
+		assertEquals(0, slotManager.getPendingRequestCount());
 
 		// another request took this slot
 		SlotRequest request2 = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
@@ -432,18 +444,18 @@ public class SlotManagerTest {
 
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
-		assertEquals(0, slotManager.getPendingRequestCount());
-		assertFalse(slotManager.isAllocated(request.getAllocationId()));
-		assertTrue(slotManager.isAllocated(request2.getAllocationId()));
+		assertEquals(1, slotManager.getPendingRequestCount());
+		assertTrue(slotManager.isAllocated(request.getAllocationId()));
+		assertFalse(slotManager.isAllocated(request2.getAllocationId()));
 
-		// original request should be pended
+		// original request should be retried
 		slotManager.handleSlotRequestFailedAtTaskManager(request, slot.getSlotId());
 
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
 		assertEquals(1, slotManager.getPendingRequestCount());
-		assertFalse(slotManager.isAllocated(request.getAllocationId()));
-		assertTrue(slotManager.isAllocated(request2.getAllocationId()));
+		assertTrue(slotManager.isAllocated(request.getAllocationId()));
+		assertFalse(slotManager.isAllocated(request2.getAllocationId()));
 	}
 
 	@Test
