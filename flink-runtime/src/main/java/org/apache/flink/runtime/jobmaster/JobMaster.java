@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -47,18 +49,26 @@ import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.registration.RegisteredRpcConnection;
+import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.slf4j.Logger;
+
 import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -75,9 +85,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ul>
  */
 public class JobMaster extends RpcEndpoint<JobMasterGateway> {
-
-	/** Gateway to connected resource manager, null iff not connected */
-	private ResourceManagerGateway resourceManager = null;
 
 	/** Logical representation of the job */
 	private final JobGraph jobGraph;
@@ -123,6 +130,21 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	private MetricGroup jobMetrics;
 
+	private volatile UUID leaderSessionID;
+
+	// --------- resource manager --------
+
+	/** Leader retriever service used to locate ResourceManager's address */
+	private LeaderRetrievalService resourceManagerLeaderRetriever;
+
+	/** Connection with ResourceManager, null if not located address yet or we close it initiative */
+	private volatile ResourceManagerConnection resourceManagerConnection;
+
+	/** Gateway to connected ResourceManager, null if not connected */
+	private volatile ResourceManagerGateway resourceManagerGateway;
+
+	// ------------------------------------------------------------------------
+
 	public JobMaster(
 		JobGraph jobGraph,
 		Configuration configuration,
@@ -151,8 +173,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
 	}
 
-	public ResourceManagerGateway getResourceManager() {
-		return resourceManager;
+	public ResourceManagerGateway getResourceManagerGateway() {
+		return resourceManagerGateway;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -196,7 +218,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 					.getRestartStrategy();
 			if (restartStrategyConfiguration != null) {
 				restartStrategy = RestartStrategyFactory.createRestartStrategy(restartStrategyConfiguration);
-			} else {
+			}
+			else {
 				restartStrategy = restartStrategyFactory.createRestartStrategy();
 			}
 
@@ -216,6 +239,13 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 				throw new JobSubmissionException(jobGraph.getJobID(), "Could not get the checkpoint recovery factory.", e);
 			}
 
+			try {
+				resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
+			} catch (Exception e) {
+				log.error("Could not get the resource manager leader retriever.", e);
+				throw new JobSubmissionException(jobGraph.getJobID(),
+					"Could not get the resource manager leader retriever.", e);
+			}
 		} catch (Throwable t) {
 			log.error("Failed to initializing job {} ({})", jobGraph.getName(), jobGraph.getJobID(), t);
 
@@ -223,7 +253,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 			if (t instanceof JobSubmissionException) {
 				throw (JobSubmissionException) t;
-			} else {
+			}
+			else {
 				throw new JobSubmissionException(jobGraph.getJobID(), "Failed to initialize job " +
 					jobGraph.getName() + " (" + jobGraph.getJobID() + ")", t);
 			}
@@ -240,6 +271,16 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		super.shutDown();
 
 		suspendJob(new Exception("JobManager is shutting down."));
+
+		disposeCommunicationWithResourceManager();
+	}
+
+	/**
+	 * Invoked every time when leadership updates.
+	 * @param leaderSessionID The leader id if we have leadership, otherwise null.
+	 */
+	public void setLeaderSessionID(final UUID leaderSessionID) {
+		this.leaderSessionID = leaderSessionID;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -252,7 +293,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 */
 	@RpcMethod
 	public void startJob() {
-		log.info("Starting job {} ({}).", jobGraph.getName(), jobGraph.getJobID());
+		log.info("Starting job {} ({}) with leaderId {}.", jobGraph.getName(), jobGraph.getJobID(), leaderSessionID);
 
 		if (executionGraph != null) {
 			executionGraph = new ExecutionGraph(
@@ -267,7 +308,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 				jobGraph.getClasspaths(),
 				userCodeLoader,
 				jobMetrics);
-		} else {
+		}
+		else {
 			// TODO: update last active time in JobInfo
 		}
 
@@ -343,7 +385,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 				final CheckpointStatsTracker checkpointStatsTracker;
 				if (isStatsDisabled) {
 					checkpointStatsTracker = new DisabledCheckpointStatsTracker();
-				} else {
+				}
+				else {
 					int historySize = configuration.getInteger(
 						ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
 						ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE);
@@ -397,6 +440,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			}
 			*/
 
+			// job is good to go, try to locate resource manager's address
+			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
 		} catch (Throwable t) {
 			log.error("Failed to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), t);
 
@@ -406,7 +451,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			final Throwable rt;
 			if (t instanceof JobExecutionException) {
 				rt = (JobExecutionException) t;
-			} else {
+			}
+			else {
 				rt = new JobExecutionException(jobGraph.getJobID(),
 					"Failed to start job " + jobGraph.getJobID() + " (" + jobGraph.getName() + ")", t);
 			}
@@ -443,6 +489,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			executionGraph.suspend(cause);
 			executionGraph = null;
 		}
+
+		disposeCommunicationWithResourceManager();
 	}
 
 	/**
@@ -457,14 +505,88 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		return Acknowledge.get();
 	}
 
-	/**
-	 * Triggers the registration of the job master at the resource manager.
-	 *
-	 * @param address Address of the resource manager
-	 */
-	@RpcMethod
-	public void registerAtResourceManager(final String address) {
-		//TODO:: register at the RM
+	//---------------------------------------------------------------------------------------------- 
+	// Internal methods 
+	// ----------------------------------------------------------------------------------------------  
+
+	private void handleFatalError(final Throwable cause) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.error("Fatal error occurred on JobManager, cause: {}", cause.getMessage(), cause);
+				shutDown();
+				jobCompletionActions.onFatalError(cause);
+			}
+		});
+	}
+
+	private void notifyOfNewResourceManagerLeader(
+		final String resourceManagerAddress, final UUID resourceManagerLeaderId)
+	{
+		// IMPORTANT: executed by main thread to avoid concurrence
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				if (resourceManagerConnection != null) {
+					if (resourceManagerAddress != null) {
+						log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
+							resourceManagerConnection.getTargetAddress(), resourceManagerAddress);
+					}
+					else {
+						log.info("Current ResourceManager {} lost leader status. Waiting for new ResourceManager leader.",
+							resourceManagerConnection.getTargetAddress());
+					}
+				}
+
+				closeResourceManagerConnection();
+
+				if (resourceManagerAddress != null) {
+					log.info("Attempting to register at ResourceManager {}", resourceManagerAddress);
+					resourceManagerConnection = new ResourceManagerConnection(
+						log, jobGraph.getJobID(), leaderSessionID,
+						resourceManagerAddress, resourceManagerLeaderId, executionContext);
+					resourceManagerConnection.start();
+				}
+			}
+		});
+	}
+
+	private void onResourceManagerRegistrationSuccess(final JobMasterRegistrationSuccess success) {
+		// IMPORTANT: executed by main thread to avoid concurrence
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				// only process if we haven't been connected in the meantime
+				if (resourceManagerGateway == null) {
+					// double check the connection is still effective
+					if (resourceManagerConnection != null) {
+						log.info("JobManager registered at leading ResourceManager.");
+						resourceManagerGateway = resourceManagerConnection.getTargetGateway();
+						// TODO - other stuff like setting up the heartbeat communication
+					}
+				}
+			}
+		});
+	}
+
+	private void disposeCommunicationWithResourceManager() {
+		// 1. stop the leader retriever so we will not receiving updates anymore
+		try {
+			resourceManagerLeaderRetriever.stop();
+		} catch (Exception e) {
+			log.warn("Failed to stop resource manager leader retriever.");
+		}
+
+		// 2. close current connection with ResourceManager if exists
+		closeResourceManagerConnection();
+	}
+
+	private void closeResourceManagerConnection() {
+		if (resourceManagerConnection != null) {
+			resourceManagerConnection.close();
+			resourceManagerConnection = null;
+		}
+		resourceManagerGateway = null;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -493,5 +615,68 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			ret.add(executionJobVertex);
 		}
 		return ret;
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// Utility classes
+	//----------------------------------------------------------------------------------------------
+
+	private class ResourceManagerLeaderListener implements LeaderRetrievalListener {
+		@Override
+		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
+			notifyOfNewResourceManagerLeader(leaderAddress, leaderSessionID);
+		}
+
+		@Override
+		public void handleError(final Exception exception) {
+			handleFatalError(exception);
+		}
+	}
+
+	private class ResourceManagerConnection
+		extends RegisteredRpcConnection<ResourceManagerGateway, JobMasterRegistrationSuccess>
+	{
+		private final JobID jobID;
+
+		private final UUID jobManagerLeaderID;
+
+		ResourceManagerConnection(
+			final Logger log,
+			final JobID jobID,
+			final UUID jobManagerLeaderID,
+			final String resourceManagerAddress,
+			final UUID resourceManagerLeaderID,
+			final Executor executor)
+		{
+			super(log, resourceManagerAddress, resourceManagerLeaderID, executor);
+			this.jobID = checkNotNull(jobID);
+			this.jobManagerLeaderID = checkNotNull(jobManagerLeaderID);
+		}
+
+		@Override
+		protected RetryingRegistration<ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
+			return new RetryingRegistration<ResourceManagerGateway, JobMasterRegistrationSuccess>(
+				log, getRpcService(), "ResourceManager", ResourceManagerGateway.class,
+				getTargetAddress(), getTargetLeaderId())
+			{
+				@Override
+				protected Future<RegistrationResponse> invokeRegistration(ResourceManagerGateway gateway, UUID leaderId,
+					long timeoutMillis) throws Exception
+				{
+					Time timeout = Time.milliseconds(timeoutMillis);
+					return gateway.registerJobMaster(leaderId, jobManagerLeaderID, getAddress(), jobID, timeout);
+				}
+			};
+		}
+
+		@Override
+		protected void onRegistrationSuccess(final JobMasterRegistrationSuccess success) {
+			onResourceManagerRegistrationSuccess(success);
+		}
+
+		@Override
+		protected void onRegistrationFailure(final Throwable failure) {
+			handleFatalError(failure);
+		}
 	}
 }
