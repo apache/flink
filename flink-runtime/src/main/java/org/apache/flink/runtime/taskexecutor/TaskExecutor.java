@@ -20,9 +20,12 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
-import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestRegistered;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestRejected;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -38,6 +41,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -78,6 +83,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	/** The fatal error handler to use in case of a fatal error */
 	private final FatalErrorHandler fatalErrorHandler;
 
+	/** Slots which have become available but haven't been confirmed by the RM */
+	private final Set<SlotID> unconfirmedFreeSlots;
+
 	// --------- resource manager --------
 
 	private TaskExecutorToResourceManagerConnection resourceManagerConnection;
@@ -109,6 +117,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 		this.numberOfSlots =  taskManagerConfiguration.getNumberSlots();
+
+		this.unconfirmedFreeSlots = new HashSet<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -152,6 +162,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			}
 		}
 
+		unconfirmedFreeSlots.clear();
+
 		// establish a connection to the new leader
 		if (newLeaderAddress != null) {
 			log.info("Attempting to register at ResourceManager {}", newLeaderAddress);
@@ -169,13 +181,25 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	/**
 	 * Requests a slot from the TaskManager
 	 *
+	 * @param slotID Slot id for the request
 	 * @param allocationID id for the request
 	 * @param resourceManagerLeaderID current leader id of the ResourceManager
 	 * @return answer to the slot request
 	 */
 	@RpcMethod
-	public SlotRequestReply requestSlot(AllocationID allocationID, UUID resourceManagerLeaderID) {
-		return new SlotRequestRegistered(allocationID);
+	public TMSlotRequestReply requestSlot(SlotID slotID, AllocationID allocationID, UUID resourceManagerLeaderID) {
+		if (!resourceManagerConnection.getTargetLeaderId().equals(resourceManagerLeaderID)) {
+			return new TMSlotRequestRejected(
+				resourceManagerConnection.getRegistrationId(), getResourceID(), allocationID);
+		}
+		if (unconfirmedFreeSlots.contains(slotID)) {
+			// check if request has not been blacklisted because the notification of a free slot
+			// has not been confirmed by the ResourceManager
+			return new TMSlotRequestRejected(
+				resourceManagerConnection.getRegistrationId(), getResourceID(), allocationID);
+		}
+		return new TMSlotRequestRegistered(new InstanceID(), ResourceID.generate(), allocationID);
+
 	}
 
 	// ------------------------------------------------------------------------
@@ -225,6 +249,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	@VisibleForTesting
 	TaskExecutorToResourceManagerConnection getResourceManagerConnection() {
 		return resourceManagerConnection;
+	}
+
+	@VisibleForTesting
+	public void addUnconfirmedFreeSlotNotification(SlotID slotID) {
+		unconfirmedFreeSlots.add(slotID);
 	}
 
 	// ------------------------------------------------------------------------

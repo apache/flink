@@ -22,7 +22,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
 import org.apache.flink.runtime.rpc.RpcService;
 
 /**
@@ -34,9 +34,9 @@ import org.apache.flink.runtime.rpc.RpcService;
 public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
 	public StandaloneResourceManager(RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		SlotManager slotManager) {
-		super(rpcService, highAvailabilityServices, slotManager);
+			HighAvailabilityServices highAvailabilityServices,
+			SlotManagerFactory slotManagerFactory) {
+		super(rpcService, highAvailabilityServices, slotManagerFactory);
 	}
 
 	@Override

@@ -28,13 +28,16 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorRegistration;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +48,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
 
 public class SlotManagerTest {
 
@@ -59,13 +61,15 @@ public class SlotManagerTest {
 	private static final ResourceProfile DEFAULT_TESTING_BIG_PROFILE =
 		new ResourceProfile(DEFAULT_TESTING_CPU_CORES * 2, DEFAULT_TESTING_MEMORY * 2);
 
-	private static TaskExecutorGateway taskExecutorGateway;
+	private static TaskExecutorRegistration taskExecutorRegistration;
 
 	@BeforeClass
 	public static void setUp() {
-		taskExecutorGateway = Mockito.mock(TaskExecutorGateway.class);
-		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
-			.thenReturn(new FlinkCompletableFuture<SlotRequestReply>());
+		taskExecutorRegistration = Mockito.mock(TaskExecutorRegistration.class);
+		TaskExecutorGateway gateway = Mockito.mock(TaskExecutorGateway.class);
+		Mockito.when(taskExecutorRegistration.getTaskExecutorGateway()).thenReturn(gateway);
+		Mockito.when(gateway.requestSlot(any(SlotID.class), any(AllocationID.class), any(UUID.class), any(Time.class)))
+			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 	}
 
 	/**
@@ -180,9 +184,9 @@ public class SlotManagerTest {
 		assertEquals(1, slotManager.getPendingRequestCount());
 
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
-		slotManager.updateSlotStatus(slotStatus);
+		SlotReport slotReport = new SlotReport(Collections.singletonList(slotStatus));
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration, slotReport);
 
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
@@ -198,9 +202,9 @@ public class SlotManagerTest {
 		TestingSlotManager slotManager = new TestingSlotManager();
 
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
-		slotManager.updateSlotStatus(slotStatus);
+		SlotReport slotReport = new SlotReport(Collections.singletonList(slotStatus));
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration, slotReport);
 
 		assertEquals(0, slotManager.getAllocatedSlotCount());
 		assertEquals(1, slotManager.getFreeSlotCount());
@@ -216,9 +220,9 @@ public class SlotManagerTest {
 		assertEquals(1, slotManager.getPendingRequestCount());
 
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
-		slotManager.updateSlotStatus(slotStatus);
+		SlotReport slotReport = new SlotReport(Collections.singletonList(slotStatus));
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration, slotReport);
 
 		assertEquals(0, slotManager.getAllocatedSlotCount());
 		assertEquals(1, slotManager.getFreeSlotCount());
@@ -234,9 +238,9 @@ public class SlotManagerTest {
 		TestingSlotManager slotManager = new TestingSlotManager();
 
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE, new JobID(), new AllocationID());
-		slotManager.updateSlotStatus(slotStatus);
+		SlotReport slotReport = new SlotReport(Collections.singletonList(slotStatus));
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration, slotReport);
 
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
@@ -244,48 +248,44 @@ public class SlotManagerTest {
 	}
 
 	/**
-	 * Tests that we had a slot in-use, and it's confirmed by SlotReport
+	 * Tests that we had a slot in-use and is freed again subsequently.
 	 */
 	@Test
 	public void testExistingInUseSlotUpdateStatus() {
 		TestingSlotManager slotManager = new TestingSlotManager();
-		SlotRequest request = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
-		slotManager.requestSlot(request);
 
-		// make this slot in use
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
-		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
-		slotManager.updateSlotStatus(slotStatus);
+		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE, new JobID(), new AllocationID());
+		SlotReport slotReport = new SlotReport(Collections.singletonList(slotStatus));
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration, slotReport);
 
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
 		assertTrue(slotManager.isAllocated(slotId));
 
-		// slot status is confirmed
-		SlotStatus slotStatus2 = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE,
-			request.getJobId(), request.getAllocationId());
-		slotManager.updateSlotStatus(slotStatus2);
+		// slot is freed again
+		slotManager.notifySlotAvailable(slotId.getResourceID(), slotId);
 
-		assertEquals(1, slotManager.getAllocatedSlotCount());
-		assertEquals(0, slotManager.getFreeSlotCount());
-		assertTrue(slotManager.isAllocated(slotId));
+		assertEquals(0, slotManager.getAllocatedSlotCount());
+		assertEquals(1, slotManager.getFreeSlotCount());
+		assertFalse(slotManager.isAllocated(slotId));
 	}
 
 	/**
-	 * Tests that we had a slot in-use, but it's empty according to the SlotReport
+	 * Tests multiple slot requests with one slots.
 	 */
 	@Test
-	public void testExistingInUseSlotAdjustedToEmpty() {
+	public void testMultipleSlotRequestsWithOneSlot() {
 		TestingSlotManager slotManager = new TestingSlotManager();
-		SlotRequest request1 = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
+		final AllocationID allocationID = new AllocationID();
+
+		SlotRequest request1 = new SlotRequest(new JobID(), allocationID, DEFAULT_TESTING_PROFILE);
 		slotManager.requestSlot(request1);
 
-		// make this slot in use
-		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
-		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
-		slotManager.updateSlotStatus(slotStatus);
+		final ResourceID resourceID = ResourceID.generate();
+		final SlotStatus slotStatus = new SlotStatus(new SlotID(resourceID, 0), DEFAULT_TESTING_PROFILE);
+		final SlotReport slotReport = new SlotReport(slotStatus);
+		slotManager.registerTaskExecutor(resourceID, taskExecutorRegistration, slotReport);
 
 		// another request pending
 		SlotRequest request2 = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
@@ -294,92 +294,24 @@ public class SlotManagerTest {
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
 		assertEquals(1, slotManager.getPendingRequestCount());
-		assertTrue(slotManager.isAllocated(slotId));
+		assertTrue(slotManager.isAllocated(allocationID));
 		assertTrue(slotManager.isAllocated(request1.getAllocationId()));
 
-
-		// but slot is reported empty again, request2 will be fulfilled, request1 will be missing
-		slotManager.updateSlotStatus(slotStatus);
+		// but slot is reported empty in a report in the meantime which shouldn't affect the state
+		slotManager.notifySlotAvailable(resourceID, slotStatus.getSlotID());
 
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
 		assertEquals(0, slotManager.getPendingRequestCount());
-		assertTrue(slotManager.isAllocated(slotId));
+		assertTrue(slotManager.isAllocated(slotStatus.getSlotID()));
 		assertTrue(slotManager.isAllocated(request2.getAllocationId()));
-	}
 
-	/**
-	 * Tests that we had a slot in use, and it's also reported in use by TaskManager, but the allocation
-	 * information didn't match.
-	 */
-	@Test
-	public void testExistingInUseSlotWithDifferentAllocationInfo() {
-		TestingSlotManager slotManager = new TestingSlotManager();
-		SlotRequest request = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
-		slotManager.requestSlot(request);
-
-		// make this slot in use
-		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
-		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
-		slotManager.updateSlotStatus(slotStatus);
-
-		assertEquals(1, slotManager.getAllocatedSlotCount());
-		assertEquals(0, slotManager.getFreeSlotCount());
-		assertEquals(0, slotManager.getPendingRequestCount());
-		assertTrue(slotManager.isAllocated(slotId));
-		assertTrue(slotManager.isAllocated(request.getAllocationId()));
-
-		SlotStatus slotStatus2 = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE, new JobID(), new AllocationID());
-		// update slot status with different allocation info
-		slotManager.updateSlotStatus(slotStatus2);
-
-		// original request is missing and won't be allocated
-		assertEquals(1, slotManager.getAllocatedSlotCount());
-		assertEquals(0, slotManager.getFreeSlotCount());
-		assertEquals(0, slotManager.getPendingRequestCount());
-		assertTrue(slotManager.isAllocated(slotId));
-		assertFalse(slotManager.isAllocated(request.getAllocationId()));
-		assertTrue(slotManager.isAllocated(slotStatus2.getAllocationID()));
-	}
-
-	/**
-	 * Tests that we had a free slot, and it's confirmed by SlotReport
-	 */
-	@Test
-	public void testExistingEmptySlotUpdateStatus() {
-		TestingSlotManager slotManager = new TestingSlotManager();
-		ResourceSlot slot = new ResourceSlot(SlotID.generate(), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		slotManager.addFreeSlot(slot);
-
-		SlotStatus slotStatus = new SlotStatus(slot.getSlotId(), DEFAULT_TESTING_PROFILE);
-		slotManager.updateSlotStatus(slotStatus);
+		// but slot is reported empty in a report in the meantime which shouldn't affect the state
+		slotManager.notifySlotAvailable(resourceID, slotStatus.getSlotID());
 
 		assertEquals(0, slotManager.getAllocatedSlotCount());
 		assertEquals(1, slotManager.getFreeSlotCount());
 		assertEquals(0, slotManager.getPendingRequestCount());
-	}
-
-	/**
-	 * Tests that we had a free slot, and it's reported in-use by TaskManager
-	 */
-	@Test
-	public void testExistingEmptySlotAdjustedToInUse() {
-		TestingSlotManager slotManager = new TestingSlotManager();
-		final SlotID slotID = SlotID.generate();
-		slotManager.registerTaskExecutor(slotID.getResourceID(), taskExecutorGateway);
-
-		ResourceSlot slot = new ResourceSlot(slotID, DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		slotManager.addFreeSlot(slot);
-
-		SlotStatus slotStatus = new SlotStatus(slot.getSlotId(), DEFAULT_TESTING_PROFILE,
-			new JobID(), new AllocationID());
-		slotManager.updateSlotStatus(slotStatus);
-
-		assertEquals(1, slotManager.getAllocatedSlotCount());
-		assertEquals(0, slotManager.getFreeSlotCount());
-		assertEquals(0, slotManager.getPendingRequestCount());
-		assertTrue(slotManager.isAllocated(slot.getSlotId()));
 	}
 
 	/**
@@ -388,7 +320,7 @@ public class SlotManagerTest {
 	@Test
 	public void testSlotAllocationFailedAtTaskManager() {
 		TestingSlotManager slotManager = new TestingSlotManager();
-		ResourceSlot slot = new ResourceSlot(SlotID.generate(), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
+		ResourceSlot slot = new ResourceSlot(SlotID.generate(), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
 		slotManager.addFreeSlot(slot);
 
 		SlotRequest request = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
@@ -409,24 +341,31 @@ public class SlotManagerTest {
 
 	/**
 	 * Tests that we did some allocation but failed / rejected by TaskManager, and slot is occupied by another request
+	 * This can only occur after reconnect of the TaskExecutor.
 	 */
 	@Test
 	public void testSlotAllocationFailedAtTaskManagerOccupiedByOther() {
 		TestingSlotManager slotManager = new TestingSlotManager();
 		final SlotID slotID = SlotID.generate();
-		slotManager.registerTaskExecutor(slotID.getResourceID(), taskExecutorGateway);
-
-		ResourceSlot slot = new ResourceSlot(slotID, DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		slotManager.addFreeSlot(slot);
+		SlotStatus slot = new SlotStatus(slotID, DEFAULT_TESTING_PROFILE);
+		SlotReport slotReport = new SlotReport(slot);
+		slotManager.registerTaskExecutor(slotID.getResourceID(), taskExecutorRegistration, slotReport);
 
 		SlotRequest request = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
 		slotManager.requestSlot(request);
 
-		// slot is set empty by heartbeat
-		SlotStatus slotStatus = new SlotStatus(slot.getSlotId(), slot.getResourceProfile());
-		slotManager.updateSlotStatus(slotStatus);
+		assertEquals(1, slotManager.getAllocatedSlotCount());
+		assertEquals(0, slotManager.getFreeSlotCount());
+		assertEquals(0, slotManager.getPendingRequestCount());
 
-		// another request took this slot
+		// slot is set empty by a reconnect of the TaskExecutor
+		slotManager.registerTaskExecutor(slotID.getResourceID(), taskExecutorRegistration, slotReport);
+
+		assertEquals(0, slotManager.getAllocatedSlotCount());
+		assertEquals(1, slotManager.getFreeSlotCount());
+		assertEquals(0, slotManager.getPendingRequestCount());
+
+		// another request takes the slot
 		SlotRequest request2 = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
 		slotManager.requestSlot(request2);
 
@@ -436,12 +375,12 @@ public class SlotManagerTest {
 		assertFalse(slotManager.isAllocated(request.getAllocationId()));
 		assertTrue(slotManager.isAllocated(request2.getAllocationId()));
 
-		// original request should be pended
-		slotManager.handleSlotRequestFailedAtTaskManager(request, slot.getSlotId());
+		// original request should be retried
+		slotManager.handleSlotRequestFailedAtTaskManager(request, slotID);
 
 		assertEquals(1, slotManager.getAllocatedSlotCount());
 		assertEquals(0, slotManager.getFreeSlotCount());
-		assertEquals(1, slotManager.getPendingRequestCount());
+		assertEquals(0, slotManager.getPendingRequestCount());
 		assertFalse(slotManager.isAllocated(request.getAllocationId()));
 		assertTrue(slotManager.isAllocated(request2.getAllocationId()));
 	}
@@ -453,10 +392,10 @@ public class SlotManagerTest {
 		ResourceID resource1 = ResourceID.generate();
 		ResourceID resource2 = ResourceID.generate();
 
-		ResourceSlot slot11 = new ResourceSlot(new SlotID(resource1, 1), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		ResourceSlot slot12 = new ResourceSlot(new SlotID(resource1, 2), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		ResourceSlot slot21 = new ResourceSlot(new SlotID(resource2, 1), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		ResourceSlot slot22 = new ResourceSlot(new SlotID(resource2, 2), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
+		ResourceSlot slot11 = new ResourceSlot(new SlotID(resource1, 1), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
+		ResourceSlot slot12 = new ResourceSlot(new SlotID(resource1, 2), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
+		ResourceSlot slot21 = new ResourceSlot(new SlotID(resource2, 1), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
+		ResourceSlot slot22 = new ResourceSlot(new SlotID(resource2, 2), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
 
 		slotManager.addFreeSlot(slot11);
 		slotManager.addFreeSlot(slot21);
@@ -499,7 +438,7 @@ public class SlotManagerTest {
 		final int freeSlotNum)
 	{
 		for (int i = 0; i < freeSlotNum; ++i) {
-			slotManager.addFreeSlot(new ResourceSlot(SlotID.generate(), new ResourceProfile(resourceProfile), taskExecutorGateway));
+			slotManager.addFreeSlot(new ResourceSlot(SlotID.generate(), new ResourceProfile(resourceProfile), taskExecutorRegistration));
 		}
 	}
 
@@ -507,13 +446,13 @@ public class SlotManagerTest {
 	//  testing classes
 	// ------------------------------------------------------------------------
 
-	private static class TestingSlotManager extends SlotManager implements ResourceManagerServices {
+	private static class TestingSlotManager extends SlotManager {
 
-		private final List<ResourceProfile> allocatedContainers;
+		private static TestingRmServices testingRmServices = new TestingRmServices();
 
 		TestingSlotManager() {
-			this.allocatedContainers = new LinkedList<>();
-			setupResourceManagerServices(this);
+			super(testingRmServices);
+			testingRmServices.allocatedContainers.clear();
 		}
 
 		/**
@@ -552,24 +491,34 @@ public class SlotManagerTest {
 			return null;
 		}
 
-		@Override
-		public void allocateResource(ResourceProfile resourceProfile) {
-			allocatedContainers.add(resourceProfile);
-		}
-
-		@Override
-		public Executor getAsyncExecutor() {
-			return Mockito.mock(Executor.class);
-		}
-
-		@Override
-		public Executor getExecutor() {
-			return Mockito.mock(Executor.class);
-		}
-
 		List<ResourceProfile> getAllocatedContainers() {
-			return allocatedContainers;
+			return testingRmServices.allocatedContainers;
 		}
 
+
+		private static class TestingRmServices implements ResourceManagerServices {
+
+			private List<ResourceProfile> allocatedContainers;
+
+			public TestingRmServices() {
+				this.allocatedContainers = new LinkedList<>();
+			}
+
+			@Override
+			public void allocateResource(ResourceProfile resourceProfile) {
+				allocatedContainers.add(resourceProfile);
+			}
+
+			@Override
+			public Executor getAsyncExecutor() {
+				return Mockito.mock(Executor.class);
+			}
+
+			@Override
+			public Executor getMainThreadExecutor() {
+				return Mockito.mock(Executor.class);
+			}
+
+		}
 	}
 }
