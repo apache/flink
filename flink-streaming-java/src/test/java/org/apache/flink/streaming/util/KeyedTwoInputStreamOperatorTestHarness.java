@@ -23,36 +23,27 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
 
 /**
- * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
+ * Extension of {@link TwoInputStreamOperatorTestHarness} that allows the operator to get
  * a {@link KeyedStateBackend}.
  */
-public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
-		extends OneInputStreamOperatorTestHarness<IN, OUT> {
+public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
+		extends TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 
 	// in case the operator creates one we store it here so that we
 	// can snapshot its state
@@ -62,28 +53,35 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	// when the operator requests the keyed state backend
 	private Collection<KeyGroupsStateHandle> restoredKeyedState = null;
 
-	public KeyedOneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
-			final KeySelector<IN, K> keySelector,
+	public KeyedTwoInputStreamOperatorTestHarness(
+			TwoInputStreamOperator<IN1, IN2, OUT> operator,
+			final KeySelector<IN1, K> keySelector1,
+			final KeySelector<IN2, K> keySelector2,
 			TypeInformation<K> keyType) throws Exception {
 		super(operator);
 
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
+		ClosureCleaner.clean(keySelector1, false);
+		ClosureCleaner.clean(keySelector2, false);
+		config.setStatePartitioner(0, keySelector1);
+		config.setStatePartitioner(1, keySelector2);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
 	}
 
-	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
+	public KeyedTwoInputStreamOperatorTestHarness(
+			TwoInputStreamOperator<IN1, IN2, OUT> operator,
 			ExecutionConfig executionConfig,
-			KeySelector<IN, K> keySelector,
+			KeySelector<IN1, K> keySelector1,
+			KeySelector<IN2, K> keySelector2,
 			TypeInformation<K> keyType) throws Exception {
 		super(operator, executionConfig);
 
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
+		ClosureCleaner.clean(keySelector1, false);
+		ClosureCleaner.clean(keySelector2, false);
+		config.setStatePartitioner(0, keySelector1);
+		config.setStatePartitioner(1, keySelector2);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
@@ -102,7 +100,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 					final KeyGroupRange keyGroupRange = (KeyGroupRange) invocationOnMock.getArguments()[2];
 
 					if(keyedStateBackend != null) {
-						keyedStateBackend.dispose();
+						keyedStateBackend.close();
 					}
 
 					if (restoredKeyedState == null) {
@@ -135,62 +133,9 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		}
 	}
 
-	/**
-	 *
-	 */
-	@Override
-	public StreamStateHandle snapshotLegacy(long checkpointId, long timestamp) throws Exception {
-		// simply use an in-memory handle
-		MemoryStateBackend backend = new MemoryStateBackend();
-
-		CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-				streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
-
-		if (operator instanceof StreamCheckpointedOperator) {
-			((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
-		}
-
-		if (keyedStateBackend != null) {
-			RunnableFuture<KeyGroupsStateHandle> keyedSnapshotRunnable = keyedStateBackend.snapshot(checkpointId,
-					timestamp,
-					streamFactory);
-			if(!keyedSnapshotRunnable.isDone()) {
-				Thread runner = new Thread(keyedSnapshotRunnable);
-				runner.start();
-			}
-			outStream.write(1);
-			ObjectOutputStream oos = new ObjectOutputStream(outStream);
-			oos.writeObject(keyedSnapshotRunnable.get());
-			oos.flush();
-		} else {
-			outStream.write(0);
-		}
-		return outStream.closeAndGetHandle();
-	}
-
-	/**
-	 *
-	 */
-	@Override
-	public void restore(StreamStateHandle snapshot) throws Exception {
-		try (FSDataInputStream inStream = snapshot.openInputStream()) {
-
-			if (operator instanceof StreamCheckpointedOperator) {
-				((StreamCheckpointedOperator) operator).restoreState(inStream);
-			}
-
-			byte keyedStatePresent = (byte) inStream.read();
-			if (keyedStatePresent == 1) {
-				ObjectInputStream ois = new ObjectInputStream(inStream);
-				this.restoredKeyedState = Collections.singletonList((KeyGroupsStateHandle) ois.readObject());
-			}
-		}
-	}
-
 	@Override
 	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
-		if (operatorStateHandles != null) {
+		if (restoredKeyedState != null) {
 			restoredKeyedState = operatorStateHandles.getManagedKeyedState();
 		}
 
