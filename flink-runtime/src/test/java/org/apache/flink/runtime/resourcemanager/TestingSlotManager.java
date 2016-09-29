@@ -15,20 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.resourcemanager.slotmanager;
+package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.mockito.Mockito;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
-/**
- * A simple SlotManager which ignores resource profiles.
- */
-public class SimpleSlotManager extends SlotManager {
+public class TestingSlotManager extends SlotManager {
+
+	public TestingSlotManager() {
+		this(new TestingResourceManagerServices());
+	}
+
+	public TestingSlotManager(ResourceManagerServices rmServices) {
+		super(rmServices);
+	}
 
 	@Override
 	protected ResourceSlot chooseSlotToUse(SlotRequest request, Map<SlotID, ResourceSlot> freeSlots) {
@@ -50,4 +58,21 @@ public class SimpleSlotManager extends SlotManager {
 		}
 	}
 
+	private static class TestingResourceManagerServices implements ResourceManagerServices {
+
+		@Override
+		public void allocateResource(ResourceProfile resourceProfile) {
+
+		}
+
+		@Override
+		public Executor getAsyncExecutor() {
+			return Mockito.mock(Executor.class);
+		}
+
+		@Override
+		public Executor getMainThreadExecutor() {
+			return Mockito.mock(Executor.class);
+		}
+	}
 }

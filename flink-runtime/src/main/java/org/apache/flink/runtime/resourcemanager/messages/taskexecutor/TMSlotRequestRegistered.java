@@ -15,30 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+package org.apache.flink.runtime.resourcemanager.messages.taskexecutor;
 
-import java.util.concurrent.Executor;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.InstanceID;
 
 /**
- * Interface which provides access to services of the ResourceManager.
+ * Acknowledgment by the TaskExecutor for a SlotRequest from the ResourceManager
  */
-public interface ResourceManagerServices {
+public class TMSlotRequestRegistered extends TMSlotRequestReply {
 
-	/**
-	 * Allocates a resource according to the resource profile.
-	 */
-	void allocateResource(ResourceProfile resourceProfile);
+	private static final long serialVersionUID = 4760320859275256855L;
 
-	/**
-	 * Gets the async excutor which executes outside of the main thread of the ResourceManager
-	 */
-	Executor getAsyncExecutor();
-
-	/**
-	 * Gets the executor which executes in the main thread of the ResourceManager
-	 */
-	Executor getMainThreadExecutor();
-
+	public TMSlotRequestRegistered(InstanceID instanceID, ResourceID resourceID, AllocationID allocationID) {
+		super(instanceID, resourceID, allocationID);
+	}
 }

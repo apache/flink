@@ -15,30 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.resourcemanager;
+package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-
-import java.util.concurrent.Executor;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 
 /**
- * Interface which provides access to services of the ResourceManager.
+ * Factory to create a SlotManager and provide it with dependencies.
  */
-public interface ResourceManagerServices {
+public interface SlotManagerFactory {
 
 	/**
-	 * Allocates a resource according to the resource profile.
+	 * Creates a SlotManager and provides it with ResourceManager services.
 	 */
-	void allocateResource(ResourceProfile resourceProfile);
-
-	/**
-	 * Gets the async excutor which executes outside of the main thread of the ResourceManager
-	 */
-	Executor getAsyncExecutor();
-
-	/**
-	 * Gets the executor which executes in the main thread of the ResourceManager
-	 */
-	Executor getMainThreadExecutor();
-
+	SlotManager create(ResourceManagerServices rmServices);
 }
