@@ -25,6 +25,8 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.concurrent.BiFunction;
+import org.apache.flink.runtime.io.network.PartitionState;
 import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -59,6 +61,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,10 +72,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -98,7 +103,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Each Task is run by one dedicated thread.
  */
-public class Task implements Runnable {
+public class Task implements Runnable, TaskActions {
 
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -197,6 +202,12 @@ public class Task implements Runnable {
 	/** Parent group for all metrics of this task */
 	private final TaskMetricGroup metrics;
 
+	/** Partition state checker to request partition states from */
+	private final PartitionStateChecker partitionStateChecker;
+
+	/** Executor to run future callbacks */
+	private final Executor executor;
+
 	// ------------------------------------------------------------------------
 	//  Fields that control the task execution. All these fields are volatile
 	//  (which means that they introduce memory barriers), to establish
@@ -242,7 +253,6 @@ public class Task implements Runnable {
 		MemoryManager memManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
-		JobManagerCommunicationFactory jobManagerCommunicationFactory,
 		BroadcastVariableManager bcVarManager,
 		TaskManagerConnection taskManagerConnection,
 		InputSplitProvider inputSplitProvider,
@@ -250,7 +260,10 @@ public class Task implements Runnable {
 		LibraryCacheManager libraryCache,
 		FileCache fileCache,
 		TaskManagerRuntimeInfo taskManagerConfig,
-		TaskMetricGroup metricGroup) {
+		TaskMetricGroup metricGroup,
+		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
+		PartitionStateChecker partitionStateChecker,
+		Executor executor) {
 
 		this.taskInfo = checkNotNull(tdd.getTaskInfo());
 		this.jobId = checkNotNull(tdd.getJobID());
@@ -287,6 +300,9 @@ public class Task implements Runnable {
 		this.taskExecutionStateListeners = new CopyOnWriteArrayList<>();
 		this.metrics = metricGroup;
 
+		this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
+		this.executor = Preconditions.checkNotNull(executor);
+
 		// create the reader and writer structures
 
 		final String taskNameWithSubtaskAndId = taskNameWithSubtask + " (" + executionId + ')';
@@ -298,33 +314,29 @@ public class Task implements Runnable {
 		this.producedPartitions = new ResultPartition[partitions.size()];
 		this.writers = new ResultPartitionWriter[partitions.size()];
 
-		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier =
-			jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(this);
-
 		for (int i = 0; i < this.producedPartitions.length; i++) {
 			ResultPartitionDeploymentDescriptor desc = partitions.get(i);
 			ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), executionId);
 
 			this.producedPartitions[i] = new ResultPartition(
-					taskNameWithSubtaskAndId,
-					jobId,
-					partitionId,
-					desc.getPartitionType(),
-					desc.getEagerlyDeployConsumers(),
-					desc.getNumberOfSubpartitions(),
-					networkEnvironment.getResultPartitionManager(),
-					resultPartitionConsumableNotifier,
-					ioManager,
-					networkEnvironment.getDefaultIOMode());
+				taskNameWithSubtaskAndId,
+				this,
+				jobId,
+				partitionId,
+				desc.getPartitionType(),
+				desc.getEagerlyDeployConsumers(),
+				desc.getNumberOfSubpartitions(),
+				networkEnvironment.getResultPartitionManager(),
+				resultPartitionConsumableNotifier,
+				ioManager,
+				networkEnvironment.getDefaultIOMode());
 
 			this.writers[i] = new ResultPartitionWriter(this.producedPartitions[i]);
 		}
 
 		// Consumed intermediate result partitions
 		this.inputGates = new SingleInputGate[consumedPartitions.size()];
-		this.inputGatesById = new HashMap<IntermediateDataSetID, SingleInputGate>();
-
-		PartitionStateChecker partitionStateChecker = jobManagerCommunicationFactory.createPartitionStateChecker();
+		this.inputGatesById = new HashMap<>();
 
 		for (int i = 0; i < this.inputGates.length; i++) {
 			SingleInputGate gate = SingleInputGate.create(
@@ -333,7 +345,7 @@ public class Task implements Runnable {
 				executionId,
 				consumedPartitions.get(i),
 				networkEnvironment,
-				partitionStateChecker,
+				this,
 				metricGroup.getIOMetricGroup());
 
 			this.inputGates[i] = gate;
@@ -917,6 +929,49 @@ public class Task implements Runnable {
 		for (TaskExecutionStateListener listener : taskExecutionStateListeners) {
 			listener.notifyTaskExecutionStateChanged(stateUpdate);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Partition State Listeners
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void triggerPartitionStateCheck(
+		JobID jobId,
+		ExecutionAttemptID executionId,
+		final IntermediateDataSetID resultId,
+		final ResultPartitionID partitionId) {
+		org.apache.flink.runtime.concurrent.Future<PartitionState> futurePartitionState = partitionStateChecker.requestPartitionState(
+			jobId,
+			executionId,
+			resultId,
+			partitionId);
+
+		futurePartitionState.handleAsync(new BiFunction<PartitionState, Throwable, Void>() {
+			@Override
+			public Void apply(PartitionState partitionState, Throwable throwable) {
+				try {
+					if (partitionState != null) {
+						onPartitionStateUpdate(
+							partitionState.getIntermediateDataSetID(),
+							partitionState.getIntermediateResultPartitionID(),
+							partitionState.getExecutionState());
+					} else if (throwable instanceof TimeoutException) {
+						// our request timed out, assume we're still running and try again
+						onPartitionStateUpdate(
+							resultId,
+							partitionId.getPartitionId(),
+							ExecutionState.RUNNING);
+					} else {
+						failExternally(throwable);
+					}
+				} catch (IOException | InterruptedException e) {
+					failExternally(e);
+				}
+
+				return null;
+			}
+		}, executor);
 	}
 
 	// ------------------------------------------------------------------------

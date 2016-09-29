@@ -36,6 +36,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.io.network.PartitionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -44,13 +45,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
-import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
 import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
-import org.apache.flink.runtime.messages.TaskMessages.PartitionState;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateMessage.LookupKvStateLocation;
@@ -204,52 +203,43 @@ public class JobManagerTest {
 						for (ExecutionState state : ExecutionState.values()) {
 							ExecutionGraphTestUtils.setVertexState(vertex, state);
 
-							jobManagerGateway.tell(request, testActorGateway);
+							Future<PartitionState> futurePartitionState = jobManagerGateway
+								.ask(request, getRemainingTime())
+								.mapTo(ClassTag$.MODULE$.<PartitionState>apply(PartitionState.class));
 
-							LeaderSessionMessage lsm = expectMsgClass(LeaderSessionMessage.class);
+							PartitionState resp = Await.result(futurePartitionState, getRemainingTime());
 
-							assertEquals(PartitionState.class, lsm.message().getClass());
-
-							PartitionState resp = (PartitionState) lsm.message();
-
-							assertEquals(request.taskExecutionId(), resp.taskExecutionId());
-							assertEquals(request.taskResultId(), resp.taskResultId());
-							assertEquals(request.partitionId().getPartitionId(), resp.partitionId());
-							assertEquals(state, resp.state());
+							assertEquals(request.taskResultId(), resp.getIntermediateDataSetID());
+							assertEquals(request.partitionId().getPartitionId(), resp.getIntermediateResultPartitionID());
+							assertEquals(state, resp.getExecutionState());
 						}
 
 						// 2. Non-existing execution
 						request = new RequestPartitionState(jid, new ResultPartitionID(), receiver, rid);
 
-						jobManagerGateway.tell(request, testActorGateway);
+						Future<PartitionState> futurePartitionState = jobManagerGateway
+							.ask(request, getRemainingTime())
+							.mapTo(ClassTag$.MODULE$.<PartitionState>apply(PartitionState.class));
 
-						LeaderSessionMessage lsm = expectMsgClass(LeaderSessionMessage.class);
+						PartitionState resp = Await.result(futurePartitionState, getRemainingTime());
 
-						assertEquals(PartitionState.class, lsm.message().getClass());
-
-						PartitionState resp = (PartitionState) lsm.message();
-
-						assertEquals(request.taskExecutionId(), resp.taskExecutionId());
-						assertEquals(request.taskResultId(), resp.taskResultId());
-						assertEquals(request.partitionId().getPartitionId(), resp.partitionId());
-						assertNull(resp.state());
+						assertEquals(request.taskResultId(), resp.getIntermediateDataSetID());
+						assertEquals(request.partitionId().getPartitionId(), resp.getIntermediateResultPartitionID());
+						assertNull(resp.getExecutionState());
 
 						// 3. Non-existing job
 						request = new RequestPartitionState(
 							new JobID(), new ResultPartitionID(), receiver, rid);
 
-						jobManagerGateway.tell(request, testActorGateway);
+						futurePartitionState = jobManagerGateway
+							.ask(request, getRemainingTime())
+							.mapTo(ClassTag$.MODULE$.<PartitionState>apply(PartitionState.class));
 
-						lsm = expectMsgClass(LeaderSessionMessage.class);
+						resp = Await.result(futurePartitionState, getRemainingTime());
 
-						assertEquals(PartitionState.class, lsm.message().getClass());
-
-						resp = (PartitionState) lsm.message();
-
-						assertEquals(request.taskExecutionId(), resp.taskExecutionId());
-						assertEquals(request.taskResultId(), resp.taskResultId());
-						assertEquals(request.partitionId().getPartitionId(), resp.partitionId());
-						assertNull(resp.state());
+						assertEquals(request.taskResultId(), resp.getIntermediateDataSetID());
+						assertEquals(request.partitionId().getPartitionId(), resp.getIntermediateResultPartitionID());
+						assertNull(resp.getExecutionState());
 					} catch (Exception e) {
 						e.printStackTrace();
 						fail(e.getMessage());

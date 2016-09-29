@@ -35,12 +35,9 @@ import org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateCons
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskmanager.ActorGatewayResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.taskmanager.JobManagerCommunicationFactory;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import scala.Some;
 import scala.concurrent.duration.FiniteDuration;
 import scala.concurrent.impl.Promise;
@@ -95,26 +92,18 @@ public class NetworkEnvironmentTest {
 
 		env.start();
 
-		JobManagerCommunicationFactory jobManagerCommunicationFactory = mock(JobManagerCommunicationFactory.class);
-
-		when(jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(any(Task.class))).thenAnswer(new Answer<ResultPartitionConsumableNotifier>() {
-			@Override
-			public ResultPartitionConsumableNotifier answer(InvocationOnMock invocation) throws Throwable {
-				return new ActorGatewayResultPartitionConsumableNotifier(
-					TestingUtils.defaultExecutionContext(),
-					jobManager,
-					(Task)invocation.getArguments()[0],
-					new FiniteDuration(30, TimeUnit.SECONDS));
-			}
-		});
+		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new ActorGatewayResultPartitionConsumableNotifier(
+			TestingUtils.defaultExecutionContext(),
+			jobManager,
+			new FiniteDuration(30L, TimeUnit.SECONDS));
 
 		// Register mock task
 		JobID jobId = new JobID();
 		Task mockTask = mock(Task.class);
 
 		ResultPartition[] partitions = new ResultPartition[2];
-		partitions[0] = createPartition(mockTask, "p1", jobId, true, env, jobManagerCommunicationFactory);
-		partitions[1] = createPartition(mockTask, "p2", jobId, false, env, jobManagerCommunicationFactory);
+		partitions[0] = createPartition(mockTask, "p1", jobId, true, env, resultPartitionConsumableNotifier);
+		partitions[1] = createPartition(mockTask, "p2", jobId, false, env, resultPartitionConsumableNotifier);
 
 		ResultPartitionWriter[] writers = new ResultPartitionWriter[2];
 		writers[0] = new ResultPartitionWriter(partitions[0]);
@@ -143,18 +132,19 @@ public class NetworkEnvironmentTest {
 		JobID jobId,
 		boolean eagerlyDeployConsumers,
 		NetworkEnvironment env,
-		JobManagerCommunicationFactory jobManagerCommunicationFactory) {
+		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier) {
 
 		return new ResultPartition(
-				name,
-				jobId,
-				new ResultPartitionID(),
-				ResultPartitionType.PIPELINED,
-				eagerlyDeployConsumers,
-				1,
-				env.getResultPartitionManager(),
-				jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(owningTask),
-				mock(IOManager.class),
-				env.getDefaultIOMode());
+			name,
+			owningTask,
+			jobId,
+			new ResultPartitionID(),
+			ResultPartitionType.PIPELINED,
+			eagerlyDeployConsumers,
+			1,
+			env.getResultPartitionManager(),
+			resultPartitionConsumableNotifier,
+			mock(IOManager.class),
+			env.getDefaultIOMode());
 	}
 }
