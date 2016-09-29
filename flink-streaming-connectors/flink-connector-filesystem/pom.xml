@@ -125,6 +125,7 @@ under the License.
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-minikdc</artifactId>
 			<version>${minikdc.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 	</dependencies>
@@ -133,9 +134,9 @@ under the License.
 		<plugins>
 
 			<!--
-            https://issues.apache.org/jira/browse/DIRSHARED-134
-            Required to pull the Mini-KDC transitive dependency
-            -->
+				https://issues.apache.org/jira/browse/DIRSHARED-134
+				Required to pull the Mini-KDC transitive dependency
+			-->
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
