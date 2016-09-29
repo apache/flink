@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
   * A Schema represents a Table's structure
   */
 class Schema(
-  val columnNames: Array[String],
-  val columnTypes: Array[TypeInformation[_]]) {
+  private val columnNames: Array[String],
+  private val columnTypes: Array[TypeInformation[_]]) {
 
   if (columnNames.length != columnTypes.length) {
     throw new TableException(
@@ -46,21 +46,25 @@ class Schema(
 
   /**
     * Returns the specified type information for the given column index
- *
     * @param columnIndex the index of the field
     */
-  def getType(columnIndex: Int): TypeInformation[_] = columnTypes(columnIndex)
+  def getType(columnIndex: Int): Option[TypeInformation[_]] = {
+    if (columnIndex < 0 || columnIndex >= columnNames.length) {
+      None
+    } else {
+      Some(columnTypes(columnIndex))
+    }
+  }
 
   /**
     * Returns the specified type information for the given column name
- *
     * @param columnName the name of the field
     */
-  def getType(columnName: String): TypeInformation[_] = {
+  def getType(columnName: String): Option[TypeInformation[_]] = {
     if (columnNameToIndex.contains(columnName)) {
-      columnTypes(columnNameToIndex(columnName))
+      Some(columnTypes(columnNameToIndex(columnName)))
     } else {
-      throw FieldNotFoundException(s"Table doesn't have the column : $columnName")
+      None
     }
   }
 
@@ -71,10 +75,15 @@ class Schema(
 
   /**
     * Return the specified column name for the given column index.
- *
     * @param columnIndex the index of the field
     */
-  def getColumnName(columnIndex: Int): String = columnNames(columnIndex)
+  def getColumnName(columnIndex: Int): Option[String] = {
+    if (columnIndex < 0 || columnIndex >= columnNames.length) {
+      None
+    } else {
+      Some(columnNames(columnIndex))
+    }
+  }
 
 
   override def toString = {

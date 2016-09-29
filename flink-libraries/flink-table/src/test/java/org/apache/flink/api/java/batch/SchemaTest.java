@@ -19,7 +19,6 @@ package org.apache.flink.api.java.batch;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.table.FieldNotFoundException;
 import org.apache.flink.api.table.Schema;
 import org.apache.flink.api.table.TableException;
 import org.junit.Test;
@@ -40,35 +39,18 @@ public class SchemaTest {
 		assertArrayEquals(fieldNames, s.getColumnNames());
 		assertArrayEquals(typeInfos, s.getTypes());
 
-		assertEquals("b", s.getColumnName(1));
-		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, s.getType(1));
-		assertEquals(BasicTypeInfo.INT_TYPE_INFO, s.getType("a"));
+		assertEquals("b", s.getColumnName(1).get());
+		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, s.getType(1).get());
+		assertEquals(BasicTypeInfo.INT_TYPE_INFO, s.getType("a").get());
 
 		String expectedSchemaString = "root\n" +
 		                              " |-- a: Integer\n" +
 		                              " |-- b: String\n";
 		assertEquals(expectedSchemaString, s.toString());
 
-		try {
-			s.getColumnName(3);
-			fail("out of index, should throw exception");
-		} catch (Exception e) {
-			assertTrue(e instanceof IndexOutOfBoundsException);
-		}
-
-		try {
-			s.getType(-1);
-			fail("out of index, should throw exception");
-		} catch (Exception e) {
-			assertTrue(e instanceof IndexOutOfBoundsException);
-		}
-
-		try {
-			s.getType("c");
-			fail("non-exist field name, should throw exception");
-		} catch (Exception e) {
-			assertTrue(e instanceof FieldNotFoundException);
-		}
+		assertTrue(s.getColumnName(3).isEmpty());
+		assertTrue(s.getType(-1).isEmpty());
+		assertTrue(s.getType("c").isEmpty());
 	}
 
 	@Test(expected = TableException.class)

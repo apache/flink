@@ -29,6 +29,7 @@ import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.Assert.assertEquals
 
 import scala.collection.JavaConverters._
 
@@ -48,6 +49,9 @@ class SelectITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("MyTable", ds)
+
+    // test for schema
+    assertEquals("root\n |-- a: Integer\n |-- b: Long\n |-- c: String\n", ds.schema.toString)
 
     val result = tEnv.sql(sqlQuery)
 

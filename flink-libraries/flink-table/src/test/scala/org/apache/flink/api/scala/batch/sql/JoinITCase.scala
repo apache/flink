@@ -26,6 +26,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.{ValidationException, Row, TableEnvironment, TableException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -52,6 +53,9 @@ class JoinITCase(
     tEnv.registerTable("Table5", ds2)
 
     val result = tEnv.sql(sqlQuery)
+
+    // test for schema
+    assertEquals("root\n |-- c: String\n |-- g: String\n", result.schema.toString)
 
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
     val results = result.toDataSet[Row].collect()
