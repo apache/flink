@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.batch.table;
 
+import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.DataSet;
@@ -37,10 +38,10 @@ import java.util.List;
 
 
 @RunWith(Parameterized.class)
-public class JoinITCase extends MultipleProgramsTestBase {
+public class JoinITCase extends TableProgramsTestBase {
 
-	public JoinITCase(TestExecutionMode mode) {
-		super(mode);
+	public JoinITCase(TestExecutionMode mode, TableConfigMode configMode){
+		super(mode, configMode);
 	}
 
 	@Test
