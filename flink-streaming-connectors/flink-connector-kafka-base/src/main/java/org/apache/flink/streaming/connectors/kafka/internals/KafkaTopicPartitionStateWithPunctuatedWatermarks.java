@@ -54,8 +54,8 @@ public final class KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> exte
 
 	// ------------------------------------------------------------------------
 	
-	public long getTimestampForRecord(T record) {
-		return timestampsAndWatermarks.extractTimestamp(record, Long.MIN_VALUE);
+	public long getTimestampForRecord(T record, long kafkaEventTimestamp) {
+		return timestampsAndWatermarks.extractTimestamp(record, kafkaEventTimestamp);
 	}
 
 	@Nullable

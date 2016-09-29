@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import kafka.admin.AdminUtils;
 import kafka.common.KafkaException;
-import kafka.api.PartitionMetadata;
 import kafka.network.SocketServer;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
@@ -37,9 +36,9 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
 import org.apache.kafka.common.protocol.SecurityProtocol;
+import org.apache.kafka.common.requests.MetadataResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.Seq;
 
 import java.io.File;
 import java.net.BindException;
@@ -53,7 +52,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * An implementation of the KafkaServerProvider for Kafka 0.9
+ * An implementation of the KafkaServerProvider for Kafka 0.10
  */
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
@@ -69,7 +68,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	private Properties additionalServerProperties;
 	private boolean secureMode = false;
 	// 6 seconds is default. Seems to be too small for travis. 30 seconds
-	private String zkTimeout = "30000";
+	private int zkTimeout = 30000;
 
 	public String getBrokerConnectionString() {
 		return brokerConnectionString;
@@ -81,8 +80,24 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
+	public Properties getSecureProperties() {
+		Properties prop = new Properties();
+		if(secureMode) {
+			prop.put("security.inter.broker.protocol", "SASL_PLAINTEXT");
+			prop.put("security.protocol", "SASL_PLAINTEXT");
+			prop.put("sasl.kerberos.service.name", "kafka");
+
+			//add special timeout for Travis
+			prop.setProperty("zookeeper.session.timeout.ms", String.valueOf(zkTimeout));
+			prop.setProperty("zookeeper.connection.timeout.ms", String.valueOf(zkTimeout));
+			prop.setProperty("metadata.fetch.timeout.ms","120000");
+		}
+		return prop;
+	}
+
+	@Override
 	public String getVersion() {
-		return "0.9";
+		return "0.10";
 	}
 
 	@Override
@@ -92,14 +107,17 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
-		return new FlinkKafkaConsumer09<>(topics, readSchema, props);
+		return new FlinkKafkaConsumer010<>(topics, readSchema, props);
 	}
 
 	@Override
 	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props, KafkaPartitioner<T> partitioner) {
-		FlinkKafkaProducer09<T> prod = new FlinkKafkaProducer09<>(topic, serSchema, props, partitioner);
+		FlinkKafkaProducer010<T> prod = new FlinkKafkaProducer010<>(topic, serSchema, props, partitioner);
 		prod.setFlushOnCheckpoint(true);
 		return stream.addSink(prod);
+	/*	FlinkKafkaProducer010.FlinkKafkaProducer010Configuration<T> sink = FlinkKafkaProducer010.writeToKafkaWithTimestamps(stream, topic, serSchema, props, partitioner);
+		sink.setFlushOnCheckpoint(true);
+		return sink; */
 	}
 
 	@Override
@@ -111,20 +129,20 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	public int getLeaderToShutDown(String topic) throws Exception {
 		ZkUtils zkUtils = getZkUtils();
 		try {
-			PartitionMetadata firstPart = null;
+			MetadataResponse.PartitionMetadata firstPart = null;
 			do {
 				if (firstPart != null) {
-					LOG.info("Unable to find leader. error code {}", firstPart.errorCode());
+					LOG.info("Unable to find leader. error code {}", firstPart.error().code());
 					// not the first try. Sleep a bit
 					Thread.sleep(150);
 				}
 
-				Seq<PartitionMetadata> partitionMetadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkUtils).partitionsMetadata();
-				firstPart = partitionMetadata.head();
+				List<MetadataResponse.PartitionMetadata> partitionMetadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkUtils).partitionMetadata();
+				firstPart = partitionMetadata.get(0);
 			}
-			while (firstPart.errorCode() != 0);
+			while (firstPart.error().code() != 0);
 
-			return firstPart.leader().get().id();
+			return firstPart.leader().id();
 		} finally {
 			zkUtils.close();
 		}
@@ -142,12 +160,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public void prepare(int numKafkaServers, Properties additionalServerProperties, boolean secureMode) {
-
 		//increase the timeout since in Travis ZK connection takes long time for secure connection.
 		if(secureMode) {
 			//run only one kafka server to avoid multiple ZK connections from many instances - Travis timeout
 			numKafkaServers = 1;
-			zkTimeout = String.valueOf(Integer.parseInt(zkTimeout) * 15);
+			zkTimeout = zkTimeout * 15;
 		}
 
 		this.additionalServerProperties = additionalServerProperties;
@@ -171,10 +188,9 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		brokers = null;
 
 		try {
-			LOG.info("Starting Zookeeper");
-			zookeeper = new TestingServer(-1, tmpZkDir);
+			zookeeper = new TestingServer(-	1, tmpZkDir);
 			zookeeperConnectionString = zookeeper.getConnectString();
-			LOG.info("zookeeperConnectionString: {}", zookeeperConnectionString);
+			LOG.info("Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
 
 			LOG.info("Starting KafkaServer");
 			brokers = new ArrayList<>(numKafkaServers);
@@ -182,7 +198,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			for (int i = 0; i < numKafkaServers; i++) {
 				brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i)));
 
-				SocketServer socketServer = brokers.get(i).socketServer();
 				if(secureMode) {
 					brokerConnectionString += hostAndPortToUrlString(KafkaTestEnvironment.KAFKA_HOST, brokers.get(i).socketServer().boundPort(SecurityProtocol.SASL_PLAINTEXT)) + ",";
 				} else {
@@ -197,18 +212,15 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			fail("Test setup failed: " + t.getMessage());
 		}
 
-		LOG.info("brokerConnectionString --> {}", brokerConnectionString);
-
 		standardProps = new Properties();
 		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);
 		standardProps.setProperty("bootstrap.servers", brokerConnectionString);
 		standardProps.setProperty("group.id", "flink-tests");
 		standardProps.setProperty("auto.commit.enable", "false");
-		standardProps.setProperty("zookeeper.session.timeout.ms", zkTimeout);
-		standardProps.setProperty("zookeeper.connection.timeout.ms", zkTimeout);
-		standardProps.setProperty("auto.offset.reset", "earliest"); // read from the beginning. (earliest is kafka 0.9 value)
+		standardProps.setProperty("zookeeper.session.timeout.ms", String.valueOf(zkTimeout));
+		standardProps.setProperty("zookeeper.connection.timeout.ms", String.valueOf(zkTimeout));
+		standardProps.setProperty("auto.offset.reset", "earliest"); // read from the beginning. (earliest is kafka 0.10 value)
 		standardProps.setProperty("fetch.message.max.bytes", "256"); // make a lot of fetches (MESSAGES MUST BE SMALLER!)
-
 	}
 
 	@Override
@@ -223,7 +235,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		if (zookeeper != null) {
 			try {
 				zookeeper.stop();
-				zookeeper.close();
 			}
 			catch (Exception e) {
 				LOG.warn("ZK.stop() failed", e);
@@ -252,7 +263,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	public ZkUtils getZkUtils() {
-		LOG.info("In getZKUtils:: zookeeperConnectionString = {}", zookeeperConnectionString);
 		ZkClient creator = new ZkClient(zookeeperConnectionString, Integer.valueOf(standardProps.getProperty("zookeeper.session.timeout.ms")),
 				Integer.valueOf(standardProps.getProperty("zookeeper.connection.timeout.ms")), new ZooKeeperStringSerializer());
 		return ZkUtils.apply(creator, false);
@@ -265,42 +275,35 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 		ZkUtils zkUtils = getZkUtils();
 		try {
-			AdminUtils.createTopic(zkUtils, topic, numberOfPartitions, replicationFactor, topicConfig);
+			AdminUtils.createTopic(zkUtils, topic, numberOfPartitions, replicationFactor, topicConfig, new kafka.admin.RackAwareMode.Enforced$());
 		} finally {
 			zkUtils.close();
 		}
 
-		LOG.info("Topic {} create request is successfully posted", topic);
-
 		// validate that the topic has been created
-		final long deadline = System.currentTimeMillis() + Integer.parseInt(zkTimeout);
+		final long deadline = System.currentTimeMillis() + 30000;
 		do {
 			try {
 				if(secureMode) {
 					//increase wait time since in Travis ZK timeout occurs frequently
-					int wait = Integer.parseInt(zkTimeout) / 100;
+					int wait = zkTimeout / 100;
 					LOG.info("waiting for {} msecs before the topic {} can be checked", wait, topic);
 					Thread.sleep(wait);
 				} else {
 					Thread.sleep(100);
 				}
-
 			} catch (InterruptedException e) {
 				// restore interrupted state
 			}
 			// we could use AdminUtils.topicExists(zkUtils, topic) here, but it's results are
 			// not always correct.
 
-			LOG.info("Validating if the topic {} has been created or not", topic);
-
 			// create a new ZK utils connection
 			ZkUtils checkZKConn = getZkUtils();
 			if(AdminUtils.topicExists(checkZKConn, topic)) {
-				LOG.info("topic {} has been created successfully", topic);
 				checkZKConn.close();
 				return;
 			}
-			LOG.info("topic {} has not been created yet. Will check again...", topic);
 			checkZKConn.close();
 		}
 		while (System.currentTimeMillis() < deadline);
@@ -379,21 +382,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		}
 
 		throw new Exception("Could not start Kafka after " + numTries + " retries due to port conflicts.");
-	}
-
-	public Properties getSecureProperties() {
-		Properties prop = new Properties();
-		if(secureMode) {
-			prop.put("security.inter.broker.protocol", "SASL_PLAINTEXT");
-			prop.put("security.protocol", "SASL_PLAINTEXT");
-			prop.put("sasl.kerberos.service.name", "kafka");
-
-			//add special timeout for Travis
-			prop.setProperty("zookeeper.session.timeout.ms", zkTimeout);
-			prop.setProperty("zookeeper.connection.timeout.ms", zkTimeout);
-			prop.setProperty("metadata.fetch.timeout.ms","120000");
-		}
-		return prop;
 	}
 
 }

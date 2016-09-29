@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import kafka.server.KafkaServer;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -76,7 +79,9 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
 
-	public abstract <T> FlinkKafkaProducerBase<T> getProducer(String topic, KeyedSerializationSchema<T> serSchema, Properties props, KafkaPartitioner<T> partitioner);
+	public abstract <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
+														KeyedSerializationSchema<T> serSchema, Properties props,
+														KafkaPartitioner<T> partitioner);
 
 
 	// -- leader failure simulation

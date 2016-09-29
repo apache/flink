@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.commons.collections.map.LinkedMap;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
@@ -158,6 +159,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new IllegalStateException("A periodic watermark emitter has already been set.");
 		}
 		try {
+			ClosureCleaner.clean(assigner, true);
 			this.punctuatedWatermarkAssigner = new SerializedValue<>(assigner);
 			return this;
 		} catch (Exception e) {
@@ -166,7 +168,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	}
 
 	/**
-	 * Specifies an {@link AssignerWithPunctuatedWatermarks} to emit watermarks in a punctuated manner.
+	 * Specifies an {@link AssignerWithPunctuatedWatermarks} to emit watermarks in a periodic manner.
 	 * The watermark extractor will run per Kafka partition, watermarks will be merged across partitions
 	 * in the same way as in the Flink runtime, when streams are merged.
 	 *
@@ -192,6 +194,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new IllegalStateException("A punctuated watermark emitter has already been set.");
 		}
 		try {
+			ClosureCleaner.clean(assigner, true);
 			this.periodicWatermarkAssigner = new SerializedValue<>(assigner);
 			return this;
 		} catch (Exception e) {
