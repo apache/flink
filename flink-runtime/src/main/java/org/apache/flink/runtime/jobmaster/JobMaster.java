@@ -529,6 +529,12 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			public void run() {
 				if (resourceManagerConnection != null) {
 					if (resourceManagerAddress != null) {
+						if (resourceManagerAddress.equals(resourceManagerConnection.getTargetAddress())
+							&& resourceManagerLeaderId.equals(resourceManagerConnection.getTargetLeaderId()))
+						{
+							// both address and leader id are not changed, we can keep the old connection
+							return;
+						}
 						log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
 							resourceManagerConnection.getTargetAddress(), resourceManagerAddress);
 					}
