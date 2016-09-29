@@ -115,7 +115,7 @@ public class TestingSerialRpcService implements RpcService {
 			akkaInvocationHandler);
 
 		// register self
-		registeredConnections.putIfAbsent(self.getAddress(), self);
+		registerGateway(self.getAddress(), self);
 
 		return self;
 	}
@@ -141,6 +141,11 @@ public class TestingSerialRpcService implements RpcService {
 		} else {
 			return FlinkCompletableFuture.completedExceptionally(new Exception("No gateway registered under that name"));
 		}
+	}
+
+	@Override
+	public Future<Boolean> isReachable(String address) {
+		return FlinkCompletableFuture.completed(registeredConnections.containsKey(address));
 	}
 
 	// ------------------------------------------------------------------------
