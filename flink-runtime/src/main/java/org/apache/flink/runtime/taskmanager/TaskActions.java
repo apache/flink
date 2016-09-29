@@ -16,12 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition;
-
+package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
-public interface ResultPartitionConsumableNotifier {
-	void notifyPartitionConsumable(JobID jobId, ResultPartitionID partitionId, TaskActions taskActions);
+/**
+ * Actions which can be performed on a {@link Task}.
+ */
+public interface TaskActions {
+
+	/**
+	 * Check the partition state of the given partition.
+	 *
+	 * @param jobId of the partition
+	 * @param executionId of the partition
+	 * @param resultId of the partition
+	 * @param partitionId of the partition
+	 */
+	void triggerPartitionStateCheck(
+		JobID jobId,
+		ExecutionAttemptID executionId,
+		IntermediateDataSetID resultId,
+		ResultPartitionID partitionId);
+
+	/**
+	 * Fail the owning task with the given throwawble.
+	 *
+	 * @param cause of the failure
+	 */
+	void failExternally(Throwable cause);
 }

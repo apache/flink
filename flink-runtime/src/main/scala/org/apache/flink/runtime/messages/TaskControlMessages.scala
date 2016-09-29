@@ -92,16 +92,6 @@ object TaskMessages {
   // --------------------------------------------------------------------------
 
   /**
-   * Answer to a [[RequestPartitionState]] with the state of the respective partition.
-   */
-  case class PartitionState(
-      taskExecutionId: ExecutionAttemptID,
-      taskResultId: IntermediateDataSetID,
-      partitionId: IntermediateResultPartitionID,
-      state: ExecutionState)
-    extends TaskMessage with RequiresLeaderSessionID
-
-  /**
    * Base class for messages that update the information about location of input partitions
    */
   abstract sealed class UpdatePartitionInfo extends TaskMessage with RequiresLeaderSessionID {

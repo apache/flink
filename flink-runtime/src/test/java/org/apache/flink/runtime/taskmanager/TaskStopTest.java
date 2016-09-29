@@ -20,6 +20,8 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -42,6 +44,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.reflect.Field;
+import java.util.concurrent.Executor;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -71,7 +74,6 @@ public class TaskStopTest {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
-			mock(JobManagerCommunicationFactory.class),
 			mock(BroadcastVariableManager.class),
 			mock(TaskManagerConnection.class),
 			mock(InputSplitProvider.class),
@@ -79,7 +81,10 @@ public class TaskStopTest {
 			mock(LibraryCacheManager.class),
 			mock(FileCache.class),
 			mock(TaskManagerRuntimeInfo.class),
-			mock(TaskMetricGroup.class));
+			mock(TaskMetricGroup.class),
+			mock(ResultPartitionConsumableNotifier.class),
+			mock(PartitionStateChecker.class),
+			mock(Executor.class));
 		Field f = task.getClass().getDeclaredField("invokable");
 		f.setAccessible(true);
 		f.set(task, taskMock);

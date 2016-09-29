@@ -18,22 +18,12 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 
 /**
  * Factory to generate job manager specific communication components.
  */
 public interface JobManagerCommunicationFactory {
-
-	/**
-	 * Creates a {@link PartitionStateChecker} which communicates with the associated job manager of
-	 * this instance.
-	 *
-	 * @return PartitionStateChecker which communicates with the associated job manager of this
-	 * 			instance
-	 */
-	PartitionStateChecker createPartitionStateChecker();
 
 	/**
 	 * Creates a {@link ResultPartitionConsumableNotifier} which communicates with the associated

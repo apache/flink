@@ -55,8 +55,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool
 import org.apache.flink.runtime.io.network.{LocalConnectionManager, NetworkEnvironment, TaskEventDispatcher}
-import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager}
-import org.apache.flink.runtime.io.network.partition.ResultPartitionManager
+import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager, PartitionStateChecker}
+import org.apache.flink.runtime.io.network.partition.{ResultPartitionConsumableNotifier, ResultPartitionManager}
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.memory.MemoryManager
@@ -196,7 +196,11 @@ class TaskManager(
   private var scheduledTaskManagerRegistration: Option[Cancellable] = None
   private var currentRegistrationRun: UUID = UUID.randomUUID()
 
-  private var jobManagerConnectionFactory: Option[JobManagerCommunicationFactory] = None
+  private var connectionUtils: Option[(
+    CheckpointResponder,
+    PartitionStateChecker,
+    ResultPartitionConsumableNotifier,
+    TaskManagerConnection)] = None
 
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
@@ -513,14 +517,6 @@ class TaskManager(
                 false,
               "No task with that execution ID was found.")
             )
-          }
-
-        case PartitionState(taskExecutionId, taskResultId, partitionId, state) =>
-          Option(runningTasks.get(taskExecutionId)) match {
-            case Some(task) =>
-              task.onPartitionStateUpdate(taskResultId, partitionId, state)
-            case None =>
-              log.debug(s"Cannot find task $taskExecutionId to respond with partition state.")
           }
       }
       }
@@ -930,7 +926,7 @@ class TaskManager(
       "starting network stack and library cache.")
 
     // sanity check that the JobManager dependent components are not set up currently
-    if (jobManagerConnectionFactory.isDefined || blobService.isDefined) {
+    if (connectionUtils.isDefined || blobService.isDefined) {
       throw new IllegalStateException("JobManager-specific components are already initialized.")
     }
 
@@ -938,14 +934,26 @@ class TaskManager(
     instanceID = id
 
     val jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID.orNull)
-    val taskmanagerGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
+    val taskManagerGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
 
-    jobManagerConnectionFactory = Some(
-      new ActorGatewayJobManagerCommunicationFactory(
-        context.dispatcher,
-        jobManagerGateway,
-        taskmanagerGateway,
-        config.timeout))
+    val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway);
+
+    val taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway)
+
+    val partitionStateChecker = new ActorGatewayPartitionStateChecker(
+      jobManagerGateway,
+      config.timeout)
+
+    val resultPartitionConsumableNotifier = new ActorGatewayResultPartitionConsumableNotifier(
+      context.dispatcher,
+      jobManagerGateway,
+      config.timeout)
+
+    connectionUtils = Some(
+      (checkpointResponder,
+        partitionStateChecker,
+        resultPartitionConsumableNotifier,
+        taskManagerConnection))
 
 
     val kvStateServer = network.getKvStateServer()
@@ -1052,7 +1060,7 @@ class TaskManager(
     blobService = None
 
     // disassociate the slot environment
-    jobManagerConnectionFactory = None
+    connectionUtils = None
 
     if (network.getKvStateRegistry != null) {
       network.getKvStateRegistry.unregisterListener()
@@ -1119,23 +1127,24 @@ class TaskManager(
         case None => throw new IllegalStateException("There is no valid library cache manager.")
       }
 
-      val jmFactory = jobManagerConnectionFactory match {
-        case Some(factory) => factory
-        case None =>
-          throw new IllegalStateException("TaskManager is not associated with a JobManager and, " +
-                                            "thus, the SlotEnvironment has not been initialized.")
-      }
-
       val slot = tdd.getTargetSlotNumber
       if (slot < 0 || slot >= numberOfSlots) {
         throw new IllegalArgumentException(s"Target slot $slot does not exist on TaskManager.")
+      }
+
+      val (checkpointResponder,
+        partitionStateChecker,
+        resultPartitionConsumableNotifier,
+        taskManagerConnection) = connectionUtils match {
+        case Some(x) => x
+        case None => throw new IllegalStateException("The connection utils have not been " +
+                                                       "initialized.")
       }
 
       // create the task. this does not grab any TaskManager resources or download
       // and libraries - the operation does not block
 
       val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
-      val selfGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
 
       var jobName = tdd.getJobName
       if (tdd.getJobName.length == 0) {
@@ -1153,16 +1162,11 @@ class TaskManager(
         tdd.getExecutionId,
         config.timeout)
 
-      val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway);
-
-      val taskManagerConnection = new ActorGatewayTaskManagerConnection(selfGateway)
-
       val task = new Task(
         tdd,
         memoryManager,
         ioManager,
         network,
-        jmFactory,
         bcVarManager,
         taskManagerConnection,
         inputSplitProvider,
@@ -1170,7 +1174,10 @@ class TaskManager(
         libCache,
         fileCache,
         runtimeInfo,
-        taskMetricGroup)
+        taskMetricGroup,
+        resultPartitionConsumableNotifier,
+        partitionStateChecker,
+        context.dispatcher)
 
       log.info(s"Received task ${task.getTaskInfo.getTaskNameWithSubtasks()}")
 

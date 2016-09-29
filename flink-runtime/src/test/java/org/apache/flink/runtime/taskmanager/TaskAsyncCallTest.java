@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -54,6 +55,7 @@ import org.junit.Test;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -145,14 +147,13 @@ public class TaskAsyncCallTest {
 		
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+		PartitionStateChecker partitionStateChecker = mock(PartitionStateChecker.class);
+		Executor executor = mock(Executor.class);
 		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 		when(networkEnvironment.getResultPartitionManager()).thenReturn(partitionManager);
 		when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
-
-		JobManagerCommunicationFactory jobManagerCommunicationFactory = mock(JobManagerCommunicationFactory.class);
-		when(jobManagerCommunicationFactory.createResultPartitionConsumableNotifier(any(Task.class))).thenReturn(consumableNotifier);
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
 				new JobID(), "Job Name", new JobVertexID(), new ExecutionAttemptID(),
@@ -170,7 +171,6 @@ public class TaskAsyncCallTest {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
-			jobManagerCommunicationFactory,
 			mock(BroadcastVariableManager.class),
 			mock(TaskManagerConnection.class),
 			mock(InputSplitProvider.class),
@@ -178,7 +178,10 @@ public class TaskAsyncCallTest {
 			libCache,
 			mock(FileCache.class),
 			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
-			mock(TaskMetricGroup.class));
+			mock(TaskMetricGroup.class),
+			consumableNotifier,
+			partitionStateChecker,
+			executor);
 	}
 
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask {
