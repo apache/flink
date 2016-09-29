@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager;
+package org.apache.flink.runtime.resourcemanager.messages.jobmanager;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 
 /**
  * Rejection message by the ResourceManager for a SlotRequest from the JobManager
  */
-public class SlotRequestRejected extends SlotRequestReply {
+public class RMSlotRequestRejected extends RMSlotRequestReply {
 
 	private static final long serialVersionUID = 9049346740895325144L;
 
-	public SlotRequestRejected(AllocationID allocationID) {
+	public RMSlotRequestRejected(AllocationID allocationID) {
 		super(allocationID);
 	}
 

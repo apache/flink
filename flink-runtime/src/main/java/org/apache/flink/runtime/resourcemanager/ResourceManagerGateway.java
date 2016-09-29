@@ -22,11 +22,16 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.SlotAvailableReply;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.UUID;
 
@@ -56,10 +61,12 @@ public interface ResourceManagerGateway extends RpcGateway {
 	/**
 	 * Requests a slot from the resource manager.
 	 *
-	 * @param slotRequest Slot request
-	 * @return Future slot assignment
+	 * @param jobMasterLeaderID leader id of the JobMaster
+	 * @param resourceManagerLeaderID leader if of the ResourceMaster
+	 * @param slotRequest The slot to request
+	 * @return The confirmation that the slot gets allocated
 	 */
-	Future<SlotRequestReply> requestSlot(
+	Future<RMSlotRequestReply> requestSlot(
 		UUID jobMasterLeaderID,
 		UUID resourceManagerLeaderID,
 		SlotRequest slotRequest,
@@ -71,6 +78,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
 	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
 	 * @param resourceID              The resource ID of the TaskExecutor that registers
+	 * @param slotReport              The slot report containing free and allocated task slots
 	 * @param timeout                 The timeout for the response.
 	 *
 	 * @return The future to the response by the ResourceManager.
@@ -79,6 +87,23 @@ public interface ResourceManagerGateway extends RpcGateway {
 		UUID resourceManagerLeaderId,
 		String taskExecutorAddress,
 		ResourceID resourceID,
+		SlotReport slotReport,
+		@RpcTimeout Time timeout);
+
+	/**
+	 * Sent by the TaskExecutor to notify the ResourceManager that a slot has become available.
+	 *
+	 * @param resourceManagerLeaderId The ResourceManager leader id
+	 * @param resourceID The ResourceID of the TaskExecutor
+	 * @param instanceID The InstanceID of the TaskExecutor
+	 * @param slotID The SlotID of the freed slot
+	 * @return The confirmation by the ResourceManager
+	 */
+	Future<SlotAvailableReply> notifySlotAvailable(
+		UUID resourceManagerLeaderId,
+		ResourceID resourceID,
+		InstanceID instanceID,
+		SlotID slotID,
 		@RpcTimeout Time timeout);
 
 	/**
