@@ -36,7 +36,7 @@ class ImplicitALSTest
     "for implicit feedback datasets."
 
   it should "properly compute Y^T * Y, and factorize matrix" in {
-    import ExampleMatrix._
+    import Recommendation._
 
     val rand = scala.util.Random
     val numBlocks = 3
@@ -58,11 +58,11 @@ class ImplicitALSTest
     val distribBlocksY = env.fromCollection(blocksY)
 
     val YtY = ALS
-      .computeXtX(distribBlocksY, factors)
+      .computeXtX(distribBlocksY, implicitFactors)
       .collect().head
 
     // check YtY size
-    YtY.length should be (factors * (factors - 1) / 2 + factors)
+    YtY.length should be (implicitFactors * (implicitFactors - 1) / 2 + implicitFactors)
 
     // check result is as expected
     expectedUpperTriangleYtY
@@ -76,13 +76,13 @@ class ImplicitALSTest
 
     // factorize matrix with implicit ALS
     val als = ALS()
-      .setIterations(iterations)
-      .setLambda(lambda)
-      .setBlocks(blocks)
-      .setNumFactors(factors)
+      .setIterations(implicitIterations)
+      .setLambda(implicitLambda)
+      .setBlocks(implicitBlocks)
+      .setNumFactors(implicitFactors)
       .setImplicit(true)
-      .setAlpha(alpha)
-      .setSeed(seed)
+      .setAlpha(implicitAlpha)
+      .setSeed(implicitSeed)
       .setTemporaryPath(tempDir)
 
     val inputDS = env.fromCollection(implicitRatings)
@@ -90,15 +90,15 @@ class ImplicitALSTest
     als.fit(inputDS)
 
     // check predictions on some user-item pairs
-    val testData = env.fromCollection(expectedResult.map{
+    val testData = env.fromCollection(implicitExpectedResult.map{
       case (userID, itemID, rating) => (userID, itemID)
     })
 
     val predictions = als.predict(testData).collect()
 
-    predictions.length should equal(expectedResult.length)
+    predictions.length should equal(implicitExpectedResult.length)
 
-    val resultMap = expectedResult map {
+    val resultMap = implicitExpectedResult map {
       case (uID, iID, value) => (uID, iID) -> value
     } toMap
 
@@ -111,61 +111,5 @@ class ImplicitALSTest
     }
 
   }
-
-}
-
-object ExampleMatrix {
-
-  val seed = 500
-  val factors = 3
-  val blocks = 2
-  val alpha = 40.0
-  val lambda = 0.1
-  val iterations = 10
-
-  val implicitRatings = Seq(
-    (0, 3, 1.0),
-    (0, 6, 2.0),
-    (0, 9, 1.0),
-    (1, 0, 1.0),
-    (1, 2, 3.0),
-    (1, 6, 1.0),
-    (1, 7, 5.0),
-    (1, 8, 1.0),
-    (2, 1, 1.0),
-    (2, 4, 3.0),
-    (3, 1, 2.0),
-    (3, 3, 4.0),
-    (3, 5, 5.0),
-    (4, 5, 1.0),
-    (4, 8, 2.0),
-    (4, 10, 2.0),
-    (5, 2, 1.0)
-  )
-
-  val expectedResult = Seq(
-    (1, 1, -0.22642740122582822),
-    (3, 2, -0.40638720202261835),
-    (4, 3, 0.28037645952568335),
-    (2, 3, 0.9176106683061931)
-  )
-
-  val Y = Array(
-    Array(1.0, 3.0, 1.0),
-    Array(-3.0, 4.0, 1.0),
-    Array(1.0, 2.0, -1.0),
-    Array(4.0, 1.0, 4.0),
-    Array(3.0, -2.0, 3.0),
-    Array(-1.0, 1.0, 2.0)
-  )
-
-  /**
-    * Upper triangle representation by columns.
-    */
-  val expectedUpperTriangleYtY = Array(
-    37.0,
-    -10.0, 35.0,
-    20.0, 5.0, 32.0
-  )
 
 }

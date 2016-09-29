@@ -57,7 +57,7 @@ viewed which video, so the users only provide their preference implicitly.
 In these cases the feedback should not be treated as a
 rating, but rather an evidence that the user prefers that item.
 Thus, for implicit feedback datasets there is a slightly different
-minimalization problem to solve (see [Hu et al.](http://dx.doi.org/10.1109/ICDM.2008.22) for details).
+optimization problem to solve (see [Hu et al.](http://dx.doi.org/10.1109/ICDM.2008.22) for details).
 The implementation is based on the
 [Apache Spark implementation](https://github.com/apache/spark/blob/branch-2.0/mllib/src/main/scala/org/apache/spark/ml/recommendation/ALS.scala)
 of implicit ALS.
@@ -118,7 +118,8 @@ The alternating least squares implementation can be controlled by the following 
         <td>
           <p>
             Implicit property of the observations, meaning that they do not represent an explicit
-            preference of the user, just the implicit information how many times the user consumed the
+            rating from the user, just the implicit information how many times the user consumed the
+            item.
             (Default value: <strong>false</strong>)
           </p>
         </td>
@@ -129,7 +130,7 @@ The alternating least squares implementation can be controlled by the following 
           <p>
             Weight of the positive implicit observations. Should be non-negative.
             Only relevant when ImplicitPrefs is set to true.
-            (Default value: <strong>1</strong>)
+            (Default value: <strong>40</strong>)
           </p>
         </td>
       </tr>

@@ -100,14 +100,14 @@ import scala.util.Random
   *
   *  - [[org.apache.flink.ml.recommendation.ALS.ImplicitPrefs]]:
   *  Implicit property of the observations, meaning that they do not represent an explicit
-  *  preference of the user, just the implicit information how many times the user consumed the
+  *  rating from the user, just the implicit information how many times the user consumed the
   *  item (Default value: '''false''')
   *
   *  - [[org.apache.flink.ml.recommendation.ALS.Alpha]]:
   *  Weight of the positive implicit observations. Should be non-negative.
   *  Only relevant when [[org.apache.flink.ml.recommendation.ALS.ImplicitPrefs]]
   *  is set to '''true'''.
-  *  (Default value: '''1''')
+  *  (Default value: '''40''')
   *
   *  - [[org.apache.flink.ml.recommendation.ALS.Blocks]]:
   *  The number of blocks into which the user and item matrix a grouped. The fewer
@@ -313,7 +313,7 @@ object ALS {
   }
 
   case object Alpha extends Parameter[Double] {
-    val defaultValue: Option[Double] = Some(1.0)
+    val defaultValue: Option[Double] = Some(40.0)
   }
 
   case object Blocks extends Parameter[Int] {

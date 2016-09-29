@@ -87,4 +87,60 @@ object Recommendation {
   }
 
   val expectedEmpiricalRisk = 505374.1877
+
+
+  // data for implicit ALS
+
+  val implicitSeed = 500
+  val implicitFactors = 3
+  val implicitBlocks = 2
+  val implicitAlpha = 40.0
+  val implicitLambda = 0.1
+  val implicitIterations = 10
+
+  val implicitRatings = Seq(
+    (0, 3, 1.0),
+    (0, 6, 2.0),
+    (0, 9, 1.0),
+    (1, 0, 1.0),
+    (1, 2, 3.0),
+    (1, 6, 1.0),
+    (1, 7, 5.0),
+    (1, 8, 1.0),
+    (2, 1, 1.0),
+    (2, 4, 3.0),
+    (3, 1, 2.0),
+    (3, 3, 4.0),
+    (3, 5, 5.0),
+    (4, 5, 1.0),
+    (4, 8, 2.0),
+    (4, 10, 2.0),
+    (5, 2, 1.0)
+  )
+
+  val implicitExpectedResult = Seq(
+    (1, 1, -0.22642740122582822),
+    (3, 2, -0.40638720202261835),
+    (4, 3, 0.28037645952568335),
+    (2, 3, 0.9176106683061931)
+  )
+
+  val Y = Array(
+    Array(1.0, 3.0, 1.0),
+    Array(-3.0, 4.0, 1.0),
+    Array(1.0, 2.0, -1.0),
+    Array(4.0, 1.0, 4.0),
+    Array(3.0, -2.0, 3.0),
+    Array(-1.0, 1.0, 2.0)
+  )
+
+  /**
+    * Upper triangle representation by columns.
+    */
+  val expectedUpperTriangleYtY = Array(
+    37.0,
+    -10.0, 35.0,
+    20.0, 5.0, 32.0
+  )
+
 }
