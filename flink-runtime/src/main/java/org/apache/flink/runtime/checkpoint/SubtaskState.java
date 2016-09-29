@@ -24,8 +24,6 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -112,11 +110,4 @@ public class SubtaskState implements StateObject {
 	public String toString() {
 		return String.format("SubtaskState(Size: %d, Duration: %d, State: %s)", stateSize, duration, chainedStateHandle);
 	}
-
-	@Override
-	public void close() throws IOException {
-		chainedStateHandle.close();
-	}
-
-
 }

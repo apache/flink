@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
@@ -27,17 +28,18 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -51,13 +53,13 @@ import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 
 /**
- * A {@link KeyedStateBackend} that keeps state on the Java Heap and will serialize state to
+ * A {@link AbstractKeyedStateBackend} that keeps state on the Java Heap and will serialize state to
  * streams provided by a {@link org.apache.flink.runtime.state.CheckpointStreamFactory} upon
  * checkpointing.
  *
  * @param <K> The key by which state is keyed.
  */
-public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
+public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
 
@@ -165,85 +167,83 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 			long timestamp,
 			CheckpointStreamFactory streamFactory) throws Exception {
 
-		CheckpointStreamFactory.CheckpointStateOutputStream stream =
-				streamFactory.createCheckpointStateOutputStream(
-						checkpointId,
-						timestamp);
-
 		if (stateTables.isEmpty()) {
 			return new DoneFuture<>(null);
 		}
 
-		DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(stream);
+		try (CheckpointStreamFactory.CheckpointStateOutputStream stream = streamFactory.
+				createCheckpointStateOutputStream(checkpointId, timestamp)) {
 
-		Preconditions.checkState(stateTables.size() <= Short.MAX_VALUE,
-				"Too many KV-States: " + stateTables.size() +
-						". Currently at most " + Short.MAX_VALUE + " states are supported");
+			DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(stream);
 
-		outView.writeShort(stateTables.size());
+			Preconditions.checkState(stateTables.size() <= Short.MAX_VALUE,
+					"Too many KV-States: " + stateTables.size() +
+							". Currently at most " + Short.MAX_VALUE + " states are supported");
 
-		Map<String, Integer> kVStateToId = new HashMap<>(stateTables.size());
+			outView.writeShort(stateTables.size());
 
-		for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
-
-			outView.writeUTF(kvState.getKey());
-
-			TypeSerializer namespaceSerializer = kvState.getValue().getNamespaceSerializer();
-			TypeSerializer stateSerializer = kvState.getValue().getStateSerializer();
-
-			InstantiationUtil.serializeObject(stream, namespaceSerializer);
-			InstantiationUtil.serializeObject(stream, stateSerializer);
-
-			kVStateToId.put(kvState.getKey(), kVStateToId.size());
-		}
-
-		int offsetCounter = 0;
-		long[] keyGroupRangeOffsets = new long[keyGroupRange.getNumberOfKeyGroups()];
-
-		for (int keyGroupIndex = keyGroupRange.getStartKeyGroup(); keyGroupIndex <= keyGroupRange.getEndKeyGroup(); keyGroupIndex++) {
-			keyGroupRangeOffsets[offsetCounter++] = stream.getPos();
-			outView.writeInt(keyGroupIndex);
+			Map<String, Integer> kVStateToId = new HashMap<>(stateTables.size());
 
 			for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
 
-				outView.writeShort(kVStateToId.get(kvState.getKey()));
+				outView.writeUTF(kvState.getKey());
 
 				TypeSerializer namespaceSerializer = kvState.getValue().getNamespaceSerializer();
 				TypeSerializer stateSerializer = kvState.getValue().getStateSerializer();
 
-				// Map<NamespaceT, Map<KeyT, StateT>>
-				Map<?, ? extends Map<K, ?>> namespaceMap = kvState.getValue().get(keyGroupIndex);
-				if (namespaceMap == null) {
-					outView.writeByte(0);
-					continue;
-				}
+				InstantiationUtil.serializeObject(stream, namespaceSerializer);
+				InstantiationUtil.serializeObject(stream, stateSerializer);
 
-				outView.writeByte(1);
+				kVStateToId.put(kvState.getKey(), kVStateToId.size());
+			}
 
-				// number of namespaces
-				outView.writeInt(namespaceMap.size());
-				for (Map.Entry<?, ? extends Map<K, ?>> namespace : namespaceMap.entrySet()) {
-					namespaceSerializer.serialize(namespace.getKey(), outView);
+			int offsetCounter = 0;
+			long[] keyGroupRangeOffsets = new long[keyGroupRange.getNumberOfKeyGroups()];
 
-					Map<K, ?> entryMap = namespace.getValue();
+			for (int keyGroupIndex = keyGroupRange.getStartKeyGroup(); keyGroupIndex <= keyGroupRange.getEndKeyGroup(); keyGroupIndex++) {
+				keyGroupRangeOffsets[offsetCounter++] = stream.getPos();
+				outView.writeInt(keyGroupIndex);
 
-					// number of entries
-					outView.writeInt(entryMap.size());
-					for (Map.Entry<K, ?> entry : entryMap.entrySet()) {
-						keySerializer.serialize(entry.getKey(), outView);
-						stateSerializer.serialize(entry.getValue(), outView);
+				for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
+
+					outView.writeShort(kVStateToId.get(kvState.getKey()));
+
+					TypeSerializer namespaceSerializer = kvState.getValue().getNamespaceSerializer();
+					TypeSerializer stateSerializer = kvState.getValue().getStateSerializer();
+
+					// Map<NamespaceT, Map<KeyT, StateT>>
+					Map<?, ? extends Map<K, ?>> namespaceMap = kvState.getValue().get(keyGroupIndex);
+					if (namespaceMap == null) {
+						outView.writeByte(0);
+						continue;
+					}
+
+					outView.writeByte(1);
+
+					// number of namespaces
+					outView.writeInt(namespaceMap.size());
+					for (Map.Entry<?, ? extends Map<K, ?>> namespace : namespaceMap.entrySet()) {
+						namespaceSerializer.serialize(namespace.getKey(), outView);
+
+						Map<K, ?> entryMap = namespace.getValue();
+
+						// number of entries
+						outView.writeInt(entryMap.size());
+						for (Map.Entry<K, ?> entry : entryMap.entrySet()) {
+							keySerializer.serialize(entry.getKey(), outView);
+							stateSerializer.serialize(entry.getValue(), outView);
+						}
 					}
 				}
+				outView.flush();
 			}
-			outView.flush();
+
+			StreamStateHandle streamStateHandle = stream.closeAndGetHandle();
+
+			KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
+			final KeyGroupsStateHandle keyGroupsStateHandle = new KeyGroupsStateHandle(offsets, streamStateHandle);
+			return new DoneFuture<>(keyGroupsStateHandle);
 		}
-
-		StreamStateHandle streamStateHandle = stream.closeAndGetHandle();
-
-		KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
-		final KeyGroupsStateHandle keyGroupsStateHandle = new KeyGroupsStateHandle(offsets, streamStateHandle);
-
-		return new DoneFuture(keyGroupsStateHandle);
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -251,71 +251,81 @@ public class HeapKeyedStateBackend<K> extends KeyedStateBackend<K> {
 
 		for (KeyGroupsStateHandle keyGroupsHandle : state) {
 
-			if(keyGroupsHandle == null) {
+			if (keyGroupsHandle == null) {
 				continue;
 			}
 
-			FSDataInputStream fsDataInputStream = keyGroupsHandle.getStateHandle().openInputStream();
-			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
+			FSDataInputStream fsDataInputStream = null;
 
-			int numKvStates = inView.readShort();
+			try {
 
-			Map<Integer, String> kvStatesById = new HashMap<>(numKvStates);
+				fsDataInputStream = keyGroupsHandle.getStateHandle().openInputStream();
+				cancelStreamRegistry.registerClosable(fsDataInputStream);
 
-			for (int i = 0; i < numKvStates; ++i) {
-				String stateName = inView.readUTF();
+				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
 
-				TypeSerializer namespaceSerializer =
-						InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
-				TypeSerializer stateSerializer =
-						InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
+				int numKvStates = inView.readShort();
 
-				StateTable<K, ?, ?> stateTable = new StateTable(
-						stateSerializer,
-						namespaceSerializer,
-						keyGroupRange);
-				stateTables.put(stateName, stateTable);
-				kvStatesById.put(i, stateName);
-			}
+				Map<Integer, String> kvStatesById = new HashMap<>(numKvStates);
 
-			for (int keyGroupIndex = keyGroupRange.getStartKeyGroup();  keyGroupIndex <= keyGroupRange.getEndKeyGroup(); ++keyGroupIndex) {
-				long offset = keyGroupsHandle.getOffsetForKeyGroup(keyGroupIndex);
-				fsDataInputStream.seek(offset);
+				for (int i = 0; i < numKvStates; ++i) {
+					String stateName = inView.readUTF();
 
-				int writtenKeyGroupIndex = inView.readInt();
-				assert writtenKeyGroupIndex == keyGroupIndex;
+					TypeSerializer namespaceSerializer =
+							InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
+					TypeSerializer stateSerializer =
+							InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
 
-				for (int i = 0; i < numKvStates; i++) {
-					int kvStateId = inView.readShort();
+					StateTable<K, ?, ?> stateTable = new StateTable(stateSerializer,
+							namespaceSerializer,
+							keyGroupRange);
+					stateTables.put(stateName, stateTable);
+					kvStatesById.put(i, stateName);
+				}
 
-					byte isPresent = inView.readByte();
-					if (isPresent == 0) {
-						continue;
-					}
+				for (Tuple2<Integer, Long> groupOffset : keyGroupsHandle.getGroupRangeOffsets()) {
+					int keyGroupIndex = groupOffset.f0;
+					long offset = groupOffset.f1;
+					fsDataInputStream.seek(offset);
 
-					StateTable<K, ?, ?> stateTable = stateTables.get(kvStatesById.get(kvStateId));
-					Preconditions.checkNotNull(stateTable);
+					int writtenKeyGroupIndex = inView.readInt();
+					assert writtenKeyGroupIndex == keyGroupIndex;
 
-					TypeSerializer namespaceSerializer = stateTable.getNamespaceSerializer();
-					TypeSerializer stateSerializer = stateTable.getStateSerializer();
+					for (int i = 0; i < numKvStates; i++) {
+						int kvStateId = inView.readShort();
 
-					Map namespaceMap = new HashMap<>();
-					stateTable.set(keyGroupIndex, namespaceMap);
+						byte isPresent = inView.readByte();
+						if (isPresent == 0) {
+							continue;
+						}
 
-					int numNamespaces = inView.readInt();
-					for (int k = 0; k < numNamespaces; k++) {
-						Object namespace = namespaceSerializer.deserialize(inView);
-						Map entryMap = new HashMap<>();
-						namespaceMap.put(namespace, entryMap);
+						StateTable<K, ?, ?> stateTable = stateTables.get(kvStatesById.get(kvStateId));
+						Preconditions.checkNotNull(stateTable);
 
-						int numEntries = inView.readInt();
-						for (int l = 0; l < numEntries; l++) {
-							Object key = keySerializer.deserialize(inView);
-							Object value = stateSerializer.deserialize(inView);
-							entryMap.put(key, value);
+						TypeSerializer namespaceSerializer = stateTable.getNamespaceSerializer();
+						TypeSerializer stateSerializer = stateTable.getStateSerializer();
+
+						Map namespaceMap = new HashMap<>();
+						stateTable.set(keyGroupIndex, namespaceMap);
+
+						int numNamespaces = inView.readInt();
+						for (int k = 0; k < numNamespaces; k++) {
+							Object namespace = namespaceSerializer.deserialize(inView);
+							Map entryMap = new HashMap<>();
+							namespaceMap.put(namespace, entryMap);
+
+							int numEntries = inView.readInt();
+							for (int l = 0; l < numEntries; l++) {
+								Object key = keySerializer.deserialize(inView);
+								Object value = stateSerializer.deserialize(inView);
+								entryMap.put(key, value);
+							}
 						}
 					}
 				}
+			} finally {
+				cancelStreamRegistry.unregisterClosable(fsDataInputStream);
+				IOUtils.closeQuietly(fsDataInputStream);
 			}
 		}
 	}

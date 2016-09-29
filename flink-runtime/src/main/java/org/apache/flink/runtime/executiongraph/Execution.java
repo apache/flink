@@ -33,6 +33,7 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -56,6 +58,7 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -133,6 +136,8 @@ public class Execution {
 	private volatile TaskManagerLocation assignedResourceLocation; // for the archived execution
 
 	private ChainedStateHandle<StreamStateHandle> chainedStateHandle;
+
+	private List<Collection<OperatorStateHandle>> chainedPartitionableStateHandle;
 
 	private List<KeyGroupsStateHandle> keyGroupsStateHandles;
 	
@@ -223,6 +228,10 @@ public class Execution {
 		return keyGroupsStateHandles;
 	}
 
+	public List<Collection<OperatorStateHandle>> getChainedPartitionableStateHandle() {
+		return chainedPartitionableStateHandle;
+	}
+
 	public boolean isFinished() {
 		return state.isTerminal();
 	}
@@ -246,18 +255,19 @@ public class Execution {
 	 * Sets the initial state for the execution. The serialized state is then shipped via the
 	 * {@link TaskDeploymentDescriptor} to the TaskManagers.
 	 *
-	 * @param chainedStateHandle Chained operator state
-	 * @param keyGroupsStateHandles Key-group state (= partitioned state)
+	 * @param checkpointStateHandles all checkpointed operator state
 	 */
-	public void setInitialState(
-		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			List<KeyGroupsStateHandle> keyGroupsStateHandles) {
+	public void setInitialState(CheckpointStateHandles checkpointStateHandles, List<Collection<OperatorStateHandle>> chainedPartitionableStateHandle) {
 
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
-		this.chainedStateHandle = chainedStateHandle;
-		this.keyGroupsStateHandles = keyGroupsStateHandles;
+
+		if(checkpointStateHandles != null) {
+			this.chainedStateHandle = checkpointStateHandles.getNonPartitionedStateHandles();
+			this.chainedPartitionableStateHandle = chainedPartitionableStateHandle;
+			this.keyGroupsStateHandles = checkpointStateHandles.getKeyGroupsStateHandle();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -385,6 +395,7 @@ public class Execution {
 				slot,
 				chainedStateHandle,
 				keyGroupsStateHandles,
+				chainedPartitionableStateHandle,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs

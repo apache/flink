@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
@@ -34,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link StreamStateHandle} for state that was written to a file stream. The written data is
  * identifier by the file path. The state can be read again by calling {@link #openInputStream()}.
  */
-public class FileStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
+public class FileStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = 350284443258002355L;
 
@@ -69,10 +68,7 @@ public class FileStateHandle extends AbstractCloseableHandle implements StreamSt
 
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
-		ensureNotClosed();
-		FSDataInputStream inputStream = getFileSystem().open(filePath);
-		registerCloseable(inputStream);
-		return inputStream;
+		return getFileSystem().open(filePath);
 	}
 
 	/**

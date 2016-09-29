@@ -183,9 +183,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 		HashMap<KafkaTopicPartition, Long> state = new HashMap<>(allPartitions.length);
 		for (KafkaTopicPartitionState<?> partition : subscribedPartitions()) {
-			if (partition.isOffsetDefined()) {
-				state.put(partition.getKafkaTopicPartition(), partition.getOffset());
-			}
+			state.put(partition.getKafkaTopicPartition(), partition.getOffset());
 		}
 		return state;
 	}

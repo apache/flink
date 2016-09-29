@@ -19,7 +19,6 @@
 package org.apache.flink.hdfstests;
 
 import org.apache.commons.io.FileUtils;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileStatus;
@@ -31,10 +30,8 @@ import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -243,16 +240,21 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	}
 
 	private static void validateBytesInStream(InputStream is, byte[] data) throws IOException {
-		byte[] holder = new byte[data.length];
 
-		int pos = 0;
-		int read;
-		while (pos < holder.length && (read = is.read(holder, pos, holder.length - pos)) != -1) {
-			pos += read;
+		try {
+			byte[] holder = new byte[data.length];
+
+			int pos = 0;
+			int read;
+			while (pos < holder.length && (read = is.read(holder, pos, holder.length - pos)) != -1) {
+				pos += read;
+			}
+
+			assertEquals("not enough data", holder.length, pos);
+			assertEquals("too much data", -1, is.read());
+			assertArrayEquals("wrong data", data, holder);
+		} finally {
+			is.close();
 		}
-
-		assertEquals("not enough data", holder.length, pos);
-		assertEquals("too much data", -1, is.read());
-		assertArrayEquals("wrong data", data, holder);
 	}
 }

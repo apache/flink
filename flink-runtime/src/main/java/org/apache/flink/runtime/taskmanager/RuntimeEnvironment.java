@@ -35,11 +35,8 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -246,7 +243,7 @@ public class RuntimeEnvironment implements Environment {
 			long bytesBufferedInAlignment,
 			long alignmentDurationNanos) {
 
-		acknowledgeCheckpoint(checkpointId, null, null,
+		acknowledgeCheckpoint(checkpointId, null,
 				synchronousDurationMillis, asynchronousDurationMillis,
 				bytesBufferedInAlignment, alignmentDurationNanos);
 	}
@@ -254,8 +251,7 @@ public class RuntimeEnvironment implements Environment {
 	@Override
 	public void acknowledgeCheckpoint(
 			long checkpointId,
-			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			List<KeyGroupsStateHandle> keyGroupStateHandles,
+			CheckpointStateHandles checkpointStateHandles,
 			long synchronousDurationMillis,
 			long asynchronousDurationMillis,
 			long bytesBufferedInAlignment,
@@ -264,7 +260,7 @@ public class RuntimeEnvironment implements Environment {
 
 		checkpointResponder.acknowledgeCheckpoint(
 				jobId, executionId, checkpointId,
-				chainedStateHandle, keyGroupStateHandles,
+				checkpointStateHandles,
 				synchronousDurationMillis, asynchronousDurationMillis,
 				bytesBufferedInAlignment, alignmentDurationNanos);
 	}

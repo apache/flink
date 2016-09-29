@@ -28,13 +28,9 @@ import java.io.IOException;
  * <ul>
  *     <li><b>Discard State</b>: The {@link #discardState()} method defines how state is permanently
  *         disposed/deleted. After that method call, state may not be recoverable any more.</li>
- 
- *     <li><b>Close the current state access</b>: The {@link #close()} method defines how to
- *         stop the current access or recovery to the state. Called for example when an operation is
- *         canceled during recovery.</li>
  * </ul>
  */
-public interface StateObject extends java.io.Closeable, java.io.Serializable {
+public interface StateObject extends java.io.Serializable {
 
 	/**
 	 * Discards the state referred to by this handle, to free up resources in

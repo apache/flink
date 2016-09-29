@@ -18,11 +18,6 @@
 
 package org.apache.flink.api.common.functions.util;
 
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.Future;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
@@ -36,14 +31,17 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
+
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -204,22 +202,6 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	@PublicEvolving
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
-		throw new UnsupportedOperationException(
-				"This state is only accessible by functions executed on a KeyedStream");
-	}
-
-	@Override
-	@Deprecated
-	@PublicEvolving
-	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
-		throw new UnsupportedOperationException(
-				"This state is only accessible by functions executed on a KeyedStream");
-	}
-
-	@Override
-	@Deprecated
-	@PublicEvolving
-	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}
