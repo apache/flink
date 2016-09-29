@@ -18,31 +18,27 @@
 package org.apache.flink.api.java.batch.table;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.DataSource;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.BatchTableEnvironment;
-import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.ValidationException;
+import org.apache.flink.examples.java.WordCountTable.WC;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.apache.flink.examples.java.WordCountTable.WC;
-
-import java.util.List;
 
 @RunWith(Parameterized.class)
 public class AggregationsITCase extends TableProgramsTestBase {

@@ -143,7 +143,7 @@ class TableEnvironmentITCase(
     tEnv2.registerTable("MyTable", t1)
   }
 
-    @Test
+  @Test
   def testToTable(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -263,8 +263,7 @@ object TableEnvironmentITCase {
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT),
-      Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT),
-      Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT)).asJava
+      Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.EFFICIENT)).asJava
   }
 }
 

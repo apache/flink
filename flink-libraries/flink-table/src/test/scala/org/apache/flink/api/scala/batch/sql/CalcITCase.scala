@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.scala.batch.sql
 
+import java.util
+
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
@@ -261,5 +263,15 @@ class CalcITCase(
       "19,6,Comment#13\n" + "21,6,Comment#15\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+}
+
+object CalcITCase {
+
+  @Parameterized.Parameters(name = "Execution mode = {0}, Table config = {1}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT),
+      Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.NO_NULL)).asJava
   }
 }

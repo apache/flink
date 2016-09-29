@@ -54,7 +54,6 @@ public class TableEnvironmentITCase extends TableProgramsTestBase {
 	public static Collection<Object[]> parameters() {
 		return Arrays.asList(new Object[][] {
 			{ TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT() },
-			{ TestExecutionMode.COLLECTION, TableProgramsTestBase.NULL() },
 			{ TestExecutionMode.COLLECTION, TableProgramsTestBase.EFFICIENT() }
 		});
 	}

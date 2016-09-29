@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.batch.table;
 
+import java.util.Arrays;
+import java.util.Collection;
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
@@ -39,6 +41,14 @@ public class CalcITCase extends TableProgramsTestBase {
 
 	public CalcITCase(TestExecutionMode mode, TableConfigMode configMode){
 		super(mode, configMode);
+	}
+
+	@Parameterized.Parameters(name = "Execution mode = {0}, Table config = {1}")
+	public static Collection<Object[]> parameters() {
+		return Arrays.asList(new Object[][] {
+			{ TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT() },
+			{ TestExecutionMode.COLLECTION, TableProgramsTestBase.NO_NULL() }
+		});
 	}
 
 	@Test
