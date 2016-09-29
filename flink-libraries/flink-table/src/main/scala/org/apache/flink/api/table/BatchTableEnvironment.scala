@@ -229,15 +229,12 @@ abstract class BatchTableEnvironment(
   }
 
   /**
-    * Generates the optimized [[RelNode]] tree from the relational expression tree as defined by
-    * Table API calls and / or SQL queries and generating corresponding [[DataSet]] operators.
+    * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *
-    * @param table The root node of the relational expression tree.
+    * @param relNode The original [[RelNode]] tree
     * @return The optimized [[RelNode]] tree
     */
-  private[flink] def optimize(table: Table): RelNode = {
-
-    val relNode = table.getRelNode
+  private[flink] def optimize(relNode: RelNode): RelNode = {
 
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
@@ -282,7 +279,7 @@ abstract class BatchTableEnvironment(
 
     validateType(tpe)
 
-    val dataSetPlan = optimize(table)
+    val dataSetPlan = optimize(table.getRelNode)
 
     dataSetPlan match {
       case node: DataSetRel =>

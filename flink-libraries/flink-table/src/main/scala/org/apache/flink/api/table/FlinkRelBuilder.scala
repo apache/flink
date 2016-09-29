@@ -38,12 +38,7 @@ class FlinkRelBuilder(
     cluster,
     relOptSchema) {
 
-  def getPlanner: RelOptPlanner = {
-    val planner = cluster.getPlanner
-    // set the executor to evaluate constant expressions
-    planner.setExecutor(new RexExecutorImpl(Schemas.createDataContext(null)))
-    planner
-  }
+  def getPlanner: RelOptPlanner = cluster.getPlanner
 
   def getCluster = cluster
 

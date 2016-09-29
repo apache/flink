@@ -134,7 +134,7 @@ trait FlinkCalc {
     val proj = calcProgram.getProjectList.asScala.toList
     val inFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
     val localExprs = calcProgram.getExprList.asScala.toList
-    val outFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
+    val outFields = calcProgram.getOutputRowType.getFieldNames.asScala.toList
 
     proj
       .map(expression(_, inFields, Some(localExprs)))
