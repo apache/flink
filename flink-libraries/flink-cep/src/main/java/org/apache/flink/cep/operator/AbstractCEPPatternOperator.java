@@ -126,11 +126,12 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 
 		int numberPriorityQueueEntries = ois.readInt();
 
-		priorityQueue = new PriorityQueue<StreamRecord<IN>>(numberPriorityQueueEntries, new StreamRecordComparator<IN>());
-
-		for (int i = 0; i <numberPriorityQueueEntries; i++) {
-			StreamElement streamElement = streamRecordSerializer.deserialize(new DataInputViewStreamWrapper(ois));
-			priorityQueue.offer(streamElement.<IN>asRecord());
+		if(numberPriorityQueueEntries > 0) {
+			priorityQueue = new PriorityQueue<StreamRecord<IN>>(numberPriorityQueueEntries, new StreamRecordComparator<IN>());
+			for (int i = 0; i <numberPriorityQueueEntries; i++) {
+				StreamElement streamElement = streamRecordSerializer.deserialize(new DataInputViewStreamWrapper(ois));
+				priorityQueue.offer(streamElement.<IN>asRecord());
+			}
 		}
 	}
 }
