@@ -48,11 +48,4 @@ public interface JobMasterGateway extends RpcGateway {
 	 * @return Future acknowledge of the task execution state update
 	 */
 	Future<Acknowledge> updateTaskExecutionState(TaskExecutionState taskExecutionState);
-
-	/**
-	 * Triggers the registration of the job master at the resource manager.
-	 *
-	 * @param address Address of the resource manager
-	 */
-	void registerAtResourceManager(final String address);
 }
