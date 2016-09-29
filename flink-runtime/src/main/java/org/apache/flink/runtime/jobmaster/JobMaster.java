@@ -562,11 +562,15 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
-				// only process if we haven't been connected in the meantime
-				if (resourceManagerGateway == null) {
-					// double check the connection is still effective
-					if (resourceManagerConnection != null) {
-						log.info("JobManager registered at leading ResourceManager.");
+				// TODO - add tests for comment in https://github.com/apache/flink/pull/2565
+				// verify the response with current connection
+				if (resourceManagerConnection != null
+					&& resourceManagerConnection.getTargetLeaderId().equals(success.getResourceManagerLeaderId()))
+				{
+					// only process if we haven't been connected in the meantime
+					if (resourceManagerGateway == null) {
+						log.info("JobManager successfully registered at ResourceManager, leader id: {}.",
+							success.getResourceManagerLeaderId());
 						resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 						// TODO - other stuff like setting up the heartbeat communication
 					}
