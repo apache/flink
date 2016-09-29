@@ -23,19 +23,21 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
+import java.util.UUID;
+
 /**
  * {@link JobMaster} rpc gateway interface
  */
 public interface JobMasterGateway extends RpcGateway {
 
 	/**
-	 * Making this job begins to run.
+	 * Starting the job under the given leader session ID.
 	 */
-	void startJob();
+	void startJob(final UUID leaderSessionID);
 
 	/**
-	 * Suspending job, all the running tasks will be cancelled, and runtime status will be cleared. Should re-submit
-	 * the job before restarting it.
+	 * Suspending job, all the running tasks will be cancelled, and runtime status will be cleared.
+	 * Should re-submit the job before restarting it.
 	 *
 	 * @param cause The reason of why this job been suspended.
 	 */
@@ -48,11 +50,4 @@ public interface JobMasterGateway extends RpcGateway {
 	 * @return Future acknowledge of the task execution state update
 	 */
 	Future<Acknowledge> updateTaskExecutionState(TaskExecutionState taskExecutionState);
-
-	/**
-	 * Triggers the registration of the job master at the resource manager.
-	 *
-	 * @param address Address of the resource manager
-	 */
-	void registerAtResourceManager(final String address);
 }

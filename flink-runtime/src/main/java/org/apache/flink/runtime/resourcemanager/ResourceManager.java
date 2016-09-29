@@ -215,7 +215,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 						if (existingGateway != null) {
 							log.info("Replacing gateway for registered JobID {}.", jobID);
 						}
-						return new JobMasterRegistrationSuccess(5000);
+						return new JobMasterRegistrationSuccess(5000, resourceManagerLeaderId);
 					}
 				}
 			}, getMainThreadExecutor());
