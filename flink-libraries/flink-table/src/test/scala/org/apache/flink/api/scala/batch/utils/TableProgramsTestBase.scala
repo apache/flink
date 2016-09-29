@@ -20,8 +20,7 @@ package org.apache.flink.api.scala.batch.utils
 
 import java.util
 
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode._
+import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.{EFFICIENT, NO_NULL, TableConfigMode}
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -37,7 +36,7 @@ class TableProgramsTestBase(
   def config: TableConfig = {
     val conf = new TableConfig
     tableConfigMode match {
-      case NULL =>
+      case NO_NULL =>
         conf.setNullCheck(false)
       case EFFICIENT =>
         conf.setEfficientTypeUsage(true)
@@ -48,21 +47,14 @@ class TableProgramsTestBase(
 }
 
 object TableProgramsTestBase {
-  sealed trait TableConfigMode { def nullCheck: Boolean; def efficientTypes: Boolean }
-  object TableConfigMode {
-    case object DEFAULT extends TableConfigMode {
-      val nullCheck = false; val efficientTypes = false
-    }
-    case object NULL extends TableConfigMode {
-      val nullCheck = true; val efficientTypes = false
-    }
-    case object EFFICIENT extends TableConfigMode {
-      val nullCheck = false; val efficientTypes = true
-    }
-  }
+  case class TableConfigMode(nullCheck: Boolean, efficientTypes: Boolean)
+
+  val DEFAULT = TableConfigMode(nullCheck = true, efficientTypes = false)
+  val NO_NULL = TableConfigMode(nullCheck = false, efficientTypes = false)
+  val EFFICIENT = TableConfigMode(nullCheck = false, efficientTypes = true)
 
   @Parameterized.Parameters(name = "Execution mode = {0}, Table config = {1}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
-    Seq[Array[AnyRef]](Array(TestExecutionMode.COLLECTION, TableConfigMode.DEFAULT))
+    Seq[Array[AnyRef]](Array(TestExecutionMode.COLLECTION, DEFAULT))
   }
 }
