@@ -185,23 +185,22 @@ public class ContinuousFileMonitoringTest {
 		}
 
 		// the lines received must be the elements in the files +1 for the Long.MAX_VALUE watermark
-		// and the >= is becuase we also expect to have watermarks.
+		// and the >= is because we also expect to have watermarks.
 		Assert.assertTrue(tester.getOutput().size() >= NO_OF_FILES * LINES_PER_FILE + 1);
 
-		List<Long> watermarkTimestamps = new ArrayList<>();
-
-		// put the elements read in a map by file they belong to
-		long lastTimestamp = Long.MIN_VALUE;
-		int noOfLines = 0;
 		Object lastElement = null;
-		Map<Integer, List<String>> actualFileContents = new HashMap<>();
+		long lastTimestamp = Long.MIN_VALUE;
+		long lastWatermark = Long.MIN_VALUE;
+		int noOfLines = 0;
 
+		Map<Integer, List<String>> actualFileContents = new HashMap<>();
 		for(Object line: tester.getOutput()) {
 			lastElement = line;
 			if (line instanceof StreamRecord) {
 				noOfLines++;
 				StreamRecord<String> element = (StreamRecord<String>) line;
 
+				Assert.assertTrue(element.getTimestamp() >= lastWatermark);
 				Assert.assertTrue(element.getTimestamp() >= lastTimestamp);
 				lastTimestamp = element.getTimestamp();
 
@@ -213,7 +212,9 @@ public class ContinuousFileMonitoringTest {
 				}
 				content.add(element.getValue() + "\n");
 			} else if (line instanceof Watermark) {
-				watermarkTimestamps.add(((Watermark) line).getTimestamp());
+				long wm = ((Watermark) line).getTimestamp();
+				Assert.assertTrue(wm > lastWatermark);
+				lastWatermark = wm;
 			} else {
 				Assert.fail("Unknown element in the list.");
 			}
@@ -225,17 +226,6 @@ public class ContinuousFileMonitoringTest {
 		// check if the last element is the LongMax watermark
 		Assert.assertTrue(lastElement instanceof Watermark);
 		Assert.assertEquals(Long.MAX_VALUE, ((Watermark) lastElement).getTimestamp());
-
-		System.out.println(watermarkTimestamps.size());
-		Assert.assertTrue(watermarkTimestamps.size() >= 1);
-
-		// check if the watermarks are in ascending order
-		long lastWm = Long.MIN_VALUE;
-		for (Long wm: watermarkTimestamps) {
-			Assert.assertTrue(wm > lastWm);
-			lastWm = wm;
-		}
-		Assert.assertEquals(Long.MAX_VALUE, lastWm);
 
 		// check if the elements are the expected ones.
 		Assert.assertEquals(expectedFileContents.size(), actualFileContents.size());
