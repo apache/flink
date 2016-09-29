@@ -109,7 +109,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       "LONG" ^^ { ti => BasicTypeInfo.LONG_TYPE_INFO } |
       "FLOAT" ^^ { ti => BasicTypeInfo.FLOAT_TYPE_INFO } |
       "DOUBLE" ^^ { ti => BasicTypeInfo.DOUBLE_TYPE_INFO } |
-      ("BOOL" | "BOOLEAN" ) ^^ { ti => BasicTypeInfo.BOOLEAN_TYPE_INFO } |
+      ("BOOLEAN" | "BOOL") ^^ { ti => BasicTypeInfo.BOOLEAN_TYPE_INFO } |
       "STRING" ^^ { ti => BasicTypeInfo.STRING_TYPE_INFO } |
       "DATE" ^^ { ti => SqlTimeTypeInfo.DATE.asInstanceOf[TypeInformation[_]] } |
       "TIMESTAMP" ^^ { ti => SqlTimeTypeInfo.TIMESTAMP } |

@@ -20,6 +20,7 @@ package org.apache.flink.api.java.batch.table;
 
 import java.util.Arrays;
 import java.util.Collection;
+import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
@@ -29,6 +30,7 @@ import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.ValidationException;
+import org.apache.flink.api.table.functions.ScalarFunction;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -284,6 +286,38 @@ public class CalcITCase extends TableProgramsTestBase {
 		table
 			// Must fail. Field foo does not exist.
 			.filter("foo = 17");
+	}
+
+	public static class OldHashCode extends ScalarFunction {
+		public int eval(String s) {
+			return -1;
+		}
+	}
+
+	public static class HashCode extends ScalarFunction {
+		public int eval(String s) {
+			return s.hashCode();
+		}
+	}
+
+	@Test
+	public void testUserDefinedScalarFunction() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		tableEnv.registerFunction("hashCode", new OldHashCode());
+		tableEnv.registerFunction("hashCode", new HashCode());
+
+		DataSource<String> input = env.fromElements("a", "b", "c");
+
+		Table table = tableEnv.fromDataSet(input, "text");
+
+		Table result = table.select("text.hashCode()");
+
+		DataSet<Integer> ds = tableEnv.toDataSet(result, Integer.class);
+		List<Integer> results = ds.collect();
+		String expected = "97\n98\n99";
+		compareResultAsText(results, expected);
 	}
 
 }
