@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +79,8 @@ public class ResultPartition implements BufferPoolOwner {
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
 	
 	private final String owningTaskName;
+
+	private final TaskActions taskActions;
 
 	private final JobID jobId;
 
@@ -129,18 +132,20 @@ public class ResultPartition implements BufferPoolOwner {
 	private long totalNumberOfBytes;
 
 	public ResultPartition(
-			String owningTaskName,
-			JobID jobId,
-			ResultPartitionID partitionId,
-			ResultPartitionType partitionType,
-			boolean doEagerDeployment,
-			int numberOfSubpartitions,
-			ResultPartitionManager partitionManager,
-			ResultPartitionConsumableNotifier partitionConsumableNotifier,
-			IOManager ioManager,
-			IOMode defaultIoMode) {
+		String owningTaskName,
+		TaskActions taskActions, // actions on the owning task
+		JobID jobId,
+		ResultPartitionID partitionId,
+		ResultPartitionType partitionType,
+		boolean doEagerDeployment,
+		int numberOfSubpartitions,
+		ResultPartitionManager partitionManager,
+		ResultPartitionConsumableNotifier partitionConsumableNotifier,
+		IOManager ioManager,
+		IOMode defaultIoMode) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
+		this.taskActions = checkNotNull(taskActions);
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
@@ -351,7 +356,7 @@ public class ResultPartition implements BufferPoolOwner {
 	 */
 	public void deployConsumers() {
 		if (doEagerDeployment) {
-			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId);
+			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId, taskActions);
 		}
 	}
 
@@ -436,9 +441,9 @@ public class ResultPartition implements BufferPoolOwner {
 	/**
 	 * Notifies pipelined consumers of this result partition once.
 	 */
-	private void notifyPipelinedConsumers() throws IOException {
+	private void notifyPipelinedConsumers() {
 		if (partitionType.isPipelined() && !hasNotifiedPipelinedConsumers) {
-			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId);
+			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId, taskActions);
 
 			hasNotifiedPipelinedConsumers = true;
 		}

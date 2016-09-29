@@ -34,6 +34,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -41,7 +43,6 @@ import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractCloseableHandle;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.taskmanager.JobManagerCommunicationFactory;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -64,6 +65,7 @@ import java.io.Serializable;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -150,7 +152,6 @@ public class InterruptSensitiveRestoreTest {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
-			mock(JobManagerCommunicationFactory.class),
 			mock(BroadcastVariableManager.class),
 				mock(TaskManagerConnection.class),
 				mock(InputSplitProvider.class),
@@ -159,7 +160,10 @@ public class InterruptSensitiveRestoreTest {
 			new FileCache(new Configuration()),
 			new TaskManagerRuntimeInfo(
 					"localhost", new Configuration(), EnvironmentInformation.getTemporaryFileDirectory()),
-			new UnregisteredTaskMetricsGroup());
+			new UnregisteredTaskMetricsGroup(),
+			mock(ResultPartitionConsumableNotifier.class),
+			mock(PartitionStateChecker.class),
+			mock(Executor.class));
 		
 	}
 
