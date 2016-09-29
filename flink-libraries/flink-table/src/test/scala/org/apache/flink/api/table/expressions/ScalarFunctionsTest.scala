@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, Types}
+import org.apache.flink.api.table.{Row, Types, ValidationException}
 import org.junit.Test
 
 class ScalarFunctionsTest extends ExpressionTestBase {
@@ -83,6 +83,12 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "SUBSTRING(f0, 1, f7)",
       "Thi")
 
+    testAllApis(
+      'f0.substring(1.cast(Types.BYTE), 'f7),
+      "f0.substring(1.cast(BYTE), f7)",
+      "SUBSTRING(f0, CAST(1 AS TINYINT), f7)",
+      "Thi")
+
     testSqlApi(
       "SUBSTRING(f0 FROM 2 FOR 1)",
       "h")
@@ -90,6 +96,18 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testSqlApi(
       "SUBSTRING(f0 FROM 2)",
       "his is a test String.")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidSubstring1(): Unit = {
+    // Must fail. Parameter of substring must be an Integer not a Double.
+    testTableApi("test".substring(2.0.toExpr), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidSubstring2(): Unit = {
+    // Must fail. Parameter of substring must be an Integer not a String.
+    testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
   }
 
   @Test
