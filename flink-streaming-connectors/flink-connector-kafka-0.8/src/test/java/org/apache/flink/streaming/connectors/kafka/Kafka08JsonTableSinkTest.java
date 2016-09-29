@@ -26,8 +26,10 @@ import java.util.Properties;
 public class Kafka08JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override
-	protected KafkaTableSink createTableSink() {
-		return new Kafka08JsonTableSink(TOPIC, createSinkProperties(), createPartitioner()) {
+	protected KafkaTableSink createTableSink(
+			String topic, Properties properties,
+			KafkaPartitioner<Row> partitioner, final FlinkKafkaProducerBase<Row> kafkaProducer) {
+		return new Kafka08JsonTableSink(topic, properties, partitioner) {
 			@Override
 			protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, KafkaPartitioner<Row> partitioner) {
 				return kafkaProducer;

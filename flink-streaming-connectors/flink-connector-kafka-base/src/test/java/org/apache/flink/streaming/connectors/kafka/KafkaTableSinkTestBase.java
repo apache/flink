@@ -40,11 +40,13 @@ import static org.mockito.Mockito.verify;
 
 public abstract class KafkaTableSinkTestBase implements Serializable {
 
-	protected final static String TOPIC = "testTopic";
-	protected final static String[] FIELD_NAMES = new String[] {"field1", "field2"};
-	protected final static TypeInformation[] FIELD_TYPES = TypeUtil.toTypeInfo(new Class[] {Integer.class, String.class});
+	private final static String TOPIC = "testTopic";
+	private final static String[] FIELD_NAMES = new String[] {"field1", "field2"};
+	private final static TypeInformation[] FIELD_TYPES = TypeUtil.toTypeInfo(new Class[] {Integer.class, String.class});
 
-	protected FlinkKafkaProducerBase<Row> kafkaProducer = mock(FlinkKafkaProducerBase.class);
+	private final KafkaPartitioner<Row> partitioner = new CustomPartitioner();
+	private final Properties properties = createSinkProperties();
+	private final FlinkKafkaProducerBase<Row> kafkaProducer = mock(FlinkKafkaProducerBase.class);
 
 	@Test
 	public void testKafkaTableSink() throws Exception {
@@ -79,15 +81,19 @@ public abstract class KafkaTableSinkTestBase implements Serializable {
 		assertEquals(new RowTypeInfo(FIELD_TYPES), newKafkaTableSink.getOutputType());
 	}
 
-	protected KafkaPartitioner<Row> createPartitioner() {
-		return new CustomPartitioner();
-	}
-
-	protected Properties createSinkProperties() {
+	private Properties createSinkProperties() {
+		Properties properties = new Properties();
+		properties.setProperty("testKey", "testValue");
 		return new Properties();
 	}
 
-	protected abstract KafkaTableSink createTableSink();
+	private KafkaTableSink createTableSink() {
+		return createTableSink(TOPIC, properties, partitioner, kafkaProducer);
+	}
+
+	protected abstract KafkaTableSink createTableSink(
+					String topic, Properties properties,
+					KafkaPartitioner<Row> partitioner, FlinkKafkaProducerBase<Row> kafkaProducer);
 
 	private static class CustomPartitioner extends KafkaPartitioner<Row> implements Serializable {
 		@Override
