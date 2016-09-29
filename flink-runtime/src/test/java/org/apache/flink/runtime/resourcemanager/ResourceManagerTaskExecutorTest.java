@@ -22,10 +22,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SimpleSlotManager;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.rpc.exceptions.LeaderSessionIDException;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.junit.After;
@@ -44,9 +43,24 @@ public class ResourceManagerTaskExecutorTest {
 
 	private TestingSerialRpcService rpcService;
 
+	private SlotReport slotReport = new SlotReport();
+
+	private static String taskExecutorAddress = "/taskExecutor1";
+
+	private ResourceID taskExecutorResourceID;
+
+	private StandaloneResourceManager resourceManager;
+
+	private UUID leaderSessionId;
+
 	@Before
 	public void setup() throws Exception {
 		rpcService = new TestingSerialRpcService();
+
+		taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
+		TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
+		resourceManager = createAndStartResourceManager(rmLeaderElectionService);
+		leaderSessionId = grantLeadership(rmLeaderElectionService);
 	}
 
 	@After
@@ -59,19 +73,15 @@ public class ResourceManagerTaskExecutorTest {
 	 */
 	@Test
 	public void testRegisterTaskExecutor() throws Exception {
-		String taskExecutorAddress = "/taskExecutor1";
-		ResourceID taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
-		TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
-		final ResourceManager resourceManager = createAndStartResourceManager(rmLeaderElectionService);
-		final UUID leaderSessionId = grantLeadership(rmLeaderElectionService);
-
 		// test response successful
-		Future<RegistrationResponse> successfulFuture = resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID);
+		Future<RegistrationResponse> successfulFuture =
+			resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID, slotReport);
 		RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
 		assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 
 		// test response successful with instanceID not equal to previous when receive duplicate registration from taskExecutor
-		Future<RegistrationResponse> duplicateFuture = resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID);
+		Future<RegistrationResponse> duplicateFuture =
+			resourceManager.registerTaskExecutor(leaderSessionId, taskExecutorAddress, taskExecutorResourceID, slotReport);
 		RegistrationResponse duplicateResponse = duplicateFuture.get();
 		assertTrue(duplicateResponse instanceof TaskExecutorRegistrationSuccess);
 		assertNotEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
@@ -82,15 +92,10 @@ public class ResourceManagerTaskExecutorTest {
 	 */
 	@Test
 	public void testRegisterTaskExecutorWithUnmatchedLeaderSessionId() throws Exception {
-		String taskExecutorAddress = "/taskExecutor1";
-		ResourceID taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
-		TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
-		final ResourceManager resourceManager = createAndStartResourceManager(rmLeaderElectionService);
-		final UUID leaderSessionId = grantLeadership(rmLeaderElectionService);
-
 		// test throw exception when receive a registration from taskExecutor which takes unmatched leaderSessionId
 		UUID differentLeaderSessionID = UUID.randomUUID();
-		Future<RegistrationResponse> unMatchedLeaderFuture = resourceManager.registerTaskExecutor(differentLeaderSessionID, taskExecutorAddress, taskExecutorResourceID);
+		Future<RegistrationResponse> unMatchedLeaderFuture =
+			resourceManager.registerTaskExecutor(differentLeaderSessionID, taskExecutorAddress, taskExecutorResourceID, slotReport);
 		assertTrue(unMatchedLeaderFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 	}
 
@@ -99,15 +104,10 @@ public class ResourceManagerTaskExecutorTest {
 	 */
 	@Test
 	public void testRegisterTaskExecutorFromInvalidAddress() throws Exception {
-		String taskExecutorAddress = "/taskExecutor1";
-		ResourceID taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
-		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
-		final ResourceManager resourceManager = createAndStartResourceManager(leaderElectionService);
-		final UUID leaderSessionId = grantLeadership(leaderElectionService);
-
 		// test throw exception when receive a registration from taskExecutor which takes invalid address
 		String invalidAddress = "/taskExecutor2";
-		Future<RegistrationResponse> invalidAddressFuture = resourceManager.registerTaskExecutor(leaderSessionId, invalidAddress, taskExecutorResourceID);
+		Future<RegistrationResponse> invalidAddressFuture =
+			resourceManager.registerTaskExecutor(leaderSessionId, invalidAddress, taskExecutorResourceID, slotReport);
 		assertTrue(invalidAddressFuture.get(5, TimeUnit.SECONDS) instanceof RegistrationResponse.Decline);
 	}
 
@@ -118,10 +118,11 @@ public class ResourceManagerTaskExecutorTest {
 		return taskExecutorResourceID;
 	}
 
-	private ResourceManager createAndStartResourceManager(TestingLeaderElectionService rmLeaderElectionService) {
+	private StandaloneResourceManager createAndStartResourceManager(TestingLeaderElectionService rmLeaderElectionService) {
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
-		ResourceManager resourceManager = new StandaloneResourceManager(rpcService, highAvailabilityServices, new SimpleSlotManager());
+		StandaloneResourceManager resourceManager =
+			new TestingResourceManager(rpcService, highAvailabilityServices);
 		resourceManager.start();
 		return resourceManager;
 	}

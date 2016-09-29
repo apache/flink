@@ -15,30 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+package org.apache.flink.runtime.resourcemanager.registration;
 
-import java.util.concurrent.Executor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+
+import java.io.Serializable;
 
 /**
- * Interface which provides access to services of the ResourceManager.
+ * This class extends the {@link TaskExecutorRegistration}, adding the worker information.
  */
-public interface ResourceManagerServices {
+public class WorkerRegistration<WorkerType extends Serializable> extends TaskExecutorRegistration {
 
-	/**
-	 * Allocates a resource according to the resource profile.
-	 */
-	void allocateResource(ResourceProfile resourceProfile);
+	private static final long serialVersionUID = -2062957799469434614L;
 
-	/**
-	 * Gets the async excutor which executes outside of the main thread of the ResourceManager
-	 */
-	Executor getAsyncExecutor();
+	private WorkerType worker;
 
-	/**
-	 * Gets the executor which executes in the main thread of the ResourceManager
-	 */
-	Executor getMainThreadExecutor();
+	public WorkerRegistration(TaskExecutorGateway taskExecutorGateway, WorkerType worker) {
+		super(taskExecutorGateway);
+		this.worker = worker;
+	}
 
+	public WorkerType getWorker() {
+		return worker;
+	}
 }
