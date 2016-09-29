@@ -20,9 +20,10 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.resourcemanager.SlotRequestRegistered;
-import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestRegistered;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -174,8 +175,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	 * @return answer to the slot request
 	 */
 	@RpcMethod
-	public SlotRequestReply requestSlot(AllocationID allocationID, UUID resourceManagerLeaderID) {
-		return new SlotRequestRegistered(allocationID);
+	public TMSlotRequestReply requestSlot(AllocationID allocationID, UUID resourceManagerLeaderID) {
+		// TODO
+		return new TMSlotRequestRegistered(new InstanceID(), ResourceID.generate(), allocationID);
 	}
 
 	// ------------------------------------------------------------------------

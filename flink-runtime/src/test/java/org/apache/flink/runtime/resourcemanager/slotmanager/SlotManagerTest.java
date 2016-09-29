@@ -28,7 +28,8 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.registration.SimpleTaskExecutorRegistration;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.junit.BeforeClass;
@@ -59,13 +60,15 @@ public class SlotManagerTest {
 	private static final ResourceProfile DEFAULT_TESTING_BIG_PROFILE =
 		new ResourceProfile(DEFAULT_TESTING_CPU_CORES * 2, DEFAULT_TESTING_MEMORY * 2);
 
-	private static TaskExecutorGateway taskExecutorGateway;
+	private static SimpleTaskExecutorRegistration taskExecutorRegistration;
 
 	@BeforeClass
 	public static void setUp() {
-		taskExecutorGateway = Mockito.mock(TaskExecutorGateway.class);
-		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
-			.thenReturn(new FlinkCompletableFuture<SlotRequestReply>());
+		taskExecutorRegistration = Mockito.mock(SimpleTaskExecutorRegistration.class);
+		TaskExecutorGateway gateway = Mockito.mock(TaskExecutorGateway.class);
+		Mockito.when(taskExecutorRegistration.getTaskExecutorGateway()).thenReturn(gateway);
+		Mockito.when(gateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
+			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 	}
 
 	/**
@@ -180,7 +183,7 @@ public class SlotManagerTest {
 		assertEquals(1, slotManager.getPendingRequestCount());
 
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
 		slotManager.updateSlotStatus(slotStatus);
 
@@ -198,7 +201,7 @@ public class SlotManagerTest {
 		TestingSlotManager slotManager = new TestingSlotManager();
 
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
 		slotManager.updateSlotStatus(slotStatus);
 
@@ -216,7 +219,7 @@ public class SlotManagerTest {
 		assertEquals(1, slotManager.getPendingRequestCount());
 
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
 		slotManager.updateSlotStatus(slotStatus);
 
@@ -234,7 +237,7 @@ public class SlotManagerTest {
 		TestingSlotManager slotManager = new TestingSlotManager();
 
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE, new JobID(), new AllocationID());
 		slotManager.updateSlotStatus(slotStatus);
 
@@ -254,7 +257,7 @@ public class SlotManagerTest {
 
 		// make this slot in use
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
 		slotManager.updateSlotStatus(slotStatus);
 
@@ -283,7 +286,7 @@ public class SlotManagerTest {
 
 		// make this slot in use
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
 		slotManager.updateSlotStatus(slotStatus);
 
@@ -319,7 +322,7 @@ public class SlotManagerTest {
 
 		// make this slot in use
 		SlotID slotId = SlotID.generate();
-		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotId.getResourceID(), taskExecutorRegistration);
 		SlotStatus slotStatus = new SlotStatus(slotId, DEFAULT_TESTING_PROFILE);
 		slotManager.updateSlotStatus(slotStatus);
 
@@ -348,7 +351,7 @@ public class SlotManagerTest {
 	@Test
 	public void testExistingEmptySlotUpdateStatus() {
 		TestingSlotManager slotManager = new TestingSlotManager();
-		ResourceSlot slot = new ResourceSlot(SlotID.generate(), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
+		ResourceSlot slot = new ResourceSlot(SlotID.generate(), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
 		slotManager.addFreeSlot(slot);
 
 		SlotStatus slotStatus = new SlotStatus(slot.getSlotId(), DEFAULT_TESTING_PROFILE);
@@ -366,9 +369,9 @@ public class SlotManagerTest {
 	public void testExistingEmptySlotAdjustedToInUse() {
 		TestingSlotManager slotManager = new TestingSlotManager();
 		final SlotID slotID = SlotID.generate();
-		slotManager.registerTaskExecutor(slotID.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotID.getResourceID(), taskExecutorRegistration);
 
-		ResourceSlot slot = new ResourceSlot(slotID, DEFAULT_TESTING_PROFILE, taskExecutorGateway);
+		ResourceSlot slot = new ResourceSlot(slotID, DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
 		slotManager.addFreeSlot(slot);
 
 		assertEquals(0, slotManager.getAllocatedSlotCount());
@@ -392,7 +395,7 @@ public class SlotManagerTest {
 	@Test
 	public void testSlotAllocationFailedAtTaskManager() {
 		TestingSlotManager slotManager = new TestingSlotManager();
-		ResourceSlot slot = new ResourceSlot(SlotID.generate(), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
+		ResourceSlot slot = new ResourceSlot(SlotID.generate(), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
 		slotManager.addFreeSlot(slot);
 
 		SlotRequest request = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
@@ -418,9 +421,9 @@ public class SlotManagerTest {
 	public void testSlotAllocationFailedAtTaskManagerOccupiedByOther() {
 		TestingSlotManager slotManager = new TestingSlotManager();
 		final SlotID slotID = SlotID.generate();
-		slotManager.registerTaskExecutor(slotID.getResourceID(), taskExecutorGateway);
+		slotManager.registerTaskExecutor(slotID.getResourceID(), taskExecutorRegistration);
 
-		ResourceSlot slot = new ResourceSlot(slotID, DEFAULT_TESTING_PROFILE, taskExecutorGateway);
+		ResourceSlot slot = new ResourceSlot(slotID, DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
 		slotManager.addFreeSlot(slot);
 
 		SlotRequest request = new SlotRequest(new JobID(), new AllocationID(), DEFAULT_TESTING_PROFILE);
@@ -465,10 +468,10 @@ public class SlotManagerTest {
 		ResourceID resource1 = ResourceID.generate();
 		ResourceID resource2 = ResourceID.generate();
 
-		ResourceSlot slot11 = new ResourceSlot(new SlotID(resource1, 1), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		ResourceSlot slot12 = new ResourceSlot(new SlotID(resource1, 2), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		ResourceSlot slot21 = new ResourceSlot(new SlotID(resource2, 1), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
-		ResourceSlot slot22 = new ResourceSlot(new SlotID(resource2, 2), DEFAULT_TESTING_PROFILE, taskExecutorGateway);
+		ResourceSlot slot11 = new ResourceSlot(new SlotID(resource1, 1), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
+		ResourceSlot slot12 = new ResourceSlot(new SlotID(resource1, 2), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
+		ResourceSlot slot21 = new ResourceSlot(new SlotID(resource2, 1), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
+		ResourceSlot slot22 = new ResourceSlot(new SlotID(resource2, 2), DEFAULT_TESTING_PROFILE, taskExecutorRegistration);
 
 		slotManager.addFreeSlot(slot11);
 		slotManager.addFreeSlot(slot21);
@@ -511,7 +514,7 @@ public class SlotManagerTest {
 		final int freeSlotNum)
 	{
 		for (int i = 0; i < freeSlotNum; ++i) {
-			slotManager.addFreeSlot(new ResourceSlot(SlotID.generate(), new ResourceProfile(resourceProfile), taskExecutorGateway));
+			slotManager.addFreeSlot(new ResourceSlot(SlotID.generate(), new ResourceProfile(resourceProfile), taskExecutorRegistration));
 		}
 	}
 

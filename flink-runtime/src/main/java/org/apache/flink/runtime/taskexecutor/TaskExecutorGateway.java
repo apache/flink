@@ -21,7 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.resourcemanager.SlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
@@ -45,7 +45,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param resourceManagerLeaderID current leader id of the ResourceManager
 	 * @return answer to the slot request
 	 */
-	Future<SlotRequestReply> requestSlot(
+	Future<TMSlotRequestReply> requestSlot(
 		AllocationID allocationID,
 		UUID resourceManagerLeaderID,
 		@RpcTimeout Time timeout);

@@ -31,6 +31,9 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.*;
+import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.registration.SimpleTaskExecutorRegistration;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -112,7 +115,7 @@ public class SlotProtocolTest extends TestLogger {
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
 
 		SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile);
-		SlotRequestReply slotRequestReply =
+		RMSlotRequestReply slotRequestReply =
 			resourceManager.requestSlot(jmLeaderID, rmLeaderID, slotRequest);
 
 		// 1) SlotRequest is routed to the SlotManager
@@ -132,7 +135,7 @@ public class SlotProtocolTest extends TestLogger {
 		final String tmAddress = "/tm1";
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
-			.thenReturn(new FlinkCompletableFuture<SlotRequestReply>());
+			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
 		final ResourceID resourceID = ResourceID.generate();
@@ -143,7 +146,7 @@ public class SlotProtocolTest extends TestLogger {
 		final SlotReport slotReport =
 			new SlotReport(Collections.singletonList(slotStatus), resourceID);
 		// register slot at SlotManager
-		slotManager.registerTaskExecutor(resourceID, taskExecutorGateway);
+		slotManager.registerTaskExecutor(resourceID, new SimpleTaskExecutorRegistration(taskExecutorGateway));
 		slotManager.updateSlotStatus(slotReport);
 
 		// 4) Slot becomes available and TaskExecutor gets a SlotRequest
@@ -174,11 +177,11 @@ public class SlotProtocolTest extends TestLogger {
 
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
-			.thenReturn(new FlinkCompletableFuture<SlotRequestReply>());
+			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
 		SlotManager slotManager = Mockito.spy(new SimpleSlotManager());
-		ResourceManager resourceManager =
+		StandaloneResourceManager resourceManager =
 			Mockito.spy(new StandaloneResourceManager(testRpcService, testingHaServices, slotManager));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
@@ -201,11 +204,11 @@ public class SlotProtocolTest extends TestLogger {
 		final SlotReport slotReport =
 			new SlotReport(Collections.singletonList(slotStatus), resourceID);
 		// register slot at SlotManager
-		slotManager.registerTaskExecutor(resourceID, taskExecutorGateway);
+		slotManager.registerTaskExecutor(resourceID, new SimpleTaskExecutorRegistration(taskExecutorGateway));
 		slotManager.updateSlotStatus(slotReport);
 
 		SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile);
-		SlotRequestReply slotRequestReply =
+		RMSlotRequestReply slotRequestReply =
 			resourceManager.requestSlot(jmLeaderID, rmLeaderID, slotRequest);
 
 		// 1) a SlotRequest is routed to the SlotManager

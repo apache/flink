@@ -24,19 +24,20 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRejected;
+import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
@@ -51,6 +52,7 @@ import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -70,7 +72,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     <li>{@link #requestSlot(UUID, UUID, SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
-public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
+public abstract class ResourceManager<WorkerType extends Serializable>
 		extends RpcEndpoint<ResourceManagerGateway>
 		implements LeaderContender {
 
@@ -81,7 +83,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	private final Map<JobID, JobMasterLeaderListener> jobMasterLeaderRetrievalListeners;
 
-	private final Map<ResourceID, WorkerType> taskExecutorGateways;
+	private final Map<ResourceID, TaskExecutorRegistration<WorkerType>> taskExecutors;
 
 	private final HighAvailabilityServices highAvailabilityServices;
 
@@ -104,7 +106,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.jobMasterGateways = new HashMap<>();
 		this.slotManager = checkNotNull(slotManager);
 		this.jobMasterLeaderRetrievalListeners = new HashMap<>();
-		this.taskExecutorGateways = new HashMap<>();
+		this.taskExecutors = new HashMap<>();
 		infoMessageListeners = new HashMap<>();
 	}
 
@@ -253,14 +255,17 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				if (throwable != null) {
 					return new RegistrationResponse.Decline(throwable.getMessage());
 				} else {
-					WorkerType oldWorker = taskExecutorGateways.remove(resourceID);
-					if (oldWorker != null) {
+					TaskExecutorRegistration oldRegistration = taskExecutors.remove(resourceID);
+					if (oldRegistration != null) {
 						// TODO :: suggest old taskExecutor to stop itself
 						slotManager.notifyTaskManagerFailure(resourceID);
 					}
 					WorkerType newWorker = workerStarted(resourceID);
-					taskExecutorGateways.put(resourceID, newWorker);
-					return new TaskExecutorRegistrationSuccess(new InstanceID(), 5000);
+					TaskExecutorRegistration<WorkerType> registration =
+						new TaskExecutorRegistration<>(taskExecutorGateway, newWorker);
+					taskExecutors.put(resourceID, registration);
+					slotManager.registerTaskExecutor(resourceID, registration);
+					return new TaskExecutorRegistrationSuccess(registration.getInstanceID(), 5000);
 				}
 			}
 		}, getMainThreadExecutor());
@@ -273,7 +278,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @return Slot assignment
 	 */
 	@RpcMethod
-	public SlotRequestReply requestSlot(
+	public RMSlotRequestReply requestSlot(
 			UUID jobMasterLeaderID,
 			UUID resourceManagerLeaderID,
 			SlotRequest slotRequest) {
@@ -290,7 +295,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			return slotManager.requestSlot(slotRequest);
 		} else {
 			log.info("Ignoring slot request for unknown JobMaster with JobID {}", jobId);
-			return new SlotRequestRejected(slotRequest.getAllocationId());
+			return new RMSlotRequestRejected(slotRequest.getAllocationId());
 		}
 	}
 
@@ -329,7 +334,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			public void run() {
 				log.info("ResourceManager {} was revoked leadership.", getAddress());
 				jobMasterGateways.clear();
-				taskExecutorGateways.clear();
+				taskExecutors.clear();
 				slotManager.clearState();
 				leaderSessionID = null;
 			}
@@ -411,7 +416,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		runAsync(new Runnable() {
 			@Override
 			public void run() {
-				WorkerType worker = taskExecutorGateways.remove(resourceID);
+				WorkerType worker = taskExecutors.remove(resourceID).getWorker();
 				if (worker != null) {
 					// TODO :: suggest failed task executor to stop itself
 					slotManager.notifyTaskManagerFailure(resourceID);
@@ -426,7 +431,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @return The number of currently started TaskManagers.
 	 */
 	public int getNumberOfStartedTaskManagers() {
-		return taskExecutorGateways.size();
+		return taskExecutors.size();
 	}
 
 	/**
