@@ -134,6 +134,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	@Rule
 	public RetryRule retryRule = new RetryRule();
 
+	public String getExpectedKafkaVersion() {
+		return "0.9";
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Common Test Preparation
@@ -187,7 +191,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			stream.print();
 			see.execute("No broker test");
 		} catch(RuntimeException re) {
-			if(kafkaServer.getVersion().equals("0.9")) {
+			if(kafkaServer.getVersion().equals(getExpectedKafkaVersion())) {
 				Assert.assertTrue("Wrong RuntimeException thrown: " + StringUtils.stringifyException(re),
 						re.getClass().equals(TimeoutException.class) &&
 								re.getMessage().contains("Timeout expired while fetching topic metadata"));
