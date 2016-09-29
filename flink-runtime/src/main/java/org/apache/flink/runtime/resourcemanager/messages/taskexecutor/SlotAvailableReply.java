@@ -15,30 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.resourcemanager;
+package org.apache.flink.runtime.resourcemanager.messages.taskexecutor;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 
-import java.util.concurrent.Executor;
+import java.io.Serializable;
+import java.util.UUID;
 
 /**
- * Interface which provides access to services of the ResourceManager.
+ * Sent by the ResourceManager to the TaskExecutor confirm receipt of
+ * {@code org.apache.flink.runtime.resourcemanager.ResourceManagerGateway.notifySlotAvailable}.
  */
-public interface ResourceManagerServices {
+public class SlotAvailableReply implements Serializable {
 
-	/**
-	 * Allocates a resource according to the resource profile.
-	 */
-	void allocateResource(ResourceProfile resourceProfile);
+	private final UUID resourceManagerLeaderID;
 
-	/**
-	 * Gets the async excutor which executes outside of the main thread of the ResourceManager
-	 */
-	Executor getAsyncExecutor();
+	private final SlotID slotID;
 
-	/**
-	 * Gets the executor which executes in the main thread of the ResourceManager
-	 */
-	Executor getMainThreadExecutor();
+	public SlotAvailableReply(UUID resourceManagerLeaderID, SlotID slotID) {
+		this.resourceManagerLeaderID = resourceManagerLeaderID;
+		this.slotID = slotID;
+	}
 
+	public UUID getResourceManagerLeaderID() {
+		return resourceManagerLeaderID;
+	}
+
+	public SlotID getSlotID() {
+		return slotID;
+	}
 }
