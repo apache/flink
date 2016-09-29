@@ -63,9 +63,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 
 	private final JobMaster jobManager;
 
-	/** Leader session id when granted leadership */
-	private UUID leaderSessionID;
-
 	/** flag marking the runner as shut down */
 	private volatile boolean shutdown;
 
@@ -93,7 +90,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 		this.executionContext = rpcService.getExecutor();
 		this.checkpointRecoveryFactory = haServices.getCheckpointRecoveryFactory();
 		this.leaderElectionService = haServices.getJobMasterLeaderElectionService(jobGraph.getJobID());
-		this.leaderSessionID = null;
 
 		this.jobManager = new JobMaster(
 			jobGraph, configuration, rpcService, haServices,
@@ -232,7 +228,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 			// The operation may be blocking, but since this runner is idle before it been granted the leadership,
 			// it's okay that job manager wait for the operation complete
 			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
-			this.leaderSessionID = leaderSessionID;
 
 			// Double check the leadership after we confirm that, there is a small chance that multiple
 			// job managers schedule the same job after if they try to recover at the same time.
@@ -242,7 +237,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 					log.info("Job {} ({}) already finished by others.", jobGraph.getName(), jobGraph.getJobID());
 					jobFinishedByOther();
 				} else {
-					jobManager.getSelf().startJob();
+					jobManager.getSelf().startJob(leaderSessionID);
 				}
 			}
 		}
@@ -259,7 +254,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions {
 			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
 				jobGraph.getName(), jobGraph.getJobID(), getAddress());
 
-			leaderSessionID = null;
 			jobManager.getSelf().suspendJob(new Exception("JobManager is no longer the leader."));
 		}
 	}

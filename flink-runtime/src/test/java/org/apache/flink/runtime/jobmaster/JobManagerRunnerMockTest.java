@@ -142,8 +142,9 @@ public class JobManagerRunnerMockTest {
 	public void testJobFinished() throws Exception {
 		runner.start();
 
-		runner.grantLeadership(UUID.randomUUID());
-		verify(jobManagerGateway).startJob();
+		UUID leaderSessionID = UUID.randomUUID();
+		runner.grantLeadership(leaderSessionID);
+		verify(jobManagerGateway).startJob(leaderSessionID);
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is finished
@@ -160,8 +161,9 @@ public class JobManagerRunnerMockTest {
 	public void testJobFailed() throws Exception {
 		runner.start();
 
-		runner.grantLeadership(UUID.randomUUID());
-		verify(jobManagerGateway).startJob();
+		UUID leaderSessionID = UUID.randomUUID();
+		runner.grantLeadership(leaderSessionID);
+		verify(jobManagerGateway).startJob(leaderSessionID);
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is failed
@@ -177,8 +179,9 @@ public class JobManagerRunnerMockTest {
 	public void testLeadershipRevoked() throws Exception {
 		runner.start();
 
-		runner.grantLeadership(UUID.randomUUID());
-		verify(jobManagerGateway).startJob();
+		UUID leaderSessionID = UUID.randomUUID();
+		runner.grantLeadership(leaderSessionID);
+		verify(jobManagerGateway).startJob(leaderSessionID);
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
@@ -190,16 +193,18 @@ public class JobManagerRunnerMockTest {
 	public void testRegainLeadership() throws Exception {
 		runner.start();
 
-		runner.grantLeadership(UUID.randomUUID());
-		verify(jobManagerGateway).startJob();
+		UUID leaderSessionID = UUID.randomUUID();
+		runner.grantLeadership(leaderSessionID);
+		verify(jobManagerGateway).startJob(leaderSessionID);
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
 		verify(jobManagerGateway).suspendJob(any(Throwable.class));
 		assertFalse(runner.isShutdown());
 
-		runner.grantLeadership(UUID.randomUUID());
-		verify(jobManagerGateway, times(2)).startJob();
+		UUID leaderSessionID2 = UUID.randomUUID();
+		runner.grantLeadership(leaderSessionID2);
+		verify(jobManagerGateway, times(2)).startJob(leaderSessionID2);
 	}
 
 	private static class TestingOnCompletionActions implements OnCompletionActions {
