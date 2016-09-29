@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -43,11 +43,11 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
 
 /**
- * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
+ * Extension of {@link TwoInputStreamOperatorTestHarness} that allows the operator to get
  * a {@link KeyedStateBackend}.
  */
-public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
-		extends OneInputStreamOperatorTestHarness<IN, OUT> {
+public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
+		extends TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 
 	// in case the operator creates one we store it here so that we
 	// can snapshot its state
@@ -57,28 +57,35 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	// when the operator requests the keyed state backend
 	private KeyGroupsStateHandle restoredKeyedState = null;
 
-	public KeyedOneInputStreamOperatorTestHarness(
-			OneInputStreamOperator<IN, OUT> operator,
-			final KeySelector<IN, K> keySelector,
+	public KeyedTwoInputStreamOperatorTestHarness(
+			TwoInputStreamOperator<IN1, IN2, OUT> operator,
+			final KeySelector<IN1, K> keySelector1,
+			final KeySelector<IN2, K> keySelector2,
 			TypeInformation<K> keyType) throws Exception {
 		super(operator);
 
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
+		ClosureCleaner.clean(keySelector1, false);
+		ClosureCleaner.clean(keySelector2, false);
+		config.setStatePartitioner(0, keySelector1);
+		config.setStatePartitioner(1, keySelector2);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
 		setupMockTaskCreateKeyedBackend();
 	}
 
-	public KeyedOneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator,
+	public KeyedTwoInputStreamOperatorTestHarness(
+			TwoInputStreamOperator<IN1, IN2, OUT> operator,
 			ExecutionConfig executionConfig,
-			KeySelector<IN, K> keySelector,
+			KeySelector<IN1, K> keySelector1,
+			KeySelector<IN2, K> keySelector2,
 			TypeInformation<K> keyType) throws Exception {
 		super(operator, executionConfig);
 
-		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(0, keySelector);
+		ClosureCleaner.clean(keySelector1, false);
+		ClosureCleaner.clean(keySelector2, false);
+		config.setStatePartitioner(0, keySelector1);
+		config.setStatePartitioner(1, keySelector2);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		config.setNumberOfKeyGroups(MAX_PARALLELISM);
 
@@ -97,7 +104,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 					final KeyGroupRange keyGroupRange = (KeyGroupRange) invocationOnMock.getArguments()[2];
 
 					if(keyedStateBackend != null) {
-						keyedStateBackend.dispose();
+						keyedStateBackend.close();
 					}
 
 					if (restoredKeyedState == null) {
@@ -164,7 +171,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	public void close() throws Exception {
 		super.close();
 		if(keyedStateBackend != null) {
-			keyedStateBackend.dispose();
+			keyedStateBackend.close();
 		}
 	}
 }
