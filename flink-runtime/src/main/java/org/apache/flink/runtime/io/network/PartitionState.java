@@ -37,7 +37,7 @@ public class PartitionState {
 			ExecutionState executionState) {
 		this.intermediateDataSetID = Preconditions.checkNotNull(intermediateDataSetID);
 		this.intermediateResultPartitionID = Preconditions.checkNotNull(intermediateResultPartitionID);
-		this.executionState = Preconditions.checkNotNull(executionState);
+		this.executionState = executionState;
 	}
 
 	public IntermediateDataSetID getIntermediateDataSetID() {
