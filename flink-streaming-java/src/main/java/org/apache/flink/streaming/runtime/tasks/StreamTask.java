@@ -555,8 +555,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	private void restoreState() throws Exception {
 		final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
 
-		try {
-			if (lazyRestoreChainedOperatorState != null) {
+		if (lazyRestoreChainedOperatorState != null) {
+			try {
 
 				synchronized (cancelables) {
 					cancelables.add(lazyRestoreChainedOperatorState);
@@ -576,10 +576,16 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						}
 					}
 				}
-			}
-		} finally {
-			synchronized (cancelables) {
-				cancelables.remove(lazyRestoreChainedOperatorState);
+			} finally {
+				try {
+					lazyRestoreChainedOperatorState.close();
+				} catch (IOException ioe) {
+					// log then swallow this IOException since it is not a big deal
+					LOG.warn("Exception during closing of stream state handles", ioe);
+				}
+				synchronized (cancelables) {
+					cancelables.remove(lazyRestoreChainedOperatorState);
+				}
 			}
 		}
 	}
