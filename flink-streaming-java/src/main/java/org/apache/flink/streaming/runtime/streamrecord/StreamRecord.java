@@ -171,7 +171,7 @@ public final class StreamRecord<T> extends StreamElement {
 		else if (o != null && getClass() == o.getClass()) {
 			StreamRecord<?> that = (StreamRecord<?>) o;
 			return this.hasTimestamp == that.hasTimestamp &&
-					this.timestamp == that.timestamp &&
+					(!this.hasTimestamp || this.timestamp == that.timestamp) &&
 					(this.value == null ? that.value == null : this.value.equals(that.value));
 		}
 		else {
