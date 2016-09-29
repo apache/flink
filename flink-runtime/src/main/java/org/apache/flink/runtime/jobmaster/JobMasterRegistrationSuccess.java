@@ -20,6 +20,10 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.registration.RegistrationResponse;
 
+import java.util.UUID;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Base class for responses from the ResourceManager to a registration attempt by a JobMaster.
  */
@@ -29,8 +33,11 @@ public class JobMasterRegistrationSuccess extends RegistrationResponse.Success {
 
 	private final long heartbeatInterval;
 
-	public JobMasterRegistrationSuccess(long heartbeatInterval) {
+	private final UUID resourceManagerLeaderId;
+
+	public JobMasterRegistrationSuccess(final long heartbeatInterval, final UUID resourceManagerLeaderId) {
 		this.heartbeatInterval = heartbeatInterval;
+		this.resourceManagerLeaderId = checkNotNull(resourceManagerLeaderId);
 	}
 
 	/**
@@ -42,8 +49,15 @@ public class JobMasterRegistrationSuccess extends RegistrationResponse.Success {
 		return heartbeatInterval;
 	}
 
+	public UUID getResourceManagerLeaderId() {
+		return resourceManagerLeaderId;
+	}
+
 	@Override
 	public String toString() {
-		return "JobMasterRegistrationSuccess(" + heartbeatInterval + ')';
+		return "JobMasterRegistrationSuccess{" +
+			"heartbeatInterval=" + heartbeatInterval +
+			", resourceManagerLeaderId=" + resourceManagerLeaderId +
+			'}';
 	}
 }
