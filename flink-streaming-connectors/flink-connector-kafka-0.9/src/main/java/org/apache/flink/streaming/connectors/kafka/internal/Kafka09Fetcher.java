@@ -37,6 +37,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
@@ -50,6 +51,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A fetcher that fetches data from Kafka brokers via the Kafka 0.9 consumer API.
@@ -74,17 +76,23 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 	/** The maximum number of milliseconds to wait for a fetch batch */
 	private final long pollTimeout;
 
-	/** Mutex to guard against concurrent access to the non-threadsafe Kafka consumer */
-	private final Object consumerLock = new Object();
+	/** The next offsets that the main thread should commit */
+	private final AtomicReference<Map<TopicPartition, OffsetAndMetadata>> nextOffsetsToCommit;
+	
+	/** The callback invoked by Kafka once an offset commit is complete */
+	private final OffsetCommitCallback offsetCommitCallback;
 
 	/** Reference to the Kafka consumer, once it is created */
 	private volatile KafkaConsumer<byte[], byte[]> consumer;
-
+	
 	/** Reference to the proxy, forwarding exceptions from the fetch thread to the main thread */
 	private volatile ExceptionProxy errorHandler;
 
 	/** Flag to mark the main work loop as alive */
 	private volatile boolean running = true;
+
+	/** Flag tracking whether the latest commit request has completed */
+	private volatile boolean commitInProgress;
 
 	// ------------------------------------------------------------------------
 
@@ -105,6 +113,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		this.runtimeContext = runtimeContext;
 		this.kafkaProperties = kafkaProperties;
 		this.pollTimeout = pollTimeout;
+		this.nextOffsetsToCommit = new AtomicReference<>();
+		this.offsetCommitCallback = new CommitCallback();
 
 		// if checkpointing is enabled, we are not automatically committing to Kafka.
 		kafkaProperties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
@@ -203,19 +213,23 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 
 			// main fetch loop
 			while (running) {
+
+				// check if there is something to commit
+				final Map<TopicPartition, OffsetAndMetadata> toCommit = nextOffsetsToCommit.getAndSet(null);
+				if (toCommit != null && !commitInProgress) {
+					// reset the work-to-be committed, so we don't repeatedly commit the same
+					// also record that a commit is already in progress
+					commitInProgress = true;
+					consumer.commitAsync(toCommit, offsetCommitCallback);
+				}
+
 				// get the next batch of records
 				final ConsumerRecords<byte[], byte[]> records;
-				synchronized (consumerLock) {
-					try {
-						records = consumer.poll(pollTimeout);
-					}
-					catch (WakeupException we) {
-						if (running) {
-							throw we;
-						} else {
-							continue;
-						}
-					}
+				try {
+					records = consumer.poll(pollTimeout);
+				}
+				catch (WakeupException we) {
+					continue;
 				}
 
 				// get the records for each topic partition
@@ -252,10 +266,9 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		}
 		finally {
 			try {
-				synchronized (consumerLock) {
-					consumer.close();
-				}
-			} catch (Throwable t) {
+				consumer.close();
+			}
+			catch (Throwable t) {
 				LOG.warn("Error while closing Kafka 0.9 consumer", t);
 			}
 		}
@@ -283,10 +296,14 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 			}
 		}
 
-		if (this.consumer != null) {
-			synchronized (consumerLock) {
-				this.consumer.commitSync(offsetsToCommit);
-			}
+		// record the work to be committed by the main consumer thread and make sure the consumer notices that
+		if (nextOffsetsToCommit.getAndSet(offsetsToCommit) != null) {
+			LOG.warn("Committing offsets to Kafka takes longer than the checkpoint interval. " +
+					"Skipping commit of previous offsets because newer complete checkpoint offsets are available. " +
+					"This does not compromise Flink's checkpoint integrity.");
+		}
+		if (consumer != null) {
+			consumer.wakeup();
 		}
 	}
 
@@ -300,5 +317,17 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 			result.add(p.getKafkaPartitionHandle());
 		}
 		return result;
+	}
+
+	private class CommitCallback implements OffsetCommitCallback {
+
+		@Override
+		public void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception ex) {
+			commitInProgress = false;
+
+			if (ex != null) {
+				LOG.warn("Committing offsets to Kafka failed. This does not compromise Flink's checkpoints.", ex);
+			}
+		}
 	}
 }
