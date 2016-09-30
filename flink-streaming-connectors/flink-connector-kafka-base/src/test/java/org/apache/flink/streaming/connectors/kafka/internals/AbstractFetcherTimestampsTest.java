@@ -18,14 +18,13 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -49,10 +48,15 @@ public class AbstractFetcherTimestampsTest {
 
 		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
 
+		TestTimeServiceProvider processingTimeProvider = new TestTimeServiceProvider();
+
 		TestFetcher<Long> fetcher = new TestFetcher<>(
-				sourceContext, originalPartitions, null,
+				sourceContext,
+				originalPartitions,
+				null, /* periodic watermark assigner */
 				new SerializedValue<AssignerWithPunctuatedWatermarks<Long>>(new PunctuatedTestExtractor()),
-				new MockRuntimeContext(17, 3));
+				processingTimeProvider,
+				0);
 
 		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitions()[0];
 		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitions()[1];
@@ -110,9 +114,6 @@ public class AbstractFetcherTimestampsTest {
 	
 	@Test
 	public void testPeriodicWatermarks() throws Exception {
-		ExecutionConfig config = new ExecutionConfig();
-		config.setAutoWatermarkInterval(10);
-		
 		List<KafkaTopicPartition> originalPartitions = Arrays.asList(
 				new KafkaTopicPartition("test topic name", 7),
 				new KafkaTopicPartition("test topic name", 13),
@@ -120,10 +121,15 @@ public class AbstractFetcherTimestampsTest {
 
 		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
 
+		TestTimeServiceProvider processingTimeProvider = new TestTimeServiceProvider();
+
 		TestFetcher<Long> fetcher = new TestFetcher<>(
-				sourceContext, originalPartitions,
+				sourceContext,
+				originalPartitions,
 				new SerializedValue<AssignerWithPeriodicWatermarks<Long>>(new PeriodicTestExtractor()),
-				null, new MockRuntimeContext(17, 3, config, sourceContext.getCheckpointLock()));
+				null, /* punctuated watermarks assigner*/
+				processingTimeProvider,
+				10);
 
 		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitions()[0];
 		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitions()[1];
@@ -149,6 +155,7 @@ public class AbstractFetcherTimestampsTest {
 		assertEquals(102L, sourceContext.getLatestElement().getValue().longValue());
 		assertEquals(102L, sourceContext.getLatestElement().getTimestamp());
 
+		processingTimeProvider.setCurrentTime(10);
 		// now, we should have a watermark (this blocks until the periodic thread emitted the watermark)
 		assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
 
@@ -163,7 +170,9 @@ public class AbstractFetcherTimestampsTest {
 		fetcher.emitRecord(30L, part1, 4L);
 		assertEquals(30L, sourceContext.getLatestElement().getValue().longValue());
 		assertEquals(30L, sourceContext.getLatestElement().getTimestamp());
-		
+
+		processingTimeProvider.setCurrentTime(20);
+
 		// this blocks until the periodic thread emitted the watermark
 		assertEquals(12L, sourceContext.getLatestWatermark().getTimestamp());
 
@@ -171,6 +180,8 @@ public class AbstractFetcherTimestampsTest {
 		fetcher.emitRecord(13L, part2, 2L);
 		fetcher.emitRecord(14L, part2, 3L);
 		fetcher.emitRecord(15L, part2, 3L);
+
+		processingTimeProvider.setCurrentTime(30);
 
 		// this blocks until the periodic thread emitted the watermark
 		long watermarkTs = sourceContext.getLatestWatermark().getTimestamp();
@@ -188,9 +199,10 @@ public class AbstractFetcherTimestampsTest {
 				List<KafkaTopicPartition> assignedPartitions,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-				StreamingRuntimeContext runtimeContext) throws Exception
+				TimeServiceProvider processingTimeProvider,
+				long autoWatermarkInterval) throws Exception
 		{
-			super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, runtimeContext, false);
+			super(sourceContext, assignedPartitions, watermarksPeriodic, watermarksPunctuated, processingTimeProvider, autoWatermarkInterval, TestFetcher.class.getClassLoader(), false);
 		}
 
 		@Override

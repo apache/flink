@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -70,7 +71,8 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 	/**
 	 * A trigger that never fires, as default Trigger for GlobalWindows.
 	 */
-	private static class NeverTrigger extends Trigger<Object, GlobalWindow> {
+	@Internal
+	public static class NeverTrigger extends Trigger<Object, GlobalWindow> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -92,9 +94,8 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 		public void clear(GlobalWindow window, TriggerContext ctx) throws Exception {}
 
 		@Override
-		public TriggerResult onMerge(GlobalWindow window,
+		public void onMerge(GlobalWindow window,
 				OnMergeContext ctx) {
-			return TriggerResult.CONTINUE;
 		}
 	}
 

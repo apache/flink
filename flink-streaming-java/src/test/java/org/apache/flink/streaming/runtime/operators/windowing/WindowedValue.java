@@ -15,23 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.streaming.runtime.operators.windowing;
 
-package org.apache.flink.api.scala
+import org.apache.flink.streaming.api.windowing.windows.Window;
 
-import java.io.BufferedReader
+/**
+ * Helper class for emitting a value along with the window information from
+ * a {@link org.apache.flink.streaming.api.functions.windowing.WindowFunction}.
+ */
+public class WindowedValue<T, W extends Window> {
+  private final T value;
+  private final W window;
 
-import _root_.scala.tools.nsc.interpreter._
-import _root_.scala.io.AnsiColor.{MAGENTA, RESET}
-
-class ILoopCompat(
-    in0: Option[BufferedReader],
-    out0: JPrintWriter)
-    extends ILoop(in0, out0) {
-
-  override def prompt = {
-    val promptStr = "Scala-Flink> "
-    s"$MAGENTA$promptStr$RESET"
+  public WindowedValue(T value, W window) {
+    this.value = value;
+    this.window = window;
   }
 
-  protected def addThunk(f: => Unit): Unit = f
+  public T value() {
+    return value;
+  }
+
+  public W window() {
+    return window;
+  }
+
+  @Override
+  public String toString() {
+    return "WindowedValue(" + value + ", " + window + ")";
+  }
 }

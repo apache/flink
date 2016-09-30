@@ -99,9 +99,8 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	}
 
 	@Override
-	public TriggerResult onMerge(W window, OnMergeContext ctx) {
+	public void onMerge(W window, OnMergeContext ctx) {
 		ctx.mergePartitionedState(stateDesc);
-		return TriggerResult.CONTINUE;
 	}
 
 	@Override
