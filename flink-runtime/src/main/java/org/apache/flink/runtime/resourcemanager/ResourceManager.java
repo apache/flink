@@ -129,7 +129,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		try {
 			leaderElectionService.stop();
 			for (JobID jobID : jobMasterGateways.keySet()) {
-				highAvailabilityServices.getJobMasterLeaderRetriever(jobID).stop();
+				highAvailabilityServices.getJobManagerLeaderRetriever(jobID).stop();
 			}
 			super.shutDown();
 		} catch (Throwable e) {
@@ -179,7 +179,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					final LeaderConnectionInfo jobMasterLeaderInfo;
 					try {
 						jobMasterLeaderInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-							highAvailabilityServices.getJobMasterLeaderRetriever(jobID), new FiniteDuration(5, TimeUnit.SECONDS));
+							highAvailabilityServices.getJobManagerLeaderRetriever(jobID), new FiniteDuration(5, TimeUnit.SECONDS));
 					} catch (Exception e) {
 						log.warn("Failed to start JobMasterLeaderRetriever for JobID {}", jobID);
 						throw new Exception("Failed to retrieve JobMasterLeaderRetriever");
@@ -203,7 +203,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 						if (!jobMasterLeaderRetrievalListeners.containsKey(jobID)) {
 							JobMasterLeaderListener jobMasterLeaderListener = new JobMasterLeaderListener(jobID);
 							try {
-								LeaderRetrievalService jobMasterLeaderRetriever = highAvailabilityServices.getJobMasterLeaderRetriever(jobID);
+								LeaderRetrievalService jobMasterLeaderRetriever = highAvailabilityServices.getJobManagerLeaderRetriever(jobID);
 								jobMasterLeaderRetriever.start(jobMasterLeaderListener);
 							} catch (Exception e) {
 								log.warn("Failed to start JobMasterLeaderRetriever for JobID {}", jobID);

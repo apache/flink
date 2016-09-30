@@ -237,7 +237,7 @@ public class SlotProtocolTest extends TestLogger {
 		testingHA.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 
 		final TestingLeaderElectionService jmLeaderElectionService = new TestingLeaderElectionService();
-		testingHA.setJobMasterLeaderElectionService(jmLeaderElectionService);
+		testingHA.setJobMasterLeaderElectionService(jobID, jmLeaderElectionService);
 		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService(jmAddress, jmID);
 		testingHA.setJobMasterLeaderRetriever(jobID, jmLeaderRetrievalService);
 
