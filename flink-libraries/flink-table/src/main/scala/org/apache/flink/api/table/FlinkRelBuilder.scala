@@ -66,6 +66,7 @@ object FlinkRelBuilder {
       }
     })
     val planner = clusters(0).getPlanner
+    planner.setExecutor(config.getExecutor)
     val defaultRelOptSchema = relOptSchemas(0).asInstanceOf[CalciteCatalogReader]
 
     // create Flink type factory

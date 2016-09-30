@@ -60,7 +60,6 @@ class FlinkPlannerImpl(
   var root: RelRoot = _
 
   private def ready() {
-    planner.setExecutor(config.getExecutor)
     if (this.traitDefs != null) {
       planner.clearRelTraitDefs()
       for (traitDef <- this.traitDefs) {
