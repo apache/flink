@@ -23,7 +23,6 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.AsyncExceptionHandler;
-import org.apache.flink.streaming.runtime.tasks.AsynchronousException;
 import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
@@ -39,6 +38,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 
@@ -52,28 +52,24 @@ public class TimeProviderTest {
 		final OneShotLatch latch = new OneShotLatch();
 
 		final Object lock = new Object();
-		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider.create(
-				new AsyncExceptionHandler() {
-					@Override
-					public void registerAsyncException(AsynchronousException exception) {
-						exception.printStackTrace();
-					}
-				},
-				Executors.newSingleThreadScheduledExecutor(),
-				lock);
+		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider
+			.createForTesting(Executors.newSingleThreadScheduledExecutor(), lock);
 
 		final List<Long> timestamps = new ArrayList<>();
 
-		long start = System.currentTimeMillis();
 		long interval = 50L;
-
 		final long noOfTimers = 20;
 
 		// we add 2 timers per iteration minus the first that would have a negative timestamp
-		final long expectedNoOfTimers = 2 * noOfTimers - 1;
+		final long expectedNoOfTimers = 2 * noOfTimers;
 
 		for (int i = 0; i < noOfTimers; i++) {
-			double nextTimer = start + i * interval;
+
+			// we add a delay (100ms) so that both timers are inserted before the first is processed.
+			// If not, and given that we add timers out of order, we may have a timer firing
+			// before the next one (with smaller timestamp) is added.
+
+			double nextTimer = timeServiceProvider.getCurrentProcessingTime() + 100 + i * interval;
 
 			timeServiceProvider.registerTimer((long) nextTimer, new Triggerable() {
 				@Override
@@ -88,17 +84,15 @@ public class TimeProviderTest {
 			// add also out-of-order tasks to verify that eventually
 			// they will be executed in the correct order.
 
-			if (i > 0) {
-				timeServiceProvider.registerTimer((long) (nextTimer - 10), new Triggerable() {
-					@Override
-					public void trigger(long timestamp) throws Exception {
-						timestamps.add(timestamp);
-						if (timestamps.size() == expectedNoOfTimers) {
-							latch.trigger();
-						}
+			timeServiceProvider.registerTimer((long) (nextTimer - 10L), new Triggerable() {
+				@Override
+				public void trigger(long timestamp) throws Exception {
+					timestamps.add(timestamp);
+					if (timestamps.size() == expectedNoOfTimers) {
+						latch.trigger();
 					}
-				});
-			}
+				}
+			});
 		}
 
 		if (!latch.isTriggered()) {
@@ -114,12 +108,43 @@ public class TimeProviderTest {
 		long lastTs = Long.MIN_VALUE;
 		for (long timestamp: timestamps) {
 			Assert.assertTrue(timestamp >= lastTs);
+			if (lastTs != Long.MIN_VALUE && counter % 2 == 1) {
+				Assert.assertEquals((timestamp - lastTs), 10);
+			}
 			lastTs = timestamp;
-
-			long expectedTs = start + (counter/2) * interval;
-			Assert.assertEquals(timestamp, (expectedTs + ((counter % 2 == 0) ? 0 : 40)));
 			counter++;
 		}
+	}
+
+	@Test
+	public void testDefaultTimeProviderExceptionHandling() throws InterruptedException {
+		final OneShotLatch latch = new OneShotLatch();
+
+		final AtomicBoolean exceptionWasThrown = new AtomicBoolean(false);
+
+		final Object lock = new Object();
+
+		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider
+			.create(new AsyncExceptionHandler() {
+				@Override
+				public void handleAsyncException(String message, Throwable exception) {
+					exceptionWasThrown.compareAndSet(false, true);
+					latch.trigger();
+				}
+			}, Executors.newSingleThreadScheduledExecutor(), lock);
+
+		long now = System.currentTimeMillis();
+		timeServiceProvider.registerTimer(now, new Triggerable() {
+			@Override
+			public void trigger(long timestamp) throws Exception {
+				throw new Exception("Exception in Timer");
+			}
+		});
+
+		if (!latch.isTriggered()) {
+			latch.await();
+		}
+		Assert.assertTrue(exceptionWasThrown.get());
 	}
 
 	@Test

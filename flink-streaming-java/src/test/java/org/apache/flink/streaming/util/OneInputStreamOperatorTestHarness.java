@@ -30,13 +30,13 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.AsynchronousException;
 import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
@@ -87,6 +87,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 */
 	private boolean setupCalled = false;
 
+	private volatile boolean wasFailedExternally = false;
+
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
 		this(operator, new ExecutionConfig());
 	}
@@ -100,7 +102,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			ExecutionConfig executionConfig,
-			TimeServiceProvider testTimeProvider) {
+			TestTimeServiceProvider testTimeProvider) {
 		this(operator, executionConfig, new Object(), testTimeProvider);
 	}
 
@@ -132,10 +134,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		doAnswer(new Answer<Void>() {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Throwable {
-				// do nothing
+				wasFailedExternally = true;
 				return null;
 			}
-		}).when(mockTask).registerAsyncException(any(AsynchronousException.class));
+		}).when(mockTask).handleAsyncException(any(String.class), any(Throwable.class));
 
 		try {
 			doAnswer(new Answer<CheckpointStreamFactory>() {
@@ -159,6 +161,18 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				return timeServiceProvider;
 			}
 		}).when(mockTask).getTimerService();
+	}
+
+	public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
+		this.config.setTimeCharacteristic(timeCharacteristic);
+	}
+
+	public TimeCharacteristic getTimeCharacteristic() {
+		return this.config.getTimeCharacteristic();
+	}
+
+	public boolean wasFailedExternally() {
+		return wasFailedExternally;
 	}
 
 	public void setStateBackend(AbstractStateBackend stateBackend) {
