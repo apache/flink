@@ -75,6 +75,8 @@ object FlinkRuleSets {
     SortRemoveRule.INSTANCE,
 
     // simplify expressions rules
+    ReduceExpressionsRule.FILTER_INSTANCE,
+    ReduceExpressionsRule.PROJECT_INSTANCE,
     ReduceExpressionsRule.CALC_INSTANCE,
     ReduceExpressionsRule.JOIN_INSTANCE,
 
@@ -113,6 +115,9 @@ object FlinkRuleSets {
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
 
       RemoveDeltaRule.INSTANCE,
+
+      // convert a logical table scan to a relational expression
+      TableScanRule.INSTANCE,
       EnumerableToLogicalTableScan.INSTANCE,
 
       // calc rules
@@ -133,6 +138,8 @@ object FlinkRuleSets {
       ProjectRemoveRule.INSTANCE,
 
       // simplify expressions rules
+      ReduceExpressionsRule.FILTER_INSTANCE,
+      ReduceExpressionsRule.PROJECT_INSTANCE,
       ReduceExpressionsRule.CALC_INSTANCE,
 
       // merge and push unions rules
