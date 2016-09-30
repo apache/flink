@@ -318,6 +318,10 @@ public abstract class ClusterClient {
 			try {
 				// invoke main method
 				prog.invokeInteractiveModeForExecution();
+				if (lastJobExecutionResult == null && factory.getLastEnvCreated() == null) {
+					throw new ProgramInvocationException("The program didn't contain Flink jobs. " +
+						"Perhaps you forgot to call execute() on the execution environment.");
+				}
 				if (isDetached()) {
 					// in detached mode, we execute the whole user code to extract the Flink job, afterwards we run it here
 					return ((DetachedEnvironment) factory.getLastEnvCreated()).finalizeExecute();
@@ -332,7 +336,7 @@ public abstract class ClusterClient {
 			}
 		}
 		else {
-			throw new RuntimeException("PackagedProgram does not have a valid invocation mode.");
+			throw new ProgramInvocationException("PackagedProgram does not have a valid invocation mode.");
 		}
 	}
 
