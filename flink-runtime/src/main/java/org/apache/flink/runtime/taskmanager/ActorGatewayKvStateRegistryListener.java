@@ -25,6 +25,7 @@ import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateMessage;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.query.KvStateServerAddress;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -49,14 +50,14 @@ public class ActorGatewayKvStateRegistryListener implements KvStateRegistryListe
 	public void notifyKvStateRegistered(
 		JobID jobId,
 		JobVertexID jobVertexId,
-		int keyGroupIndex,
+		KeyGroupRange keyGroupRange,
 		String registrationName,
 		KvStateID kvStateId) {
 
 		Object msg = new KvStateMessage.NotifyKvStateRegistered(
 			jobId,
 			jobVertexId,
-			keyGroupIndex,
+			keyGroupRange,
 			registrationName,
 			kvStateId,
 			kvStateServerAddress);
@@ -68,13 +69,13 @@ public class ActorGatewayKvStateRegistryListener implements KvStateRegistryListe
 	public void notifyKvStateUnregistered(
 		JobID jobId,
 		JobVertexID jobVertexId,
-		int keyGroupIndex,
+		KeyGroupRange keyGroupRange,
 		String registrationName) {
 
 		Object msg = new KvStateMessage.NotifyKvStateUnregistered(
 			jobId,
 			jobVertexId,
-			keyGroupIndex,
+			keyGroupRange,
 			registrationName);
 
 		jobManager.tell(msg);

@@ -19,8 +19,8 @@ package org.apache.flink.api.java.utils;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
@@ -45,8 +45,8 @@ import java.util.Properties;
 public class ParameterTool extends ExecutionConfig.GlobalJobParameters implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 
-	protected static String NO_VALUE_KEY = "__NO_VALUE_KEY";
-	protected static String DEFAULT_UNDEFINED = "<undefined>";
+	protected static final String NO_VALUE_KEY = "__NO_VALUE_KEY";
+	protected static final String DEFAULT_UNDEFINED = "<undefined>";
 
 
 	// ------------------ Constructors ------------------------
@@ -275,7 +275,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	public int getInt(String key) {
 		addToDefaults(key, null);
 		String value = getRequired(key);
-		return Integer.valueOf(value);
+		return Integer.parseInt(value);
 	}
 
 	/**
@@ -285,11 +285,10 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	public int getInt(String key, int defaultValue) {
 		addToDefaults(key, Integer.toString(defaultValue));
 		String value = get(key);
-		if(value == null) {
+		if (value == null) {
 			return defaultValue;
-		} else {
-			return Integer.valueOf(value);
 		}
+		return Integer.parseInt(value);
 	}
 
 	// -------------- LONG
@@ -301,7 +300,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	public long getLong(String key) {
 		addToDefaults(key, null);
 		String value = getRequired(key);
-		return Long.valueOf(value);
+		return Long.parseLong(value);
 	}
 
 	/**
@@ -311,11 +310,10 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	public long getLong(String key, long defaultValue) {
 		addToDefaults(key, Long.toString(defaultValue));
 		String value = get(key);
-		if(value == null) {
+		if (value == null) {
 			return defaultValue;
-		} else {
-			return Long.valueOf(value);
 		}
+		return Long.parseLong(value);
 	}
 
 	// -------------- FLOAT

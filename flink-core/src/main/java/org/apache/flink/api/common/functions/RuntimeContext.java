@@ -18,12 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -33,13 +29,15 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
+
+import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -347,117 +345,4 @@ public interface RuntimeContext {
 	 */
 	@PublicEvolving
 	<T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties);
-	
-	/**
-	 * Gets the key/value state, which is only accessible if the function is executed on
-	 * a KeyedStream. Upon calling {@link ValueState#value()}, the key/value state will
-	 * return the value bound to the key of the element currently processed by the function.
-	 * Each operator may maintain multiple key/value states, addressed with different names.
-	 *
-	 * <p>Because the scope of each value is the key of the currently processed element,
-	 * and the elements are distributed by the Flink runtime, the system can transparently
-	 * scale out and redistribute the state and KeyedStream.
-	 *
-	 * <p>The following code example shows how to implement a continuous counter that counts
-	 * how many times elements of a certain key occur, and emits an updated count for that
-	 * element on each occurrence. 
-	 *
-	 * <pre>{@code
-	 * DataStream<MyType> stream = ...;
-	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");     
-	 *
-	 * keyedStream.map(new RichMapFunction<MyType, Tuple2<MyType, Long>>() {
-	 *
-	 *     private State<Long> state;
-	 *
-	 *     public void open(Configuration cfg) {
-	 *         state = getRuntimeContext().getKeyValueState(Long.class, 0L);
-	 *     }
-	 *
-	 *     public Tuple2<MyType, Long> map(MyType value) {
-	 *         long count = state.value();
-	 *         state.update(value + 1);
-	 *         return new Tuple2<>(value, count);
-	 *     }
-	 * });
-	 *
-	 * }</pre>
-	 *
-	 * <p>This method attempts to deduce the type information from the given type class. If the
-	 * full type cannot be determined from the class (for example because of generic parameters),
-	 * the TypeInformation object must be manually passed via 
-	 * {@link #getKeyValueState(String, TypeInformation, Object)}. 
-	 * 
-	 *
-	 * @param name The name of the key/value state.
-	 * @param stateType The class of the type that is stored in the state. Used to generate
-	 *                  serializers for managed memory and checkpointing.
-	 * @param defaultState The default state value, returned when the state is accessed and
-	 *                     no value has yet been set for the key. May be null.
-	 *
-	 * @param <S> The type of the state.
-	 *
-	 * @return The key/value state access.
-	 *
-	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
-	 *                                       function (function is not part os a KeyedStream).
-	 * 
-	 * @deprecated Use the more expressive {@link #getState(ValueStateDescriptor)} instead.
-	 */
-	@Deprecated
-	@PublicEvolving
-	<S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
-
-	/**
-	 * Gets the key/value state, which is only accessible if the function is executed on
-	 * a KeyedStream. Upon calling {@link ValueState#value()}, the key/value state will
-	 * return the value bound to the key of the element currently processed by the function.
-	 * Each operator may maintain multiple key/value states, addressed with different names.
-	 * 
-	 * <p>Because the scope of each value is the key of the currently processed element,
-	 * and the elements are distributed by the Flink runtime, the system can transparently
-	 * scale out and redistribute the state and KeyedStream.
-	 * 
-	 * <p>The following code example shows how to implement a continuous counter that counts
-	 * how many times elements of a certain key occur, and emits an updated count for that
-	 * element on each occurrence. 
-	 * 
-	 * <pre>{@code
-	 * DataStream<MyType> stream = ...;
-	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");     
-	 * 
-	 * keyedStream.map(new RichMapFunction<MyType, Tuple2<MyType, Long>>() {
-	 * 
-	 *     private State<Long> state;
-	 *     
-	 *     public void open(Configuration cfg) {
-	 *         state = getRuntimeContext().getKeyValueState(Long.class, 0L);
-	 *     }
-	 *     
-	 *     public Tuple2<MyType, Long> map(MyType value) {
-	 *         long count = state.value();
-	 *         state.update(value + 1);
-	 *         return new Tuple2<>(value, count);
-	 *     }
-	 * });
-	 *     
-	 * }</pre>
-	 * 
-	 * @param name The name of the key/value state.
-	 * @param stateType The type information for the type that is stored in the state.
-	 *                  Used to create serializers for managed memory and checkpoints.
-	 * @param defaultState The default state value, returned when the state is accessed and
-	 *                     no value has yet been set for the key. May be null.
-	 * @param <S> The type of the state.
-	 *
-	 * @return The key/value state access.
-	 * 
-	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
-	 *                                       function (function is not part os a KeyedStream).
-	 * 
-	 * @deprecated Use the more expressive {@link #getState(ValueStateDescriptor)} instead.
-	 */
-	@Deprecated
-	@PublicEvolving
-	<S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
 }

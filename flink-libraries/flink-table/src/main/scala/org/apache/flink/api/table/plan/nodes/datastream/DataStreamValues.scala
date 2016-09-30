@@ -39,19 +39,19 @@ import scala.collection.JavaConversions._
 class DataStreamValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    rowType: RelDataType,
+    rowRelDataType: RelDataType,
     tuples: ImmutableList[ImmutableList[RexLiteral]])
-  extends Values(cluster, rowType, tuples, traitSet)
+  extends Values(cluster, rowRelDataType, tuples, traitSet)
   with DataStreamRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamValues(
       cluster,
       traitSet,
-      rowType,
-      tuples
+      getRowType,
+      getTuples
     )
   }
 
@@ -68,7 +68,7 @@ class DataStreamValues(
       config.getEfficientTypeUsage).asInstanceOf[RowTypeInfo]
 
     // convert List[RexLiteral] to Row
-    val rows: Seq[Row] = tuples.asList.map { t =>
+    val rows: Seq[Row] = getTuples.asList.map { t =>
       val row = new Row(t.size())
       t.zipWithIndex.foreach( x => row.setField(x._2, x._1.getValue.asInstanceOf[Any]) )
       row

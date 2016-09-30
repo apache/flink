@@ -118,7 +118,7 @@ public class KeyGroupsStateHandle implements StateObject {
 	}
 
 	@Override
-	public long getStateSize() throws Exception {
+	public long getStateSize() throws IOException {
 		return stateHandle.getStateSize();
 	}
 
@@ -138,7 +138,6 @@ public class KeyGroupsStateHandle implements StateObject {
 			return false;
 		}
 		return stateHandle.equals(that.stateHandle);
-
 	}
 
 	@Override
@@ -154,10 +153,5 @@ public class KeyGroupsStateHandle implements StateObject {
 				"groupRangeOffsets=" + groupRangeOffsets +
 				", data=" + stateHandle +
 				'}';
-	}
-
-	@Override
-	public void close() throws IOException {
-		stateHandle.close();
 	}
 }

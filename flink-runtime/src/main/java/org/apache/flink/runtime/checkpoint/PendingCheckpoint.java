@@ -23,7 +23,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
@@ -167,49 +169,80 @@ public class PendingCheckpoint {
 	}
 	
 	public boolean acknowledgeTask(
-		ExecutionAttemptID attemptID,
-		ChainedStateHandle<StreamStateHandle> state,
-		List<KeyGroupsStateHandle> keyGroupsState) {
+			ExecutionAttemptID attemptID,
+			CheckpointStateHandles checkpointStateHandles) {
 
 		synchronized (lock) {
 			if (discarded) {
 				return false;
 			}
-			
+
 			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
+
 			if (vertex != null) {
-				if (state != null || keyGroupsState != null) {
 
-					JobVertexID jobVertexID = vertex.getJobvertexId();
+				if (checkpointStateHandles != null) {
+					List<KeyGroupsStateHandle> keyGroupsState = checkpointStateHandles.getKeyGroupsStateHandle();
+					ChainedStateHandle<StreamStateHandle> nonPartitionedState =
+							checkpointStateHandles.getNonPartitionedStateHandles();
+					ChainedStateHandle<OperatorStateHandle> partitioneableState =
+							checkpointStateHandles.getPartitioneableStateHandles();
 
-					TaskState taskState;
+					if (nonPartitionedState != null || partitioneableState != null || keyGroupsState != null) {
 
-					if (taskStates.containsKey(jobVertexID)) {
-						taskState = taskStates.get(jobVertexID);
-					} else {
-						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks(), vertex.getMaxParallelism());
-						taskStates.put(jobVertexID, taskState);
-					}
+						JobVertexID jobVertexID = vertex.getJobvertexId();
 
-					long duration = System.currentTimeMillis() - checkpointTimestamp;
+						int subtaskIndex = vertex.getParallelSubtaskIndex();
 
-					if (state != null) {
-						taskState.putState(
-							vertex.getParallelSubtaskIndex(),
-							new SubtaskState(state, duration));
-					}
+						TaskState taskState;
 
-					// currently a checkpoint can only contain keyed state
-					// for the head operator
-					if (keyGroupsState != null && !keyGroupsState.isEmpty()) {
-						KeyGroupsStateHandle keyGroupsStateHandle = keyGroupsState.get(0);
-						taskState.putKeyedState(vertex.getParallelSubtaskIndex(), keyGroupsStateHandle);
+						if (taskStates.containsKey(jobVertexID)) {
+							taskState = taskStates.get(jobVertexID);
+						} else {
+							//TODO this should go away when we remove chained state, assigning state to operators directly instead
+							int chainLength;
+							if (nonPartitionedState != null) {
+								chainLength = nonPartitionedState.getLength();
+							} else if (partitioneableState != null) {
+								chainLength = partitioneableState.getLength();
+							} else {
+								chainLength = 1;
+							}
+
+							taskState = new TaskState(
+								jobVertexID,
+								vertex.getTotalNumberOfParallelSubtasks(),
+								vertex.getMaxParallelism(),
+								chainLength);
+
+							taskStates.put(jobVertexID, taskState);
+						}
+
+						long duration = System.currentTimeMillis() - checkpointTimestamp;
+
+						if (nonPartitionedState != null) {
+							taskState.putState(
+									subtaskIndex,
+									new SubtaskState(nonPartitionedState, duration));
+						}
+
+						if(partitioneableState != null && !partitioneableState.isEmpty()) {
+							taskState.putPartitionableState(subtaskIndex, partitioneableState);
+						}
+
+						// currently a checkpoint can only contain keyed state
+						// for the head operator
+						if (keyGroupsState != null && !keyGroupsState.isEmpty()) {
+							KeyGroupsStateHandle keyGroupsStateHandle = keyGroupsState.get(0);
+							taskState.putKeyedState(subtaskIndex, keyGroupsStateHandle);
+						}
 					}
 				}
-				numAcknowledgedTasks++;
+
+				++numAcknowledgedTasks;
+
 				return true;
-			}
-			else {
+			} else {
 				return false;
 			}
 		}

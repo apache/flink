@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
-import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, IntermediateResultPartitionID}
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 /**
@@ -90,16 +88,6 @@ object TaskMessages {
   // --------------------------------------------------------------------------
   //  Updates to Intermediate Results
   // --------------------------------------------------------------------------
-
-  /**
-   * Answer to a [[RequestPartitionState]] with the state of the respective partition.
-   */
-  case class PartitionState(
-      taskExecutionId: ExecutionAttemptID,
-      taskResultId: IntermediateDataSetID,
-      partitionId: IntermediateResultPartitionID,
-      state: ExecutionState)
-    extends TaskMessage with RequiresLeaderSessionID
 
   /**
    * Base class for messages that update the information about location of input partitions

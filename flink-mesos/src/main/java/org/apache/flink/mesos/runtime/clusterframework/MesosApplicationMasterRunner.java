@@ -45,6 +45,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
@@ -109,6 +110,7 @@ public class MesosApplicationMasterRunner {
 	public static void main(String[] args) {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Mesos AppMaster", args);
 		SignalHandler.register(LOG);
+		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
 		// run and exit with the proper return code
 		int returnCode = new MesosApplicationMasterRunner().run(args);
@@ -580,10 +582,11 @@ public class MesosApplicationMasterRunner {
 		// build the launch command
 		boolean hasLogback = new File(workingDirectory, "logback.xml").exists();
 		boolean hasLog4j = new File(workingDirectory, "log4j.properties").exists();
+		boolean hasKrb5 = false;
 
 		String launchCommand = BootstrapTools.getTaskManagerShellCommand(
 			flinkConfig, tmParams.containeredParameters(), ".", ".",
-			hasLogback, hasLog4j, taskManagerMainClass);
+			hasLogback, hasLog4j, hasKrb5, taskManagerMainClass);
 		cmd.setValue(launchCommand);
 
 		// build the environment variables

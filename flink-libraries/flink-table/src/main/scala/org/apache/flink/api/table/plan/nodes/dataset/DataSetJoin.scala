@@ -44,9 +44,9 @@ import scala.collection.mutable.ArrayBuffer
 class DataSetJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    left: RelNode,
-    right: RelNode,
-    rowType: RelDataType,
+    leftNode: RelNode,
+    rightNode: RelNode,
+    rowRelDataType: RelDataType,
     joinCondition: RexNode,
     joinRowType: RelDataType,
     joinInfo: JoinInfo,
@@ -54,10 +54,10 @@ class DataSetJoin(
     joinType: JoinRelType,
     joinHint: JoinHint,
     ruleDescription: String)
-  extends BiRel(cluster, traitSet, left, right)
+  extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataSetRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetJoin(
@@ -65,7 +65,7 @@ class DataSetJoin(
       traitSet,
       inputs.get(0),
       inputs.get(1),
-      rowType,
+      getRowType,
       joinCondition,
       joinRowType,
       joinInfo,
@@ -113,7 +113,7 @@ class DataSetJoin(
     val rightKeys = ArrayBuffer.empty[Int]
     if (keyPairs.isEmpty) {
       // if no equality keys => not supported
-      throw new TableException(
+      throw TableException(
         "Joins should have at least one equality condition.\n" +
           s"\tLeft: ${left.toString},\n" +
           s"\tRight: ${right.toString},\n" +
@@ -135,7 +135,7 @@ class DataSetJoin(
           leftKeys.add(pair.source)
           rightKeys.add(pair.target)
         } else {
-          throw new TableException(
+          throw TableException(
             "Equality join predicate on incompatible types.\n" +
               s"\tLeft: ${left.toString},\n" +
               s"\tRight: ${right.toString},\n" +
@@ -156,7 +156,7 @@ class DataSetJoin(
     }
 
     if (nullCheck && !config.getNullCheck) {
-      throw new TableException("Null check in TableConfig must be enabled for outer joins.")
+      throw TableException("Null check in TableConfig must be enabled for outer joins.")
     }
 
     val generator = new CodeGenerator(
@@ -205,7 +205,7 @@ class DataSetJoin(
   }
 
   private def joinSelectionToString: String = {
-    rowType.getFieldNames.asScala.toList.mkString(", ")
+    getRowType.getFieldNames.asScala.toList.mkString(", ")
   }
 
   private def joinConditionToString: String = {

@@ -22,12 +22,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 
 /**
  * A JobWithJars is a Flink dataflow plan, together with a bunch of JAR files that contain
@@ -134,6 +134,6 @@ public class JobWithJars {
 		for (int i = 0; i < classpaths.size(); i++) {
 			urls[i + jars.size()] = classpaths.get(i);
 		}
-		return new URLClassLoader(urls, parent);
+		return new FlinkUserCodeClassLoader(urls, parent);
 	}
 }

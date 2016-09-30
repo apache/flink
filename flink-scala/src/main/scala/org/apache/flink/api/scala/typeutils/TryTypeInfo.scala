@@ -46,7 +46,7 @@ class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A])
   @PublicEvolving
   override def getTypeClass = classOf[Try[_]].asInstanceOf[Class[T]]
   @PublicEvolving
-  override def getGenericParameters = List[TypeInformation[_]](elemTypeInfo).asJava
+  override def getGenericParameters = Map[String, TypeInformation[_]]("T" -> elemTypeInfo).asJava
 
   @PublicEvolving
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {

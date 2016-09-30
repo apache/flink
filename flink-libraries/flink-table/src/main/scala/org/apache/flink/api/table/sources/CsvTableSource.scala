@@ -56,13 +56,13 @@ class CsvTableSource(
   with StreamTableSource[Row] {
 
   /**
-  * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
-  * (logically) unlimited number of fields.
-  *
-  * @param path The path to the CSV file.
-  * @param fieldNames The names of the table fields.
-  * @param fieldTypes The types of the table fields.
-  */
+    * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
+    * (logically) unlimited number of fields.
+    *
+    * @param path The path to the CSV file.
+    * @param fieldNames The names of the table fields.
+    * @param fieldTypes The types of the table fields.
+    */
   def this(path: String, fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]) =
     this(path, fieldNames, fieldTypes, CsvInputFormat.DEFAULT_FIELD_DELIMITER,
       CsvInputFormat.DEFAULT_LINE_DELIMITER, null, false, null, false)
@@ -73,7 +73,12 @@ class CsvTableSource(
 
   private val returnType = new RowTypeInfo(fieldTypes)
 
-  /** Returns the data of the table as a [[DataSet]] of [[Row]]. */
+  /**
+    * Returns the data of the table as a [[DataSet]] of [[Row]].
+    *
+    * NOTE: This method is for internal use only for defining a [[TableSource]].
+    *       Do not use it in Table API programs.
+    */
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
     execEnv.createInput(createCsvInput(), returnType)
   }
@@ -90,7 +95,12 @@ class CsvTableSource(
   /** Returns the [[RowTypeInfo]] for the return type of the [[CsvTableSource]]. */
   override def getReturnType: RowTypeInfo = returnType
 
-  /** Returns the data of the table as a [[DataStream]] of [[Row]]. */
+  /**
+    * Returns the data of the table as a [[DataStream]] of [[Row]].
+    *
+    * NOTE: This method is for internal use only for defining a [[TableSource]].
+    *       Do not use it in Table API programs.
+    */
   override def getDataStream(streamExecEnv: StreamExecutionEnvironment): DataStream[Row] = {
     streamExecEnv.createInput(createCsvInput(), returnType)
   }

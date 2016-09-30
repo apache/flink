@@ -20,8 +20,6 @@ package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.junit.Test;
@@ -31,7 +29,8 @@ import java.io.File;
 import java.io.InputStream;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertTrue;
 
 public class FsCheckpointStateOutputStreamTest {
 
@@ -112,13 +111,14 @@ public class FsCheckpointStateOutputStreamTest {
 		// make sure the writing process did not alter the original byte array
 		assertArrayEquals(original, bytes);
 
-		InputStream inStream = handle.openInputStream();
-		byte[] validation = new byte[bytes.length];
+		try (InputStream inStream = handle.openInputStream()) {
+			byte[] validation = new byte[bytes.length];
 
-		DataInputStream dataInputStream = new DataInputStream(inStream);
-		dataInputStream.readFully(validation);
+			DataInputStream dataInputStream = new DataInputStream(inStream);
+			dataInputStream.readFully(validation);
 
-		assertArrayEquals(bytes, validation);
+			assertArrayEquals(bytes, validation);
+		}
 
 		handle.discardState();
 	}

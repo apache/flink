@@ -23,12 +23,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.util.Preconditions;
-
-import java.util.List;
 
 /**
  * Implementation using {@link ActorGateway} to forward the messages.
@@ -43,18 +39,20 @@ public class ActorGatewayCheckpointResponder implements CheckpointResponder {
 
 	@Override
 	public void acknowledgeCheckpoint(
-		JobID jobID,
-		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-		List<KeyGroupsStateHandle> keyGroupStateHandles) {
+			JobID jobID,
+			ExecutionAttemptID executionAttemptID,
+			long checkpointID,
+			CheckpointStateHandles checkpointStateHandles,
+			long synchronousDurationMillis,
+			long asynchronousDurationMillis,
+			long bytesBufferedInAlignment,
+			long alignmentDurationNanos) {
 
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
-			jobID,
-			executionAttemptID,
-			checkpointID,
-			chainedStateHandle,
-			keyGroupStateHandles);
+				jobID, executionAttemptID, checkpointID,
+				checkpointStateHandles,
+				synchronousDurationMillis, asynchronousDurationMillis,
+				bytesBufferedInAlignment, alignmentDurationNanos);
 
 		actorGateway.tell(message);
 	}

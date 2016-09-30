@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
-import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -42,7 +42,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -95,7 +94,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			Collection<InputGate> inputGates2,
 			TypeSerializer<IN1> inputSerializer1,
 			TypeSerializer<IN2> inputSerializer2,
-			EventListener<CheckpointBarrier> checkpointListener,
+			StatefulTask checkpointedTask,
 			CheckpointingMode checkpointMode,
 			IOManager ioManager,
 			boolean enableWatermarkMultiplexing) throws IOException {
@@ -112,8 +111,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			throw new IllegalArgumentException("Unrecognized CheckpointingMode: " + checkpointMode);
 		}
 		
-		if (checkpointListener != null) {
-			this.barrierHandler.registerCheckpointEventHandler(checkpointListener);
+		if (checkpointedTask != null) {
+			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
 		
 		if (enableWatermarkMultiplexing) {
@@ -292,6 +291,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			@Override
 			public Long getValue() {
 				return Math.min(lastEmittedWatermark1, lastEmittedWatermark2);
+			}
+		});
+
+		metrics.gauge("checkpointAlignmentTime", new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return barrierHandler.getAlignmentDurationNanos();
 			}
 		});
 	}

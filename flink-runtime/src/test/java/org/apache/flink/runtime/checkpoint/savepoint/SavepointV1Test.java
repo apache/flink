@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.junit.Test;
@@ -32,7 +33,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
@@ -67,17 +70,30 @@ public class SavepointV1Test {
 		List<TaskState> taskStates = new ArrayList<>(numTaskStates);
 
 		for (int i = 0; i < numTaskStates; i++) {
-			TaskState taskState = new TaskState(new JobVertexID(), numSubtaskStates, numSubtaskStates);
+			TaskState taskState = new TaskState(new JobVertexID(), numSubtaskStates, numSubtaskStates, 1);
 			for (int j = 0; j < numSubtaskStates; j++) {
 				StreamStateHandle stateHandle = new ByteStreamStateHandle("Hello".getBytes());
 				taskState.putState(i, new SubtaskState(
 						new ChainedStateHandle<>(Collections.singletonList(stateHandle)), 0));
+
+				stateHandle = new ByteStreamStateHandle("Beautiful".getBytes());
+				Map<String, long[]> offsetsMap = new HashMap<>();
+				offsetsMap.put("A", new long[]{0, 10, 20});
+				offsetsMap.put("B", new long[]{30, 40, 50});
+
+				OperatorStateHandle operatorStateHandle =
+						new OperatorStateHandle(stateHandle, offsetsMap);
+
+				taskState.putPartitionableState(
+						i,
+						new ChainedStateHandle<OperatorStateHandle>(
+								Collections.singletonList(operatorStateHandle)));
 			}
 
 			taskState.putKeyedState(
 					0,
 					new KeyGroupsStateHandle(
-							new KeyGroupRangeOffsets(1,1, new long[] {42}), new ByteStreamStateHandle("Hello".getBytes())));
+							new KeyGroupRangeOffsets(1,1, new long[] {42}), new ByteStreamStateHandle("World".getBytes())));
 
 			taskStates.add(taskState);
 		}

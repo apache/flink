@@ -38,6 +38,7 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestFailure;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestResult;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -92,7 +93,7 @@ public class KvStateServerHandlerTest {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
-		KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
+		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
 				dummyEnv,
 				new JobID(),
 				"test_op",
@@ -278,7 +279,7 @@ public class KvStateServerHandlerTest {
 		KvStateID kvStateId = registry.registerKvState(
 				new JobID(),
 				new JobVertexID(),
-				0,
+				new KeyGroupRange(0, 0),
 				"vanilla",
 				kvState);
 
@@ -490,7 +491,7 @@ public class KvStateServerHandlerTest {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
-		KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
+		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
 				dummyEnv,
 				new JobID(),
 				"test_op",
@@ -586,7 +587,7 @@ public class KvStateServerHandlerTest {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
-		KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
+		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
 				dummyEnv,
 				new JobID(),
 				"test_op",
@@ -681,18 +682,18 @@ public class KvStateServerHandlerTest {
 	 */
 	static class TestRegistryListener implements KvStateRegistryListener {
 		volatile JobVertexID jobVertexID;
-		volatile int keyGroupIndex;
+		volatile KeyGroupRange keyGroupIndex;
 		volatile String registrationName;
 		volatile KvStateID kvStateId;
 
 		@Override
 		public void notifyKvStateRegistered(JobID jobId,
 				JobVertexID jobVertexId,
-				int keyGroupIndex,
+				KeyGroupRange keyGroupRange,
 				String registrationName,
 				KvStateID kvStateId) {
 			this.jobVertexID = jobVertexId;
-			this.keyGroupIndex = keyGroupIndex;
+			this.keyGroupIndex = keyGroupRange;
 			this.registrationName = registrationName;
 			this.kvStateId = kvStateId;
 		}
@@ -700,7 +701,7 @@ public class KvStateServerHandlerTest {
 		@Override
 		public void notifyKvStateUnregistered(JobID jobId,
 				JobVertexID jobVertexId,
-				int keyGroupIndex,
+				KeyGroupRange keyGroupRange,
 				String registrationName) {
 
 		}

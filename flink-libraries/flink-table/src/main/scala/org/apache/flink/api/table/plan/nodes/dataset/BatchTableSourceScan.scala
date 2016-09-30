@@ -35,15 +35,15 @@ class BatchTableSourceScan(
     rowType: RelDataType)
   extends BatchScan(cluster, traitSet, table, rowType) {
 
-  val tableSourceTable = table.unwrap(classOf[TableSourceTable])
+  val tableSourceTable = getTable.unwrap(classOf[TableSourceTable])
   val tableSource = tableSourceTable.tableSource.asInstanceOf[BatchTableSource[_]]
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchTableSourceScan(
       cluster,
       traitSet,
-      table,
-      rowType
+      getTable,
+      getRowType
     )
   }
 

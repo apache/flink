@@ -621,6 +621,10 @@ under the License.
 					<groupId>com.sun.jersey.contribs</groupId>
 					<artifactId>jersey-guice</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.inject</groupId>
+					<artifactId>guice</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 	</dependencies>

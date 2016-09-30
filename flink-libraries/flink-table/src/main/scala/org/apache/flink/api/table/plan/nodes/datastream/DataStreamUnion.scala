@@ -34,13 +34,13 @@ import scala.collection.JavaConverters._
 class DataStreamUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    left: RelNode,
-    right: RelNode,
-    rowType: RelDataType)
-  extends BiRel(cluster, traitSet, left, right)
+    leftNode: RelNode,
+    rightNode: RelNode,
+    rowRelDataType: RelDataType)
+  extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataStreamRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamUnion(
@@ -48,7 +48,7 @@ class DataStreamUnion(
       traitSet,
       inputs.get(0),
       inputs.get(1),
-      rowType
+      getRowType
     )
   }
 
@@ -57,7 +57,7 @@ class DataStreamUnion(
   }
 
   override def toString = {
-    "Union(union: (${rowType.getFieldNames.asScala.toList.mkString(\", \")}))"
+    s"Union(union: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
   }
 
   override def translateToPlan(
@@ -70,6 +70,6 @@ class DataStreamUnion(
   }
 
   private def unionSelectionToString: String = {
-    rowType.getFieldNames.asScala.toList.mkString(", ")
+    getRowType.getFieldNames.asScala.toList.mkString(", ")
   }
 }

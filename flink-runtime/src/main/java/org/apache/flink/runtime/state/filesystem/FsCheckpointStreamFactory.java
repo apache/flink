@@ -301,9 +301,16 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					}
 					else {
 						flush();
+
+						long size = -1;
+						// make a best effort attempt to figure out the size
+						try {
+							size = outStream.getPos();
+						} catch (Exception ignored) {}
+						
 						outStream.close();
 						closed = true;
-						return new FileStateHandle(statePath);
+						return new FileStateHandle(statePath, size);
 					}
 				}
 				else {

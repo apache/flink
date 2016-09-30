@@ -20,11 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
-
-import java.util.List;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 
 /**
  * Responder for checkpoint acknowledge and decline messages in the {@link Task}.
@@ -34,18 +30,32 @@ public interface CheckpointResponder {
 	/**
 	 * Acknowledges the given checkpoint.
 	 *
-	 * @param jobID Job ID of the running job
-	 * @param executionAttemptID Execution attempt ID of the running task
-	 * @param checkpointID Checkpoint ID of the checkpoint
-	 * @param chainedStateHandle Chained state handle
-	 * @param keyGroupStateHandles State handles for key groups
+	 * @param jobID
+	 *             Job ID of the running job
+	 * @param executionAttemptID
+	 *             Execution attempt ID of the running task
+	 * @param checkpointID
+	 *             Checkpoint ID of the checkpoint
+	 * @param checkpointStateHandles 
+	 *             State handles for the checkpoint
+	 * @param synchronousDurationMillis
+	 *             The duration (in milliseconds) of the synchronous part of the operator checkpoint
+	 * @param asynchronousDurationMillis
+	 *             The duration (in milliseconds) of the asynchronous part of the operator checkpoint 
+	 * @param bytesBufferedInAlignment
+	 *             The number of bytes that were buffered during the checkpoint alignment phase
+	 * @param alignmentDurationNanos
+	 *             The duration (in nanoseconds) that the stream alignment for the checkpoint took
 	 */
 	void acknowledgeCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
 		long checkpointID,
-		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-		List<KeyGroupsStateHandle> keyGroupStateHandles);
+		CheckpointStateHandles checkpointStateHandles,
+		long synchronousDurationMillis,
+		long asynchronousDurationMillis,
+		long bytesBufferedInAlignment,
+		long alignmentDurationNanos);
 
 	/**
 	 * Declines the given checkpoint.

@@ -20,18 +20,20 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
-
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.BiFunction;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -41,23 +43,22 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.slf4j.Logger;
 
 import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -135,6 +136,8 @@ public class Execution {
 	private volatile TaskManagerLocation assignedResourceLocation; // for the archived execution
 
 	private ChainedStateHandle<StreamStateHandle> chainedStateHandle;
+
+	private List<Collection<OperatorStateHandle>> chainedPartitionableStateHandle;
 
 	private List<KeyGroupsStateHandle> keyGroupsStateHandles;
 	
@@ -225,6 +228,10 @@ public class Execution {
 		return keyGroupsStateHandles;
 	}
 
+	public List<Collection<OperatorStateHandle>> getChainedPartitionableStateHandle() {
+		return chainedPartitionableStateHandle;
+	}
+
 	public boolean isFinished() {
 		return state.isTerminal();
 	}
@@ -248,18 +255,19 @@ public class Execution {
 	 * Sets the initial state for the execution. The serialized state is then shipped via the
 	 * {@link TaskDeploymentDescriptor} to the TaskManagers.
 	 *
-	 * @param chainedStateHandle Chained operator state
-	 * @param keyGroupsStateHandles Key-group state (= partitioned state)
+	 * @param checkpointStateHandles all checkpointed operator state
 	 */
-	public void setInitialState(
-		ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			List<KeyGroupsStateHandle> keyGroupsStateHandles) {
+	public void setInitialState(CheckpointStateHandles checkpointStateHandles, List<Collection<OperatorStateHandle>> chainedPartitionableStateHandle) {
 
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
-		this.chainedStateHandle = chainedStateHandle;
-		this.keyGroupsStateHandles = keyGroupsStateHandles;
+
+		if(checkpointStateHandles != null) {
+			this.chainedStateHandle = checkpointStateHandles.getNonPartitionedStateHandles();
+			this.chainedPartitionableStateHandle = chainedPartitionableStateHandle;
+			this.keyGroupsStateHandles = checkpointStateHandles.getKeyGroupsStateHandle();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -299,38 +307,38 @@ public class Execution {
 
 			// IMPORTANT: To prevent leaks of cluster resources, we need to make sure that slots are returned
 			//     in all cases where the deployment failed. we use many try {} finally {} clauses to assure that
-			final SlotAllocationFuture future = slotProvider.allocateSlot(toSchedule, queued);
-			if (queued) {
-				future.setFutureAction(new SlotAllocationFutureAction() {
-					@Override
-					public void slotAllocated(SimpleSlot slot) {
+			final Future<SimpleSlot> slotAllocationFuture = slotProvider.allocateSlot(toSchedule, queued);
+
+			// IMPORTANT: We have to use the direct executor here so that we directly deploy the tasks
+			// if the slot allocation future is completed. This is necessary for immediate deployment
+			final Future<Void> deploymentFuture = slotAllocationFuture.handleAsync(new BiFunction<SimpleSlot, Throwable, Void>() {
+				@Override
+				public Void apply(SimpleSlot simpleSlot, Throwable throwable) {
+					if (simpleSlot != null) {
 						try {
-							deployToSlot(slot);
-						}
-						catch (Throwable t) {
+							deployToSlot(simpleSlot);
+						} catch (Throwable t) {
 							try {
-								slot.releaseSlot();
+								simpleSlot.releaseSlot();
 							} finally {
 								markFailed(t);
 							}
 						}
 					}
-				});
-			}
-			else {
-				SimpleSlot slot = future.get();
-				try {
-					deployToSlot(slot);
-				}
-				catch (Throwable t) {
-					try {
-						slot.releaseSlot();
-					} finally {
-						markFailed(t);
+					else {
+						markFailed(throwable);
 					}
+					return null;
+				}
+			}, Executors.directExecutor());
+
+			// if tasks have to scheduled immediately check that the task has been deployed
+			if (!queued) {
+				if (!deploymentFuture.isDone()) {
+					markFailed(new IllegalArgumentException("The slot allocation future has not been completed yet."));
 				}
 			}
-
+			
 			return true;
 		}
 		else {
@@ -387,6 +395,7 @@ public class Execution {
 				slot,
 				chainedStateHandle,
 				keyGroupsStateHandles,
+				chainedPartitionableStateHandle,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs
@@ -394,7 +403,7 @@ public class Execution {
 			
 			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
-			final Future<Object> deployAction = gateway.ask(new SubmitTask(deployment), timeout);
+			final scala.concurrent.Future<Object> deployAction = gateway.ask(new SubmitTask(deployment), timeout);
 
 			deployAction.onComplete(new OnComplete<Object>(){
 
@@ -436,7 +445,7 @@ public class Execution {
 		if (slot != null) {
 			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
-			Future<Object> stopResult = gateway.retry(
+			scala.concurrent.Future<Object> stopResult = gateway.retry(
 				new StopTask(attemptId),
 				NUM_STOP_CALL_TRIES,
 				timeout,
@@ -916,7 +925,7 @@ public class Execution {
 
 			final ActorGateway gateway = slot.getTaskManagerActorGateway();
 
-			Future<Object> cancelResult = gateway.retry(
+			scala.concurrent.Future<Object> cancelResult = gateway.retry(
 				new CancelTask(attemptId),
 				NUM_CANCEL_CALL_TRIES,
 				timeout,
@@ -965,7 +974,7 @@ public class Execution {
 			final ActorGateway gateway = consumerSlot.getTaskManagerActorGateway();
 			final TaskManagerLocation taskManagerLocation = consumerSlot.getTaskManagerLocation();
 
-			Future<Object> futureUpdate = gateway.ask(updatePartitionInfo, timeout);
+			scala.concurrent.Future<Object> futureUpdate = gateway.ask(updatePartitionInfo, timeout);
 
 			futureUpdate.onFailure(new OnFailure() {
 				@Override

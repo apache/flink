@@ -34,13 +34,10 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -164,9 +161,23 @@ public interface Environment {
 	 * to for the checkpoint with the give checkpoint-ID. This method does not include
 	 * any state in the checkpoint.
 	 * 
-	 * @param checkpointId The ID of the checkpoint.
+	 * @param checkpointId
+	 *             The ID of the checkpoint.
+	 * @param synchronousDurationMillis
+	 *             The duration (in milliseconds) of the synchronous part of the operator checkpoint
+	 * @param asynchronousDurationMillis
+	 *             The duration (in milliseconds) of the asynchronous part of the operator checkpoint 
+	 * @param bytesBufferedInAlignment
+	 *             The number of bytes that were buffered during the checkpoint alignment phase
+	 * @param alignmentDurationNanos
+	 *             The duration (in nanoseconds) that the stream alignment for the checkpoint took   
 	 */
-	void acknowledgeCheckpoint(long checkpointId);
+	void acknowledgeCheckpoint(
+			long checkpointId,
+			long synchronousDurationMillis,
+			long asynchronousDurationMillis,
+			long bytesBufferedInAlignment,
+			long alignmentDurationNanos);
 
 	/**
 	 * Confirms that the invokable has successfully completed all required steps for
@@ -174,13 +185,23 @@ public interface Environment {
 	 * the given state in the checkpoint.
 	 *
 	 * @param checkpointId The ID of the checkpoint.
-	 * @param chainedStateHandle Handle for the chained operator state
-	 * @param keyGroupStateHandles  Handles for key group state
+	 * @param checkpointStateHandles All state handles for the checkpointed state
+	 * @param synchronousDurationMillis
+	 *             The duration (in milliseconds) of the synchronous part of the operator checkpoint
+	 * @param asynchronousDurationMillis
+	 *             The duration (in milliseconds) of the asynchronous part of the operator checkpoint 
+	 * @param bytesBufferedInAlignment
+	 *             The number of bytes that were buffered during the checkpoint alignment phase
+	 * @param alignmentDurationNanos
+	 *             The duration (in nanoseconds) that the stream alignment for the checkpoint took   
 	 */
 	void acknowledgeCheckpoint(
 			long checkpointId,
-			ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			List<KeyGroupsStateHandle> keyGroupStateHandles);
+			CheckpointStateHandles checkpointStateHandles,
+			long synchronousDurationMillis,
+			long asynchronousDurationMillis,
+			long bytesBufferedInAlignment,
+			long alignmentDurationNanos);
 
 	/**
 	 * Marks task execution failed for an external reason (a reason other than the task code itself
@@ -189,7 +210,7 @@ public interface Environment {
 	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
 	 * starts an asynchronous thread that aborts that code.
 	 *
-	 * <p>This method never blocks.</p>
+	 * <p>This method never blocks.
 	 */
 	void failExternally(Throwable cause);
 

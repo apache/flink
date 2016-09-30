@@ -38,11 +38,11 @@ abstract class StreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    rowType: RelDataType)
+    rowRelDataType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with DataStreamRel {
 
-  override def deriveRowType() = rowType
+  override def deriveRowType() = rowRelDataType
 
   protected def convertToExpectedType(
       input: DataStream[Any],
@@ -72,7 +72,7 @@ abstract class StreamScan(
         if (determinedType != inputType) {
           val generator = new CodeGenerator(
             config,
-            false,
+            nullableInput = false,
             input.getType,
             flinkTable.fieldIndexes)
 
@@ -97,7 +97,7 @@ abstract class StreamScan(
             genFunction.code,
             genFunction.returnType)
 
-          val opName = s"from: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+          val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
           input.map(mapFunc).name(opName)
         }

@@ -24,6 +24,12 @@ class DataStreamConvention extends Convention {
 
   override def toString: String = getName
 
+  override def useAbstractConvertersForConversion(
+    fromTraits: RelTraitSet,
+    toTraits: RelTraitSet): Boolean = false
+
+  override def canConvertConvention(toConvention: Convention): Boolean = false
+
   def getInterface: Class[_] = classOf[DataStreamRel]
 
   def getName: String = "DATASTREAM"
@@ -33,7 +39,6 @@ class DataStreamConvention extends Convention {
   def satisfies(`trait`: RelTrait): Boolean = this eq `trait`
 
   def register(planner: RelOptPlanner): Unit = { }
-
 }
 
 object DataStreamConvention {

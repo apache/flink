@@ -21,10 +21,9 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 
 /**
@@ -57,11 +56,12 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	private final ArrayDeque<CheckpointBarrierCount> pendingCheckpoints;
 	
 	/** The listener to be notified on complete checkpoints */
-	private EventListener<CheckpointBarrier> checkpointHandler;
+	private StatefulTask toNotifyOnCheckpoint;
 	
 	/** The highest checkpoint ID encountered so far */
 	private long latestPendingCheckpointID = -1;
-	
+
+	// ------------------------------------------------------------------------
 	
 	public BarrierTracker(InputGate inputGate) {
 		this.inputGate = inputGate;
@@ -70,7 +70,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	}
 
 	@Override
-	public BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException {
+	public BufferOrEvent getNextNonBlocked() throws Exception {
 		while (true) {
 			BufferOrEvent next = inputGate.getNextBufferOrEvent();
 			if (next == null) {
@@ -86,12 +86,12 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void registerCheckpointEventHandler(EventListener<CheckpointBarrier> checkpointHandler) {
-		if (this.checkpointHandler == null) {
-			this.checkpointHandler = checkpointHandler;
+	public void registerCheckpointEventHandler(StatefulTask toNotifyOnCheckpoint) {
+		if (this.toNotifyOnCheckpoint == null) {
+			this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 		}
 		else {
-			throw new IllegalStateException("BarrierTracker already has a registered checkpoint handler");
+			throw new IllegalStateException("BarrierTracker already has a registered checkpoint notifyee");
 		}
 	}
 
@@ -105,22 +105,29 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		return pendingCheckpoints.isEmpty();
 	}
 
-	private void processBarrier(CheckpointBarrier receivedBarrier) {
+	@Override
+	public long getAlignmentDurationNanos() {
+		// this one does not do alignment at all
+		return 0L;
+	}
+
+	private void processBarrier(CheckpointBarrier receivedBarrier) throws Exception {
 		// fast path for single channel trackers
 		if (totalNumberOfInputChannels == 1) {
-			if (checkpointHandler != null) {
-				checkpointHandler.onEvent(receivedBarrier);
+			if (toNotifyOnCheckpoint != null) {
+				toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
+						receivedBarrier.getId(), receivedBarrier.getTimestamp(), 0L, 0L);
 			}
 			return;
 		}
-		
+
 		// general path for multiple input channels
 		final long barrierId = receivedBarrier.getId();
 
 		// find the checkpoint barrier in the queue of bending barriers
 		CheckpointBarrierCount cbc = null;
 		int pos = 0;
-		
+
 		for (CheckpointBarrierCount next : pendingCheckpoints) {
 			if (next.checkpointId == barrierId) {
 				cbc = next;
@@ -128,7 +135,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 			}
 			pos++;
 		}
-		
+
 		if (cbc != null) {
 			// add one to the count to that barrier and check for completion
 			int numBarriersNew = cbc.incrementBarrierCount();
@@ -141,8 +148,9 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 				}
 				
 				// notify the listener
-				if (checkpointHandler != null) {
-					checkpointHandler.onEvent(receivedBarrier);
+				if (toNotifyOnCheckpoint != null) {
+					toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
+							receivedBarrier.getId(), receivedBarrier.getTimestamp(), 0L, 0L);
 				}
 			}
 		}
@@ -182,7 +190,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		public int incrementBarrierCount() {
 			return ++barrierCount;
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return (int) ((checkpointId >>> 32) ^ checkpointId) + 17 * barrierCount; 

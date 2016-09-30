@@ -55,8 +55,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool
 import org.apache.flink.runtime.io.network.{LocalConnectionManager, NetworkEnvironment, TaskEventDispatcher}
-import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager}
-import org.apache.flink.runtime.io.network.partition.ResultPartitionManager
+import org.apache.flink.runtime.io.network.netty.{NettyConfig, NettyConnectionManager, PartitionStateChecker}
+import org.apache.flink.runtime.io.network.partition.{ResultPartitionConsumableNotifier, ResultPartitionManager}
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.memory.MemoryManager
@@ -66,13 +66,13 @@ import org.apache.flink.runtime.messages.StackTraceSampleMessages.{ResponseStack
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
-import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.KvStateRegistry
 import org.apache.flink.runtime.query.netty.{DisabledKvStateRequestStats, KvStateServer}
-import org.apache.flink.runtime.security.SecurityUtils
-import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
+import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
+import org.apache.flink.runtime.security.SecurityContext
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{MathUtils, NetUtils}
@@ -196,7 +196,11 @@ class TaskManager(
   private var scheduledTaskManagerRegistration: Option[Cancellable] = None
   private var currentRegistrationRun: UUID = UUID.randomUUID()
 
-  private var jobManagerConnectionFactory: Option[JobManagerCommunicationFactory] = None
+  private var connectionUtils: Option[(
+    CheckpointResponder,
+    PartitionStateChecker,
+    ResultPartitionConsumableNotifier,
+    TaskManagerConnection)] = None
 
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
@@ -513,14 +517,6 @@ class TaskManager(
                 false,
               "No task with that execution ID was found.")
             )
-          }
-
-        case PartitionState(taskExecutionId, taskResultId, partitionId, state) =>
-          Option(runningTasks.get(taskExecutionId)) match {
-            case Some(task) =>
-              task.onPartitionStateUpdate(taskResultId, partitionId, state)
-            case None =>
-              log.debug(s"Cannot find task $taskExecutionId to respond with partition state.")
           }
       }
       }
@@ -930,7 +926,7 @@ class TaskManager(
       "starting network stack and library cache.")
 
     // sanity check that the JobManager dependent components are not set up currently
-    if (jobManagerConnectionFactory.isDefined || blobService.isDefined) {
+    if (connectionUtils.isDefined || blobService.isDefined) {
       throw new IllegalStateException("JobManager-specific components are already initialized.")
     }
 
@@ -938,14 +934,26 @@ class TaskManager(
     instanceID = id
 
     val jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID.orNull)
-    val taskmanagerGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
+    val taskManagerGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
 
-    jobManagerConnectionFactory = Some(
-      new ActorGatewayJobManagerCommunicationFactory(
-        context.dispatcher,
-        jobManagerGateway,
-        taskmanagerGateway,
-        config.timeout))
+    val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway);
+
+    val taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway)
+
+    val partitionStateChecker = new ActorGatewayPartitionStateChecker(
+      jobManagerGateway,
+      config.timeout)
+
+    val resultPartitionConsumableNotifier = new ActorGatewayResultPartitionConsumableNotifier(
+      context.dispatcher,
+      jobManagerGateway,
+      config.timeout)
+
+    connectionUtils = Some(
+      (checkpointResponder,
+        partitionStateChecker,
+        resultPartitionConsumableNotifier,
+        taskManagerConnection))
 
 
     val kvStateServer = network.getKvStateServer()
@@ -1052,7 +1060,7 @@ class TaskManager(
     blobService = None
 
     // disassociate the slot environment
-    jobManagerConnectionFactory = None
+    connectionUtils = None
 
     if (network.getKvStateRegistry != null) {
       network.getKvStateRegistry.unregisterListener()
@@ -1119,23 +1127,24 @@ class TaskManager(
         case None => throw new IllegalStateException("There is no valid library cache manager.")
       }
 
-      val jmFactory = jobManagerConnectionFactory match {
-        case Some(factory) => factory
-        case None =>
-          throw new IllegalStateException("TaskManager is not associated with a JobManager and, " +
-                                            "thus, the SlotEnvironment has not been initialized.")
-      }
-
       val slot = tdd.getTargetSlotNumber
       if (slot < 0 || slot >= numberOfSlots) {
         throw new IllegalArgumentException(s"Target slot $slot does not exist on TaskManager.")
+      }
+
+      val (checkpointResponder,
+        partitionStateChecker,
+        resultPartitionConsumableNotifier,
+        taskManagerConnection) = connectionUtils match {
+        case Some(x) => x
+        case None => throw new IllegalStateException("The connection utils have not been " +
+                                                       "initialized.")
       }
 
       // create the task. this does not grab any TaskManager resources or download
       // and libraries - the operation does not block
 
       val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
-      val selfGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
 
       var jobName = tdd.getJobName
       if (tdd.getJobName.length == 0) {
@@ -1153,16 +1162,11 @@ class TaskManager(
         tdd.getExecutionId,
         config.timeout)
 
-      val checkpointResponder = new ActorGatewayCheckpointResponder(jobManagerGateway);
-
-      val taskManagerConnection = new ActorGatewayTaskManagerConnection(selfGateway)
-
       val task = new Task(
         tdd,
         memoryManager,
         ioManager,
         network,
-        jmFactory,
         bcVarManager,
         taskManagerConnection,
         inputSplitProvider,
@@ -1170,7 +1174,10 @@ class TaskManager(
         libCache,
         fileCache,
         runtimeInfo,
-        taskMetricGroup)
+        taskMetricGroup,
+        resultPartitionConsumableNotifier,
+        partitionStateChecker,
+        context.dispatcher)
 
       log.info(s"Received task ${task.getTaskInfo.getTaskNameWithSubtasks()}")
 
@@ -1379,7 +1386,7 @@ class TaskManager(
       "\n" +
       "A fatal error occurred, forcing the TaskManager to shut down: " + message, cause)
 
-    self ! decorateMessage(Kill)
+    self ! Kill
   }
 
   override def notifyLeaderAddress(leaderAddress: String, leaderSessionID: UUID): Unit = {
@@ -1497,6 +1504,7 @@ object TaskManager {
     // startup checks and logging
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "TaskManager", args)
     SignalHandler.register(LOG.logger)
+    JvmShutdownSafeguard.installAsShutdownHook(LOG.logger)
 
     val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit()
     if (maxOpenFileHandles != -1) {
@@ -1520,19 +1528,14 @@ object TaskManager {
     val resourceId = ResourceID.generate()
 
     // run the TaskManager (if requested in an authentication enabled context)
+    SecurityContext.install(new SecurityConfiguration().setFlinkConfiguration(configuration))
+
     try {
-      if (SecurityUtils.isSecurityEnabled) {
-        LOG.info("Security is enabled. Starting secure TaskManager.")
-        SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
-          override def run(): Unit = {
-            selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, classOf[TaskManager])
-          }
-        })
-      }
-      else {
-        LOG.info("Security is not enabled. Starting non-authenticated TaskManager.")
-        selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, classOf[TaskManager])
-      }
+      SecurityContext.getInstalled.runSecured(new FlinkSecuredRunner[Unit] {
+        override def run(): Unit = {
+          selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, classOf[TaskManager])
+        }
+      })
     }
     catch {
       case t: Throwable =>
@@ -2085,7 +2088,8 @@ object TaskManager {
       case None => LeaderRetrievalUtils.createLeaderRetrievalService(configuration)
     }
 
-    val metricsRegistry = new FlinkMetricRegistry(configuration)
+    val metricsRegistry = new FlinkMetricRegistry(
+      MetricRegistryConfiguration.fromConfiguration(configuration))
 
     (taskManagerConfig,
       taskManagerLocation,

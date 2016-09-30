@@ -39,10 +39,11 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
@@ -50,28 +51,19 @@ import org.apache.flink.util.Collector;
 import org.junit.After;
 import org.junit.Test;
 
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -189,11 +181,15 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	}
 
 	@Test
-	public void testWindowTriggerTimeAlignment() {
+	public void testWindowTriggerTimeAlignment() throws Exception {
+		final Object lock = new Object();
+		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
+			Executors.newSingleThreadScheduledExecutor(), lock);
+
 		try {
 			@SuppressWarnings("unchecked")
 			final Output<StreamRecord<String>> mockOut = mock(Output.class);
-			final StreamTask<?, ?> mockTask = createMockTask();
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			AccumulatingProcessingTimeWindowOperator<String, String, String> op;
 
@@ -233,16 +229,21 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+		finally {
+			timerService.shutdownService();
+		}
 	}
 
 	@Test
-	public void testTumblingWindow() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
+	public void testTumblingWindow() throws Exception {
+		final Object lock = new Object();
+		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
+			Executors.newSingleThreadScheduledExecutor(), lock);
+
 		try {
 			final int windowSize = 50;
 			final CollectingOutput<Integer> out = new CollectingOutput<>(windowSize);
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			// tumbling window that triggers every 20 milliseconds
 			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
@@ -284,17 +285,19 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			fail(e.getMessage());
 		}
 		finally {
-			timerService.shutdown();
+			timerService.shutdownService();
 		}
 	}
 
 	@Test
 	public void testSlidingWindow() throws Exception {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
+		final Object lock = new Object();
+		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
+			Executors.newSingleThreadScheduledExecutor(), lock);
+
 		try {
 			final CollectingOutput<Integer> out = new CollectingOutput<>(50);
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 			
 			// tumbling window that triggers every 20 milliseconds
 			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
@@ -344,18 +347,19 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				}
 			}
 		} finally {
-			timerService.shutdown();
+			timerService.shutdownService();
 		}
 	}
 
 	@Test
-	public void testTumblingWindowSingleElements() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
+	public void testTumblingWindowSingleElements() throws Exception {
+		final Object lock = new Object();
+		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
+			Executors.newSingleThreadScheduledExecutor(), lock);
 
 		try {
 			final CollectingOutput<Integer> out = new CollectingOutput<>(50);
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			// tumbling window that triggers every 20 milliseconds
 			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
@@ -400,18 +404,19 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			fail(e.getMessage());
 		}
 		finally {
-			timerService.shutdown();
+			timerService.shutdownService();
 		}
 	}
 	
 	@Test
-	public void testSlidingWindowSingleElements() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
+	public void testSlidingWindowSingleElements() throws Exception {
+		final Object lock = new Object();
+		final TimeServiceProvider timerService = DefaultTimeServiceProvider.createForTesting(
+			Executors.newSingleThreadScheduledExecutor(), lock);
 
 		try {
 			final CollectingOutput<Integer> out = new CollectingOutput<>(50);
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService);
 
 			// tumbling window that triggers every 20 milliseconds
 			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
@@ -447,7 +452,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			fail(e.getMessage());
 		}
 		finally {
-			timerService.shutdown();
+			timerService.shutdownService();
 		}
 	}
 
@@ -493,18 +498,18 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			for (int i = 0; i < 300; i++) {
 				testHarness.processElement(new StreamRecord<>(i + numElementsFirst));
 			}
-			
+
+			testHarness.close();
 			op.dispose();
-			
+
 			// re-create the operator and restore the state
 			op = new AccumulatingProcessingTimeWindowOperator<>(
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			testHarness =
-					new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
-
+			timerService = new TestTimeServiceProvider();
+			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();
 			testHarness.restore(state);
@@ -528,6 +533,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			for (int i = 0; i < numElements; i++) {
 				assertEquals(i, finalResult.get(i).intValue());
 			}
+			testHarness.close();
+			op.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -580,15 +587,17 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			for (int i = numElementsFirst; i < numElements; i++) {
 				testHarness.processElement(new StreamRecord<>(i));
 			}
-			
+
+			testHarness.close();
 			op.dispose();
-			
+
 			// re-create the operator and restore the state
 			op = new AccumulatingProcessingTimeWindowOperator<>(
 					validatingIdentityFunction, identitySelector,
 					IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 					windowSize, windowSlide);
 
+			timerService = new TestTimeServiceProvider();
 			testHarness = new OneInputStreamOperatorTestHarness<>(op, new ExecutionConfig(), timerService);
 
 			testHarness.setup();
@@ -609,9 +618,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			timerService.setCurrentTime(300);
 			timerService.setCurrentTime(350);
 
-			testHarness.close();
-			op.dispose();
-
 			// get and verify the result
 			List<Integer> finalResult = new ArrayList<>(resultAtSnapshot);
 			List<Integer> finalPartialResult = extractFromStreamRecords(testHarness.getOutput());
@@ -622,6 +628,9 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			for (int i = 0; i < factor * numElements; i++) {
 				assertEquals(i / factor, finalResult.get(i).intValue());
 			}
+
+			testHarness.close();
+			op.dispose();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -756,31 +765,10 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	}
 
 	private static StreamTask<?, ?> createMockTaskWithTimer(
-			final ScheduledExecutorService timerService, final Object lock)
+		final TimeServiceProvider timerService)
 	{
 		StreamTask<?, ?> mockTask = createMockTask();
-
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-				final Long timestamp = (Long) invocationOnMock.getArguments()[0];
-				final Triggerable target = (Triggerable) invocationOnMock.getArguments()[1];
-				timerService.schedule(
-						new Callable<Object>() {
-							@Override
-							public Object call() throws Exception {
-								synchronized (lock) {
-									target.trigger(timestamp);
-								}
-								return null;
-							}
-						},
-						timestamp - System.currentTimeMillis(),
-						TimeUnit.MILLISECONDS);
-				return null;
-			}
-		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
-
+		when(mockTask.getTimerService()).thenReturn(timerService);
 		return mockTask;
 	}
 

@@ -29,10 +29,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -66,7 +64,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -136,15 +133,15 @@ public class RocksDBAsyncSnapshotTest {
 				testHarness.bufferSize) {
 
 			@Override
-			public void acknowledgeCheckpoint(long checkpointId) {
-				super.acknowledgeCheckpoint(checkpointId);
-			}
+			public void acknowledgeCheckpoint(
+					long checkpointId,
+					CheckpointStateHandles checkpointStateHandles,
+					long synchronousDurationMillis, long asynchronousDurationMillis,
+					long bytesBufferedInAlignment, long alignmentDurationNanos) {
 
-			@Override
-			public void acknowledgeCheckpoint(long checkpointId,
-			                                  ChainedStateHandle<StreamStateHandle> chainedStateHandle,
-			                                  List<KeyGroupsStateHandle> keyGroupStateHandles) {
-				super.acknowledgeCheckpoint(checkpointId, chainedStateHandle, keyGroupStateHandles);
+				super.acknowledgeCheckpoint(checkpointId, checkpointStateHandles,
+						synchronousDurationMillis, asynchronousDurationMillis,
+						bytesBufferedInAlignment, alignmentDurationNanos);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -155,7 +152,7 @@ public class RocksDBAsyncSnapshotTest {
 				}
 
 				// should be only one k/v state
-				assertEquals(1, keyGroupStateHandles.size());
+				assertEquals(1, checkpointStateHandles.getKeyGroupsStateHandle().size());
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();

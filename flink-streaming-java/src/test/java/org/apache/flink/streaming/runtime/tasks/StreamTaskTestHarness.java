@@ -113,11 +113,11 @@ public class StreamTaskTestHarness<OUT> {
 		outputStreamRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outputSerializer);
 	}
 
-	public long getCurrentProcessingTime() {
+	public TimeServiceProvider getTimerService() {
 		if (!(task instanceof StreamTask)) {
-			System.currentTimeMillis();
+			throw new UnsupportedOperationException("getTimerService() only supported on StreamTasks.");
 		}
-		return ((StreamTask) task).getCurrentProcessingTime();
+		return ((StreamTask) task).getTimerService();
 	}
 
 	/**
@@ -235,9 +235,6 @@ public class StreamTaskTestHarness<OUT> {
 		}
 		else {
 			if (taskThread.task instanceof StreamTask) {
-				long base = System.currentTimeMillis();
-				long now = 0;
-
 				StreamTask<?, ?> streamTask = (StreamTask<?, ?>) taskThread.task;
 				while (!streamTask.isRunning()) {
 					Thread.sleep(100);

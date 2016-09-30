@@ -240,6 +240,8 @@ abstract class StreamTableEnvironment(
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
 
+    validateType(tpe)
+
     val relNode = table.getRelNode
 
     // decorrelate

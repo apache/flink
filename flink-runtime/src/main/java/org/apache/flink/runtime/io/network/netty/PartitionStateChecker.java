@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.PartitionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 public interface PartitionStateChecker {
-
-	void triggerPartitionStateCheck(
+	Future<PartitionState> requestPartitionState(
 			JobID jobId,
 			ExecutionAttemptID executionId,
 			IntermediateDataSetID resultId,

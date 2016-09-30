@@ -61,7 +61,6 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -74,7 +73,8 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An operator that implements the logic for windowing based on a {@link WindowAssigner} and
@@ -186,26 +186,29 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
-	public WindowOperator(WindowAssigner<? super IN, W> windowAssigner,
-		TypeSerializer<W> windowSerializer,
-		KeySelector<IN, K> keySelector,
-		TypeSerializer<K> keySerializer,
-		StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
-		InternalWindowFunction<ACC, OUT, K, W> windowFunction,
-		Trigger<? super IN, ? super W> trigger,
-		long allowedLateness) {
+	public WindowOperator(
+			WindowAssigner<? super IN, W> windowAssigner,
+			TypeSerializer<W> windowSerializer,
+			KeySelector<IN, K> keySelector,
+			TypeSerializer<K> keySerializer,
+			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
+			Trigger<? super IN, ? super W> trigger,
+			long allowedLateness) {
 
 		super(windowFunction);
 
-		this.windowAssigner = requireNonNull(windowAssigner);
-		this.windowSerializer = windowSerializer;
-		this.keySelector = requireNonNull(keySelector);
-		this.keySerializer = requireNonNull(keySerializer);
+		checkArgument(allowedLateness >= 0);
 
+		checkArgument(windowStateDescriptor == null || windowStateDescriptor.isSerializerInitialized(),
+				"window state serializer is not properly initialized");
+
+		this.windowAssigner = checkNotNull(windowAssigner);
+		this.windowSerializer = checkNotNull(windowSerializer);
+		this.keySelector = checkNotNull(keySelector);
+		this.keySerializer = checkNotNull(keySerializer);
 		this.windowStateDescriptor = windowStateDescriptor;
-		this.trigger = requireNonNull(trigger);
-
-		Preconditions.checkArgument(allowedLateness >= 0);
+		this.trigger = checkNotNull(trigger);
 		this.allowedLateness = allowedLateness;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
@@ -252,7 +255,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		windowAssignerContext = new WindowAssigner.WindowAssignerContext() {
 			@Override
 			public long getCurrentProcessingTime() {
-				return WindowOperator.this.getCurrentProcessingTime();
+				return WindowOperator.this.getTimerService().getCurrentProcessingTime();
 			}
 		};
 
@@ -295,7 +298,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		Collection<W> elementWindows = windowAssigner.assignWindows(
 			element.getValue(), element.getTimestamp(), windowAssignerContext);
 
-		final K key = (K) getStateBackend().getCurrentKey();
+		final K key = (K) getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			MergingWindowSet<W> mergingWindows = getMergingWindowSet();
@@ -326,7 +329,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 						}
 
 						// merge the merged state windows into the newly resulting state window
-						getStateBackend().mergePartitionedStates(
+						getKeyedStateBackend().mergePartitionedStates(
 							stateWindowResult,
 							mergedStateWindows,
 							windowSerializer,
@@ -551,18 +554,18 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	@SuppressWarnings("unchecked")
 	protected MergingWindowSet<W> getMergingWindowSet() throws Exception {
-		MergingWindowSet<W> mergingWindows = mergingWindowsByKey.get((K) getStateBackend().getCurrentKey());
+		MergingWindowSet<W> mergingWindows = mergingWindowsByKey.get((K) getKeyedStateBackend().getCurrentKey());
 		if (mergingWindows == null) {
 			// try to retrieve from state
 
 			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
 			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
-			ListState<Tuple2<W, W>> mergeState = getStateBackend().getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergeStateDescriptor);
+			ListState<Tuple2<W, W>> mergeState = getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergeStateDescriptor);
 
 			mergingWindows = new MergingWindowSet<>((MergingWindowAssigner<? super IN, W>) windowAssigner, mergeState);
 			mergeState.clear();
 
-			mergingWindowsByKey.put((K) getStateBackend().getCurrentKey(), mergingWindows);
+			mergingWindowsByKey.put((K) getKeyedStateBackend().getCurrentKey(), mergingWindows);
 		}
 		return mergingWindows;
 	}
@@ -666,7 +669,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
 			Class<S> stateType,
 			S defaultState) {
-			requireNonNull(stateType, "The state type class must not be null");
+			checkNotNull(stateType, "The state type class must not be null");
 
 			TypeInformation<S> typeInfo;
 			try {
@@ -686,8 +689,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			TypeInformation<S> stateType,
 			S defaultState) {
 
-			requireNonNull(name, "The name of the state must not be null");
-			requireNonNull(stateType, "The state type information must not be null");
+			checkNotNull(name, "The name of the state must not be null");
+			checkNotNull(stateType, "The state type information must not be null");
 
 			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(name, stateType.createSerializer(getExecutionConfig()), defaultState);
 			return getPartitionedState(stateDesc);
@@ -706,7 +709,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor) {
 			if (mergedWindows != null && mergedWindows.size() > 0) {
 				try {
-					WindowOperator.this.getStateBackend().mergePartitionedStates(window,
+					WindowOperator.this.getKeyedStateBackend().mergePartitionedStates(window,
 							mergedWindows,
 							windowSerializer,
 							stateDescriptor);
@@ -718,7 +721,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public long getCurrentProcessingTime() {
-			return WindowOperator.this.getCurrentProcessingTime();
+			return WindowOperator.this.getTimerService().getCurrentProcessingTime();
 		}
 
 		@Override
@@ -729,7 +732,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				processingTimeTimersQueue.add(timer);
 				//If this is the first timer added for this timestamp register a TriggerTask
 				if (processingTimeTimerTimestamps.add(time, 1) == 0) {
-					ScheduledFuture<?> scheduledFuture = WindowOperator.this.registerTimer(time, WindowOperator.this);
+					ScheduledFuture<?> scheduledFuture = WindowOperator.this.getTimerService()
+						.registerTimer(time, WindowOperator.this);
 					processingTimeTimerFutures.put(time, scheduledFuture);
 				}
 			}
@@ -865,7 +869,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
 			for (Map.Entry<K, MergingWindowSet<W>> key: mergingWindowsByKey.entrySet()) {
 				setKeyContext(key.getKey());
-				ListState<Tuple2<W, W>> mergeState = getStateBackend().getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergeStateDescriptor);
+				ListState<Tuple2<W, W>> mergeState = getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, mergeStateDescriptor);
 				mergeState.clear();
 				key.getValue().persist(mergeState);
 			}
