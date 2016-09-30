@@ -22,12 +22,16 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.SlotAvailableReply;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.UUID;
 
@@ -72,6 +76,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
 	 * @param taskExecutorAddress     The address of the TaskExecutor that registers
 	 * @param resourceID              The resource ID of the TaskExecutor that registers
+	 * @param slotReport              The slot report containing free and allocated task slots
 	 * @param timeout                 The timeout for the response.
 	 *
 	 * @return The future to the response by the ResourceManager.
@@ -80,6 +85,18 @@ public interface ResourceManagerGateway extends RpcGateway {
 		UUID resourceManagerLeaderId,
 		String taskExecutorAddress,
 		ResourceID resourceID,
+		SlotReport slotReport,
+		@RpcTimeout Time timeout);
+
+	/**
+	 * Sent by the TaskExecutor to notify the ResourceManager that a slot has become available.
+	 * @return
+	 */
+	Future<SlotAvailableReply> notifySlotAvailable(
+		UUID resourceManagerLeaderId,
+		ResourceID resourceID,
+		InstanceID instanceID,
+		SlotID slotID,
 		@RpcTimeout Time timeout);
 
 	/**

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
-import org.apache.flink.runtime.resourcemanager.registration.SimpleTaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorRegistration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -35,12 +35,12 @@ public class ResourceSlot implements ResourceIDRetrievable {
 	private final ResourceProfile resourceProfile;
 
 	/** Gateway to the TaskExecutor which owns the slot */
-	private final SimpleTaskExecutorRegistration taskExecutorRegistration;
+	private final TaskExecutorRegistration taskExecutorRegistration;
 
-	public ResourceSlot(SlotID slotId, ResourceProfile resourceProfile, SimpleTaskExecutorRegistration taskExecutorRegistration) {
+	public ResourceSlot(SlotID slotId, ResourceProfile resourceProfile, TaskExecutorRegistration taskExecutorRegistration) {
 		this.slotId = checkNotNull(slotId);
 		this.resourceProfile = checkNotNull(resourceProfile);
-		this.taskExecutorRegistration = taskExecutorRegistration;
+		this.taskExecutorRegistration = checkNotNull(taskExecutorRegistration);
 	}
 
 	@Override
@@ -56,7 +56,7 @@ public class ResourceSlot implements ResourceIDRetrievable {
 		return resourceProfile;
 	}
 
-	public SimpleTaskExecutorRegistration getTaskExecutorRegistration() {
+	public TaskExecutorRegistration getTaskExecutorRegistration() {
 		return taskExecutorRegistration;
 	}
 

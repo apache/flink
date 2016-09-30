@@ -15,21 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-package org.apache.flink.runtime.resourcemanager.messages.taskexecutor;
-
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 
 /**
- * Rejection by the TaskExecutor for a SlotRequest from the ResourceManager
+ * Factory to create a SlotManager and provide it with dependencies.
  */
-public class TMSlotRequestRejected extends TMSlotRequestReply {
+public interface SlotManagerFactory {
 
-	private static final long serialVersionUID = 9049346740895325144L;
-
-	public TMSlotRequestRejected(InstanceID instanceID, ResourceID resourceID, AllocationID allocationID) {
-		super(instanceID, resourceID, allocationID);
-	}
+	/**
+	 * Creates a SlotManager and provides it with ResourceManager services.
+	 */
+	SlotManager create(ResourceManagerServices rmServices);
 }

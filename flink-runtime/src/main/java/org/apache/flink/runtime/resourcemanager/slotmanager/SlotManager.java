@@ -26,13 +26,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRegistered;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestRejected;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
-import org.apache.flink.runtime.resourcemanager.registration.SimpleTaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorRegistration;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.util.Preconditions;
@@ -66,8 +65,11 @@ public abstract class SlotManager {
 
 	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
+	/** The Resource allocation provider */
+	protected final ResourceManagerServices rmServices;
+
 	/** All registered task managers with ResourceID and gateway. */
-	private final Map<ResourceID, SimpleTaskExecutorRegistration> taskManagerGateways;
+	private final Map<ResourceID, TaskExecutorRegistration> taskManagers;
 
 	/** All registered slots, including free and allocated slots */
 	private final Map<ResourceID, Map<SlotID, ResourceSlot>> registeredSlots;
@@ -86,28 +88,15 @@ public abstract class SlotManager {
 	/** The current leader id set by the ResourceManager */
 	private UUID leaderID;
 
-	/** The Resource allocation provider */
-	private ResourceManagerServices resourceManagerServices;
-
-	public SlotManager() {
+	public SlotManager(ResourceManagerServices rmServices) {
+		this.rmServices = checkNotNull(rmServices);
 		this.registeredSlots = new HashMap<>(16);
 		this.pendingSlotRequests = new LinkedHashMap<>(16);
 		this.freeSlots = new HashMap<>(16);
 		this.allocationMap = new AllocationMap();
-		this.taskManagerGateways = new HashMap<>();
+		this.taskManagers = new HashMap<>();
 		this.timeout = Time.seconds(10);
 	}
-
-	/**
-	 * Initializes the resource supplier which is needed to request new resources.
-	 */
-	public void setupResourceManagerServices(ResourceManagerServices resourceManagerServices) {
-		if (this.resourceManagerServices != null) {
-			throw new IllegalStateException("ResourceManagerServices may only be set once.");
-		}
-		this.resourceManagerServices = resourceManagerServices;
-	}
-
 
 	// ------------------------------------------------------------------------
 	//  slot managements
@@ -140,31 +129,13 @@ public abstract class SlotManager {
 			// remove selected slot from free pool
 			freeSlots.remove(slot.getSlotId());
 
-			final SimpleTaskExecutorRegistration registration = slot.getTaskExecutorRegistration();
-			final InstanceID instanceID = registration.getInstanceID();
-			final Future<TMSlotRequestReply> slotRequestReplyFuture =
-				registration.getTaskExecutorGateway().requestSlot(allocationId, leaderID, timeout);
-
-			slotRequestReplyFuture.handleAsync(new BiFunction<TMSlotRequestReply, Throwable, Void>() {
-				@Override
-				public Void apply(TMSlotRequestReply slotRequestReply, Throwable throwable) {
-					if (instanceID.equals(slotRequestReply.getInstanceID())) {
-						if (throwable != null || slotRequestReply instanceof TMSlotRequestRejected) {
-							handleSlotRequestFailedAtTaskManager(request, slot.getSlotId());
-						}
-					} else {
-						LOG.debug("Discarding message from obsolete TaskExecutor with InstanceID {}",
-							slotRequestReply.getInstanceID());
-					}
-					return null;
-				}
-			}, resourceManagerServices.getExecutor());
+			sendSlotRequest(slot, request);
 		} else {
 			LOG.info("Cannot fulfil slot request, try to allocate a new container for it, " +
 				"AllocationID:{}, JobID:{}", allocationId, request.getJobId());
-			Preconditions.checkState(resourceManagerServices != null,
+			Preconditions.checkState(rmServices != null,
 				"Attempted to allocate resources but no ResourceManagerServices set.");
-			resourceManagerServices.allocateResource(request.getResourceProfile());
+			rmServices.allocateResource(request.getResourceProfile());
 			pendingSlotRequests.put(allocationId, request);
 		}
 
@@ -172,12 +143,18 @@ public abstract class SlotManager {
 	}
 
 	/**
-	 * Sync slot status with TaskManager's SlotReport.
+	 * Notifies the SlotManager that a slot is available again after being allocated.
+	 * @param slotID slot id of available slot
 	 */
-	public void updateSlotStatus(final SlotReport slotReport) {
-		for (SlotStatus slotStatus : slotReport.getSlotsStatus()) {
-			updateSlotStatus(slotStatus);
+	public void notifySlotAvailable(ResourceID resourceID, SlotID slotID) {
+		if (!allocationMap.isAllocated(slotID)) {
+			throw new IllegalStateException("Slot was not previously allocated but " +
+				"TaskManager reports it as available again");
 		}
+		allocationMap.removeAllocation(slotID);
+		final Map<SlotID, ResourceSlot> slots = registeredSlots.get(resourceID);
+		ResourceSlot freeSlot = slots.get(slotID);
+		handleFreeSlot(freeSlot);
 	}
 
 	/**
@@ -207,13 +184,10 @@ public abstract class SlotManager {
 			if (originalAllocationId.equals(expectedAllocationId)) {
 				LOG.info("De-allocate this request and retry");
 				allocationMap.removeAllocation(expectedAllocationId);
-
-				// put this slot back to free pool
+				pendingSlotRequests.put(originalRequest.getAllocationId(), originalRequest);
 				ResourceSlot slot = checkNotNull(getRegisteredSlot(slotId));
-				freeSlots.put(slotId, slot);
-
-				// retry the request
-				requestSlot(originalRequest);
+				// treat this slot as empty and retry with a different request
+				handleFreeSlot(slot);
 			} else {
 				LOG.error("Slot request failed for slot {} with allocation id {}:" +
 						" Allocation id did not match the expected allocation id {}.",
@@ -230,9 +204,38 @@ public abstract class SlotManager {
 	 * Registers a TaskExecutor
 	 * @param resourceID TaskExecutor's ResourceID
 	 * @param registration TaskExecutor's registration
+	 * @param slotReport TaskExecutor's free and allocated slots
 	 */
-	public void registerTaskExecutor(ResourceID resourceID, SimpleTaskExecutorRegistration registration) {
-		this.taskManagerGateways.put(resourceID, registration);
+	public void registerTaskExecutor(
+			ResourceID resourceID,
+			TaskExecutorRegistration registration,
+			SlotReport slotReport) {
+		if (taskManagers.get(resourceID) != null) {
+			notifyTaskManagerFailure(resourceID);
+		}
+		this.taskManagers.put(resourceID, registration);
+		for (SlotStatus slotStatus : slotReport.getSlotsStatus()) {
+			final SlotID slotId = slotStatus.getSlotID();
+
+			final TaskExecutorRegistration taskExecutorRegistration = taskManagers.get(slotId.getResourceID());
+			if (taskExecutorRegistration == null) {
+				LOG.info("Received SlotStatus but ResourceID {} is unknown to the SlotManager",
+					slotId.getResourceID());
+				return;
+			}
+
+			final ResourceSlot slot = new ResourceSlot(slotId, slotStatus.getProfiler(), taskExecutorRegistration);
+
+			registerNewSlot(slot);
+			LOG.info("New slot appeared, SlotID:{}, AllocationID:{}", slotId, slotStatus.getAllocationID());
+
+			if (slotStatus.getAllocationID() != null) {
+				// slot in use, record this in bookkeeping
+				allocationMap.addAllocation(slotId, slotStatus.getAllocationID());
+			} else {
+				handleFreeSlot(slot);
+			}
+		}
 	}
 
 	/**
@@ -242,7 +245,7 @@ public abstract class SlotManager {
 	 */
 	public void notifyTaskManagerFailure(final ResourceID resourceId) {
 		LOG.info("Resource:{} been notified failure", resourceId);
-		taskManagerGateways.remove(resourceId);
+		taskManagers.remove(resourceId);
 		final Map<SlotID, ResourceSlot> slotIdsToRemove = registeredSlots.remove(resourceId);
 		if (slotIdsToRemove != null) {
 			for (SlotID slotId : slotIdsToRemove.keySet()) {
@@ -263,50 +266,6 @@ public abstract class SlotManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Update slot status based on TaskManager's report. There are mainly two situations when we receive the report:
-	 * <ul>
-	 * <li>1. The slot is newly registered.</li>
-	 * <li>2. The slot has registered, it contains its current status.</li>
-	 * </ul>
-	 * <p>
-	 * Regarding 1: It's fairly simple, we just record this slot's status, and trigger schedule if slot is empty.
-	 * <p>
-	 * Regarding 2: It will cause some weird situation since we may have some time-gap on how the slot's status really
-	 * is. We may have some updates on the slot's allocation, but it doesn't reflected by TaskManager's heartbeat yet,
-	 * and we may make some wrong decision if we cannot guarantee we have the exact status about all the slots. So
-	 * the principle here is: We always trust TaskManager's heartbeat, we will correct our information based on that
-	 * and take next action based on the diff between our information and heartbeat status.
-	 *
-	 * @param reportedStatus Reported slot status
-	 */
-	void updateSlotStatus(final SlotStatus reportedStatus) {
-		final SlotID slotId = reportedStatus.getSlotID();
-
-		final SimpleTaskExecutorRegistration taskExecutorRegistration = taskManagerGateways.get(slotId.getResourceID());
-		if (taskExecutorRegistration == null) {
-			LOG.info("Received SlotStatus but ResourceID {} is unknown to the SlotManager",
-				slotId.getResourceID());
-			return;
-		}
-
-		final ResourceSlot slot = new ResourceSlot(slotId, reportedStatus.getProfiler(), taskExecutorRegistration);
-
-		if (registerNewSlot(slot)) {
-			// we have a newly registered slot
-			LOG.info("New slot appeared, SlotID:{}, AllocationID:{}", slotId, reportedStatus.getAllocationID());
-
-			if (reportedStatus.getAllocationID() != null) {
-				// slot in use, record this in bookkeeping
-				allocationMap.addAllocation(slotId, reportedStatus.getAllocationID());
-			} else {
-				handleFreeSlot(slot);
-			}
-		}
-		// We don't have to do anything else because existing slot states are updated in the course
-		// of trying to allocate them witht the TaskExecutor.
-	}
-
-	/**
 	 * When we have a free slot, try to fulfill the pending request first. If any request can be fulfilled,
 	 * record this allocation in bookkeeping and send slot request to TaskManager, else we just add this slot
 	 * to the free pool.
@@ -318,34 +277,43 @@ public abstract class SlotManager {
 
 		if (chosenRequest != null) {
 			final AllocationID allocationId = chosenRequest.getAllocationId();
-			final SlotRequest removedSlotRequest = pendingSlotRequests.remove(allocationId);
+			final SlotRequest slotRequest = pendingSlotRequests.remove(allocationId);
 
 			LOG.info("Assigning SlotID({}) to AllocationID({}), JobID:{}", freeSlot.getSlotId(),
 				allocationId, chosenRequest.getJobId());
 			allocationMap.addAllocation(freeSlot.getSlotId(), allocationId);
 
-			final SimpleTaskExecutorRegistration registration = freeSlot.getTaskExecutorRegistration();
-			final InstanceID instanceID = registration.getInstanceID();
-			final Future<TMSlotRequestReply> slotRequestReplyFuture =
-				registration.getTaskExecutorGateway().requestSlot(allocationId, leaderID, timeout);
-
-			slotRequestReplyFuture.handleAsync(new BiFunction<TMSlotRequestReply, Throwable, Void>() {
-				@Override
-				public Void apply(TMSlotRequestReply slotRequestReply, Throwable throwable) {
-					if (instanceID.equals(slotRequestReply.getInstanceID())) {
-						if (throwable != null || slotRequestReply instanceof TMSlotRequestRejected) {
-							handleSlotRequestFailedAtTaskManager(removedSlotRequest, freeSlot.getSlotId());
-						}
-					} else {
-						LOG.debug("Discarding message from obsolete TaskExecutor with InstanceID {}",
-							slotRequestReply.getInstanceID());
-					}
-					return null;
-				}
-			}, resourceManagerServices.getExecutor());
+			sendSlotRequest(freeSlot, slotRequest);
 		} else {
 			freeSlots.put(freeSlot.getSlotId(), freeSlot);
 		}
+	}
+
+	private void sendSlotRequest(final ResourceSlot freeSlot, final SlotRequest slotRequest) {
+
+		final AllocationID allocationID = slotRequest.getAllocationId();
+		final TaskExecutorRegistration registration = freeSlot.getTaskExecutorRegistration();
+		final Future<TMSlotRequestReply> slotRequestReplyFuture =
+			registration.getTaskExecutorGateway()
+				.requestSlot(freeSlot.getSlotId(), allocationID, leaderID, timeout);
+
+		slotRequestReplyFuture.handleAsync(new BiFunction<TMSlotRequestReply, Throwable, Void>() {
+			@Override
+			public Void apply(TMSlotRequestReply slotRequestReply, Throwable throwable) {
+				TaskExecutorRegistration current = taskManagers.get(slotRequestReply.getResourceID());
+				if (current != null && current.getInstanceID().equals(slotRequestReply.getInstanceID())) {
+					if (throwable != null || slotRequestReply instanceof TMSlotRequestRejected) {
+						handleSlotRequestFailedAtTaskManager(slotRequest, freeSlot.getSlotId());
+					} else {
+						LOG.debug("Successfully registered slot {} ", freeSlot.getSlotId());
+					}
+				} else {
+					LOG.debug("Discarding message from obsolete TaskExecutor with InstanceID {}",
+						slotRequestReply.getInstanceID());
+				}
+				return null;
+			}
+		}, rmServices.getMainThreadExecutor());
 	}
 
 	/**
@@ -365,15 +333,14 @@ public abstract class SlotManager {
 	 * Try to register slot, and tell if this slot is newly registered.
 	 *
 	 * @param slot The ResourceSlot which will be checked and registered
-	 * @return <tt>true</tt> if we meet a new slot
 	 */
-	private boolean registerNewSlot(final ResourceSlot slot) {
+	private void registerNewSlot(final ResourceSlot slot) {
 		final SlotID slotId = slot.getSlotId();
 		final ResourceID resourceId = slotId.getResourceID();
 		if (!registeredSlots.containsKey(resourceId)) {
 			registeredSlots.put(resourceId, new HashMap<SlotID, ResourceSlot>());
 		}
-		return registeredSlots.get(resourceId).put(slotId, slot) == null;
+		registeredSlots.get(resourceId).put(slotId, slot);
 	}
 
 	private ResourceSlot getRegisteredSlot(final SlotID slotId) {
@@ -508,7 +475,7 @@ public abstract class SlotManager {
 	 * Clears the state of the SlotManager after leadership revokal
 	 */
 	public void clearState() {
-		taskManagerGateways.clear();
+		taskManagers.clear();
 		registeredSlots.clear();
 		pendingSlotRequests.clear();
 		freeSlots.clear();

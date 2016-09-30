@@ -25,15 +25,20 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.resourcemanager.*;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
+import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.TestingResourceManager;
+import org.apache.flink.runtime.resourcemanager.TestingSlotManager;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
-import org.apache.flink.runtime.resourcemanager.registration.SimpleTaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorRegistration;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -97,9 +102,9 @@ public class SlotProtocolTest extends TestLogger {
 		TestingLeaderElectionService rmLeaderElectionService =
 			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
-		SlotManager slotManager = Mockito.spy(new SimpleSlotManager());
-		StandaloneResourceManager resourceManager =
-			Mockito.spy(new StandaloneResourceManager(testRpcService, testingHaServices, slotManager));
+		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
+		SpiedResourceManager resourceManager =
+			new SpiedResourceManager(testRpcService, testingHaServices, slotManagerFactory);
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
 
@@ -110,6 +115,8 @@ public class SlotProtocolTest extends TestLogger {
 		} catch (Exception e) {
 			Assert.fail("JobManager registration Future didn't become ready.");
 		}
+
+		final SlotManager slotManager = slotManagerFactory.slotManager;
 
 		final AllocationID allocationID = new AllocationID();
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
@@ -127,14 +134,17 @@ public class SlotProtocolTest extends TestLogger {
 			allocationID);
 
 		// 3) SlotRequest leads to a container allocation
-		verify(resourceManager, timeout(5000)).startNewWorker(resourceProfile);
+		Assert.assertEquals(1, resourceManager.startNewWorkerCalled);
 
 		Assert.assertFalse(slotManager.isAllocated(allocationID));
 
 		// slot becomes available
 		final String tmAddress = "/tm1";
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
-		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
+		Mockito
+			.when(
+				taskExecutorGateway
+					.requestSlot(any(SlotID.class), any(AllocationID.class), any(UUID.class), any(Time.class)))
 			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
@@ -144,13 +154,14 @@ public class SlotProtocolTest extends TestLogger {
 		final SlotStatus slotStatus =
 			new SlotStatus(slotID, resourceProfile);
 		final SlotReport slotReport =
-			new SlotReport(Collections.singletonList(slotStatus), resourceID);
+			new SlotReport(Collections.singletonList(slotStatus));
 		// register slot at SlotManager
-		slotManager.registerTaskExecutor(resourceID, new SimpleTaskExecutorRegistration(taskExecutorGateway));
-		slotManager.updateSlotStatus(slotReport);
+		slotManager.registerTaskExecutor(
+			resourceID, new TaskExecutorRegistration(taskExecutorGateway), slotReport);
 
 		// 4) Slot becomes available and TaskExecutor gets a SlotRequest
-		verify(taskExecutorGateway, timeout(5000)).requestSlot(eq(allocationID), any(UUID.class), any(Time.class));
+		verify(taskExecutorGateway, timeout(5000))
+			.requestSlot(eq(slotID), eq(allocationID), any(UUID.class), any(Time.class));
 	}
 
 	/**
@@ -176,13 +187,15 @@ public class SlotProtocolTest extends TestLogger {
 			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
-		Mockito.when(taskExecutorGateway.requestSlot(any(AllocationID.class), any(UUID.class), any(Time.class)))
+		Mockito.when(
+			taskExecutorGateway
+				.requestSlot(any(SlotID.class), any(AllocationID.class), any(UUID.class), any(Time.class)))
 			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
-		SlotManager slotManager = Mockito.spy(new SimpleSlotManager());
-		StandaloneResourceManager resourceManager =
-			Mockito.spy(new StandaloneResourceManager(testRpcService, testingHaServices, slotManager));
+		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
+		TestingResourceManager resourceManager =
+			Mockito.spy(new TestingResourceManager(testRpcService, testingHaServices, slotManagerFactory));
 		resourceManager.start();
 		rmLeaderElectionService.isLeader(rmLeaderID);
 
@@ -194,6 +207,8 @@ public class SlotProtocolTest extends TestLogger {
 			Assert.fail("JobManager registration Future didn't become ready.");
 		}
 
+		final SlotManager slotManager = slotManagerFactory.slotManager;
+
 		final ResourceID resourceID = ResourceID.generate();
 		final AllocationID allocationID = new AllocationID();
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 100);
@@ -202,10 +217,10 @@ public class SlotProtocolTest extends TestLogger {
 		final SlotStatus slotStatus =
 			new SlotStatus(slotID, resourceProfile);
 		final SlotReport slotReport =
-			new SlotReport(Collections.singletonList(slotStatus), resourceID);
+			new SlotReport(Collections.singletonList(slotStatus));
 		// register slot at SlotManager
-		slotManager.registerTaskExecutor(resourceID, new SimpleTaskExecutorRegistration(taskExecutorGateway));
-		slotManager.updateSlotStatus(slotReport);
+		slotManager.registerTaskExecutor(
+			resourceID, new TaskExecutorRegistration(taskExecutorGateway), slotReport);
 
 		SlotRequest slotRequest = new SlotRequest(jobID, allocationID, resourceProfile);
 		RMSlotRequestReply slotRequestReply =
@@ -223,9 +238,9 @@ public class SlotProtocolTest extends TestLogger {
 		Assert.assertTrue(slotManager.isAllocated(slotID));
 		Assert.assertTrue(slotManager.isAllocated(allocationID));
 
-
 		// 4) a SlotRequest is routed to the TaskExecutor
-		verify(taskExecutorGateway, timeout(5000)).requestSlot(eq(allocationID), any(UUID.class), any(Time.class));
+		verify(taskExecutorGateway, timeout(5000))
+			.requestSlot(eq(slotID), eq(allocationID), any(UUID.class), any(Time.class));
 	}
 
 	private static TestingLeaderElectionService configureHA(
@@ -243,4 +258,32 @@ public class SlotProtocolTest extends TestLogger {
 		return rmLeaderElectionService;
 	}
 
+	private static class SpiedResourceManager extends TestingResourceManager {
+
+		private int startNewWorkerCalled = 0;
+
+		public SpiedResourceManager(
+				RpcService rpcService,
+				HighAvailabilityServices highAvailabilityServices,
+				SlotManagerFactory slotManagerFactory) {
+			super(rpcService, highAvailabilityServices, slotManagerFactory);
+		}
+
+
+		@Override
+		public void startNewWorker(ResourceProfile resourceProfile) {
+			startNewWorkerCalled++;
+		}
+	}
+
+	private static class TestingSlotManagerFactory implements SlotManagerFactory {
+
+		private SlotManager slotManager;
+
+		@Override
+		public SlotManager create(ResourceManagerServices rmServices) {
+			this.slotManager = Mockito.spy(new TestingSlotManager(rmServices));
+			return this.slotManager;
+		}
+	}
 }

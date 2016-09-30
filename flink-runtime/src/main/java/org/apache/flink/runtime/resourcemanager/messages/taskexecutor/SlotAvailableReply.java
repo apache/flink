@@ -15,21 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.resourcemanager.messages.taskexecutor;
 
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
+
+import java.io.Serializable;
+import java.util.UUID;
 
 /**
- * Rejection by the TaskExecutor for a SlotRequest from the ResourceManager
+ * Sent by the ResourceManager to the TaskExecutor confirm receipt of
+ * {@code org.apache.flink.runtime.resourcemanager.ResourceManagerGateway.notifySlotAvailable}.
  */
-public class TMSlotRequestRejected extends TMSlotRequestReply {
+public class SlotAvailableReply implements Serializable {
 
-	private static final long serialVersionUID = 9049346740895325144L;
+	private final UUID resourceManagerLeaderID;
 
-	public TMSlotRequestRejected(InstanceID instanceID, ResourceID resourceID, AllocationID allocationID) {
-		super(instanceID, resourceID, allocationID);
+	private final SlotID slotID;
+
+	public SlotAvailableReply(UUID resourceManagerLeaderID, SlotID slotID) {
+		this.resourceManagerLeaderID = resourceManagerLeaderID;
+		this.slotID = slotID;
+	}
+
+	public UUID getResourceManagerLeaderID() {
+		return resourceManagerLeaderID;
+	}
+
+	public SlotID getSlotID() {
+		return slotID;
 	}
 }

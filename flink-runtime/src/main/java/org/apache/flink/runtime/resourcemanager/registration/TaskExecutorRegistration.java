@@ -18,28 +18,34 @@
 
 package org.apache.flink.runtime.resourcemanager.registration;
 
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 
 import java.io.Serializable;
 
 /**
  * This class is responsible for grouping the TaskExecutorGateway and the InstanceID
- * of a registered task executor. It also contains the worker information.
+ * of a registered task executor.
  */
-public class TaskExecutorRegistration<WorkerType extends Serializable>
-		extends SimpleTaskExecutorRegistration
-		implements Serializable {
+public class TaskExecutorRegistration implements Serializable {
 
 	private static final long serialVersionUID = -2062957799469434614L;
 
-	private WorkerType worker;
+	private final InstanceID instanceID;
 
-	public TaskExecutorRegistration(TaskExecutorGateway taskExecutorGateway, WorkerType worker) {
-		super(taskExecutorGateway);
-		this.worker = worker;
+	private TaskExecutorGateway taskExecutorGateway;
+
+	public TaskExecutorRegistration(TaskExecutorGateway taskExecutorGateway) {
+		this.instanceID = new InstanceID();
+		this.taskExecutorGateway = taskExecutorGateway;
 	}
 
-	public WorkerType getWorker() {
-		return worker;
+	public InstanceID getInstanceID() {
+		return instanceID;
 	}
+
+	public TaskExecutorGateway getTaskExecutorGateway() {
+		return taskExecutorGateway;
+	}
+
 }

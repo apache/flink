@@ -39,6 +39,6 @@ public interface ResourceManagerServices {
 	/**
 	 * Gets the executor which executes in the main thread of the ResourceManager
 	 */
-	Executor getExecutor();
+	Executor getMainThreadExecutor();
 
 }

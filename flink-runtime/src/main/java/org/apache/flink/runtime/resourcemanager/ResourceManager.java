@@ -25,11 +25,13 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -37,8 +39,10 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRejected;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
-import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.SlotAvailableReply;
+import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -46,6 +50,7 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 
+import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
@@ -83,11 +88,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	private final Map<JobID, JobMasterLeaderListener> jobMasterLeaderRetrievalListeners;
 
-	private final Map<ResourceID, TaskExecutorRegistration<WorkerType>> taskExecutors;
+	private final Map<ResourceID, WorkerRegistration<WorkerType>> taskExecutors;
 
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	private final SlotManager slotManager;
+	private final SlotManagerFactory slotManagerFactory;
+	protected SlotManager slotManager;
 
 	private LeaderElectionService leaderElectionService;
 
@@ -100,11 +106,11 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public ResourceManager(
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
-			SlotManager slotManager) {
+			SlotManagerFactory slotManagerFactory) {
 		super(rpcService);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
+		this.slotManagerFactory = checkNotNull(slotManagerFactory);
 		this.jobMasterGateways = new HashMap<>();
-		this.slotManager = checkNotNull(slotManager);
 		this.jobMasterLeaderRetrievalListeners = new HashMap<>();
 		this.taskExecutors = new HashMap<>();
 		infoMessageListeners = new HashMap<>();
@@ -115,9 +121,10 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		// start a leader
 		try {
 			super.start();
+			// SlotManager should start first
+			slotManager = slotManagerFactory.create(createResourceManagerServices());
 			leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
 			leaderElectionService.start(this);
-			slotManager.setupResourceManagerServices(new DefaultResourceManagerServices());
 			// framework specific initialization
 			initialize();
 		} catch (Throwable e) {
@@ -198,7 +205,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			.handleAsync(new BiFunction<JobMasterGateway, Throwable, RegistrationResponse>() {
 				@Override
 				public RegistrationResponse apply(JobMasterGateway jobMasterGateway, Throwable throwable) {
-					
+
 					if (throwable != null) {
 						return new RegistrationResponse.Decline(throwable.getMessage());
 					} else {
@@ -236,7 +243,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public Future<RegistrationResponse> registerTaskExecutor(
 		final UUID resourceManagerLeaderId,
 		final String taskExecutorAddress,
-		final ResourceID resourceID) {
+		final ResourceID resourceID,
+		final SlotReport slotReport) {
 
 		return getRpcService().execute(new Callable<TaskExecutorGateway>() {
 			@Override
@@ -247,7 +255,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 						resourceID, taskExecutorAddress, leaderSessionID, resourceManagerLeaderId);
 					throw new Exception("Invalid leader session id");
 				}
-				return getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class).get(5, TimeUnit.SECONDS);
+				return getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class)
+					.get(timeout.toMilliseconds(), timeout.getUnit());
 			}
 		}).handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
 			@Override
@@ -255,16 +264,16 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				if (throwable != null) {
 					return new RegistrationResponse.Decline(throwable.getMessage());
 				} else {
-					TaskExecutorRegistration oldRegistration = taskExecutors.remove(resourceID);
+					WorkerRegistration oldRegistration = taskExecutors.remove(resourceID);
 					if (oldRegistration != null) {
 						// TODO :: suggest old taskExecutor to stop itself
 						slotManager.notifyTaskManagerFailure(resourceID);
 					}
 					WorkerType newWorker = workerStarted(resourceID);
-					TaskExecutorRegistration<WorkerType> registration =
-						new TaskExecutorRegistration<>(taskExecutorGateway, newWorker);
+					WorkerRegistration<WorkerType> registration =
+						new WorkerRegistration<>(taskExecutorGateway, newWorker);
 					taskExecutors.put(resourceID, registration);
-					slotManager.registerTaskExecutor(resourceID, registration);
+					slotManager.registerTaskExecutor(resourceID, registration, slotReport);
 					return new TaskExecutorRegistrationSuccess(registration.getInstanceID(), 5000);
 				}
 			}
@@ -297,6 +306,39 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			log.info("Ignoring slot request for unknown JobMaster with JobID {}", jobId);
 			return new RMSlotRequestRejected(slotRequest.getAllocationId());
 		}
+	}
+
+	/**
+	 * Notification from a TaskExecutor that a slot has become available
+	 * @param resourceManagerLeaderId TaskExecutor's resource manager leader id
+	 * @param resourceID TaskExecutor's resource id
+	 * @param instanceID TaskExecutor's instance id
+	 * @param slotID The slot id of the available slot
+	 * @return SlotAvailableReply
+	 */
+	@RpcMethod
+	public SlotAvailableReply notifySlotAvailable(
+			final UUID resourceManagerLeaderId,
+			final ResourceID resourceID,
+			final InstanceID instanceID,
+			final SlotID slotID) {
+
+		if (resourceManagerLeaderId.equals(leaderSessionID)) {
+			WorkerRegistration<WorkerType> registration = taskExecutors.get(resourceID);
+			if (registration != null) {
+				InstanceID registrationInstanceID = registration.getInstanceID();
+				if (registrationInstanceID.equals(instanceID)) {
+					runAsync(new Runnable() {
+						@Override
+						public void run() {
+							slotManager.notifySlotAvailable(resourceID, slotID);
+						}
+					});
+					return new SlotAvailableReply(leaderSessionID, slotID);
+				}
+			}
+		}
+		return null;
 	}
 
 
@@ -512,6 +554,14 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		});
 	}
 
+	// ------------------------------------------------------------------------
+	//  Resource Manager Services
+	// ------------------------------------------------------------------------
+
+	protected ResourceManagerServices createResourceManagerServices() {
+		return new DefaultResourceManagerServices();
+	}
+
 	private class DefaultResourceManagerServices implements ResourceManagerServices {
 
 		@Override
@@ -525,7 +575,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 
 		@Override
-		public Executor getExecutor() {
+		public Executor getMainThreadExecutor() {
 			return ResourceManager.this.getMainThreadExecutor();
 		}
 	}
