@@ -82,9 +82,12 @@ under the License.
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
 			</plugin>
 
-			<!-- Because flink-scala and flink-avro uses it in tests -->
+			<!-- Because flink-scala and flink-avro and flink-hadoop-compatibility uses it in tests -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
