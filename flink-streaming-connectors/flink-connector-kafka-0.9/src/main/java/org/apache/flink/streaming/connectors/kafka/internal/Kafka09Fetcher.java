@@ -289,14 +289,12 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>(partitions.length);
 
 		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
-			/*
-			 * Increment offset by one, otherwise last record will be read again. This does not affect checkpoints/saved state.
-			 * The offset is only read from Kafka/ZK on a fresh startup of a job, not restart or failure. See https://issues.apache.org/jira/browse/FLINK-4618
-			 */
-			Long offset = offsets.get(partition.getKafkaTopicPartition()) + 1;
-			if (offset != null) {
-				offsetsToCommit.put(partition.getKafkaPartitionHandle(), new OffsetAndMetadata(offset));
-				partition.setCommittedOffset(offset);
+			// committed offsets through the KafkaConsumer need to be 1 more than the last processed offset.
+			// This does not affect Flink's checkpoints/saved state.
+			Long offsetToCommit = offsets.get(partition.getKafkaTopicPartition()) + 1;
+			if (offsetToCommit != null) {
+				offsetsToCommit.put(partition.getKafkaPartitionHandle(), new OffsetAndMetadata(offsetToCommit));
+				partition.setCommittedOffset(offsetToCommit);
 			}
 		}
 
