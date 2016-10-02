@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.CheckpointStateHandles;
@@ -134,14 +135,10 @@ public class RocksDBAsyncSnapshotTest {
 
 			@Override
 			public void acknowledgeCheckpoint(
-					long checkpointId,
-					CheckpointStateHandles checkpointStateHandles,
-					long synchronousDurationMillis, long asynchronousDurationMillis,
-					long bytesBufferedInAlignment, long alignmentDurationNanos) {
+					CheckpointMetaData checkpointMetaData,
+					CheckpointStateHandles checkpointStateHandles) {
 
-				super.acknowledgeCheckpoint(checkpointId, checkpointStateHandles,
-						synchronousDurationMillis, asynchronousDurationMillis,
-						bytesBufferedInAlignment, alignmentDurationNanos);
+				super.acknowledgeCheckpoint(checkpointMetaData);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -171,7 +168,7 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		task.triggerCheckpoint(42, 17);
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17));
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
@@ -250,7 +247,7 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		task.triggerCheckpoint(42, 17);
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17));
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		BlockingStreamMemoryStateBackend.waitFirstWriteLatch.await();
 		task.cancel();

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -236,33 +237,20 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(
-			long checkpointId,
-			long synchronousDurationMillis,
-			long asynchronousDurationMillis,
-			long bytesBufferedInAlignment,
-			long alignmentDurationNanos) {
+	public void acknowledgeCheckpoint(CheckpointMetaData checkpointMetaData) {
 
-		acknowledgeCheckpoint(checkpointId, null,
-				synchronousDurationMillis, asynchronousDurationMillis,
-				bytesBufferedInAlignment, alignmentDurationNanos);
+		acknowledgeCheckpoint(checkpointMetaData, null);
 	}
 
 	@Override
 	public void acknowledgeCheckpoint(
-			long checkpointId,
-			CheckpointStateHandles checkpointStateHandles,
-			long synchronousDurationMillis,
-			long asynchronousDurationMillis,
-			long bytesBufferedInAlignment,
-			long alignmentDurationNanos) {
+			CheckpointMetaData checkpointMetaData,
+			CheckpointStateHandles checkpointStateHandles) {
 
 
 		checkpointResponder.acknowledgeCheckpoint(
-				jobId, executionId, checkpointId,
-				checkpointStateHandles,
-				synchronousDurationMillis, asynchronousDurationMillis,
-				bytesBufferedInAlignment, alignmentDurationNanos);
+				jobId, executionId, checkpointMetaData,
+				checkpointStateHandles);
 	}
 
 	@Override

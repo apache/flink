@@ -19,10 +19,11 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.util.ArrayDeque;
 
@@ -115,8 +116,14 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		// fast path for single channel trackers
 		if (totalNumberOfInputChannels == 1) {
 			if (toNotifyOnCheckpoint != null) {
-				toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
-						receivedBarrier.getId(), receivedBarrier.getTimestamp(), 0L, 0L);
+				CheckpointMetaData checkpointMetaData =
+						new CheckpointMetaData(receivedBarrier.getId(), receivedBarrier.getTimestamp());
+
+				checkpointMetaData.
+						setBytesBufferedInAlignment(0L).
+						setAlignmentDurationNanos(0L);
+
+				toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData);
 			}
 			return;
 		}
@@ -149,8 +156,13 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 				
 				// notify the listener
 				if (toNotifyOnCheckpoint != null) {
-					toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
-							receivedBarrier.getId(), receivedBarrier.getTimestamp(), 0L, 0L);
+					CheckpointMetaData checkpointMetaData =
+							new CheckpointMetaData(receivedBarrier.getId(), receivedBarrier.getTimestamp());
+					checkpointMetaData.
+							setBytesBufferedInAlignment(0L).
+							setAlignmentDurationNanos(0L);
+
+					toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData);
 				}
 			}
 		}
