@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
+import java.util.UUID;
 
 /**
  * {@link CheckpointStreamFactory} that produces streams that write to in-memory byte arrays.
@@ -118,7 +119,7 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 			if (isEmpty) {
 				return null;
 			}
-			return new ByteStreamStateHandle(closeAndGetBytes());
+			return new ByteStreamStateHandle(String.valueOf(UUID.randomUUID()), closeAndGetBytes());
 		}
 
 		@Override

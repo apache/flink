@@ -45,6 +45,8 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.junit.Assert;
@@ -65,6 +67,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -2287,7 +2290,8 @@ public class CheckpointCoordinatorTest {
 
 		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(keyGroupRange, serializedDataWithOffsets.f1.get(0));
 
-		ByteStreamStateHandle allSerializedStatesHandle = new ByteStreamStateHandle(
+		ByteStreamStateHandle allSerializedStatesHandle = new TestByteStreamStateHandleDeepCompare(
+				String.valueOf(UUID.randomUUID()),
 				serializedDataWithOffsets.f0);
 		KeyGroupsStateHandle keyGroupsStateHandle = new KeyGroupsStateHandle(
 				keyGroupRangeOffsets,
@@ -2343,7 +2347,8 @@ public class CheckpointCoordinatorTest {
 
 	public static ChainedStateHandle<StreamStateHandle> generateChainedStateHandle(
 			Serializable value) throws IOException {
-		return ChainedStateHandle.wrapSingleHandle(ByteStreamStateHandle.fromSerializable(value));
+		return ChainedStateHandle.wrapSingleHandle(
+				TestByteStreamStateHandleDeepCompare.fromSerializable(String.valueOf(UUID.randomUUID()), value));
 	}
 
 	public static ChainedStateHandle<OperatorStateHandle> generateChainedPartitionableStateHandle(
@@ -2387,7 +2392,8 @@ public class CheckpointCoordinatorTest {
 			++idx;
 		}
 
-		ByteStreamStateHandle streamStateHandle = new ByteStreamStateHandle(
+		ByteStreamStateHandle streamStateHandle = new TestByteStreamStateHandleDeepCompare(
+				String.valueOf(UUID.randomUUID()),
 				serializationWithOffsets.f0);
 
 		OperatorStateHandle operatorStateHandle =
@@ -2468,7 +2474,9 @@ public class CheckpointCoordinatorTest {
 			ChainedStateHandle<StreamStateHandle> expectNonPartitionedState = generateStateForVertex(jobVertexID, i);
 			ChainedStateHandle<StreamStateHandle> actualNonPartitionedState = executionJobVertex.
 					getTaskVertices()[i].getCurrentExecutionAttempt().getChainedStateHandle();
-			assertEquals(expectNonPartitionedState.get(0), actualNonPartitionedState.get(0));
+			assertTrue(CommonTestUtils.isSteamContentEqual(
+					expectNonPartitionedState.get(0).openInputStream(),
+					actualNonPartitionedState.get(0).openInputStream()));
 
 			ChainedStateHandle<OperatorStateHandle> expectedPartitionableState =
 					generateChainedPartitionableStateHandle(jobVertexID, i, 2, 8);
@@ -2476,7 +2484,9 @@ public class CheckpointCoordinatorTest {
 			List<Collection<OperatorStateHandle>> actualPartitionableState = executionJobVertex.
 					getTaskVertices()[i].getCurrentExecutionAttempt().getChainedPartitionableStateHandle();
 
-			assertEquals(expectedPartitionableState.get(0), actualPartitionableState.get(0).iterator().next());
+			assertTrue(CommonTestUtils.isSteamContentEqual(
+					expectedPartitionableState.get(0).openInputStream(),
+					actualPartitionableState.get(0).iterator().next().openInputStream()));
 
 			List<KeyGroupsStateHandle> expectPartitionedKeyGroupState = generateKeyGroupState(
 					jobVertexID,
