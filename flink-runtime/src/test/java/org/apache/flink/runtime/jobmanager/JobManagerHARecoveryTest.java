@@ -69,6 +69,7 @@ import org.apache.flink.runtime.testingUtils.TestingMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -461,7 +462,8 @@ public class JobManagerHARecoveryTest {
 		@Override
 		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) {
 			try {
-				ByteStreamStateHandle byteStreamStateHandle = new ByteStreamStateHandle(
+				ByteStreamStateHandle byteStreamStateHandle = new TestByteStreamStateHandleDeepCompare(
+						String.valueOf(UUID.randomUUID()),
 						InstantiationUtil.serializeObject(checkpointMetaData.getCheckpointId()));
 
 				RetrievableStreamStateHandle<Long> state = new RetrievableStreamStateHandle<Long>(byteStreamStateHandle);

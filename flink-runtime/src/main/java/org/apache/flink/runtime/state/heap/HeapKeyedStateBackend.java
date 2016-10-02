@@ -30,7 +30,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -46,6 +48,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -106,12 +109,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------
-
+	@SuppressWarnings("unchecked")
 	@Override
 	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
-		@SuppressWarnings("unchecked,rawtypes")
-		StateTable<K, N, V> stateTable = (StateTable) stateTables.get(stateDesc.getName());
-
+		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(stateDesc.getName());
 
 		if (stateTable == null) {
 			stateTable = new StateTable<>(stateDesc.getSerializer(), namespaceSerializer, keyGroupRange);
@@ -121,10 +122,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return new HeapValueState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
-		@SuppressWarnings("unchecked,rawtypes")
-		StateTable<K, N, ArrayList<T>> stateTable = (StateTable) stateTables.get(stateDesc.getName());
+		StateTable<K, N, ArrayList<T>> stateTable = (StateTable<K, N, ArrayList<T>>) stateTables.get(stateDesc.getName());
 
 		if (stateTable == null) {
 			stateTable = new StateTable<>(new ArrayListSerializer<>(stateDesc.getSerializer()), namespaceSerializer, keyGroupRange);
@@ -133,11 +134,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
-
+	@SuppressWarnings("unchecked")
 	@Override
 	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-		@SuppressWarnings("unchecked,rawtypes")
-		StateTable<K, N, T> stateTable = (StateTable) stateTables.get(stateDesc.getName());
+		StateTable<K, N, T> stateTable = (StateTable<K, N, T>) stateTables.get(stateDesc.getName());
 
 		if (stateTable == null) {
 			stateTable = new StateTable<>(stateDesc.getSerializer(), namespaceSerializer, keyGroupRange);
@@ -146,11 +146,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		return new HeapReducingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
-
+	@SuppressWarnings("unchecked")
 	@Override
 	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-		@SuppressWarnings("unchecked,rawtypes")
-		StateTable<K, N, ACC> stateTable = (StateTable) stateTables.get(stateDesc.getName());
+		StateTable<K, N, ACC> stateTable = (StateTable<K, N, ACC>) stateTables.get(stateDesc.getName());
 
 		if (stateTable == null) {
 			stateTable = new StateTable<>(stateDesc.getSerializer(), namespaceSerializer, keyGroupRange);
@@ -161,7 +160,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	@SuppressWarnings("rawtypes,unchecked")
+	@SuppressWarnings("unchecked")
 	public RunnableFuture<KeyGroupsStateHandle> snapshot(
 			long checkpointId,
 			long timestamp,
@@ -188,8 +187,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				outView.writeUTF(kvState.getKey());
 
-				TypeSerializer namespaceSerializer = kvState.getValue().getNamespaceSerializer();
-				TypeSerializer stateSerializer = kvState.getValue().getStateSerializer();
+				TypeSerializer<?> namespaceSerializer = kvState.getValue().getNamespaceSerializer();
+				TypeSerializer<?> stateSerializer = kvState.getValue().getStateSerializer();
 
 				InstantiationUtil.serializeObject(stream, namespaceSerializer);
 				InstantiationUtil.serializeObject(stream, stateSerializer);
@@ -203,39 +202,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			for (int keyGroupIndex = keyGroupRange.getStartKeyGroup(); keyGroupIndex <= keyGroupRange.getEndKeyGroup(); keyGroupIndex++) {
 				keyGroupRangeOffsets[offsetCounter++] = stream.getPos();
 				outView.writeInt(keyGroupIndex);
-
 				for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
-
 					outView.writeShort(kVStateToId.get(kvState.getKey()));
-
-					TypeSerializer namespaceSerializer = kvState.getValue().getNamespaceSerializer();
-					TypeSerializer stateSerializer = kvState.getValue().getStateSerializer();
-
-					// Map<NamespaceT, Map<KeyT, StateT>>
-					Map<?, ? extends Map<K, ?>> namespaceMap = kvState.getValue().get(keyGroupIndex);
-					if (namespaceMap == null) {
-						outView.writeByte(0);
-						continue;
-					}
-
-					outView.writeByte(1);
-
-					// number of namespaces
-					outView.writeInt(namespaceMap.size());
-					for (Map.Entry<?, ? extends Map<K, ?>> namespace : namespaceMap.entrySet()) {
-						namespaceSerializer.serialize(namespace.getKey(), outView);
-
-						Map<K, ?> entryMap = namespace.getValue();
-
-						// number of entries
-						outView.writeInt(entryMap.size());
-						for (Map.Entry<K, ?> entry : entryMap.entrySet()) {
-							keySerializer.serialize(entry.getKey(), outView);
-							stateSerializer.serialize(entry.getValue(), outView);
-						}
-					}
+					writeStateTableForKeyGroup(outView, kvState.getValue(), keyGroupIndex);
 				}
-				outView.flush();
 			}
 
 			StreamStateHandle streamStateHandle = stream.closeAndGetHandle();
@@ -246,8 +216,42 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public void restorePartitionedState(List<KeyGroupsStateHandle> state) throws Exception {
+	private <N, S> void writeStateTableForKeyGroup(
+			DataOutputView outView,
+			StateTable<K, N, S> stateTable,
+			int keyGroupIndex) throws IOException {
+
+		TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
+		TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
+
+		Map<N, Map<K, S>> namespaceMap = stateTable.get(keyGroupIndex);
+		if (namespaceMap == null) {
+			outView.writeByte(0);
+		} else {
+			outView.writeByte(1);
+
+			// number of namespaces
+			outView.writeInt(namespaceMap.size());
+			for (Map.Entry<N, Map<K, S>> namespace : namespaceMap.entrySet()) {
+				namespaceSerializer.serialize(namespace.getKey(), outView);
+
+				Map<K, S> entryMap = namespace.getValue();
+
+				// number of entries
+				outView.writeInt(entryMap.size());
+				for (Map.Entry<K, S> entry : entryMap.entrySet()) {
+					keySerializer.serialize(entry.getKey(), outView);
+					stateSerializer.serialize(entry.getValue(), outView);
+				}
+			}
+		}
+	}
+
+	@SuppressWarnings({"unchecked"})
+	private void restorePartitionedState(List<KeyGroupsStateHandle> state) throws Exception {
+
+		int numRegisteredKvStates = 0;
+		Map<Integer, String> kvStatesById = new HashMap<>();
 
 		for (KeyGroupsStateHandle keyGroupsHandle : state) {
 
@@ -266,21 +270,23 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				int numKvStates = inView.readShort();
 
-				Map<Integer, String> kvStatesById = new HashMap<>(numKvStates);
-
 				for (int i = 0; i < numKvStates; ++i) {
 					String stateName = inView.readUTF();
 
-					TypeSerializer namespaceSerializer =
+					TypeSerializer<?> namespaceSerializer =
 							InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
-					TypeSerializer stateSerializer =
+					TypeSerializer<?> stateSerializer =
 							InstantiationUtil.deserializeObject(fsDataInputStream, userCodeClassLoader);
 
-					StateTable<K, ?, ?> stateTable = new StateTable(stateSerializer,
-							namespaceSerializer,
-							keyGroupRange);
-					stateTables.put(stateName, stateTable);
-					kvStatesById.put(i, stateName);
+					StateTable<K, ?, ?> stateTable = stateTables.get(stateName);
+
+					//important: only create a new table we did not already create it previously
+					if (null == stateTable) {
+						stateTable = new StateTable<>(stateSerializer, namespaceSerializer, keyGroupRange);
+						stateTables.put(stateName, stateTable);
+						kvStatesById.put(numRegisteredKvStates, stateName);
+						++numRegisteredKvStates;
+					}
 				}
 
 				for (Tuple2<Integer, Long> groupOffset : keyGroupsHandle.getGroupRangeOffsets()) {
@@ -302,30 +308,38 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						StateTable<K, ?, ?> stateTable = stateTables.get(kvStatesById.get(kvStateId));
 						Preconditions.checkNotNull(stateTable);
 
-						TypeSerializer namespaceSerializer = stateTable.getNamespaceSerializer();
-						TypeSerializer stateSerializer = stateTable.getStateSerializer();
-
-						Map namespaceMap = new HashMap<>();
-						stateTable.set(keyGroupIndex, namespaceMap);
-
-						int numNamespaces = inView.readInt();
-						for (int k = 0; k < numNamespaces; k++) {
-							Object namespace = namespaceSerializer.deserialize(inView);
-							Map entryMap = new HashMap<>();
-							namespaceMap.put(namespace, entryMap);
-
-							int numEntries = inView.readInt();
-							for (int l = 0; l < numEntries; l++) {
-								Object key = keySerializer.deserialize(inView);
-								Object value = stateSerializer.deserialize(inView);
-								entryMap.put(key, value);
-							}
-						}
+						readStateTableForKeyGroup(inView, stateTable, keyGroupIndex);
 					}
 				}
 			} finally {
 				cancelStreamRegistry.unregisterClosable(fsDataInputStream);
 				IOUtils.closeQuietly(fsDataInputStream);
+			}
+		}
+	}
+
+	private <N, S> void readStateTableForKeyGroup(
+			DataInputView inView,
+			StateTable<K, N, S> stateTable,
+			int keyGroupIndex) throws IOException {
+
+		TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
+		TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
+
+		Map<N, Map<K, S>> namespaceMap = new HashMap<>();
+		stateTable.set(keyGroupIndex, namespaceMap);
+
+		int numNamespaces = inView.readInt();
+		for (int k = 0; k < numNamespaces; k++) {
+			N namespace = namespaceSerializer.deserialize(inView);
+			Map<K, S> entryMap = new HashMap<>();
+			namespaceMap.put(namespace, entryMap);
+
+			int numEntries = inView.readInt();
+			for (int l = 0; l < numEntries; l++) {
+				K key = keySerializer.deserialize(inView);
+				S state = stateSerializer.deserialize(inView);
+				entryMap.put(key, state);
 			}
 		}
 	}

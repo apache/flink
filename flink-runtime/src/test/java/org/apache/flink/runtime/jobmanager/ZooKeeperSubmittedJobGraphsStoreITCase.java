@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGr
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.InstantiationUtil;
@@ -40,6 +41,7 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.Assert.assertEquals;
@@ -62,9 +64,10 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 	private final static RetrievableStateStorageHelper<SubmittedJobGraph> localStateStorage = new RetrievableStateStorageHelper<SubmittedJobGraph>() {
 		@Override
 		public RetrievableStateHandle<SubmittedJobGraph> store(SubmittedJobGraph state) throws IOException {
-			ByteStreamStateHandle byteStreamStateHandle = new ByteStreamStateHandle(
+			ByteStreamStateHandle byteStreamStateHandle = new TestByteStreamStateHandleDeepCompare(
+					String.valueOf(UUID.randomUUID()),
 					InstantiationUtil.serializeObject(state));
-			return new RetrievableStreamStateHandle<SubmittedJobGraph>(byteStreamStateHandle);
+			return new RetrievableStreamStateHandle<>(byteStreamStateHandle);
 		}
 	};
 

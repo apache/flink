@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -72,11 +72,11 @@ public class SavepointV1Test {
 		for (int i = 0; i < numTaskStates; i++) {
 			TaskState taskState = new TaskState(new JobVertexID(), numSubtaskStates, numSubtaskStates, 1);
 			for (int j = 0; j < numSubtaskStates; j++) {
-				StreamStateHandle stateHandle = new ByteStreamStateHandle("Hello".getBytes());
+				StreamStateHandle stateHandle = new TestByteStreamStateHandleDeepCompare("a", "Hello".getBytes());
 				taskState.putState(i, new SubtaskState(
 						new ChainedStateHandle<>(Collections.singletonList(stateHandle)), 0));
 
-				stateHandle = new ByteStreamStateHandle("Beautiful".getBytes());
+				stateHandle = new TestByteStreamStateHandleDeepCompare("b", "Beautiful".getBytes());
 				Map<String, long[]> offsetsMap = new HashMap<>();
 				offsetsMap.put("A", new long[]{0, 10, 20});
 				offsetsMap.put("B", new long[]{30, 40, 50});
@@ -93,7 +93,8 @@ public class SavepointV1Test {
 			taskState.putKeyedState(
 					0,
 					new KeyGroupsStateHandle(
-							new KeyGroupRangeOffsets(1,1, new long[] {42}), new ByteStreamStateHandle("World".getBytes())));
+							new KeyGroupRangeOffsets(1, 1, new long[]{42}),
+							new TestByteStreamStateHandleDeepCompare("c", "World".getBytes())));
 
 			taskStates.add(taskState);
 		}
