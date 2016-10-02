@@ -624,7 +624,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private void restoreKeyGroupsInStateHandle()
 				throws IOException, RocksDBException, ClassNotFoundException {
 			try {
-				currentStateHandleInStream = currentKeyGroupsStateHandle.getStateHandle().openInputStream();
+				currentStateHandleInStream = currentKeyGroupsStateHandle.openInputStream();
 				rocksDBKeyedStateBackend.cancelStreamRegistry.registerClosable(currentStateHandleInStream);
 				currentStateHandleInView = new DataInputViewStreamWrapper(currentStateHandleInStream);
 				restoreKVStateMetaData();

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -28,7 +29,7 @@ import java.io.IOException;
  * consists of a range of key group snapshots. A key group is subset of the available
  * key space. The key groups are identified by their key group indices.
  */
-public class KeyGroupsStateHandle implements StateObject {
+public class KeyGroupsStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = -8070326169926626355L;
 
@@ -104,14 +105,6 @@ public class KeyGroupsStateHandle implements StateObject {
 		return groupRangeOffsets.getKeyGroupRange().getNumberOfKeyGroups();
 	}
 
-	/**
-	 *
-	 * @return the inner stream state handle to the actual key-group states
-	 */
-	public StreamStateHandle getStateHandle() {
-		return stateHandle;
-	}
-
 	@Override
 	public void discardState() throws Exception {
 		stateHandle.discardState();
@@ -120,6 +113,15 @@ public class KeyGroupsStateHandle implements StateObject {
 	@Override
 	public long getStateSize() throws IOException {
 		return stateHandle.getStateSize();
+	}
+
+	@Override
+	public FSDataInputStream openInputStream() throws IOException {
+		return stateHandle.openInputStream();
+	}
+
+	public StreamStateHandle getDelegateStateHandle() {
+		return stateHandle;
 	}
 
 	@Override
