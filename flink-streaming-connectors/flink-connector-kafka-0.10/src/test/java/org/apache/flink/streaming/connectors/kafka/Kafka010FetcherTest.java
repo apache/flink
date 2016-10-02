@@ -143,7 +143,7 @@ public class Kafka010FetcherTest {
             @Override
             public void run() {
                 try {
-                    fetcher.commitSpecificOffsetsToKafka(testCommitData);
+                    fetcher.commitInternalOffsetsToKafka(testCommitData);
                 } catch (Throwable t) {
                     commitError.set(t);
                 }
@@ -255,7 +255,7 @@ public class Kafka010FetcherTest {
 
         // ----- trigger the first offset commit -----
 
-        fetcher.commitSpecificOffsetsToKafka(testCommitData1);
+        fetcher.commitInternalOffsetsToKafka(testCommitData1);
         Map<TopicPartition, OffsetAndMetadata> result1 = commitStore.take();
 
         for (Entry<TopicPartition, OffsetAndMetadata> entry : result1.entrySet()) {
@@ -272,7 +272,7 @@ public class Kafka010FetcherTest {
 
         // ----- trigger the second offset commit -----
 
-        fetcher.commitSpecificOffsetsToKafka(testCommitData2);
+        fetcher.commitInternalOffsetsToKafka(testCommitData2);
         Map<TopicPartition, OffsetAndMetadata> result2 = commitStore.take();
 
         for (Entry<TopicPartition, OffsetAndMetadata> entry : result2.entrySet()) {
