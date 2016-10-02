@@ -205,7 +205,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 			for (int keyGroup : stateHandle.keyGroups()) {
 				dos.writeLong(stateHandle.getOffsetForKeyGroup(keyGroup));
 			}
-			serializeStreamStateHandle(stateHandle.getStateHandle(), dos);
+			serializeStreamStateHandle(stateHandle.getDelegateStateHandle(), dos);
 		} else {
 			dos.writeByte(NULL_HANDLE);
 		}

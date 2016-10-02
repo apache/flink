@@ -2474,7 +2474,7 @@ public class CheckpointCoordinatorTest {
 
 		assertEquals(expectedTotalKeyGroups, actualTotalKeyGroups);
 
-		try (FSDataInputStream inputStream = expectedHeadOpKeyGroupStateHandle.getStateHandle().openInputStream()) {
+		try (FSDataInputStream inputStream = expectedHeadOpKeyGroupStateHandle.openInputStream()) {
 			for (int groupId : expectedHeadOpKeyGroupStateHandle.keyGroups()) {
 				long offset = expectedHeadOpKeyGroupStateHandle.getOffsetForKeyGroup(groupId);
 				inputStream.seek(offset);
@@ -2483,9 +2483,8 @@ public class CheckpointCoordinatorTest {
 				for (KeyGroupsStateHandle oneActualKeyGroupStateHandle : actualPartitionedKeyGroupState) {
 					if (oneActualKeyGroupStateHandle.containsKeyGroup(groupId)) {
 						long actualOffset = oneActualKeyGroupStateHandle.getOffsetForKeyGroup(groupId);
-						try (FSDataInputStream actualInputStream = oneActualKeyGroupStateHandle.
-								getStateHandle().openInputStream()) {
-
+						try (FSDataInputStream actualInputStream =
+								     oneActualKeyGroupStateHandle.openInputStream()) {
 							actualInputStream.seek(actualOffset);
 
 							int actualGroupState = InstantiationUtil.
