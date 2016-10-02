@@ -142,9 +142,11 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 				Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getOffsets(partitionsWithNoOffset);
 				for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
-					Long offset = zkOffsets.get(partition.getKafkaTopicPartition());
-					if (offset != null) {
-						partition.setOffset(offset);
+					Long zkOffset = zkOffsets.get(partition.getKafkaTopicPartition());
+					if (zkOffset != null) {
+						// the offset in ZK represents the "next record to process", so we need to subtract it by 1
+						// to correctly represent our internally checkpointed offsets
+						partition.setOffset(zkOffset - 1);
 					}
 				}
 			}

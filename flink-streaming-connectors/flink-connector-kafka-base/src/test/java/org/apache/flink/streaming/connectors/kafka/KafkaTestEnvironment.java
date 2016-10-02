@@ -29,6 +29,8 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Properties;
 
 /**
@@ -83,6 +85,14 @@ public abstract class KafkaTestEnvironment {
 														KeyedSerializationSchema<T> serSchema, Properties props,
 														KafkaPartitioner<T> partitioner);
 
+	// -- offset handlers
+
+	public interface KafkaOffsetHandler {
+		Long getCommittedOffset(String topicName, int partition);
+		void close();
+	}
+
+	public abstract KafkaOffsetHandler createOffsetHandler(Properties props);
 
 	// -- leader failure simulation
 

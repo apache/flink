@@ -161,28 +161,48 @@ public class FlinkKafkaConsumerBaseTest {
 		assertFalse(listState.get().iterator().hasNext());
 	}
 
+	/**
+	 * Tests that on snapshots, states and offsets to commit to Kafka are correct
+	 */
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testSnapshotState() throws Exception {
+
+		// --------------------------------------------------------------------
+		//   prepare fake states and corresponding expected offsets to commit;
+		//   the offsets to commit should be 1 more than the snapshot state
+		// --------------------------------------------------------------------
+
 		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
+		final HashMap<KafkaTopicPartition, Long> expectedOffsetsToCommit1 = new HashMap<>();
 		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
 		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
+		expectedOffsetsToCommit1.put(new KafkaTopicPartition("abc", 13), 16769L);
+		expectedOffsetsToCommit1.put(new KafkaTopicPartition("def", 7), 987654322L);
 
 		final HashMap<KafkaTopicPartition, Long> state2 = new HashMap<>();
+		final HashMap<KafkaTopicPartition, Long> expectedOffsetsToCommit2 = new HashMap<>();
 		state2.put(new KafkaTopicPartition("abc", 13), 16770L);
 		state2.put(new KafkaTopicPartition("def", 7), 987654329L);
+		expectedOffsetsToCommit2.put(new KafkaTopicPartition("abc", 13), 16771L);
+		expectedOffsetsToCommit2.put(new KafkaTopicPartition("def", 7), 987654330L);
 
 		final HashMap<KafkaTopicPartition, Long> state3 = new HashMap<>();
+		final HashMap<KafkaTopicPartition, Long> expectedOffsetsToCommit3 = new HashMap<>();
 		state3.put(new KafkaTopicPartition("abc", 13), 16780L);
 		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
+		expectedOffsetsToCommit3.put(new KafkaTopicPartition("abc", 13), 16781L);
+		expectedOffsetsToCommit3.put(new KafkaTopicPartition("def", 7), 987654378L);
 
+		// --------------------------------------------------------------------
+		
 		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
 		when(fetcher.snapshotCurrentState()).thenReturn(state1, state2, state3);
-
-		final LinkedMap pendingCheckpoints = new LinkedMap();
-
-		FlinkKafkaConsumerBase<String> consumer = getConsumer(fetcher, pendingCheckpoints, true);
-		assertEquals(0, pendingCheckpoints.size());
+			
+		final LinkedMap pendingOffsetsToCommit = new LinkedMap();
+	
+		FlinkKafkaConsumerBase<String> consumer = getConsumer(fetcher, pendingOffsetsToCommit, true);
+		assertEquals(0, pendingOffsetsToCommit.size());
 
 		OperatorStateStore backend = mock(OperatorStateStore.class);
 
@@ -207,8 +227,8 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		assertEquals(state1, snapshot1);
-		assertEquals(1, pendingCheckpoints.size());
-		assertEquals(state1, pendingCheckpoints.get(138L));
+		assertEquals(1, pendingOffsetsToCommit.size());
+		assertEquals(expectedOffsetsToCommit1, pendingOffsetsToCommit.get(138L));
 
 		// checkpoint 2
 		consumer.prepareSnapshot(140L, 140L);
@@ -221,13 +241,13 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		assertEquals(state2, snapshot2);
-		assertEquals(2, pendingCheckpoints.size());
-		assertEquals(state2, pendingCheckpoints.get(140L));
-
+		assertEquals(2, pendingOffsetsToCommit.size());
+		assertEquals(expectedOffsetsToCommit2, pendingOffsetsToCommit.get(140L));
+		
 		// ack checkpoint 1
 		consumer.notifyCheckpointComplete(138L);
-		assertEquals(1, pendingCheckpoints.size());
-		assertTrue(pendingCheckpoints.containsKey(140L));
+		assertEquals(1, pendingOffsetsToCommit.size());
+		assertTrue(pendingOffsetsToCommit.containsKey(140L));
 
 		// checkpoint 3
 		consumer.prepareSnapshot(141L, 141L);
@@ -240,16 +260,16 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		assertEquals(state3, snapshot3);
-		assertEquals(2, pendingCheckpoints.size());
-		assertEquals(state3, pendingCheckpoints.get(141L));
-
+		assertEquals(2, pendingOffsetsToCommit.size());
+		assertEquals(expectedOffsetsToCommit3, pendingOffsetsToCommit.get(141L));
+		
 		// ack checkpoint 3, subsumes number 2
 		consumer.notifyCheckpointComplete(141L);
-		assertEquals(0, pendingCheckpoints.size());
+		assertEquals(0, pendingOffsetsToCommit.size());
 
 
 		consumer.notifyCheckpointComplete(666); // invalid checkpoint
-		assertEquals(0, pendingCheckpoints.size());
+		assertEquals(0, pendingOffsetsToCommit.size());
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
@@ -260,24 +280,24 @@ public class FlinkKafkaConsumerBaseTest {
 			consumer.prepareSnapshot(i, i);
 			listState.clear();
 		}
-		assertEquals(FlinkKafkaConsumerBase.MAX_NUM_PENDING_CHECKPOINTS, pendingCheckpoints.size());
+		assertEquals(FlinkKafkaConsumerBase.MAX_NUM_PENDING_CHECKPOINTS, pendingOffsetsToCommit.size());
 
 		// commit only the second last
 		consumer.notifyCheckpointComplete(598);
-		assertEquals(1, pendingCheckpoints.size());
+		assertEquals(1, pendingOffsetsToCommit.size());
 
 		// access invalid checkpoint
 		consumer.notifyCheckpointComplete(590);
 
 		// and the last
 		consumer.notifyCheckpointComplete(599);
-		assertEquals(0, pendingCheckpoints.size());
+		assertEquals(0, pendingOffsetsToCommit.size());
 	}
 
 	// ------------------------------------------------------------------------
 
 	private static <T> FlinkKafkaConsumerBase<T> getConsumer(
-			AbstractFetcher<T, ?> fetcher, LinkedMap pendingCheckpoints, boolean running) throws Exception
+			AbstractFetcher<T, ?> fetcher, LinkedMap pendingOffsetsToCommit, boolean running) throws Exception
 	{
 		FlinkKafkaConsumerBase<T> consumer = new DummyFlinkKafkaConsumer<>();
 
@@ -285,9 +305,9 @@ public class FlinkKafkaConsumerBaseTest {
 		fetcherField.setAccessible(true);
 		fetcherField.set(consumer, fetcher);
 
-		Field mapField = FlinkKafkaConsumerBase.class.getDeclaredField("pendingCheckpoints");
+		Field mapField = FlinkKafkaConsumerBase.class.getDeclaredField("pendingOffsetsToCommit");
 		mapField.setAccessible(true);
-		mapField.set(consumer, pendingCheckpoints);
+		mapField.set(consumer, pendingOffsetsToCommit);
 
 		Field runningField = FlinkKafkaConsumerBase.class.getDeclaredField("running");
 		runningField.setAccessible(true);

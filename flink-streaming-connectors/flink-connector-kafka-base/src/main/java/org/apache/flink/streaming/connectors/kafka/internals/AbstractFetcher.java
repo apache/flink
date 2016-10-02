@@ -159,7 +159,9 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/**
 	 * Commits the given partition offsets to the Kafka brokers (or to ZooKeeper for
-	 * older Kafka versions).
+	 * older Kafka versions). The given offsets will be larger by 1 compared to the
+	 * internally checkpointed offsets since committed offsets to Kafka represent the
+	 * next record to be processed.
 	 * 
 	 * @param offsets The offsets to commit to Kafka.
 	 * @throws Exception This method forwards exceptions.

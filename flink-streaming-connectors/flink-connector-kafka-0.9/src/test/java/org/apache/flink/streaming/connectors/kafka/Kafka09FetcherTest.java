@@ -266,11 +266,11 @@ public class Kafka09FetcherTest {
 			TopicPartition partition = entry.getKey();
 			if (partition.topic().equals("test")) {
 				assertEquals(42, partition.partition());
-				assertEquals(12L, entry.getValue().offset());
+				assertEquals(11L, entry.getValue().offset());
 			}
 			else if (partition.topic().equals("another")) {
 				assertEquals(99, partition.partition());
-				assertEquals(18L, entry.getValue().offset());
+				assertEquals(17L, entry.getValue().offset());
 			}
 		}
 
@@ -283,11 +283,11 @@ public class Kafka09FetcherTest {
 			TopicPartition partition = entry.getKey();
 			if (partition.topic().equals("test")) {
 				assertEquals(42, partition.partition());
-				assertEquals(20L, entry.getValue().offset());
+				assertEquals(19L, entry.getValue().offset());
 			}
 			else if (partition.topic().equals("another")) {
 				assertEquals(99, partition.partition());
-				assertEquals(28L, entry.getValue().offset());
+				assertEquals(27L, entry.getValue().offset());
 			}
 		}
 		
