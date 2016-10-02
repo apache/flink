@@ -77,29 +77,30 @@ public class ZookeeperOffsetHandler {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Writes given set of offsets for Kafka partitions to ZooKeeper.
+	 * Commits offsets for Kafka partitions to ZooKeeper. The given offsets to this method should be the offsets of
+	 * the last processed records; this method will take care of incrementing the offsets by 1 before committing them so
+	 * that the committed offsets to Zookeeper represent the next record to process.
 	 * 
-	 * @param offsetsToWrite The offsets for the partitions to write.
+	 * @param internalOffsets The internal offsets (representing last processed records) for the partitions to commit.
 	 * @throws Exception The method forwards exceptions.
 	 */
-	public void writeOffsets(Map<KafkaTopicPartition, Long> offsetsToWrite) throws Exception {
-		for (Map.Entry<KafkaTopicPartition, Long> entry : offsetsToWrite.entrySet()) {
+	public void prepareAndCommitOffsets(Map<KafkaTopicPartition, Long> internalOffsets) throws Exception {
+		for (Map.Entry<KafkaTopicPartition, Long> entry : internalOffsets.entrySet()) {
 			KafkaTopicPartition tp = entry.getKey();
-			long offset = entry.getValue();
 
-			if (offset >= 0) {
-				setOffsetInZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition(), offset);
+			Long lastProcessedOffset = entry.getValue();
+			if (lastProcessedOffset != null && lastProcessedOffset >= 0) {
+				setOffsetInZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition(), lastProcessedOffset + 1);
 			}
 		}
 	}
 
 	/**
-	 * 
 	 * @param partitions The partitions to read offsets for.
 	 * @return The mapping from partition to offset.
 	 * @throws Exception This method forwards exceptions.
 	 */
-	public Map<KafkaTopicPartition, Long> getOffsets(List<KafkaTopicPartition> partitions) throws Exception {
+	public Map<KafkaTopicPartition, Long> getCommittedOffsets(List<KafkaTopicPartition> partitions) throws Exception {
 		Map<KafkaTopicPartition, Long> ret = new HashMap<>(partitions.size());
 		for (KafkaTopicPartition tp : partitions) {
 			Long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition());

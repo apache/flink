@@ -225,7 +225,7 @@ public class AbstractFetcherTimestampsTest {
 		}
 
 		@Override
-		public void commitSpecificOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
+		public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 	}

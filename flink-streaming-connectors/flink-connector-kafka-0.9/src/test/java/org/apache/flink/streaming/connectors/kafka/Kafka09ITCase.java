@@ -109,4 +109,22 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	public void testMetrics() throws Throwable {
 		runMetricsTest();
 	}
+
+	// --- offset committing ---
+
+	@Test(timeout = 60000)
+	public void testCommitOffsetsToKafka() throws Exception {
+		runCommitOffsetsToKafka();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromKafkaCommitOffsets() throws Exception {
+		runStartFromKafkaCommitOffsets();
+	}
+
+	// TODO: This test will not pass until FLINK-4727 is resolved
+//	@Test(timeout = 60000)
+//	public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
+//		runAutoOffsetRetrievalAndCommitToKafka();
+//	}
 }
