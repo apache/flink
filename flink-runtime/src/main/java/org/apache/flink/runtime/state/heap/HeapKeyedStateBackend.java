@@ -259,7 +259,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			try {
 
-				fsDataInputStream = keyGroupsHandle.getStateHandle().openInputStream();
+				fsDataInputStream = keyGroupsHandle.openInputStream();
 				cancelStreamRegistry.registerClosable(fsDataInputStream);
 
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
