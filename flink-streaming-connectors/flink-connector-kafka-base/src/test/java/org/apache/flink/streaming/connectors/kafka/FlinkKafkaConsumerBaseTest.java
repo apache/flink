@@ -36,7 +36,6 @@ import org.mockito.Matchers;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -173,9 +172,9 @@ public class FlinkKafkaConsumerBaseTest {
 		state2.put(new KafkaTopicPartition("def", 7), 987654329L);
 
 		final HashMap<KafkaTopicPartition, Long> state3 = new HashMap<>();
-		state2.put(new KafkaTopicPartition("abc", 13), 16780L);
-		state2.put(new KafkaTopicPartition("def", 7), 987654377L);
-		
+		state3.put(new KafkaTopicPartition("abc", 13), 16780L);
+		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
+
 		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
 		when(fetcher.snapshotCurrentState()).thenReturn(state1, state2, state3);
 			
@@ -186,12 +185,13 @@ public class FlinkKafkaConsumerBaseTest {
 
 		OperatorStateStore backend = mock(OperatorStateStore.class);
 
+		TestingListState<Serializable> init = new TestingListState<>();
 		TestingListState<Serializable> listState1 = new TestingListState<>();
 		TestingListState<Serializable> listState2 = new TestingListState<>();
 		TestingListState<Serializable> listState3 = new TestingListState<>();
 
 		when(backend.getSerializableListState(Matchers.any(String.class))).
-				thenReturn(listState1, listState1, listState2, listState3);
+				thenReturn(init, listState1, listState2, listState3);
 
 		consumer.initializeState(backend);
 
