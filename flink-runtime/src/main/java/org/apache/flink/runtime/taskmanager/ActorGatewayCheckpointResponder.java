@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -41,18 +42,12 @@ public class ActorGatewayCheckpointResponder implements CheckpointResponder {
 	public void acknowledgeCheckpoint(
 			JobID jobID,
 			ExecutionAttemptID executionAttemptID,
-			long checkpointID,
-			CheckpointStateHandles checkpointStateHandles,
-			long synchronousDurationMillis,
-			long asynchronousDurationMillis,
-			long bytesBufferedInAlignment,
-			long alignmentDurationNanos) {
+			CheckpointMetaData checkpointMetaData,
+			CheckpointStateHandles checkpointStateHandles) {
 
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
-				jobID, executionAttemptID, checkpointID,
-				checkpointStateHandles,
-				synchronousDurationMillis, asynchronousDurationMillis,
-				bytesBufferedInAlignment, alignmentDurationNanos);
+				jobID, executionAttemptID, checkpointMetaData,
+				checkpointStateHandles);
 
 		actorGateway.tell(message);
 	}
@@ -61,14 +56,13 @@ public class ActorGatewayCheckpointResponder implements CheckpointResponder {
 	public void declineCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		long checkpointTimestamp) {
+		CheckpointMetaData checkpointMetaData) {
 
 		DeclineCheckpoint decline = new DeclineCheckpoint(
 			jobID,
 			executionAttemptID,
-			checkpointID,
-			checkpointTimestamp);
+			checkpointMetaData.getCheckpointId(),
+			checkpointMetaData.getTimestamp());
 
 		actorGateway.tell(decline);
 

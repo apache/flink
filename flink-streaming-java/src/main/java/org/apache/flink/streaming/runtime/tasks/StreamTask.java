@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -46,9 +47,9 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -558,9 +559,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public boolean triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
 		try {
-			return performCheckpoint(checkpointId, timestamp, 0L, 0L);
+			checkpointMetaData.
+					setBytesBufferedInAlignment(0L).
+					setAlignmentDurationNanos(0L);
+			return performCheckpoint(checkpointMetaData);
 		}
 		catch (Exception e) {
 			// propagate exceptions only if the task is still in "running" state
@@ -573,11 +577,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public void triggerCheckpointOnBarrier(
-			long checkpointId, long timestamp, long bytesAligned, long alignmentDurationNanos) throws Exception {
+	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception {
 
 		try {
-			performCheckpoint(checkpointId, timestamp, bytesAligned, alignmentDurationNanos);
+			performCheckpoint(checkpointMetaData);
 		}
 		catch (CancelTaskException e) {
 			throw e;
@@ -587,8 +590,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	private boolean performCheckpoint(
-			long checkpointId, long timestamp, long bytesBufferedAlignment, long alignmentDurationNanos) throws Exception {
+	private boolean performCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
+
+		long checkpointId = checkpointMetaData.getCheckpointId();
+		long timestamp = checkpointMetaData.getTimestamp();
 
 		LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 
@@ -674,8 +679,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				LOG.debug("Finished synchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
 
-				final long endOfSyncPart = System.nanoTime();
-				final long syncDurationMillis = (endOfSyncPart - startOfSyncPart) / 1_000_000;
+				final long syncEndNanos = System.nanoTime();
+				final long syncDurationMillis = (syncEndNanos - startOfSyncPart) / 1_000_000;
+
+				checkpointMetaData.setSyncDurationMillis(syncDurationMillis);
 
 				AsyncCheckpointRunnable asyncCheckpointRunnable = new AsyncCheckpointRunnable(
 						"checkpoint-" + checkpointId + "-" + timestamp,
@@ -684,11 +691,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						chainedNonPartitionedStateHandles,
 						chainedPartitionedStateHandles,
 						keyGroupsStateHandleFuture,
-						checkpointId,
-						bytesBufferedAlignment,
-						alignmentDurationNanos,
-						syncDurationMillis,
-						endOfSyncPart);
+						checkpointMetaData,
+						syncEndNanos);
 
 				cancelables.registerClosable(asyncCheckpointRunnable);
 				asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
@@ -696,7 +700,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} - finished synchronous part of checkpoint {}." +
 							"Alignment duration: {} ms, snapshot duration {} ms",
-							getName(), checkpointId, alignmentDurationNanos / 1_000_000, syncDurationMillis);
+							getName(), checkpointId, checkpointMetaData.getAlignmentDurationNanos() / 1_000_000, syncDurationMillis);
 				}
 
 				return true;
@@ -914,15 +918,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		private final RunnableFuture<KeyGroupsStateHandle> keyGroupsStateHandleFuture;
 
-		private final long checkpointId;
-
 		private final String name;
 
-		private final long bytesBufferedInAlignment;
-
-		private final long alignmentDurationNanos;
-
-		private final long syncDurationMillies;
+		private final CheckpointMetaData checkpointMetaData;
 
 		private final long asyncStartNanos;
 
@@ -933,11 +931,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				ChainedStateHandle<StreamStateHandle> nonPartitionedStateHandles,
 				ChainedStateHandle<OperatorStateHandle> partitioneableStateHandles,
 				RunnableFuture<KeyGroupsStateHandle> keyGroupsStateHandleFuture,
-				long checkpointId,
-				long bytesBufferedInAlignment,
-				long alignmentDurationNanos,
-				long syncDurationMillies,
-				long asyncStartNanos) {
+				CheckpointMetaData checkpointMetaData,
+				long asyncStartNanos
+		) {
 
 			this.name = name;
 			this.owner = owner;
@@ -945,10 +941,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			this.nonPartitionedStateHandles = nonPartitionedStateHandles;
 			this.partitioneableStateHandles = partitioneableStateHandles;
 			this.keyGroupsStateHandleFuture = keyGroupsStateHandleFuture;
-			this.checkpointId = checkpointId;
-			this.bytesBufferedInAlignment = bytesBufferedInAlignment;
-			this.alignmentDurationNanos = alignmentDurationNanos;
-			this.syncDurationMillies = syncDurationMillies;
+			this.checkpointMetaData = checkpointMetaData;
 			this.asyncStartNanos = asyncStartNanos;
 		}
 
@@ -974,26 +967,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				final long asyncEndNanos = System.nanoTime();
 				final long asyncDurationMillis = (asyncEndNanos - asyncStartNanos) / 1_000_000;
 
+				checkpointMetaData.setAsyncDurationMillis(asyncDurationMillis);
+
 				if (nonPartitionedStateHandles.isEmpty() && partitioneableStateHandles.isEmpty() && keyedStates.isEmpty()) {
-					owner.getEnvironment().acknowledgeCheckpoint(
-							checkpointId,
-							syncDurationMillies, asyncDurationMillis,
-							bytesBufferedInAlignment, alignmentDurationNanos);
+					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData);
 				} else {
 					CheckpointStateHandles allStateHandles = new CheckpointStateHandles(
 							nonPartitionedStateHandles,
 							partitioneableStateHandles,
 							keyedStates);
 
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointId,
-							allStateHandles,
-							syncDurationMillies, asyncDurationMillis,
-							bytesBufferedInAlignment, alignmentDurationNanos);
+					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, allStateHandles);
 				}
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms", 
-							owner.getName(), checkpointId, asyncDurationMillis);
+							owner.getName(), checkpointMetaData.getCheckpointId(), asyncDurationMillis);
 				}
 			}
 			catch (Exception e) {
