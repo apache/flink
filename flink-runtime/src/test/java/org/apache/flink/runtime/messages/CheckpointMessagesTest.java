@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -62,7 +63,7 @@ public class CheckpointMessagesTest {
 	public void testConfirmTaskCheckpointed() {
 		try {
 			AcknowledgeCheckpoint noState = new AcknowledgeCheckpoint(
-					new JobID(), new ExecutionAttemptID(), 569345L);
+					new JobID(), new ExecutionAttemptID(), new CheckpointMetaData(569345L, 0L));
 
 			KeyGroupRange keyGroupRange = KeyGroupRange.of(42,42);
 
@@ -75,7 +76,7 @@ public class CheckpointMessagesTest {
 			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
 					new JobID(),
 					new ExecutionAttemptID(),
-					87658976143L,
+					new CheckpointMetaData(87658976143L, 0L),
 					checkpointStateHandles);
 
 			testSerializabilityEqualsHashCode(noState);

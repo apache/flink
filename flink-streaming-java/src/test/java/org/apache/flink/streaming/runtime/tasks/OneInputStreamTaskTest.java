@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -374,7 +375,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke(env);
 		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
 
-		while(!streamTask.triggerCheckpoint(checkpointId, checkpointTimestamp));
+		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
+
+		while(!streamTask.triggerCheckpoint(checkpointMetaData));
 
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
@@ -517,11 +520,10 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		@Override
 		public void acknowledgeCheckpoint(
-				long checkpointId,
-				CheckpointStateHandles checkpointStateHandles,
-				long syncDuration, long asymcDuration, long alignmentByte, long alignmentDuration) {
+				CheckpointMetaData checkpointMetaData,
+				CheckpointStateHandles checkpointStateHandles) {
 
-			this.checkpointId = checkpointId;
+			this.checkpointId = checkpointMetaData.getCheckpointId();
 			if(checkpointStateHandles != null) {
 				this.state = checkpointStateHandles.getNonPartitionedStateHandles();
 				this.keyGroupStates = checkpointStateHandles.getKeyGroupsStateHandle();

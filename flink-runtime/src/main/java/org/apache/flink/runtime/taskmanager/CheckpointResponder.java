@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.state.CheckpointStateHandles;
 
@@ -34,40 +35,27 @@ public interface CheckpointResponder {
 	 *             Job ID of the running job
 	 * @param executionAttemptID
 	 *             Execution attempt ID of the running task
-	 * @param checkpointID
-	 *             Checkpoint ID of the checkpoint
-	 * @param checkpointStateHandles 
+	 * @param checkpointStateHandles
 	 *             State handles for the checkpoint
-	 * @param synchronousDurationMillis
-	 *             The duration (in milliseconds) of the synchronous part of the operator checkpoint
-	 * @param asynchronousDurationMillis
-	 *             The duration (in milliseconds) of the asynchronous part of the operator checkpoint 
-	 * @param bytesBufferedInAlignment
-	 *             The number of bytes that were buffered during the checkpoint alignment phase
-	 * @param alignmentDurationNanos
-	 *             The duration (in nanoseconds) that the stream alignment for the checkpoint took
+	 * @param checkpointMetaData
+	 *             Meta data for this checkpoint
+	 *
 	 */
 	void acknowledgeCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		CheckpointStateHandles checkpointStateHandles,
-		long synchronousDurationMillis,
-		long asynchronousDurationMillis,
-		long bytesBufferedInAlignment,
-		long alignmentDurationNanos);
+		CheckpointMetaData checkpointMetaData,
+		CheckpointStateHandles checkpointStateHandles);
 
 	/**
 	 * Declines the given checkpoint.
 	 *
 	 * @param jobID Job ID of the running job
 	 * @param executionAttemptID Execution attempt ID of the running task
-	 * @param checkpointID Checkpoint ID of the checkpoint
-	 * @param checkpointTimestamp Timestamp of the checkpoint
+	 * @param checkpointMetaData Meta data for this checkpoint
 	 */
 	void declineCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
-		long checkpointID,
-		long checkpointTimestamp);
+		CheckpointMetaData checkpointMetaData);
 }

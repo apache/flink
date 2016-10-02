@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -981,19 +982,17 @@ public class BarrierBufferTest {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
 			throw new UnsupportedOperationException("should never be called");
 		}
 
 		@Override
-		public void triggerCheckpointOnBarrier(
-				long checkpointId, long timestamp,
-				long bytesAligned, long alignmentTimeNanos) throws Exception {
+		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception {
 
-			assertTrue("wrong checkpoint id", nextExpectedCheckpointId == -1L || nextExpectedCheckpointId == checkpointId);
-			assertTrue(timestamp > 0);
-			assertTrue(bytesAligned >= 0);
-			assertTrue(alignmentTimeNanos >= 0);
+			assertTrue("wrong checkpoint id", nextExpectedCheckpointId == -1L || nextExpectedCheckpointId == checkpointMetaData.getCheckpointId());
+			assertTrue(checkpointMetaData.getTimestamp() > 0);
+			assertTrue(checkpointMetaData.getBytesBufferedInAlignment() >= 0);
+			assertTrue(checkpointMetaData.getAlignmentDurationNanos() >= 0);
 
 			nextExpectedCheckpointId++;
 		}

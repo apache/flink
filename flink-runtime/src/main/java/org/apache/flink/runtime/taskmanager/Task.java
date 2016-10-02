@@ -25,6 +25,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.io.network.PartitionState;
 import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
@@ -990,8 +991,11 @@ public class Task implements Runnable, TaskActions {
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
 	 */
-	public void triggerCheckpointBarrier(final long checkpointID, final long checkpointTimestamp) {
+	public void triggerCheckpointBarrier(long checkpointID, long checkpointTimestamp) {
+
 		AbstractInvokable invokable = this.invokable;
+
+		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointID, checkpointTimestamp);
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
 			if (invokable instanceof StatefulTask) {
@@ -1004,9 +1008,9 @@ public class Task implements Runnable, TaskActions {
 					@Override
 					public void run() {
 						try {
-							boolean success = statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
+							boolean success = statefulTask.triggerCheckpoint(checkpointMetaData);
 							if (!success) {
-								checkpointResponder.declineCheckpoint(jobId, getExecutionId(), checkpointID, checkpointTimestamp);
+								checkpointResponder.declineCheckpoint(jobId, getExecutionId(), checkpointMetaData);
 							}
 						}
 						catch (Throwable t) {

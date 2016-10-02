@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.messages.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.state.CheckpointStateHandles;
 
@@ -39,59 +40,32 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 
 	private final CheckpointStateHandles checkpointStateHandles;
 
-	/** The duration (in milliseconds) that the synchronous part of the checkpoint took */
-	private final long synchronousDurationMillis;
-
-	/** The duration (in milliseconds) that the asynchronous part of the checkpoint took */
-	private final long asynchronousDurationMillis;
-
-	/** The number of bytes that were buffered during the checkpoint alignment phase */
-	private final long bytesBufferedInAlignment;
-
-	/** The duration (in nanoseconds) that the alignment phase of the task's checkpoint took */
-	private final long alignmentDurationNanos;
+	private final CheckpointMetaData checkpointMetaData;
 
 	// ------------------------------------------------------------------------
 
 	public AcknowledgeCheckpoint(
 			JobID job,
 			ExecutionAttemptID taskExecutionId,
-			long checkpointId) {
-		this(job, taskExecutionId, checkpointId, null);
+			CheckpointMetaData checkpointMetaData) {
+		this(job, taskExecutionId, checkpointMetaData, null);
 	}
 
 	public AcknowledgeCheckpoint(
 			JobID job,
 			ExecutionAttemptID taskExecutionId,
-			long checkpointId,
+			CheckpointMetaData checkpointMetaData,
 			CheckpointStateHandles checkpointStateHandles) {
-		this(job, taskExecutionId, checkpointId, checkpointStateHandles, -1L, -1L, -1L, -1L);
-	}
 
-	public AcknowledgeCheckpoint(
-			JobID job,
-			ExecutionAttemptID taskExecutionId,
-			long checkpointId,
-			CheckpointStateHandles checkpointStateHandles,
-			long synchronousDurationMillis,
-			long asynchronousDurationMillis,
-			long bytesBufferedInAlignment,
-			long alignmentDurationNanos) {
-
-		super(job, taskExecutionId, checkpointId);
+		super(job, taskExecutionId, checkpointMetaData.getCheckpointId());
 
 		this.checkpointStateHandles = checkpointStateHandles;
-
+		this.checkpointMetaData = checkpointMetaData;
 		// these may be "-1", in case the values are unknown or not set
-		checkArgument(synchronousDurationMillis >= -1);
-		checkArgument(asynchronousDurationMillis >= -1);
-		checkArgument(bytesBufferedInAlignment >= -1);
-		checkArgument(alignmentDurationNanos >= -1);
-
-		this.synchronousDurationMillis = synchronousDurationMillis;
-		this.asynchronousDurationMillis = asynchronousDurationMillis;
-		this.bytesBufferedInAlignment = bytesBufferedInAlignment;
-		this.alignmentDurationNanos = alignmentDurationNanos;
+		checkArgument(checkpointMetaData.getSyncDurationMillis() >= -1);
+		checkArgument(checkpointMetaData.getAsyncDurationMillis() >= -1);
+		checkArgument(checkpointMetaData.getBytesBufferedInAlignment() >= -1);
+		checkArgument(checkpointMetaData.getAlignmentDurationNanos() >= -1);
 	}
 
 	// ------------------------------------------------------------------------
@@ -103,19 +77,19 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	}
 
 	public long getSynchronousDurationMillis() {
-		return synchronousDurationMillis;
+		return checkpointMetaData.getSyncDurationMillis();
 	}
 
 	public long getAsynchronousDurationMillis() {
-		return asynchronousDurationMillis;
+		return checkpointMetaData.getAsyncDurationMillis();
 	}
 
 	public long getBytesBufferedInAlignment() {
-		return bytesBufferedInAlignment;
+		return checkpointMetaData.getBytesBufferedInAlignment();
 	}
 
 	public long getAlignmentDurationNanos() {
-		return alignmentDurationNanos;
+		return checkpointMetaData.getAlignmentDurationNanos();
 	}
 
 	// --------------------------------------------------------------------------------------------
