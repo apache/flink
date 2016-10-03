@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
+
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
