@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Random;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;

@@ -204,7 +204,7 @@ public class UdfAnalyzerExamplesTest {
 				edge = edges.next();
 				Integer otherVertex = edge.getSecondVertex();
 				// collect unique vertices
-				if(!otherVertices.contains(otherVertex) && otherVertex != groupVertex) {
+				if(!otherVertices.contains(otherVertex) && !otherVertex.equals(groupVertex)) {
 					this.otherVertices.add(otherVertex);
 				}
 			}

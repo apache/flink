@@ -60,7 +60,7 @@ public class EitherSerializerTest {
 	public void testEitherWithTuple() {
 
 	Either<Tuple2<Long, Long>, Double>[] testData = new Either[] {
-			Either.Left(new Tuple2<>(2l, 9l)),
+			Either.Left(new Tuple2<>(2L, 9L)),
 			new Left<>(new Tuple2<>(Long.MIN_VALUE, Long.MAX_VALUE)),
 			new Right<>(32.0),
 			Right(Double.MIN_VALUE),

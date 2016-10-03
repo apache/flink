@@ -361,7 +361,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 																							atEndGlobal, atEndLocal);
 
 				if (report == FeedbackPropertiesMeetRequirementsReport.NO_PARTIAL_SOLUTION) {
-					; // depends only through broadcast variable on the workset solution
+					// depends only through broadcast variable on the workset solution
 				}
 				else if (report == FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
 					// attach a no-op node through which we create the properties of the original input

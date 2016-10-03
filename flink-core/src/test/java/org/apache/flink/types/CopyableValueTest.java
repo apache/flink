@@ -18,9 +18,9 @@
 
 package org.apache.flink.types;
 
-import static org.junit.Assert.*;
-
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class CopyableValueTest {
 
@@ -33,7 +33,7 @@ public class CopyableValueTest {
 			new DoubleValue(3.1415926535897932),
 			new FloatValue((float) 3.14159265),
 			new IntValue(42),
-			new LongValue(42l),
+			new LongValue(42L),
 			new NullValue(),
 			new ShortValue((short) 42),
 			new StringValue("QED")

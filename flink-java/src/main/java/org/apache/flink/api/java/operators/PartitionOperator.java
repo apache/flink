@@ -106,7 +106,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 
 	/**
 	 * Sets the order of keys for range partitioning.
-	 * NOTE: Only valid for {@link PartitionMethod.RANGE}.
+	 * NOTE: Only valid for {@link PartitionMethod#RANGE}.
 	 *
 	 * @param orders array of orders for each specified partition key
 	 * @return The partitioneOperator with properly set orders for given keys

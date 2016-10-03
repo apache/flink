@@ -32,7 +32,7 @@ public class EitherTypeInfoTest extends TestLogger {
 
 	Either<Integer, String> intEither = Either.Left(1);
 	Either<Integer, String> stringEither = Either.Right("boo");
-	Either<Integer, Tuple2<Double, Long>> tuple2Either = new Right<>(new Tuple2<Double, Long>(42.0, 2l));
+	Either<Integer, Tuple2<Double, Long>> tuple2Either = new Right<>(new Tuple2<Double, Long>(42.0, 2L));
 
 	@Test
 	public void testEitherTypeEquality() {

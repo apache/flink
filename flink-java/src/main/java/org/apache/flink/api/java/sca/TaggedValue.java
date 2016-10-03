@@ -44,7 +44,7 @@ public class TaggedValue extends BasicValue {
 		INPUT_1_ITERABLE, INPUT_2_ITERABLE, INPUT_1_ITERATOR, INPUT_2_ITERATOR, // input iterators
 		ITERATOR_TRUE_ASSUMPTION, // boolean value that is "true" at least once
 		NULL // null
-	};
+	}
 
 	public static enum Input {
 		INPUT_1(0), INPUT_2(1);
@@ -58,7 +58,7 @@ public class TaggedValue extends BasicValue {
 		public int getId() {
 			return id;
 		}
-	};
+	}
 
 	private Tag tag;
 	// only inputs can set this to true

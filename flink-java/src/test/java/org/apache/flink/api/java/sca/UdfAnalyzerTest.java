@@ -751,7 +751,7 @@ public class UdfAnalyzerTest {
 		}
 
 		private MyPojo recursiveFunction(MyPojo value) {
-			if (value.field == "xyz") {
+			if (value.field.equals("xyz")) {
 				value.field = value.field + "x";
 				return recursiveFunction(value);
 			}
