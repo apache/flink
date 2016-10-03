@@ -18,10 +18,6 @@
 
 package org.apache.flink.graph.pregel;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
-
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.DataSet;
@@ -32,6 +28,10 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * The base class for the message-passing functions between vertices as a part of a {@link VertexCentricIteration}.
@@ -86,7 +86,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 */
 	public final Iterable<Edge<K, EV>> getEdges() {
 		verifyEdgeUsage();
-		this.edgeIterator.set((Iterator<Edge<K, EV>>) edges);
+		this.edgeIterator.set(edges);
 		return this.edgeIterator;
 	}
 
@@ -100,7 +100,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 		verifyEdgeUsage();
 		outMsg.setField(m, 1);
 		while (edges.hasNext()) {
-			Tuple next = (Tuple) edges.next();
+			Tuple next = edges.next();
 			outMsg.setField(next.getField(1), 0);
 			out.collect(Either.Right(outMsg));
 		}
@@ -157,7 +157,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 * @return The aggregator registered under this name, or {@code null}, if no aggregator was registered.
 	 */
 	public final <T extends Aggregator<?>> T getIterationAggregator(String name) {
-		return this.runtimeContext.<T>getIterationAggregator(name);
+		return this.runtimeContext.getIterationAggregator(name);
 	}
 	
 	/**
@@ -167,7 +167,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 * @return The aggregated value of the previous iteration.
 	 */
 	public final <T extends Value> T getPreviousIterationAggregate(String name) {
-		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
+		return this.runtimeContext.getPreviousIterationAggregate(name);
 	}
 	
 	/**
@@ -179,7 +179,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 * @return The broadcast data set.
 	 */
 	public final <T> Collection<T> getBroadcastSet(String name) {
-		return this.runtimeContext.<T>getBroadcastVariable(name);
+		return this.runtimeContext.getBroadcastVariable(name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -204,9 +204,9 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
-		this.outVertex = new Vertex<K, VV>();
-		this.outMsg = new Tuple2<K, Message>();
-		this.edgeIterator = new EdgesIterator<K, EV>();
+		this.outVertex = new Vertex<>();
+		this.outMsg = new Tuple2<>();
+		this.edgeIterator = new EdgesIterator<>();
 	}
 	
 	@SuppressWarnings("unchecked")

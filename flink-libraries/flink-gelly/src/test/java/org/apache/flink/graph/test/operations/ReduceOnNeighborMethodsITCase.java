@@ -18,9 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.Iterator;
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,6 +35,8 @@ import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {

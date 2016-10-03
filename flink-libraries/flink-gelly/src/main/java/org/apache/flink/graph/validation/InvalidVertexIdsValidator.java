@@ -50,8 +50,8 @@ public class InvalidVertexIdsValidator<K, VV, EV> extends GraphValidator<K, VV, 
 
 	private static final class MapEdgeIds<K, EV> implements FlatMapFunction<Edge<K, EV>, Tuple1<K>> {
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple1<K>> out) {
-			out.collect(new Tuple1<K>(edge.f0));
-			out.collect(new Tuple1<K>(edge.f1));
+			out.collect(new Tuple1<>(edge.f0));
+			out.collect(new Tuple1<>(edge.f1));
 		}
 	}
 
@@ -67,7 +67,7 @@ public class InvalidVertexIdsValidator<K, VV, EV> extends GraphValidator<K, VV, 
 
 	private static final class KToTupleMap<K> implements MapFunction<K, Tuple1<K>> {
 		public Tuple1<K> map(K key) throws Exception {
-			return new Tuple1<K>(key);
+			return new Tuple1<>(key);
 		}
 	}
 
