@@ -214,8 +214,8 @@ public class DistinctOperatorTest {
 		public long myLong;
 		public String myString;
 		
-		public CustomType() {};
-		
+		public CustomType() {}
+
 		public CustomType(int i, long l, String s) {
 			myInt = i;
 			myLong = l;

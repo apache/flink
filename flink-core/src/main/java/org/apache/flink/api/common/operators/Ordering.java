@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.operators;
 
-import java.util.ArrayList;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
+
+import java.util.ArrayList;
 
 /**
  * This class represents an ordering on a set of fields. It specifies the fields and order direction
@@ -145,7 +145,7 @@ public class Ordering implements Cloneable {
 		}
 		
 		for (int i = 0; i < this.indexes.size(); i++) {
-			if (this.indexes.get(i) != otherOrdering.indexes.get(i)) {
+			if (!this.indexes.get(i).equals(otherOrdering.indexes.get(i))) {
 				return false;
 			}
 			
