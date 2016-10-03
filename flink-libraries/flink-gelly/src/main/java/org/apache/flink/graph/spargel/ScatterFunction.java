@@ -217,7 +217,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
 	 */
 	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-		return this.runtimeContext.<T>getIterationAggregator(name);
+		return this.runtimeContext.getIterationAggregator(name);
 	}
 
 	/**
@@ -227,7 +227,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	 * @return The aggregated value of the previous iteration.
 	 */
 	public <T extends Value> T getPreviousIterationAggregate(String name) {
-		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
+		return this.runtimeContext.getPreviousIterationAggregate(name);
 	}
 
 	/**
@@ -239,7 +239,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	 * @return The broadcast data set.
 	 */
 	public <T> Collection<T> getBroadcastSet(String name) {
-		return this.runtimeContext.<T>getBroadcastVariable(name);
+		return this.runtimeContext.getBroadcastVariable(name);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -266,8 +266,8 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
-		this.outValue = new Tuple2<K, Message>();
-		this.edgeIterator = new EdgesIterator<K, EV>();
+		this.outValue = new Tuple2<>();
+		this.edgeIterator = new EdgesIterator<>();
 	}
 
 	void set(Iterator<?> edges, Collector<Tuple2<K, Message>> out, K id) {
@@ -282,7 +282,7 @@ public abstract class ScatterFunction<K, VV, Message, EV> implements Serializabl
 	{
 		private Iterator<Edge<K, EV>> input;
 
-		private Edge<K, EV> edge = new Edge<K, EV>();
+		private Edge<K, EV> edge = new Edge<>();
 
 		void set(Iterator<Edge<K, EV>> input) {
 			this.input = input;
