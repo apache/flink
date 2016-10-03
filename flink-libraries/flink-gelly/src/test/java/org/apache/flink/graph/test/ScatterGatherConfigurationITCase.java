@@ -22,7 +22,6 @@ import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
@@ -521,10 +520,10 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Tuple1<Integer>> bcastSet = (List<Tuple1<Integer>>)(List<?>)getBroadcastSet("messagingBcastSet");
-			Assert.assertEquals(4, bcastSet.get(0));
-			Assert.assertEquals(5, bcastSet.get(1));
-			Assert.assertEquals(6, bcastSet.get(2));
+			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("messagingBcastSet");
+			Assert.assertEquals(4, bcastSet.get(0).intValue());
+			Assert.assertEquals(5, bcastSet.get(1).intValue());
+			Assert.assertEquals(6, bcastSet.get(2).intValue());
 
 			// test number of vertices
 			Assert.assertEquals(5, getNumberOfVertices());
@@ -569,10 +568,10 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
 			// test bcast variable
 			@SuppressWarnings("unchecked")
-			List<Tuple1<Integer>> bcastSet = (List<Tuple1<Integer>>)(List<?>)getBroadcastSet("updateBcastSet");
-			Assert.assertEquals(1, bcastSet.get(0));
-			Assert.assertEquals(2, bcastSet.get(1));
-			Assert.assertEquals(3, bcastSet.get(2));
+			List<Integer> bcastSet = (List<Integer>)(List<?>)getBroadcastSet("updateBcastSet");
+			Assert.assertEquals(1, bcastSet.get(0).intValue());
+			Assert.assertEquals(2, bcastSet.get(1).intValue());
+			Assert.assertEquals(3, bcastSet.get(2).intValue());
 
 			// test aggregator
 			aggregator = getIterationAggregator("superstepAggregator");

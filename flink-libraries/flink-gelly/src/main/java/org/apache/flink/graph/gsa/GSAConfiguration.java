@@ -39,13 +39,13 @@ import java.util.List;
 public class GSAConfiguration extends IterationConfiguration {
 
 	/** the broadcast variables for the gather function **/
-	private List<Tuple2<String, DataSet<?>>> bcVarsGather = new ArrayList<Tuple2<String,DataSet<?>>>();
+	private List<Tuple2<String, DataSet<?>>> bcVarsGather = new ArrayList<>();
 
 	/** the broadcast variables for the sum function **/
-	private List<Tuple2<String, DataSet<?>>> bcVarsSum = new ArrayList<Tuple2<String,DataSet<?>>>();
+	private List<Tuple2<String, DataSet<?>>> bcVarsSum = new ArrayList<>();
 
 	/** the broadcast variables for the apply function **/
-	private List<Tuple2<String, DataSet<?>>> bcVarsApply = new ArrayList<Tuple2<String,DataSet<?>>>();
+	private List<Tuple2<String, DataSet<?>>> bcVarsApply = new ArrayList<>();
 
 	private EdgeDirection direction = EdgeDirection.OUT;
 

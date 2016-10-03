@@ -110,7 +110,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 	private static final class DegreeCounter<K extends Comparable<K>, EV>
 			implements GroupReduceFunction<Edge<K, EV>, EdgeWithDegrees<K>> {
 
-		final ArrayList<K> otherVertices = new ArrayList<K>();
+		final ArrayList<K> otherVertices = new ArrayList<>();
 		final EdgeWithDegrees<K> outputEdge = new EdgeWithDegrees<>();
 
 		@Override
