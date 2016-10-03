@@ -42,6 +42,11 @@ public class InputStreamFSInputWrapper extends FSDataInputStream {
 	}
 
 	@Override
+	public void close() throws IOException {
+		this.inStream.close();
+	}
+
+	@Override
 	public void seek(long desired) throws IOException {
 		if (desired < this.pos) {
 			throw new IllegalArgumentException("Wrapped InputStream: cannot search backwards.");
