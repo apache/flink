@@ -282,7 +282,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 */
 	public void runStartFromKafkaCommitOffsets() throws Exception {
 		final int parallelism = 3;
-		final int recordsInEachPartition = 200;
+		final int recordsInEachPartition = 300;
 
 		final String topicName = writeSequence("testStartFromKafkaCommitOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
@@ -294,13 +294,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		env1
 			.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), standardProps))
-			.map(new ThrottledMapper<String>(20))
+			.map(new ThrottledMapper<String>(50))
 			.map(new MapFunction<String, Object>() {
 				int count = 0;
 				@Override
 				public Object map(String value) throws Exception {
 					count++;
-					if (count == 100) {
+					if (count == 150) {
 						throw new SuccessException();
 					}
 					return null;
@@ -326,9 +326,18 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		// whatever offsets were committed for each partition, the consumer should pick
 		// them up and start from the correct position so that the remaining records are all read
 		HashMap<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset = new HashMap<>();
-		partitionsToValuesCountAndStartOffset.put(0, new Tuple2<>((int) (recordsInEachPartition - o1), o1.intValue()));
-		partitionsToValuesCountAndStartOffset.put(1, new Tuple2<>((int) (recordsInEachPartition - o2), o2.intValue()));
-		partitionsToValuesCountAndStartOffset.put(2, new Tuple2<>((int) (recordsInEachPartition - o3), o3.intValue()));
+		partitionsToValuesCountAndStartOffset.put(0, new Tuple2<>(
+			(o1 != null) ? (int) (recordsInEachPartition - o1) : recordsInEachPartition,
+			(o1 != null) ? o1.intValue() : 0
+		));
+		partitionsToValuesCountAndStartOffset.put(1, new Tuple2<>(
+			(o2 != null) ? (int) (recordsInEachPartition - o2) : recordsInEachPartition,
+			(o2 != null) ? o2.intValue() : 0
+		));
+		partitionsToValuesCountAndStartOffset.put(2, new Tuple2<>(
+			(o3 != null) ? (int) (recordsInEachPartition - o3) : recordsInEachPartition,
+			(o3 != null) ? o3.intValue() : 0
+		));
 
 		readSequence(env2, standardProps, topicName, partitionsToValuesCountAndStartOffset);
 
