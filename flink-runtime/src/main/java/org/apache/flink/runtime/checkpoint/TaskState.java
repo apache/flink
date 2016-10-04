@@ -18,11 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import com.google.common.collect.Iterables;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.Preconditions;
@@ -49,12 +45,6 @@ public class TaskState implements StateObject {
 	/** handles to non-partitioned states, subtaskindex -> subtaskstate */
 	private final Map<Integer, SubtaskState> subtaskStates;
 
-	/** handles to partitionable states, subtaskindex -> partitionable state */
-	private final Map<Integer, ChainedStateHandle<OperatorStateHandle>> partitionableStates;
-
-	/** handles to key-partitioned states, subtaskindex -> keyed state */
-	private final Map<Integer, KeyGroupsStateHandle> keyGroupsStateHandles;
-
 
 	/** parallelism of the operator when it was checkpointed */
 	private final int parallelism;
@@ -62,6 +52,7 @@ public class TaskState implements StateObject {
 	/** maximum parallelism of the operator when the job was first created */
 	private final int maxParallelism;
 
+	/** length of the operator chain */
 	private final int chainLength;
 
 	public TaskState(JobVertexID jobVertexID, int parallelism, int maxParallelism, int chainLength) {
@@ -73,8 +64,6 @@ public class TaskState implements StateObject {
 		this.jobVertexID = jobVertexID;
 
 		this.subtaskStates = new HashMap<>(parallelism);
-		this.partitionableStates = new HashMap<>(parallelism);
-		this.keyGroupsStateHandles = new HashMap<>(parallelism);
 
 		this.parallelism = parallelism;
 		this.maxParallelism = maxParallelism;
@@ -96,56 +85,12 @@ public class TaskState implements StateObject {
 		}
 	}
 
-	public void putPartitionableState(
-			int subtaskIndex,
-			ChainedStateHandle<OperatorStateHandle> partitionableState) {
-
-		Preconditions.checkNotNull(partitionableState);
-
-		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
-			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
-					" exceeds the maximum number of sub tasks " + subtaskStates.size());
-		} else {
-			partitionableStates.put(subtaskIndex, partitionableState);
-		}
-	}
-
-	public void putKeyedState(int subtaskIndex, KeyGroupsStateHandle keyGroupsStateHandle) {
-		Preconditions.checkNotNull(keyGroupsStateHandle);
-
-		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
-			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
-					" exceeds the maximum number of sub tasks " + subtaskStates.size());
-		} else {
-			keyGroupsStateHandles.put(subtaskIndex, keyGroupsStateHandle);
-		}
-	}
-
-
 	public SubtaskState getState(int subtaskIndex) {
 		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
 			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
 				" exceeds the maximum number of sub tasks " + subtaskStates.size());
 		} else {
 			return subtaskStates.get(subtaskIndex);
-		}
-	}
-
-	public ChainedStateHandle<OperatorStateHandle> getPartitionableState(int subtaskIndex) {
-		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
-			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
-					" exceeds the maximum number of sub tasks " + subtaskStates.size());
-		} else {
-			return partitionableStates.get(subtaskIndex);
-		}
-	}
-
-	public KeyGroupsStateHandle getKeyGroupState(int subtaskIndex) {
-		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
-			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
-					" exceeds the maximum number of sub tasks " + keyGroupsStateHandles.size());
-		} else {
-			return keyGroupsStateHandles.get(subtaskIndex);
 		}
 	}
 
@@ -169,13 +114,9 @@ public class TaskState implements StateObject {
 		return chainLength;
 	}
 
-	public Collection<KeyGroupsStateHandle> getKeyGroupStates() {
-		return keyGroupsStateHandles.values();
-	}
-
 	public boolean hasNonPartitionedState() {
 		for(SubtaskState sts : subtaskStates.values()) {
-			if (sts != null && !sts.getChainedStateHandle().isEmpty()) {
+			if (sts != null && !sts.getLegacyOperatorState().isEmpty()) {
 				return true;
 			}
 		}
@@ -184,8 +125,7 @@ public class TaskState implements StateObject {
 
 	@Override
 	public void discardState() throws Exception {
-		StateUtil.bestEffortDiscardAllStateObjects(
-				Iterables.concat(subtaskStates.values(), partitionableStates.values(), keyGroupsStateHandles.values()));
+		StateUtil.bestEffortDiscardAllStateObjects(subtaskStates.values());
 	}
 
 
@@ -197,16 +137,6 @@ public class TaskState implements StateObject {
 			SubtaskState subtaskState = subtaskStates.get(i);
 			if (subtaskState != null) {
 				result += subtaskState.getStateSize();
-			}
-
-			ChainedStateHandle<OperatorStateHandle> partitionableState = partitionableStates.get(i);
-			if (partitionableState != null) {
-				result += partitionableState.getStateSize();
-			}
-
-			KeyGroupsStateHandle keyGroupsState = keyGroupsStateHandles.get(i);
-			if (keyGroupsState != null) {
-				result += keyGroupsState.getStateSize();
 			}
 		}
 
@@ -220,9 +150,7 @@ public class TaskState implements StateObject {
 
 			return jobVertexID.equals(other.jobVertexID)
 					&& parallelism == other.parallelism
-					&& subtaskStates.equals(other.subtaskStates)
-					&& partitionableStates.equals(other.partitionableStates)
-					&& keyGroupsStateHandles.equals(other.keyGroupsStateHandles);
+					&& subtaskStates.equals(other.subtaskStates);
 		} else {
 			return false;
 		}
@@ -230,18 +158,10 @@ public class TaskState implements StateObject {
 
 	@Override
 	public int hashCode() {
-		return parallelism + 31 * Objects.hash(jobVertexID, subtaskStates, partitionableStates, keyGroupsStateHandles);
+		return parallelism + 31 * Objects.hash(jobVertexID, subtaskStates);
 	}
 
 	public Map<Integer, SubtaskState> getSubtaskStates() {
 		return Collections.unmodifiableMap(subtaskStates);
-	}
-
-	public Map<Integer, KeyGroupsStateHandle> getKeyGroupsStateHandles() {
-		return Collections.unmodifiableMap(keyGroupsStateHandles);
-	}
-
-	public Map<Integer, ChainedStateHandle<OperatorStateHandle>> getPartitionableStates() {
-		return partitionableStates;
 	}
 }

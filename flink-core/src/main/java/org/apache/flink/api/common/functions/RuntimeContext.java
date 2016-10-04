@@ -210,7 +210,7 @@ public interface RuntimeContext {
 	 * @return The distributed cache of the worker executing this instance.
 	 */
 	DistributedCache getDistributedCache();
-	
+
 	// ------------------------------------------------------------------------
 	//  Methods for accessing state
 	// ------------------------------------------------------------------------
@@ -266,7 +266,7 @@ public interface RuntimeContext {
 	 * Gets a handle to the system's key/value list state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
 	 * holds lists. One can adds elements to the list, or retrieve the list as a whole. 
-	 * 
+	 *
 	 * <p>This state is only accessible if the function is executed on a KeyedStream.
 	 *
 	 * <pre>{@code
@@ -331,7 +331,7 @@ public interface RuntimeContext {
 	 *         return new Tuple2<>(value, sum.get());
 	 *     }
 	 * });
-	 * 
+	 *
 	 * }</pre>
 	 *
 	 * @param stateProperties The descriptor defining the properties of the stats.

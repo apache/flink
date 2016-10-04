@@ -18,10 +18,12 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -330,12 +332,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	protected abstract void flush();
 
 	@Override
-	public void initializeState(OperatorStateStore stateStore) throws Exception {
-		this.stateStore = stateStore;
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		this.stateStore = context.getManagedOperatorStateStore();
 	}
 
 	@Override
-	public void prepareSnapshot(long checkpointId, long timestamp) throws Exception {
+	public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
 		if (flushOnCheckpoint) {
 			// flushing is activated: We need to wait until pendingRecords is 0
 			flush();

@@ -40,8 +40,8 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -708,7 +708,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			if (processingTimeTimers.add(timer)) {
 
 				Timer<K, W> oldHead = processingTimeTimersQueue.peek();
-				long nextTriggerTime = oldHead != null ? oldHead.timestamp : Long.MAX_VALUE; 
+				long nextTriggerTime = oldHead != null ? oldHead.timestamp : Long.MAX_VALUE;
 
 				processingTimeTimersQueue.add(timer);
 

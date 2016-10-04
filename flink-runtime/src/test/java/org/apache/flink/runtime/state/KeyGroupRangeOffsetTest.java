@@ -45,7 +45,7 @@ public class KeyGroupRangeOffsetTest {
 				keyGroupRangeOffsets.getKeyGroupRange()));
 
 		intersection = keyGroupRangeOffsets.getIntersection(KeyGroupRange.of(11, 13));
-		Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP, intersection.getKeyGroupRange());
+		Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, intersection.getKeyGroupRange());
 		Assert.assertFalse(intersection.iterator().hasNext());
 
 		intersection = keyGroupRangeOffsets.getIntersection(KeyGroupRange.of(5, 13));
@@ -129,7 +129,7 @@ public class KeyGroupRangeOffsetTest {
 			Assert.assertFalse(keyGroupRange.getKeyGroupRange().contains(startKeyGroup - 1));
 			Assert.assertFalse(keyGroupRange.getKeyGroupRange().contains(endKeyGroup + 1));
 		} else {
-			Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP, keyGroupRange);
+			Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, keyGroupRange);
 		}
 	}
 
