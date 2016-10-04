@@ -55,6 +55,8 @@ public class Ordering implements Cloneable {
 	
 	/**
 	 * Extends this ordering by appending an additional order requirement.
+	 * If the index has been previously appended then the unmodified Ordering
+	 * is returned.
 	 * 
 	 * @param index Field index of the appended order requirement.
 	 * @param type Type of the appended order requirement.
@@ -63,7 +65,7 @@ public class Ordering implements Cloneable {
 	 * @return This ordering with an additional appended order requirement.
 	 */
 	public Ordering appendOrdering(Integer index, Class<? extends Comparable<?>> type, Order order) {
-		if (index.intValue() < 0) {
+		if (index < 0) {
 			throw new IllegalArgumentException("The key index must not be negative.");
 		}
 		if (order == null) {
@@ -72,10 +74,13 @@ public class Ordering implements Cloneable {
 		if (order == Order.NONE) {
 			throw new IllegalArgumentException("An ordering must not be created with a NONE order.");
 		}
-		
-		this.indexes = this.indexes.addField(index);
-		this.types.add(type);
-		this.orders.add(order);
+
+		if (!this.indexes.contains(index)) {
+			this.indexes = this.indexes.addField(index);
+			this.types.add(type);
+			this.orders.add(order);
+		}
+
 		return this;
 	}
 	
