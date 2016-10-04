@@ -24,7 +24,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This is a {@link TimeServiceProvider} used <b>strictly for testing</b> the
@@ -32,13 +36,14 @@ import java.util.concurrent.ScheduledFuture;
  * */
 public class TestTimeServiceProvider extends TimeServiceProvider {
 
-	private long currentTime = 0;
+	private volatile long currentTime = 0;
 
-	private boolean isTerminated = false;
+	private volatile boolean isTerminated;
 
 	// sorts the timers by timestamp so that they are processed in the correct order.
-	private Map<Long, List<Triggerable>> registeredTasks = new TreeMap<>();
+	private final Map<Long, List<Triggerable>> registeredTasks = new TreeMap<>();
 
+	
 	public void setCurrentTime(long timestamp) throws Exception {
 		this.currentTime = timestamp;
 
@@ -72,18 +77,36 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 
 	@Override
 	public ScheduledFuture<?> registerTimer(long timestamp, Triggerable target) {
+		if (isTerminated) {
+			throw new IllegalStateException("terminated");
+		}
+
+		if (timestamp <= currentTime) {
+			try {
+				target.trigger(timestamp);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+
 		List<Triggerable> tasks = registeredTasks.get(timestamp);
 		if (tasks == null) {
 			tasks = new ArrayList<>();
 			registeredTasks.put(timestamp, tasks);
 		}
 		tasks.add(target);
-		return null;
+
+		return new DummyFuture();
 	}
 
 	@Override
 	public boolean isTerminated() {
 		return isTerminated;
+	}
+
+	@Override
+	public void shutdownService() throws Exception {
+		isTerminated = true;
 	}
 
 	public int getNumRegisteredTimers() {
@@ -94,8 +117,43 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 		return count;
 	}
 
-	@Override
-	public void shutdownService() throws Exception {
-		this.isTerminated = true;
+	// ------------------------------------------------------------------------
+
+	private static class DummyFuture implements ScheduledFuture<Object> {
+
+		@Override
+		public long getDelay(TimeUnit unit) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int compareTo(Delayed o) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			return true;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean isDone() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Object get() throws InterruptedException, ExecutionException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			throw new UnsupportedOperationException();
+		}
 	}
 }

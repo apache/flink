@@ -262,60 +262,53 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 	@Override
 	public void trigger(long time) throws Exception {
-		boolean fire;
+		Timer<K, W> timer;
 
-		//Remove information about the triggering task
-		processingTimeTimerFutures.remove(time);
-		processingTimeTimerTimestamps.remove(time, processingTimeTimerTimestamps.count(time));
+		while ((timer = processingTimeTimersQueue.peek()) != null && timer.timestamp <= time) {
 
-		do {
-			Timer<K, W> timer = processingTimeTimersQueue.peek();
-			if (timer != null && timer.timestamp <= time) {
-				fire = true;
+			processingTimeTimers.remove(timer);
+			processingTimeTimersQueue.remove();
 
-				processingTimeTimers.remove(timer);
-				processingTimeTimersQueue.remove();
+			context.key = timer.key;
+			context.window = timer.window;
+			setKeyContext(timer.key);
 
-				context.key = timer.key;
-				context.window = timer.window;
-				setKeyContext(timer.key);
+			ListState<StreamRecord<IN>> windowState;
+			MergingWindowSet<W> mergingWindows = null;
 
-				ListState<StreamRecord<IN>> windowState;
-				MergingWindowSet<W> mergingWindows = null;
-
-				if (windowAssigner instanceof MergingWindowAssigner) {
-					mergingWindows = getMergingWindowSet();
-					W stateWindow = mergingWindows.getStateWindow(context.window);
-					if (stateWindow == null) {
-						// then the window is already purged and this is a cleanup
-						// timer set due to allowed lateness that has nothing to clean,
-						// so it is safe to just ignore
-						continue;
-					}
-					windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
-				} else {
-					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
-				}
-
-				Iterable<StreamRecord<IN>> contents = windowState.get();
-				if (contents == null) {
-					// if we have no state, there is nothing to do
+			if (windowAssigner instanceof MergingWindowAssigner) {
+				mergingWindows = getMergingWindowSet();
+				W stateWindow = mergingWindows.getStateWindow(context.window);
+				if (stateWindow == null) {
+					// then the window is already purged and this is a cleanup
+					// timer set due to allowed lateness that has nothing to clean,
+					// so it is safe to just ignore
 					continue;
 				}
-
-				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
-				if (triggerResult.isFire()) {
-					fire(context.window, contents);
-				}
-
-				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp))) {
-					cleanup(context.window, windowState, mergingWindows);
-				}
-
+				windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
 			} else {
-				fire = false;
+				windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
 			}
-		} while (fire);
+
+			Iterable<StreamRecord<IN>> contents = windowState.get();
+			if (contents == null) {
+				// if we have no state, there is nothing to do
+				continue;
+			}
+
+			TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
+			if (triggerResult.isFire()) {
+				fire(context.window, contents);
+			}
+
+			if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp))) {
+				cleanup(context.window, windowState, mergingWindows);
+			}
+		}
+
+		if (timer != null) {
+			nextTimer = getTimerService().registerTimer(timer.timestamp, this);
+		}
 	}
 
 	private void fire(W window, Iterable<StreamRecord<IN>> contents) throws Exception {
