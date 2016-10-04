@@ -17,14 +17,14 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.util.Preconditions;
 
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link TimeServiceProvider} which assigns as current processing time the result of calling
@@ -35,24 +35,34 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 	/** The containing task that owns this time service provider. */
 	private final AsyncExceptionHandler task;
 
+	/** The lock that timers acquire upon triggering */
 	private final Object checkpointLock;
 
 	/** The executor service that schedules and calls the triggers of this task*/
-	private final ScheduledExecutorService timerService;
+	private final ScheduledThreadPoolExecutor timerService;
 
-	public static DefaultTimeServiceProvider create(
-			AsyncExceptionHandler exceptionHandler,
-			ScheduledExecutorService executor,
-			Object checkpointLock) {
-		return new DefaultTimeServiceProvider(exceptionHandler, executor, checkpointLock);
+
+	public DefaultTimeServiceProvider(AsyncExceptionHandler failureHandler, Object checkpointLock) {
+		this(failureHandler, checkpointLock, null);
 	}
 
-	private DefaultTimeServiceProvider(AsyncExceptionHandler task,
-									ScheduledExecutorService threadPoolExecutor,
-									Object checkpointLock) {
-		this.task = Preconditions.checkNotNull(task);
-		this.timerService = Preconditions.checkNotNull(threadPoolExecutor);
-		this.checkpointLock = Preconditions.checkNotNull(checkpointLock);
+	public DefaultTimeServiceProvider(
+			AsyncExceptionHandler task,
+			Object checkpointLock,
+			ThreadFactory threadFactory) {
+		
+		this.task = checkNotNull(task);
+		this.checkpointLock = checkNotNull(checkpointLock);
+
+		if (threadFactory == null) {
+			this.timerService = new ScheduledThreadPoolExecutor(1);
+		} else {
+			this.timerService = new ScheduledThreadPoolExecutor(1, threadFactory);
+		}
+
+		// allow trigger tasks to be removed if all timers for
+		// that timestamp are removed by user
+		this.timerService.setRemoveOnCancelPolicy(true);
 	}
 
 	@Override
@@ -73,6 +83,13 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 
 	@Override
 	public void shutdownService() throws Exception {
+		timerService.shutdownNow();
+	}
+
+	// safety net to destroy the thread pool
+	@Override
+	protected void finalize() throws Throwable {
+		super.finalize();
 		timerService.shutdownNow();
 	}
 
@@ -104,15 +121,5 @@ public class DefaultTimeServiceProvider extends TimeServiceProvider {
 				}
 			}
 		}
-	}
-
-	@VisibleForTesting
-	public static DefaultTimeServiceProvider createForTesting(ScheduledExecutorService executor, Object checkpointLock) {
-		return new DefaultTimeServiceProvider(new AsyncExceptionHandler() {
-			@Override
-			public void handleAsyncException(String message, Throwable exception) {
-				exception.printStackTrace();
-			}
-		}, executor, checkpointLock);
 	}
 }

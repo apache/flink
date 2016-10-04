@@ -32,45 +32,46 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
-import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
 
 @SuppressWarnings("deprecation")
 public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	private final int numberOfParallelSubtasks;
 	private final int indexOfThisSubtask;
-	
+
 	private final ExecutionConfig execConfig;
 
-	private final TimeServiceProvider timerService;
-
+	private final TimeServiceProvider timeServiceProvider;
+	
 	public MockRuntimeContext(int numberOfParallelSubtasks, int indexOfThisSubtask) {
-		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig(), new Object());
+		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig());
 	}
 
 	public MockRuntimeContext(
-		int numberOfParallelSubtasks,
-		int indexOfThisSubtask,
-		ExecutionConfig execConfig,
-		Object checkpointLock) {
-
+			int numberOfParallelSubtasks,
+			int indexOfThisSubtask,
+			ExecutionConfig execConfig) {
+		this(numberOfParallelSubtasks, indexOfThisSubtask, execConfig, null);
+	}
+	
+	public MockRuntimeContext(
+			int numberOfParallelSubtasks,
+			int indexOfThisSubtask,
+			ExecutionConfig execConfig,
+			TimeServiceProvider timeServiceProvider) {
+		
 		super(new MockStreamOperator(),
 			new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
 			Collections.<String, Accumulator<?, ?>>emptyMap());
@@ -78,8 +79,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 		this.numberOfParallelSubtasks = numberOfParallelSubtasks;
 		this.indexOfThisSubtask = indexOfThisSubtask;
 		this.execConfig = execConfig;
-		this.timerService = DefaultTimeServiceProvider.
-			createForTesting(Executors.newSingleThreadScheduledExecutor(), checkpointLock);
+		this.timeServiceProvider = timeServiceProvider;
 	}
 
 	@Override
@@ -189,7 +189,11 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	@Override
 	public TimeServiceProvider getTimeServiceProvider() {
-		return timerService;
+		if (timeServiceProvider == null) {
+			throw new UnsupportedOperationException();
+		} else {
+			return timeServiceProvider;
+		}
 	}
 
 	// ------------------------------------------------------------------------

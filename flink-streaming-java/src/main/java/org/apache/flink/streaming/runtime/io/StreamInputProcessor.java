@@ -83,7 +83,9 @@ public class StreamInputProcessor<IN> {
 	private Counter numRecordsIn;
 
 	@SuppressWarnings("unchecked")
-	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer,
+	public StreamInputProcessor(
+			InputGate[] inputGates,
+			TypeSerializer<IN> inputSerializer,
 			StatefulTask checkpointedTask,
 			CheckpointingMode checkpointMode,
 			IOManager ioManager,

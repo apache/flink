@@ -67,7 +67,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
@@ -223,15 +223,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// if the clock is not already set, then assign a default TimeServiceProvider
 			if (timerService == null) {
+				ThreadFactory timerThreadFactory =
+					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
 
-				ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
-					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName()));
-
-				// allow trigger tasks to be removed if all timers for
-				// that timestamp are removed by user
-				executor.setRemoveOnCancelPolicy(true);
-
-				timerService = DefaultTimeServiceProvider.create(this, executor, getCheckpointLock());
+				timerService = new DefaultTimeServiceProvider(this, getCheckpointLock(), timerThreadFactory);
 			}
 
 			operatorChain = new OperatorChain<>(this, getEnvironment().getAccumulatorRegistry().getReadWriteReporter());
@@ -305,10 +300,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// stop all timers and threads
 			if (timerService != null) {
 				try {
-					if (!timerService.isTerminated()) {
-						LOG.info("Timer service is shutting down.");
-						timerService.shutdownService();
-					}
+					timerService.shutdownService();
 				}
 				catch (Throwable t) {
 					// catch and log the exception to not replace the original exception

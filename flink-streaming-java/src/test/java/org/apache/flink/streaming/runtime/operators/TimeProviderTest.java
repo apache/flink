@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -28,6 +29,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,13 +39,14 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(ResultPartitionWriter.class)
+@PrepareForTest({ResultPartitionWriter.class})
 @PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class TimeProviderTest {
 
@@ -52,8 +55,10 @@ public class TimeProviderTest {
 		final OneShotLatch latch = new OneShotLatch();
 
 		final Object lock = new Object();
-		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider
-			.createForTesting(Executors.newSingleThreadScheduledExecutor(), lock);
+		final AtomicReference<Throwable> error = new AtomicReference<>();
+		
+		TimeServiceProvider timeServiceProvider = new DefaultTimeServiceProvider(
+				new ReferenceSettingExceptionHandler(error), lock);
 
 		final List<Long> timestamps = new ArrayList<>();
 
@@ -114,6 +119,8 @@ public class TimeProviderTest {
 			lastTs = timestamp;
 			counter++;
 		}
+
+		assertNull(error.get());
 	}
 
 	@Test
@@ -124,14 +131,14 @@ public class TimeProviderTest {
 
 		final Object lock = new Object();
 
-		TimeServiceProvider timeServiceProvider = DefaultTimeServiceProvider
-			.create(new AsyncExceptionHandler() {
+		TimeServiceProvider timeServiceProvider = new DefaultTimeServiceProvider(
+			new AsyncExceptionHandler() {
 				@Override
 				public void handleAsyncException(String message, Throwable exception) {
 					exceptionWasThrown.compareAndSet(false, true);
 					latch.trigger();
 				}
-			}, Executors.newSingleThreadScheduledExecutor(), lock);
+			}, lock);
 
 		long now = System.currentTimeMillis();
 		timeServiceProvider.registerTimer(now, new Triggerable() {
@@ -182,7 +189,7 @@ public class TimeProviderTest {
 			}
 		});
 
-		Assert.assertEquals(provider.getNoOfRegisteredTimers(), 4);
+		Assert.assertEquals(provider.getNumRegisteredTimers(), 4);
 
 		provider.setCurrentTime(100);
 		long seen = 0;
@@ -233,14 +240,30 @@ public class TimeProviderTest {
 			}
 		});
 
-		assertEquals(2, tp.getNoOfRegisteredTimers());
+		assertEquals(2, tp.getNumRegisteredTimers());
 
 		tp.setCurrentTime(35);
-		assertEquals(1, tp.getNoOfRegisteredTimers());
+		assertEquals(1, tp.getNumRegisteredTimers());
 
 		tp.setCurrentTime(40);
-		assertEquals(0, tp.getNoOfRegisteredTimers());
+		assertEquals(0, tp.getNumRegisteredTimers());
 
 		tp.shutdownService();
+	}
+
+	// ------------------------------------------------------------------------
+
+	public static class ReferenceSettingExceptionHandler implements AsyncExceptionHandler {
+
+		private final AtomicReference<Throwable> errorReference;
+
+		public ReferenceSettingExceptionHandler(AtomicReference<Throwable> errorReference) {
+			this.errorReference = errorReference;
+		}
+
+		@Override
+		public void handleAsyncException(String message, Throwable exception) {
+			errorReference.compareAndSet(null, exception);
+		}
 	}
 }
