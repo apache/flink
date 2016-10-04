@@ -299,11 +299,11 @@ public class VertexCentricIteration<K, VV, EV, Message>
 		public void open(Configuration parameters) {
 			outTuple = new Tuple2<>();
 			nullMessage = Either.Left(NullValue.getInstance());
-			outTuple.setField(nullMessage, 1);
+			outTuple.f1 = nullMessage;
 		}
 
 		public Tuple2<K, Either<NullValue, Message>> map(Vertex<K, VV> vertex) {
-			outTuple.setField(vertex.getId(), 0);
+			outTuple.f0 = vertex.getId();
 			return outTuple;
 		}
 }
@@ -474,8 +474,8 @@ public class VertexCentricIteration<K, VV, EV, Message>
 		public Tuple2<Vertex<K, VV>, Either<NullValue, Message>> join(
 				Vertex<K, VV> vertex, Tuple2<K, Either<NullValue, Message>> message) {
 
-			outTuple.setField(vertex, 0);
-			outTuple.setField(message.f1, 1);
+			outTuple.f0 = vertex;
+			outTuple.f1 = message.f1;
 			return outTuple;
 		}
 	}
@@ -504,8 +504,8 @@ public class VertexCentricIteration<K, VV, EV, Message>
 
 			if (value.isRight()) {
 				Tuple2<K, Message> message = value.right();
-				outTuple.setField(message.f0, 0);
-				outTuple.setField(Either.Right(message.f1), 1);
+				outTuple.f0 = message.f0;
+				outTuple.f1 = Either.Right(message.f1);
 				out.collect(outTuple);
 			}
 		}
