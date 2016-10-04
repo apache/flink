@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -115,9 +116,9 @@ public class StreamSourceContexts {
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
 
-		private final ScheduledFuture<?> watermarkTimer;
 		private final long watermarkInterval;
 
+		private volatile ScheduledFuture<?> nextWatermarkTimer;
 		private volatile long nextWatermarkTime;
 
 		private AutomaticWatermarkContext(
@@ -130,13 +131,13 @@ public class StreamSourceContexts {
 			this.lock = Preconditions.checkNotNull(checkpointLock, "The checkpoint lock cannot be null.");
 			this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
 
-			Preconditions.checkArgument(watermarkInterval > 1L, "The watermark interval cannot be smaller than 1 ms.");
+			Preconditions.checkArgument(watermarkInterval >= 1L, "The watermark interval cannot be smaller than 1 ms.");
 			this.watermarkInterval = watermarkInterval;
 
 			this.reuse = new StreamRecord<>(null);
 
 			long now = this.timeService.getCurrentProcessingTime();
-			this.watermarkTimer = this.timeService.registerTimer(now + watermarkInterval,
+			this.nextWatermarkTimer = this.timeService.registerTimer(now + watermarkInterval,
 				new WatermarkEmittingTask(this.timeService, lock, output));
 		}
 
@@ -178,8 +179,9 @@ public class StreamSourceContexts {
 				}
 
 				// we can shutdown the timer now, no watermarks will be needed any more
-				if (watermarkTimer != null) {
-					watermarkTimer.cancel(true);
+				final ScheduledFuture<?> nextWatermarkTimer = this.nextWatermarkTimer;
+				if (nextWatermarkTimer != null) {
+					nextWatermarkTimer.cancel(true);
 				}
 			}
 		}
@@ -191,8 +193,9 @@ public class StreamSourceContexts {
 
 		@Override
 		public void close() {
-			if (watermarkTimer != null) {
-				watermarkTimer.cancel(true);
+			final ScheduledFuture<?> nextWatermarkTimer = this.nextWatermarkTimer;
+			if (nextWatermarkTimer != null) {
+				nextWatermarkTimer.cancel(true);
 			}
 		}
 
@@ -202,10 +205,13 @@ public class StreamSourceContexts {
 			private final Object lock;
 			private final Output<StreamRecord<T>> output;
 
-			private WatermarkEmittingTask(TimeServiceProvider timeService, Object checkpointLock, Output<StreamRecord<T>> output) {
-				this.timeService = Preconditions.checkNotNull(timeService, "Time Service cannot be null.");
-				this.lock = Preconditions.checkNotNull(checkpointLock, "The checkpoint lock cannot be null.");
-				this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
+			private WatermarkEmittingTask(
+					TimeServiceProvider timeService,
+					Object checkpointLock,
+					Output<StreamRecord<T>> output) {
+				this.timeService = timeService;
+				this.lock = checkpointLock;
+				this.output = output;
 			}
 
 			@Override
@@ -227,7 +233,8 @@ public class StreamSourceContexts {
 				}
 
 				long nextWatermark = currentTime + watermarkInterval;
-				this.timeService.registerTimer(nextWatermark, new WatermarkEmittingTask(this.timeService, lock, output));
+				nextWatermarkTimer = this.timeService.registerTimer(
+						nextWatermark, new WatermarkEmittingTask(this.timeService, lock, output));
 			}
 		}
 	}
