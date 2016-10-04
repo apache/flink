@@ -1114,6 +1114,16 @@ The following table lists the currently supported compression methods.
       <td><code>.gz</code>, <code>.gzip</code></td>
       <td>no</td>
     </tr>
+    <tr>
+      <td><strong>Bzip2</strong></td>
+      <td><code>.bz2</code></td>
+      <td>no</td>
+    </tr>
+    <tr>
+      <td><strong>XZ</strong></td>
+      <td><code>.xz</code></td>
+      <td>no</td>
+    </tr>
   </tbody>
 </table>
 

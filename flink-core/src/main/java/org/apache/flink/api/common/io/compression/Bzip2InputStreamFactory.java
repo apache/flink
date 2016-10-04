@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.common.io.compression;
 
 import org.apache.flink.annotation.Internal;
@@ -23,24 +22,29 @@ import org.apache.flink.annotation.Internal;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.Collections;
 
-/**
- * Creates a new instance of a certain subclass of {@link java.util.zip.InflaterInputStream}.
- */
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+
 @Internal
-public interface InflaterInputStreamFactory<T extends InputStream> {
+public class Bzip2InputStreamFactory implements InflaterInputStreamFactory<BZip2CompressorInputStream> {
 
-	/**
-	 * Creates a {@link java.util.zip.InflaterInputStream} that wraps the given input stream.
-	 * @param in is the compressed input stream
-	 * @return the inflated input stream
-	 */
-	T create(InputStream in) throws IOException;
+	private static Bzip2InputStreamFactory INSTANCE = null;
 
-	/**
-	 * Lists a collection of typical file extensions (e.g., "gz", "gzip") that are associated with the compression
-	 * algorithm in the {@link java.util.zip.InflaterInputStream} {@code T}.
-	 * @return a (possibly empty) collection of lower-case file extensions, without the period
-	 */
-	Collection<String> getCommonFileExtensions();
+	public static Bzip2InputStreamFactory getInstance() {
+		if (INSTANCE == null) {
+			INSTANCE = new Bzip2InputStreamFactory();
+		}
+		return INSTANCE;
+	}
+
+	@Override
+	public BZip2CompressorInputStream create(InputStream in) throws IOException {
+		return new BZip2CompressorInputStream(in);
+	}
+
+	@Override
+	public Collection<String> getCommonFileExtensions() {
+		return Collections.singleton("bz2");
+	}
 }
