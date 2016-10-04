@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -39,8 +40,11 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -61,10 +65,20 @@ import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
+import org.apache.flink.runtime.jobmaster.message.DisposeSavepointResponse;
+import org.apache.flink.runtime.jobmaster.message.NextInputSplit;
+import org.apache.flink.runtime.jobmaster.message.TriggerSavepointResponse;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.query.KvStateID;
+import org.apache.flink.runtime.query.KvStateLocation;
+import org.apache.flink.runtime.query.KvStateLocationRegistry;
+import org.apache.flink.runtime.query.KvStateServerAddress;
+import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
@@ -72,7 +86,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.InstantiationUtil;
@@ -520,22 +534,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			throw new ExecutionGraphException("The execution attempt " +
 				taskExecutionState.getID() + " was not found.");
 		}
-
-	}
-
-	//---------------------------------------------------------------------------------------------- 
-	// Internal methods 
-	// ----------------------------------------------------------------------------------------------  
-
-	private void handleFatalError(final Throwable cause) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.error("Fatal error occurred on JobManager, cause: {}", cause.getMessage(), cause);
-				shutDown();
-				jobCompletionActions.onFatalError(cause);
-			}
-		});
 	}
 
 	@RpcMethod
@@ -631,9 +629,219 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		throw new UnsupportedOperationException();
 	}
 
+	@RpcMethod
+	public void resourceRemoved(final ResourceID resourceId, final String message) {
+		// TODO: remove resource from slot pool
+	}
+
+	@RpcMethod
+	public void acknowledgeCheckpoint(final AcknowledgeCheckpoint acknowledge) {
+		if (executionGraph != null) {
+			final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+			if (checkpointCoordinator != null) {
+				getRpcService().execute(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							if (!checkpointCoordinator.receiveAcknowledgeMessage(acknowledge)) {
+								log.info("Received message for non-existing checkpoint {}.",
+									acknowledge.getCheckpointId());
+							}
+						} catch (Exception e) {
+							log.error("Error in CheckpointCoordinator while processing {}", acknowledge, e);
+						}
+					}
+				});
+			}
+			else {
+				log.error("Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator",
+					jobGraph.getJobID());
+			}
+		} else {
+			log.error("Received AcknowledgeCheckpoint for unavailable job {}", jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public void declineCheckpoint(final DeclineCheckpoint decline) {
+		if (executionGraph != null) {
+			final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+			if (checkpointCoordinator != null) {
+				getRpcService().execute(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							if (!checkpointCoordinator.receiveDeclineMessage(decline)) {
+								log.info("Received message for non-existing checkpoint {}.", decline.getCheckpointId());
+							}
+						} catch (Exception e) {
+							log.error("Error in CheckpointCoordinator while processing {}", decline, e);
+						}
+					}
+				});
+			} else {
+				log.error("Received DeclineCheckpoint message for job {} with no CheckpointCoordinator",
+					jobGraph.getJobID());
+			}
+		} else {
+			log.error("Received AcknowledgeCheckpoint for unavailable job {}", jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public KvStateLocation lookupKvStateLocation(final String registrationName) throws Exception {
+		if (executionGraph != null) {
+			if (log.isDebugEnabled()) {
+				log.debug("Lookup key-value state for job {} with registration " +
+					"name {}.", jobGraph.getJobID(), registrationName);
+			}
+
+			final KvStateLocationRegistry registry = executionGraph.getKvStateLocationRegistry();
+			final KvStateLocation location = registry.getKvStateLocation(registrationName);
+			if (location != null) {
+				return location;
+			} else {
+				throw new UnknownKvStateLocation(registrationName);
+			}
+		} else {
+			throw new IllegalStateException("Received lookup KvState location request for unavailable job " +
+				jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public void notifyKvStateRegistered(
+		final JobVertexID jobVertexId,
+		final KeyGroupRange keyGroupRange,
+		final String registrationName,
+		final KvStateID kvStateId,
+		final KvStateServerAddress kvStateServerAddress)
+	{
+		if (executionGraph != null) {
+			if (log.isDebugEnabled()) {
+				log.debug("Key value state registered for job {} under name {}.",
+					jobGraph.getJobID(), registrationName);
+			}
+			try {
+				executionGraph.getKvStateLocationRegistry().notifyKvStateRegistered(
+					jobVertexId, keyGroupRange, registrationName, kvStateId, kvStateServerAddress
+				);
+			} catch (Exception e) {
+				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+			}
+		} else {
+			log.error("Received notify KvState registered request for unavailable job " + jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public void notifyKvStateUnregistered(
+		JobVertexID jobVertexId,
+		KeyGroupRange keyGroupRange,
+		String registrationName)
+	{
+		if (executionGraph != null) {
+			if (log.isDebugEnabled()) {
+				log.debug("Key value state unregistered for job {} under name {}.",
+					jobGraph.getJobID(), registrationName);
+			}
+			try {
+				executionGraph.getKvStateLocationRegistry().notifyKvStateUnregistered(
+					jobVertexId, keyGroupRange, registrationName
+				);
+			} catch (Exception e) {
+				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+			}
+		} else {
+			log.error("Received notify KvState unregistered request for unavailable job " + jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public Future<TriggerSavepointResponse> triggerSavepoint() throws Exception {
+		if (executionGraph != null) {
+			final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+			if (checkpointCoordinator != null) {
+				try {
+					Future<String> savepointFuture = new FlinkFuture<>(
+						checkpointCoordinator.triggerSavepoint(System.currentTimeMillis()));
+
+					return savepointFuture.handleAsync(new BiFunction<String, Throwable, TriggerSavepointResponse>() {
+						@Override
+						public TriggerSavepointResponse apply(String savepointPath, Throwable throwable) {
+							if (throwable == null) {
+								return new TriggerSavepointResponse.Success(jobGraph.getJobID(), savepointPath);
+							}
+							else {
+								return new TriggerSavepointResponse.Failure(jobGraph.getJobID(),
+									new Exception("Failed to complete savepoint", throwable));
+							}
+						}
+					}, getMainThreadExecutor());
+
+				} catch (Exception e) {
+					FlinkCompletableFuture<TriggerSavepointResponse> future = new FlinkCompletableFuture<>();
+					future.complete(new TriggerSavepointResponse.Failure(jobGraph.getJobID(),
+						new Exception("Failed to trigger savepoint", e)));
+					return future;
+				}
+			} else {
+				FlinkCompletableFuture<TriggerSavepointResponse> future = new FlinkCompletableFuture<>();
+				future.complete(new TriggerSavepointResponse.Failure(jobGraph.getJobID(),
+					new IllegalStateException("Checkpointing disabled. You can enable it via the execution " +
+						"environment of your job.")));
+				return future;
+			}
+		} else {
+			FlinkCompletableFuture<TriggerSavepointResponse> future = new FlinkCompletableFuture<>();
+			future.complete(new TriggerSavepointResponse.Failure(jobGraph.getJobID(),
+				new IllegalArgumentException("Received trigger savepoint request for unavailable job " +
+					jobGraph.getJobID())));
+			return future;
+		}
+	}
+
+	@RpcMethod
+	public DisposeSavepointResponse disposeSavepoint(final String savepointPath) {
+		try {
+			log.info("Disposing savepoint at {}.", savepointPath);
+
+			// check whether the savepoint exists
+			savepointStore.loadSavepoint(savepointPath);
+
+			savepointStore.disposeSavepoint(savepointPath);
+			return new DisposeSavepointResponse.Success();
+		} catch (Exception e) {
+			log.error("Failed to dispose savepoint at {}.", savepointPath, e);
+			return new DisposeSavepointResponse.Failure(e);
+		}
+	}
+
+	@RpcMethod
+	public ClassloadingProps requestClassloadingProps() throws Exception {
+		if (executionGraph != null) {
+			return new ClassloadingProps(libraryCacheManager.getBlobServerPort(),
+				executionGraph.getRequiredJarFiles(),
+				executionGraph.getRequiredClasspaths());
+		} else {
+			throw new Exception("Received classloading props request for unavailable job " + jobGraph.getJobID());
+		}
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// Internal methods
 	//----------------------------------------------------------------------------------------------
+
+	private void handleFatalError(final Throwable cause) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.error("Fatal error occurred on JobManager, cause: {}", cause.getMessage(), cause);
+				shutDown();
+				jobCompletionActions.onFatalError(cause);
+			}
+		});
+	}
 
 	// TODO - wrap this as StatusListenerMessenger's callback with rpc main thread
 	private void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error) {
