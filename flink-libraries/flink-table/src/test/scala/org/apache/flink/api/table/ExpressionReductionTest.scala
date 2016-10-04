@@ -17,48 +17,19 @@
  */
 package org.apache.flink.api.table
 
-import org.apache.flink.api.java.{DataSet => JDataSet}
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment, createTypeInformation}
-import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.junit.Assert._
+import org.apache.flink.api.table.utils.TableTestBase
+import org.apache.flink.api.table.utils.TableTestUtil._
 import org.junit.Test
-import org.mockito.Mockito.{mock, when}
 
-class ExpressionReductionTest {
 
-  private def mockBatchTableEnvironment(): BatchTableEnvironment = {
-    val env = mock(classOf[ExecutionEnvironment])
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val ds = mock(classOf[DataSet[(Int, Long, String)]])
-    val jDs = mock(classOf[JDataSet[(Int, Long, String)]])
-    when(ds.javaSet).thenReturn(jDs)
-    when(jDs.getType).thenReturn(createTypeInformation[(Int, Long, String)])
-
-    val t = ds.toTable(tEnv).as('a, 'b, 'c)
-    tEnv.registerTable("MyTable", t)
-    tEnv
-  }
-
-  private def mockStreamTableEnvironment(): StreamTableEnvironment = {
-    val env = mock(classOf[StreamExecutionEnvironment])
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val ds = mock(classOf[DataStream[(Int, Long, String)]])
-    val jDs = mock(classOf[JDataStream[(Int, Long, String)]])
-    when(ds.javaStream).thenReturn(jDs)
-    when(jDs.getType).thenReturn(createTypeInformation[(Int, Long, String)])
-
-    val t = ds.toTable(tEnv).as('a, 'b, 'c)
-    tEnv.registerTable("MyTable", t)
-    tEnv
-  }
+class ExpressionReductionTest extends TableTestBase {
 
   @Test
   def testReduceCalcExpressionForBatchSQL(): Unit = {
-    val tEnv = mockBatchTableEnvironment()
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -76,29 +47,34 @@ class ExpressionReductionTest {
       "CAST(TRUE AS VARCHAR) || 'X'" +
       "FROM MyTable WHERE a>(1+7)"
 
-    val table = tEnv.sql(sqlQuery)
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select",
+        "+(7, a) AS EXPR$0",
+        "+(b, 3) AS EXPR$1",
+        "'b' AS EXPR$2",
+        "'STRING' AS EXPR$3",
+        "'teststring' AS EXPR$4",
+        "null AS EXPR$5",
+        "1990-10-24 23:00:01 AS EXPR$6",
+        "19 AS EXPR$7",
+        "false AS EXPR$8",
+        "true AS EXPR$9",
+        "2 AS EXPR$10",
+        "true AS EXPR$11",
+        "'TRUEX' AS EXPR$12"
+      ),
+      term("where", ">(a, 8)")
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
-    assertTrue(optimizedString.contains("+(7, _1) AS EXPR$0"))
-    assertTrue(optimizedString.contains("+(_2, 3) AS EXPR$1"))
-    assertTrue(optimizedString.contains("'b' AS EXPR$2"))
-    assertTrue(optimizedString.contains("'STRING' AS EXPR$3"))
-    assertTrue(optimizedString.contains("'teststring' AS EXPR$4"))
-    assertTrue(optimizedString.contains("null AS EXPR$5"))
-    assertTrue(optimizedString.contains("1990-10-24 23:00:01 AS EXPR$6"))
-    assertTrue(optimizedString.contains("19 AS EXPR$7"))
-    assertTrue(optimizedString.contains("false AS EXPR$8"))
-    assertTrue(optimizedString.contains("true AS EXPR$9"))
-    assertTrue(optimizedString.contains("2 AS EXPR$10"))
-    assertTrue(optimizedString.contains("true AS EXPR$11"))
-    assertTrue(optimizedString.contains("'TRUEX' AS EXPR$12"))
+    util.verifySql(sqlQuery, expected)
   }
 
   @Test
   def testReduceProjectExpressionForBatchSQL(): Unit = {
-    val tEnv = mockBatchTableEnvironment()
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -116,46 +92,54 @@ class ExpressionReductionTest {
       "CAST(TRUE AS VARCHAR) || 'X'" +
       "FROM MyTable"
 
-    val table = tEnv.sql(sqlQuery)
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select",
+        "+(7, a) AS EXPR$0",
+        "+(b, 3) AS EXPR$1",
+        "'b' AS EXPR$2",
+        "'STRING' AS EXPR$3",
+        "'teststring' AS EXPR$4",
+        "null AS EXPR$5",
+        "1990-10-24 23:00:01 AS EXPR$6",
+        "19 AS EXPR$7",
+        "false AS EXPR$8",
+        "true AS EXPR$9",
+        "2 AS EXPR$10",
+        "true AS EXPR$11",
+        "'TRUEX' AS EXPR$12"
+      )
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains("+(7, _1) AS EXPR$0"))
-    assertTrue(optimizedString.contains("+(_2, 3) AS EXPR$1"))
-    assertTrue(optimizedString.contains("'b' AS EXPR$2"))
-    assertTrue(optimizedString.contains("'STRING' AS EXPR$3"))
-    assertTrue(optimizedString.contains("'teststring' AS EXPR$4"))
-    assertTrue(optimizedString.contains("null AS EXPR$5"))
-    assertTrue(optimizedString.contains("1990-10-24 23:00:01 AS EXPR$6"))
-    assertTrue(optimizedString.contains("19 AS EXPR$7"))
-    assertTrue(optimizedString.contains("false AS EXPR$8"))
-    assertTrue(optimizedString.contains("true AS EXPR$9"))
-    assertTrue(optimizedString.contains("2 AS EXPR$10"))
-    assertTrue(optimizedString.contains("true AS EXPR$11"))
-    assertTrue(optimizedString.contains("'TRUEX' AS EXPR$12"))
+    util.verifySql(sqlQuery, expected)
   }
 
   @Test
   def testReduceFilterExpressionForBatchSQL(): Unit = {
-    val tEnv = mockBatchTableEnvironment()
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "*" +
       "FROM MyTable WHERE a>(1+7)"
 
-    val table = tEnv.sql(sqlQuery)
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", ">(a, 8)")
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
+    util.verifySql(sqlQuery, expected)
   }
 
   @Test
   def testReduceCalcExpressionForBatchTableAPI(): Unit = {
-    val tEnv = mockBatchTableEnvironment()
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val table = tEnv
-      .scan("MyTable")
+    val result = table
       .where('a > (1 + 7))
       .select((3 + 4).toExpr + 6,
               (11 === 1) ? ("a", "b"),
@@ -167,27 +151,32 @@ class ExpressionReductionTest {
               2.5.toExpr.floor(),
               true.cast(Types.STRING) + "X")
 
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select",
+        "13 AS _c0",
+        "'b' AS _c1",
+        "'STRING' AS _c2",
+        "'teststring' AS _c3",
+        "1990-10-24 23:00:01 AS _c4",
+        "false AS _c5",
+        "true AS _c6",
+        "2E0 AS _c7",
+        "'TRUEX' AS _c8"
+      ),
+      term("where", ">(a, 8)")
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
-    assertTrue(optimizedString.contains("13 AS _c0"))
-    assertTrue(optimizedString.contains("'b' AS _c1"))
-    assertTrue(optimizedString.contains("'STRING' AS _c2"))
-    assertTrue(optimizedString.contains("'teststring' AS _c3"))
-    assertTrue(optimizedString.contains("1990-10-24 23:00:01 AS _c4"))
-    assertTrue(optimizedString.contains("false AS _c5"))
-    assertTrue(optimizedString.contains("true AS _c6"))
-    assertTrue(optimizedString.contains("2E0 AS _c7"))
-    assertTrue(optimizedString.contains("'TRUEX' AS _c8"))
+    util.verifyTable(result, expected)
   }
 
   @Test
   def testReduceProjectExpressionForBatchTableAPI(): Unit = {
-    val tEnv = mockBatchTableEnvironment()
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val table = tEnv
-      .scan("MyTable")
+    val result = table
       .select((3 + 4).toExpr + 6,
               (11 === 1) ? ("a", "b"),
               " STRING ".trim,
@@ -198,36 +187,47 @@ class ExpressionReductionTest {
               2.5.toExpr.floor(),
               true.cast(Types.STRING) + "X")
 
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select",
+        "13 AS _c0",
+        "'b' AS _c1",
+        "'STRING' AS _c2",
+        "'teststring' AS _c3",
+        "1990-10-24 23:00:01 AS _c4",
+        "false AS _c5",
+        "true AS _c6",
+        "2E0 AS _c7",
+        "'TRUEX' AS _c8"
+      )
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains("13 AS _c0"))
-    assertTrue(optimizedString.contains("'b' AS _c1"))
-    assertTrue(optimizedString.contains("'STRING' AS _c2"))
-    assertTrue(optimizedString.contains("'teststring' AS _c3"))
-    assertTrue(optimizedString.contains("1990-10-24 23:00:01 AS _c4"))
-    assertTrue(optimizedString.contains("false AS _c5"))
-    assertTrue(optimizedString.contains("true AS _c6"))
-    assertTrue(optimizedString.contains("2E0 AS _c7"))
-    assertTrue(optimizedString.contains("'TRUEX' AS _c8"))
+    util.verifyTable(result, expected)
   }
 
   @Test
   def testReduceFilterExpressionForBatchTableAPI(): Unit = {
-    val tEnv = mockBatchTableEnvironment()
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val table = tEnv
-      .scan("MyTable")
+    val result = table
       .where('a > (1 + 7))
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", ">(a, 8)")
+    )
+
+    util.verifyTable(result, expected)
   }
 
   @Test
   def testReduceCalcExpressionForStreamSQL(): Unit = {
-    val tEnv = mockStreamTableEnvironment()
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -245,29 +245,34 @@ class ExpressionReductionTest {
       "CAST(TRUE AS VARCHAR) || 'X'" +
       "FROM MyTable WHERE a>(1+7)"
 
-    val table = tEnv.sql(sqlQuery)
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select",
+        "+(7, a) AS EXPR$0",
+        "+(b, 3) AS EXPR$1",
+        "'b' AS EXPR$2",
+        "'STRING' AS EXPR$3",
+        "'teststring' AS EXPR$4",
+        "null AS EXPR$5",
+        "1990-10-24 23:00:01 AS EXPR$6",
+        "19 AS EXPR$7",
+        "false AS EXPR$8",
+        "true AS EXPR$9",
+        "2 AS EXPR$10",
+        "true AS EXPR$11",
+        "'TRUEX' AS EXPR$12"
+      ),
+      term("where", ">(a, 8)")
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
-    assertTrue(optimizedString.contains("+(7, _1) AS EXPR$0"))
-    assertTrue(optimizedString.contains("+(_2, 3) AS EXPR$1"))
-    assertTrue(optimizedString.contains("'b' AS EXPR$2"))
-    assertTrue(optimizedString.contains("'STRING' AS EXPR$3"))
-    assertTrue(optimizedString.contains("'teststring' AS EXPR$4"))
-    assertTrue(optimizedString.contains("null AS EXPR$5"))
-    assertTrue(optimizedString.contains("1990-10-24 23:00:01 AS EXPR$6"))
-    assertTrue(optimizedString.contains("19 AS EXPR$7"))
-    assertTrue(optimizedString.contains("false AS EXPR$8"))
-    assertTrue(optimizedString.contains("true AS EXPR$9"))
-    assertTrue(optimizedString.contains("2 AS EXPR$10"))
-    assertTrue(optimizedString.contains("true AS EXPR$11"))
-    assertTrue(optimizedString.contains("'TRUEX' AS EXPR$12"))
+    util.verifySql(sqlQuery, expected)
   }
 
   @Test
   def testReduceProjectExpressionForStreamSQL(): Unit = {
-    val tEnv = mockStreamTableEnvironment()
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -285,46 +290,54 @@ class ExpressionReductionTest {
       "CAST(TRUE AS VARCHAR) || 'X'" +
       "FROM MyTable"
 
-    val table = tEnv.sql(sqlQuery)
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select",
+        "+(7, a) AS EXPR$0",
+        "+(b, 3) AS EXPR$1",
+        "'b' AS EXPR$2",
+        "'STRING' AS EXPR$3",
+        "'teststring' AS EXPR$4",
+        "null AS EXPR$5",
+        "1990-10-24 23:00:01 AS EXPR$6",
+        "19 AS EXPR$7",
+        "false AS EXPR$8",
+        "true AS EXPR$9",
+        "2 AS EXPR$10",
+        "true AS EXPR$11",
+        "'TRUEX' AS EXPR$12"
+      )
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains("+(7, _1) AS EXPR$0"))
-    assertTrue(optimizedString.contains("+(_2, 3) AS EXPR$1"))
-    assertTrue(optimizedString.contains("'b' AS EXPR$2"))
-    assertTrue(optimizedString.contains("'STRING' AS EXPR$3"))
-    assertTrue(optimizedString.contains("'teststring' AS EXPR$4"))
-    assertTrue(optimizedString.contains("null AS EXPR$5"))
-    assertTrue(optimizedString.contains("1990-10-24 23:00:01 AS EXPR$6"))
-    assertTrue(optimizedString.contains("19 AS EXPR$7"))
-    assertTrue(optimizedString.contains("false AS EXPR$8"))
-    assertTrue(optimizedString.contains("true AS EXPR$9"))
-    assertTrue(optimizedString.contains("2 AS EXPR$10"))
-    assertTrue(optimizedString.contains("true AS EXPR$11"))
-    assertTrue(optimizedString.contains("'TRUEX' AS EXPR$12"))
+    util.verifySql(sqlQuery, expected)
   }
 
   @Test
   def testReduceFilterExpressionForStreamSQL(): Unit = {
-    val tEnv = mockStreamTableEnvironment()
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "*" +
       "FROM MyTable WHERE a>(1+7)"
 
-    val table = tEnv.sql(sqlQuery)
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", ">(a, 8)")
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
+    util.verifySql(sqlQuery, expected)
   }
 
   @Test
   def testReduceCalcExpressionForStreamTableAPI(): Unit = {
-    val tEnv = mockStreamTableEnvironment()
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val table = tEnv
-      .ingest("MyTable")
+    val result = table
       .where('a > (1 + 7))
       .select((3 + 4).toExpr + 6,
               (11 === 1) ? ("a", "b"),
@@ -336,28 +349,32 @@ class ExpressionReductionTest {
               2.5.toExpr.floor(),
               true.cast(Types.STRING) + "X")
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select",
+        "13 AS _c0",
+        "'b' AS _c1",
+        "'STRING' AS _c2",
+        "'teststring' AS _c3",
+        "1990-10-24 23:00:01 AS _c4",
+        "false AS _c5",
+        "true AS _c6",
+        "2E0 AS _c7",
+        "'TRUEX' AS _c8"
+      ),
+      term("where", ">(a, 8)")
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
-    assertTrue(optimizedString.contains("13 AS _c0"))
-    assertTrue(optimizedString.contains("'b' AS _c1"))
-    assertTrue(optimizedString.contains("'STRING' AS _c2"))
-    assertTrue(optimizedString.contains("'teststring' AS _c3"))
-    assertTrue(optimizedString.contains("1990-10-24 23:00:01 AS _c4"))
-    assertTrue(optimizedString.contains("false AS _c5"))
-    assertTrue(optimizedString.contains("true AS _c6"))
-    assertTrue(optimizedString.contains("2E0 AS _c7"))
-    assertTrue(optimizedString.contains("'TRUEX' AS _c8"))
+    util.verifyTable(result, expected)
   }
 
   @Test
   def testReduceProjectExpressionForStreamTableAPI(): Unit = {
-    val tEnv = mockStreamTableEnvironment()
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val table =  tEnv
-      .ingest("MyTable")
-      .where('a > (1 + 7))
+    val result =  table
       .select((3 + 4).toExpr + 6,
               (11 === 1) ? ("a", "b"),
               " STRING ".trim,
@@ -368,33 +385,41 @@ class ExpressionReductionTest {
               2.5.toExpr.floor(),
               true.cast(Types.STRING) + "X")
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select",
+        "13 AS _c0",
+        "'b' AS _c1",
+        "'STRING' AS _c2",
+        "'teststring' AS _c3",
+        "1990-10-24 23:00:01 AS _c4",
+        "false AS _c5",
+        "true AS _c6",
+        "2E0 AS _c7",
+        "'TRUEX' AS _c8"
+      )
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
-    assertTrue(optimizedString.contains("13 AS _c0"))
-    assertTrue(optimizedString.contains("'b' AS _c1"))
-    assertTrue(optimizedString.contains("'STRING' AS _c2"))
-    assertTrue(optimizedString.contains("'teststring' AS _c3"))
-    assertTrue(optimizedString.contains("1990-10-24 23:00:01 AS _c4"))
-    assertTrue(optimizedString.contains("false AS _c5"))
-    assertTrue(optimizedString.contains("true AS _c6"))
-    assertTrue(optimizedString.contains("2E0 AS _c7"))
-    assertTrue(optimizedString.contains("'TRUEX' AS _c8"))
+    util.verifyTable(result, expected)
   }
 
   @Test
   def testReduceFilterExpressionForStreamTableAPI(): Unit = {
-    val tEnv = mockStreamTableEnvironment()
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val table = tEnv
-      .ingest("MyTable")
+    val result = table
       .where('a > (1 + 7))
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", ">(a, 8)")
+    )
 
-    val optimized = tEnv.optimize(table.getRelNode)
-    val optimizedString = optimized.toString
-    assertTrue(optimizedString.contains(">(_1, 8)"))
+    util.verifyTable(result, expected)
   }
 
 }
