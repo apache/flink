@@ -34,7 +34,6 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -47,19 +46,14 @@ import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
-
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -136,12 +130,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile TaskManagerLocation assignedResourceLocation; // for the archived execution
 
-	private ChainedStateHandle<StreamStateHandle> chainedStateHandle;
-
-	private List<Collection<OperatorStateHandle>> chainedPartitionableStateHandle;
-
-	private List<KeyGroupsStateHandle> keyGroupsStateHandles;
-	
+	private TaskStateHandles taskStateHandles;
 
 	/** The execution context which is used to execute futures. */
 	private ExecutionContext executionContext;
@@ -232,20 +221,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return this.stateTimestamps[state.ordinal()];
 	}
 
-	public ChainedStateHandle<StreamStateHandle> getChainedStateHandle() {
-		return chainedStateHandle;
-	}
-
-	public List<KeyGroupsStateHandle> getKeyGroupsStateHandles() {
-		return keyGroupsStateHandles;
-	}
-
-	public List<Collection<OperatorStateHandle>> getChainedPartitionableStateHandle() {
-		return chainedPartitionableStateHandle;
-	}
-
 	public boolean isFinished() {
 		return state.isTerminal();
+	}
+
+	public TaskStateHandles getTaskStateHandles() {
+		return taskStateHandles;
 	}
 
 	/**
@@ -254,17 +235,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * @param checkpointStateHandles all checkpointed operator state
 	 */
-	public void setInitialState(CheckpointStateHandles checkpointStateHandles, List<Collection<OperatorStateHandle>> chainedPartitionableStateHandle) {
+	public void setInitialState(TaskStateHandles checkpointStateHandles) {
 
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
 
-		if(checkpointStateHandles != null) {
-			this.chainedStateHandle = checkpointStateHandles.getNonPartitionedStateHandles();
-			this.chainedPartitionableStateHandle = chainedPartitionableStateHandle;
-			this.keyGroupsStateHandles = checkpointStateHandles.getKeyGroupsStateHandle();
-		}
+		this.taskStateHandles = checkpointStateHandles;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -390,9 +367,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
 				attemptId,
 				slot,
-				chainedStateHandle,
-				keyGroupsStateHandles,
-				chainedPartitionableStateHandle,
+				taskStateHandles,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs

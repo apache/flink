@@ -22,6 +22,7 @@ import io.netty.util.internal.ConcurrentSet;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -32,17 +33,21 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -71,13 +76,16 @@ import static org.junit.Assert.fail;
 
 /**
  * TODO : parameterize to test all different state backends!
- * TODO: reactivate ignored test as soon as savepoints work with deactivated checkpoints.
  */
 public class RescalingITCase extends TestLogger {
 
 	private static final int numTaskManagers = 2;
 	private static final int slotsPerTaskManager = 2;
 	private static final int numSlots = numTaskManagers * slotsPerTaskManager;
+
+	enum OperatorCheckpointMethod {
+		NON_PARTITIONED, CHECKPOINTED_FUNCTION, LIST_CHECKPOINTED
+	}
 
 	private static TestingCluster cluster;
 
@@ -242,7 +250,7 @@ public class RescalingITCase extends TestLogger {
 		try {
 			jobManager = cluster.getLeaderGateway(deadline.timeLeft());
 
-			JobGraph jobGraph = createJobGraphWithOperatorState(parallelism, maxParallelism, false);
+			JobGraph jobGraph = createJobGraphWithOperatorState(parallelism, maxParallelism, OperatorCheckpointMethod.NON_PARTITIONED);
 
 			jobID = jobGraph.getJobID();
 
@@ -280,7 +288,7 @@ public class RescalingITCase extends TestLogger {
 			// job successfully removed
 			jobID = null;
 
-			JobGraph scaledJobGraph = createJobGraphWithOperatorState(parallelism2, maxParallelism, false);
+			JobGraph scaledJobGraph = createJobGraphWithOperatorState(parallelism2, maxParallelism, OperatorCheckpointMethod.NON_PARTITIONED);
 
 			scaledJobGraph.setSavepointPath(savepointPath);
 
@@ -433,12 +441,22 @@ public class RescalingITCase extends TestLogger {
 
 	@Test
 	public void testSavepointRescalingInPartitionedOperatorState() throws Exception {
-		testSavepointRescalingPartitionedOperatorState(false);
+		testSavepointRescalingPartitionedOperatorState(false, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION);
 	}
 
 	@Test
 	public void testSavepointRescalingOutPartitionedOperatorState() throws Exception {
-		testSavepointRescalingPartitionedOperatorState(true);
+		testSavepointRescalingPartitionedOperatorState(true, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION);
+	}
+
+	@Test
+	public void testSavepointRescalingInPartitionedOperatorStateList() throws Exception {
+		testSavepointRescalingPartitionedOperatorState(false, OperatorCheckpointMethod.LIST_CHECKPOINTED);
+	}
+
+	@Test
+	public void testSavepointRescalingOutPartitionedOperatorStateList() throws Exception {
+		testSavepointRescalingPartitionedOperatorState(true, OperatorCheckpointMethod.LIST_CHECKPOINTED);
 	}
 
 
@@ -446,7 +464,7 @@ public class RescalingITCase extends TestLogger {
 	 * Tests rescaling of partitioned operator state. More specific, we test the mechanism with {@link ListCheckpointed}
 	 * as it subsumes {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction}.
 	 */
-	public void testSavepointRescalingPartitionedOperatorState(boolean scaleOut) throws Exception {
+	public void testSavepointRescalingPartitionedOperatorState(boolean scaleOut, OperatorCheckpointMethod checkpointMethod) throws Exception {
 		final int parallelism = scaleOut ? numSlots : numSlots / 2;
 		final int parallelism2 = scaleOut ? numSlots / 2 : numSlots;
 		final int maxParallelism = 13;
@@ -459,13 +477,18 @@ public class RescalingITCase extends TestLogger {
 
 		int counterSize = Math.max(parallelism, parallelism2);
 
-		PartitionedStateSource.CHECK_CORRECT_SNAPSHOT = new int[counterSize];
-		PartitionedStateSource.CHECK_CORRECT_RESTORE = new int[counterSize];
+		if(checkpointMethod == OperatorCheckpointMethod.CHECKPOINTED_FUNCTION) {
+			PartitionedStateSource.CHECK_CORRECT_SNAPSHOT = new int[counterSize];
+			PartitionedStateSource.CHECK_CORRECT_RESTORE = new int[counterSize];
+		} else {
+			PartitionedStateSourceListCheckpointed.CHECK_CORRECT_SNAPSHOT = new int[counterSize];
+			PartitionedStateSourceListCheckpointed.CHECK_CORRECT_RESTORE = new int[counterSize];
+		}
 
 		try {
 			jobManager = cluster.getLeaderGateway(deadline.timeLeft());
 
-			JobGraph jobGraph = createJobGraphWithOperatorState(parallelism, maxParallelism, true);
+			JobGraph jobGraph = createJobGraphWithOperatorState(parallelism, maxParallelism, checkpointMethod);
 
 			jobID = jobGraph.getJobID();
 
@@ -504,7 +527,7 @@ public class RescalingITCase extends TestLogger {
 			// job successfully removed
 			jobID = null;
 
-			JobGraph scaledJobGraph = createJobGraphWithOperatorState(parallelism2, maxParallelism, true);
+			JobGraph scaledJobGraph = createJobGraphWithOperatorState(parallelism2, maxParallelism, checkpointMethod);
 
 			scaledJobGraph.setSavepointPath(savepointPath);
 
@@ -515,12 +538,22 @@ public class RescalingITCase extends TestLogger {
 			int sumExp = 0;
 			int sumAct = 0;
 
-			for (int c : PartitionedStateSource.CHECK_CORRECT_SNAPSHOT) {
-				sumExp += c;
-			}
+			if (checkpointMethod == OperatorCheckpointMethod.CHECKPOINTED_FUNCTION) {
+				for (int c : PartitionedStateSource.CHECK_CORRECT_SNAPSHOT) {
+					sumExp += c;
+				}
 
-			for (int c : PartitionedStateSource.CHECK_CORRECT_RESTORE) {
-				sumAct += c;
+				for (int c : PartitionedStateSource.CHECK_CORRECT_RESTORE) {
+					sumAct += c;
+				}
+			} else {
+				for (int c : PartitionedStateSourceListCheckpointed.CHECK_CORRECT_SNAPSHOT) {
+					sumExp += c;
+				}
+
+				for (int c : PartitionedStateSourceListCheckpointed.CHECK_CORRECT_RESTORE) {
+					sumAct += c;
+				}
 			}
 
 			assertEquals(sumExp, sumAct);
@@ -543,7 +576,7 @@ public class RescalingITCase extends TestLogger {
 	//------------------------------------------------------------------------------------------------------------------
 
 	private static JobGraph createJobGraphWithOperatorState(
-			int parallelism, int maxParallelism, boolean partitionedOperatorState) {
+			int parallelism, int maxParallelism, OperatorCheckpointMethod checkpointMethod) {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
@@ -553,8 +586,23 @@ public class RescalingITCase extends TestLogger {
 
 		StateSourceBase.workStartedLatch = new CountDownLatch(1);
 
-		DataStream<Integer> input = env.addSource(
-				partitionedOperatorState ? new PartitionedStateSource() : new NonPartitionedStateSource());
+		SourceFunction<Integer> src;
+
+		switch (checkpointMethod) {
+			case CHECKPOINTED_FUNCTION:
+				src = new PartitionedStateSource();
+				break;
+			case LIST_CHECKPOINTED:
+				src = new PartitionedStateSourceListCheckpointed();
+				break;
+			case NON_PARTITIONED:
+				src = new NonPartitionedStateSource();
+				break;
+			default:
+				throw new IllegalArgumentException();
+		}
+
+		DataStream<Integer> input = env.addSource(src);
 
 		input.addSink(new DiscardingSink<Integer>());
 
@@ -711,7 +759,7 @@ public class RescalingITCase extends TestLogger {
 		}
 	}
 
-	private static class SubtaskIndexFlatMapper extends RichFlatMapFunction<Integer, Tuple2<Integer, Integer>> {
+	private static class SubtaskIndexFlatMapper extends RichFlatMapFunction<Integer, Tuple2<Integer, Integer>> implements CheckpointedFunction {
 
 		private static final long serialVersionUID = 5273172591283191348L;
 
@@ -727,12 +775,6 @@ public class RescalingITCase extends TestLogger {
 		}
 
 		@Override
-		public void open(Configuration configuration) {
-			counter = getRuntimeContext().getState(new ValueStateDescriptor<>("counter", Integer.class, 0));
-			sum = getRuntimeContext().getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
-		}
-
-		@Override
 		public void flatMap(Integer value, Collector<Tuple2<Integer, Integer>> out) throws Exception {
 
 			int count = counter.value() + 1;
@@ -745,6 +787,17 @@ public class RescalingITCase extends TestLogger {
 				out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
 				workCompletedLatch.countDown();
 			}
+		}
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			//all managed, nothing to do.
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			counter = context.getManagedKeyedStateStore().getState(new ValueStateDescriptor<>("counter", Integer.class, 0));
+			sum = context.getManagedKeyedStateStore().getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
 		}
 	}
 
@@ -817,9 +870,9 @@ public class RescalingITCase extends TestLogger {
 		}
 	}
 
-	private static class PartitionedStateSource extends StateSourceBase implements ListCheckpointed<Integer> {
+	private static class PartitionedStateSourceListCheckpointed extends StateSourceBase implements ListCheckpointed<Integer> {
 
-		private static final long serialVersionUID = -359715965103593462L;
+		private static final long serialVersionUID = -4357864582992546L;
 		private static final int NUM_PARTITIONS = 7;
 
 		private static int[] CHECK_CORRECT_SNAPSHOT;
@@ -851,6 +904,48 @@ public class RescalingITCase extends TestLogger {
 				counter += v;
 			}
 			CHECK_CORRECT_RESTORE[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+		}
+	}
+
+	private static class PartitionedStateSource extends StateSourceBase implements CheckpointedFunction {
+
+		private static final long serialVersionUID = -359715965103593462L;
+		private static final int NUM_PARTITIONS = 7;
+
+		private ListState<Integer> counterPartitions;
+
+		private static int[] CHECK_CORRECT_SNAPSHOT;
+		private static int[] CHECK_CORRECT_RESTORE;
+
+
+		@Override
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+
+			CHECK_CORRECT_SNAPSHOT[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+
+			int div = counter / NUM_PARTITIONS;
+			int mod = counter % NUM_PARTITIONS;
+
+			for (int i = 0; i < NUM_PARTITIONS; ++i) {
+				int partitionValue = div;
+				if (mod > 0) {
+					--mod;
+					++partitionValue;
+				}
+				counterPartitions.add(partitionValue);
+			}
+		}
+
+		@Override
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			this.counterPartitions =
+					context.getManagedOperatorStateStore().getSerializableListState("counter_partitions");
+			if (context.isRestored()) {
+				for (int v : counterPartitions.get()) {
+					counter += v;
+				}
+				CHECK_CORRECT_RESTORE[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+			}
 		}
 	}
 }

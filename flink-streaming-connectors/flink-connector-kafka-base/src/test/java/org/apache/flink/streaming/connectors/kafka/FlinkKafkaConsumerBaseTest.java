@@ -19,19 +19,26 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
+import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -47,6 +54,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -100,7 +109,7 @@ public class FlinkKafkaConsumerBaseTest {
 		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
 		when(operatorStateStore.getOperatorState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
-		consumer.prepareSnapshot(17L, 17L);
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(1, 1));
 
 		assertFalse(listState.get().iterator().hasNext());
 		consumer.notifyCheckpointComplete(66L);
@@ -113,24 +122,30 @@ public class FlinkKafkaConsumerBaseTest {
 	public void checkRestoredCheckpointWhenFetcherNotReady() throws Exception {
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 
-		TestingListState<Serializable> expectedState = new TestingListState<>();
-		expectedState.add(Tuple2.of(new KafkaTopicPartition("abc", 13), 16768L));
-		expectedState.add(Tuple2.of(new KafkaTopicPartition("def", 7), 987654321L));
-
 		TestingListState<Serializable> listState = new TestingListState<>();
+		listState.add(Tuple2.of(new KafkaTopicPartition("abc", 13), 16768L));
+		listState.add(Tuple2.of(new KafkaTopicPartition("def", 7), 987654321L));
 
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
 
-		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(expectedState);
-		consumer.initializeState(operatorStateStore);
-
 		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
 
-		consumer.prepareSnapshot(17L, 17L);
+		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+
+		when(initializationContext.getManagedOperatorStateStore()).thenReturn(operatorStateStore);
+		when(initializationContext.isRestored()).thenReturn(true);
+
+		consumer.initializeState(initializationContext);
+
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(17, 17));
+
+		// ensure that the list was cleared and refilled. while this is an implementation detail, we use it here
+		// to figure out that snapshotState() actually did something.
+		Assert.assertTrue(listState.isClearCalled());
 
 		Set<Serializable> expected = new HashSet<>();
 
-		for (Serializable serializable : expectedState.get()) {
+		for (Serializable serializable : listState.get()) {
 			expected.add(serializable);
 		}
 
@@ -155,8 +170,14 @@ public class FlinkKafkaConsumerBaseTest {
 		TestingListState<Serializable> listState = new TestingListState<>();
 		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
 
-		consumer.initializeState(operatorStateStore);
-		consumer.prepareSnapshot(17L, 17L);
+		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+
+		when(initializationContext.getManagedOperatorStateStore()).thenReturn(operatorStateStore);
+		when(initializationContext.isRestored()).thenReturn(false);
+
+		consumer.initializeState(initializationContext);
+
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(17, 17));
 
 		assertFalse(listState.get().iterator().hasNext());
 	}
@@ -164,6 +185,28 @@ public class FlinkKafkaConsumerBaseTest {
 	/**
 	 * Tests that on snapshots, states and offsets to commit to Kafka are correct
 	 */
+	@Test
+	public void checkUseFetcherWhenNoCheckpoint() throws Exception {
+
+		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
+		List<KafkaTopicPartition> partitionList = new ArrayList<>(1);
+		partitionList.add(new KafkaTopicPartition("test", 0));
+		consumer.setSubscribedPartitions(partitionList);
+
+		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
+		TestingListState<Serializable> listState = new TestingListState<>();
+		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+
+		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+
+		when(initializationContext.getManagedOperatorStateStore()).thenReturn(operatorStateStore);
+
+		// make the context signal that there is no restored state, then validate that
+		when(initializationContext.isRestored()).thenReturn(false);
+		consumer.initializeState(initializationContext);
+		consumer.run(mock(SourceFunction.SourceContext.class));
+	}
+
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testSnapshotState() throws Exception {
@@ -196,22 +239,23 @@ public class FlinkKafkaConsumerBaseTest {
 
 		OperatorStateStore backend = mock(OperatorStateStore.class);
 
-		TestingListState<Serializable> init = new TestingListState<>();
-		TestingListState<Serializable> listState1 = new TestingListState<>();
-		TestingListState<Serializable> listState2 = new TestingListState<>();
-		TestingListState<Serializable> listState3 = new TestingListState<>();
+		TestingListState<Serializable> listState = new TestingListState<>();
 
-		when(backend.getSerializableListState(Matchers.any(String.class))).
-				thenReturn(init, listState1, listState2, listState3);
+		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
 
-		consumer.initializeState(backend);
+		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+
+		when(initializationContext.getManagedOperatorStateStore()).thenReturn(backend);
+		when(initializationContext.isRestored()).thenReturn(false, true, true, true);
+
+		consumer.initializeState(initializationContext);
 
 		// checkpoint 1
-		consumer.prepareSnapshot(138L, 138L);
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(138, 138));
 
 		HashMap<KafkaTopicPartition, Long> snapshot1 = new HashMap<>();
 
-		for (Serializable serializable : listState1.get()) {
+		for (Serializable serializable : listState.get()) {
 			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
 			snapshot1.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
 		}
@@ -221,11 +265,11 @@ public class FlinkKafkaConsumerBaseTest {
 		assertEquals(state1, pendingOffsetsToCommit.get(138L));
 
 		// checkpoint 2
-		consumer.prepareSnapshot(140L, 140L);
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(140, 140));
 
 		HashMap<KafkaTopicPartition, Long> snapshot2 = new HashMap<>();
 
-		for (Serializable serializable : listState2.get()) {
+		for (Serializable serializable : listState.get()) {
 			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
 			snapshot2.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
 		}
@@ -240,11 +284,11 @@ public class FlinkKafkaConsumerBaseTest {
 		assertTrue(pendingOffsetsToCommit.containsKey(140L));
 
 		// checkpoint 3
-		consumer.prepareSnapshot(141L, 141L);
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
 
 		HashMap<KafkaTopicPartition, Long> snapshot3 = new HashMap<>();
 
-		for (Serializable serializable : listState3.get()) {
+		for (Serializable serializable : listState.get()) {
 			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
 			snapshot3.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
 		}
@@ -262,12 +306,12 @@ public class FlinkKafkaConsumerBaseTest {
 		assertEquals(0, pendingOffsetsToCommit.size());
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
-		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
+		listState = new TestingListState<>();
 		when(operatorStateStore.getOperatorState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		// create 500 snapshots
 		for (int i = 100; i < 600; i++) {
-			consumer.prepareSnapshot(i, i);
+			consumer.snapshotState(new StateSnapshotContextSynchronousImpl(i, i));
 			listState.clear();
 		}
 		assertEquals(FlinkKafkaConsumerBase.MAX_NUM_PENDING_CHECKPOINTS, pendingOffsetsToCommit.size());
@@ -308,7 +352,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 	// ------------------------------------------------------------------------
 
-	private static final class DummyFlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
+	private static class DummyFlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 		private static final long serialVersionUID = 1L;
 
 		@SuppressWarnings("unchecked")
@@ -318,22 +362,37 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		protected AbstractFetcher<T, ?> createFetcher(SourceContext<T> sourceContext, List<KafkaTopicPartition> thisSubtaskPartitions, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic, SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated, StreamingRuntimeContext runtimeContext) throws Exception {
-			return null;
+			AbstractFetcher<T, ?> fetcher = mock(AbstractFetcher.class);
+			doAnswer(new Answer() {
+				@Override
+				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+					Assert.fail("Trying to restore offsets even though there was no restore state.");
+					return null;
+				}
+			}).when(fetcher).restoreOffsets(any(HashMap.class));
+			return fetcher;
 		}
 
 		@Override
 		protected List<KafkaTopicPartition> getKafkaPartitions(List<String> topics) {
 			return Collections.emptyList();
 		}
+
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			return mock(StreamingRuntimeContext.class);
+		}
 	}
 
 	private static final class TestingListState<T> implements ListState<T> {
 
 		private final List<T> list = new ArrayList<>();
+		private boolean clearCalled = false;
 
 		@Override
 		public void clear() {
 			list.clear();
+			clearCalled = true;
 		}
 
 		@Override
@@ -344,6 +403,14 @@ public class FlinkKafkaConsumerBaseTest {
 		@Override
 		public void add(T value) throws Exception {
 			list.add(value);
+		}
+
+		public List<T> getList() {
+			return list;
+		}
+
+		public boolean isClearCalled() {
+			return clearCalled;
 		}
 	}
 }

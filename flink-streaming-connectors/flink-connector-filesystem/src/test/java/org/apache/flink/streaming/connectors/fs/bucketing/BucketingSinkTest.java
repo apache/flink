@@ -137,7 +137,7 @@ public class BucketingSinkTest {
 
 		// snapshot but don't call notify to simulate a notify that never
 		// arrives, the sink should move pending files in restore() in that case
-		StreamStateHandle snapshot1 = testHarness.snapshot(0, 0);
+		StreamStateHandle snapshot1 = testHarness.snapshotLegacy(0, 0);
 
 		testHarness = createTestSink(dataDir, clock);
 		testHarness.setup();

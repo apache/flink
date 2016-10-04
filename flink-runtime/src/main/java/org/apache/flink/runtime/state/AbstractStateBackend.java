@@ -25,7 +25,6 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 
 /**
  * A state backend defines how state is stored and snapshotted during checkpoints.
@@ -70,7 +69,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			List<KeyGroupsStateHandle> restoredState,
+			Collection<KeyGroupsStateHandle> restoredState,
 			TaskKvStateRegistry kvStateRegistry
 	) throws Exception;
 

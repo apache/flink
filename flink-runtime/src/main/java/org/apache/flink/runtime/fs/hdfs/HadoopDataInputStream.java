@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
-import java.io.IOException;
-
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -46,7 +45,11 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 
 	@Override
 	public void seek(long desired) throws IOException {
-		fsDataInputStream.seek(desired);
+		// This optimization prevents some implementations of distributed FS to perform expensive seeks when they are
+		// actually not needed
+		if (desired != getPos()) {
+			fsDataInputStream.seek(desired);
+		}
 	}
 
 	@Override
