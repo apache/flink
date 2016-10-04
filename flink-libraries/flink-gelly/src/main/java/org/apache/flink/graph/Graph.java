@@ -2206,7 +2206,7 @@ public class Graph<K, VV, EV> {
 
 		@Override
 		public Tuple2<K, VV> reduce(Tuple2<K, VV> first, Tuple2<K, VV> second) throws Exception {
-			first.setField(function.reduceNeighbors(first.f1, second.f1), 1);
+			first.f1 = function.reduceNeighbors(first.f1, second.f1);
 			return first;
 		}
 	}
@@ -2256,7 +2256,7 @@ public class Graph<K, VV, EV> {
 
 		@Override
 		public Tuple2<K, EV> reduce(Tuple2<K, EV> first, Tuple2<K, EV> second) throws Exception {
-			first.setField(function.reduceEdges(first.f1, second.f1), 1);
+			first.f1 = function.reduceEdges(first.f1, second.f1);
 			return first;
 		}
 	}

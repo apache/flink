@@ -98,10 +98,10 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 */
 	public final void sendMessageToAllNeighbors(Message m) {
 		verifyEdgeUsage();
-		outMsg.setField(m, 1);
+		outMsg.f1 = m;
 		while (edges.hasNext()) {
 			Tuple next = edges.next();
-			outMsg.setField(next.getField(1), 0);
+			outMsg.f0 = next.getField(1);
 			out.collect(Either.Right(outMsg));
 		}
 	}
@@ -115,8 +115,8 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 */
 	public final void sendMessageTo(K target, Message m) {
 
-		outMsg.setField(target, 0);
-		outMsg.setField(m, 1);
+		outMsg.f0 = target;
+		outMsg.f1 = m;
 
 		out.collect(Either.Right(outMsg));
 	}
@@ -134,7 +134,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 		}
 		setNewVertexValueCalled = true;
 
-		outVertex.setField(newValue, 1);
+		outVertex.f1 = newValue;
 
 		out.collect(Either.Left(outVertex));
 	}
@@ -213,7 +213,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	void set(K vertexId, Iterator<Edge<K, EV>> edges,
 			Collector<Either<Vertex<K, VV>, Tuple2<K, Message>>> out) {
 
-		this.outVertex.setField(vertexId, 0);
+		this.outVertex.f0 = vertexId;
 		this.edges = edges;
 		this.out = (Collector<Either<?, ?>>) (Collector<?>) out;
 		this.edgesUsed = false;
