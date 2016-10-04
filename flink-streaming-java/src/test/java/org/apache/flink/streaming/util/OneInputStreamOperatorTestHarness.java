@@ -30,6 +30,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -154,6 +155,14 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				return timeServiceProvider.getCurrentProcessingTime();
 			}
 		}).when(mockTask).getCurrentProcessingTime();
+	}
+
+	public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
+		this.config.setTimeCharacteristic(timeCharacteristic);
+	}
+
+	public TimeCharacteristic getTimeCharacteristic() {
+		return this.config.getTimeCharacteristic();
 	}
 
 	public void setStateBackend(AbstractStateBackend stateBackend) {
