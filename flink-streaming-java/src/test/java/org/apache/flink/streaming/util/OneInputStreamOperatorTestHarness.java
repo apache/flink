@@ -42,12 +42,12 @@ import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executors;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -145,7 +145,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				@Override
 				public CheckpointStreamFactory answer(InvocationOnMock invocationOnMock) throws Throwable {
 
-					final StreamOperator operator = (StreamOperator) invocationOnMock.getArguments()[0];
+					final StreamOperator<?> operator = (StreamOperator<?>) invocationOnMock.getArguments()[0];
 					return stateBackend.createStreamFactory(new JobID(), operator.getClass().getSimpleName());
 				}
 			}).when(mockTask).createCheckpointStreamFactory(any(StreamOperator.class));
@@ -154,7 +154,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		}
 
 		timeServiceProvider = testTimeProvider != null ? testTimeProvider :
-			DefaultTimeServiceProvider.create(mockTask, Executors.newSingleThreadScheduledExecutor(), this.checkpointLock);
+			new DefaultTimeServiceProvider(mockTask, this.checkpointLock);
 
 		doAnswer(new Answer<TimeServiceProvider>() {
 			@Override

@@ -15,20 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 
 /**
- * {@code RuntimeException} for wrapping exceptions that are thrown in Threads that are not the
- * main compute Thread.
+ * An exception for wrapping exceptions that are thrown by an operator in threads other than the
+ * main compute thread of that operator. 
  */
 @Internal
-public class AsynchronousException extends RuntimeException {
+public class AsynchronousException extends Exception {
 	private static final long serialVersionUID = 1L;
 
 	public AsynchronousException(Throwable cause) {
 		super(cause);
+	}
+
+	public AsynchronousException(String message, Throwable cause) {
+		super(message, cause);
 	}
 
 	@Override

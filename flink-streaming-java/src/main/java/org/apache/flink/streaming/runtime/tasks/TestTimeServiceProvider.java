@@ -86,7 +86,7 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 		return isTerminated;
 	}
 
-	public int getNoOfRegisteredTimers() {
+	public int getNumRegisteredTimers() {
 		int count = 0;
 		for (List<Triggerable> tasks: registeredTasks.values()) {
 			count += tasks.size();
