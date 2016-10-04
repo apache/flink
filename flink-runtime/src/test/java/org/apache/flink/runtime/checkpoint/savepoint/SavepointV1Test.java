@@ -32,10 +32,10 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
@@ -66,35 +66,83 @@ public class SavepointV1Test {
 		assertTrue(savepoint.getTaskStates().isEmpty());
 	}
 
-	static Collection<TaskState> createTaskStates(int numTaskStates, int numSubtaskStates) throws IOException {
+	static Collection<TaskState> createTaskStates(int numTaskStates, int numSubtasksPerTask) throws IOException {
+
+		Random random = new Random(numTaskStates * 31 + numSubtasksPerTask);
+
 		List<TaskState> taskStates = new ArrayList<>(numTaskStates);
 
-		for (int i = 0; i < numTaskStates; i++) {
-			TaskState taskState = new TaskState(new JobVertexID(), numSubtaskStates, numSubtaskStates, 1);
-			for (int j = 0; j < numSubtaskStates; j++) {
-				StreamStateHandle stateHandle = new TestByteStreamStateHandleDeepCompare("a", "Hello".getBytes());
-				taskState.putState(i, new SubtaskState(
-						new ChainedStateHandle<>(Collections.singletonList(stateHandle)), 0));
+		for (int stateIdx = 0; stateIdx < numTaskStates; ++stateIdx) {
 
-				stateHandle = new TestByteStreamStateHandleDeepCompare("b", "Beautiful".getBytes());
-				Map<String, long[]> offsetsMap = new HashMap<>();
-				offsetsMap.put("A", new long[]{0, 10, 20});
-				offsetsMap.put("B", new long[]{30, 40, 50});
+			int chainLength = 1 + random.nextInt(8);
 
-				OperatorStateHandle operatorStateHandle =
-						new OperatorStateHandle(stateHandle, offsetsMap);
+			TaskState taskState = new TaskState(new JobVertexID(), numSubtasksPerTask, 128, chainLength);
 
-				taskState.putPartitionableState(
-						i,
-						new ChainedStateHandle<OperatorStateHandle>(
-								Collections.singletonList(operatorStateHandle)));
-			}
+			int noNonPartitionableStateAtIndex = random.nextInt(chainLength);
+			int noOperatorStateBackendAtIndex = random.nextInt(chainLength);
+			int noOperatorStateStreamAtIndex = random.nextInt(chainLength);
 
-			taskState.putKeyedState(
-					0,
-					new KeyGroupsStateHandle(
+			boolean hasKeyedBackend = random.nextInt(4) != 0;
+			boolean hasKeyedStream = random.nextInt(4) != 0;
+
+			for (int subtaskIdx = 0; subtaskIdx < numSubtasksPerTask; subtaskIdx++) {
+
+				List<StreamStateHandle> nonPartitionableStates = new ArrayList<>(chainLength);
+				List<OperatorStateHandle> operatorStatesBackend = new ArrayList<>(chainLength);
+				List<OperatorStateHandle> operatorStatesStream = new ArrayList<>(chainLength);
+
+				for (int chainIdx = 0; chainIdx < chainLength; ++chainIdx) {
+
+					StreamStateHandle nonPartitionableState =
+							new TestByteStreamStateHandleDeepCompare("a-" + chainIdx, ("Hi-" + chainIdx).getBytes());
+					StreamStateHandle operatorStateBackend =
+							new TestByteStreamStateHandleDeepCompare("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes());
+					StreamStateHandle operatorStateStream =
+							new TestByteStreamStateHandleDeepCompare("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes());
+					Map<String, long[]> offsetsMap = new HashMap<>();
+					offsetsMap.put("A", new long[]{0, 10, 20});
+					offsetsMap.put("B", new long[]{30, 40, 50});
+
+					if (chainIdx != noNonPartitionableStateAtIndex) {
+						nonPartitionableStates.add(nonPartitionableState);
+					}
+
+					if (chainIdx != noOperatorStateBackendAtIndex) {
+						OperatorStateHandle operatorStateHandleBackend =
+								new OperatorStateHandle(offsetsMap, operatorStateBackend);
+						operatorStatesBackend.add(operatorStateHandleBackend);
+					}
+
+					if (chainIdx != noOperatorStateStreamAtIndex) {
+						OperatorStateHandle operatorStateHandleStream =
+								new OperatorStateHandle(offsetsMap, operatorStateStream);
+						operatorStatesStream.add(operatorStateHandleStream);
+					}
+				}
+
+				KeyGroupsStateHandle keyedStateBackend = null;
+				KeyGroupsStateHandle keyedStateStream = null;
+
+				if (hasKeyedBackend) {
+					keyedStateBackend = new KeyGroupsStateHandle(
 							new KeyGroupRangeOffsets(1, 1, new long[]{42}),
-							new TestByteStreamStateHandleDeepCompare("c", "World".getBytes())));
+							new TestByteStreamStateHandleDeepCompare("c", "Hello".getBytes()));
+				}
+
+				if (hasKeyedStream) {
+					keyedStateStream = new KeyGroupsStateHandle(
+							new KeyGroupRangeOffsets(1, 1, new long[]{23}),
+							new TestByteStreamStateHandleDeepCompare("d", "World".getBytes()));
+				}
+
+				taskState.putState(subtaskIdx, new SubtaskState(
+						new ChainedStateHandle<>(nonPartitionableStates),
+						new ChainedStateHandle<>(operatorStatesBackend),
+						new ChainedStateHandle<>(operatorStatesStream),
+						keyedStateStream,
+						keyedStateBackend,
+						subtaskIdx * 10L));
+			}
 
 			taskStates.add(taskState);
 		}

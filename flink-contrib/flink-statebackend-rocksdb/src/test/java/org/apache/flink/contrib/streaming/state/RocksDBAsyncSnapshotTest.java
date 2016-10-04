@@ -28,9 +28,9 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -70,7 +70,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * Tests for asynchronous RocksDB Key/Value state checkpoints.
@@ -136,7 +136,7 @@ public class RocksDBAsyncSnapshotTest {
 			@Override
 			public void acknowledgeCheckpoint(
 					CheckpointMetaData checkpointMetaData,
-					CheckpointStateHandles checkpointStateHandles) {
+					SubtaskState checkpointStateHandles) {
 
 				super.acknowledgeCheckpoint(checkpointMetaData);
 
@@ -148,8 +148,8 @@ public class RocksDBAsyncSnapshotTest {
 					e.printStackTrace();
 				}
 
-				// should be only one k/v state
-				assertEquals(1, checkpointStateHandles.getKeyGroupsStateHandle().size());
+				// should be one k/v state
+				assertNotNull(checkpointStateHandles.getKeyedStateFromBackend());
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();

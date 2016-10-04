@@ -26,24 +26,33 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.SnapshotInProgressSubtaskState;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateInitializationContextImpl;
+import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.slf4j.Logger;
@@ -53,7 +62,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ConcurrentModificationException;
 import java.util.Collection;
-import java.util.concurrent.RunnableFuture;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class 
@@ -151,8 +159,58 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public void restoreState(Collection<OperatorStateHandle> stateHandles) {
-		this.lazyRestoreStateHandles = stateHandles;
+	public final void initializeState(OperatorStateHandles stateHandles) throws Exception {
+
+		Collection<KeyGroupsStateHandle> keyedStateStream = null;
+		Collection<OperatorStateHandle> operatorStateStream = null;
+		boolean restoring = false;
+
+		if (null != stateHandles) {
+			// TODO check that there is EITHER old OR new state in handles!
+			restoreStreamCheckpointed(stateHandles);
+
+			//pass directly
+			this.lazyRestoreStateHandles = stateHandles.getManagedOperatorState();
+			operatorStateStream = stateHandles.getRawOperatorState();
+			keyedStateStream = stateHandles.getRawKeyedState();
+			restoring = true;
+		}
+
+		initOperatorState();
+		initKeyedState();
+
+		if (null == getKeyedStateBackend()) {
+			keyedStateStream = null; //only use the keyed state if it is meant for us (aka head operator)
+		}
+
+		StateInitializationContext initializationContext = new StateInitializationContextImpl(
+				restoring, // information whether we restore or start for the first time
+				operatorStateBackend, // access to operator state backend
+				getRuntimeContext(), // access to keyed state backend
+				keyedStateStream, // access to keyed state stream
+				operatorStateStream, // access to operator state stream
+				getContainingTask().getCancelables()); // access to register streams for canceling
+
+		initializeState(initializationContext);
+	}
+
+	@Deprecated
+	private void restoreStreamCheckpointed(OperatorStateHandles stateHandles) throws Exception {
+		StreamStateHandle state = stateHandles.getLegacyOperatorState();
+		if (this instanceof StreamCheckpointedOperator && null != state) {
+
+			LOG.debug("Restore state of task {} in chain ({}).",
+					stateHandles.getOperatorChainIndex(), getContainingTask().getName());
+
+			FSDataInputStream is = state.openInputStream();
+			try {
+				getContainingTask().getCancelables().registerClosable(is);
+				((StreamCheckpointedOperator) this).restoreState(is);
+			} finally {
+				getContainingTask().getCancelables().unregisterClosable(is);
+				is.close();
+			}
+		}
 	}
 
 	/**
@@ -165,8 +223,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@Override
 	public void open() throws Exception {
-		initOperatorState();
-		initKeyedState();
+
 	}
 
 	private void initKeyedState() {
@@ -174,7 +231,6 @@ public abstract class AbstractStreamOperator<OUT>
 			TypeSerializer<Object> keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
 			// create a keyed state backend if there is keyed state, as indicated by the presence of a key serializer
 			if (null != keySerializer) {
-
 				KeyGroupRange subTaskKeyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
 						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
 						container.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks(),
@@ -184,7 +240,6 @@ public abstract class AbstractStreamOperator<OUT>
 						keySerializer,
 						container.getConfiguration().getNumberOfKeyGroups(getUserCodeClassloader()),
 						subTaskKeyGroupRange);
-
 			}
 
 		} catch (Exception e) {
@@ -238,11 +293,51 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public RunnableFuture<OperatorStateHandle> snapshotState(
+	public SnapshotInProgressSubtaskState snapshotState(
 			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception {
 
-		return operatorStateBackend != null ?
-				operatorStateBackend.snapshot(checkpointId, timestamp, streamFactory) : null;
+		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
+				keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
+
+		StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
+				checkpointId, timestamp, streamFactory, keyGroupRange, getContainingTask().getCancelables());
+
+		snapshotState(snapshotContext);
+
+		SnapshotInProgressSubtaskState snapshotInProgress = new SnapshotInProgressSubtaskState();
+
+		snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
+		snapshotInProgress.setOperatorStateRawFuture(snapshotContext.getOperatorStateStreamFuture());
+
+		if (null != operatorStateBackend) {
+			snapshotInProgress.setOperatorStateManagedFuture(
+					operatorStateBackend.snapshot(checkpointId, timestamp, streamFactory));
+		}
+
+		if (null != keyedStateBackend) {
+			snapshotInProgress.setKeyedStateManagedFuture(
+					keyedStateBackend.snapshot(checkpointId, timestamp, streamFactory));
+		}
+
+		return snapshotInProgress;
+	}
+
+	/**
+	 * Stream operators with state, which want to participate in a snapshot need to override this hook method.
+	 *
+	 * @param context context that provides information and means required for taking a snapshot
+	 */
+	public void snapshotState(StateSnapshotContext context) throws Exception {
+
+	}
+
+	/**
+	 * Stream operators with state which can be restored need to override this hook method.
+	 *
+	 * @param context context that allows to register different states.
+	 */
+	public void initializeState(StateInitializationContext context) throws Exception {
+
 	}
 
 	@Override
@@ -283,22 +378,12 @@ public abstract class AbstractStreamOperator<OUT>
 		return runtimeContext;
 	}
 
-	@SuppressWarnings("rawtypes, unchecked")
+	@SuppressWarnings("unchecked")
 	public <K> KeyedStateBackend<K> getKeyedStateBackend() {
-
-		if (null == keyedStateBackend) {
-			initKeyedState();
-		}
-
 		return (KeyedStateBackend<K>) keyedStateBackend;
 	}
 
 	public OperatorStateBackend getOperatorStateBackend() {
-
-		if (null == operatorStateBackend) {
-			initOperatorState();
-		}
-
 		return operatorStateBackend;
 	}
 
@@ -343,18 +428,18 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setKeyContextElement1(StreamRecord record) throws Exception {
-		setRawKeyContextElement(record, stateKeySelector1);
+		setKeyContextElement(record, stateKeySelector1);
 	}
 
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setKeyContextElement2(StreamRecord record) throws Exception {
-		setRawKeyContextElement(record, stateKeySelector2);
+		setKeyContextElement(record, stateKeySelector2);
 	}
 
-	private void setRawKeyContextElement(StreamRecord record, KeySelector<?, ?> selector) throws Exception {
+	private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
 		if (selector != null) {
-			Object key = ((KeySelector) selector).getKey(record.getValue());
+			Object key = selector.getKey(record.getValue());
 			setKeyContext(key);
 		}
 	}
@@ -567,4 +652,5 @@ public abstract class AbstractStreamOperator<OUT>
 			output.close();
 		}
 	}
+
 }

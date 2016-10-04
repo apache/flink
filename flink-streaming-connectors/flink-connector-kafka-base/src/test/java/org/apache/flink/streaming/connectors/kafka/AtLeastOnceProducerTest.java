@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
@@ -112,7 +114,7 @@ public class AtLeastOnceProducerTest {
 		Thread threadB = new Thread(confirmer);
 		threadB.start();
 		// this should block:
-		producer.prepareSnapshot(0, 0);
+		producer.snapshotState(new StateSnapshotContextSynchronousImpl(0, 0));
 		synchronized (threadA) {
 			threadA.notifyAll(); // just in case, to let the test fail faster
 		}
@@ -148,9 +150,9 @@ public class AtLeastOnceProducerTest {
 		}
 
 		@Override
-		public void prepareSnapshot(long checkpointId, long timestamp) throws Exception {
+		public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
 			// call the actual snapshot state
-			super.prepareSnapshot(checkpointId, timestamp);
+			super.snapshotState(ctx);
 			// notify test that snapshotting has been done
 			snapshottingFinished.set(true);
 		}

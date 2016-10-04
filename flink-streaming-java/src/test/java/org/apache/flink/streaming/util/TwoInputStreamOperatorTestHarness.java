@@ -25,12 +25,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.ClosableRegistry;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -56,6 +58,8 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 
 	final Object checkpointLock;
 
+	final ClosableRegistry closableRegistry;
+
 	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) {
 		this(operator, new StreamConfig(new Configuration()));
 	}
@@ -65,6 +69,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 		this.outputList = new ConcurrentLinkedQueue<Object>();
 		this.executionConfig = new ExecutionConfig();
 		this.checkpointLock = new Object();
+		this.closableRegistry = new ClosableRegistry();
 
 		Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
 		StreamTask<?, ?> mockTask = mock(StreamTask.class);
@@ -73,6 +78,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
+		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
 
 		operator.setup(mockTask, new StreamConfig(new Configuration()), new MockOutput());
 	}
@@ -86,11 +92,11 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 		return outputList;
 	}
 
-
 	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}.
 	 */
 	public void open() throws Exception {
+		operator.initializeState(mock(OperatorStateHandles.class));
 		operator.open();
 	}
 

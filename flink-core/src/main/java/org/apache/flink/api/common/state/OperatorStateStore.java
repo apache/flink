@@ -18,14 +18,18 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 import java.util.Set;
 
 /**
- * Interface for a backend that manages operator state.
+ * This interface contains methods for registering operator state with a managed store.
  */
+@PublicEvolving
 public interface OperatorStateStore {
 
+	/** The default namespace for state in cases where no state name is provided */
 	String DEFAULT_OPERATOR_STATE_NAME = "_default_";
 
 	/**
@@ -39,7 +43,7 @@ public interface OperatorStateStore {
 	 * @return A list state using Java serialization to serialize state objects.
 	 * @throws Exception
 	 */
-	ListState<Serializable> getSerializableListState(String stateName) throws Exception;
+	<T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception;
 
 	/**
 	 * Creates (or restores) a list state. Each state is registered under a unique name.

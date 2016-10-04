@@ -20,46 +20,48 @@ package org.apache.flink.streaming.api.checkpoint;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 
 /**
  *
  * Similar to @{@link Checkpointed}, this interface must be implemented by functions that have potentially
  * repartitionable state that needs to be checkpointed. Methods from this interface are called upon checkpointing and
- * restoring of state.
+ * initialization of state.
  *
- * On #initializeState the implementing class receives the {@link OperatorStateStore}
- * to store it's state. At least before each snapshot, all state persistent state must be stored in the state store.
+ * On {@link #initializeState(FunctionInitializationContext)} the implementing class receives a
+ * {@link FunctionInitializationContext} which provides access to the {@link OperatorStateStore} (all) and
+ * {@link org.apache.flink.api.common.state.KeyedStateStore} (only for keyed operators). Those allow to register
+ * managed operator / keyed  user states. Furthermore, the context provides information whether or the operator was
+ * restored.
  *
- * When the backend is received for initialization, the user registers states with the backend via
- * {@link org.apache.flink.api.common.state.StateDescriptor}. Then, all previously stored state is found in the
- * received {@link org.apache.flink.api.common.state.State} (currently only
- * {@link org.apache.flink.api.common.state.ListState} is supported.
  *
- * In #prepareSnapshot, the implementing class must ensure that all operator state is passed to the operator backend,
- * i.e. that the state was stored in the relevant {@link org.apache.flink.api.common.state.State} instances that
- * are requested on restore. Notice that users might want to clear and reinsert the complete state first if incremental
- * updates of the states are not possible.
+ * In {@link #snapshotState(FunctionSnapshotContext)} the implementing class must ensure that all operator / keyed state
+ * is passed to user states that have been registered during initialization, so that it is visible to the system
+ * backends for checkpointing.
+ *
  */
 @PublicEvolving
 public interface CheckpointedFunction {
 
 	/**
+	 * This method is called when a snapshot for a checkpoint is requested. This acts as a hook to the function to
+	 * ensure that all state is exposed by means previously offered through {@link FunctionInitializationContext} when
+	 * the Function was initialized, or offered now by {@link FunctionSnapshotContext} itself.
 	 *
-	 * This method is called when state should be stored for a checkpoint. The state can be registered and written to
-	 * the provided backend.
-	 *
-	 * @param checkpointId Id of the checkpoint to perform
-	 * @param timestamp Timestamp of the checkpoint
+	 * @param context the context for drawing a snapshot of the operator
 	 * @throws Exception
 	 */
-	void prepareSnapshot(long checkpointId, long timestamp) throws Exception;
+	void snapshotState(FunctionSnapshotContext context) throws Exception;
 
 	/**
-	 * This method is called when an operator is opened, so that the function can set the state backend to which it
-	 * hands it's state on snapshot.
+	 * This method is called when an operator is initialized, so that the function can set up it's state through
+	 * the provided context. Initialization typically includes registering user states through the state stores
+	 * that the context offers.
 	 *
-	 * @param stateStore the state store to which this function stores it's state
+	 * @param context the context for initializing the operator
 	 * @throws Exception
 	 */
-	void initializeState(OperatorStateStore stateStore) throws Exception;
+	void initializeState(FunctionInitializationContext context) throws Exception;
+
 }

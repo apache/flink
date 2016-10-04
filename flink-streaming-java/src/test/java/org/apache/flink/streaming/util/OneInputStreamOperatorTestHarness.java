@@ -28,22 +28,23 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.ClosableRegistry;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.DefaultTimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
 import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -80,6 +81,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	final TimeServiceProvider timeServiceProvider;
 
 	StreamTask<?, ?> mockTask;
+
+	ClosableRegistry closableRegistry;
 
 	// use this as default for tests
 	AbstractStateBackend stateBackend = new MemoryStateBackend();
@@ -121,6 +124,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = executionConfig;
 		this.checkpointLock = checkpointLock;
+		this.closableRegistry = new ClosableRegistry();
 
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024, underlyingConfig, executionConfig, MAX_PARALLELISM, 1, 0);
 		mockTask = mock(StreamTask.class);
@@ -132,6 +136,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getUserCodeClassLoader()).thenReturn(this.getClass().getClassLoader());
+		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
 
 		doAnswer(new Answer<Void>() {
 			@Override
@@ -216,6 +221,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		if (!setupCalled) {
 			setup();
 		}
+		operator.initializeState(mock(OperatorStateHandles.class));
 		operator.open();
 	}
 
