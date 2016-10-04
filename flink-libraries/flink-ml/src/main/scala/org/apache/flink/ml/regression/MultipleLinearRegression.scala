@@ -121,18 +121,15 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
 
   def squaredResidualSum(input: DataSet[LabeledVector]): DataSet[Double] = {
     weightsOption match {
-      case Some(weights) => {
+      case Some(weights) =>
         input.mapWithBcVariable(weights){
           (dataPoint, weights) => lossFunction.loss(dataPoint, weights)
         }.reduce {
           _ + _
         }
-      }
-
-      case None => {
+      case None =>
         throw new RuntimeException("The MultipleLinearRegression has not been fitted to the " +
           "data. This is necessary to learn the weight vector of the linear function.")
-      }
     }
 
   }
@@ -215,12 +212,9 @@ object MultipleLinearRegression {
         : DataSet[WeightVector] = {
         self.weightsOption match {
           case Some(weights) => weights
-
-
-          case None => {
+          case None =>
             throw new RuntimeException("The MultipleLinearRegression has not been fitted to the " +
               "data. This is necessary to learn the weight vector of the linear function.")
-          }
         }
       }
       override def predict(value: T, model: WeightVector): Double = {

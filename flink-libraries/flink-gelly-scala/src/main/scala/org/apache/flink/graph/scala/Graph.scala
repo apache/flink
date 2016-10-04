@@ -346,7 +346,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * consisting of (srcVertexId, trgVertexId, srcVertexValue, trgVertexValue, edgeValue)
    */
   def getTriplets(): DataSet[Triplet[K, VV, EV]] = {
-    wrap(jgraph.getTriplets())
+    wrap(jgraph.getTriplets)
   }
 
   /**

@@ -78,7 +78,7 @@ object ScalarSqlFunction {
           }
         val foundSignature = getSignature(scalarFunction, parameters)
         if (foundSignature.isEmpty) {
-          throw new ValidationException(
+          throw ValidationException(
             s"Given parameters of function '$name' do not match any signature. \n" +
               s"Actual: ${signatureToString(parameters)} \n" +
               s"Expected: ${signaturesToString(scalarFunction)}")
@@ -105,7 +105,7 @@ object ScalarSqlFunction {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
         val foundSignature = getSignature(scalarFunction, operandTypeInfo)
-          .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
+          .getOrElse(throw ValidationException(s"Operand types of could not be inferred."))
 
         val inferredTypes = scalarFunction
           .getParameterTypes(foundSignature)
@@ -146,7 +146,7 @@ object ScalarSqlFunction {
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
-            throw new ValidationException(
+            throw ValidationException(
               s"Given parameters of function '$name' do not match any signature. \n" +
                 s"Actual: ${signatureToString(operandTypeInfo)} \n" +
                 s"Expected: ${signaturesToString(scalarFunction)}")

@@ -21,12 +21,12 @@ package org.apache.flink.api.table
 /**
   * Exception for all errors occurring during expression parsing.
   */
-case class ExpressionParserException(msg: String) extends RuntimeException(msg)
+final case class ExpressionParserException(msg: String) extends RuntimeException(msg)
 
 /**
   * Exception for all errors occurring during sql parsing.
   */
-case class SqlParserException(
+final case class SqlParserException(
     msg: String,
     cause: Throwable)
   extends RuntimeException(msg, cause) {
@@ -38,18 +38,17 @@ case class SqlParserException(
 /**
   * General Exception for all errors during table handling.
   */
-case class TableException(msg: String) extends RuntimeException(msg)
+final case class TableException(msg: String) extends RuntimeException(msg)
 
 /**
   * Exception for all errors occurring during validation phase.
   */
-case class ValidationException(
-    msg: String,
-    cause: Throwable)
-  extends RuntimeException(msg, cause) {
+final case class ValidationException(
+  msg: String,
+  cause: Throwable
+) extends RuntimeException(msg, cause) {
 
   def this(msg: String) = this(msg, null)
-
 }
 
 object ValidationException {
@@ -59,4 +58,4 @@ object ValidationException {
 /**
   * Exception for unwanted method calling on unresolved expression.
   */
-case class UnresolvedException(msg: String) extends RuntimeException(msg)
+final case class UnresolvedException(msg: String) extends RuntimeException(msg)

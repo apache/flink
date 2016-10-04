@@ -63,7 +63,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @deprecated
   @PublicEvolving
-  def getType(): TypeInformation[T] = stream.getType()
+  def getType(): TypeInformation[T] = stream.getType
 
   /**
    * Returns the parallelism of this operation.
@@ -87,7 +87,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Returns the ID of the DataStream.
    */
   @Internal
-  private[flink] def getId = stream.getId()
+  private[flink] def getId = stream.getId
   
   // --------------------------------------------------------------------------
   //  Scalaesk accessors 
@@ -101,24 +101,24 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Returns the TypeInformation for the elements of this DataStream.
    */
-  def dataType: TypeInformation[T] = stream.getType()
+  def dataType: TypeInformation[T] = stream.getType
 
   /**
    * Returns the execution config.
    */
-  def executionConfig: ExecutionConfig = stream.getExecutionConfig()
+  def executionConfig: ExecutionConfig = stream.getExecutionConfig
 
   /**
    * Returns the [[StreamExecutionEnvironment]] associated with this data stream
    */
   def executionEnvironment: StreamExecutionEnvironment =
-    new StreamExecutionEnvironment(stream.getExecutionEnvironment())
+    new StreamExecutionEnvironment(stream.getExecutionEnvironment)
   
   
   /**
    * Returns the parallelism of this operation.
    */
-  def parallelism: Int = stream.getParallelism()
+  def parallelism: Int = stream.getParallelism
 
   /**
    * Sets the parallelism of this operation. This must be at least 1.

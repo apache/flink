@@ -40,7 +40,7 @@ class TableConversions(table: Table) {
       case tEnv: ScalaBatchTableEnv =>
         tEnv.toDataSet(table)
       case _ =>
-        throw new TableException(
+        throw TableException(
           "Only tables that originate from Scala DataSets can be converted to Scala DataSets.")
     }
   }
@@ -49,10 +49,9 @@ class TableConversions(table: Table) {
   def toDataStream[T: TypeInformation]: DataStream[T] = {
 
     table.tableEnv match {
-      case tEnv: ScalaStreamTableEnv =>
-        tEnv.toDataStream(table)
+      case tEnv: ScalaStreamTableEnv => tEnv.toDataStream(table)
       case _ =>
-        throw new TableException(
+        throw TableException(
           "Only tables that originate from Scala DataStreams " +
             "can be converted to Scala DataStreams.")
     }

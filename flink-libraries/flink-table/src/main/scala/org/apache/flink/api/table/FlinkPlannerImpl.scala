@@ -85,10 +85,9 @@ class FlinkPlannerImpl(
     validator.setIdentifierExpansion(true)
     try {
       validatedSqlNode = validator.validate(sqlNode)
-    }
-    catch {
+    } catch {
       case e: RuntimeException =>
-        throw new ValidationException(s"SQL validation failed. ${e.getMessage}", e)
+        throw ValidationException(s"SQL validation failed. ${e.getMessage}", e)
     }
     validatedSqlNode
   }

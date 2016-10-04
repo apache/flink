@@ -78,7 +78,7 @@ abstract class ScalarFunction extends UserDefinedFunction {
       }
 
     if (methods.isEmpty) {
-      throw new ValidationException(s"Scalar function class '$this' does not implement at least " +
+      throw ValidationException(s"Scalar function class '$this' does not implement at least " +
         s"one method named 'eval' which is public and not abstract.")
     } else {
       methods
@@ -135,7 +135,7 @@ abstract class ScalarFunction extends UserDefinedFunction {
         TypeExtractor.getForClass(c)
       } catch {
         case ite: InvalidTypesException =>
-          throw new ValidationException(s"Parameter types of scalar function '$this' cannot be " +
+          throw ValidationException(s"Parameter types of scalar function '$this' cannot be " +
             s"automatically determined. Please provide type information manually.")
       }
     }
