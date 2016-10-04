@@ -63,7 +63,6 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -158,7 +157,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * To keep track of the current watermark so that we can immediately fire if a trigger
 	 * registers an event time callback for a timestamp that lies in the past.
 	 */
-	protected transient long currentWatermark = Long.MIN_VALUE;
+	protected long currentWatermark = Long.MIN_VALUE;
 
 	protected transient Context context = new Context(null, null);
 
@@ -214,11 +213,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		currentWatermark = -1;
-	}
-
 	@Override
 	@SuppressWarnings("unchecked")
 	public final void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
@@ -262,8 +256,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			mergingWindowsByKey = new HashMap<>();
 		}
-
-		currentWatermark = Long.MIN_VALUE;
 	}
 
 	@Override
