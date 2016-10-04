@@ -121,7 +121,7 @@ public class ChainedAllReduceDriverTest extends TaskTestBase {
 		}
 	}
 
-	private static class MockReduceStub implements ReduceFunction<Record> {
+	public static class MockReduceStub implements ReduceFunction<Record> {
 		private static final long serialVersionUID = 1047525105526690165L;
 
 		@Override
