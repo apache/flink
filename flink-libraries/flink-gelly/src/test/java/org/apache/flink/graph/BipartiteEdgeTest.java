@@ -32,12 +32,12 @@ public class BipartiteEdgeTest {
 
 	@Test
 	public void testGetBottomId() {
-		assertEquals(Integer.valueOf(BOTTOM_ID), edge.getBottomId());
+		assertEquals(BOTTOM_ID, (long) edge.getBottomId());
 	}
 
 	@Test
 	public void testGetTopId() {
-		assertEquals(Integer.valueOf(TOP_ID), edge.getTopId());
+		assertEquals(TOP_ID, (long) edge.getTopId());
 	}
 
 	@Test
@@ -48,13 +48,13 @@ public class BipartiteEdgeTest {
 	@Test
 	public void testSetBottomId() {
 		edge.setBottomId(100);
-		assertEquals(Integer.valueOf(100), edge.getBottomId());
+		assertEquals(100, (long) edge.getBottomId());
 	}
 
 	@Test
 	public void testSetTopId() {
 		edge.setTopId(100);
-		assertEquals(Integer.valueOf(100), edge.getTopId());
+		assertEquals(100, (long) edge.getTopId());
 	}
 
 	@Test

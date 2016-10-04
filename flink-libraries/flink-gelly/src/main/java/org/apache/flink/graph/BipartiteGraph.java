@@ -18,42 +18,41 @@
 
 package org.apache.flink.graph;
 
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Collector;
 
 /**
+ * The vertices of a bipartite graph are divided into two disjoint sets, referenced by the names "top" and "bottom".
+ * Top and bottom vertices with the same key value represent distinct entities and must be specially handled
+ * when projecting to a simple {@link Graph}. Edges can only exist between a pair of vertices from different vertices
+ * sets. E.g. there can be no vertices between a pair of top vertices.
  *
- * Bipartite graph is a graph that contains two sets of vertices: top vertices and bottom vertices. Edges can only exist
- * between a pair of vertices from different vertices sets. E.g. there can be no vertices between a pair
- * of top vertices.
- *
- * <p>Bipartite graph is useful to represent graphs with two sets of objects, like researchers and their publications,
+ * <p>Bipartite graphs are useful to represent graphs with two sets of objects, like researchers and their publications,
  * where an edge represents that a particular publication was authored by a particular author.
  *
  * <p>Bipartite interface is different from {@link Graph} interface, so to apply algorithms that work on a regular graph
  * a bipartite graph should be first converted into a {@link Graph} instance. This can be achieved by using
- * {@link BipartiteGraph#topProjection(GroupReduceFunction)} or
- * {@link BipartiteGraph#bottomProjection(GroupReduceFunction)} methods.
+ * the projection methods.
  *
  * @param <KT> the key type of the top vertices
  * @param <KB> the key type of the bottom vertices
- * @param <VT> the top vertices value type
- * @param <VB> the bottom vertices value type
+ * @param <VVT> the vertex value type for top vertices
+ * @param <VVB> the vertex value type for bottom vertices
  * @param <EV> the edge value type
  */
-public class BipartiteGraph<KT, KB, VT, VB, EV> {
+public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	private final ExecutionEnvironment context;
-	private final DataSet<Vertex<KT, VT>> topVertices;
-	private final DataSet<Vertex<KB, VB>> bottomVertices;
+	private final DataSet<Vertex<KT, VVT>> topVertices;
+	private final DataSet<Vertex<KB, VVB>> bottomVertices;
 	private final DataSet<BipartiteEdge<KT, KB, EV>> edges;
 
 	private BipartiteGraph(
-			DataSet<Vertex<KT, VT>> topVertices,
-			DataSet<Vertex<KB, VB>> bottomVertices,
+			DataSet<Vertex<KT, VVT>> topVertices,
+			DataSet<Vertex<KB, VVB>> bottomVertices,
 			DataSet<BipartiteEdge<KT, KB, EV>> edges,
 			ExecutionEnvironment context) {
 		this.topVertices = topVertices;
@@ -89,7 +88,7 @@ public class BipartiteGraph<KT, KB, VT, VB, EV> {
 	 *
 	 * @return dataset with top vertices
 	 */
-	public DataSet<Vertex<KT, VT>> getTopVertices() {
+	public DataSet<Vertex<KT, VVT>> getTopVertices() {
 		return topVertices;
 	}
 
@@ -98,7 +97,7 @@ public class BipartiteGraph<KT, KB, VT, VB, EV> {
 	 *
 	 * @return dataset with bottom vertices
 	 */
-	public DataSet<Vertex<KB, VB>> getBottomVertices() {
+	public DataSet<Vertex<KB, VVB>> getBottomVertices() {
 		return bottomVertices;
 	}
 
@@ -112,54 +111,20 @@ public class BipartiteGraph<KT, KB, VT, VB, EV> {
 	}
 
 	/**
-	 * Convert a bipartite into a graph that contains only top vertices. An edge between two vertices in the new
-	 * graph will exist only if the original bipartite graph contains a bottom vertex they both connected to.
+	 * Convert a bipartite graph into an undirected graph that contains only top vertices. An edge between two vertices
+	 * in the new graph will exist only if the original bipartite graph contains a bottom vertex they are both
+	 * connected to.
 	 *
-	 * <p>Caller should provide a function that will create an edge between two top vertices. This function will receive
-	 * a collection of all connections between each pair of top vertices. Note that this function will be called twice for
-	 * each pair of connected vertices, so it's up to a caller if one or two edges should be created.
-	 *
-	 * @param edgeFactory function that will be used to create edges in the new graph
-	 * @param <NEV> the edge value type in the new graph
-	 * @return top projection of the bipartite graph
+	 * @return top projection of the bipartite graph where every edge contains a tuple with values of two edges that
+	 * connect top vertices in the original graph
 	 */
-	public <NEV> Graph<KT, VT, NEV> topProjection(
-		final GroupReduceFunction<Tuple2<
-									Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>,
-									Vertex<KB, VB>>,
-								Edge<KT, NEV>> edgeFactory) {
+	public Graph<KT, VVT, Tuple2<EV, EV>> projectionTopSimple() {
 
-		DataSet<Edge<KT, NEV>> newEdges = edges.join(edges)
-			.where(new TopProjectionKeySelector<KT, KB, EV>())
-			.equalTo(new TopProjectionKeySelector<KT, KB, EV>())
-			.filter(new FilterFunction<Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>>() {
-				@Override
-				public boolean filter(Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>> value) throws Exception {
-					BipartiteEdge<KT, KB, EV> edge1 = value.f0;
-					BipartiteEdge<KT, KB, EV> edge2 = value.f1;
-					return !edge1.getTopId().equals(edge2.getTopId());
-				}
-			})
-			.join(bottomVertices)
-			.where(new KeySelector<Tuple2<BipartiteEdge<KT, KB, EV>,BipartiteEdge<KT, KB, EV>>, KB>() {
-				@Override
-				public KB getKey(Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>> value) throws Exception {
-					return value.f0.getBottomId();
-				}
-			})
-			.equalTo(new KeySelector<Vertex<KB, VB>, KB>() {
-				@Override
-				public KB getKey(Vertex<KB, VB> value) throws Exception {
-					return value.getId();
-				}
-			})
-			.groupBy(new KeySelector<Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>, Vertex<KB, VB>>, Tuple2<KT, KT>>() {
-				@Override
-				public Tuple2<KT, KT> getKey(Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>, Vertex<KB, VB>> value) throws Exception {
-					return new Tuple2<>(value.f0.f0.getTopId(), value.f0.f1.getTopId());
-				}
-			})
-			.reduceGroup(edgeFactory);
+		DataSet<Edge<KT, Tuple2<EV, EV>>> newEdges =  edges.join(edges)
+			.where(1)
+			.equalTo(1)
+			.flatMap(new TopSimpleProjectionFunction<KT, KB, EV>());
+
 		return Graph.fromDataSet(topVertices, newEdges, context);
 	}
 
@@ -167,65 +132,160 @@ public class BipartiteGraph<KT, KB, VT, VB, EV> {
 	 * Convert a bipartite into a graph that contains only bottom vertices. An edge between two vertices in the new
 	 * graph will exist only if the original bipartite graph contains a top vertex they both connected to.
 	 *
-	 * <p>Caller should provide a function that will create an edge between two bottom vertices. This function will receive
-	 * a collection of all connections between each pair of bottom vertices. Note that this function will be called twice for
-	 * each pair of connected vertices, so it's up to a caller if one or two edges should be created.
-	 *
-	 * @param edgeFactory function that will be used to create edges in the new graph
-	 * @param <NEV> type of data associated with edges of the bottom projection
-	 * @return bottom projection of the bipartite graph
+	 * @return bottom projection of the bipartite graph where every edge contains a tuple with values of two edges that
+	 * connect bottom vertices in the original graph
 	 */
-	public <NEV> Graph<KB, VB, NEV> bottomProjection(
-		final GroupReduceFunction<Tuple2<
-			Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>,
-			Vertex<KT, VT>>,
-			Edge<KB, NEV>> edgeFactory) {
+	public Graph<KB, VVB, Tuple2<EV, EV>> projectionBottomSimple() {
 
-		DataSet<Edge<KB, NEV>> newEdges  =  edges.join(edges)
-			.where(new BottomProjectionKeySelector<KT, KB, EV>())
-			.equalTo(new BottomProjectionKeySelector<KT, KB, EV>())
-			.filter(new FilterFunction<Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>>() {
-				@Override
-				public boolean filter(Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>> value) throws Exception {
-					BipartiteEdge<KT, KB, EV> edge1 = value.f0;
-					BipartiteEdge<KT, KB, EV> edge2 = value.f1;
-					return !edge1.getBottomId().equals(edge2.getBottomId());
-				}
-			})
-			.join(topVertices)
-			.where(new KeySelector<Tuple2<BipartiteEdge<KT, KB, EV>,BipartiteEdge<KT, KB, EV>>, KT>() {
-				@Override
-				public KT getKey(Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>> value) throws Exception {
-										return value.f0.getTopId();
-																	}
-																	})
-			.equalTo(new KeySelector<Vertex<KT, VT>, KT>() {
-				@Override
-				public KT getKey(Vertex<KT, VT> value) throws Exception {
-										return value.getId();
-																}
-																})
-			.groupBy(new KeySelector<Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>, Vertex<KT, VT>>, Tuple2<KB, KB>>() {
-				@Override
-				public Tuple2<KB, KB> getKey(Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>, Vertex<KT, VT>> value) throws Exception {
-					return new Tuple2<>(value.f0.f0.getBottomId(), value.f0.f1.getBottomId());
-				}
-			})
-			.reduceGroup(edgeFactory);
-			return Graph.fromDataSet(bottomVertices, newEdges, context);
+		DataSet<Edge<KB, Tuple2<EV, EV>>> newEdges =  edges.join(edges)
+			.where(0)
+			.equalTo(0)
+			.flatMap(new BottomSimpleProjectionFunction<KT, KB, EV>());
+
+		return Graph.fromDataSet(bottomVertices, newEdges, context);
 	}
 
-	private class TopProjectionKeySelector<KT, KB, EV> implements KeySelector<BipartiteEdge<KT, KB, EV>, KB> {
+	/**
+	 * Convert a bipartite into a graph that contains only top vertices. An edge between two vertices in the new
+	 * graph will exist only if the original bipartite graph contains a bottom vertex they both connected to.
+	 *
+	 * @return top projection of the bipartite graph where every edge contains a data about projected connection
+	 * between vertices in the original graph
+	 */
+	public Graph<KT, VVT, Projection<KB, VVB, EV, VVT>> projectionTopFull() {
+		DataSet<Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>> edgesWithVertices
+			= joinEdgesWithVertices();
+
+		DataSet<Edge<KT, Projection<KB, VVB, EV, VVT>>> newEdges = edgesWithVertices.join(edgesWithVertices)
+			.where("f1.f0")
+			.equalTo("f1.f0")
+			.flatMap(new TopFullProjectionFunction<KT, KB, EV, VVT, VVB>());
+
+		return Graph.fromDataSet(topVertices, newEdges, context);
+	}
+
+	private DataSet<Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>> joinEdgesWithVertices() {
+		return edges.join(topVertices, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
+		.where(0)
+		.equalTo(0)
+		.join(bottomVertices, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
+		.where("f0.f1")
+		.equalTo(0);
+	}
+
+	/**
+	 * Convert a bipartite into a graph that contains only bottom vertices. An edge between two vertices in the new
+	 * graph will exist only if the original bipartite graph contains a top vertex they both connected to.
+	 *
+	 * @return bottom projection of the bipartite graph where every edge contains a data about projected connection
+	 * between vertices in the original graph
+	 */
+	public Graph<KB, VVB, Projection<KT, VVT, EV, VVB>> projectionBottomFull() {
+
+		DataSet<Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>> edgesWithVertices
+			= joinEdgesWithVertices();
+
+		DataSet<Edge<KB, Projection<KT, VVT, EV, VVB>>> newEdges = edgesWithVertices.join(edgesWithVertices)
+			.where("f0.f1.f0")
+			.equalTo("f0.f1.f0")
+			.flatMap(new BottomFullProjectionFunction<KT, KB, EV, VVT, VVB>());
+
+		return Graph.fromDataSet(bottomVertices, newEdges, context);
+	}
+
+	static private class BottomFullProjectionFunction<KT, KB, EV, VVT, VVB> implements FlatMapFunction<Tuple2<Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>, Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>>, Edge<KB, Projection<KT, VVT, EV, VVB>>> {
+
+		private Edge<KB, Projection<KT, VVT, EV, VVB>> edge = new Edge<>();
+
 		@Override
-		public KB getKey(BipartiteEdge<KT, KB, EV> value) throws Exception {
-			return value.getBottomId();
+		public void flatMap(Tuple2<Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>, Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>> value, Collector<Edge<KB, Projection<KT, VVT, EV, VVB>>> out) throws Exception {
+			Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>> sourceSide = value.f0;
+			Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>> targetSide = value.f1;
+
+			Vertex<KB, VVB> targetVertex = targetSide.f1;
+			Vertex<KB, VVB> sourceVertex = sourceSide.f1;
+
+			if (!targetVertex.getId().equals(sourceVertex.getId())) {
+				BipartiteEdge<KT, KB, EV> targetEdge = targetSide.f0.f0;
+				BipartiteEdge<KT, KB, EV> sourceEdge = sourceSide.f0.f0;
+
+				Vertex<KT, VVT> intermediateVertex = targetSide.f0.f1;
+
+				Projection<KT, VVT, EV, VVB> projection = new Projection<>(intermediateVertex, sourceEdge.getValue(),
+					targetEdge.getValue(), sourceVertex.getValue(), targetVertex.getValue());
+				edge.setSource(sourceVertex.getId());
+				edge.setTarget(targetVertex.getId());
+				edge.setValue(projection);
+
+				out.collect(edge);
+			}
 		}
 	}
 
-	private class BottomProjectionKeySelector<KT, KB, EV> implements KeySelector<BipartiteEdge<KT, KB, EV>, KT> {
+	static private class TopFullProjectionFunction<KT, KB, EV, VVT, VVB> implements FlatMapFunction<Tuple2<Tuple2<Tuple2<BipartiteEdge<KT,KB,EV>,Vertex<KT,VVT>>,Vertex<KB,VVB>>,Tuple2<Tuple2<BipartiteEdge<KT,KB,EV>,Vertex<KT,VVT>>,Vertex<KB,VVB>>>, Edge<KT, Projection<KB, VVB, EV, VVT>>> {
+
+		private Edge<KT, Projection<KB, VVB, EV, VVT>> edge = new Edge<>();
+
 		@Override
-		public KT getKey(BipartiteEdge<KT, KB, EV> value) throws Exception {
-			return value.getTopId();
+		public void flatMap(Tuple2<Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>, Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>>> value, Collector<Edge<KT, Projection<KB, VVB, EV, VVT>>> out) throws Exception {
+			Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>> sourceSide = value.f0;
+			Tuple2<Tuple2<BipartiteEdge<KT, KB, EV>, Vertex<KT, VVT>>, Vertex<KB, VVB>> targetSide = value.f1;
+
+			Vertex<KT, VVT> targetVertex = targetSide.f0.f1;
+			Vertex<KT, VVT> sourceVertex = sourceSide.f0.f1;
+
+			if (!targetVertex.getId().equals(sourceVertex.getId())) {
+				BipartiteEdge<KT, KB, EV> targetEdge = targetSide.f0.f0;
+				BipartiteEdge<KT, KB, EV> sourceEdge = sourceSide.f0.f0;
+
+				Vertex<KB, VVB> intermediateVertex = targetSide.f1;
+
+				Projection<KB, VVB, EV, VVT> projection = new Projection<>(intermediateVertex, sourceEdge.getValue(),
+					targetEdge.getValue(), sourceVertex.getValue(), targetVertex.getValue());
+				edge.setSource(sourceVertex.getId());
+				edge.setTarget(targetVertex.getId());
+				edge.setValue(projection);
+
+				out.collect(edge);
+			}
+		}
+	}
+
+	static private class BottomSimpleProjectionFunction<KT, KB, EV> implements FlatMapFunction<Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>, Edge<KB, Tuple2<EV, EV>>> {
+
+		private Edge<KB, Tuple2<EV, EV>> edge = new Edge<>();
+
+		@Override
+		public void flatMap(Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>> value, Collector<Edge<KB, Tuple2<EV, EV>>> out) throws Exception {
+			BipartiteEdge<KT, KB, EV> edge1 = value.f0;
+			BipartiteEdge<KT, KB, EV> edge2 = value.f1;
+			if (!edge1.getBottomId().equals(edge2.getBottomId())) {
+				edge.setSource(value.f0.getBottomId());
+				edge.setTarget(value.f1.getBottomId());
+				edge.setValue(new Tuple2<>(
+						value.f0.getValue(),
+						value.f1.getValue()));
+				out.collect(edge);
+			}
+		}
+	}
+
+	static private class TopSimpleProjectionFunction<KT, KB, EV> implements FlatMapFunction<Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>>, Edge<KT, Tuple2<EV, EV>>> {
+
+		private Edge<KT, Tuple2<EV, EV>> edge = new Edge<>();
+
+		@Override
+		public void flatMap(Tuple2<BipartiteEdge<KT, KB, EV>, BipartiteEdge<KT, KB, EV>> value, Collector<Edge<KT, Tuple2<EV, EV>>> out) throws Exception {
+			BipartiteEdge<KT, KB, EV> edge1 = value.f0;
+			BipartiteEdge<KT, KB, EV> edge2 = value.f1;
+			if (!edge1.getTopId().equals(edge2.getTopId())) {
+				edge.setSource(value.f0.getTopId());
+				edge.setTarget(value.f1.getTopId());
+				edge.setValue(new Tuple2<>(
+					value.f0.getValue(),
+					value.f1.getValue()));
+				out.collect(edge);
+			}
 		}
 	}
 }
