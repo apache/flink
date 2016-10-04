@@ -143,11 +143,10 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		runStartFromKafkaCommitOffsets();
 	}
 
-	// TODO: This test will not pass until FLINK-4727 is resolved
-//	@Test(timeout = 60000)
-//	public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
-//		runAutoOffsetRetrievalAndCommitToKafka();
-//	}
+	@Test(timeout = 60000)
+	public void testAutoOffsetRetrievalAndCommitToKafka() throws Exception {
+		runAutoOffsetRetrievalAndCommitToKafka();
+	}
 
 	/**
 	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka
