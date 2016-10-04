@@ -522,7 +522,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 			// draw a snapshot and dispose the window
 			int beforeSnapShot = testHarness.getOutput().size();
-			StreamStateHandle state = testHarness.snapshot(1L, System.currentTimeMillis());
+			StreamStateHandle state = testHarness.snapshotLegacy(1L, System.currentTimeMillis());
 			List<Integer> resultAtSnapshot = extractFromStreamRecords(testHarness.getOutput());
 			int afterSnapShot = testHarness.getOutput().size();
 			assertEquals("operator performed computation during snapshot", beforeSnapShot, afterSnapShot);
@@ -611,7 +611,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			// draw a snapshot
 			List<Integer> resultAtSnapshot = extractFromStreamRecords(testHarness.getOutput());
 			int beforeSnapShot = testHarness.getOutput().size();
-			StreamStateHandle state = testHarness.snapshot(1L, System.currentTimeMillis());
+			StreamStateHandle state = testHarness.snapshotLegacy(1L, System.currentTimeMillis());
 			int afterSnapShot = testHarness.getOutput().size();
 			assertEquals("operator performed computation during snapshot", beforeSnapShot, afterSnapShot);
 

@@ -59,6 +59,15 @@ public class CheckpointMetaData implements Serializable {
 				asynchronousDurationMillis);
 	}
 
+	public CheckpointMetaData(
+			long checkpointId,
+			long timestamp,
+			CheckpointMetrics metrics) {
+		this.checkpointId = checkpointId;
+		this.timestamp = timestamp;
+		this.metrics = Preconditions.checkNotNull(metrics);
+	}
+
 	public CheckpointMetrics getMetrics() {
 		return metrics;
 	}
@@ -109,5 +118,38 @@ public class CheckpointMetaData implements Serializable {
 
 	public long getAsyncDurationMillis() {
 		return metrics.getAsyncDurationMillis();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		CheckpointMetaData that = (CheckpointMetaData) o;
+
+		return (checkpointId == that.checkpointId)
+				&& (timestamp == that.timestamp)
+				&& (metrics.equals(that.metrics));
+	}
+
+	@Override
+	public int hashCode() {
+		int result = (int) (checkpointId ^ (checkpointId >>> 32));
+		result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
+		result = 31 * result + metrics.hashCode();
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "CheckpointMetaData{" +
+				"checkpointId=" + checkpointId +
+				", timestamp=" + timestamp +
+				", metrics=" + metrics +
+				'}';
 	}
 }

@@ -127,6 +127,10 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 			return os.getPosition();
 		}
 
+		public boolean isClosed() {
+			return closed;
+		}
+
 		/**
 		 * Closes the stream and returns the byte array containing the stream's data.
 		 * @return The byte array containing the stream's data.

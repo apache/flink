@@ -335,8 +335,7 @@ public class SimpleCheckpointStatsTrackerTest {
 					StreamStateHandle proxy = new StateHandleProxy(new Path(), proxySize);
 
 					SubtaskState subtaskState = new SubtaskState(
-						new ChainedStateHandle<>(Collections.singletonList(proxy)),
-						duration);
+							new ChainedStateHandle<>(Collections.singletonList(proxy)), null, null, null, null, duration);
 
 					taskState.putState(subtaskIndex, subtaskState);
 				}

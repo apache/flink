@@ -25,7 +25,7 @@ import java.util.concurrent.RunnableFuture;
  *
  * @param <S> Generic type of the state object that is created as handle to snapshots.
  */
-public interface SnapshotProvider<S extends StateObject> {
+public interface Snapshotable<S extends StateObject> {
 
 	/**
 	 * Operation that writes a snapshot into a stream that is provided by the given {@link CheckpointStreamFactory} and

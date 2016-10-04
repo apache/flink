@@ -28,8 +28,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.CheckpointStateHandles;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -37,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -234,80 +231,61 @@ public class PendingCheckpoint {
 	
 	public boolean acknowledgeTask(
 			ExecutionAttemptID attemptID,
-			CheckpointStateHandles checkpointStateHandles) {
+			SubtaskState checkpointedSubtaskState) {
 
 		synchronized (lock) {
+
 			if (discarded) {
 				return false;
 			}
 
-			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
+			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
 
-			if (vertex != null) {
-				if (checkpointStateHandles != null) {
-					List<KeyGroupsStateHandle> keyGroupsState = checkpointStateHandles.getKeyGroupsStateHandle();
-					ChainedStateHandle<StreamStateHandle> nonPartitionedState =
-							checkpointStateHandles.getNonPartitionedStateHandles();
-					ChainedStateHandle<OperatorStateHandle> partitioneableState =
-							checkpointStateHandles.getPartitioneableStateHandles();
-
-					if (nonPartitionedState != null || partitioneableState != null || keyGroupsState != null) {
-
-						JobVertexID jobVertexID = vertex.getJobvertexId();
-
-						int subtaskIndex = vertex.getParallelSubtaskIndex();
-
-						TaskState taskState;
-
-						if (taskStates.containsKey(jobVertexID)) {
-							taskState = taskStates.get(jobVertexID);
-						} else {
-							//TODO this should go away when we remove chained state, assigning state to operators directly instead
-							int chainLength;
-							if (nonPartitionedState != null) {
-								chainLength = nonPartitionedState.getLength();
-							} else if (partitioneableState != null) {
-								chainLength = partitioneableState.getLength();
-							} else {
-								chainLength = 1;
-							}
-
-							taskState = new TaskState(
-								jobVertexID,
-								vertex.getTotalNumberOfParallelSubtasks(),
-								vertex.getMaxParallelism(),
-								chainLength);
-
-							taskStates.put(jobVertexID, taskState);
-						}
-
-						long duration = System.currentTimeMillis() - checkpointTimestamp;
-
-						if (nonPartitionedState != null) {
-							taskState.putState(
-									subtaskIndex,
-									new SubtaskState(nonPartitionedState, duration));
-						}
-
-						if(partitioneableState != null && !partitioneableState.isEmpty()) {
-							taskState.putPartitionableState(subtaskIndex, partitioneableState);
-						}
-
-						// currently a checkpoint can only contain keyed state
-						// for the head operator
-						if (keyGroupsState != null && !keyGroupsState.isEmpty()) {
-							KeyGroupsStateHandle keyGroupsStateHandle = keyGroupsState.get(0);
-							taskState.putKeyedState(subtaskIndex, keyGroupsStateHandle);
-						}
-					}
-				}
-
-				++numAcknowledgedTasks;
-
-				return true;
-			} else {
+			if (vertex == null) {
 				return false;
 			}
+
+			if (null != checkpointedSubtaskState && checkpointedSubtaskState.hasState()) {
+
+				JobVertexID jobVertexID = vertex.getJobvertexId();
+
+				int subtaskIndex = vertex.getParallelSubtaskIndex();
+
+				TaskState taskState = taskStates.get(jobVertexID);
+
+				if (null == taskState) {
+					ChainedStateHandle<StreamStateHandle> nonPartitionedState =
+							checkpointedSubtaskState.getLegacyOperatorState();
+					ChainedStateHandle<OperatorStateHandle> partitioneableState =
+							checkpointedSubtaskState.getManagedOperatorState();
+					//TODO this should go away when we remove chained state, assigning state to operators directly instead
+					int chainLength;
+					if (nonPartitionedState != null) {
+						chainLength = nonPartitionedState.getLength();
+					} else if (partitioneableState != null) {
+						chainLength = partitioneableState.getLength();
+					} else {
+						chainLength = 1;
+					}
+
+					taskState = new TaskState(
+							jobVertexID,
+							vertex.getTotalNumberOfParallelSubtasks(),
+							vertex.getMaxParallelism(),
+							chainLength);
+
+					taskStates.put(jobVertexID, taskState);
+				}
+
+				long duration = System.currentTimeMillis() - checkpointTimestamp;
+				checkpointedSubtaskState.setDuration(duration);
+
+				taskState.putState(subtaskIndex, checkpointedSubtaskState);
+			}
+
+			++numAcknowledgedTasks;
+
+			return true;
 		}
 	}
 

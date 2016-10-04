@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 
@@ -34,19 +36,23 @@ public class SavepointV1SerializerTest {
 	 */
 	@Test
 	public void testSerializeDeserializeV1() throws Exception {
-		SavepointV1 expected = new SavepointV1(123123, SavepointV1Test.createTaskStates(8, 32));
+		Random r = new Random(42);
+		for (int i = 0; i < 100; ++i) {
+			SavepointV1 expected =
+					new SavepointV1(i+ 123123, SavepointV1Test.createTaskStates(1 + r.nextInt(64), 1 + r.nextInt(64)));
 
-		SavepointV1Serializer serializer = SavepointV1Serializer.INSTANCE;
+			SavepointV1Serializer serializer = SavepointV1Serializer.INSTANCE;
 
-		// Serialize
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		serializer.serialize(expected, new DataOutputViewStreamWrapper(baos));
-		byte[] bytes = baos.toByteArray();
+			// Serialize
+			ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
+			serializer.serialize(expected, new DataOutputViewStreamWrapper(baos));
+			byte[] bytes = baos.toByteArray();
 
-		// Deserialize
-		ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-		Savepoint actual = serializer.deserialize(new DataInputViewStreamWrapper(bais));
+			// Deserialize
+			ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+			Savepoint actual = serializer.deserialize(new DataInputViewStreamWrapper(bais));
 
-		assertEquals(expected, actual);
+			assertEquals(expected, actual);
+		}
 	}
 }

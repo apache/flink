@@ -37,7 +37,7 @@ public class KeyGroupRangeTest {
 		keyGroupRange1 = KeyGroupRange.of(0,5);
 		keyGroupRange2 = KeyGroupRange.of(6,10);
 		intersection =keyGroupRange1.getIntersection(keyGroupRange2);
-		Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP, intersection);
+		Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, intersection);
 		Assert.assertEquals(intersection, keyGroupRange2.getIntersection(keyGroupRange1));
 
 		keyGroupRange1 = KeyGroupRange.of(0, 10);
@@ -93,7 +93,7 @@ public class KeyGroupRangeTest {
 			Assert.assertFalse(keyGroupRange.contains(startKeyGroup - 1));
 			Assert.assertFalse(keyGroupRange.contains(endKeyGroup + 1));
 		} else {
-			Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP, keyGroupRange);
+			Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, keyGroupRange);
 		}
 	}
 
