@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -41,8 +42,8 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -65,10 +66,20 @@ import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
+import org.apache.flink.runtime.jobmaster.message.DisposeSavepointResponse;
+import org.apache.flink.runtime.jobmaster.message.TriggerSavepointResponse;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.query.KvStateID;
+import org.apache.flink.runtime.query.KvStateLocation;
+import org.apache.flink.runtime.query.KvStateLocationRegistry;
+import org.apache.flink.runtime.query.KvStateServerAddress;
+import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
@@ -76,11 +87,11 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
-
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -528,20 +539,6 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	}
 
-	//---------------------------------------------------------------------------------------------- 
-	// Internal methods 
-	// ----------------------------------------------------------------------------------------------  
-
-	private void handleFatalError(final Throwable cause) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.error("Fatal error occurred on JobManager, cause: {}", cause.getMessage(), cause);
-				shutDown();
-				jobCompletionActions.onFatalError(cause);
-			}
-		});
-	}
 
 	@RpcMethod
 	public SerializedInputSplit requestNextInputSplit(
@@ -594,9 +591,9 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	@RpcMethod
 	public ExecutionState requestPartitionState(
-			final JobID ignored, // redundant parameter from when a JobManager would handle multiple jobs
-			final IntermediateDataSetID intermediateResultId,
-			final ResultPartitionID resultPartitionId) throws PartitionProducerDisposedException {
+		final JobID ignored,
+		final IntermediateDataSetID intermediateResultId,
+		final ResultPartitionID resultPartitionId) throws PartitionProducerDisposedException {
 
 		final Execution execution = executionGraph.getRegisteredExecutions().get(resultPartitionId.getProducerId());
 		if (execution != null) {
@@ -659,6 +656,169 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	//----------------------------------------------------------------------------------------------
 	// Internal methods
 	//----------------------------------------------------------------------------------------------
+
+	@RpcMethod
+	public void resourceRemoved(final ResourceID resourceId, final String message) {
+		// TODO: remove resource from slot pool
+	}
+
+	@RpcMethod
+	public void acknowledgeCheckpoint(final AcknowledgeCheckpoint acknowledge) {
+		if (executionGraph != null) {
+			final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+			if (checkpointCoordinator != null) {
+				getRpcService().execute(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							if (!checkpointCoordinator.receiveAcknowledgeMessage(acknowledge)) {
+								log.info("Received message for non-existing checkpoint {}.",
+									acknowledge.getCheckpointId());
+							}
+						} catch (Exception e) {
+							log.error("Error in CheckpointCoordinator while processing {}", acknowledge, e);
+						}
+					}
+				});
+			}
+			else {
+				log.error("Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator",
+					jobGraph.getJobID());
+			}
+		} else {
+			log.error("Received AcknowledgeCheckpoint for unavailable job {}", jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public void declineCheckpoint(final DeclineCheckpoint decline) {
+		if (executionGraph != null) {
+			final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+			if (checkpointCoordinator != null) {
+				getRpcService().execute(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							log.info("Received message for non-existing checkpoint {}.", decline.getCheckpointId());
+						} catch (Exception e) {
+							log.error("Error in CheckpointCoordinator while processing {}", decline, e);
+						}
+					}
+				});
+			} else {
+				log.error("Received DeclineCheckpoint message for job {} with no CheckpointCoordinator",
+					jobGraph.getJobID());
+			}
+		} else {
+			log.error("Received AcknowledgeCheckpoint for unavailable job {}", jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public KvStateLocation lookupKvStateLocation(final String registrationName) throws Exception {
+		if (executionGraph != null) {
+			if (log.isDebugEnabled()) {
+				log.debug("Lookup key-value state for job {} with registration " +
+					"name {}.", jobGraph.getJobID(), registrationName);
+			}
+
+			final KvStateLocationRegistry registry = executionGraph.getKvStateLocationRegistry();
+			final KvStateLocation location = registry.getKvStateLocation(registrationName);
+			if (location != null) {
+				return location;
+			} else {
+				throw new UnknownKvStateLocation(registrationName);
+			}
+		} else {
+			throw new IllegalStateException("Received lookup KvState location request for unavailable job " +
+				jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public void notifyKvStateRegistered(
+		final JobVertexID jobVertexId,
+		final KeyGroupRange keyGroupRange,
+		final String registrationName,
+		final KvStateID kvStateId,
+		final KvStateServerAddress kvStateServerAddress)
+	{
+		if (executionGraph != null) {
+			if (log.isDebugEnabled()) {
+				log.debug("Key value state registered for job {} under name {}.",
+					jobGraph.getJobID(), registrationName);
+			}
+			try {
+				executionGraph.getKvStateLocationRegistry().notifyKvStateRegistered(
+					jobVertexId, keyGroupRange, registrationName, kvStateId, kvStateServerAddress
+				);
+			} catch (Exception e) {
+				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+			}
+		} else {
+			log.error("Received notify KvState registered request for unavailable job " + jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public void notifyKvStateUnregistered(
+		JobVertexID jobVertexId,
+		KeyGroupRange keyGroupRange,
+		String registrationName)
+	{
+		if (executionGraph != null) {
+			if (log.isDebugEnabled()) {
+				log.debug("Key value state unregistered for job {} under name {}.",
+					jobGraph.getJobID(), registrationName);
+			}
+			try {
+				executionGraph.getKvStateLocationRegistry().notifyKvStateUnregistered(
+					jobVertexId, keyGroupRange, registrationName
+				);
+			} catch (Exception e) {
+				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+			}
+		} else {
+			log.error("Received notify KvState unregistered request for unavailable job " + jobGraph.getJobID());
+		}
+	}
+
+	@RpcMethod
+	public Future<TriggerSavepointResponse> triggerSavepoint() throws Exception {
+		return null;
+	}
+
+	@RpcMethod
+	public DisposeSavepointResponse disposeSavepoint(final String savepointPath) {
+		// TODO
+		return null;
+	}
+
+	@RpcMethod
+	public ClassloadingProps requestClassloadingProps() throws Exception {
+		if (executionGraph != null) {
+			return new ClassloadingProps(libraryCacheManager.getBlobServerPort(),
+				executionGraph.getRequiredJarFiles(),
+				executionGraph.getRequiredClasspaths());
+		} else {
+			throw new Exception("Received classloading props request for unavailable job " + jobGraph.getJobID());
+		}
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// Internal methods
+	//----------------------------------------------------------------------------------------------
+
+	private void handleFatalError(final Throwable cause) {
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				log.error("Fatal error occurred on JobManager, cause: {}", cause.getMessage(), cause);
+				shutDown();
+				jobCompletionActions.onFatalError(cause);
+			}
+		});
+	}
 
 	// TODO - wrap this as StatusListenerMessenger's callback with rpc main thread
 	private void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error) {

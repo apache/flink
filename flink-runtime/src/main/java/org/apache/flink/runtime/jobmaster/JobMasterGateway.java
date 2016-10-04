@@ -31,8 +31,18 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
+import org.apache.flink.runtime.jobmaster.message.DisposeSavepointResponse;
+import org.apache.flink.runtime.jobmaster.message.TriggerSavepointResponse;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.query.KvStateID;
+import org.apache.flink.runtime.query.KvStateLocation;
+import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 import java.util.UUID;
@@ -111,4 +121,80 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param resourceID identifying the TaskManager to disconnect
 	 */
 	void disconnectTaskManager(ResourceID resourceID);
+
+	/**
+	 * Notifies the JobManager about the removal of a resource.
+	 *
+	 * @param resourceId The ID under which the resource is registered.
+	 * @param message    Optional message with details, for logging and debugging.
+	 */
+
+	void resourceRemoved(final ResourceID resourceId, final String message);
+
+	/**
+	 * Notifies the JobManager that the checkpoint of an individual task is completed.
+	 *
+	 * @param acknowledge The acknowledge message of the checkpoint
+	 */
+	void acknowledgeCheckpoint(final AcknowledgeCheckpoint acknowledge);
+
+	/**
+	 * Notifies the JobManager that a checkpoint request could not be heeded.
+	 * This can happen if a Task is already in RUNNING state but is internally not yet ready to perform checkpoints.
+	 *
+	 * @param decline The decline message of the checkpoint
+	 */
+	void declineCheckpoint(final DeclineCheckpoint decline);
+
+	/**
+	 * Requests a {@link KvStateLocation} for the specified {@link KvState} registration name.
+	 *
+	 * @param registrationName Name under which the KvState has been registered.
+	 * @return Future of the requested {@link KvState} location
+	 */
+	Future<KvStateLocation> lookupKvStateLocation(final String registrationName) throws Exception;
+
+	/**
+	 * @param jobVertexId          JobVertexID the KvState instance belongs to.
+	 * @param keyGroupRange        Key group range the KvState instance belongs to.
+	 * @param registrationName     Name under which the KvState has been registered.
+	 * @param kvStateId            ID of the registered KvState instance.
+	 * @param kvStateServerAddress Server address where to find the KvState instance.
+	 */
+	void notifyKvStateRegistered(
+		final JobVertexID jobVertexId,
+		final KeyGroupRange keyGroupRange,
+		final String registrationName,
+		final KvStateID kvStateId,
+		final KvStateServerAddress kvStateServerAddress);
+
+	/**
+	 * @param jobVertexId      JobVertexID the KvState instance belongs to.
+	 * @param keyGroupRange    Key group index the KvState instance belongs to.
+	 * @param registrationName Name under which the KvState has been registered.
+	 */
+	void notifyKvStateUnregistered(
+		JobVertexID jobVertexId,
+		KeyGroupRange keyGroupRange,
+		String registrationName);
+
+	/**
+	 * Notifies the JobManager to trigger a savepoint for this job.
+	 *
+	 * @return Future of the savepoint trigger response.
+	 */
+	Future<TriggerSavepointResponse> triggerSavepoint();
+
+	/**
+	 * Notifies the Jobmanager to dispose specified savepoint.
+	 *
+	 * @param savepointPath The path of the savepoint.
+	 * @return The future of the savepoint disponse response.
+	 */
+	Future<DisposeSavepointResponse> disposeSavepoint(final String savepointPath);
+
+	/**
+	 * Request the classloading props of this job.
+	 */
+	Future<ClassloadingProps> requestClassloadingProps();
 }
