@@ -80,8 +80,6 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 				trigger,
 				allowedLateness);
 
-		operator.setInputType(inputType, executionConfig);
-
 		timeServiceProvider = new TestTimeServiceProvider();
 		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider, keySelector, keyType);
 	}

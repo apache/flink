@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -34,7 +33,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -98,7 +96,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	extends AbstractUdfStreamOperator<OUT, InternalWindowFunction<ACC, OUT, K, W>>
-	implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
+	implements OneInputStreamOperator<IN, OUT>, Triggerable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -113,12 +111,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	protected final Trigger<? super IN, ? super W> trigger;
 
 	protected final StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor;
-
-	/**
-	 * This is used to copy the incoming element because it can be put into several window
-	 * buffers.
-	 */
-	protected TypeSerializer<IN> inputSerializer;
 
 	/**
 	 * For serializing the key in checkpoints.
@@ -211,20 +203,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public final void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-		inputSerializer = (TypeSerializer<IN>) type.createSerializer(executionConfig);
-	}
-
-	@Override
 	public final void open() throws Exception {
 		super.open();
 
 		timestampedCollector = new TimestampedCollector<>(output);
-
-		if (inputSerializer == null) {
-			throw new IllegalStateException("Input serializer was not set.");
-		}
 
 		// these could already be initialized from restoreState()
 		if (watermarkTimers == null) {
