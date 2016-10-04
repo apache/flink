@@ -131,21 +131,6 @@ public class JobManagerRunnerMockTest {
 	}
 
 	@Test
-	public void testJobFinishedByOtherBeforeGrantLeadership() throws Exception {
-		runner.start();
-
-		when(submittedJobGraphStore.contains(any(JobID.class))).thenReturn(false);
-		runner.grantLeadership(UUID.randomUUID());
-
-		// runner should shutdown automatic and informed the job completion
-		verify(leaderElectionService).stop();
-		verify(jobManager).shutDown();
-
-		assertTrue(jobCompletion.isJobFinished());
-		assertTrue(jobCompletion.isJobFinishedByOther());
-	}
-
-	@Test
 	public void testJobFinished() throws Exception {
 		runner.start();
 
@@ -211,7 +196,7 @@ public class JobManagerRunnerMockTest {
 
 		UUID leaderSessionID2 = UUID.randomUUID();
 		runner.grantLeadership(leaderSessionID2);
-		verify(jobManagerGateway, times(2)).startJob(leaderSessionID2);
+		verify(jobManagerGateway).startJob(leaderSessionID2);
 	}
 
 	private static class TestingOnCompletionActions implements OnCompletionActions {
