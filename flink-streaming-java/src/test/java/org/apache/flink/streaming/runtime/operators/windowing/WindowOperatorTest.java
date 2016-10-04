@@ -876,6 +876,9 @@ public class WindowOperatorTest extends TestLogger {
 		final int WINDOW_SLIDE = 1;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+		TestTimeServiceProvider timer = new TestTimeServiceProvider();
+
+		TestTimeServiceProvider timer = new TestTimeServiceProvider();
 
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
@@ -893,9 +896,10 @@ public class WindowOperatorTest extends TestLogger {
 
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO); ;
-
-		operator.setInputType(inputType, new ExecutionConfig());
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						operator, new ExecutionConfig(), timer,
+						new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+		
 		testHarness.open();
 
 		WindowOperator.Timer<String, TimeWindow> timer1 = new WindowOperator.Timer<>(1L, "key1", new TimeWindow(1L, 2L));
@@ -907,12 +911,7 @@ public class WindowOperatorTest extends TestLogger {
 		operator.processingTimeTimersQueue.add(timer1);
 		operator.processingTimeTimersQueue.add(timer2);
 		operator.processingTimeTimersQueue.add(timer3);
-
-		operator.processingTimeTimerTimestamps.add(1L, 10);
-		operator.processingTimeTimerTimestamps.add(2L, 5);
-		operator.processingTimeTimerTimestamps.add(3L, 1);
-
-
+		
 		StreamStateHandle snapshot = testHarness.snapshot(0, 0);
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> otherOperator = new WindowOperator<>(
@@ -926,9 +925,9 @@ public class WindowOperatorTest extends TestLogger {
 				0);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> otherTestHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(otherOperator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
-		otherOperator.setInputType(inputType, new ExecutionConfig());
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						otherOperator, new ExecutionConfig(), timer,
+						new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		otherTestHarness.setup();
 		otherTestHarness.restore(snapshot);
@@ -936,7 +935,6 @@ public class WindowOperatorTest extends TestLogger {
 
 		Assert.assertEquals(operator.processingTimeTimers, otherOperator.processingTimeTimers);
 		Assert.assertArrayEquals(operator.processingTimeTimersQueue.toArray(), otherOperator.processingTimeTimersQueue.toArray());
-		Assert.assertEquals(operator.processingTimeTimerTimestamps, otherOperator.processingTimeTimerTimestamps);
 	}
 
 	@Test
