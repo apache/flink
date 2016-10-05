@@ -19,12 +19,14 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.streaming.runtime.operators.TimeProviderTest.ReferenceSettingExceptionHandler;
+import org.apache.flink.streaming.runtime.operators.TestTimeProviderTest.ReferenceSettingExceptionHandler;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import org.junit.Test;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -35,6 +37,40 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class DefaultTimeServiceProviderTest {
+
+	@Test
+	public void testTriggerHoldsLock() throws Exception {
+
+		final Object lock = new Object();
+		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+		final DefaultTimeServiceProvider timer = new DefaultTimeServiceProvider(
+				new ReferenceSettingExceptionHandler(errorRef), lock);
+
+		try {
+			assertEquals(0, timer.getNumTasksScheduled());
+
+			// schedule something
+			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis(), new Triggerable() {
+				@Override
+				public void trigger(long timestamp) {
+					assertTrue(Thread.holdsLock(lock));
+				}
+			});
+
+			// wait until the execution is over
+			future.get();
+			assertEquals(0, timer.getNumTasksScheduled());
+
+			// check that no asynchronous error was reported
+			if (errorRef.get() != null) {
+				throw new Exception(errorRef.get());
+			}
+		}
+		finally {
+			timer.shutdownService();
+		}
+	}
 
 	@Test
 	public void testImmediateShutdown() throws Exception {
@@ -171,6 +207,104 @@ public class DefaultTimeServiceProviderTest {
 			future.cancel(false);
 
 			assertEquals(0, timer.getNumTasksScheduled());
+
+			// check that no asynchronous error was reported
+			if (errorRef.get() != null) {
+				throw new Exception(errorRef.get());
+			}
+		}
+		finally {
+			timer.shutdownService();
+		}
+	}
+
+	@Test
+	public void testExceptionReporting() throws InterruptedException {
+		final AtomicBoolean exceptionWasThrown = new AtomicBoolean(false);
+		final OneShotLatch latch = new OneShotLatch();
+		final Object lock = new Object();
+
+		TimeServiceProvider timeServiceProvider = new DefaultTimeServiceProvider(
+				new AsyncExceptionHandler() {
+					@Override
+					public void handleAsyncException(String message, Throwable exception) {
+						exceptionWasThrown.set(true);
+						latch.trigger();
+					}
+				}, lock);
+		
+		timeServiceProvider.registerTimer(System.currentTimeMillis(), new Triggerable() {
+			@Override
+			public void trigger(long timestamp) throws Exception {
+				throw new Exception("Exception in Timer");
+			}
+		});
+
+		latch.await();
+		assertTrue(exceptionWasThrown.get());
+	}
+
+	@Test
+	public void testTimerSorting() throws Exception {
+		final Object lock = new Object();
+		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+		final DefaultTimeServiceProvider timer = new DefaultTimeServiceProvider(
+				new ReferenceSettingExceptionHandler(errorRef), lock);
+
+		try {
+			final OneShotLatch sync = new OneShotLatch();
+
+			// we block the timer execution to make sure we have all the time
+			// to register some additional timers out of order
+			timer.registerTimer(System.currentTimeMillis(), new Triggerable() {
+				@Override
+				public void trigger(long timestamp) throws Exception {
+					sync.await();
+				}
+			});
+			
+			// schedule two timers out of order something
+			final long now = System.currentTimeMillis();
+			final long time1 = now + 6;
+			final long time2 = now + 5;
+			final long time3 = now + 8;
+			final long time4 = now - 2;
+
+			final ArrayBlockingQueue<Long> timestamps = new ArrayBlockingQueue<>(4);
+			Triggerable trigger = new Triggerable() {
+				@Override
+				public void trigger(long timestamp) {
+					timestamps.add(timestamp);
+				}
+			};
+
+			// schedule
+			ScheduledFuture<?> future1 = timer.registerTimer(time1, trigger);
+			ScheduledFuture<?> future2 = timer.registerTimer(time2, trigger);
+			ScheduledFuture<?> future3 = timer.registerTimer(time3, trigger);
+			ScheduledFuture<?> future4 = timer.registerTimer(time4, trigger);
+
+			// now that everything is scheduled, unblock the timer service
+			sync.trigger();
+
+			// wait until both are complete
+			future1.get();
+			future2.get();
+			future3.get();
+			future4.get();
+
+			// verify that the order is 4 - 2 - 1 - 3
+			assertEquals(4, timestamps.size());
+			assertEquals(time4, timestamps.take().longValue());
+			assertEquals(time2, timestamps.take().longValue());
+			assertEquals(time1, timestamps.take().longValue());
+			assertEquals(time3, timestamps.take().longValue());
+
+			// check that no asynchronous error was reported
+			if (errorRef.get() != null) {
+				throw new Exception(errorRef.get());
+			}
 		}
 		finally {
 			timer.shutdownService();
