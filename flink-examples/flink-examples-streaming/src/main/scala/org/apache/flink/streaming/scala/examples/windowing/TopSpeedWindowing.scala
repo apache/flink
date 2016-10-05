@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 
 import scala.language.postfixOps
 import scala.util.Random
@@ -106,7 +107,7 @@ object TopSpeedWindowing {
       .keyBy("carId")
       .window(GlobalWindows.create)
       .evictor(TimeEvictor.of(Time.of(evictionSec * 1000, TimeUnit.MILLISECONDS)))
-      .trigger(DeltaTrigger.of(triggerMeters, new DeltaFunction[CarEvent] {
+      .trigger(DeltaTrigger.of[CarEvent, GlobalWindow](triggerMeters, new DeltaFunction[CarEvent] {
         def getDelta(oldSp: CarEvent, newSp: CarEvent): Double = newSp.distance - oldSp.distance
       }, cars.getType().createSerializer(env.getConfig)))
 //      .window(Time.of(evictionSec * 1000, (car : CarEvent) => car.time))

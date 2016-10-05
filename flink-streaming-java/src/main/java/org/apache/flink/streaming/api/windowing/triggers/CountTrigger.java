@@ -48,16 +48,17 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> count = ctx.getPartitionedState(stateDesc);
 		count.add(1L);
-		if (count.get() >= maxCount) {
-			count.clear();
-			return TriggerResult.FIRE;
-		}
-		return TriggerResult.CONTINUE;
+		return (count.get() >= maxCount) ? TriggerResult.FIRE : TriggerResult.CONTINUE;
 	}
 
 	@Override
 	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) {
 		return TriggerResult.CONTINUE;
+	}
+
+	@Override
+	public void onFire(W window, TriggerContext ctx) throws Exception {
+		ctx.getPartitionedState(stateDesc).clear();
 	}
 
 	@Override
@@ -79,10 +80,7 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
 		ctx.mergePartitionedState(stateDesc);
 		ReducingState<Long> count = ctx.getPartitionedState(stateDesc);
-		if (count.get() >= maxCount) {
-			return TriggerResult.FIRE;
-		}
-		return TriggerResult.CONTINUE;
+		return (count.get() >= maxCount) ? TriggerResult.FIRE : TriggerResult.CONTINUE;
 	}
 
 	@Override

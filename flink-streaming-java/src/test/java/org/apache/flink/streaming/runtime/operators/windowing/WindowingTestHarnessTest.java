@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,11 +47,13 @@ public class WindowingTestHarnessTest {
 		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
 			new ExecutionConfig(),
 			windowAssigner,
+			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO,
 			inputType,
-			new TupleKeySelector(),
 			EventTimeTrigger.create(),
 			0);
+
+		testHarness.open();
 
 		// normal element
 		testHarness.processElement(new Tuple2<>("key2", 1), 1000);
@@ -81,6 +83,7 @@ public class WindowingTestHarnessTest {
 		testHarness.compareActualToExpectedOutput("Output is not correct");
 
 		testHarness.close();
+		testHarness.dispose();
 	}
 
 	@Test
@@ -94,11 +97,13 @@ public class WindowingTestHarnessTest {
 		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
 			new ExecutionConfig(),
 			windowAssigner,
+			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO,
 			inputType,
-			new TupleKeySelector(),
 			ProcessingTimeTrigger.create(),
 			0);
+
+		testHarness.open();
 
 		testHarness.setProcessingTime(3);
 
@@ -133,6 +138,7 @@ public class WindowingTestHarnessTest {
 		testHarness.compareActualToExpectedOutput("Output was not correct.");
 
 		testHarness.close();
+		testHarness.dispose();
 	}
 
 	@Test
@@ -147,11 +153,13 @@ public class WindowingTestHarnessTest {
 		WindowingTestHarness<String, Tuple2<String, Integer>, TimeWindow> testHarness = new WindowingTestHarness<>(
 			new ExecutionConfig(),
 			windowAssigner,
+			new TupleKeySelector(),
 			BasicTypeInfo.STRING_TYPE_INFO,
 			inputType,
-			new TupleKeySelector(),
 			EventTimeTrigger.create(),
 			0);
+
+		testHarness.open();
 
 		// add elements out-of-order
 		testHarness.processElement(new Tuple2<>("key2", 1), 3999);
@@ -178,6 +186,7 @@ public class WindowingTestHarnessTest {
 		StreamStateHandle snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.restore(snapshot);
+		testHarness.open();
 
 		testHarness.processWatermark(2999);
 
@@ -220,6 +229,8 @@ public class WindowingTestHarnessTest {
 		testHarness.addExpectedWatermark(7999);
 
 		testHarness.compareActualToExpectedOutput("Output was not correct.");
+
+		testHarness.dispose();
 	}
 
 	private static class TupleKeySelector implements KeySelector<Tuple2<String, Integer>, String> {

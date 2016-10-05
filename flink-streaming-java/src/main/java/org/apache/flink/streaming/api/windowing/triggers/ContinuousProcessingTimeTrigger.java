@@ -71,6 +71,20 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 	}
 
 	@Override
+	public void onFire(W window, TriggerContext ctx) throws Exception {
+		// do nothing.
+		//
+		// Even if we fire at the end or not, the state has already been cleared in the onProcessingTime(),
+		// so there is nothing to do here. We do the cleanup in the onProcessingTime, as before, and not here,
+		// as in other triggers. This is because i) we assume that existing triggers are not combinable,
+		// so whenever this trigger proposes to fire, it will fire and ii) if somebody in the future tries
+		// to combine this with another trigger, then cleaning the state onProcessingTime gives the
+		// opportunity to the trigger to reset the timer for a future potential firing. If not, then the
+		// timer would be stuck to the same initial value, as in the onProcessingTime we only check for equality,
+		// and onElement we check if the state is null.
+	}
+
+	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
 

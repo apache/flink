@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{WindowedStream => JavaWStream}
@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.scala.function.util.{ScalaFoldFunction, Sc
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
+import org.apache.flink.streaming.api.windowing.triggers.triggerdsl.DslTrigger
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
@@ -78,6 +79,15 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    */
   @PublicEvolving
   def trigger(trigger: Trigger[_ >: T, _ >: W]): WindowedStream[T, K, W] = {
+    javaStream.trigger(trigger)
+    this
+  }
+
+  /**
+    * Sets the [[Trigger]] that should be used to trigger window emission.
+    */
+  @PublicEvolving
+  def trigger(trigger: DslTrigger[_ >: T, _ >: W]): WindowedStream[T, K, W] = {
     javaStream.trigger(trigger)
     this
   }

@@ -57,6 +57,7 @@ import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
@@ -209,7 +210,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		this.keySerializer = checkNotNull(keySerializer);
 		this.windowStateDescriptor = windowStateDescriptor;
 		this.trigger = checkNotNull(trigger);
-		this.allowedLateness = allowedLateness;
+		this.allowedLateness = !windowAssigner.isEventTime() ? 0 : allowedLateness;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
@@ -325,7 +326,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 						for (W m: mergedWindows) {
 							context.window = m;
 							context.clear();
-							deleteCleanupTimer(m);
 						}
 
 						// merge the merged state windows into the newly resulting state window
@@ -369,10 +369,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				}
 
 				if (combinedTriggerResult.isPurge()) {
-					cleanup(actualWindow, windowState, mergingWindows);
-				} else {
-					registerCleanupTimer(actualWindow);
+					cleanupWindowContents(windowState);
 				}
+				registerCleanupTimer(actualWindow);
 			}
 		} else {
 			for (W window: elementWindows) {
@@ -400,16 +399,17 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				}
 
 				if (triggerResult.isPurge()) {
-					cleanup(window, windowState, null);
-				} else {
-					registerCleanupTimer(window);
+					cleanupWindowContents(windowState);
 				}
+				registerCleanupTimer(window);
 			}
 		}
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
+		this.currentWatermark = mark.getTimestamp();
+
 		boolean fire;
 		do {
 			Timer<K, W> timer = watermarkTimersQueue.peek();
@@ -442,7 +442,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 				ACC contents = windowState.get();
 				if (contents == null) {
-					// if we have no state, there is nothing to do
+					// If we have no state, then if it is cleanup time, clear the context as it may be that the trigger's
+					// state has not been cleared. This is useful especially in the discarding mode of the trigger.
+					if (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp)) {
+						cleanup(context.window, windowState, mergingWindows);
+					}
 					continue;
 				}
 
@@ -451,8 +455,19 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					fire(context.window, contents);
 				}
 
-				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp))) {
+				if (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp)) {
+					// if it is cleanup time for the window, then cleanup everything
 					cleanup(context.window, windowState, mergingWindows);
+				} else if (triggerResult.isPurge()) {
+
+					// if we are on discarding mode and we are purging the state, then clear
+					// only the window contents and late the trigger state be.
+					// this is to avoid cleaning up the hasFiredOnTimeFlag in the EventTimeTrigger
+					// when we are operating on discarding mode. This could result in multiple
+					// firings if the watermark is equal to the end of the window and until it
+					// advances.
+
+					cleanupWindowContents(windowState);
 				}
 
 			} else {
@@ -461,8 +476,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		} while (fire);
 
 		output.emitWatermark(mark);
-
-		this.currentWatermark = mark.getTimestamp();
 	}
 
 	@Override
@@ -504,7 +517,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 				ACC contents = windowState.get();
 				if (contents == null) {
-					// if we have no state, there is nothing to do
+					// If we have no state, then if it is cleanup time, just clear the context as it may be that the trigger's
+					// state has not been cleared. This is useful especially in the discarding mode of the trigger.
+					if (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp)) {
+						cleanup(context.window, windowState, mergingWindows);
+					}
 					continue;
 				}
 
@@ -513,8 +530,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					fire(context.window, contents);
 				}
 
-				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp))) {
+				if (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.timestamp)) {
 					cleanup(context.window, windowState, mergingWindows);
+				} else if (triggerResult.isPurge()) {
+					cleanupWindowContents(windowState);
 				}
 
 			} else {
@@ -524,9 +543,19 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	/**
-	 * Cleans up the window state if the provided {@link TriggerResult} requires so, or if it
-	 * is time to do so (see {@link #isCleanupTime(Window, long)}). The caller must ensure that the
-	 * correct key is set in the state backend and the context object.
+	 * Called when the window is to be cleaned up totally, i.e. when the allowed lateness expires. This
+	 * method clears up not only the window contents, but also all related metadata for the window, e.g.
+	 * the session length in case of session windows. After this method, the window is as if it never
+	 * existed in the system. The caller must ensure that the correct key is set in the state backend
+	 * and the context object.
+	 * <p/>
+	 * When operating on <tt>discarding()</tt> mode, then the {@link #cleanupWindowContents(AppendingState)}
+	 * is called, which only cleans up the window contents.
+	 *
+	 * @param window the window to be garbage collected.
+	 * @param windowState the contents of the window to be deleted.
+	 * @param mergingWindows the set of windows, in case of session windows,
+	 *                          to be deleted along with the main one.
 	 */
 	private void cleanup(W window,
 						AppendingState<IN, ACC> windowState,
@@ -539,6 +568,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	/**
+	 * When operating on <tt>discarding()</tt> mode, this method cleans up <bb>only</bb>
+	 * the window contents, leaving the rest of the window metadata intact.
+	 *
+	 * @param windowState the state to be cleaned up.
+	 */
+	private void cleanupWindowContents(AppendingState<IN, ACC> windowState) throws Exception {
+		windowState.clear();
+	}
+
+	/**
 	 * Triggers the window computation if the provided {@link TriggerResult} requires so.
 	 * The caller must ensure that the correct key is set in the state backend and the context object.
 	 */
@@ -546,6 +585,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	private void fire(W window, ACC contents) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
 		userFunction.apply(context.key, context.window, contents, timestampedCollector);
+		context.onFire();
 	}
 
 	/**
@@ -588,25 +628,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * 					the window whose state to discard
 	 */
 	protected void registerCleanupTimer(W window) {
+		if (windowSerializer instanceof GlobalWindow.Serializer) {
+			return;
+		}
+
 		long cleanupTime = cleanupTime(window);
 		if (windowAssigner.isEventTime()) {
 			context.registerEventTimeTimer(cleanupTime);
 		} else {
 			context.registerProcessingTimeTimer(cleanupTime);
-		}
-	}
-
-	/**
-	 * Deletes the cleanup timer set for the contents of the provided window.
-	 * @param window
-	 * 					the window whose state to discard
-	 */
-	protected void deleteCleanupTimer(W window) {
-		long cleanupTime = cleanupTime(window);
-		if (windowAssigner.isEventTime()) {
-			context.deleteEventTimeTimer(cleanupTime);
-		} else {
-			context.deleteProcessingTimeTimer(cleanupTime);
 		}
 	}
 
@@ -701,7 +731,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			try {
 				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
-				throw new RuntimeException("Could not retrieve state", e);
+				throw new RuntimeException("Could not retrieve state.", e);
 			}
 		}
 
@@ -770,6 +800,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			if (watermarkTimers.remove(timer)) {
 				watermarkTimersQueue.remove(timer);
 			}
+		}
+
+		public void onFire() throws Exception {
+			trigger.onFire(window, this);
 		}
 
 		public TriggerResult onElement(StreamRecord<IN> element) throws Exception {
@@ -965,5 +999,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	@VisibleForTesting
 	public StateDescriptor<? extends AppendingState<IN, ACC>, ?> getStateDescriptor() {
 		return windowStateDescriptor;
+	}
+
+	@VisibleForTesting
+	public Tuple2<Integer, Integer> getNumberOfTimers() {
+		return new Tuple2<>(this.watermarkTimers.size(), this.processingTimeTimers.size());
 	}
 }

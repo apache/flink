@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.triggerdsl.DslTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.triggerdsl.DslTriggerRunner;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
@@ -50,6 +52,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class WindowingTestHarness<K, IN, W extends Window> {
 
+	private final WindowOperator<K, IN, Iterable<IN>, IN, W> operator;
+
 	private final TestTimeServiceProvider timeServiceProvider;
 
 	private final OneInputStreamOperatorTestHarness<IN, IN> testHarness;
@@ -60,17 +64,26 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 
 	public WindowingTestHarness(ExecutionConfig executionConfig,
 								WindowAssigner<? super IN, W> windowAssigner,
+								KeySelector<IN, K> keySelector,
 								TypeInformation<K> keyType,
 								TypeInformation<IN> inputType,
+								DslTrigger<? super IN, W> trigger,
+								long allowedLateness) {
+		this(executionConfig, windowAssigner, keySelector, keyType, inputType, new DslTriggerRunner<>(trigger), allowedLateness);
+	}
+
+	public WindowingTestHarness(ExecutionConfig executionConfig,
+								WindowAssigner<? super IN, W> windowAssigner,
 								KeySelector<IN, K> keySelector,
+								TypeInformation<K> keyType,
+								TypeInformation<IN> inputType,
 								Trigger<? super IN, ? super W> trigger,
 								long allowedLateness) {
 
 		ListStateDescriptor<IN> windowStateDesc =
 				new ListStateDescriptor<>("window-contents", inputType.createSerializer(executionConfig));
 
-		WindowOperator<K, IN, Iterable<IN>, IN, W> operator =
-			new WindowOperator<>(
+		operator = new WindowOperator<>(
 				windowAssigner,
 				windowAssigner.getWindowSerializer(executionConfig),
 				keySelector,
@@ -86,11 +99,14 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, executionConfig, timeServiceProvider, keySelector, keyType);
 	}
 
+	public WindowOperator getOperator() {
+		return this.operator;
+	}
+
 	/**
 	 * Simulates the processing of a new incoming element.
 	 */
 	public void processElement(IN element, long timestamp) throws Exception {
-		openOperator();
 		testHarness.processElement(new StreamRecord<>(element, timestamp));
 	}
 
@@ -98,7 +114,6 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 	 * Simulates the processing of a new incoming watermark.
 	 */
 	public void processWatermark(long timestamp) throws Exception {
-		openOperator();
 		testHarness.processWatermark(new Watermark(timestamp));
 	}
 
@@ -107,7 +122,6 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 	 * This is useful when working on processing time.
 	 */
 	public void setProcessingTime(long timestamp) throws Exception {
-		openOperator();
 		timeServiceProvider.setCurrentTime(timestamp);
 	}
 
@@ -128,6 +142,10 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 			testHarness.close();
 			isOpen = false;
 		}
+	}
+
+	public void dispose() throws Exception {
+		close();
 	}
 
 	/**
@@ -180,10 +198,9 @@ public class WindowingTestHarness<K, IN, W extends Window> {
 
 		testHarness.setup();
 		testHarness.restore(stateHandle);
-		openOperator();
 	}
 
-	private void openOperator() throws Exception {
+	public void open() throws Exception {
 		if (!isOpen) {
 			testHarness.open();
 			isOpen = true;
