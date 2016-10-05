@@ -16,26 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+
+import java.io.File;
 
 /**
- * Interface to access {@link TaskManager} information.
+ * TaskManagerRuntimeInfo implementation for testing purposes
  */
-public interface TaskManagerRuntimeInfo {
+public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 
-	/**
-	 * Gets the configuration that the TaskManager was started with.
-	 *
-	 * @return The configuration that the TaskManager was started with.
-	 */
-	Configuration getConfiguration();
+	private final Configuration configuration;
+	private final String[] tmpDirectories;
 
-	/**
-	 * Gets the list of temporary file directories.
-	 * 
-	 * @return The list of temporary file directories.
-	 */
-	String[] getTmpDirectories();
+	public TestingTaskManagerRuntimeInfo() {
+		this(new Configuration(), System.getProperty("java.io.tmpdir").split(",|" + File.pathSeparator));
+	}
+
+	public TestingTaskManagerRuntimeInfo(Configuration configuration, String[] tmpDirectories) {
+		this.configuration = configuration;
+		this.tmpDirectories = tmpDirectories;
+	}
+
+	@Override
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
+	@Override
+	public String[] getTmpDirectories() {
+		return tmpDirectories;
+	}
 }
