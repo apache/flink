@@ -19,7 +19,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -27,7 +26,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.OperatorStateStore;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -66,8 +64,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		ResultTypeQueryable<T>,
 		CheckpointedFunction {
 	private static final long serialVersionUID = -6272159445203409112L;
-
-	private static final String KAFKA_OFFSETS = "kafka_offsets";
 
 	protected static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumerBase.class);
 	
@@ -130,9 +126,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		checkArgument(topics.size() > 0, "You have to define at least one topic.");
 
 		this.deserializer = checkNotNull(deserializer, "valueDeserializer");
-
-		TypeInformation<Tuple2<KafkaTopicPartition, Long>> typeInfo =
-				TypeInformation.of(new TypeHint<Tuple2<KafkaTopicPartition, Long>>(){});
 	}
 
 	/**
@@ -314,13 +307,13 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	//  Checkpoint and restore
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public void initializeState(OperatorStateStore stateStore) throws Exception {
 
 		this.stateStore = stateStore;
 
-		ListState<Serializable> offsets = stateStore.getPartitionableState(ListCheckpointed.DEFAULT_LIST_DESCRIPTOR);
+		ListState<Serializable> offsets =
+				stateStore.getDefaultPartitionableState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
 
 		restoreToOffset = new HashMap<>();
 
@@ -339,8 +332,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			LOG.debug("storeOperatorState() called on closed source");
 		} else {
 
-			ListState<Serializable> listState = stateStore.getPartitionableState(ListCheckpointed.DEFAULT_LIST_DESCRIPTOR);
-
+			ListState<Serializable> listState =
+					stateStore.getDefaultPartitionableState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
 			listState.clear();
 
 			final AbstractFetcher<?, ?> fetcher = this.kafkaFetcher;

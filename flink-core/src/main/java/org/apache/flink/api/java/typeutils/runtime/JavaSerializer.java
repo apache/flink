@@ -22,15 +22,24 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 public class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
+
+	private final ClassLoader userClassLoader;
+
+	public JavaSerializer() {
+		this(Thread.currentThread().getContextClassLoader());
+	}
+
+	public JavaSerializer(ClassLoader userClassLoader) {
+		this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
+	}
 
 	@Override
 	public boolean isImmutableType() {
@@ -69,21 +78,15 @@ public class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
-		ObjectOutputStream oos = new ObjectOutputStream(new DataOutputViewStream(target));
-		oos.writeObject(record);
-		oos.flush();
+		InstantiationUtil.serializeObject(new DataOutputViewStream(target), record);
 	}
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(source));
-
 		try {
-			@SuppressWarnings("unchecked")
-			T nfa = (T) ois.readObject();
-			return nfa;
+			return InstantiationUtil.deserializeObject(new DataInputViewStream(source), userClassLoader);
 		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Could not deserialize NFA.", e);
+			throw new IOException("Could not deserialize object.", e);
 		}
 	}
 
@@ -101,7 +104,7 @@ public class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj instanceof JavaSerializer && ((JavaSerializer<T>) obj).canEqual(this);
+		return obj instanceof JavaSerializer && userClassLoader.equals(((JavaSerializer<T>) obj).userClassLoader);
 	}
 
 	@Override

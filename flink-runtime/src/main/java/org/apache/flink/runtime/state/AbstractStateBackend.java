@@ -83,7 +83,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			Environment env,
 			String operatorIdentifier
 	) throws Exception {
-		return new DefaultOperatorStateBackend();
+		return new DefaultOperatorStateBackend(env.getUserClassLoader());
 	}
 
 	/**
@@ -95,6 +95,6 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			String operatorIdentifier,
 			Collection<OperatorStateHandle> restoreSnapshots
 	) throws Exception {
-		return new DefaultOperatorStateBackend(restoreSnapshots);
+		return new DefaultOperatorStateBackend(env.getUserClassLoader(), restoreSnapshots);
 	}
 }

@@ -30,6 +30,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStateStore;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -70,7 +71,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	/** Flag to prevent duplicate function.close() calls in close() and dispose() */
 	private transient boolean functionsClosed = false;
 	
-	
 	public AbstractUdfStreamOperator(F userFunction) {
 		this.userFunction = requireNonNull(userFunction);
 	}
@@ -107,8 +107,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 			@SuppressWarnings("unchecked")
 			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
 
-			ListState<Serializable> listState =
-					getOperatorStateBackend().getPartitionableState(ListCheckpointed.DEFAULT_LIST_DESCRIPTOR);
+			ListState<Serializable> listState = getOperatorStateBackend().
+					getDefaultPartitionableState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
 
 			List<Serializable> list = new ArrayList<>();
 
@@ -201,8 +201,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 			List<Serializable> partitionableState =
 					((ListCheckpointed<Serializable>) userFunction).snapshotState(checkpointId, timestamp);
 
-			ListState<Serializable> listState =
-					getOperatorStateBackend().getPartitionableState(ListCheckpointed.DEFAULT_LIST_DESCRIPTOR);
+			ListState<Serializable> listState = getOperatorStateBackend().
+					getDefaultPartitionableState(OperatorStateStore.DEFAULT_OPERATOR_STATE_NAME);
 
 			listState.clear();
 
