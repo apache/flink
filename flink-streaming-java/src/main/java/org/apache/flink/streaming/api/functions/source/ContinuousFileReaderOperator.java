@@ -319,14 +319,19 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 			} catch (Throwable e) {
 				if (isRunning) {
-					LOG.error("Caught exception processing split: ", currentSplit);
+					LOG.error("Caught exception processing split: {}", currentSplit);
 				}
 				getContainingTask().failExternally(e);
 			} finally {
 				synchronized (checkpointLock) {
 					LOG.info("Reader terminated, and exiting...");
 
-					this.format.closeInputFormat();
+					try {
+						this.format.closeInputFormat();
+					} catch (IOException e) {
+						LOG.error("Caught exception from {}.closeInputFormat() : ",
+							this.format.getClass().getName(), e.getMessage());
+					}
 					this.isSplitOpen = false;
 					this.currentSplit = null;
 					this.isRunning = false;
