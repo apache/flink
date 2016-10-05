@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.java.typeutils.runtime.JavaSerializer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.Test;
 
@@ -31,13 +32,21 @@ import java.util.Iterator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class OperatorStateBackendTest {
 
 	AbstractStateBackend abstractStateBackend = new MemoryStateBackend(1024);
 
+	static Environment createMockEnvironment() {
+		Environment env = mock(Environment.class);
+		when(env.getUserClassLoader()).thenReturn(Thread.currentThread().getContextClassLoader());
+		return env;
+	}
+
 	private OperatorStateBackend createNewOperatorStateBackend() throws Exception {
-		return abstractStateBackend.createOperatorStateBackend(null, "test-operator");
+		return abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "test-operator");
 	}
 
 	@Test
@@ -123,8 +132,8 @@ public class OperatorStateBackendTest {
 
 			operatorStateBackend.dispose();
 
-			operatorStateBackend = abstractStateBackend.
-					restoreOperatorStateBackend(null, "testOperator", Collections.singletonList(stateHandle));
+			operatorStateBackend = abstractStateBackend.restoreOperatorStateBackend(
+					createMockEnvironment(), "testOperator", Collections.singletonList(stateHandle));
 
 			assertEquals(0, operatorStateBackend.getRegisteredStateNames().size());
 

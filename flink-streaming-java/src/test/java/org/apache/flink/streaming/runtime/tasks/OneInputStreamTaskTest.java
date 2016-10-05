@@ -39,12 +39,12 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -632,8 +632,10 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 			assertNotNull(in);
 
-			Serializable functionState= InstantiationUtil.deserializeObject(in);
-			Integer operatorState= InstantiationUtil.deserializeObject(in);
+			ClassLoader cl = Thread.currentThread().getContextClassLoader();
+
+			Serializable functionState= InstantiationUtil.deserializeObject(in, cl);
+			Integer operatorState= InstantiationUtil.deserializeObject(in, cl);
 
 			assertEquals(random.nextInt(), functionState);
 			assertEquals(random.nextInt(), (int) operatorState);
