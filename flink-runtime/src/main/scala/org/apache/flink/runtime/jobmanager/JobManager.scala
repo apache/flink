@@ -1221,7 +1221,8 @@ class JobManager(
           Option(jobGraph.getSerializedExecutionConfig()
             .deserializeValue(userCodeLoader)
             .getRestartStrategy())
-            .map(RestartStrategyFactory.createRestartStrategy) match {
+            .map(RestartStrategyFactory.createRestartStrategy)
+            .filter(p => p != null) match {
             case Some(strategy) => strategy
             case None => restartStrategyFactory.createRestartStrategy()
           }
@@ -1534,7 +1535,7 @@ class JobManager(
       case _ => unhandled(actorMsg)
     }
   }
-  
+
   /**
    * Handle unmatched messages with an exception.
    */
@@ -2607,7 +2608,7 @@ object JobManager {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)
       case None => actorSystem.actorOf(jobManagerProps)
     }
-    
+
     metricsRegistry match {
       case Some(registry) =>
         registry.startQueryService(actorSystem, null)
