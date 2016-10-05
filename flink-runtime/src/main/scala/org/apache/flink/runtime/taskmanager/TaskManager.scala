@@ -148,7 +148,7 @@ class TaskManager(
   protected val bcVarManager = new BroadcastVariableManager()
 
   /** Handler for distributed files cached by this TaskManager */
-  protected val fileCache = new FileCache(config.getTmpDirPaths())
+  protected val fileCache = new FileCache(config.getTmpDirectories())
 
   private var taskManagerMetricGroup : TaskManagerMetricGroup = _
 
@@ -169,11 +169,6 @@ class TaskManager(
   private var heartbeatScheduler: Option[Cancellable] = None
 
   var leaderSessionID: Option[UUID] = None
-
-  private val runtimeInfo = new TaskManagerRuntimeInfo(
-       location.getHostname(),
-       new UnmodifiableConfiguration(config.getConfiguration()),
-       config.getTmpDirPaths())
 
   private var scheduledTaskManagerRegistration: Option[Cancellable] = None
   private var currentRegistrationRun: UUID = UUID.randomUUID()
@@ -975,7 +970,7 @@ class TaskManager(
     }
     
     taskManagerMetricGroup = 
-      new TaskManagerMetricGroup(metricsRegistry, this.runtimeInfo.getHostname, id.toString)
+      new TaskManagerMetricGroup(metricsRegistry, location.getHostname, id.toString)
     
     MetricUtils.instantiateStatusMetrics(taskManagerMetricGroup)
     MetricUtils.instantiateNetworkMetrics(taskManagerMetricGroup, network)
@@ -1181,7 +1176,7 @@ class TaskManager(
         checkpointResponder,
         libCache,
         fileCache,
-        runtimeInfo,
+        config,
         taskMetricGroup,
         resultPartitionConsumableNotifier,
         partitionStateChecker,

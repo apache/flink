@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -73,7 +72,6 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashSet;
@@ -129,9 +127,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	private final FileCache fileCache;
 
-	// TODO: Try to get rid of it
-	private final TaskManagerRuntimeInfo taskManagerRuntimeInfo;
-
 	// --------- resource manager --------
 
 	private TaskExecutorToResourceManagerConnection resourceManagerConnection;
@@ -179,10 +174,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.broadcastVariableManager = checkNotNull(broadcastVariableManager);
 		this.fileCache = checkNotNull(fileCache);
-		this.taskManagerRuntimeInfo = new TaskManagerRuntimeInfo(
-			taskManagerLocation.getHostname(),
-			new UnmodifiableConfiguration(taskManagerConfiguration.getConfiguration()),
-			taskManagerConfiguration.getTmpDirPaths());
 
 		this.jobManagerConnections = new HashMap<>(4);
 
@@ -333,7 +324,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				checkpointResponder,
 				libraryCache,
 				fileCache,
-				taskManagerRuntimeInfo,
+				taskManagerConfiguration,
 				taskMetricGroup,
 				resultPartitionConsumableNotifier,
 				partitionStateChecker,
