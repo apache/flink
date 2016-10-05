@@ -19,14 +19,12 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
-
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -55,6 +53,23 @@ public class OperatorGroupTest extends TestLogger {
 		assertEquals(
 				"theHostName.taskmanager.test-tm-id.myJobName.myOpName.11.name",
 				opGroup.getMetricIdentifier("name"));
+
+		registry.shutdown();
+	}
+
+	@Test
+	public void testIOMetricGroupInstantiation() {
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+
+		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
+		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
+		TaskMetricGroup taskGroup = new TaskMetricGroup(
+			registry, jmGroup, new AbstractID(), new AbstractID(), "aTaskName", 11, 0);
+		OperatorMetricGroup opGroup = new OperatorMetricGroup(registry, taskGroup, "myOpName");
+
+		assertNotNull(opGroup.getIOMetricGroup());
+		assertNotNull(opGroup.getIOMetricGroup().getNumRecordsInCounter());
+		assertNotNull(opGroup.getIOMetricGroup().getNumRecordsOutCounter());
 
 		registry.shutdown();
 	}

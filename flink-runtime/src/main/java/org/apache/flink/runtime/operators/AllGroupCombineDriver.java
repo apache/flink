@@ -94,8 +94,8 @@ public class AllGroupCombineDriver<IN, OUT> implements Driver<GroupCombineFuncti
 			LOG.debug("AllGroupCombine starting.");
 		}
 
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
 		final TypeSerializerFactory<IN> serializerFactory = this.taskContext.getInputSerializer(0);
 		TypeSerializer<IN> serializer = serializerFactory.getSerializer();
