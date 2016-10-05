@@ -64,14 +64,14 @@ public class Triplet <K, VV, EV> extends Tuple5<K, K, VV, VV, EV> {
 	}
 
 	public Vertex<K, VV> getSrcVertex() {
-		return new Vertex<K, VV>(this.f0, this.f2);
+		return new Vertex<>(this.f0, this.f2);
 	}
 
 	public Vertex<K, VV> getTrgVertex() {
-		return new Vertex<K, VV>(this.f1, this.f3);
+		return new Vertex<>(this.f1, this.f3);
 	}
 
 	public Edge<K, EV> getEdge() {
-		return new Edge<K, EV>(this.f0, this.f1, this.f4);
+		return new Edge<>(this.f0, this.f1, this.f4);
 	}
 }

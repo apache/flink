@@ -104,7 +104,7 @@ public class GraphCsvReader {
 	public <K, VV, EV> Graph<K, VV, EV> types(Class<K> vertexKey, Class<VV> vertexValue,
 			Class<EV> edgeValue) {
 
-		DataSet<Tuple2<K, VV>> vertices = null;
+		DataSet<Tuple2<K, VV>> vertices;
 
 		if (edgeReader == null) {
 			throw new RuntimeException("The edges input file cannot be null!");
@@ -160,9 +160,9 @@ public class GraphCsvReader {
 					private static final long serialVersionUID = -2981792951286476970L;
 
 					public Tuple3<K, K, NullValue> map(Tuple2<K, K> edge) {
-						return new Tuple3<K, K, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+						return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
 					}
-				}).withForwardedFields("f0;f1");;
+				}).withForwardedFields("f0;f1");
 
 		return Graph.fromTupleDataSet(edges, executionContext);
 	}
@@ -179,7 +179,7 @@ public class GraphCsvReader {
 	@SuppressWarnings({ "serial", "unchecked" })
 	public <K, VV> Graph<K, VV, NullValue> vertexTypes(Class<K> vertexKey, Class<VV> vertexValue) {
 		
-		DataSet<Tuple2<K, VV>> vertices = null;
+		DataSet<Tuple2<K, VV>> vertices;
 
 		if (edgeReader == null) {
 			throw new RuntimeException("The edges input file cannot be null!");
@@ -189,7 +189,7 @@ public class GraphCsvReader {
 				.map(new MapFunction<Tuple2<K,K>, Tuple3<K, K, NullValue>>() {
 
 					public Tuple3<K, K, NullValue> map(Tuple2<K, K> input) {
-						return new Tuple3<K, K, NullValue>(input.f0, input.f1, NullValue.getInstance());
+						return new Tuple3<>(input.f0, input.f1, NullValue.getInstance());
 					}
 				}).withForwardedFields("f0;f1");
 

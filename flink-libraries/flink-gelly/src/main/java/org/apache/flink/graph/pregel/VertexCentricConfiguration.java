@@ -37,7 +37,7 @@ import java.util.List;
 public class VertexCentricConfiguration extends IterationConfiguration {
 
 	/** the broadcast variables for the compute function **/
-	private List<Tuple2<String, DataSet<?>>> bcVars = new ArrayList<Tuple2<String,DataSet<?>>>();
+	private List<Tuple2<String, DataSet<?>>> bcVars = new ArrayList<>();
 
 	public VertexCentricConfiguration() {}
 

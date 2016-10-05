@@ -18,9 +18,10 @@
 
 package org.apache.flink.graph;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.java.DataSet;
+
+import java.io.Serializable;
 
 /**
  * Interface to be implemented by the transformation function
