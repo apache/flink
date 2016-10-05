@@ -30,9 +30,33 @@ public interface IndexedSortable {
 	int compare(int i, int j);
 
 	/**
+	 * Compare records at the given addresses consistent with the semantics of
+	 * {@link java.util.Comparator#compare(Object, Object)}.
+
+	 * @param segmentNumberI index of memory segment containing first record
+	 * @param segmentOffsetI offset into memory segment containing first record
+	 * @param segmentNumberJ index of memory segment containing second record
+	 * @param segmentOffsetJ offset into memory segment containing second record
+	 * @return a negative integer, zero, or a positive integer as the
+	 *         first argument is less than, equal to, or greater than the
+	 *         second.
+	 */
+	int compare(int segmentNumberI, int segmentOffsetI, int segmentNumberJ, int segmentOffsetJ);
+
+	/**
 	 * Swap items at the given addresses.
 	 */
 	void swap(int i, int j);
+
+	/**
+	 * Swap records at the given addresses.
+	 *
+	 * @param segmentNumberI index of memory segment containing first record
+	 * @param segmentOffsetI offset into memory segment containing first record
+	 * @param segmentNumberJ index of memory segment containing second record
+	 * @param segmentOffsetJ offset into memory segment containing second record
+	 */
+	void swap(int segmentNumberI, int segmentOffsetI, int segmentNumberJ, int segmentOffsetJ);
 
 	/**
 	 * Gets the number of elements in the sortable.
@@ -41,4 +65,18 @@ public interface IndexedSortable {
 	 */
 	int size();
 
+	/**
+	 * Gets the size of each record, the number of bytes separating the head
+	 * of successive records.
+	 *
+	 * @return The record size
+	 */
+	int recordSize();
+
+	/**
+	 * Gets the number of elements in each memory segment.
+	 *
+	 * @return The number of records per segment
+	 */
+	int recordsPerSegment();
 }
