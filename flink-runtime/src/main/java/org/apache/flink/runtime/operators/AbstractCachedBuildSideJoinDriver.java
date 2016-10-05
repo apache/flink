@@ -67,7 +67,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 	public void initialize() throws Exception {
 		TaskConfig config = this.taskContext.getTaskConfig();
 
-		final Counter numRecordsIn = taskContext.getMetricGroup().counter("numRecordsIn");
+		final Counter numRecordsIn = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
 		
 		TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
 		TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
@@ -169,7 +169,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 
 	@Override
 	public void run() throws Exception {
-		final Counter numRecordsOut = taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsOut = taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 		final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		

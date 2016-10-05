@@ -88,7 +88,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 	public void prepare() throws Exception{
 		final TaskConfig config = this.taskContext.getTaskConfig();
 
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
 		
 		// obtain task manager's memory manager and I/O manager
 		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
@@ -214,7 +214,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 
 	@Override
 	public void run() throws Exception {
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 		final FlatJoinFunction<IT1, IT2, OT> joinStub = this.taskContext.getStub();
 		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final JoinTaskIterator<IT1, IT2, OT> joinIterator = this.joinIterator;

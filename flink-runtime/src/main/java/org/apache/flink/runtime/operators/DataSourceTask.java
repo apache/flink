@@ -33,6 +33,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
@@ -102,7 +103,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
 		RuntimeContext ctx = createRuntimeContext();
 		Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
-		Counter numRecordsOut = ctx.getMetricGroup().counter("numRecordsOut");
+		Counter numRecordsOut = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().getNumRecordsOutCounter();
 
 		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 			((RichInputFormat) this.format).setRuntimeContext(ctx);

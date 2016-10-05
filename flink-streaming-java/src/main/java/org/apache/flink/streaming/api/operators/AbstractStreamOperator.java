@@ -38,6 +38,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -159,7 +160,7 @@ public abstract class AbstractStreamOperator<OUT>
 		this.config = config;
 		
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
-		this.output = new CountingOutput(output, this.metrics.counter("numRecordsOut"));
+		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
 		int historySize = taskManagerConfig.getInteger(ConfigConstants.METRICS_LATENCY_HISTORY_SIZE, ConfigConstants.DEFAULT_METRICS_LATENCY_HISTORY_SIZE);
 		if (historySize <= 0) {
