@@ -56,10 +56,14 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	private SyncEventHandler eventHandler;
 
 	private ConvergenceCriterion<Value> convergenceCriterion;
+
+	private ConvergenceCriterion<Value> defaultConvergenceCriterion;
 	
 	private Map<String, Aggregator<?>> aggregators;
 
 	private String convergenceAggregatorName;
+
+	private String defaultConvergenceAggregatorName;
 
 	private int currentIteration = 1;
 	
@@ -88,6 +92,13 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 			convergenceCriterion = taskConfig.getConvergenceCriterion(getUserCodeClassLoader());
 			convergenceAggregatorName = taskConfig.getConvergenceCriterionAggregatorName();
 			Preconditions.checkNotNull(convergenceAggregatorName);
+		}
+
+		// store the default aggregator convergence criterion
+		if (taskConfig.usesDefaultConvergenceCriterion()) {
+			defaultConvergenceCriterion = taskConfig.getDefaultConvergenceCriterion(getUserCodeClassLoader());
+			defaultConvergenceAggregatorName = taskConfig.getDefaultConvergenceCriterionAggregatorName();
+			Preconditions.checkNotNull(defaultConvergenceAggregatorName);
 		}
 		
 		maxNumberOfIterations = taskConfig.getNumberOfIterations();
@@ -171,6 +182,24 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("convergence reached after [" + currentIteration
 						+ "] iterations, terminating..."));
+				}
+				return true;
+			}
+		}
+
+		if (defaultConvergenceAggregatorName != null) {
+			@SuppressWarnings("unchecked")
+			Aggregator<Value> aggregator = (Aggregator<Value>) aggregators.get(defaultConvergenceAggregatorName);
+			if (aggregator == null) {
+				throw new RuntimeException("Error: Aggregator for default convergence criterion was null.");
+			}
+
+			Value aggregate = aggregator.getAggregate();
+
+			if (defaultConvergenceCriterion.isConverged(currentIteration, aggregate)) {
+				if (log.isInfoEnabled()) {
+					log.info(formatLogString("empty workset convergence reached after [" + currentIteration
+							+ "] iterations, terminating..."));
 				}
 				return true;
 			}

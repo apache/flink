@@ -37,6 +37,7 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -197,6 +198,10 @@ public class TaskConfig implements Serializable {
 	private static final String ITERATION_CONVERGENCE_CRITERION = "iterative.terminationCriterion";
 	
 	private static final String ITERATION_CONVERGENCE_CRITERION_AGG_NAME = "iterative.terminationCriterion.agg.name";
+
+	private static final String ITERATION_DEFAULT_CONVERGENCE_CRITERION = "iterative.default.terminationCriterion";
+
+	private static final String ITERATION_DEFAULT_CONVERGENCE_CRITERION_AGG_NAME = "iterative.default.terminationCriterion.agg.name";
 	
 	private static final String ITERATION_NUM_AGGREGATORS = "iterative.num-aggs";
 	
@@ -992,6 +997,21 @@ public class TaskConfig implements Serializable {
 		this.config.setString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
 	}
 
+	/**
+	 * Sets the default convergence criterion of a {@link DeltaIteration}
+	 *
+	 * @param aggregatorName
+	 * @param convCriterion
+	 */
+	public void setDefaultConvergenceCriterion(String aggregatorName, ConvergenceCriterion<?> convCriterion) {
+		try {
+			InstantiationUtil.writeObjectToConfig(convCriterion, this.config, ITERATION_DEFAULT_CONVERGENCE_CRITERION);
+		} catch (IOException e) {
+			throw new RuntimeException("Error while writing the default convergence criterion object to the task configuration.");
+		}
+		this.config.setString(ITERATION_DEFAULT_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
+	}
+
 	@SuppressWarnings("unchecked")
 	public <T extends Value> ConvergenceCriterion<T> getConvergenceCriterion(ClassLoader cl) {
 		ConvergenceCriterion<T> convCriterionObj = null;
@@ -1016,6 +1036,32 @@ public class TaskConfig implements Serializable {
 	
 	public String getConvergenceCriterionAggregatorName() {
 		return this.config.getString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, null);
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T extends Value> ConvergenceCriterion<T> getDefaultConvergenceCriterion(ClassLoader cl) {
+		ConvergenceCriterion<T> convCriterionObj;
+		try {
+			convCriterionObj = InstantiationUtil.readObjectFromConfig(
+					this.config, ITERATION_DEFAULT_CONVERGENCE_CRITERION, cl);
+		} catch (IOException e) {
+			throw new RuntimeException("Error while reading the default convergence criterion object from the task configuration.");
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("Error while reading the default convergence criterion object from the task configuration. " +
+					"ConvergenceCriterion class not found.");
+		}
+		if (convCriterionObj == null) {
+			throw new NullPointerException();
+		}
+		return convCriterionObj;
+	}
+
+	public boolean usesDefaultConvergenceCriterion() {
+		return config.getBytes(ITERATION_DEFAULT_CONVERGENCE_CRITERION, null) != null;
+	}
+
+	public String getDefaultConvergenceCriterionAggregatorName() {
+		return this.config.getString(ITERATION_DEFAULT_CONVERGENCE_CRITERION_AGG_NAME, null);
 	}
 	
 	public void setIsSolutionSetUpdate() {
