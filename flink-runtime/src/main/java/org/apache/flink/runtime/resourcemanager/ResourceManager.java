@@ -40,7 +40,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRejected;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
-import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.SlotAvailableReply;
 import org.apache.flink.runtime.resourcemanager.registration.JobMasterRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -337,34 +336,32 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/**
 	 * Notification from a TaskExecutor that a slot has become available
 	 * @param resourceManagerLeaderId TaskExecutor's resource manager leader id
-	 * @param resourceID TaskExecutor's resource id
 	 * @param instanceID TaskExecutor's instance id
 	 * @param slotID The slot id of the available slot
 	 * @return SlotAvailableReply
 	 */
 	@RpcMethod
-	public SlotAvailableReply notifySlotAvailable(
+	public void notifySlotAvailable(
 			final UUID resourceManagerLeaderId,
-			final ResourceID resourceID,
 			final InstanceID instanceID,
 			final SlotID slotID) {
 
 		if (resourceManagerLeaderId.equals(leaderSessionID)) {
-			WorkerRegistration<WorkerType> registration = taskExecutors.get(resourceID);
+			final ResourceID resourceId = slotID.getResourceID();
+			WorkerRegistration<WorkerType> registration = taskExecutors.get(resourceId);
+
 			if (registration != null) {
 				InstanceID registrationInstanceID = registration.getInstanceID();
 				if (registrationInstanceID.equals(instanceID)) {
 					runAsync(new Runnable() {
 						@Override
 						public void run() {
-							slotManager.notifySlotAvailable(resourceID, slotID);
+							slotManager.notifySlotAvailable(resourceId, slotID);
 						}
 					});
-					return new SlotAvailableReply(leaderSessionID, slotID);
 				}
 			}
 		}
-		return null;
 	}
 
 
