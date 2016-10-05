@@ -128,7 +128,7 @@ public class Task implements Runnable, TaskActions {
 	private final ExecutionAttemptID executionId;
 
 	/** ID which identifies the slot in which the task is supposed to run */
-	private final AllocationID allocationID;
+	private final AllocationID allocationId;
 
 	/** TaskInfo object for this task */
 	private final TaskInfo taskInfo;
@@ -265,7 +265,7 @@ public class Task implements Runnable, TaskActions {
 		this.jobId = checkNotNull(tdd.getJobID());
 		this.vertexId = checkNotNull(tdd.getVertexID());
 		this.executionId  = checkNotNull(tdd.getExecutionId());
-		this.allocationID = checkNotNull(tdd.getAllocationID());
+		this.allocationId = checkNotNull(tdd.getAllocationID());
 		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
 		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
 		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
@@ -370,8 +370,8 @@ public class Task implements Runnable, TaskActions {
 		return executionId;
 	}
 
-	public AllocationID getAllocationID() {
-		return allocationID;
+	public AllocationID getAllocationId() {
+		return allocationId;
 	}
 
 	public TaskInfo getTaskInfo() {

@@ -16,29 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.runtime.taskexecutor.slot;
 
-import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.util.Preconditions;
+import java.util.UUID;
 
 /**
- * Mapping between a {@link Task} and its {@link TaskSlot}.
+ * Listener for timeout events by the {@link TimerService}.
+ * @param <K> Type of the timeout key
  */
-public class TaskSlotMapping {
+public interface TimeoutListener<K> {
 
-	private final Task task;
-	private final TaskSlot taskSlot;
-
-	public TaskSlotMapping(Task task, TaskSlot taskSlot) {
-		this.task = Preconditions.checkNotNull(task);
-		this.taskSlot = Preconditions.checkNotNull(taskSlot);
-	}
-
-	public Task getTask() {
-		return task;
-	}
-
-	public TaskSlot getTaskSlot() {
-		return taskSlot;
-	}
+	/**
+	 * Notify the listener about the timeout for an event identified by key. Additionally the method
+	 * is called with the timeout ticket which allows to identify outdated timeout events.
+	 *
+	 * @param key identifying the timed out event
+	 * @param ticket used to check whether the timeout is still valid
+	 */
+	void notifyTimeout(K key, UUID ticket);
 }
