@@ -26,6 +26,7 @@ import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -52,47 +53,59 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 	public AggregatorConvergenceITCase(TestExecutionMode mode) {
 		super(mode);
 	}
-	
+
+	final List<Tuple2<Long, Long>> verticesInput = Arrays.asList(
+			new Tuple2<>(1l,1l),
+			new Tuple2<>(2l,2l),
+			new Tuple2<>(3l,3l),
+			new Tuple2<>(4l,4l),
+			new Tuple2<>(5l,5l),
+			new Tuple2<>(6l,6l),
+			new Tuple2<>(7l,7l),
+			new Tuple2<>(8l,8l),
+			new Tuple2<>(9l,9l)
+	);
+
+	final List<Tuple2<Long, Long>> edgesInput = Arrays.asList(
+			new Tuple2<>(1l,2l),
+			new Tuple2<>(1l,3l),
+			new Tuple2<>(2l,3l),
+			new Tuple2<>(2l,4l),
+			new Tuple2<>(2l,1l),
+			new Tuple2<>(3l,1l),
+			new Tuple2<>(3l,2l),
+			new Tuple2<>(4l,2l),
+			new Tuple2<>(4l,6l),
+			new Tuple2<>(5l,6l),
+			new Tuple2<>(6l,4l),
+			new Tuple2<>(6l,5l),
+			new Tuple2<>(7l,8l),
+			new Tuple2<>(7l,9l),
+			new Tuple2<>(8l,7l),
+			new Tuple2<>(8l,9l),
+			new Tuple2<>(9l,7l),
+			new Tuple2<>(9l,8l)
+	);
+
+	final List<Tuple2<Long, Long>> expectedResult = Arrays.asList(
+			new Tuple2<>(1L,1L),
+			new Tuple2<>(2L,1L),
+			new Tuple2<>(3L,1L),
+			new Tuple2<>(4L,1L),
+			new Tuple2<>(5L,2L),
+			new Tuple2<>(6L,1L),
+			new Tuple2<>(7L,7L),
+			new Tuple2<>(8L,7L),
+			new Tuple2<>(9L,7L)
+	);
+
 	@Test
-	public void testConnectedComponentsWithParametrizableConvergence() {
-		try {
-			List<Tuple2<Long, Long>> verticesInput = Arrays.asList(
-					new Tuple2<Long, Long>(1l,1l),
-					new Tuple2<Long, Long>(2l,2l),
-					new Tuple2<Long, Long>(3l,3l),
-					new Tuple2<Long, Long>(4l,4l),
-					new Tuple2<Long, Long>(5l,5l),
-					new Tuple2<Long, Long>(6l,6l),
-					new Tuple2<Long, Long>(7l,7l),
-					new Tuple2<Long, Long>(8l,8l),
-					new Tuple2<Long, Long>(9l,9l)
-			);
-			
-			List<Tuple2<Long, Long>> edgesInput = Arrays.asList(
-					new Tuple2<Long, Long>(1l,2l),
-					new Tuple2<Long, Long>(1l,3l),
-					new Tuple2<Long, Long>(2l,3l),
-					new Tuple2<Long, Long>(2l,4l),
-					new Tuple2<Long, Long>(2l,1l),
-					new Tuple2<Long, Long>(3l,1l),
-					new Tuple2<Long, Long>(3l,2l),
-					new Tuple2<Long, Long>(4l,2l),
-					new Tuple2<Long, Long>(4l,6l),
-					new Tuple2<Long, Long>(5l,6l),
-					new Tuple2<Long, Long>(6l,4l),
-					new Tuple2<Long, Long>(6l,5l),
-					new Tuple2<Long, Long>(7l,8l),
-					new Tuple2<Long, Long>(7l,9l),
-					new Tuple2<Long, Long>(8l,7l),
-					new Tuple2<Long, Long>(8l,9l),
-					new Tuple2<Long, Long>(9l,7l),
-					new Tuple2<Long, Long>(9l,8l)
-			);
+	public void testConnectedComponentsWithParametrizableConvergence() throws Exception {
 
 			// name of the aggregator that checks for convergence
 			final String UPDATED_ELEMENTS = "updated.elements.aggr";
 
-			// the iteration stops if less than this number os elements change value
+			// the iteration stops if less than this number of elements change value
 			final long convergence_threshold = 3;
 
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -100,8 +113,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
 			DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
 
-			IterativeDataSet<Tuple2<Long, Long>> iteration =
-					initialSolutionSet.iterate(10);
+			IterativeDataSet<Tuple2<Long, Long>> iteration = initialSolutionSet.iterate(10);
 
 			// register the convergence criterion
 			iteration.registerAggregationConvergenceCriterion(UPDATED_ELEMENTS,
@@ -117,62 +129,47 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 
 			List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId).collect();
 			Collections.sort(result, new JavaProgramTestBase.TupleComparator<Tuple2<Long, Long>>());
-
-			List<Tuple2<Long, Long>> expectedResult = Arrays.asList(
-					new Tuple2<Long, Long>(1L,1L),
-					new Tuple2<Long, Long>(2L,1L),
-					new Tuple2<Long, Long>(3L,1L),
-					new Tuple2<Long, Long>(4L,1L),
-					new Tuple2<Long, Long>(5L,2L),
-					new Tuple2<Long, Long>(6L,1L),
-					new Tuple2<Long, Long>(7L,7L),
-					new Tuple2<Long, Long>(8L,7L),
-					new Tuple2<Long, Long>(9L,7L)
-			);
 			
 			assertEquals(expectedResult, result);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	}
+
+	@Test
+	public void testDeltaConnectedComponentsWithParametrizableConvergence() throws Exception {
+
+			// name of the aggregator that checks for convergence
+			final String UPDATED_ELEMENTS = "updated.elements.aggr";
+
+			// the iteration stops if less than this number of elements change value
+			final long convergence_threshold = 3;
+
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+			DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
+			DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
+
+			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+					initialSolutionSet.iterateDelta(initialSolutionSet, 10, 0);
+
+			// register the convergence criterion
+			iteration.registerAggregationConvergenceCriterion(UPDATED_ELEMENTS,
+					new LongSumAggregator(), new UpdatedElementsConvergenceCriterion(convergence_threshold));
+
+			DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.getWorkset().join(edges).where(0).equalTo(0)
+					.with(new NeighborWithComponentIDJoin())
+					.groupBy(0).min(1);
+
+			DataSet<Tuple2<Long, Long>> updatedComponentId =
+					verticesWithNewComponents.join(iteration.getSolutionSet()).where(0).equalTo(0)
+							.flatMap(new MinimumIdFilter(UPDATED_ELEMENTS));
+
+			List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId, updatedComponentId).collect();
+			Collections.sort(result, new JavaProgramTestBase.TupleComparator<Tuple2<Long, Long>>());
+
+			assertEquals(expectedResult, result);
 	}
 	
 	@Test
-	public void testParameterizableAggregator() {
-		try {
-			List<Tuple2<Long, Long>> verticesInput = Arrays.asList(
-				new Tuple2<Long, Long>(1l,1l),
-				new Tuple2<Long, Long>(2l,2l),
-				new Tuple2<Long, Long>(3l,3l),
-				new Tuple2<Long, Long>(4l,4l),
-				new Tuple2<Long, Long>(5l,5l),
-				new Tuple2<Long, Long>(6l,6l),
-				new Tuple2<Long, Long>(7l,7l),
-				new Tuple2<Long, Long>(8l,8l),
-				new Tuple2<Long, Long>(9l,9l)
-			);
-			
-			List<Tuple2<Long, Long>> edgesInput = Arrays.asList(
-					new Tuple2<>(1l,2l),
-					new Tuple2<>(1l,3l),
-					new Tuple2<>(2l,3l),
-					new Tuple2<>(2l,4l),
-					new Tuple2<>(2l,1l),
-					new Tuple2<>(3l,1l),
-					new Tuple2<>(3l,2l),
-					new Tuple2<>(4l,2l),
-					new Tuple2<>(4l,6l),
-					new Tuple2<>(5l,6l),
-					new Tuple2<>(6l,4l),
-					new Tuple2<>(6l,5l),
-					new Tuple2<>(7l,8l),
-					new Tuple2<>(7l,9l),
-					new Tuple2<>(8l,7l),
-					new Tuple2<>(8l,9l),
-					new Tuple2<>(9l,7l),
-					new Tuple2<>(9l,8l)
-			);
+	public void testParameterizableAggregator() throws Exception {
 
 			final int MAX_ITERATIONS = 5;
 			final String AGGREGATOR_NAME = "elements.in.component.aggregator";
@@ -213,7 +210,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 					new Tuple2<>(9L,7L)
 			);
 
-			// checkpogram result
+			// check program result
 			assertEquals(expectedResult, result);
 
 			// check aggregators
@@ -226,11 +223,6 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			assertEquals(4, aggr_values[1]);
 			assertEquals(5, aggr_values[2]);
 			assertEquals(6, aggr_values[3]);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 	}
 	
 	// ------------------------------------------------------------------------
