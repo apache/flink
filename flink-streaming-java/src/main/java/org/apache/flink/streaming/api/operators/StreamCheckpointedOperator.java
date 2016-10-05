@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 @Deprecated
@@ -45,8 +44,8 @@ public interface StreamCheckpointedOperator {
 	 * This method restores the operator state (if the operator is stateful) and the key/value state
 	 * (if it had been used and was initialized when the snapshot occurred).
 	 *
-	 * <p>This method is called after {@link #setup(StreamTask, StreamConfig, Output)}
-	 * and before {@link #open()}.
+	 * <p>This method is called after {@link StreamOperator#setup(StreamTask, StreamConfig, Output)}
+	 * and before {@link StreamOperator#open()}.
 	 *
 	 * @param in The stream from which we have to restore our state.
 	 *

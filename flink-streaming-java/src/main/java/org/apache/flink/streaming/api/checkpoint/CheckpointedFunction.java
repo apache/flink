@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.checkpoint;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.runtime.state.OperatorStateStore;
+import org.apache.flink.api.common.state.OperatorStateStore;
 
 /**
  *
@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.OperatorStateStore;
  * repartitionable state that needs to be checkpointed. Methods from this interface are called upon checkpointing and
  * restoring of state.
  *
- * On #initializeState the implementing class receives the {@link org.apache.flink.runtime.state.OperatorStateStore}
+ * On #initializeState the implementing class receives the {@link OperatorStateStore}
  * to store it's state. At least before each snapshot, all state persistent state must be stored in the state store.
  *
  * When the backend is received for initialization, the user registers states with the backend via

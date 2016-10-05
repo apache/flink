@@ -85,7 +85,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
  *
  * The life cycle of the task is set up as follows:
  * <pre>{@code
- *  -- getPartitionableState() -> restores state of all operators in the chain
+ *  -- getOperatorState() -> restores state of all operators in the chain
  *
  *  -- invoke()
  *        |

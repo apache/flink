@@ -22,7 +22,7 @@ import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.OperatorStateStore;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -98,7 +98,7 @@ public class FlinkKafkaConsumerBaseTest {
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(fetcher, new LinkedMap(), false);
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
-		when(operatorStateStore.getPartitionableState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
+		when(operatorStateStore.getOperatorState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		consumer.prepareSnapshot(17L, 17L);
 
@@ -121,10 +121,10 @@ public class FlinkKafkaConsumerBaseTest {
 
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
 
-		when(operatorStateStore.getDefaultPartitionableState(Matchers.any(String.class))).thenReturn(expectedState);
+		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(expectedState);
 		consumer.initializeState(operatorStateStore);
 
-		when(operatorStateStore.getDefaultPartitionableState(Matchers.any(String.class))).thenReturn(listState);
+		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
 
 		consumer.prepareSnapshot(17L, 17L);
 
@@ -153,7 +153,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 		TestingListState<Serializable> listState = new TestingListState<>();
-		when(operatorStateStore.getDefaultPartitionableState(Matchers.any(String.class))).thenReturn(listState);
+		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
 
 		consumer.initializeState(operatorStateStore);
 		consumer.prepareSnapshot(17L, 17L);
@@ -190,7 +190,7 @@ public class FlinkKafkaConsumerBaseTest {
 		TestingListState<Serializable> listState2 = new TestingListState<>();
 		TestingListState<Serializable> listState3 = new TestingListState<>();
 
-		when(backend.getDefaultPartitionableState(Matchers.any(String.class))).
+		when(backend.getSerializableListState(Matchers.any(String.class))).
 				thenReturn(listState1, listState1, listState2, listState3);
 
 		consumer.initializeState(backend);
@@ -252,7 +252,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
-		when(operatorStateStore.getPartitionableState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
+		when(operatorStateStore.getOperatorState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		// create 500 snapshots
 		for (int i = 100; i < 600; i++) {

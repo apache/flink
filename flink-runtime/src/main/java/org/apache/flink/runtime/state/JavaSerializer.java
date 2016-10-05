@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils.runtime;
+package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
+import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
@@ -27,9 +30,9 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.io.Serializable;
 
-public class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
-
-	private static final long serialVersionUID = 1L;
+@SuppressWarnings("serial")
+@Internal
+final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	private final ClassLoader userClassLoader;
 

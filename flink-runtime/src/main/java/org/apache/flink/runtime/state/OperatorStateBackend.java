@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.OperatorStateStore;
+
 import java.io.Closeable;
 
 /**

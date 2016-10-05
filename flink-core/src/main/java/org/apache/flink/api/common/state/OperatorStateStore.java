@@ -16,41 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
-
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.java.typeutils.runtime.JavaSerializer;
+package org.apache.flink.api.common.state;
 
 import java.io.Serializable;
 import java.util.Set;
 
 /**
- * Interface for a backend that manages partitionable operator state.
+ * Interface for a backend that manages operator state.
  */
 public interface OperatorStateStore {
 
-	String DEFAULT_OPERATOR_STATE_NAME = "";
+	String DEFAULT_OPERATOR_STATE_NAME = "_default_";
 
 	/**
-	 * Creates a satte descriptor of the given name that uses {@link JavaSerializer}.
+	 * Creates a state descriptor of the given name that uses Java serialization to persist the
+	 * state.
+	 * 
+	 * <p>This is a simple convenience method. For more flexibility on how state serialization
+	 * should happen, use the {@link #getOperatorState(ListStateDescriptor)} method.
 	 *
 	 * @param stateName The name of state to create
-	 * @return A state descriptor that uses {@link JavaSerializer}
+	 * @return A list state using Java serialization to serialize state objects.
 	 * @throws Exception
 	 */
-	ListState<Serializable> getDefaultPartitionableState(String stateName) throws Exception;
+	ListState<Serializable> getSerializableListState(String stateName) throws Exception;
 
 	/**
-	 * Creates (or restores) the partitionable state in this backend. Each state is registered under a unique name.
+	 * Creates (or restores) a list state. Each state is registered under a unique name.
 	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
 	 *
-	 * @param stateDescriptor The descriptr for this state, providing a name and serializer
+	 * @param stateDescriptor The descriptor for this state, providing a name and serializer.
 	 * @param <S> The generic type of the state
+	 * 
 	 * @return A list for all state partitions.
 	 * @throws Exception
 	 */
-	<S> ListState<S> getPartitionableState(ListStateDescriptor<S> stateDescriptor) throws Exception;
+	<S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception;
 
 	/**
 	 * Returns a set with the names of all currently registered states.
