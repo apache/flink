@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -75,7 +76,8 @@ public class TaskManagerGroupTest extends TestLogger {
 		final ExecutionAttemptID execution21 = new ExecutionAttemptID();
 
 		TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
-			jid1, 
+			jid1,
+			new AllocationID(),
 			jobName1, 
 			vertex11, 
 			execution11, 
@@ -91,6 +93,7 @@ public class TaskManagerGroupTest extends TestLogger {
 
 		TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
 			jid1,
+			new AllocationID(),
 			jobName1,
 			vertex12,
 			execution12,
@@ -106,6 +109,7 @@ public class TaskManagerGroupTest extends TestLogger {
 
 		TaskDeploymentDescriptor tdd3 = new TaskDeploymentDescriptor(
 			jid2,
+			new AllocationID(),
 			jobName2,
 			vertex21,
 			execution21,
@@ -121,6 +125,7 @@ public class TaskManagerGroupTest extends TestLogger {
 
 		TaskDeploymentDescriptor tdd4 = new TaskDeploymentDescriptor(
 			jid1,
+			new AllocationID(),
 			jobName1,
 			vertex13,
 			execution13,
@@ -192,6 +197,7 @@ public class TaskManagerGroupTest extends TestLogger {
 
 		TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(
 			jid1,
+			new AllocationID(),
 			jobName1,
 			vertex11,
 			execution11,
@@ -207,6 +213,7 @@ public class TaskManagerGroupTest extends TestLogger {
 
 		TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(
 			jid1,
+			new AllocationID(),
 			jobName1,
 			vertex12,
 			execution12,
@@ -222,6 +229,7 @@ public class TaskManagerGroupTest extends TestLogger {
 
 		TaskDeploymentDescriptor tdd3 = new TaskDeploymentDescriptor(
 			jid2,
+			new AllocationID(),
 			jobName2,
 			vertex21,
 			execution21,

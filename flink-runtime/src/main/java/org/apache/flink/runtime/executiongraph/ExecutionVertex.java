@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -666,6 +667,7 @@ public class ExecutionVertex {
 
 		return new TaskDeploymentDescriptor(
 			getJobId(),
+			new AllocationID(), // TODO: Obtain the proper allocation id from the slot
 			getExecutionGraph().getJobName(),
 			getJobvertexId(),
 			executionId,

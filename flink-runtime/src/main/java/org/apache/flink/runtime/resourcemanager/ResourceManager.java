@@ -188,7 +188,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		} else {
 			try {
 				LeaderRetrievalService jobMasterLeaderRetriever =
-					highAvailabilityServices.getJobManagerLeaderRetriever(jobID);
+					highAvailabilityServices.getJobManagerLeaderRetriever(jobID, jobMasterAddress);
 				jobIdLeaderListener = new JobIdLeaderListener(jobID, jobMasterLeaderRetriever);
 			} catch (Exception e) {
 				log.warn("Failed to start JobMasterLeaderRetriever for JobID {}", jobID);
