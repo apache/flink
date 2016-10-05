@@ -140,7 +140,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 					}
 				}
 
-				Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getOffsets(partitionsWithNoOffset);
+				Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getCommittedOffsets(partitionsWithNoOffset);
 				for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
 					Long zkOffset = zkOffsets.get(partition.getKafkaTopicPartition());
 					if (zkOffset != null) {
@@ -326,10 +326,11 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void commitSpecificOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
+	public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
 		ZookeeperOffsetHandler zkHandler = this.zookeeperOffsetHandler;
 		if (zkHandler != null) {
-			zkHandler.writeOffsets(offsets);
+			// the ZK handler takes care of incrementing the offsets by 1 before committing
+			zkHandler.prepareAndCommitOffsets(offsets);
 		}
 
 		// Set committed offsets in topic partition state

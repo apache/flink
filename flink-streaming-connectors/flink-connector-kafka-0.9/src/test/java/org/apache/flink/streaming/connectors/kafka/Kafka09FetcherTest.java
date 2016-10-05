@@ -143,7 +143,7 @@ public class Kafka09FetcherTest {
 			@Override
 			public void run() {
 				try {
-					fetcher.commitSpecificOffsetsToKafka(testCommitData);
+					fetcher.commitInternalOffsetsToKafka(testCommitData);
 				} catch (Throwable t) {
 					commitError.set(t);
 				}
@@ -259,14 +259,14 @@ public class Kafka09FetcherTest {
 
 		// ----- trigger the first offset commit -----
 
-		fetcher.commitSpecificOffsetsToKafka(testCommitData1);
+		fetcher.commitInternalOffsetsToKafka(testCommitData1);
 		Map<TopicPartition, OffsetAndMetadata> result1 = commitStore.take();
 
 		for (Entry<TopicPartition, OffsetAndMetadata> entry : result1.entrySet()) {
 			TopicPartition partition = entry.getKey();
 			if (partition.topic().equals("test")) {
 				assertEquals(42, partition.partition());
-				assertEquals(11L, entry.getValue().offset());
+				assertEquals(12L, entry.getValue().offset());
 			}
 			else if (partition.topic().equals("another")) {
 				assertEquals(99, partition.partition());
@@ -276,14 +276,14 @@ public class Kafka09FetcherTest {
 
 		// ----- trigger the second offset commit -----
 
-		fetcher.commitSpecificOffsetsToKafka(testCommitData2);
+		fetcher.commitInternalOffsetsToKafka(testCommitData2);
 		Map<TopicPartition, OffsetAndMetadata> result2 = commitStore.take();
 
 		for (Entry<TopicPartition, OffsetAndMetadata> entry : result2.entrySet()) {
 			TopicPartition partition = entry.getKey();
 			if (partition.topic().equals("test")) {
 				assertEquals(42, partition.partition());
-				assertEquals(19L, entry.getValue().offset());
+				assertEquals(20L, entry.getValue().offset());
 			}
 			else if (partition.topic().equals("another")) {
 				assertEquals(99, partition.partition());

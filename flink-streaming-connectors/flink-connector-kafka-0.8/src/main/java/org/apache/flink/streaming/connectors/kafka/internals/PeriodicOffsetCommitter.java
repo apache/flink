@@ -64,12 +64,10 @@ public class PeriodicOffsetCommitter extends Thread {
 				// create copy a deep copy of the current offsets
 				HashMap<KafkaTopicPartition, Long> offsetsToCommit = new HashMap<>(partitionStates.length);
 				for (KafkaTopicPartitionState<?> partitionState : partitionStates) {
-					// the offset to commit is incremented by 1 because offsets
-					// in ZK need to represent "the next record to process"
-					offsetsToCommit.put(partitionState.getKafkaTopicPartition(), partitionState.getOffset() + 1);
+					offsetsToCommit.put(partitionState.getKafkaTopicPartition(), partitionState.getOffset());
 				}
 				
-				offsetHandler.writeOffsets(offsetsToCommit);
+				offsetHandler.prepareAndCommitOffsets(offsetsToCommit);
 			}
 		}
 		catch (Throwable t) {

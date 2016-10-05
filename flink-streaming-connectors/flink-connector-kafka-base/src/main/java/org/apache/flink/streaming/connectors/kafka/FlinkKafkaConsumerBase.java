@@ -347,7 +347,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				if (restoreToOffset != null) {
 					// the map cannot be asynchronously updated, because only one checkpoint call can happen
 					// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-					pendingOffsetsToCommit.put(checkpointId, prepareInternalOffsetsForCommitting(restoreToOffset));
+					pendingOffsetsToCommit.put(checkpointId, restoreToOffset);
 
 					for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : restoreToOffset.entrySet()) {
 						listState.add(Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
@@ -362,7 +362,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 				// the map cannot be asynchronously updated, because only one checkpoint call can happen
 				// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-				pendingOffsetsToCommit.put(checkpointId, prepareInternalOffsetsForCommitting(currentOffsets));
+				pendingOffsetsToCommit.put(checkpointId, currentOffsets);
 
 				for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : currentOffsets.entrySet()) {
 					listState.add(Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
@@ -414,7 +414,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				LOG.debug("Checkpoint state was empty.");
 				return;
 			}
-			fetcher.commitSpecificOffsetsToKafka(offsets);
+			fetcher.commitInternalOffsetsToKafka(offsets);
 		}
 		catch (Exception e) {
 			if (running) {
@@ -491,23 +491,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				subscribedPartitions.add(kafkaTopicPartitions.get(i));
 			}
 		}
-	}
-
-	/**
-	 * Creates a new map of offsets that can be committed back to Kafka by incrementing all offset to commit by 1.
-	 * This does not break Flink's checkpoint integrity, and is required since committed offsets to Kafka need to
-	 * represent the next record to process, whereas the internal offsets in the checkpointed state represent
-	 * the last processed record.
-	 *
-	 * @param offsets offsets in internally checkpointed state
-	 * @return the prepared offsets for committing
-	 */
-	private static HashMap<KafkaTopicPartition, Long> prepareInternalOffsetsForCommitting(HashMap<KafkaTopicPartition, Long> offsets) {
-		HashMap<KafkaTopicPartition, Long> preparedOffsetsForCommitting = new HashMap<>();
-		for (Map.Entry<KafkaTopicPartition, Long> offsetEntry : offsets.entrySet()) {
-			preparedOffsetsForCommitting.put(offsetEntry.getKey(), offsetEntry.getValue() + 1);
-		}
-		return preparedOffsetsForCommitting;
 	}
 
 	/**

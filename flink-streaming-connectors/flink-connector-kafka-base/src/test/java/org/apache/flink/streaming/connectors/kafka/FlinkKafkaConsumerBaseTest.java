@@ -169,30 +169,20 @@ public class FlinkKafkaConsumerBaseTest {
 	public void testSnapshotState() throws Exception {
 
 		// --------------------------------------------------------------------
-		//   prepare fake states and corresponding expected offsets to commit;
-		//   the offsets to commit should be 1 more than the snapshot state
+		//   prepare fake states
 		// --------------------------------------------------------------------
 
 		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
-		final HashMap<KafkaTopicPartition, Long> expectedOffsetsToCommit1 = new HashMap<>();
 		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
 		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
-		expectedOffsetsToCommit1.put(new KafkaTopicPartition("abc", 13), 16769L);
-		expectedOffsetsToCommit1.put(new KafkaTopicPartition("def", 7), 987654322L);
 
 		final HashMap<KafkaTopicPartition, Long> state2 = new HashMap<>();
-		final HashMap<KafkaTopicPartition, Long> expectedOffsetsToCommit2 = new HashMap<>();
 		state2.put(new KafkaTopicPartition("abc", 13), 16770L);
 		state2.put(new KafkaTopicPartition("def", 7), 987654329L);
-		expectedOffsetsToCommit2.put(new KafkaTopicPartition("abc", 13), 16771L);
-		expectedOffsetsToCommit2.put(new KafkaTopicPartition("def", 7), 987654330L);
 
 		final HashMap<KafkaTopicPartition, Long> state3 = new HashMap<>();
-		final HashMap<KafkaTopicPartition, Long> expectedOffsetsToCommit3 = new HashMap<>();
 		state3.put(new KafkaTopicPartition("abc", 13), 16780L);
 		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
-		expectedOffsetsToCommit3.put(new KafkaTopicPartition("abc", 13), 16781L);
-		expectedOffsetsToCommit3.put(new KafkaTopicPartition("def", 7), 987654378L);
 
 		// --------------------------------------------------------------------
 		
@@ -228,7 +218,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		assertEquals(state1, snapshot1);
 		assertEquals(1, pendingOffsetsToCommit.size());
-		assertEquals(expectedOffsetsToCommit1, pendingOffsetsToCommit.get(138L));
+		assertEquals(state1, pendingOffsetsToCommit.get(138L));
 
 		// checkpoint 2
 		consumer.prepareSnapshot(140L, 140L);
@@ -242,7 +232,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		assertEquals(state2, snapshot2);
 		assertEquals(2, pendingOffsetsToCommit.size());
-		assertEquals(expectedOffsetsToCommit2, pendingOffsetsToCommit.get(140L));
+		assertEquals(state2, pendingOffsetsToCommit.get(140L));
 		
 		// ack checkpoint 1
 		consumer.notifyCheckpointComplete(138L);
@@ -261,7 +251,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		assertEquals(state3, snapshot3);
 		assertEquals(2, pendingOffsetsToCommit.size());
-		assertEquals(expectedOffsetsToCommit3, pendingOffsetsToCommit.get(141L));
+		assertEquals(state3, pendingOffsetsToCommit.get(141L));
 		
 		// ack checkpoint 3, subsumes number 2
 		consumer.notifyCheckpointComplete(141L);
