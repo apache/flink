@@ -289,11 +289,13 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> implem
 		Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>(partitions.length);
 
 		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
-			// committed offsets through the KafkaConsumer need to be 1 more than the last processed offset.
-			// This does not affect Flink's checkpoints/saved state.
-			Long offsetToCommit = offsets.get(partition.getKafkaTopicPartition());
-			if (offsetToCommit != null) {
-				offsetsToCommit.put(partition.getKafkaPartitionHandle(), new OffsetAndMetadata(offsetToCommit + 1));
+			Long lastProcessedOffset = offsets.get(partition.getKafkaTopicPartition());
+			if (lastProcessedOffset != null) {
+				// committed offsets through the KafkaConsumer need to be 1 more than the last processed offset.
+				// This does not affect Flink's checkpoints/saved state.
+				long offsetToCommit = lastProcessedOffset + 1;
+
+				offsetsToCommit.put(partition.getKafkaPartitionHandle(), new OffsetAndMetadata(offsetToCommit));
 				partition.setCommittedOffset(offsetToCommit);
 			}
 		}
