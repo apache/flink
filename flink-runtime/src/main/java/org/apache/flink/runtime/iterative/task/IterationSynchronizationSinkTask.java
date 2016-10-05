@@ -75,14 +75,14 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	
 	@Override
 	public void invoke() throws Exception {
-		this.headEventReader = new MutableRecordReader<IntValue>(
+		this.headEventReader = new MutableRecordReader<>(
 				getEnvironment().getInputGate(0),
 				getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
 		// store all aggregators
-		this.aggregators = new HashMap<String, Aggregator<?>>();
+		this.aggregators = new HashMap<>();
 		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators(getUserCodeClassLoader())) {
 			aggregators.put(aggWithName.getName(), aggWithName.getAggregator());
 		}
@@ -113,7 +113,6 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		
 		while (!terminationRequested()) {
 
-//			notifyMonitor(IterationMonitoring.Event.SYNC_STARTING, currentIteration);
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration + "]"));
 			}
@@ -133,7 +132,6 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 
 				requestTermination();
 				sendToAllWorkers(new TerminationEvent());
-//				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
 			} else {
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("signaling that all workers are done in iteration [" + currentIteration
@@ -147,18 +145,10 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 				for (Aggregator<?> agg : aggregators.values()) {
 					agg.reset();
 				}
-				
-//				notifyMonitor(IterationMonitoring.Event.SYNC_FINISHED, currentIteration);
 				currentIteration++;
 			}
 		}
 	}
-
-//	protected void notifyMonitor(IterationMonitoring.Event event, int currentIteration) {
-//		if (log.isInfoEnabled()) {
-//			log.info(IterationMonitoring.logLine(getEnvironment().getJobID(), event, currentIteration, 1));
-//		}
-//	}
 
 	private boolean checkForConvergence() {
 		if (maxNumberOfIterations == currentIteration) {

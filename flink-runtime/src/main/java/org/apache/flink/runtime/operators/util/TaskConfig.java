@@ -1014,14 +1014,14 @@ public class TaskConfig implements Serializable {
 
 	@SuppressWarnings("unchecked")
 	public <T extends Value> ConvergenceCriterion<T> getConvergenceCriterion(ClassLoader cl) {
-		ConvergenceCriterion<T> convCriterionObj = null;
+		ConvergenceCriterion<T> convCriterionObj;
 		try {
-			convCriterionObj = (ConvergenceCriterion<T>) InstantiationUtil.readObjectFromConfig(
+			convCriterionObj = InstantiationUtil.readObjectFromConfig(
 			this.config, ITERATION_CONVERGENCE_CRITERION, cl);
 		} catch (IOException e) {
-			throw new RuntimeException("Error while reading the covergence criterion object from the task configuration.");
+			throw new RuntimeException("Error while reading the convergence criterion object from the task configuration.");
 		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Error while reading the covergence criterion object from the task configuration. " +
+			throw new RuntimeException("Error while reading the convergence criterion object from the task configuration. " +
 					"ConvergenceCriterion class not found.");
 		}
 		if (convCriterionObj == null) {

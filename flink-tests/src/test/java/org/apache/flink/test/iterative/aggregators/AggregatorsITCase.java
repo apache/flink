@@ -313,9 +313,9 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Integer map(Integer value) {
-			Integer newValue = Integer.valueOf(value.intValue() - 1);
+			Integer newValue = value - 1;
 			// count negative numbers
-			if (newValue.intValue() < 0) {
+			if (newValue < 0) {
 				aggr.aggregate(1l);
 			}
 			return newValue;
@@ -334,9 +334,9 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Integer map(Integer value) {
-			Integer newValue = Integer.valueOf(value.intValue() - 1);
+			Integer newValue = value - 1;
 			// count numbers less then the aggregator parameter
-			if ( newValue.intValue() < aggr.getValue() ) {
+			if ( newValue < aggr.getValue() ) {
 				aggr.aggregate(1l);
 			}
 			return newValue;
@@ -369,8 +369,8 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple2<Integer, Integer> map(Integer value) {
-			Integer nodeId = Integer.valueOf(rnd.nextInt(100000));
-			return new Tuple2<Integer, Integer>(nodeId, value);
+			Integer nodeId = rnd.nextInt(100000);
+			return new Tuple2<>(nodeId, value);
 		}
 
 	}
@@ -398,7 +398,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		@Override
 		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
 			// count the elements that are equal to the superstep number
-			if (value.f1.intValue() == superstep) {
+			if (value.f1 == superstep) {
 				aggr.aggregate(1l);
 			}
 			return value;
@@ -475,7 +475,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		@Override
 		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
 			// count the elements that are equal to the superstep number
-			if (value.f1.intValue() < aggr.getValue()) {
+			if (value.f1 < aggr.getValue()) {
 				aggr.aggregate(1l);
 			}
 			return value;

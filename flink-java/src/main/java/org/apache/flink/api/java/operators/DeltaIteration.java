@@ -64,13 +64,13 @@ public class DeltaIteration<ST, WT> {
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 	
 	private boolean solutionSetUnManaged;
-	
-	
+
+
 	public DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		initialSolutionSet = solutionSet;
 		initialWorkset = workset;
-		solutionSetPlaceholder = new SolutionSetPlaceHolder<ST>(context, solutionSet.getType(), this);
-		worksetPlaceholder = new WorksetPlaceHolder<WT>(context, workset.getType());
+		solutionSetPlaceholder = new SolutionSetPlaceHolder<>(context, solutionSet.getType(), this);
+		worksetPlaceholder = new WorksetPlaceHolder<>(context, workset.getType());
 		this.keys = keys;
 		this.maxIterations = maxIterations;
 	}

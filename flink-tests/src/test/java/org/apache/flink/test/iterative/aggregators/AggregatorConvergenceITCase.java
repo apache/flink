@@ -57,36 +57,36 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 	public void testConnectedComponentsWithParametrizableConvergence() {
 		try {
 			List<Tuple2<Long, Long>> verticesInput = Arrays.asList(
-					new Tuple2<Long, Long>(1l,1l),
-					new Tuple2<Long, Long>(2l,2l),
-					new Tuple2<Long, Long>(3l,3l),
-					new Tuple2<Long, Long>(4l,4l),
-					new Tuple2<Long, Long>(5l,5l),
-					new Tuple2<Long, Long>(6l,6l),
-					new Tuple2<Long, Long>(7l,7l),
-					new Tuple2<Long, Long>(8l,8l),
-					new Tuple2<Long, Long>(9l,9l)
+					new Tuple2<>(1l,1l),
+					new Tuple2<>(2l,2l),
+					new Tuple2<>(3l,3l),
+					new Tuple2<>(4l,4l),
+					new Tuple2<>(5l,5l),
+					new Tuple2<>(6l,6l),
+					new Tuple2<>(7l,7l),
+					new Tuple2<>(8l,8l),
+					new Tuple2<>(9l,9l)
 			);
 			
 			List<Tuple2<Long, Long>> edgesInput = Arrays.asList(
-					new Tuple2<Long, Long>(1l,2l),
-					new Tuple2<Long, Long>(1l,3l),
-					new Tuple2<Long, Long>(2l,3l),
-					new Tuple2<Long, Long>(2l,4l),
-					new Tuple2<Long, Long>(2l,1l),
-					new Tuple2<Long, Long>(3l,1l),
-					new Tuple2<Long, Long>(3l,2l),
-					new Tuple2<Long, Long>(4l,2l),
-					new Tuple2<Long, Long>(4l,6l),
-					new Tuple2<Long, Long>(5l,6l),
-					new Tuple2<Long, Long>(6l,4l),
-					new Tuple2<Long, Long>(6l,5l),
-					new Tuple2<Long, Long>(7l,8l),
-					new Tuple2<Long, Long>(7l,9l),
-					new Tuple2<Long, Long>(8l,7l),
-					new Tuple2<Long, Long>(8l,9l),
-					new Tuple2<Long, Long>(9l,7l),
-					new Tuple2<Long, Long>(9l,8l)
+					new Tuple2<>(1l,2l),
+					new Tuple2<>(1l,3l),
+					new Tuple2<>(2l,3l),
+					new Tuple2<>(2l,4l),
+					new Tuple2<>(2l,1l),
+					new Tuple2<>(3l,1l),
+					new Tuple2<>(3l, 2l),
+					new Tuple2<>(4l, 2l),
+					new Tuple2<>(4l,6l),
+					new Tuple2<>(5l,6l),
+					new Tuple2<>(6l,4l),
+					new Tuple2<>(6l,5l),
+					new Tuple2<>(7l,8l),
+					new Tuple2<>(7l,9l),
+					new Tuple2<>(8l,7l),
+					new Tuple2<>(8l,9l),
+					new Tuple2<>(9l,7l),
+					new Tuple2<>(9l,8l)
 			);
 
 			// name of the aggregator that checks for convergence
@@ -119,15 +119,15 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			Collections.sort(result, new JavaProgramTestBase.TupleComparator<Tuple2<Long, Long>>());
 
 			List<Tuple2<Long, Long>> expectedResult = Arrays.asList(
-					new Tuple2<Long, Long>(1L,1L),
-					new Tuple2<Long, Long>(2L,1L),
-					new Tuple2<Long, Long>(3L,1L),
-					new Tuple2<Long, Long>(4L,1L),
-					new Tuple2<Long, Long>(5L,2L),
-					new Tuple2<Long, Long>(6L,1L),
-					new Tuple2<Long, Long>(7L,7L),
-					new Tuple2<Long, Long>(8L,7L),
-					new Tuple2<Long, Long>(9L,7L)
+					new Tuple2<>(1L,1L),
+					new Tuple2<>(2L,1L),
+					new Tuple2<>(3L,1L),
+					new Tuple2<>(4L,1L),
+					new Tuple2<>(5L,2L),
+					new Tuple2<>(6L,1L),
+					new Tuple2<>(7L,7L),
+					new Tuple2<>(8L,7L),
+					new Tuple2<>(9L,7L)
 			);
 			
 			assertEquals(expectedResult, result);
@@ -142,15 +142,15 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 	public void testParameterizableAggregator() {
 		try {
 			List<Tuple2<Long, Long>> verticesInput = Arrays.asList(
-				new Tuple2<Long, Long>(1l,1l),
-				new Tuple2<Long, Long>(2l,2l),
-				new Tuple2<Long, Long>(3l,3l),
-				new Tuple2<Long, Long>(4l,4l),
-				new Tuple2<Long, Long>(5l,5l),
-				new Tuple2<Long, Long>(6l,6l),
-				new Tuple2<Long, Long>(7l,7l),
-				new Tuple2<Long, Long>(8l,8l),
-				new Tuple2<Long, Long>(9l,9l)
+				new Tuple2<>(1l,1l),
+				new Tuple2<>(2l,2l),
+				new Tuple2<>(3l,3l),
+				new Tuple2<>(4l,4l),
+				new Tuple2<>(5l,5l),
+				new Tuple2<>(6l,6l),
+				new Tuple2<>(7l,7l),
+				new Tuple2<>(8l,8l),
+				new Tuple2<>(9l,9l)
 			);
 			
 			List<Tuple2<Long, Long>> edgesInput = Arrays.asList(
