@@ -173,6 +173,8 @@ public class TaskManagerServicesConfiguration {
 
 		final MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
 
+
+
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
