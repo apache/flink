@@ -20,6 +20,7 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -45,20 +46,20 @@ public class SlotDescriptor {
 	private final ResourceProfile resourceProfile;
 
 	/** TEMP until the new RPC is in place: The actor gateway to communicate with the TaskManager */
-	private final ActorGateway taskManagerActorGateway;
+	private final TaskManagerGateway taskManagerGateway;
 
 	public SlotDescriptor(
 		final JobID jobID,
 		final TaskManagerLocation location,
 		final int slotNumber,
 		final ResourceProfile resourceProfile,
-		final ActorGateway actorGateway)
+		final TaskManagerGateway actorGateway)
 	{
 		this.jobID = checkNotNull(jobID);
 		this.taskManagerLocation = checkNotNull(location);
 		this.slotNumber = slotNumber;
 		this.resourceProfile = checkNotNull(resourceProfile);
-		this.taskManagerActorGateway = checkNotNull(actorGateway);
+		this.taskManagerGateway = checkNotNull(actorGateway);
 	}
 
 	public SlotDescriptor(final SlotDescriptor other) {
@@ -66,7 +67,7 @@ public class SlotDescriptor {
 		this.taskManagerLocation = other.taskManagerLocation;
 		this.slotNumber = other.slotNumber;
 		this.resourceProfile = other.resourceProfile;
-		this.taskManagerActorGateway = other.taskManagerActorGateway;
+		this.taskManagerGateway = other.taskManagerGateway;
 	}
 	
 	// TODO - temporary workaround until we have the SlotDesriptor in the Slot
@@ -75,7 +76,7 @@ public class SlotDescriptor {
 		this.taskManagerLocation = slot.getTaskManagerLocation();
 		this.slotNumber = slot.getRootSlotNumber();
 		this.resourceProfile = new ResourceProfile(0, 0);
-		this.taskManagerActorGateway = slot.getTaskManagerActorGateway();
+		this.taskManagerGateway = slot.getTaskManagerGateway();
 	}
 
 	/**
@@ -121,8 +122,8 @@ public class SlotDescriptor {
 	 *
 	 * @return The actor gateway that can be used to send messages to the TaskManager.
 	 */
-	public ActorGateway getTaskManagerActorGateway() {
-		return taskManagerActorGateway;
+	public TaskManagerGateway getTaskManagerGateway() {
+		return taskManagerGateway;
 	}
 
 	@Override

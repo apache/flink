@@ -135,7 +135,7 @@ public class Task implements Runnable, TaskActions {
 	private final ExecutionAttemptID executionId;
 
 	/** ID which identifies the slot in which the task is supposed to run */
-	private final AllocationID allocationID;
+	private final AllocationID allocationId;
 
 	/** TaskInfo object for this task */
 	private final TaskInfo taskInfo;
@@ -288,16 +288,16 @@ public class Task implements Runnable, TaskActions {
 		Preconditions.checkArgument(0 <= targetSlotNumber, "The target slot number must be positive.");
 
 		this.taskInfo = new TaskInfo(
-			taskInformation.getTaskName(),
-			taskInformation.getNumberOfKeyGroups(),
-			subtaskIndex,
-			taskInformation.getNumberOfSubtasks(),
-			attemptNumber);
+				taskInformation.getTaskName(),
+				taskInformation.getNumberOfKeyGroups(),
+				subtaskIndex,
+				taskInformation.getNumberOfSubtasks(),
+				attemptNumber);
 
 		this.jobId = jobInformation.getJobId();
 		this.vertexId = taskInformation.getJobVertexId();
 		this.executionId  = Preconditions.checkNotNull(executionAttemptID);
-		this.allocationID = Preconditions.checkNotNull(slotAllocationId);
+		this.allocationId = Preconditions.checkNotNull(slotAllocationId);
 		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
 		this.jobConfiguration = jobInformation.getJobConfiguration();
 		this.taskConfiguration = taskInformation.getTaskConfiguration();
@@ -410,8 +410,8 @@ public class Task implements Runnable, TaskActions {
 		return executionId;
 	}
 
-	public AllocationID getAllocationID() {
-		return allocationID;
+	public AllocationID getAllocationId() {
+		return allocationId;
 	}
 
 	public TaskInfo getTaskInfo() {

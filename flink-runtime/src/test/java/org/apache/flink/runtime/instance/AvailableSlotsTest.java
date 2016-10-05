@@ -21,6 +21,7 @@ package org.apache.flink.runtime.instance;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.junit.Test;
 
@@ -118,6 +119,6 @@ public class AvailableSlotsTest {
 	{
 		TaskManagerLocation location = mock(TaskManagerLocation.class);
 		when(location.getResourceID()).thenReturn(resourceID);
-		return new SlotDescriptor(jobID, location, slotNumber, resourceProfile, mock(ActorGateway.class));
+		return new SlotDescriptor(jobID, location, slotNumber, resourceProfile, mock(TaskManagerGateway.class));
 	}
 }

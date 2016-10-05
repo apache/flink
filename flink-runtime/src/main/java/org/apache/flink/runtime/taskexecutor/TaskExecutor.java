@@ -49,6 +49,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestRegistered;
@@ -66,6 +67,10 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcInputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcPartitionStateChecker;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
+import org.apache.flink.runtime.taskexecutor.slot.SlotNotActiveException;
+import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -78,7 +83,6 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -134,13 +138,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	private Map<ResourceID, JobManagerConnection> jobManagerConnections;
 
-	// --------- Slot allocation table --------
+	// --------- task slot allocation table -----------
 
-	private Map<AllocationID, TaskSlot> taskSlots;
-
-	// --------- Slot allocation table --------
-
-	private Map<ExecutionAttemptID, TaskSlotMapping> taskSlotMappings;
+	private final TaskSlotTable taskSlotTable;
 
 	// ------------------------------------------------------------------------
 
@@ -156,6 +156,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		TaskManagerMetricGroup taskManagerMetricGroup,
 		BroadcastVariableManager broadcastVariableManager,
 		FileCache fileCache,
+		TaskSlotTable taskSlotTable,
 		FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService);
@@ -169,6 +170,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		this.networkEnvironment = checkNotNull(networkEnvironment);
 		this.haServices = checkNotNull(haServices);
 		this.metricRegistry = checkNotNull(metricRegistry);
+		this.taskSlotTable = checkNotNull(taskSlotTable);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.broadcastVariableManager = checkNotNull(broadcastVariableManager);
@@ -177,8 +179,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		this.jobManagerConnections = new HashMap<>(4);
 
 		this.unconfirmedFreeSlots = new HashSet<>();
-		this.taskSlots = new HashMap<>(taskManagerConfiguration.getNumberSlots());
-		this.taskSlotMappings = new HashMap<>(taskManagerConfiguration.getNumberSlots() * 2);
 	}
 
 	// ------------------------------------------------------------------------
@@ -195,6 +195,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		} catch (Exception e) {
 			onFatalErrorAsync(e);
 		}
+
+		// tell the task slot table who's responsible for the task slot actions
+		taskSlotTable.start(new SlotActionsImpl(), taskManagerConfiguration.getTimeout());
 	}
 
 	/**
@@ -257,28 +260,27 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	public Acknowledge submitTask(TaskDeploymentDescriptor tdd, ResourceID jobManagerID) throws TaskSubmissionException {
 
 		final JobManagerConnection jobManagerConnection = getJobManagerConnection(jobManagerID);
-		final TaskSlot taskSlot = taskSlots.get(tdd.getAllocationID());
-		final JobInformation jobInformation;
-		final TaskInformation taskInformation;
-
 		if (jobManagerConnection == null) {
 			final String message = "Could not submit task because JobManager " + jobManagerID + " was not associated.";
 			log.debug(message);
 			throw new TaskSubmissionException(message);
 		}
 
-		if (taskSlot == null) {
-			final String message = "No task slot allocated for allocation ID " + tdd.getAllocationID() + '.';
-			log.debug(message);
-			throw new TaskSubmissionException(message);
-		}
-
+		final JobInformation jobInformation;
+		final TaskInformation taskInformation;
 		try {
 			jobInformation = tdd.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());
 			taskInformation = tdd.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());
 		}
 		catch (IOException | ClassNotFoundException e) {
 			throw new TaskSubmissionException("Could not deserialize the job or task information.", e);
+		}
+
+		if (!taskSlotTable.existActiveSlot(jobInformation.getJobId(), tdd.getAllocationID())) {
+			final String message = "No task slot allocated for job ID " + jobInformation.getJobId() +
+					" and allocation ID " + tdd.getAllocationID() + '.';
+			log.debug(message);
+			throw new TaskSubmissionException(message);
 		}
 
 		TaskMetricGroup taskMetricGroup = taskManagerMetricGroup.addTaskForJob(
@@ -332,10 +334,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		log.info("Received task {}.", task.getTaskInfo().getTaskNameWithSubtasks());
 
-		if (taskSlot.add(task)) {
-			TaskSlotMapping taskSlotMapping = new TaskSlotMapping(task, taskSlot);
+		boolean taskAdded;
 
-			taskSlotMappings.put(task.getExecutionId(), taskSlotMapping);
+		try {
+			taskAdded = taskSlotTable.addTask(task);
+		} catch (SlotNotFoundException | SlotNotActiveException e) {
+			throw new TaskSubmissionException("Could not submit task.", e);
+		}
+
+		if (taskAdded) {
 			task.startTaskThread();
 
 			return Acknowledge.get();
@@ -350,7 +357,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	@RpcMethod
 	public Acknowledge cancelTask(ExecutionAttemptID executionAttemptID) throws TaskException {
-		final Task task = getTask(executionAttemptID);
+		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
 			try {
@@ -369,7 +376,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	@RpcMethod
 	public Acknowledge stopTask(ExecutionAttemptID executionAttemptID) throws TaskException {
-		final Task task = getTask(executionAttemptID);
+		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
 			try {
@@ -392,7 +399,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	@RpcMethod
 	public Acknowledge updatePartitions(final ExecutionAttemptID executionAttemptID, Collection<PartitionInfo> partitionInfos) throws PartitionException {
-		final Task task = getTask(executionAttemptID);
+		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
 			for (final PartitionInfo partitionInfo: partitionInfos) {
@@ -455,7 +462,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	public Acknowledge triggerCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) throws CheckpointException {
 		log.debug("Trigger checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
 
-		final Task task = getTask(executionAttemptID);
+		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
 			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp);
@@ -473,7 +480,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	public Acknowledge confirmCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) throws CheckpointException {
 		log.debug("Confirm checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
 
-		final Task task = getTask(executionAttemptID);
+		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
 			task.notifyCheckpointComplete(checkpointId);
@@ -519,68 +526,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		return jobManagerConnections.get(jobManagerID);
 	}
 
-	private Task getTask(ExecutionAttemptID executionAttemptID) {
-		TaskSlotMapping taskSlotMapping = taskSlotMappings.get(executionAttemptID);
-
-		if (taskSlotMapping != null) {
-			return taskSlotMapping.getTask();
-		} else {
-			return null;
-		}
-	}
-
-	private Task removeTask(ExecutionAttemptID executionAttemptID) {
-		TaskSlotMapping taskSlotMapping = taskSlotMappings.remove(executionAttemptID);
-
-		if (taskSlotMapping != null) {
-			final Task task = taskSlotMapping.getTask();
-			final TaskSlot taskSlot = taskSlotMapping.getTaskSlot();
-
-			taskSlot.remove(task);
-
-			return task;
-		} else {
-			return null;
-		}
-	}
-
-	private Iterable<Task> getAllTasks() {
-		final Iterator<TaskSlotMapping> taskEntryIterator = taskSlotMappings.values().iterator();
-		final Iterator<Task> iterator = new Iterator<Task>() {
-			@Override
-			public boolean hasNext() {
-				return taskEntryIterator.hasNext();
-			}
-
-			@Override
-			public Task next() {
-				return taskEntryIterator.next().getTask();
-			}
-
-			@Override
-			public void remove() {
-				taskEntryIterator.remove();
-			}
-		};
-
-		return new Iterable<Task>() {
-			@Override
-			public Iterator<Task> iterator() {
-				return iterator;
-			}
-		};
-	}
-
-	private void clearTasks() {
-		taskSlotMappings.clear();
-
-		for (TaskSlot taskSlot: taskSlots.values()) {
-			taskSlot.clear();
-		}
-	}
-
 	private void failTask(final ExecutionAttemptID executionAttemptID, final Throwable cause) {
-		final Task task = getTask(executionAttemptID);
+		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
 			try {
@@ -591,18 +538,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		} else {
 			log.debug("Cannot find task to fail for execution {}.", executionAttemptID);
 		}
-	}
-
-	private void cancelAndClearAllTasks(Throwable cause) {
-		log.info("Cancellaing all computations and discarding all cached data.");
-
-		Iterable<Task> tasks = getAllTasks();
-
-		for (Task task: tasks) {
-			task.failExternally(cause);
-		}
-
-		clearTasks();
 	}
 
 	private void updateTaskExecutionState(
@@ -627,11 +562,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	private void unregisterTaskAndNotifyFinalState(
 			final UUID jobMasterLeaderId,
-			final JobMasterGateway jobMasterGateway,
-			final ExecutionAttemptID executionAttemptID)
-	{
-		Task task = removeTask(executionAttemptID);
+			final JobMasterGateway jobMasterGateway,		
+			final ExecutionAttemptID executionAttemptID) {
 
+		Task task = taskSlotTable.removeTask(executionAttemptID);
 		if (task != null) {
 			if (!task.getExecutionState().isTerminal()) {
 				try {
@@ -744,6 +678,41 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
+	private void freeSlot(AllocationID allocationId) {
+		Preconditions.checkNotNull(allocationId);
+
+		try {
+			int freedSlotIndex = taskSlotTable.freeSlot(allocationId);
+
+			if (freedSlotIndex != -1 && isConnectedToResourceManager()) {
+				// the slot was freed. Tell the RM about it
+				ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
+
+				resourceManagerGateway.notifySlotAvailable(
+					resourceManagerConnection.getTargetLeaderId(),
+					resourceManagerConnection.getRegistrationId(),
+					new SlotID(getResourceID(), freedSlotIndex));
+			}
+		} catch (SlotNotFoundException e) {
+			log.debug("Could not free slot for allocation id {}.", allocationId, e);
+		}
+	}
+
+	private void timeoutSlot(AllocationID allocationId, UUID ticket) {
+		Preconditions.checkNotNull(allocationId);
+		Preconditions.checkNotNull(ticket);
+
+		if (taskSlotTable.isValidTimeout(allocationId, ticket)) {
+			freeSlot(allocationId);
+		} else {
+			log.debug("Received an invalid timeout for allocation id {} with ticket {}.", allocationId, ticket);
+		}
+	}
+
+	private boolean isConnectedToResourceManager() {
+		return (resourceManagerConnection != null && resourceManagerConnection.isConnected());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Properties
 	// ------------------------------------------------------------------------
@@ -804,7 +773,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	/**
 	 * The listener for leader changes of the resource manager
 	 */
-	private class ResourceManagerLeaderListener implements LeaderRetrievalListener {
+	private final class ResourceManagerLeaderListener implements LeaderRetrievalListener {
 
 		@Override
 		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
@@ -822,7 +791,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
-	private class TaskManagerActionsImpl implements TaskManagerActions {
+	private final class TaskManagerActionsImpl implements TaskManagerActions {
 		private final UUID jobMasterLeaderId;
 		private final JobMasterGateway jobMasterGateway;
 
@@ -860,6 +829,29 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		@Override
 		public void updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
 			TaskExecutor.this.updateTaskExecutionState(jobMasterLeaderId, jobMasterGateway, taskExecutionState);
+		}
+	}
+
+	private class SlotActionsImpl implements SlotActions {
+
+		@Override
+		public void freeSlot(final AllocationID allocationId) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					TaskExecutor.this.freeSlot(allocationId);
+				}
+			});
+		}
+
+		@Override
+		public void timeoutSlot(final AllocationID allocationId, final UUID ticket) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					TaskExecutor.this.timeoutSlot(allocationId, ticket);
+				}
+			});
 		}
 	}
 

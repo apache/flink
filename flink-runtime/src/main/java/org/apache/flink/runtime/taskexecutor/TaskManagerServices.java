@@ -20,7 +20,9 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -37,6 +39,8 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateServer;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
+import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -48,6 +52,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 /**
  * Container for {@link TaskExecutor} services such as the {@link MemoryManager}, {@link IOManager},
@@ -65,6 +72,7 @@ public class TaskManagerServices {
 	private final TaskManagerMetricGroup taskManagerMetricGroup;
 	private final BroadcastVariableManager broadcastVariableManager;
 	private final FileCache fileCache;
+	private final TaskSlotTable taskSlotTable;
 
 	private TaskManagerServices(
 		TaskManagerLocation taskManagerLocation,
@@ -74,7 +82,8 @@ public class TaskManagerServices {
 		MetricRegistry metricRegistry,
 		TaskManagerMetricGroup taskManagerMetricGroup,
 		BroadcastVariableManager broadcastVariableManager,
-		FileCache fileCache) {
+		FileCache fileCache,
+		TaskSlotTable taskSlotTable) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);
@@ -84,6 +93,7 @@ public class TaskManagerServices {
 		this.taskManagerMetricGroup = Preconditions.checkNotNull(taskManagerMetricGroup);
 		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
+		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -120,6 +130,10 @@ public class TaskManagerServices {
 
 	public FileCache getFileCache() {
 		return fileCache;
+	}
+	
+	public TaskSlotTable getTaskSlotTable() {
+		return taskSlotTable;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -170,6 +184,16 @@ public class TaskManagerServices {
 
 		final FileCache fileCache = new FileCache(taskManagerServicesConfiguration.getTmpDirPaths());
 
+		final List<ResourceProfile> resourceProfiles = new ArrayList<>(taskManagerServicesConfiguration.getNumberOfSlots());
+
+		for (int i = 0; i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
+			resourceProfiles.add(new ResourceProfile(1.0, 42L));
+		}
+
+		final TimerService<AllocationID> timerService = new TimerService<>(new ScheduledThreadPoolExecutor(1));
+
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(resourceProfiles, timerService);
+		
 		return new TaskManagerServices(
 			taskManagerLocation,
 			memoryManager,
@@ -178,7 +202,8 @@ public class TaskManagerServices {
 			metricRegistry,
 			taskManagerMetricGroup,
 			broadcastVariableManager,
-			fileCache);
+			fileCache,
+			taskSlotTable);
 	}
 
 	/**

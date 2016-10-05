@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import java.io.Serializable;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -34,8 +35,9 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 
 	/** The numeric id for single slot */
 	private final int slotNumber;
-
+	
 	public SlotID(ResourceID resourceId, int slotNumber) {
+		checkArgument(0 <= slotNumber, "Slot number must be positive.");
 		this.resourceId = checkNotNull(resourceId, "ResourceID must not be null");
 		this.slotNumber = slotNumber;
 	}
