@@ -18,24 +18,21 @@
 
 package org.apache.flink.graph.pregel;
 
-import java.util.Iterator;
-import java.util.Map;
-
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.operators.CoGroupOperator;
-import org.apache.flink.api.java.operators.DeltaIteration;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -49,6 +46,9 @@ import org.apache.flink.types.Either;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.
@@ -299,11 +299,11 @@ public class VertexCentricIteration<K, VV, EV, Message>
 		public void open(Configuration parameters) {
 			outTuple = new Tuple2<K, Either<NullValue, Message>>();
 			nullMessage = Either.Left(NullValue.getInstance());
-			outTuple.setField(nullMessage, 1);
+			outTuple.f1 = nullMessage;
 		}
 
 		public Tuple2<K, Either<NullValue, Message>> map(Vertex<K, VV> vertex) {
-			outTuple.setField(vertex.getId(), 0);
+			outTuple.f0 = vertex.getId();
 			return outTuple;
 		}
 }
@@ -475,8 +475,8 @@ public class VertexCentricIteration<K, VV, EV, Message>
 		public Tuple2<Vertex<K, VV>, Either<NullValue, Message>> join(
 				Vertex<K, VV> vertex, Tuple2<K, Either<NullValue, Message>> message) {
 
-			outTuple.setField(vertex, 0);
-			outTuple.setField(message.f1, 1);
+			outTuple.f0 = vertex;
+			outTuple.f1 = message.f1;
 			return outTuple;
 		}
 	}
@@ -505,8 +505,8 @@ public class VertexCentricIteration<K, VV, EV, Message>
 
 			if (value.isRight()) {
 				Tuple2<K, Message> message = value.right();
-				outTuple.setField(message.f0, 0);
-				outTuple.setField(Either.Right(message.f1), 1);
+				outTuple.f0 = message.f0;
+				outTuple.f1 = Either.Right(message.f1);
 				out.collect(outTuple);
 			}
 		}

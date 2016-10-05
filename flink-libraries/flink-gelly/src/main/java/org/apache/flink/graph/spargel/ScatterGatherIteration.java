@@ -310,8 +310,8 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 			if (stateIter.hasNext()) {
 				Vertex<K, Tuple3<VV, LongValue, LongValue>> vertexWithDegrees = stateIter.next();
 
-				nextVertex.setField(vertexWithDegrees.f0, 0);
-				nextVertex.setField(vertexWithDegrees.f1.f0, 1);
+				nextVertex.f0 = vertexWithDegrees.f0;
+				nextVertex.f1 = vertexWithDegrees.f1.f0;
 
 				scatterFunction.setInDegree(vertexWithDegrees.f1.f1.getValue());
 				scatterFunction.setOutDegree(vertexWithDegrees.f1.f2.getValue());

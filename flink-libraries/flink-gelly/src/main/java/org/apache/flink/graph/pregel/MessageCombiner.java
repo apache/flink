@@ -45,7 +45,7 @@ public abstract class MessageCombiner<K, Message> implements Serializable {
 		this.vertexId = target;
 		this.out = collector;
 		this.outValue = new Tuple2<K, Either<NullValue, Message>>();
-		outValue.setField(vertexId, 0);
+		outValue.f0 = vertexId;
 	}
 
 	/**
@@ -65,7 +65,7 @@ public abstract class MessageCombiner<K, Message> implements Serializable {
 	 * @throws Exception
 	 */
 	public final void sendCombinedMessage(Message combinedMessage) {
-		outValue.setField(Either.Right(combinedMessage), 1);
+		outValue.f1 = Either.Right(combinedMessage);
 		out.collect(outValue);
 	}
 }

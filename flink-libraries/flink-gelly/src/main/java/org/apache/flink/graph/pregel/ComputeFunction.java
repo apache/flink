@@ -18,10 +18,6 @@
 
 package org.apache.flink.graph.pregel;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
-
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.DataSet;
@@ -32,6 +28,10 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * The base class for the message-passing functions between vertices as a part of a {@link VertexCentricIteration}.
@@ -98,10 +98,10 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 */
 	public final void sendMessageToAllNeighbors(Message m) {
 		verifyEdgeUsage();
-		outMsg.setField(m, 1);
+		outMsg.f1 = m;
 		while (edges.hasNext()) {
 			Tuple next = (Tuple) edges.next();
-			outMsg.setField(next.getField(1), 0);
+			outMsg.f0 = next.getField(1);
 			out.collect(Either.Right(outMsg));
 		}
 	}
@@ -115,8 +115,8 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 */
 	public final void sendMessageTo(K target, Message m) {
 
-		outMsg.setField(target, 0);
-		outMsg.setField(m, 1);
+		outMsg.f0 = target;
+		outMsg.f1 = m;
 
 		out.collect(Either.Right(outMsg));
 	}
@@ -134,7 +134,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 		}
 		setNewVertexValueCalled = true;
 
-		outVertex.setField(newValue, 1);
+		outVertex.f1 = newValue;
 
 		out.collect(Either.Left(outVertex));
 	}
@@ -213,7 +213,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	void set(K vertexId, Iterator<Edge<K, EV>> edges,
 			Collector<Either<Vertex<K, VV>, Tuple2<K, Message>>> out) {
 
-		this.outVertex.setField(vertexId, 0);
+		this.outVertex.f0 = vertexId;
 		this.edges = edges;
 		this.out = (Collector<Either<?, ?>>) (Collector<?>) out;
 		this.edgesUsed = false;
