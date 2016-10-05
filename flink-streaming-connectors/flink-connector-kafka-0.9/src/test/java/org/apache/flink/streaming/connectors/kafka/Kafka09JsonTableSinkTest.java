@@ -18,23 +18,23 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.table.Row;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
+import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
-public class Kafka08JsonTableSinkITCase extends KafkaTableSinkTestBase {
+import java.util.Properties;
+
+public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override
-	protected KafkaTableSink createTableSink() {
-		Kafka08JsonTableSink sink = new Kafka08JsonTableSink(
-			TOPIC,
-			createSinkProperties(),
-			createPartitioner());
-		return sink.configure(FIELD_NAMES, FIELD_TYPES);
-	}
-
-	protected DeserializationSchema<Row> createRowDeserializationSchema() {
-		return new JsonRowDeserializationSchema(
-			FIELD_NAMES, FIELD_TYPES);
+	protected KafkaTableSink createTableSink(
+			String topic, Properties properties,
+			KafkaPartitioner<Row> partitioner, final FlinkKafkaProducerBase<Row> kafkaProducer) {
+		return new Kafka09JsonTableSink(topic, properties, partitioner) {
+			@Override
+			protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, KafkaPartitioner<Row> partitioner) {
+				return kafkaProducer;
+			}
+		};
 	}
 }
 
