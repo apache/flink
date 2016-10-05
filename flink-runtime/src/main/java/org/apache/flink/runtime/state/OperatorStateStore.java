@@ -20,13 +20,26 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.java.typeutils.runtime.JavaSerializer;
 
+import java.io.Serializable;
 import java.util.Set;
 
 /**
  * Interface for a backend that manages partitionable operator state.
  */
 public interface OperatorStateStore {
+
+	String DEFAULT_OPERATOR_STATE_NAME = "";
+
+	/**
+	 * Creates a satte descriptor of the given name that uses {@link JavaSerializer}.
+	 *
+	 * @param stateName The name of state to create
+	 * @return A state descriptor that uses {@link JavaSerializer}
+	 * @throws Exception
+	 */
+	ListState<Serializable> getDefaultPartitionableState(String stateName) throws Exception;
 
 	/**
 	 * Creates (or restores) the partitionable state in this backend. Each state is registered under a unique name.

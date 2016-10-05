@@ -19,8 +19,6 @@
 package org.apache.flink.streaming.api.checkpoint;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.java.typeutils.runtime.JavaSerializer;
 
 import java.io.Serializable;
 import java.util.List;
@@ -35,9 +33,6 @@ import java.util.List;
  */
 @PublicEvolving
 public interface ListCheckpointed<T extends Serializable> {
-
-	ListStateDescriptor<Serializable> DEFAULT_LIST_DESCRIPTOR =
-			new ListStateDescriptor<>("", new JavaSerializer<>());
 
 	/**
 	 * Gets the current state of the function of operator. The state must reflect the result of all

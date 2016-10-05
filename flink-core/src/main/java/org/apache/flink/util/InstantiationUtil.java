@@ -311,18 +311,6 @@ public final class InstantiationUtil {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	public static <T> T deserializeObject(byte[] bytes) throws IOException, ClassNotFoundException {
-		ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-		return deserializeObject(byteArrayInputStream);
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> T deserializeObject(InputStream in) throws IOException, ClassNotFoundException {
-		ObjectInputStream objectInputStream = new ObjectInputStream(in);
-		return (T) objectInputStream.readObject();
-	}
-
 	public static byte[] serializeObject(Object o) throws IOException {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
 				ObjectOutputStream oos = new ObjectOutputStream(baos)) {

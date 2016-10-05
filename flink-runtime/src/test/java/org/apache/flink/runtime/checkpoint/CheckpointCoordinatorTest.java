@@ -2478,14 +2478,19 @@ public class CheckpointCoordinatorTest {
 			for (int groupId : expectedHeadOpKeyGroupStateHandle.keyGroups()) {
 				long offset = expectedHeadOpKeyGroupStateHandle.getOffsetForKeyGroup(groupId);
 				inputStream.seek(offset);
-				int expectedKeyGroupState = InstantiationUtil.deserializeObject(inputStream);
+				int expectedKeyGroupState =
+						InstantiationUtil.deserializeObject(inputStream, Thread.currentThread().getContextClassLoader());
 				for (KeyGroupsStateHandle oneActualKeyGroupStateHandle : actualPartitionedKeyGroupState) {
 					if (oneActualKeyGroupStateHandle.containsKeyGroup(groupId)) {
 						long actualOffset = oneActualKeyGroupStateHandle.getOffsetForKeyGroup(groupId);
-						try (FSDataInputStream actualInputStream =
-								     oneActualKeyGroupStateHandle.getStateHandle().openInputStream()) {
+						try (FSDataInputStream actualInputStream = oneActualKeyGroupStateHandle.
+								getStateHandle().openInputStream()) {
+
 							actualInputStream.seek(actualOffset);
-							int actualGroupState = InstantiationUtil.deserializeObject(actualInputStream);
+
+							int actualGroupState = InstantiationUtil.
+									deserializeObject(actualInputStream, Thread.currentThread().getContextClassLoader());
+
 							assertEquals(expectedKeyGroupState, actualGroupState);
 						}
 					}
@@ -2506,7 +2511,8 @@ public class CheckpointCoordinatorTest {
 					for (Map.Entry<String, long[]> entry : operatorStateHandle.getStateNameToPartitionOffsets().entrySet()) {
 						for (long offset : entry.getValue()) {
 							in.seek(offset);
-							Integer state = InstantiationUtil.deserializeObject(in);
+							Integer state = InstantiationUtil.
+									deserializeObject(in, Thread.currentThread().getContextClassLoader());
 							expectedResult.add(i + " : " + entry.getKey() + " : " + state);
 						}
 					}
@@ -2525,7 +2531,8 @@ public class CheckpointCoordinatorTest {
 							for (Map.Entry<String, long[]> entry : operatorStateHandle.getStateNameToPartitionOffsets().entrySet()) {
 								for (long offset : entry.getValue()) {
 									in.seek(offset);
-									Integer state = InstantiationUtil.deserializeObject(in);
+									Integer state = InstantiationUtil.
+											deserializeObject(in, Thread.currentThread().getContextClassLoader());
 									actualResult.add(i + " : " + entry.getKey() + " : " + state);
 								}
 							}

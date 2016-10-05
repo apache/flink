@@ -219,7 +219,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 		checkNotNull(pathInZooKeeper, "Path in ZooKeeper");
 
 		byte[] data = client.getData().forPath(pathInZooKeeper);
-		return InstantiationUtil.deserializeObject(data);
+		return InstantiationUtil.deserializeObject(data, Thread.currentThread().getContextClassLoader());
 	}
 
 	/**
