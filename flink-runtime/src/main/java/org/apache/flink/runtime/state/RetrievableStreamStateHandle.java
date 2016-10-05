@@ -55,7 +55,7 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 	@Override
 	public T retrieveState() throws Exception {
 		try (FSDataInputStream in = openInputStream()) {
-			return InstantiationUtil.deserializeObject(in);
+			return InstantiationUtil.deserializeObject(in, Thread.currentThread().getContextClassLoader());
 		}
 	}
 

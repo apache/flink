@@ -21,7 +21,6 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.OperatorStateStore;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -34,6 +33,7 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 import org.mockito.Matchers;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,8 +47,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -115,31 +113,31 @@ public class FlinkKafkaConsumerBaseTest {
 	public void checkRestoredCheckpointWhenFetcherNotReady() throws Exception {
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 
-		TestingListState<Tuple2<KafkaTopicPartition, Long>> expectedState = new TestingListState<>();
+		TestingListState<Serializable> expectedState = new TestingListState<>();
 		expectedState.add(Tuple2.of(new KafkaTopicPartition("abc", 13), 16768L));
 		expectedState.add(Tuple2.of(new KafkaTopicPartition("def", 7), 987654321L));
 
-		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
+		TestingListState<Serializable> listState = new TestingListState<>();
 
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
 
-		when(operatorStateStore.getPartitionableState(Matchers.any(ListStateDescriptor.class))).thenReturn(expectedState);
+		when(operatorStateStore.getDefaultPartitionableState(Matchers.any(String.class))).thenReturn(expectedState);
 		consumer.initializeState(operatorStateStore);
 
-		when(operatorStateStore.getPartitionableState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
+		when(operatorStateStore.getDefaultPartitionableState(Matchers.any(String.class))).thenReturn(listState);
 
 		consumer.prepareSnapshot(17L, 17L);
 
-		Set<Tuple2<KafkaTopicPartition, Long>> expected = new HashSet<Tuple2<KafkaTopicPartition, Long>>();
+		Set<Serializable> expected = new HashSet<>();
 
-		for (Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 : expectedState.get()) {
-			expected.add(kafkaTopicPartitionLongTuple2);
+		for (Serializable serializable : expectedState.get()) {
+			expected.add(serializable);
 		}
 
 		int counter = 0;
 
-		for (Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 : listState.get()) {
-			assertTrue(expected.contains(kafkaTopicPartitionLongTuple2));
+		for (Serializable serializable : listState.get()) {
+			assertTrue(expected.contains(serializable));
 			counter++;
 		}
 
@@ -154,8 +152,8 @@ public class FlinkKafkaConsumerBaseTest {
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
-		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
-		when(operatorStateStore.getPartitionableState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
+		TestingListState<Serializable> listState = new TestingListState<>();
+		when(operatorStateStore.getDefaultPartitionableState(Matchers.any(String.class))).thenReturn(listState);
 
 		consumer.initializeState(operatorStateStore);
 		consumer.prepareSnapshot(17L, 17L);
@@ -188,12 +186,12 @@ public class FlinkKafkaConsumerBaseTest {
 
 		OperatorStateStore backend = mock(OperatorStateStore.class);
 
-		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState1 = new TestingListState<>();
-		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState2 = new TestingListState<>();
-		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState3 = new TestingListState<>();
+		TestingListState<Serializable> listState1 = new TestingListState<>();
+		TestingListState<Serializable> listState2 = new TestingListState<>();
+		TestingListState<Serializable> listState3 = new TestingListState<>();
 
-		when(backend.getPartitionableState(Matchers.any(ListStateDescriptor.class))).
-				thenReturn(listState1, listState1, listState2, listState2, listState3, listState3);
+		when(backend.getDefaultPartitionableState(Matchers.any(String.class))).
+				thenReturn(listState1, listState1, listState2, listState3);
 
 		consumer.initializeState(backend);
 
@@ -202,7 +200,8 @@ public class FlinkKafkaConsumerBaseTest {
 
 		HashMap<KafkaTopicPartition, Long> snapshot1 = new HashMap<>();
 
-		for (Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 : listState1.get()) {
+		for (Serializable serializable : listState1.get()) {
+			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
 			snapshot1.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
 		}
 
@@ -215,7 +214,8 @@ public class FlinkKafkaConsumerBaseTest {
 
 		HashMap<KafkaTopicPartition, Long> snapshot2 = new HashMap<>();
 
-		for (Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 : listState2.get()) {
+		for (Serializable serializable : listState2.get()) {
+			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
 			snapshot2.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
 		}
 
@@ -233,8 +233,9 @@ public class FlinkKafkaConsumerBaseTest {
 
 		HashMap<KafkaTopicPartition, Long> snapshot3 = new HashMap<>();
 
-		for (Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 : listState1.get()) {
-			snapshot1.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+		for (Serializable serializable : listState3.get()) {
+			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
+			snapshot3.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
 		}
 
 		assertEquals(state3, snapshot3);

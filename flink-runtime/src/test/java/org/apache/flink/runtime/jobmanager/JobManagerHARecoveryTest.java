@@ -452,7 +452,7 @@ public class JobManagerHARecoveryTest {
 			int subtaskIndex = getIndexInSubtaskGroup();
 			if (subtaskIndex < recoveredStates.length) {
 				try (FSDataInputStream in = chainedState.get(0).openInputStream()) {
-					recoveredStates[subtaskIndex] = InstantiationUtil.deserializeObject(in);
+					recoveredStates[subtaskIndex] = InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
 				}
 			}
 		}
@@ -464,7 +464,10 @@ public class JobManagerHARecoveryTest {
 						InstantiationUtil.serializeObject(checkpointId));
 
 				RetrievableStreamStateHandle<Long> state = new RetrievableStreamStateHandle<Long>(byteStreamStateHandle);
-				ChainedStateHandle<StreamStateHandle> chainedStateHandle = new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(state));
+
+				ChainedStateHandle<StreamStateHandle> chainedStateHandle =
+						new ChainedStateHandle<StreamStateHandle>(Collections.singletonList(state));
+
 				CheckpointStateHandles checkpointStateHandles =
 						new CheckpointStateHandles(chainedStateHandle, null, Collections.<KeyGroupsStateHandle>emptyList());
 
