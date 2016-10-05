@@ -28,7 +28,7 @@ public class Kafka08JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override
 	protected KafkaTableSink createTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner,
-				final FlinkKafkaProducerBase<Row> kafkaProducer) {
+			final FlinkKafkaProducerBase<Row> kafkaProducer) {
 
 		return new Kafka08JsonTableSink(topic, properties, partitioner) {
 			@Override

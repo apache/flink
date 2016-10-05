@@ -38,39 +38,31 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
-public abstract class KafkaTableSinkTestBase implements Serializable {
+public abstract class KafkaTableSinkTestBase {
 
-	private final static String TOPIC = "testTopic";
-	private final static String[] FIELD_NAMES = new String[] {"field1", "field2"};
-	private final static TypeInformation[] FIELD_TYPES = TypeUtil.toTypeInfo(new Class[] {Integer.class, String.class});
-
-	private final KafkaPartitioner<Row> partitioner = new CustomPartitioner();
-	private final Properties properties = createSinkProperties();
+	private static final String TOPIC = "testTopic";
+	private static final String[] FIELD_NAMES = new String[] {"field1", "field2"};
+	private static final TypeInformation[] FIELD_TYPES = TypeUtil.toTypeInfo(new Class[] {Integer.class, String.class});
+	private static final KafkaPartitioner<Row> PARTITIONER = new CustomPartitioner();
+	private static final Properties PROPERTIES = createSinkProperties();
+	// we have to mock FlinkKafkaProducerBase as it cannot be instantiated without Kafka
 	@SuppressWarnings("unchecked")
-	private final FlinkKafkaProducerBase<Row> kafkaProducer = mock(FlinkKafkaProducerBase.class);
+	private static final FlinkKafkaProducerBase<Row> PRODUCER = mock(FlinkKafkaProducerBase.class);
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testKafkaTableSink() throws Exception {
 		DataStream dataStream = mock(DataStream.class);
-		KafkaTableSink kafkaTableSink = createTableSink();
-		kafkaTableSink.emitDataStream(dataStream);
-
-		verify(dataStream).addSink(kafkaProducer);
-	}
-
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testCreatedProducer() throws Exception {
-		DataStream dataStream = mock(DataStream.class);
 		KafkaTableSink kafkaTableSink = spy(createTableSink());
 		kafkaTableSink.emitDataStream(dataStream);
 
+		verify(dataStream).addSink(eq(PRODUCER));
+
 		verify(kafkaTableSink).createKafkaProducer(
 			eq(TOPIC),
-			eq(properties),
+			eq(PROPERTIES),
 			any(getSerializationSchema()),
-			eq(partitioner));
+			eq(PARTITIONER));
 	}
 
 	@Test
@@ -90,12 +82,12 @@ public abstract class KafkaTableSinkTestBase implements Serializable {
 	protected abstract Class<SerializationSchema<Row>> getSerializationSchema();
 
 	private KafkaTableSink createTableSink() {
-		return createTableSink(TOPIC, properties, partitioner, kafkaProducer);
+		return createTableSink(TOPIC, PROPERTIES, PARTITIONER, PRODUCER);
 	}
 
 	private static Properties createSinkProperties() {
 		Properties properties = new Properties();
-		properties.setProperty("testKey", "testValue");
+		properties.setProperty("bootstrap.servers", "localhost:12345");
 		return properties;
 	}
 
