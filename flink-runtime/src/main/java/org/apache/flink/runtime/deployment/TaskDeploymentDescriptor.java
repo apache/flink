@@ -59,7 +59,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final ExecutionAttemptID executionId;
 
 	/** The allocation ID of the slot in which the task shall be run */
-	private final AllocationID allocationID;
+	private final AllocationID allocationId;
 
 	/** The task's name. */
 	private final String taskName;
@@ -115,6 +115,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public TaskDeploymentDescriptor(
 		JobID jobID,
+		AllocationID allocationId,
 		String jobName,
 		JobVertexID vertexID,
 		ExecutionAttemptID executionId,
@@ -142,6 +143,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		checkArgument(attemptNumber >= 0);
 
 		this.jobID = checkNotNull(jobID);
+		this.allocationId = checkNotNull(allocationId);
 		this.jobName = checkNotNull(jobName);
 		this.vertexID = checkNotNull(vertexID);
 		this.executionId = checkNotNull(executionId);
@@ -162,11 +164,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.operatorState = operatorState;
 		this.keyGroupState = keyGroupState;
 		this.partitionableOperatorState = partitionableOperatorStateHandles;
-		this.allocationID = new AllocationID();
 	}
 
 	public TaskDeploymentDescriptor(
 		JobID jobID,
+		AllocationID allocationId,
 		String jobName,
 		JobVertexID vertexID,
 		ExecutionAttemptID executionId,
@@ -187,6 +189,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 		this(
 			jobID,
+			allocationId,
 			jobName,
 			vertexID,
 			executionId,
@@ -327,8 +330,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return requiredClasspaths;
 	}
 
-	public AllocationID getAllocationID() {
-		return allocationID;
+	public AllocationID getAllocationId() {
+		return allocationId;
 	}
 
 	@Override

@@ -68,7 +68,7 @@ public class SlotManagerTest {
 		taskExecutorRegistration = Mockito.mock(TaskExecutorRegistration.class);
 		TaskExecutorGateway gateway = Mockito.mock(TaskExecutorGateway.class);
 		Mockito.when(taskExecutorRegistration.getTaskExecutorGateway()).thenReturn(gateway);
-		Mockito.when(gateway.requestSlot(any(SlotID.class), any(AllocationID.class), any(UUID.class), any(Time.class)))
+		Mockito.when(gateway.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(UUID.class), any(Time.class)))
 			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 	}
 

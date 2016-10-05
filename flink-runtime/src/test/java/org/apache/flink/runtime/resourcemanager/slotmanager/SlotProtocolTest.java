@@ -144,7 +144,7 @@ public class SlotProtocolTest extends TestLogger {
 		Mockito
 			.when(
 				taskExecutorGateway
-					.requestSlot(any(SlotID.class), any(AllocationID.class), any(UUID.class), any(Time.class)))
+					.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(UUID.class), any(Time.class)))
 			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
@@ -161,7 +161,7 @@ public class SlotProtocolTest extends TestLogger {
 
 		// 4) Slot becomes available and TaskExecutor gets a SlotRequest
 		verify(taskExecutorGateway, timeout(5000))
-			.requestSlot(eq(slotID), eq(allocationID), any(UUID.class), any(Time.class));
+			.requestSlot(eq(slotID), eq(jobID), eq(allocationID), any(String.class), any(UUID.class), any(Time.class));
 	}
 
 	/**
@@ -189,7 +189,7 @@ public class SlotProtocolTest extends TestLogger {
 		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		Mockito.when(
 			taskExecutorGateway
-				.requestSlot(any(SlotID.class), any(AllocationID.class), any(UUID.class), any(Time.class)))
+				.requestSlot(any(SlotID.class), any(JobID.class), any(AllocationID.class), any(String.class), any(UUID.class), any(Time.class)))
 			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
@@ -240,7 +240,7 @@ public class SlotProtocolTest extends TestLogger {
 
 		// 4) a SlotRequest is routed to the TaskExecutor
 		verify(taskExecutorGateway, timeout(5000))
-			.requestSlot(eq(slotID), eq(allocationID), any(UUID.class), any(Time.class));
+			.requestSlot(eq(slotID), eq(jobID), eq(allocationID), any(String.class), any(UUID.class), any(Time.class));
 	}
 
 	private static TestingLeaderElectionService configureHA(

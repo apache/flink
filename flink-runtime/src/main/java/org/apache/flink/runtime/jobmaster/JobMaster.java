@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
@@ -644,6 +645,24 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		return new ClassloadingProps(libraryCacheManager.getBlobServerPort(),
 				executionGraph.getRequiredJarFiles(),
 				executionGraph.getRequiredClasspaths());
+	}
+
+	@RpcMethod
+	public Iterable<AllocationID> offerSlots(final Iterable<AllocationID> slots, UUID leaderId) {
+		throw new UnsupportedOperationException("Has to be implemented.");
+	}
+
+	@RpcMethod
+	public void failSlot(final AllocationID allocationId, UUID leaderId, Exception cause) {
+		throw new UnsupportedOperationException("Has to be implemented.");
+	}
+
+	@RpcMethod
+	public RegistrationResponse registerTaskManager(
+		final String taskManagerAddress,
+		final ResourceID taskManagerProcessId,
+		final UUID leaderId) {
+		throw new UnsupportedOperationException("Has to be implemented.");
 	}
 
 	//----------------------------------------------------------------------------------------------

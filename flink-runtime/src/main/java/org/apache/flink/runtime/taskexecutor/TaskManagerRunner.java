@@ -99,6 +99,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerServices.getBroadcastVariableManager(),
 			taskManagerServices.getFileCache(),
 			taskManagerServices.getTaskSlotTable(),
+			taskManagerServices.getJobManagerTable(),
+			taskManagerServices.getJobLeaderService(),
 			this);
 	}
 

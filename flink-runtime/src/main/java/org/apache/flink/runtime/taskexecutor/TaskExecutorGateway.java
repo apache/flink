@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -30,9 +30,9 @@ import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskmanager.Task;
 
-import java.util.Collection;
 import java.util.UUID;
 
 /**
@@ -43,28 +43,31 @@ public interface TaskExecutorGateway extends RpcGateway {
 	/**
 	 * Requests a slot from the TaskManager
 	 *
-	 * @param slotID slot id for the request
-	 * @param allocationID id for the request
-	 * @param resourceManagerLeaderID current leader id of the ResourceManager
+	 * @param slotId slot id for the request
+	 * @param allocationId id for the request
+	 * @param resourceManagerLeaderId current leader id of the ResourceManager
+	 * @throws SlotAllocationException if the slot allocation fails
 	 * @return answer to the slot request
 	 */
 	Future<TMSlotRequestReply> requestSlot(
-		SlotID slotID,
-		AllocationID allocationID,
-		UUID resourceManagerLeaderID,
+		SlotID slotId,
+		JobID jobId,
+		AllocationID allocationId,
+		String targetAddress,
+		UUID resourceManagerLeaderId,
 		@RpcTimeout Time timeout);
 
 	/**
 	 * Submit a {@link Task} to the {@link TaskExecutor}.
 	 *
 	 * @param tdd describing the task to submit
-	 * @param jobManagerID identifying the submitting JobManager
+	 * @param leaderId of the job leader
 	 * @param timeout of the submit operation
 	 * @return Future acknowledge of the successful operation
 	 */
 	Future<Acknowledge> submitTask(
 		TaskDeploymentDescriptor tdd,
-		ResourceID jobManagerID,
+		UUID leaderId,
 		@RpcTimeout Time timeout);
 
 	/**
@@ -74,7 +77,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param partitionInfos telling where the partition can be retrieved from
 	 * @return Future acknowledge if the partitions have been successfully updated
 	 */
-	Future<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Collection<PartitionInfo> partitionInfos);
+	Future<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos);
 
 	/**
 	 * Fail all intermediate result partitions of the given task.

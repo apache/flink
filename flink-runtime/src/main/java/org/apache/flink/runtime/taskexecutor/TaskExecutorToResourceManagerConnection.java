@@ -68,11 +68,16 @@ public class TaskExecutorToResourceManagerConnection
 
 	@Override
 	protected void onRegistrationSuccess(TaskExecutorRegistrationSuccess success) {
+		log.info("Successful registration at resource manager {} under registration id {}.",
+			getTargetAddress(), success.getRegistrationId());
+
 		registrationId = success.getRegistrationId();
 	}
 
 	@Override
 	protected void onRegistrationFailure(Throwable failure) {
+		log.info("Failed to register at resource manager {}.", getTargetAddress(), failure);
+
 		taskExecutor.onFatalErrorAsync(failure);
 	}
 
