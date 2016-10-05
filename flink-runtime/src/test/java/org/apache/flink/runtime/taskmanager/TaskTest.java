@@ -50,6 +50,7 @@ import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
@@ -802,7 +803,7 @@ public class TaskTest extends TestLogger {
 			checkpointResponder,
 			libCache,
 			mock(FileCache.class),
-			new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir")),
+			new TestingTaskManagerRuntimeInfo(),
 			mock(TaskMetricGroup.class),
 			consumableNotifier,
 			partitionStateChecker,
