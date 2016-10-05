@@ -42,6 +42,10 @@ public class RestartStrategies {
 		return new NoRestartStrategyConfiguration();
 	}
 
+	public static RestartStrategyConfiguration fallBackRestart() {
+		return new FallbackRestartStrategyConfiguration();
+	}
+
 	/**
 	 * Generates a FixedDelayRestartStrategyConfiguration.
 	 *
@@ -171,6 +175,15 @@ public class RestartStrategies {
 		public String getDescription() {
 			return "Failure rate restart with maximum of " + maxFailureRate + " failures within interval " + failureInterval.toString()
 					+ " and fixed delay " + delayBetweenAttemptsInterval.toString();
+		}
+	}
+
+	final public static class FallbackRestartStrategyConfiguration extends RestartStrategyConfiguration{
+		private static final long serialVersionUID = -4441787204284085544L;
+
+		@Override
+		public String getDescription() {
+			return "Cluster Default Restart";
 		}
 	}
 }

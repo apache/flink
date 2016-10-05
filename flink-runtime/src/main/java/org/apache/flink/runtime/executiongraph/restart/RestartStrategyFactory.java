@@ -66,6 +66,8 @@ public abstract class RestartStrategyFactory implements Serializable {
 					config.getFailureInterval(),
 					config.getDelayBetweenAttemptsInterval()
 			);
+		} else if (restartStrategyConfiguration instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
+			return null;
 		} else {
 			throw new IllegalArgumentException("Unknown restart strategy configuration " +
 				restartStrategyConfiguration + ".");
