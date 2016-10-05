@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -36,7 +38,6 @@ import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -53,7 +55,6 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestRegistered;
-import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestRejected;
 import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -61,6 +62,7 @@ import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskexecutor.exceptions.CheckpointException;
 import org.apache.flink.runtime.taskexecutor.exceptions.PartitionException;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskSubmissionException;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcCheckpointResponder;
@@ -83,9 +85,10 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -98,6 +101,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	/** The connection information of this task manager */
 	private final TaskManagerLocation taskManagerLocation;
+
+	/** Max blob port which is accepted */
+	public static final int MAX_BLOB_PORT = 65536;
 
 	/** The access to the leader election and retrieval services */
 	private final HighAvailabilityServices haServices;
@@ -123,10 +129,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	private final TaskManagerMetricGroup taskManagerMetricGroup;
 
 	private final BroadcastVariableManager broadcastVariableManager;
-	
-	/** Slots which have become available but haven't been confirmed by the RM */
-	private final Set<SlotID> unconfirmedFreeSlots;
-
 
 	private final FileCache fileCache;
 
@@ -141,6 +143,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// --------- task slot allocation table -----------
 
 	private final TaskSlotTable taskSlotTable;
+
+	private final JobManagerTable jobManagerTable;
+
+	private final JobLeaderService jobLeaderService;
 
 	// ------------------------------------------------------------------------
 
@@ -157,6 +163,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		BroadcastVariableManager broadcastVariableManager,
 		FileCache fileCache,
 		TaskSlotTable taskSlotTable,
+		JobManagerTable jobManagerTable,
+		JobLeaderService jobLeaderService,
 		FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService);
@@ -175,10 +183,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.broadcastVariableManager = checkNotNull(broadcastVariableManager);
 		this.fileCache = checkNotNull(fileCache);
+		this.jobManagerTable = checkNotNull(jobManagerTable);
+		this.jobLeaderService = checkNotNull(jobLeaderService);
 
 		this.jobManagerConnections = new HashMap<>(4);
-
-		this.unconfirmedFreeSlots = new HashSet<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -197,7 +205,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 
 		// tell the task slot table who's responsible for the task slot actions
-		taskSlotTable.start(new SlotActionsImpl(), taskManagerConfiguration.getTimeout());
+		taskSlotTable.start(new SlotActionsImpl());
+
+		// start the job leader service
+		jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
 	}
 
 	/**
@@ -207,7 +218,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	public void shutDown() {
 		log.info("Stopping TaskManager {}.", getAddress());
 
-		if (resourceManagerConnection.isConnected()) {
+		taskSlotTable.stop();
+
+		if (isConnectedToResourceManager()) {
 			try {
 				resourceManagerConnection.close();
 			} catch (Exception e) {
@@ -248,24 +261,18 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		log.info("Stopped TaskManager {}.", getAddress());
 	}
 
-	// ========================================================================
+	// ======================================================================
 	//  RPC methods
-	// ========================================================================
+	// ======================================================================
 
 	// ----------------------------------------------------------------------
 	// Task lifecycle RPCs
 	// ----------------------------------------------------------------------
 
 	@RpcMethod
-	public Acknowledge submitTask(TaskDeploymentDescriptor tdd, ResourceID jobManagerID) throws TaskSubmissionException {
+	public Acknowledge submitTask(TaskDeploymentDescriptor tdd, UUID jobManagerLeaderId) throws TaskSubmissionException {
 
-		final JobManagerConnection jobManagerConnection = getJobManagerConnection(jobManagerID);
-		if (jobManagerConnection == null) {
-			final String message = "Could not submit task because JobManager " + jobManagerID + " was not associated.";
-			log.debug(message);
-			throw new TaskSubmissionException(message);
-		}
-
+		// first, deserialize the pre-serialized information
 		final JobInformation jobInformation;
 		final TaskInformation taskInformation;
 		try {
@@ -276,9 +283,29 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			throw new TaskSubmissionException("Could not deserialize the job or task information.", e);
 		}
 
-		if (!taskSlotTable.existActiveSlot(jobInformation.getJobId(), tdd.getAllocationID())) {
-			final String message = "No task slot allocated for job ID " + jobInformation.getJobId() +
-					" and allocation ID " + tdd.getAllocationID() + '.';
+		final JobID jobId = jobInformation.getJobId();
+		final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);
+
+		if (jobManagerConnection == null) {
+			final String message = "Could not submit task because there is no JobManager " +
+				"associated for the job " + jobId + '.';
+
+			log.debug(message);
+			throw new TaskSubmissionException(message);
+		}
+
+		if (!jobManagerConnection.getLeaderId().equals(jobManagerLeaderId)) {
+			final String message = "Rejecting the task submission because the job manager leader id " +
+				jobManagerLeaderId + " does not match the expected job manager leader id " +
+				jobManagerConnection.getLeaderId() + '.';
+
+			log.debug(message);
+			throw new TaskSubmissionException(message);
+		}
+
+		if (!taskSlotTable.existsActiveSlot(jobId, tdd.getAllocationId())) {
+			final String message = "No task slot allocated for job ID " + jobId +
+				" and allocation ID " + tdd.getAllocationId() + '.';
 			log.debug(message);
 			throw new TaskSubmissionException(message);
 		}
@@ -293,7 +320,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				tdd.getAttemptNumber());
 
 		InputSplitProvider inputSplitProvider = new RpcInputSplitProvider(
-				jobManagerConnection.getJobMasterLeaderId(),
+				jobManagerConnection.getLeaderId(),
 				jobManagerConnection.getJobManagerGateway(),
 				jobInformation.getJobId(),
 				taskInformation.getJobVertexId(),
@@ -310,7 +337,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				jobInformation,
 				taskInformation,
 				tdd.getExecutionAttemptId(),
-				tdd.getAllocationID(),
+				tdd.getAllocationId(),
 				tdd.getSubtaskIndex(),
 				tdd.getAttemptNumber(),
 				tdd.getProducedPartitions(),
@@ -398,7 +425,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ----------------------------------------------------------------------
 
 	@RpcMethod
-	public Acknowledge updatePartitions(final ExecutionAttemptID executionAttemptID, Collection<PartitionInfo> partitionInfos) throws PartitionException {
+	public Acknowledge updatePartitions(final ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos) throws PartitionException {
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
@@ -494,37 +521,318 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
+	// ----------------------------------------------------------------------
+	// Slot allocation RPCs
+	// ----------------------------------------------------------------------
+
 	/**
+	 * /**
 	 * Requests a slot from the TaskManager
 	 *
-	 * @param slotID Slot id for the request
-	 * @param allocationID id for the request
-	 * @param resourceManagerLeaderID current leader id of the ResourceManager
+	 * @param slotId identifying the requested slot
+	 * @param jobId identifying the job for which the request is issued
+	 * @param allocationId id for the request
+	 * @param targetAddress of the job manager requesting the slot
+	 * @param rmLeaderId current leader id of the ResourceManager
+	 * @throws SlotAllocationException if the slot allocation fails
 	 * @return answer to the slot request
 	 */
 	@RpcMethod
-	public TMSlotRequestReply requestSlot(SlotID slotID, AllocationID allocationID, UUID resourceManagerLeaderID) {
-		if (!resourceManagerConnection.getTargetLeaderId().equals(resourceManagerLeaderID)) {
-			return new TMSlotRequestRejected(
-				resourceManagerConnection.getRegistrationId(), getResourceID(), allocationID);
-		}
-		if (unconfirmedFreeSlots.contains(slotID)) {
-			// check if request has not been blacklisted because the notification of a free slot
-			// has not been confirmed by the ResourceManager
-			return new TMSlotRequestRejected(
-				resourceManagerConnection.getRegistrationId(), getResourceID(), allocationID);
-		}
-		return new TMSlotRequestRegistered(new InstanceID(), ResourceID.generate(), allocationID);
+	public TMSlotRequestReply requestSlot(
+		final SlotID slotId,
+		final JobID jobId,
+		final AllocationID allocationId,
+		final String targetAddress,
+		final UUID rmLeaderId) throws SlotAllocationException {
+		log.info("Receive slot request {} for job {} from resource manager with leader id {}.",
+			allocationId, jobId, rmLeaderId);
 
+		if (resourceManagerConnection == null) {
+			final String message = "TaskManager is not connected to a resource manager.";
+			log.debug(message);
+			throw new SlotAllocationException(message);
+		}
+
+		if (!resourceManagerConnection.getTargetLeaderId().equals(rmLeaderId)) {
+			final String message = "The leader id " + rmLeaderId +
+				" does not match with the leader id of the connected resource manager " +
+				resourceManagerConnection.getTargetLeaderId() + '.';
+
+			log.debug(message);
+			throw new SlotAllocationException(message);
+		}
+
+		if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
+			if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, taskManagerConfiguration.getTimeout())) {
+				log.info("Allocated slot for {}.", allocationId);
+			} else {
+				log.info("Could not allocate slot for {}.", allocationId);
+				throw new SlotAllocationException("Could not allocate slot.");
+			}
+		} else if (!taskSlotTable.isAllocated(slotId.getSlotNumber(), jobId, allocationId)) {
+			final String message = "The slot " + slotId + " has already been allocated for a different job.";
+
+			log.info(message);
+			throw new SlotAllocationException(message);
+		}
+
+		if (jobManagerTable.contains(jobId)) {
+			offerSlotsToJobManager(jobId);
+		} else {
+			try {
+				jobLeaderService.addJob(jobId, targetAddress);
+			} catch (Exception e) {
+				// free the allocated slot
+				try {
+					taskSlotTable.freeSlot(allocationId);
+				} catch (SlotNotFoundException slotNotFoundException) {
+					// slot no longer existent, this should actually never happen, because we've
+					// just allocated the slot. So let's fail hard in this case!
+					onFatalError(slotNotFoundException);
+				}
+
+				// sanity check
+				if (!taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
+					onFatalError(new Exception("Could not free slot " + slotId));
+				}
+
+				throw new SlotAllocationException("Could not add job to job leader service.", e);
+			}
+		}
+
+		return new TMSlotRequestRegistered(resourceManagerConnection.getRegistrationId(), getResourceID(), allocationId);
 	}
 
-	// ------------------------------------------------------------------------
+	// ======================================================================
 	//  Internal methods
+	// ======================================================================
+
+	// ------------------------------------------------------------------------
+	//  Internal resource manager connection methods
 	// ------------------------------------------------------------------------
 
-	private JobManagerConnection getJobManagerConnection(ResourceID jobManagerID) {
-		return jobManagerConnections.get(jobManagerID);
+	private void notifyOfNewResourceManagerLeader(String newLeaderAddress, UUID newLeaderId) {
+		if (resourceManagerConnection != null) {
+			if (newLeaderAddress != null) {
+				// the resource manager switched to a new leader
+				log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
+					resourceManagerConnection.getTargetAddress(), newLeaderAddress);
+			}
+			else {
+				// address null means that the current leader is lost without a new leader being there, yet
+				log.info("Current ResourceManager {} lost leader status. Waiting for new ResourceManager leader.",
+					resourceManagerConnection.getTargetAddress());
+			}
+
+			// drop the current connection or connection attempt
+			if (resourceManagerConnection != null) {
+				resourceManagerConnection.close();
+				resourceManagerConnection = null;
+			}
+		}
+
+		// establish a connection to the new leader
+		if (newLeaderAddress != null) {
+			log.info("Attempting to register at ResourceManager {}", newLeaderAddress);
+			resourceManagerConnection =
+				new TaskExecutorToResourceManagerConnection(
+					log,
+					this,
+					newLeaderAddress,
+					newLeaderId,
+					getMainThreadExecutor());
+			resourceManagerConnection.start();
+		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Internal job manager connection methods
+	// ------------------------------------------------------------------------
+
+	private void offerSlotsToJobManager(final JobID jobId) {
+		final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);
+
+		if (jobManagerConnection == null) {
+			log.debug("There is no job manager connection to the leader of job {}.", jobId);
+		} else {
+			if (taskSlotTable.hasAllocatedSlots(jobId)) {
+				log.info("Offer reserved slots to the leader of job {}.", jobId);
+
+				final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
+
+				final Iterator<AllocationID> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
+				final UUID leaderId = jobManagerConnection.getLeaderId();
+
+				final Collection<AllocationID> reservedSlots = new HashSet<>(2);
+
+				while (reservedSlotsIterator.hasNext()) {
+					reservedSlots.add(reservedSlotsIterator.next());
+				}
+
+				Future<Iterable<AllocationID>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
+					reservedSlots,
+					leaderId,
+					taskManagerConfiguration.getTimeout());
+
+				acceptedSlotsFuture.thenAcceptAsync(new AcceptFunction<Iterable<AllocationID>>() {
+					@Override
+					public void accept(Iterable<AllocationID> acceptedSlots) {
+						// check if the response is still valid
+						if (isJobManagerConnectionValid(jobId, leaderId)) {
+							// mark accepted slots active
+							for (AllocationID acceptedSlot: acceptedSlots) {
+								try {
+									if (!taskSlotTable.markSlotActive(acceptedSlot)) {
+										// the slot is either free or releasing at the moment
+										final String message = "Could not mark slot " + jobId + " active.";
+										log.debug(message);
+										jobMasterGateway.failSlot(acceptedSlot, leaderId, new Exception(message));
+									}
+
+									// remove the assigned slots so that we can free the left overs
+									reservedSlots.remove(acceptedSlot);
+								} catch (SlotNotFoundException e) {
+									log.debug("Could not mark slot {} active.", acceptedSlot,  e);
+									jobMasterGateway.failSlot(acceptedSlot, leaderId, e);
+								}
+							}
+
+							final Exception e = new Exception("The slot was rejected by the JobManager.");
+
+							for (AllocationID rejectedSlot: reservedSlots) {
+								freeSlot(rejectedSlot, e);
+							}
+						} else {
+							// discard the response since there is a new leader for the job
+							log.debug("Discard offer slot response since there is a new leader " +
+								"for the job {}.", jobId);
+						}
+					}
+				}, getMainThreadExecutor());
+
+				acceptedSlotsFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+					@Override
+					public Void apply(Throwable throwable) {
+						if (throwable instanceof TimeoutException) {
+							// We ran into a timeout. Try again.
+							offerSlotsToJobManager(jobId);
+						} else {
+							// We encountered an exception. Free the slots and return them to the RM.
+							for (AllocationID reservedSlot: reservedSlots) {
+								freeSlot(reservedSlot, throwable);
+							}
+						}
+
+						return null;
+					}
+				}, getMainThreadExecutor());
+			} else {
+				log.debug("There are no unassigned slots for the job {}.", jobId);
+			}
+		}
+	}
+
+	private void establishJobManagerConnection(JobID jobId, JobMasterGateway jobMasterGateway, UUID jobManagerLeaderId, JMTMRegistrationSuccess registrationSuccess) {
+		log.info("Establish JobManager connection for job {}.", jobId);
+
+		if (jobManagerTable.contains(jobId)) {
+			JobManagerConnection oldJobManagerConnection = jobManagerTable.get(jobId);
+
+			if (!oldJobManagerConnection.getLeaderId().equals(jobManagerLeaderId)) {
+				closeJobManagerConnection(jobId);
+				jobManagerTable.put(jobId, associateWithJobManager(jobMasterGateway, jobManagerLeaderId, registrationSuccess.getBlobPort()));
+			}
+		} else {
+			jobManagerTable.put(jobId, associateWithJobManager(jobMasterGateway, jobManagerLeaderId, registrationSuccess.getBlobPort()));
+		}
+
+		offerSlotsToJobManager(jobId);
+	}
+
+	private void closeJobManagerConnection(JobID jobId) {
+		log.info("Close JobManager connection for job {}.", jobId);
+
+		// 1. fail tasks running under this JobID
+		Iterator<Task> tasks = taskSlotTable.getTasks(jobId);
+
+		while (tasks.hasNext()) {
+			tasks.next().failExternally(new Exception("JobManager responsible for " + jobId +
+				" lost the leadership."));
+		}
+
+		// 2. Move the active slots to state allocated (possible to time out again)
+		Iterator<AllocationID> activeSlots = taskSlotTable.getActiveSlots(jobId);
+
+		while (activeSlots.hasNext()) {
+			AllocationID activeSlot = activeSlots.next();
+
+			try {
+				if (!taskSlotTable.markSlotInactive(activeSlot, taskManagerConfiguration.getTimeout())) {
+					freeSlot(activeSlot, new Exception("Slot could not be marked inactive."));
+				}
+			} catch (SlotNotFoundException e) {
+				log.debug("Could not mark the slot {} inactive.", jobId, e);
+			}
+		}
+
+		// 3. Disassociate from the JobManager
+		JobManagerConnection jobManagerConnection = jobManagerTable.remove(jobId);
+
+		if (jobManagerConnection != null) {
+			try {
+				disassociateFromJobManager(jobManagerConnection);
+			} catch (IOException e) {
+				log.warn("Could not properly disassociate from JobManager {}.",
+					jobManagerConnection.getJobManagerGateway().getAddress(), e);
+			}
+		}
+	}
+
+	private JobManagerConnection associateWithJobManager(JobMasterGateway jobMasterGateway, UUID jobManagerLeaderId, int blobPort) {
+		Preconditions.checkNotNull(jobManagerLeaderId);
+		Preconditions.checkNotNull(jobMasterGateway);
+		Preconditions.checkArgument(blobPort > 0 || blobPort < MAX_BLOB_PORT, "Blob port is out of range.");
+
+		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobManagerLeaderId, jobMasterGateway);
+
+		CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
+
+		InetSocketAddress address = new InetSocketAddress(jobMasterGateway.getAddress(), blobPort);
+
+		BlobCache blobCache = new BlobCache(address, taskManagerConfiguration.getConfiguration());
+
+		LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
+			blobCache,
+			taskManagerConfiguration.getCleanupInterval());
+
+		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new RpcResultPartitionConsumableNotifier(
+			jobManagerLeaderId,
+			jobMasterGateway,
+			getRpcService().getExecutor(),
+			taskManagerConfiguration.getTimeout());
+
+		PartitionProducerStateChecker partitionStateChecker = new RpcPartitionStateChecker(jobManagerLeaderId, jobMasterGateway);
+
+		return new JobManagerConnection(
+			jobMasterGateway,
+			jobManagerLeaderId,
+			taskManagerActions,
+			checkpointResponder,
+			libraryCacheManager,
+			resultPartitionConsumableNotifier,
+			partitionStateChecker);
+	}
+
+	private void disassociateFromJobManager(JobManagerConnection jobManagerConnection) throws IOException {
+		Preconditions.checkNotNull(jobManagerConnection);
+		JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
+		jobManagerGateway.disconnectTaskManager(getResourceID());
+		jobManagerConnection.getLibraryCacheManager().shutdown();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Internal task methods
+	// ------------------------------------------------------------------------
 
 	private void failTask(final ExecutionAttemptID executionAttemptID, final Throwable cause) {
 		final Task task = taskSlotTable.getTask(executionAttemptID);
@@ -595,94 +903,11 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
-	private void notifyOfNewResourceManagerLeader(String newLeaderAddress, UUID newLeaderId) {
-		if (resourceManagerConnection != null) {
-			if (newLeaderAddress != null) {
-				// the resource manager switched to a new leader
-				log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
-					resourceManagerConnection.getTargetAddress(), newLeaderAddress);
-			}
-			else {
-				// address null means that the current leader is lost without a new leader being there, yet
-				log.info("Current ResourceManager {} lost leader status. Waiting for new ResourceManager leader.",
-					resourceManagerConnection.getTargetAddress());
-			}
-
-			// drop the current connection or connection attempt
-			if (resourceManagerConnection != null) {
-				resourceManagerConnection.close();
-				resourceManagerConnection = null;
-			}
-		}
-
-		unconfirmedFreeSlots.clear();
-
-		// establish a connection to the new leader
-		if (newLeaderAddress != null) {
-			log.info("Attempting to register at ResourceManager {}", newLeaderAddress);
-			resourceManagerConnection =
-				new TaskExecutorToResourceManagerConnection(
-					log,
-					this,
-					newLeaderAddress,
-					newLeaderId,
-					getMainThreadExecutor());
-			resourceManagerConnection.start();
-		}
-	}
-
-	private JobManagerConnection associateWithJobManager(UUID jobMasterLeaderId,
-			JobMasterGateway jobMasterGateway, int blobPort)
-	{
-		Preconditions.checkNotNull(jobMasterLeaderId);
-		Preconditions.checkNotNull(jobMasterGateway);
-		Preconditions.checkArgument(blobPort > 0 || blobPort <= 65535, "Blob port is out of range.");
-
-		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterLeaderId, jobMasterGateway);
-
-		CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
-
-		InetSocketAddress address = new InetSocketAddress(jobMasterGateway.getAddress(), blobPort);
-
-		BlobCache blobCache = new BlobCache(address, taskManagerConfiguration.getConfiguration());
-
-		LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
-			blobCache,
-			taskManagerConfiguration.getCleanupInterval());
-
-		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new RpcResultPartitionConsumableNotifier(
-				jobMasterLeaderId,
-				jobMasterGateway,
-				getRpcService().getExecutor(),
-				taskManagerConfiguration.getTimeout());
-
-		PartitionProducerStateChecker partitionStateChecker = new RpcPartitionStateChecker(jobMasterLeaderId, jobMasterGateway);
-
-		return new JobManagerConnection(
-				jobMasterLeaderId,
-				jobMasterGateway,
-				taskManagerActions,
-				checkpointResponder,
-				libraryCacheManager,
-				resultPartitionConsumableNotifier,
-				partitionStateChecker);
-	}
-
-	private void disassociateFromJobManager(JobManagerConnection jobManagerConnection) throws IOException {
-		if (jobManagerConnection != null) {
-			JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
-
-			jobManagerGateway.disconnectTaskManager(getResourceID());
-
-			jobManagerConnection.getLibraryCacheManager().shutdown();
-		}
-	}
-
-	private void freeSlot(AllocationID allocationId) {
+	private void freeSlot(AllocationID allocationId, Throwable cause) {
 		Preconditions.checkNotNull(allocationId);
 
 		try {
-			int freedSlotIndex = taskSlotTable.freeSlot(allocationId);
+			int freedSlotIndex = taskSlotTable.freeSlot(allocationId, cause);
 
 			if (freedSlotIndex != -1 && isConnectedToResourceManager()) {
 				// the slot was freed. Tell the RM about it
@@ -698,19 +923,33 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
+	private void freeSlot(AllocationID allocationId) {
+		freeSlot(allocationId, new Exception("The slot " + allocationId + " is beeing freed."));
+	}
+
 	private void timeoutSlot(AllocationID allocationId, UUID ticket) {
 		Preconditions.checkNotNull(allocationId);
 		Preconditions.checkNotNull(ticket);
 
 		if (taskSlotTable.isValidTimeout(allocationId, ticket)) {
-			freeSlot(allocationId);
+			freeSlot(allocationId, new Exception("The slot " + allocationId + " has timed out."));
 		} else {
 			log.debug("Received an invalid timeout for allocation id {} with ticket {}.", allocationId, ticket);
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//  Internal utility methods
+	// ------------------------------------------------------------------------
+
 	private boolean isConnectedToResourceManager() {
 		return (resourceManagerConnection != null && resourceManagerConnection.isConnected());
+	}
+
+	private boolean isJobManagerConnectionValid(JobID jobId, UUID leaderId) {
+		JobManagerConnection jmConnection = jobManagerTable.get(jobId);
+
+		return jmConnection != null && jmConnection.getLeaderId().equals(leaderId);
 	}
 
 	// ------------------------------------------------------------------------
@@ -761,11 +1000,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		return resourceManagerConnection;
 	}
 
-	@VisibleForTesting
-	public void addUnconfirmedFreeSlotNotification(SlotID slotID) {
-		unconfirmedFreeSlots.add(slotID);
-	}
-
 	// ------------------------------------------------------------------------
 	//  Utility classes
 	// ------------------------------------------------------------------------
@@ -788,6 +1022,44 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		@Override
 		public void handleError(Exception exception) {
 			onFatalErrorAsync(exception);
+		}
+	}
+
+	private final class JobLeaderListenerImpl implements JobLeaderListener {
+
+		@Override
+		public void jobManagerGainedLeadership(
+			final JobID jobId,
+			final JobMasterGateway jobManagerGateway,
+			final UUID jobLeaderId,
+			final JMTMRegistrationSuccess registrationMessage) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					establishJobManagerConnection(
+						jobId,
+						jobManagerGateway,
+						jobLeaderId,
+						registrationMessage);
+				}
+			});
+		}
+
+		@Override
+		public void jobManagerLostLeadership(final JobID jobId, final UUID jobLeaderId) {
+			log.info("JobManager for job {} with leader id {} lost leadership.", jobId, jobLeaderId);
+
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					closeJobManagerConnection(jobId);
+				}
+			});
+		}
+
+		@Override
+		public void handleError(Throwable throwable) {
+			onFatalErrorAsync(throwable);
 		}
 	}
 
@@ -854,5 +1126,4 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			});
 		}
 	}
-
 }

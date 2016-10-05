@@ -1160,7 +1160,7 @@ class TaskManager(
         jobInformation,
         taskInformation,
         tdd.getExecutionAttemptId,
-        tdd.getAllocationID,
+        tdd.getAllocationId,
         tdd.getSubtaskIndex,
         tdd.getAttemptNumber,
         tdd.getProducedPartitions,

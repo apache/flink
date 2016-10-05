@@ -46,7 +46,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final ExecutionAttemptID executionId;
 
 	/** The allocation ID of the slot in which the task shall be run */
-	private final AllocationID allocationID;
+	private final AllocationID allocationId;
 
 	/** The task's index in the subtask group. */
 	private final int subtaskIndex;
@@ -70,6 +70,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			SerializedValue<JobInformation> serializedJobInformation,
 			SerializedValue<TaskInformation> serializedTaskInformation,
 			ExecutionAttemptID executionAttemptId,
+			AllocationID allocationId,
 			int subtaskIndex,
 			int attemptNumber,
 			int targetSlotNumber,
@@ -80,6 +81,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.serializedJobInformation = Preconditions.checkNotNull(serializedJobInformation);
 		this.serializedTaskInformation = Preconditions.checkNotNull(serializedTaskInformation);
 		this.executionId = Preconditions.checkNotNull(executionAttemptId);
+		this.allocationId = Preconditions.checkNotNull(allocationId);
 
 		Preconditions.checkArgument(0 <= subtaskIndex, "The subtask index must be positive.");
 		this.subtaskIndex = subtaskIndex;
@@ -94,8 +96,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 		this.producedPartitions = Preconditions.checkNotNull(resultPartitionDeploymentDescriptors);
 		this.inputGates = Preconditions.checkNotNull(inputGateDeploymentDescriptors);
-
-		this.allocationID = new AllocationID();
 	}
 
 	/**
@@ -157,8 +157,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return taskStateHandles;
 	}
 
-	public AllocationID getAllocationID() {
-		return allocationID;
+	public AllocationID getAllocationId() {
+		return allocationId;
 	}
 
 	@Override

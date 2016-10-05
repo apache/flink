@@ -298,7 +298,13 @@ public abstract class SlotManager {
 		final TaskExecutorRegistration registration = freeSlot.getTaskExecutorRegistration();
 		final Future<TMSlotRequestReply> slotRequestReplyFuture =
 			registration.getTaskExecutorGateway()
-				.requestSlot(freeSlot.getSlotId(), allocationID, rmServices.getLeaderID(), timeout);
+				.requestSlot(
+					freeSlot.getSlotId(),
+					slotRequest.getJobId(),
+					allocationID,
+					"foobar", // TODO: set proper JM address
+					rmServices.getLeaderID(),
+					timeout);
 
 		slotRequestReplyFuture.handleAsync(new BiFunction<TMSlotRequestReply, Throwable, Void>() {
 			@Override

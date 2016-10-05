@@ -34,6 +34,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -1757,6 +1758,7 @@ public class TaskManagerTest extends TestLogger {
 			serializedJobInformation,
 			serializedJobVertexInformation,
 			executionAttemptId,
+			new AllocationID(),
 			subtaskIndex,
 			attemptNumber,
 			targetSlotNumber,

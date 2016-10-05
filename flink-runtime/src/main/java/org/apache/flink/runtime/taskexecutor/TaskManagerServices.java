@@ -73,6 +73,8 @@ public class TaskManagerServices {
 	private final BroadcastVariableManager broadcastVariableManager;
 	private final FileCache fileCache;
 	private final TaskSlotTable taskSlotTable;
+	private final JobManagerTable jobManagerTable;
+	private final JobLeaderService jobLeaderService;
 
 	private TaskManagerServices(
 		TaskManagerLocation taskManagerLocation,
@@ -83,7 +85,9 @@ public class TaskManagerServices {
 		TaskManagerMetricGroup taskManagerMetricGroup,
 		BroadcastVariableManager broadcastVariableManager,
 		FileCache fileCache,
-		TaskSlotTable taskSlotTable) {
+		TaskSlotTable taskSlotTable,
+		JobManagerTable jobManagerTable,
+		JobLeaderService jobLeaderService) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);
@@ -94,6 +98,8 @@ public class TaskManagerServices {
 		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
 		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
+		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
+		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -134,6 +140,14 @@ public class TaskManagerServices {
 	
 	public TaskSlotTable getTaskSlotTable() {
 		return taskSlotTable;
+	}
+
+	public JobManagerTable getJobManagerTable() {
+		return jobManagerTable;
+	}
+
+	public JobLeaderService getJobLeaderService() {
+		return jobLeaderService;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -193,6 +207,10 @@ public class TaskManagerServices {
 		final TimerService<AllocationID> timerService = new TimerService<>(new ScheduledThreadPoolExecutor(1));
 
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(resourceProfiles, timerService);
+
+		final JobManagerTable jobManagerTable = new JobManagerTable();
+
+		final JobLeaderService jobLeaderService = new JobLeaderService(resourceID);
 		
 		return new TaskManagerServices(
 			taskManagerLocation,
@@ -203,7 +221,9 @@ public class TaskManagerServices {
 			taskManagerMetricGroup,
 			broadcastVariableManager,
 			fileCache,
-			taskSlotTable);
+			taskSlotTable,
+			jobManagerTable,
+			jobLeaderService);
 	}
 
 	/**

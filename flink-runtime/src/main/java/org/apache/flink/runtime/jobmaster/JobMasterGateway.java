@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateServerAddress;
+import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KvState;
@@ -159,4 +161,38 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * Request the classloading props of this job.
 	 */
 	Future<ClassloadingProps> requestClassloadingProps();
+
+	/**
+	 * Offer the given slots to the job manager. The response contains the set of accepted slots.
+	 *
+	 * @param slots to offer to the job manager
+	 * @param leaderId identifying the job leader
+	 * @param timeout for the rpc call
+	 * @return Future set of accepted slots.
+	 */
+	Future<Iterable<AllocationID>> offerSlots(final Iterable<AllocationID> slots, UUID leaderId, @RpcTimeout final Time timeout);
+
+	/**
+	 * Fail the slot with the given allocation id and cause.
+	 *
+	 * @param allocationId identifying the slot to fail
+	 * @param leaderId identifying the job leader
+	 * @param cause of the failing
+	 */
+	void failSlot(final AllocationID allocationId, UUID leaderId, Exception cause);
+
+	/**
+	 * Register the task manager at the job manager.
+	 *
+	 * @param taskManagerAddress address of the task manager
+	 * @param taskManagerProcessId identifying the task manager
+	 * @param leaderId identifying the job leader
+	 * @param timeout for the rpc call
+	 * @return Future registration response indicating whether the registration was successful or not
+	 */
+	Future<RegistrationResponse> registerTaskManager(
+		final String taskManagerAddress,
+		final ResourceID taskManagerProcessId,
+		final UUID leaderId,
+		@RpcTimeout final Time timeout);
 }

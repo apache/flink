@@ -34,7 +34,7 @@ import java.util.UUID;
 public class JobManagerConnection {
 
 	// Job master leader session id
-	private final UUID jobMasterLeaderId;
+	private final UUID leaderId;
 
 	// Gateway to the job master
 	private final JobMasterGateway jobMasterGateway;
@@ -55,15 +55,14 @@ public class JobManagerConnection {
 	private final PartitionProducerStateChecker partitionStateChecker;
 
 	public JobManagerConnection(
-			UUID jobMasterLeaderId,
-			JobMasterGateway jobMasterGateway,
-			TaskManagerActions taskManagerActions,
-			CheckpointResponder checkpointResponder,
-			LibraryCacheManager libraryCacheManager,
-			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
-			PartitionProducerStateChecker partitionStateChecker)
-	{
-		this.jobMasterLeaderId = Preconditions.checkNotNull(jobMasterLeaderId);
+		JobMasterGateway jobMasterGateway,
+		UUID leaderId,
+		TaskManagerActions taskManagerActions,
+		CheckpointResponder checkpointResponder,
+		LibraryCacheManager libraryCacheManager,
+		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
+		PartitionProducerStateChecker partitionStateChecker) {
+		this.leaderId = Preconditions.checkNotNull(leaderId);
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		this.taskManagerActions = Preconditions.checkNotNull(taskManagerActions);
 		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
@@ -72,8 +71,8 @@ public class JobManagerConnection {
 		this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
 	}
 
-	public UUID getJobMasterLeaderId() {
-		return jobMasterLeaderId;
+	public UUID getLeaderId() {
+		return leaderId;
 	}
 
 	public JobMasterGateway getJobManagerGateway() {
