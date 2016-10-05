@@ -92,8 +92,11 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	private final HighAvailabilityServices highAvailabilityServices;
 
+	/** The factory to construct the SlotManager */
 	private final SlotManagerFactory slotManagerFactory;
-	protected SlotManager slotManager;
+
+	/** The SlotManager created by the slotManagerFactory when the ResourceManager is started. */
+	private SlotManager slotManager;
 
 	private LeaderElectionService leaderElectionService;
 

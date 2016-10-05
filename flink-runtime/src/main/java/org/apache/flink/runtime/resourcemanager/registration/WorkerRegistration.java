@@ -23,8 +23,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import java.io.Serializable;
 
 /**
- * This class is responsible for grouping the TaskExecutorGateway and the InstanceID
- * of a registered task executor. It also contains the worker information.
+ * This class extends the {@link TaskExecutorRegistration}, adding the worker information.
  */
 public class WorkerRegistration<WorkerType extends Serializable> extends TaskExecutorRegistration {
 
