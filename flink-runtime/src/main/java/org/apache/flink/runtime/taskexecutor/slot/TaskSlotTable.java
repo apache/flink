@@ -70,10 +70,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	/** Interface for slot actions, such as freeing them or timing them out */
 	private SlotActions slotActions;
-
-	/** The timeout for allocated slots */
-	private Time slotTimeout;
-
+	
 	/** Whether the table has been started */
 	private boolean started;
 
@@ -104,7 +101,6 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		slotsPerJob = new HashMap<>(4);
 
 		slotActions = null;
-		slotTimeout = null;
 		started = false;
 	}
 
@@ -112,11 +108,9 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * Start the task slot table with the given slot actions and slot timeout value.
 	 *
 	 * @param initialSlotActions to use for slot actions
-	 * @param initialSlotTimeout to use for slot timeouts
 	 */
-	public void start(SlotActions initialSlotActions, Time initialSlotTimeout) {
+	public void start(SlotActions initialSlotActions) {
 		this.slotActions = Preconditions.checkNotNull(initialSlotActions);
-		this.slotTimeout = Preconditions.checkNotNull(initialSlotTimeout);
 
 		timerService.start(this);
 
@@ -129,7 +123,6 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	public void stop() {
 		started = false;
 		timerService.stop();
-		slotTimeout = null;
 		slotActions = null;
 	}
 
@@ -144,9 +137,10 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * @param index of the task slot to allocate
 	 * @param jobId to allocate the task slot for
 	 * @param allocationId identifying the allocation
+	 * @param slotTimeout until the slot times out
 	 * @return True if the task slot could be allocated; otherwise false
 	 */
-	public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId) {
+	public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
 		checkInit();
 
 		TaskSlot taskSlot = taskSlots.get(index);
@@ -180,7 +174,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 *
 	 * @param allocationId to identify the task slot to mark as active
 	 * @throws SlotNotFoundException if the slot could not be found for the given allocation id
-	 * @return True if the slot could be marked active
+	 * @return True if the slot could be marked active; otherwise false
 	 */
 	public boolean markSlotActive(AllocationID allocationId) throws SlotNotFoundException {
 		checkInit();
@@ -190,6 +184,8 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		if (taskSlot != null) {
 			if (taskSlot.markActive()) {
 				// unregister a potential timeout
+				LOG.info("Activate slot {}.", allocationId);
+
 				timerService.unregisterTimeout(allocationId);
 
 				return true;
@@ -206,10 +202,11 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * then a {@link SlotNotFoundException} is thrown.
 	 *
 	 * @param allocationId to identify the task slot to mark as inactive
+	 * @param slotTimeout until the slot times out
 	 * @throws SlotNotFoundException if the slot could not be found for the given allocation id
 	 * @return True if the slot could be marked inactive
 	 */
-	public boolean markSlotInactive(AllocationID allocationId) throws SlotNotFoundException {
+	public boolean markSlotInactive(AllocationID allocationId, Time slotTimeout) throws SlotNotFoundException {
 		checkInit();
 
 		TaskSlot taskSlot = getTaskSlot(allocationId);
@@ -253,6 +250,12 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 */
 	public int freeSlot(AllocationID allocationId, Throwable cause) throws SlotNotFoundException {
 		checkInit();
+		
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Free slot {}.", allocationId, cause);
+		} else {
+			LOG.info("Free slot {}.", allocationId);
+		}
 
 		TaskSlot taskSlot = getTaskSlot(allocationId);
 
@@ -322,8 +325,6 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * @return True if the given task slot is allocated for the given job and allocation id
 	 */
 	public boolean isAllocated(int index, JobID jobId, AllocationID allocationId) {
-		checkInit();
-
 		TaskSlot taskSlot = taskSlots.get(index);
 
 		return taskSlot.isAllocated(jobId, allocationId);
@@ -336,7 +337,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * @param allocationId identifying the allocation
 	 * @return True if there exists a task slot which is active for the given job and allocation id.
 	 */
-	public boolean existActiveSlot(JobID jobId, AllocationID allocationId) {
+	public boolean existsActiveSlot(JobID jobId, AllocationID allocationId) {
 		TaskSlot taskSlot = getTaskSlot(allocationId);
 
 		if (taskSlot != null) {
@@ -431,6 +432,8 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * @return The removed task if there is any for the given execution attempt id; otherwise null
 	 */
 	public Task removeTask(ExecutionAttemptID executionAttemptID) {
+		checkInit();
+
 		TaskSlotMapping taskSlotMapping = taskSlotMappings.remove(executionAttemptID);
 
 		if (taskSlotMapping != null) {
@@ -481,6 +484,8 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	@Override
 	public void notifyTimeout(AllocationID key, UUID ticket) {
+		checkInit();
+
 		if (slotActions != null) {
 			slotActions.timeoutSlot(key, ticket);
 		}
@@ -493,9 +498,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	private TaskSlot getTaskSlot(AllocationID allocationId) {
 		Preconditions.checkNotNull(allocationId);
 
-		TaskSlot taskSlot = allocationIDTaskSlotMap.get(allocationId);
-
-		return taskSlot;
+		return allocationIDTaskSlotMap.get(allocationId);
 	}
 
 	private void checkInit() {

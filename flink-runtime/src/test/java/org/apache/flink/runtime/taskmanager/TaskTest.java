@@ -25,6 +25,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -823,16 +824,18 @@ public class TaskTest extends TestLogger {
 		}
 
 		return new TaskDeploymentDescriptor(
-				new JobID(), "Test Job", new JobVertexID(), new ExecutionAttemptID(),
-				serializedExecConfig,
-				"Test Task", 1, 0, 1, 0,
+			new JobID(),
+			new AllocationID(),
+			"Test Job", new JobVertexID(), new ExecutionAttemptID(),
+			serializedExecConfig,
+			"Test Task", 1, 0, 1, 0,
 				new Configuration(), taskConfig,
-				invokable.getName(),
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				0);
+			invokable.getName(),
+			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+			Collections.<InputGateDeploymentDescriptor>emptyList(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList(),
+			0);
 	}
 
 	// ------------------------------------------------------------------------
