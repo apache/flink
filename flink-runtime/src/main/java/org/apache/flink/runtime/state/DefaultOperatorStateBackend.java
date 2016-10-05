@@ -20,8 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.JavaSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputView;
@@ -74,15 +74,15 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	}
 
 	@Override
-	public ListState<Serializable> getDefaultPartitionableState(String stateName) throws Exception {
-		return getPartitionableState(new ListStateDescriptor<>(stateName, javaSerializer));
+	public ListState<Serializable> getSerializableListState(String stateName) throws Exception {
+		return getOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
 	}
 
 	/**
 	 * @see OperatorStateStore
 	 */
 	@Override
-	public <S> ListState<S> getPartitionableState(
+	public <S> ListState<S> getOperatorState(
 			ListStateDescriptor<S> stateDescriptor) throws IOException {
 
 		Preconditions.checkNotNull(stateDescriptor);
