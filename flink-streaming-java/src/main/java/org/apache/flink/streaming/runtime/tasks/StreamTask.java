@@ -269,6 +269,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			isRunning = true;
 			run();
 
+			// make sure all timers finish and no new timers can come
+			timerService.quiesceAndAwaitPending();
+
 			LOG.debug("Finished task {}", getName());
 
 			// make sure no further checkpoint and notification actions happen.
