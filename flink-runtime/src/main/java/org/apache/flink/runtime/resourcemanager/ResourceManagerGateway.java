@@ -26,7 +26,6 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
-import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.SlotAvailableReply;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -94,17 +93,13 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * Sent by the TaskExecutor to notify the ResourceManager that a slot has become available.
 	 *
 	 * @param resourceManagerLeaderId The ResourceManager leader id
-	 * @param resourceID The ResourceID of the TaskExecutor
-	 * @param instanceID The InstanceID of the TaskExecutor
+	 * @param instanceId TaskExecutor's instance id
 	 * @param slotID The SlotID of the freed slot
-	 * @return The confirmation by the ResourceManager
 	 */
-	Future<SlotAvailableReply> notifySlotAvailable(
+	void notifySlotAvailable(
 		UUID resourceManagerLeaderId,
-		ResourceID resourceID,
-		InstanceID instanceID,
-		SlotID slotID,
-		@RpcTimeout Time timeout);
+		InstanceID instanceId,
+		SlotID slotID);
 
 	/**
 	 * Registers an infoMessage listener
