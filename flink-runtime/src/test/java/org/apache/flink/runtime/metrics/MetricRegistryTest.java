@@ -334,20 +334,31 @@ public class MetricRegistryTest extends TestLogger {
 
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
 		group.counter("C");
+		group.close();
 		registry.shutdown();
-		assertTrue(TestReporter8.numCorrectDelimiters == 4);
+		assertTrue(TestReporter8.numCorrectDelimitersForRegister == 4);
+		assertTrue(TestReporter8.numCorrectDelimitersForUnregister == 4);
 	}
 
 	public static class TestReporter8 extends TestReporter {
 		char expectedDelimiter;
-		public static int numCorrectDelimiters = 0;
+		public static int numCorrectDelimitersForRegister = 0;
+		public static int numCorrectDelimitersForUnregister = 0;
 
 		@Override
 		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 			String expectedMetric = String.format("A%cB%1$cC", expectedDelimiter);
 			assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
 			assertEquals(expectedMetric, group.getMetricIdentifier(metricName));
-			numCorrectDelimiters++;
+			numCorrectDelimitersForRegister++;
+		}
+
+		@Override
+		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+			String expectedMetric = String.format("A%cB%1$cC", expectedDelimiter);
+			assertEquals(expectedMetric, group.getMetricIdentifier(metricName, this));
+			assertEquals(expectedMetric, group.getMetricIdentifier(metricName));
+			numCorrectDelimitersForUnregister++;
 		}
 	}
 }

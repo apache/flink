@@ -149,7 +149,7 @@ public class MetricGroupTest extends TestLogger {
 		}
 
 		@Override
-		public void unregister(Metric metric, String name, MetricGroup parent) {
+		public void unregister(Metric metric, String name, AbstractMetricGroup parent) {
 			fail("Metric should never be un-registered");
 		}
 	}

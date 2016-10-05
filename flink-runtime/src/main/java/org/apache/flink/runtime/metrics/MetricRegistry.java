@@ -250,8 +250,7 @@ public class MetricRegistry {
 				for (int i = 0; i < reporters.size(); i++) {
 					MetricReporter reporter = reporters.get(i);
 					if (reporter != null) {
-						FrontMetricGroup front = new FrontMetricGroup(i);
-						front.setReference(group);
+						FrontMetricGroup front = new FrontMetricGroup(i, group);
 						reporter.notifyOfAddedMetric(metric, metricName, front);
 					}
 				}
@@ -271,12 +270,14 @@ public class MetricRegistry {
 	 * @param metricName  the name of the metric
 	 * @param group       the group that contains the metric
 	 */
-	public void unregister(Metric metric, String metricName, MetricGroup group) {
+	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
 			if (reporters != null) {
-				for (MetricReporter reporter : reporters) {
+				for (int i = 0; i < reporters.size(); i++) {
+					MetricReporter reporter = reporters.get(i);
 					if (reporter != null) {
-						reporter.notifyOfRemovedMetric(metric, metricName, group);
+						FrontMetricGroup front = new FrontMetricGroup(i, group);
+						reporter.notifyOfRemovedMetric(metric, metricName, front);
 					}
 				}
 			}
