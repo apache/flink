@@ -39,6 +39,7 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 	private volatile long currentTime = 0;
 
 	private volatile boolean isTerminated;
+	private volatile boolean isQuiesced;
 
 	// sorts the timers by timestamp so that they are processed in the correct order.
 	private final Map<Long, List<Triggerable>> registeredTasks = new TreeMap<>();
@@ -47,25 +48,27 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 	public void setCurrentTime(long timestamp) throws Exception {
 		this.currentTime = timestamp;
 
-		// decide which timers to fire and put them in a list
-		// we do not fire them here to be able to accommodate timers
-		// that register other timers.
-
-		Iterator<Map.Entry<Long, List<Triggerable>>> it = registeredTasks.entrySet().iterator();
-		List<Map.Entry<Long, List<Triggerable>>> toRun = new ArrayList<>();
-		while (it.hasNext()) {
-			Map.Entry<Long, List<Triggerable>> t = it.next();
-			if (t.getKey() <= this.currentTime) {
-				toRun.add(t);
-				it.remove();
+		if (!isQuiesced) {
+			// decide which timers to fire and put them in a list
+			// we do not fire them here to be able to accommodate timers
+			// that register other timers.
+	
+			Iterator<Map.Entry<Long, List<Triggerable>>> it = registeredTasks.entrySet().iterator();
+			List<Map.Entry<Long, List<Triggerable>>> toRun = new ArrayList<>();
+			while (it.hasNext()) {
+				Map.Entry<Long, List<Triggerable>> t = it.next();
+				if (t.getKey() <= this.currentTime) {
+					toRun.add(t);
+					it.remove();
+				}
 			}
-		}
-
-		// now do the actual firing.
-		for (Map.Entry<Long, List<Triggerable>> tasks: toRun) {
-			long now = tasks.getKey();
-			for (Triggerable task: tasks.getValue()) {
-				task.trigger(now);
+	
+			// now do the actual firing.
+			for (Map.Entry<Long, List<Triggerable>> tasks: toRun) {
+				long now = tasks.getKey();
+				for (Triggerable task: tasks.getValue()) {
+					task.trigger(now);
+				}
 			}
 		}
 	}
@@ -80,6 +83,9 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 		if (isTerminated) {
 			throw new IllegalStateException("terminated");
 		}
+		if (isQuiesced) {
+			return new DummyFuture();
+		}
 
 		if (timestamp <= currentTime) {
 			try {
@@ -88,7 +94,6 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 				throw new RuntimeException(e);
 			}
 		}
-
 		List<Triggerable> tasks = registeredTasks.get(timestamp);
 		if (tasks == null) {
 			tasks = new ArrayList<>();
@@ -105,8 +110,16 @@ public class TestTimeServiceProvider extends TimeServiceProvider {
 	}
 
 	@Override
-	public void shutdownService() throws Exception {
-		isTerminated = true;
+	public void quiesceAndAwaitPending() {
+		if (!isTerminated) {
+			isQuiesced = true;
+			registeredTasks.clear();
+		}
+	}
+
+	@Override
+	public void shutdownService() {
+		this.isTerminated = true;
 	}
 
 	public int getNumRegisteredTimers() {

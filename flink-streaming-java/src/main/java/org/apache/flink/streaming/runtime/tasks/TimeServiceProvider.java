@@ -14,32 +14,70 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.streaming.runtime.operators.Triggerable;
+
 import java.util.concurrent.ScheduledFuture;
 
 /**
  * Defines the current processing time and handles all related actions,
  * such as register timers for tasks to be executed in the future.
+ * 
+ * <p>The access to the time via {@link #getCurrentProcessingTime()} is always available, regardless of
+ * whether the timer service has been shut down.
+ * 
+ * <p>The registration of timers follows a life cycle of three phases:
+ * <ol>
+ *     <li>In the initial state, it accepts timer registrations and triggers when the time is reached.</li>
+ *     <li>After calling {@link #quiesceAndAwaitPending()}, further calls to
+ *         {@link #registerTimer(long, Triggerable)} will not register any further timers, and will
+ *         return a "dummy" future as a result. This is used for clean shutdown, where currently firing
+ *         timers are waited for and no future timers can be scheduled, without causing hard exceptions.</li>
+ *     <li>After a call to {@link #shutdownService()}, all calls to {@link #registerTimer(long, Triggerable)}
+ *         will result in a hard exception.</li>
+ * </ol>
  */
 public abstract class TimeServiceProvider {
 
-	/** Returns the current processing time. */
+	/**
+	 * Returns the current processing time.
+	 */
 	public abstract long getCurrentProcessingTime();
 
-	/** Registers a task to be executed when (processing) time is {@code timestamp}.
-	 * @param timestamp
-	 * 						when the task is to be executed (in processing time)
-	 * @param target
-	 * 						the task to be executed
-	 * @return the result to be returned.
+	/**
+	 * Registers a task to be executed when (processing) time is {@code timestamp}.
+	 * 
+	 * @param timestamp   Time when the task is to be executed (in processing time)
+	 * @param target      The task to be executed
+	 * 
+	 * @return The future that represents the scheduled task. This always returns some future,
+	 *         even if the timer was shut down
 	 */
-	public abstract ScheduledFuture<?> registerTimer(final long timestamp, final Triggerable target);
+	public abstract ScheduledFuture<?> registerTimer(long timestamp, Triggerable target);
 
-	/** Returns <tt>true</tt> if the service has been shut down, <tt>false</tt> otherwise. */
+	/**
+	 * Returns <tt>true</tt> if the service has been shut down, <tt>false</tt> otherwise.
+	 */
 	public abstract boolean isTerminated();
 
-	/** Shuts down and clean up the timer service provider. */
-	public abstract void shutdownService() throws Exception;
+	/**
+	 * This method puts the service into a state where it does not register new timers, but
+	 * returns for each call to {@link #registerTimer(long, Triggerable)} only a "mock" future.
+	 * Furthermore, the method clears all not yet started timers, and awaits the completion
+	 * of currently executing timers.
+	 * 
+	 * <p>This method can be used to cleanly shut down the timer service. The using components
+	 * will not notice that the service is shut down (as for example via exceptions when registering
+	 * a new timer), but the service will simply not fire any timer any more.
+	 */
+	public abstract void quiesceAndAwaitPending() throws InterruptedException;
+
+	/**
+	 * Shuts down and clean up the timer service provider hard and immediately. This does not wait
+	 * for any timer to complete. Any further call to {@link #registerTimer(long, Triggerable)}
+	 * will result in a hard exception.
+	 */
+	public abstract void shutdownService();
 }

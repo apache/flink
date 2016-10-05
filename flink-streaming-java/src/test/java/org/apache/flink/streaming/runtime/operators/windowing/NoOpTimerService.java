@@ -26,7 +26,7 @@ import java.util.concurrent.ScheduledFuture;
 class NoOpTimerService extends TimeServiceProvider {
 
 	private volatile boolean terminated;
-	
+
 	@Override
 	public long getCurrentProcessingTime() {
 		return System.currentTimeMillis();
@@ -43,7 +43,10 @@ class NoOpTimerService extends TimeServiceProvider {
 	}
 
 	@Override
-	public void shutdownService() throws Exception {
+	public void quiesceAndAwaitPending() {}
+
+	@Override
+	public void shutdownService() {
 		terminated = true;
 	}
 }
