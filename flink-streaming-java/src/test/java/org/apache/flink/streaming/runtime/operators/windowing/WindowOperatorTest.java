@@ -837,9 +837,6 @@ public class WindowOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), Long.MAX_VALUE));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), Long.MAX_VALUE));
 
-		System.out.println("BEFORE GOT: " + outputBeforeClose);
-		System.out.println("GOT: " + testHarness.getOutput());
-
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, Iterables.concat(outputBeforeClose, testHarness.getOutput()), new Tuple2ResultSortComparator());
 
 		testHarness.close();
