@@ -25,9 +25,8 @@ import org.apache.flink.api.table.SlideWithSize;
  * windows of fixed length equal to window size, as in tumbling windows, but in this case, windows
  * can be overlapping. Thus, an element can be assigned to multiple windows.
  *
- * For example, you could have windows of size 10 minutes that slide by 5 minutes. With this
- * the following operation gets 10 minutes worth of elements and will be invoked for every 5
- * minutes of data.
+ * For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
+ * 15 minutes worth of elements are grouped every 3 minutes.
  */
 public class Slide {
 
@@ -41,9 +40,8 @@ public class Slide {
 	 * windows can be overlapping. Thus, an element can be assigned to multiple windows.
 	 * The slide/overlap can be specified on the result of this method.
 	 *
-	 * For example, you could have windows of size 10 minutes that slide by 5 minutes. With this
-	 * the following operation gets 10 minutes worth of elements and will be invoked for every 5
-	 * minutes of data.
+	 * For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
+	 * 15 minutes worth of elements are grouped every 3 minutes.
 	 *
 	 * @param size size of the window either as number of rows or interval of milliseconds
 	 * @return a partially specified sliding window

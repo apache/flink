@@ -71,7 +71,9 @@ abstract class EventTimeWindow(timeField: Expression) extends GroupWindow {
 // ------------------------------------------------------------------------------------------------
 
 /**
-  * Tumbling group-window. By default, it works on processing-time.
+  * Tumbling group-window. By default, it works on processing-time. In order to let this window
+  * work on event-time call [[on('rowtime)]] and specify a time mode for streaming tables or a
+  * time attribute for batch tables.
   *
   * @param size size of the window either as number of rows or interval of milliseconds
   */
@@ -88,7 +90,8 @@ class TumblingWindow(size: Expression) extends GroupWindow {
 
   /**
     * Defines the time mode for streaming tables and specifies a time attribute for
-    * batch tables over which the query is evaluated.
+    * batch tables over which the query is evaluated. Use event-time mode for streaming tables
+    * by calling with [[on('rowtime)]].
     *
     * @param timeField time mode for streaming tables and time attribute for batch tables
     * @return a tumbling group-window on event-time
@@ -98,7 +101,8 @@ class TumblingWindow(size: Expression) extends GroupWindow {
 
   /**
     * Defines the time mode for streaming tables and specifies a time attribute for
-    * batch tables over which the query is evaluated.
+    * batch tables over which the query is evaluated. Use event-time mode for streaming tables
+    * by calling with [[on("rowtime")]].
     *
     * @param timeField time mode for streaming tables and time attribute for batch tables
     * @return a tumbling group-window on event-time
@@ -163,35 +167,35 @@ class SlideWithSize(size: Expression) {
   def this(size: String) = this(ExpressionParser.parseExpression(size))
 
   /**
-    * Specifies the window's slide. This is the size of the overlap.
+    * Specifies the window's slide. The slide determines how much windows overlap.
     *
-    * For example, you could have windows of size 10 minutes that slide by 5 minutes. With this
-    * the following operation gets 10 minutes worth of elements and will be invoked for every 5
-    * minutes of data.
+    * For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
+    * 15 minutes worth of elements are grouped every 3 minutes.
     *
-    * @param slide size of the overlapping of windows
+    * @param slide trigger interval either as number of rows or interval of milliseconds
     * @return a sliding group-window
     */
   def every(slide: Expression): SlidingWindow = new SlidingWindow(size, slide)
 
   /**
-    * Specifies the window's slide. This is the size of the overlap.
+    * Specifies the window's slide. The slide determines how much windows overlap.
     *
-    * For example, you could have windows of size 10 minutes that slide by 5 minutes. With this
-    * the following operation gets 10 minutes worth of elements and will be invoked for every 5
-    * minutes of data.
+    * For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
+    * 15 minutes worth of elements are grouped every 3 minutes.
     *
-    * @param slide size of the overlapping of windows
+    * @param slide trigger interval either as number of rows or interval of milliseconds
     * @return a sliding group-window
     */
   def every(slide: String): SlidingWindow = every(ExpressionParser.parseExpression(slide))
 }
 
 /**
-  * Sliding group-window. By default, it works on processing-time.
+  * Sliding group-window. By default, it works on processing-time. In order to let this window
+  * work on event-time call [[on('rowtime)]] and specify a time mode for streaming tables or a
+  * time attribute for batch tables.
   *
   * @param size size of the window either as number of rows or interval of milliseconds
-  * @param slide size of the overlapping of windows
+  * @param slide trigger interval either as number of rows or interval of milliseconds
   */
 class SlidingWindow(
     size: Expression,
@@ -202,7 +206,8 @@ class SlidingWindow(
 
   /**
     * Defines the time mode for streaming tables and specifies a time attribute for
-    * batch tables over which the query is evaluated.
+    * batch tables over which the query is evaluated. Use event-time mode for streaming tables
+    * by calling with [[on('rowtime)]].
     *
     * @param timeField time mode for streaming tables and time attribute for batch tables
     * @return a sliding group-window on event-time
@@ -212,7 +217,8 @@ class SlidingWindow(
 
   /**
     * Defines the time mode for streaming tables and specifies a time attribute for
-    * batch tables over which the query is evaluated.
+    * batch tables over which the query is evaluated. Use event-time mode for streaming tables
+    * by calling with [[on("rowtime")]].
     *
     * @param timeField time mode for streaming tables and time attribute for batch tables
     * @return a sliding group-window on event-time
@@ -264,7 +270,9 @@ class SlidingEventTimeWindow(
 // ------------------------------------------------------------------------------------------------
 
 /**
-  * Session group-window. By default, it works on processing-time.
+  * Session group-window. By default, it works on processing-time. In order to let this window
+  * work on event-time call [[on('rowtime)]] and specify a time mode for streaming tables or a
+  * time attribute for batch tables.
   *
   * @param gap specifies how long (as interval of milliseconds) to wait for new data before
   *            considering a session as closed
@@ -283,7 +291,8 @@ class SessionWindow(gap: Expression) extends GroupWindow {
 
   /**
     * Defines the time mode for streaming tables and specifies a time attribute for
-    * batch tables over which the query is evaluated.
+    * batch tables over which the query is evaluated. Use event-time mode for streaming tables
+    * by calling with [[on('rowtime)]].
     *
     * @param timeField time mode for streaming tables and time attribute for batch tables
     * @return a session group-window on event-time
@@ -293,7 +302,8 @@ class SessionWindow(gap: Expression) extends GroupWindow {
 
     /**
     * Defines the time mode for streaming tables and specifies a time attribute for
-    * batch tables over which the query is evaluated.
+    * batch tables over which the query is evaluated. Use event-time mode for streaming tables
+    * by calling with [[on("rowtime")]].
     *
     * @param timeField time mode for streaming tables and time attribute for batch tables
     * @return a session group-window on event-time

@@ -50,10 +50,6 @@ object WordCountTable {
       .filter('frequency === 2)
       .toDataSet[WC]
 
-    val w = Slide.over(23).every(23).toLogicalWindow.toString
-
-    println(w)
-
     result.print()
   }
 
