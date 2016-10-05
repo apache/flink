@@ -18,17 +18,17 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-
-import org.junit.Test;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.Properties;
 
-import static org.junit.Assert.*;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.junit.Test;
 
 public class KafkaConsumer08Test {
 
@@ -88,5 +88,52 @@ public class KafkaConsumer08Test {
 		catch (Exception e) {
 			assertTrue(e.getMessage().contains("Unable to retrieve any partitions"));
 		}
+	}
+
+	@Test
+	public void testAllBoostrapServerHostsAreInvalid() {
+		try {
+			String zookeeperConnect = "localhost:56794";
+			String bootstrapServers = "indexistentHost:11111";
+			String groupId = "non-existent-group";
+			Properties props = createKafkaProps(zookeeperConnect, bootstrapServers, groupId);
+			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(Collections.singletonList("no op topic"),
+					new SimpleStringSchema(), props);
+			consumer.open(new Configuration());
+			fail();
+		} catch (Exception e) {
+			assertTrue("Exception should be thrown containing 'all bootstrap servers invalid' message!",
+					e.getMessage().contains("All the servers provided in: '" + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG
+							+ "' config are invalid"));
+		}
+	}
+
+	@Test
+	public void testAtLeastOneBootstrapServerHostIsValid() {
+		try {
+			String zookeeperConnect = "localhost:56794";
+			// we declare one valid boostrap server, namely the one with
+			// 'localhost'
+			String bootstrapServers = "indexistentHost:11111, localhost:22222";
+			String groupId = "non-existent-group";
+			Properties props = createKafkaProps(zookeeperConnect, bootstrapServers, groupId);
+			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(Collections.singletonList("no op topic"),
+					new SimpleStringSchema(), props);
+			consumer.open(new Configuration());
+			fail();
+		} catch (Exception e) {
+			// test is not failing because we have one valid boostrap server
+			assertTrue("The cause of the exception should not be 'all boostrap server are invalid'!",
+					!e.getMessage().contains("All the hosts provided in: " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG
+							+ " config are invalid"));
+		}
+	}
+	
+	private Properties createKafkaProps(String zookeeperConnect, String bootstrapServers, String groupId) {
+		Properties props = new Properties();
+		props.setProperty("zookeeper.connect", zookeeperConnect);
+		props.setProperty("bootstrap.servers", bootstrapServers);
+		props.setProperty("group.id", groupId);
+		return props;
 	}
 }
