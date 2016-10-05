@@ -42,7 +42,10 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
 
+import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -237,7 +240,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	public static List<KafkaTopicPartitionLeader> getPartitionsForTopic(List<String> topics, Properties properties) {
 		String seedBrokersConfString = properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
 		final int numRetries = getInt(properties, GET_PARTITIONS_RETRIES_KEY, DEFAULT_GET_PARTITIONS_RETRIES);
-
+		
 		checkNotNull(seedBrokersConfString, "Configuration property %s not set", ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
 		String[] seedBrokers = seedBrokersConfString.split(",");
 		List<KafkaTopicPartitionLeader> partitions = new ArrayList<>();
@@ -290,6 +293,8 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 					}
 					break retryLoop; // leave the loop through the brokers
 				} catch (Exception e) {
+					//validates seed brokers in case of a ClosedChannelException
+					validateSeedBrokers(seedBrokers, e);
 					LOG.warn("Error communicating with broker " + seedBroker + " to find partitions for " + topics.toString() + "." +
 							"" + e.getClass() + ". Message: " + e.getMessage());
 					LOG.debug("Detailed trace", e);
@@ -345,6 +350,36 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 		catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Property 'zookeeper.connection.timeout.ms' is not a valid integer");
+		}
+	}
+
+	/**
+	 * Validate that at least one seed broker is valid in case of a
+	 * ClosedChannelException.
+	 * 
+	 * @param seedBrokers
+	 *            array containing the seed brokers e.g. ["host1:port1",
+	 *            "host2:port2"]
+	 * @param exception
+	 *            instance
+	 */
+	private static void validateSeedBrokers(String[] seedBrokers, Exception exception) {
+		if (!(exception instanceof ClosedChannelException)) {
+			return;
+		}
+		int unknownHosts = 0;
+		for (String broker : seedBrokers) {
+			URL brokerUrl = NetUtils.getCorrectHostnamePort(broker.trim());
+			try {
+				InetAddress.getByName(brokerUrl.getHost());
+			} catch (UnknownHostException e) {
+				unknownHosts++;
+			}
+		}
+		// throw meaningful exception if all the provided hosts are invalid
+		if (unknownHosts == seedBrokers.length) {
+			throw new IllegalArgumentException("All the servers provided in: '"
+					+ ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + "' config are invalid. (unknown hosts)");
 		}
 	}
 
