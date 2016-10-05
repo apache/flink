@@ -27,7 +27,7 @@ import org.apache.flink.util.Collector;
 
 /**
  * The base class for combining messages sent during a {@link VertexCentricteration}.
- * 
+ *
  * @param <K> The type of the vertex id
  * @param <Message> The type of the message sent between vertices along the edges.
  */
@@ -52,7 +52,7 @@ public abstract class MessageCombiner<K, Message> implements Serializable {
 	 * Combines messages sent from different vertices to a target vertex.
 	 * Implementing this method might reduce communication costs during a vertex-centric
 	 * iteration.
-	 * 
+	 *
 	 * @param messages the input messages to combine
 	 * @throws Exception
 	 */
@@ -60,7 +60,7 @@ public abstract class MessageCombiner<K, Message> implements Serializable {
 
 	/**
 	 * Sends the combined message to the target vertex.
-	 * 
+	 *
 	 * @param combinedMessage
 	 * @throws Exception
 	 */
