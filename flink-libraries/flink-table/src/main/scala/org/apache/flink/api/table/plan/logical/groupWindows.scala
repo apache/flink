@@ -100,7 +100,15 @@ case class EventTimeTumblingGroupWindow(
       resolve(size))
 
   override def validate(tableEnv: TableEnvironment): ValidationResult =
-    super.validate(tableEnv).orElse(TumblingGroupWindow.validate(tableEnv, size))
+    super.validate(tableEnv)
+      .orElse(TumblingGroupWindow.validate(tableEnv, size))
+      .orElse(size match {
+        case Literal(_, BasicTypeInfo.INT_TYPE_INFO | BasicTypeInfo.LONG_TYPE_INFO) =>
+          ValidationFailure(
+            "Event-time grouping windows on row intervals are currently not supported.")
+        case _ =>
+          ValidationSuccess
+      })
 
   override def toString: String = s"EventTimeTumblingGroupWindow($name, $timeField, $size)"
 }
@@ -181,7 +189,15 @@ case class EventTimeSlidingGroupWindow(
       resolve(slide))
 
   override def validate(tableEnv: TableEnvironment): ValidationResult =
-    super.validate(tableEnv).orElse(SlidingGroupWindow.validate(tableEnv, size, slide))
+    super.validate(tableEnv)
+      .orElse(SlidingGroupWindow.validate(tableEnv, size, slide))
+      .orElse(size match {
+        case Literal(_, BasicTypeInfo.INT_TYPE_INFO | BasicTypeInfo.LONG_TYPE_INFO) =>
+          ValidationFailure(
+            "Event-time grouping windows on row intervals are currently not supported.")
+        case _ =>
+          ValidationSuccess
+      })
 
   override def toString: String = s"EventTimeSlidingGroupWindow($name, $timeField, $size, $slide)"
 }

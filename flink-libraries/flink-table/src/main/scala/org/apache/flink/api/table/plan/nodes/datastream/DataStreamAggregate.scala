@@ -91,8 +91,12 @@ class DataStreamAggregate(
 
     val groupingKeys = grouping.indices.toArray
     // add grouping fields, position keys in the input, and input type
-    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(namedAggregates,
-      inputType, getRowType, grouping, config)
+    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(
+      namedAggregates,
+      inputType,
+      getRowType,
+      grouping,
+      config)
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(
       tableEnv,
@@ -179,11 +183,14 @@ object DataStreamAggregate {
       stream.countWindow(asCount(size))
 
     case EventTimeTumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
-      stream
-        .window(TumblingEventTimeWindows.of(asTime(size)))
+      stream.window(TumblingEventTimeWindows.of(asTime(size)))
 
     case EventTimeTumblingGroupWindow(_, _, size) =>
-      stream.countWindow(asCount(size))
+      // TODO: EventTimeTumblingGroupWindow should sort the stream on event time
+      // before applying the  windowing logic. Otherwise, this would be the same as a
+      // ProcessingTimeTumblingGroupWindow
+      throw new UnsupportedOperationException("Event-time grouping windows on row intervals are " +
+        "currently not supported.")
 
     case ProcessingTimeSlidingGroupWindow(_, size, slide) if isTimeInterval(size.resultType) =>
       stream.window(SlidingProcessingTimeWindows.of(asTime(size), asTime(slide)))
@@ -191,20 +198,21 @@ object DataStreamAggregate {
     case ProcessingTimeSlidingGroupWindow(_, size, slide) =>
       stream.countWindow(asCount(size), asCount(slide))
 
-    case EventTimeSlidingGroupWindow(_, _, size, slide)
-        if isTimeInterval(size.resultType) =>
-      stream
-        .window(SlidingEventTimeWindows.of(asTime(size), asTime(slide)))
+    case EventTimeSlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
+      stream.window(SlidingEventTimeWindows.of(asTime(size), asTime(slide)))
 
     case EventTimeSlidingGroupWindow(_, _, size, slide) =>
-      stream.countWindow(asCount(size), asCount(slide))
+      // TODO: EventTimeTumblingGroupWindow should sort the stream on event time
+      // before applying the  windowing logic. Otherwise, this would be the same as a
+      // ProcessingTimeTumblingGroupWindow
+      throw new UnsupportedOperationException("Event-time grouping windows on row intervals are " +
+        "currently not supported.")
 
     case ProcessingTimeSessionGroupWindow(_, gap: Expression) =>
       stream.window(ProcessingTimeSessionWindows.withGap(asTime(gap)))
 
     case EventTimeSessionGroupWindow(_, _, gap) =>
-      stream
-        .window(EventTimeSessionWindows.withGap(asTime(gap)))
+      stream.window(EventTimeSessionWindows.withGap(asTime(gap)))
   }
 
   private def createNonKeyedWindowedStream(groupWindow: LogicalWindow, stream: DataStream[Row])
@@ -217,11 +225,14 @@ object DataStreamAggregate {
       stream.countWindowAll(asCount(size))
 
     case EventTimeTumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
-      stream
-        .windowAll(TumblingEventTimeWindows.of(asTime(size)))
+      stream.windowAll(TumblingEventTimeWindows.of(asTime(size)))
 
     case EventTimeTumblingGroupWindow(_, _, size) =>
-      stream.countWindowAll(asCount(size))
+      // TODO: EventTimeTumblingGroupWindow should sort the stream on event time
+      // before applying the  windowing logic. Otherwise, this would be the same as a
+      // ProcessingTimeTumblingGroupWindow
+      throw new UnsupportedOperationException("Event-time grouping windows on row intervals are " +
+        "currently not supported.")
 
     case ProcessingTimeSlidingGroupWindow(_, size, slide) if isTimeInterval(size.resultType) =>
       stream.windowAll(SlidingProcessingTimeWindows.of(asTime(size), asTime(slide)))
@@ -229,20 +240,21 @@ object DataStreamAggregate {
     case ProcessingTimeSlidingGroupWindow(_, size, slide) =>
       stream.countWindowAll(asCount(size), asCount(slide))
 
-    case EventTimeSlidingGroupWindow(_, _, size, slide)
-        if isTimeInterval(size.resultType) =>
-      stream
-        .windowAll(SlidingEventTimeWindows.of(asTime(size), asTime(slide)))
+    case EventTimeSlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
+      stream.windowAll(SlidingEventTimeWindows.of(asTime(size), asTime(slide)))
 
     case EventTimeSlidingGroupWindow(_, _, size, slide) =>
-      stream.countWindowAll(asCount(size), asCount(slide))
+      // TODO: EventTimeTumblingGroupWindow should sort the stream on event time
+      // before applying the  windowing logic. Otherwise, this would be the same as a
+      // ProcessingTimeTumblingGroupWindow
+      throw new UnsupportedOperationException("Event-time grouping windows on row intervals are " +
+        "currently not supported.")
 
     case ProcessingTimeSessionGroupWindow(_, gap) =>
       stream.windowAll(ProcessingTimeSessionWindows.withGap(asTime(gap)))
 
     case EventTimeSessionGroupWindow(_, _, gap) =>
-      stream
-        .windowAll(EventTimeSessionWindows.withGap(asTime(gap)))
+      stream.windowAll(EventTimeSessionWindows.withGap(asTime(gap)))
   }
 
   def asTime(expr: Expression): Time = expr match {

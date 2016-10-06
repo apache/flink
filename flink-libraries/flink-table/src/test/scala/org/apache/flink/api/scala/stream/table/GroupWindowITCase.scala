@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import scala.collection.mutable
 
@@ -278,6 +278,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
+  @Ignore // see comments in DataStreamAggregate
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -398,6 +399,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
+  @Ignore // see comments in DataStreamAggregate
   def testEventTimeSlidingGroupWindowOverCount(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -548,7 +550,8 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
-  def testAllEventTimeGroupWindowOverRow(): Unit = {
+  @Ignore // see comments in DataStreamAggregate
+  def testAllEventTimeGroupWindowOverCount(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -665,6 +668,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
+  @Ignore // see comments in DataStreamAggregate
   def testAllEventTimeSlidingGroupWindowOverCount(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
