@@ -26,12 +26,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A thread that periodically writes the current Kafka partition offsets to Zookeeper.
  */
-public class PeriodicOffsetCommitter extends Thread {
+public class PeriodicOffsetCommitter<T> extends Thread {
 
 	/** The ZooKeeper handler */
 	private final ZookeeperOffsetHandler offsetHandler;
-	
-	private final KafkaTopicPartitionState<?>[] partitionStates;
+
+	/** The owning fetcher */
+	private final Kafka08Fetcher<T> fetcher;
+
+	/** Snapshotting current state needs to be synchronized on this lock */
+	private final Object checkpointLock;
 	
 	/** The proxy to forward exceptions to the main thread */
 	private final ExceptionProxy errorHandler;
@@ -42,13 +46,15 @@ public class PeriodicOffsetCommitter extends Thread {
 	/** Flag to mark the periodic committer as running */
 	private volatile boolean running = true;
 
-	PeriodicOffsetCommitter(ZookeeperOffsetHandler offsetHandler,
-			KafkaTopicPartitionState<?>[] partitionStates,
-			ExceptionProxy errorHandler,
-			long commitInterval)
+	PeriodicOffsetCommitter(Kafka08Fetcher<T> fetcher,
+							ZookeeperOffsetHandler offsetHandler,
+							Object checkpointLock,
+							ExceptionProxy errorHandler,
+							long commitInterval)
 	{
+		this.fetcher = checkNotNull(fetcher);
 		this.offsetHandler = checkNotNull(offsetHandler);
-		this.partitionStates = checkNotNull(partitionStates);
+		this.checkpointLock = checkNotNull(checkpointLock);
 		this.errorHandler = checkNotNull(errorHandler);
 		this.commitInterval = commitInterval;
 		
@@ -61,12 +67,11 @@ public class PeriodicOffsetCommitter extends Thread {
 			while (running) {
 				Thread.sleep(commitInterval);
 
-				// create copy a deep copy of the current offsets
-				HashMap<KafkaTopicPartition, Long> currentOffsets = new HashMap<>(partitionStates.length);
-				for (KafkaTopicPartitionState<?> partitionState : partitionStates) {
-					currentOffsets.put(partitionState.getKafkaTopicPartition(), partitionState.getOffset());
+				HashMap<KafkaTopicPartition, Long> currentOffsets;
+				synchronized (checkpointLock) {
+					currentOffsets = fetcher.snapshotCurrentState();
 				}
-				
+
 				offsetHandler.writeOffsets(currentOffsets);
 			}
 		}

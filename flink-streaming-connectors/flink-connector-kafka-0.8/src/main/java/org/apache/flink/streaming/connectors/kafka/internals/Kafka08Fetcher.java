@@ -79,6 +79,9 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	/** The interval in which to automatically commit (-1 if deactivated) */
 	private final long autoCommitInterval;
 
+	/** The checkpoint lock (required here only for the periodic committer thread) */
+	private final Object checkpointLock;
+
 	/** The handler that reads/writes offsets from/to ZooKeeper */
 	private volatile ZookeeperOffsetHandler zookeeperOffsetHandler;
 
@@ -106,6 +109,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		this.invalidOffsetBehavior = invalidOffsetBehavior;
 		this.autoCommitInterval = autoCommitInterval;
 		this.unassignedPartitionsQueue = new ClosableBlockingQueue<>();
+		this.checkpointLock = sourceContext.getCheckpointLock();
 
 		// initially, all these partitions are not assigned to a specific broker connection
 		for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
@@ -129,7 +133,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		final ZookeeperOffsetHandler zookeeperOffsetHandler = new ZookeeperOffsetHandler(kafkaConfig);
 		this.zookeeperOffsetHandler = zookeeperOffsetHandler;
 
-		PeriodicOffsetCommitter periodicCommitter = null;
+		PeriodicOffsetCommitter<T> periodicCommitter = null;
 		try {
 			// read offsets from ZooKeeper for partitions that did not restore offsets
 			{
@@ -153,8 +157,8 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			if (autoCommitInterval > 0) {
 				LOG.info("Starting periodic offset committer, with commit interval of {}ms", autoCommitInterval);
 
-				periodicCommitter = new PeriodicOffsetCommitter(zookeeperOffsetHandler, 
-						subscribedPartitions(), errorHandler, autoCommitInterval);
+				periodicCommitter = new PeriodicOffsetCommitter<>(
+					this, zookeeperOffsetHandler, checkpointLock, errorHandler, autoCommitInterval);
 				periodicCommitter.setName("Periodic Kafka partition offset committer");
 				periodicCommitter.setDaemon(true);
 				periodicCommitter.start();
