@@ -137,10 +137,12 @@ This allows the job to finish processing all inflight data.
 #### Trigger a savepoint
 
 {% highlight bash %}
-./bin/flink savepoint <jobID>
+./bin/flink savepoint <jobID> [savepointDirectory]
 {% endhighlight %}
 
 Returns the path of the created savepoint. You need this path to restore and dispose savepoints.
+
+You can optionally specify a `savepointDirectory` when triggering the savepoint. If you don't specify one here, you need to configure a default savepoint directory for the Flink installation (see [[savepoint.html#configuration]]).
 
 #### **Restore a savepoint**
 

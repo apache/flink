@@ -72,6 +72,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -623,7 +624,7 @@ public class CliFrontend {
 			String[] cleanedArgs = options.getArgs();
 			JobID jobId;
 
-			if (cleanedArgs.length > 0) {
+			if (cleanedArgs.length >= 1) {
 				String jobIdString = cleanedArgs[0];
 				try {
 					jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
@@ -637,7 +638,17 @@ public class CliFrontend {
 								"Specify a Job ID to trigger a savepoint."));
 			}
 
-			return triggerSavepoint(options, jobId);
+			String savepointDirectory = null;
+			if (cleanedArgs.length >= 2) {
+				savepointDirectory = cleanedArgs[1];
+			}
+
+			// Print superfluous arguments
+			if (cleanedArgs.length >= 3) {
+				logAndSysout("Provided more arguments than required. Ignoring not needed arguments.");
+			}
+
+			return triggerSavepoint(options, jobId, savepointDirectory);
 		}
 	}
 
@@ -645,12 +656,12 @@ public class CliFrontend {
 	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint}
 	 * message to the job manager.
 	 */
-	private int triggerSavepoint(SavepointOptions options, JobID jobId) {
+	private int triggerSavepoint(SavepointOptions options, JobID jobId, String savepointDirectory) {
 		try {
 			ActorGateway jobManager = getJobManagerGateway(options);
 
 			logAndSysout("Triggering savepoint for job " + jobId + ".");
-			Future<Object> response = jobManager.ask(new TriggerSavepoint(jobId),
+			Future<Object> response = jobManager.ask(new TriggerSavepoint(jobId, Option.apply(savepointDirectory)),
 					new FiniteDuration(1, TimeUnit.HOURS));
 
 			Object result;

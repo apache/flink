@@ -21,7 +21,6 @@ package org.apache.flink.client;
 import akka.dispatch.Futures;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CommandLineOptions;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.Rule;
@@ -37,8 +36,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.util.List;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
@@ -79,7 +76,7 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new TriggerSavepoint(jobId)),
+					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
 					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
@@ -95,7 +92,7 @@ public class CliFrontendSavepointTest {
 
 			assertEquals(0, returnCode);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new TriggerSavepoint(jobId)),
+					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
 					any(FiniteDuration.class));
 
 			assertTrue(buffer.toString().contains("expectedSavepointPath"));
@@ -116,7 +113,7 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new TriggerSavepoint(jobId)),
+					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
 					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
@@ -132,7 +129,7 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new TriggerSavepoint(jobId)),
+					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
 					any(FiniteDuration.class));
 
 			assertTrue(buffer.toString().contains("expectedTestException"));
@@ -171,7 +168,7 @@ public class CliFrontendSavepointTest {
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new TriggerSavepoint(jobId)),
+					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
 					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
@@ -185,12 +182,52 @@ public class CliFrontendSavepointTest {
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new TriggerSavepoint(jobId)),
+					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
 					any(FiniteDuration.class));
 
 			String errMsg = buffer.toString();
 			assertTrue(errMsg.contains("IllegalStateException"));
 			assertTrue(errMsg.contains("Unknown JobManager response"));
+		}
+		finally {
+			restoreStdOutAndStdErr();
+		}
+	}
+
+	/**
+	 * Tests that a CLI call with a custom savepoint directory target is
+	 * forwarded correctly to the JM.
+	 */
+	@Test
+	public void testTriggerSavepointCustomTarget() throws Exception {
+		replaceStdOutAndStdErr();
+
+		try {
+			JobID jobId = new JobID();
+			Option<String> customTarget = Option.apply("customTargetDirectory");
+			ActorGateway jobManager = mock(ActorGateway.class);
+
+			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
+
+			when(jobManager.ask(
+					Mockito.eq(new TriggerSavepoint(jobId, customTarget)),
+					any(FiniteDuration.class)))
+					.thenReturn(triggerResponse.future());
+			String savepointPath = "expectedSavepointPath";
+			triggerResponse.success(new TriggerSavepointSuccess(jobId, savepointPath));
+
+			CliFrontend frontend = new MockCliFrontend(
+					CliFrontendTestUtils.getConfigDir(), jobManager);
+
+			String[] parameters = { jobId.toString(), customTarget.get() };
+			int returnCode = frontend.savepoint(parameters);
+
+			assertEquals(0, returnCode);
+			verify(jobManager, times(1)).ask(
+					Mockito.eq(new TriggerSavepoint(jobId, customTarget)),
+					any(FiniteDuration.class));
+
+			assertTrue(buffer.toString().contains("expectedSavepointPath"));
 		}
 		finally {
 			restoreStdOutAndStdErr();

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -35,10 +36,7 @@ public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 	public void start() throws Exception {}
 
 	@Override
-	public void shutdown() throws Exception {}
-
-	@Override
-	public void suspend() throws Exception {}
+	public void shutdown(JobStatus jobStatus) throws Exception {}
 
 	@Override
 	public long getAndIncrement() throws Exception {

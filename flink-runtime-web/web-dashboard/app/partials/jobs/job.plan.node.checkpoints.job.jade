@@ -60,6 +60,12 @@ table(ng-if="jobCheckpointStats").table.table-hover.table-inner
             strong Average:
             span  {{ jobCheckpointStats['size']['avg'] | humanizeBytes }}
 
+    tr(ng-if="jobCheckpointStats['external-path']")
+      td(colspan=4)
+        strong Latest Checkpoint Path:
+        =" "
+        | {{ jobCheckpointStats['external-path'] }}
+
 div(ng-if="!showHistory && jobCheckpointStats && jobCheckpointStats['history'].length > 0")
   a.btn.btn-default(ng-click="toggleHistory()")
     | <strong>Show history</strong> ({{ jobCheckpointStats['history'].length }})

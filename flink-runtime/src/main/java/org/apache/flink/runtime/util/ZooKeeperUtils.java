@@ -218,15 +218,13 @@ public class ZooKeeperUtils {
 	 * @param configuration                  {@link Configuration} object
 	 * @param jobId                          ID of job to create the instance for
 	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
-	 * @param userClassLoader                User code class loader
 	 * @return {@link ZooKeeperCompletedCheckpointStore} instance
 	 */
 	public static CompletedCheckpointStore createCompletedCheckpoints(
 			CuratorFramework client,
 			Configuration configuration,
 			JobID jobId,
-			int maxNumberOfCheckpointsToRetain,
-			ClassLoader userClassLoader) throws Exception {
+			int maxNumberOfCheckpointsToRetain) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
@@ -244,7 +242,6 @@ public class ZooKeeperUtils {
 
 		return new ZooKeeperCompletedCheckpointStore(
 				maxNumberOfCheckpointsToRetain,
-				userClassLoader,
 				client,
 				checkpointsPath,
 				stateStorage);

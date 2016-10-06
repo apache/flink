@@ -868,6 +868,24 @@ public final class ConfigConstants {
 	/** The scope format string that is applied to all metrics scoped to an operator. */
 	public static final String METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
 
+	// ---------------------------- Checkpoints -------------------------------
+
+	/** The default directory for savepoints. */
+	@PublicEvolving
+	public static final String SAVEPOINT_DIRECTORY_KEY = "state.savepoints.dir";
+
+	/** The default directory used for persistent checkpoints. */
+	@PublicEvolving
+	public static final String CHECKPOINTS_DIRECTORY_KEY = "state.checkpoints.dir";
+
+	/**
+	 * This key was used in Flink versions <= 1.1.X with the savepoint backend
+	 * configuration. We now always use the FileSystem for savepoints. For this,
+	 * the only relevant config key is {@link #SAVEPOINT_DIRECTORY_KEY}.
+	 */
+	@Deprecated
+	public static final String SAVEPOINT_FS_DIRECTORY_KEY = "savepoints.state.backend.fs.dir";
+
 	// ------------------------------------------------------------------------
 	//                            Default Values
 	// ------------------------------------------------------------------------

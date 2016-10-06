@@ -23,15 +23,66 @@ import org.junit.Test;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the default checkpoint properties.
+ */
 public class CheckpointPropertiesTest {
 
+	/**
+	 * Tests the default checkpoint properties.
+	 */
 	@Test
 	public void testCheckpointProperties() {
-		assertFalse(CheckpointProperties.forStandardCheckpoint().isSavepoint());
+		CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
+
+		assertFalse(props.forceCheckpoint());
+		assertFalse(props.externalizeCheckpoint());
+		assertTrue(props.discardOnSubsumed());
+		assertTrue(props.discardOnJobFinished());
+		assertTrue(props.discardOnJobCancelled());
+		assertTrue(props.discardOnJobFailed());
+		assertTrue(props.discardOnJobSuspended());
 	}
 
+	/**
+	 * Tests the external checkpoints properties.
+	 */
+	@Test
+	public void testPersistentCheckpointProperties() {
+		CheckpointProperties props = CheckpointProperties.forExternalizedCheckpoint(true);
+
+		assertFalse(props.forceCheckpoint());
+		assertTrue(props.externalizeCheckpoint());
+		assertTrue(props.discardOnSubsumed());
+		assertTrue(props.discardOnJobFinished());
+		assertTrue(props.discardOnJobCancelled());
+		assertFalse(props.discardOnJobFailed());
+		assertTrue(props.discardOnJobSuspended());
+
+		props = CheckpointProperties.forExternalizedCheckpoint(false);
+
+		assertFalse(props.forceCheckpoint());
+		assertTrue(props.externalizeCheckpoint());
+		assertTrue(props.discardOnSubsumed());
+		assertTrue(props.discardOnJobFinished());
+		assertFalse(props.discardOnJobCancelled());
+		assertFalse(props.discardOnJobFailed());
+		assertTrue(props.discardOnJobSuspended());
+	}
+
+	/**
+	 * Tests the default (manually triggered) savepoint properties.
+	 */
 	@Test
 	public void testSavepointProperties() {
-		assertTrue(CheckpointProperties.forStandardSavepoint().isSavepoint());
+		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
+
+		assertTrue(props.forceCheckpoint());
+		assertTrue(props.externalizeCheckpoint());
+		assertFalse(props.discardOnSubsumed());
+		assertFalse(props.discardOnJobFinished());
+		assertFalse(props.discardOnJobCancelled());
+		assertFalse(props.discardOnJobFailed());
+		assertFalse(props.discardOnJobSuspended());
 	}
 }

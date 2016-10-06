@@ -19,11 +19,15 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
 
@@ -34,7 +38,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A successful checkpoint describes a checkpoint after all required tasks acknowledged it (with their state)
  * and that is considered completed.
  */
-public class CompletedCheckpoint implements StateObject {
+public class CompletedCheckpoint implements Serializable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(CompletedCheckpoint.class);
 
 	private static final long serialVersionUID = -8360248179615702014L;
 
@@ -51,9 +57,11 @@ public class CompletedCheckpoint implements StateObject {
 	/** States of the different task groups belonging to this checkpoint */
 	private final Map<JobVertexID, TaskState> taskStates;
 
-	/** Flag to indicate whether the completed checkpoint data should be deleted when this
-	 * handle to the checkpoint is disposed */
-	private final boolean deleteStateWhenDisposed;
+	/** Properties for this checkpoint. */
+	private final CheckpointProperties props;
+
+	/** External path if persisted checkpoint; <code>null</code> otherwise. */
+	private final String externalPath;
 
 	// ------------------------------------------------------------------------
 
@@ -63,7 +71,8 @@ public class CompletedCheckpoint implements StateObject {
 			long timestamp,
 			long completionTimestamp,
 			Map<JobVertexID, TaskState> taskStates,
-			boolean deleteStateWhenDisposed) {
+			CheckpointProperties props,
+			String externalPath) {
 
 		checkArgument(checkpointID >= 0);
 		checkArgument(timestamp >= 0);
@@ -74,7 +83,13 @@ public class CompletedCheckpoint implements StateObject {
 		this.timestamp = timestamp;
 		this.duration = completionTimestamp - timestamp;
 		this.taskStates = checkNotNull(taskStates);
-		this.deleteStateWhenDisposed = deleteStateWhenDisposed;
+		this.props = checkNotNull(props);
+		this.externalPath = externalPath;
+
+		if (props.externalizeCheckpoint() && externalPath == null) {
+			throw new NullPointerException("Checkpoint properties say that the checkpoint " +
+					"should have been persisted, but missing external path.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -95,19 +110,50 @@ public class CompletedCheckpoint implements StateObject {
 		return duration;
 	}
 
-	@Override
-	public void discardState() throws Exception {
-		if (deleteStateWhenDisposed) {
+	public CheckpointProperties getProperties() {
+		return props;
+	}
 
-			try {
-				StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
-			} finally {
-				taskStates.clear();
+	public boolean subsume() throws Exception {
+		if (props.discardOnSubsumed()) {
+			discard();
+			return true;
+		}
+
+		return false;
+	}
+
+	public boolean discard(JobStatus jobStatus) throws Exception {
+		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
+				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
+				jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
+				jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended()) {
+
+			discard();
+			return true;
+		} else {
+			if (externalPath != null) {
+				LOG.info("Persistent checkpoint with ID {} at '{}' not discarded.",
+						checkpointID,
+						externalPath);
 			}
+
+			return false;
 		}
 	}
 
-	@Override
+	private void discard() throws Exception {
+		try {
+			if (externalPath != null) {
+				SavepointStore.removeSavepoint(externalPath);
+			}
+
+			StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
+		} finally {
+			taskStates.clear();
+		}
+	}
+
 	public long getStateSize() throws IOException {
 		long result = 0L;
 
@@ -124,6 +170,10 @@ public class CompletedCheckpoint implements StateObject {
 
 	public TaskState getTaskState(JobVertexID jobVertexID) {
 		return taskStates.get(jobVertexID);
+	}
+
+	public String getExternalPath() {
+		return externalPath;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -153,4 +203,5 @@ public class CompletedCheckpoint implements StateObject {
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
 	}
+
 }

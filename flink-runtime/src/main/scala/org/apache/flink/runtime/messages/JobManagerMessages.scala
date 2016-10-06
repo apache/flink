@@ -467,8 +467,11 @@ object JobManagerMessages {
     * of triggering and acknowledging checkpoints.
     *
     * @param jobId The JobID of the job to trigger the savepoint for.
+    * @param savepointDirectory Optional target directory
     */
-  case class TriggerSavepoint(jobId: JobID) extends RequiresLeaderSessionID
+  case class TriggerSavepoint(
+      jobId: JobID,
+      savepointDirectory : Option[String] = Option.empty) extends RequiresLeaderSessionID
 
   /**
     * Response after a successful savepoint trigger containing the savepoint path.

@@ -41,32 +41,15 @@ Note that **s<sub>1</sub>** is only a **pointer to the actual checkpoint data c<
 
 ## Configuration
 
-Savepoints point to regular checkpoints and store their state in a configured [state backend]({{ site.baseurl }}/dev/state_backends.html). Currently, the supported state backends are **jobmanager** and **filesystem**. The state backend configuration for the regular periodic checkpoints is **independent** of the savepoint state backend configuration. Checkpoint data is **not copied** for savepoints, but points to the configured checkpoint state backend.
-
-### JobManager
-
-This is the **default backend** for savepoints.
-
-Savepoints are stored on the heap of the job manager. They are *lost* after the job manager is shut down. This mode is only useful if you want to *stop* and *resume* your program while the **same cluster** keeps running. It is *not recommended* for production use. Savepoints are *not* part of the [job manager's highly available]({{ site.baseurl }}/setup/jobmanager_high_availability.html) state.
+Savepoints are stored in a configured **file system directory**. They are available between cluster instances and allow you to move your program to another cluster.
 
 <pre>
-savepoints.state.backend: jobmanager
+state.savepoints.dir: hdfs:///flink/savepoints
 </pre>
 
-**Note**: If you don't configure a specific state backend for the savepoints, the jobmanager backend will be used.
+**Note**: If you don't configure a specific directory, triggering the savepoint will fail.
 
-### File system
-
-Savepoints are stored in the configured **file system directory**. They are available between cluster instances and allow to move your program to another cluster.
-
-<pre>
-savepoints.state.backend: filesystem
-savepoints.state.backend.fs.dir: hdfs:///flink/savepoints
-</pre>
-
-**Note**: If you don't configure a specific directory, the job manager backend will be used.
-
-**Important**: A savepoint is a pointer to a completed checkpoint. That means that the state of a savepoint is not only found in the savepoint file itself, but also needs the actual checkpoint data (e.g. in a set of further files). Therefore, using the *filesystem* backend for savepoints and the *jobmanager* backend for checkpoints does not work, because the required checkpoint data won't be available after a job manager restart.
+**Important**: A savepoint is a pointer to a completed checkpoint. That means that the state of a savepoint is not only found in the savepoint file itself, but also needs the actual checkpoint data (e.g. in a set of further files).
 
 ## Changes to your program
 
@@ -105,5 +88,3 @@ You control the savepoints via the [command line client]({{ site.baseurl }}/setu
 - **Parallelism**: When restoring a savepoint, the parallelism of the program has to match the parallelism of the original program from which the savepoint was drawn. There is no mechanism to re-partition the savepoint's state yet.
 
 - **Chaining**: Chained operators are identified by the ID of the first task. It's not possible to manually assign an ID to an intermediate chained task, e.g. in the chain `[  a -> b -> c ]` only **a** can have its ID assigned manually, but not **b** or **c**. To work around this, you can [manually define the task chains](index.html#task-chaining-and-resource-groups). If you rely on the automatic ID assignment, a change in the chaining behaviour will also change the IDs.
-
-- **Disposing custom state handles**: Disposing an old savepoint does not work with custom state handles (if you are using a custom state backend), because the user code class loader is not available during disposal.
