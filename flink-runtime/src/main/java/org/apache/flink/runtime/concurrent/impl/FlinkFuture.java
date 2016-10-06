@@ -174,10 +174,12 @@ public class FlinkFuture<T> implements Future<T> {
 	}
 
 	@Override
-	public <R> Future<R> thenComposeAsync(final ApplyFunction<? super T, ? extends Future<R>> applyFunction, final Executor executor) {
+	public <R> Future<R> thenComposeAsync(final ApplyFunction<? super T, ? extends Future<R>> applyFunction, Executor executor) {
 		Preconditions.checkNotNull(scalaFuture);
 		Preconditions.checkNotNull(applyFunction);
 		Preconditions.checkNotNull(executor);
+
+		final ExecutionContext executionContext = createExecutionContext(executor);
 
 		scala.concurrent.Future<R> flatMappedFuture = scalaFuture.flatMap(new Mapper<T, scala.concurrent.Future<R>>() {
 			@Override
@@ -204,10 +206,10 @@ public class FlinkFuture<T> implements Future<T> {
 								}
 							}
 						}
-					}, createExecutionContext(executor));
+					}, executionContext);
 				}
 			}
-		}, createExecutionContext(executor));
+		}, executionContext);
 
 		return new FlinkFuture<>(flatMappedFuture);
 	}
@@ -218,6 +220,8 @@ public class FlinkFuture<T> implements Future<T> {
 		Preconditions.checkNotNull(biFunction);
 		Preconditions.checkNotNull(executor);
 
+		final ExecutionContext executionContext = createExecutionContext(executor);
+
 		scala.concurrent.Future<R> mappedFuture = scalaFuture.map(new Mapper<T, R>() {
 			@Override
 			public R checkedApply(T value) throws Exception {
@@ -227,7 +231,7 @@ public class FlinkFuture<T> implements Future<T> {
 					throw new FlinkFuture.WrapperException(t);
 				}
 			}
-		}, createExecutionContext(executor));
+		}, executionContext);
 
 		scala.concurrent.Future<R> recoveredFuture = mappedFuture.recover(new Recover<R>() {
 			@Override
@@ -238,14 +242,19 @@ public class FlinkFuture<T> implements Future<T> {
 					return biFunction.apply(null, failure);
 				}
 			}
-		}, createExecutionContext(executor));
-
+		}, executionContext);
 
 		return new FlinkFuture<>(recoveredFuture);
 	}
 
 	@Override
 	public <U, R> Future<R> thenCombineAsync(final Future<U> other, final BiFunction<? super T, ? super U, ? extends R> biFunction, final Executor executor) {
+		Preconditions.checkNotNull(other);
+		Preconditions.checkNotNull(biFunction);
+		Preconditions.checkNotNull(executor);
+
+		final ExecutionContext executionContext = createExecutionContext(executor);
+
 		final scala.concurrent.Future<U> thatScalaFuture;
 
 		if (other instanceof FlinkFuture) {
@@ -257,15 +266,16 @@ public class FlinkFuture<T> implements Future<T> {
 					try {
 						return other.get();
 					} catch (ExecutionException e) {
-						// unwrap the execution exception if it's not a throwable
+						// unwrap the execution exception if the cause is an Exception
 						if (e.getCause() instanceof Exception) {
 							throw (Exception) e.getCause();
 						} else {
+							// it's an error or a throwable which we have to wrap for the moment
 							throw new FlinkFuture.ThrowableWrapperException(e.getCause());
 						}
 					}
 				}
-			}, createExecutionContext(executor));
+			}, executionContext);
 		}
 
 		scala.concurrent.Future<R>  result = scalaFuture.zip(thatScalaFuture).map(new Mapper<Tuple2<T, U>, R>() {
@@ -273,7 +283,7 @@ public class FlinkFuture<T> implements Future<T> {
 			public R apply(Tuple2<T, U> tuple2) {
 				return biFunction.apply(tuple2._1, tuple2._2);
 			}
-		}, createExecutionContext(executor));
+		}, executionContext);
 
 		return new FlinkFuture<>(result);
 	}
