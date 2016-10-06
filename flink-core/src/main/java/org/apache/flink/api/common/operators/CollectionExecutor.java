@@ -412,6 +412,9 @@ public class CollectionExecutor {
 			aggregators.put(a.getName(), a.getAggregator());
 		}
 
+		String convCriterionAggName = iteration.getAggregators().getConvergenceCriterionAggregatorName();
+		ConvergenceCriterion<Value> convCriterion = (ConvergenceCriterion<Value>) iteration.getAggregators().getConvergenceCriterion();
+
 		final int maxIterations = iteration.getMaximumNumberOfIterations();
 
 		for (int superstep = 1; superstep <= maxIterations; superstep++) {
@@ -440,6 +443,14 @@ public class CollectionExecutor {
 
 			if (currentWorkset.isEmpty()) {
 				break;
+			}
+
+			// evaluate the aggregator convergence criterion
+			if (convCriterion != null && convCriterionAggName != null) {
+				Value v = aggregators.get(convCriterionAggName).getAggregate();
+				if (convCriterion.isConverged(superstep, v)) {
+					break;
+				}
 			}
 
 			// clear the dynamic results
