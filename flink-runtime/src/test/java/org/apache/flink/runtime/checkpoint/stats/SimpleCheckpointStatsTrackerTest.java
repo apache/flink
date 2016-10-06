@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint.stats;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
@@ -344,7 +345,7 @@ public class SimpleCheckpointStatsTrackerTest {
 			// Add some random delay
 			final long completionTimestamp = triggerTimestamp + completionDuration + RAND.nextInt(10);
 
-			checkpoints[i] = new CompletedCheckpoint(jobId, i, triggerTimestamp, completionTimestamp, taskGroupStates, true);
+			checkpoints[i] = new CompletedCheckpoint(jobId, i, triggerTimestamp, completionTimestamp, taskGroupStates, CheckpointProperties.forStandardCheckpoint(), null);
 		}
 
 		return checkpoints;

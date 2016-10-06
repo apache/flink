@@ -28,7 +28,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStoreFactory;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -52,6 +51,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
@@ -96,8 +96,7 @@ public class RescalingITCase extends TestLogger {
 
 		config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
 		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
-		config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
-		config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY, savepointDir.toURI().toString());
+		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, savepointDir.toURI().toString());
 
 		cluster = new TestingCluster(config);
 		cluster.start();
@@ -167,7 +166,7 @@ public class RescalingITCase extends TestLogger {
 			// clear the CollectionSink set for the restarted job
 			CollectionSink.clearElementsSet();
 
-			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
+			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
 
 			final String savepointPath = ((JobManagerMessages.TriggerSavepointSuccess)
 				Await.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
@@ -256,8 +255,7 @@ public class RescalingITCase extends TestLogger {
 			StateSourceBase.workStartedLatch.await();
 
 			while (deadline.hasTimeLeft()) {
-
-				Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
+				Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
 				FiniteDuration waitingTime = new FiniteDuration(10, TimeUnit.SECONDS);
 				savepointResponse = Await.result(savepointPathFuture, waitingTime);
 
@@ -378,7 +376,7 @@ public class RescalingITCase extends TestLogger {
 			// clear the CollectionSink set for the restarted job
 			CollectionSink.clearElementsSet();
 
-			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
+			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
 
 			final String savepointPath = ((JobManagerMessages.TriggerSavepointSuccess)
 				Await.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
@@ -487,7 +485,7 @@ public class RescalingITCase extends TestLogger {
 
 			while (deadline.hasTimeLeft()) {
 
-				Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
+				Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
 				FiniteDuration waitingTime = new FiniteDuration(10, TimeUnit.SECONDS);
 				savepointResponse = Await.result(savepointPathFuture, waitingTime);
 

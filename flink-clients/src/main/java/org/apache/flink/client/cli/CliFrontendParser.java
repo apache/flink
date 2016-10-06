@@ -343,7 +343,7 @@ public class CliFrontendParser {
 		formatter.setWidth(80);
 
 		System.out.println("\nAction \"savepoint\" triggers savepoints for a running job or disposes existing ones.");
-		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID>");
+		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]");
 		formatter.setSyntaxPrefix("  \"savepoint\" action options:");
 		formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
 

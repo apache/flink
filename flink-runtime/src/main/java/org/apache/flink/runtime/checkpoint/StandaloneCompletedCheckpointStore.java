@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.state.StateUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -31,6 +33,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * {@link CompletedCheckpointStore} for JobManagers running in {@link HighAvailabilityMode#NONE}.
  */
 public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
+
+	private static final Logger LOG = LoggerFactory.getLogger(StandaloneCompletedCheckpointStore.class);
 
 	/** The maximum number of checkpoints to retain (at least 1). */
 	private final int maxNumberOfCheckpointsToRetain;
@@ -44,16 +48,10 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain (at
 	 *                                       least 1). Adding more checkpoints than this results
 	 *                                       in older checkpoints being discarded.
-	 * @param userClassLoader                The user class loader used to discard checkpoints
 	 */
-	public StandaloneCompletedCheckpointStore(
-			int maxNumberOfCheckpointsToRetain,
-			ClassLoader userClassLoader) {
-
+	public StandaloneCompletedCheckpointStore(int maxNumberOfCheckpointsToRetain) {
 		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
-
 		this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
-
 		this.checkpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
 	}
 
@@ -64,9 +62,9 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
-		checkpoints.addLast(checkpoint);
+		checkpoints.add(checkpoint);
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
-			checkpoints.removeFirst().discardState();
+			checkpoints.remove().subsume();
 		}
 	}
 
@@ -86,17 +84,16 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
-	public void shutdown() throws Exception {
+	public void shutdown(JobStatus jobStatus) throws Exception {
 		try {
-			StateUtil.bestEffortDiscardAllStateObjects(checkpoints);
+			LOG.info("Shutting down");
+
+			for (CompletedCheckpoint checkpoint : checkpoints) {
+				checkpoint.discard(jobStatus);
+			}
 		} finally {
 			checkpoints.clear();
 		}
 	}
 
-	@Override
-	public void suspend() throws Exception {
-		// Do a regular shutdown, because we can't recovery anything
-		shutdown();
-	}
 }

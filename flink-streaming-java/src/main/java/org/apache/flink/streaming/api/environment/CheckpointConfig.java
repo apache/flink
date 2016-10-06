@@ -18,11 +18,14 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Configuration that captures all checkpointing related settings.
@@ -63,6 +66,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/** Flag to force checkpointing in iterative jobs */
 	private boolean forceCheckpointing;
+
+	/** Cleanup behaviour for persistent checkpoints. */
+	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
 	// ------------------------------------------------------------------------
 
@@ -222,5 +228,100 @@ public class CheckpointConfig implements java.io.Serializable {
 	@PublicEvolving
 	public void setForceCheckpointing(boolean forceCheckpointing) {
 		this.forceCheckpointing = forceCheckpointing;
+	}
+
+	/**
+	 * Enables checkpoints to be persisted externally.
+	 *
+	 * <p>Externalized checkpoints write their meta data out to persistent
+	 * storage and are <strong>not</strong> automatically cleaned up when
+	 * the owning job fails (terminating with job status {@link JobStatus#FAILED}).
+	 * In this case, you have to manually clean up the checkpoint state, both
+	 * the meta data and actual program state.
+	 *
+	 * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an
+	 * externalized checkpoint should be cleaned up on job cancellation. If you
+	 * choose to retain externalized checkpoints on cancellation you have you
+	 * handle checkpoint clean up manually when you cancel the job as well
+	 * (terminating with job status {@link JobStatus#CANCELED}).
+	 *
+	 * <p>The target directory for externalized checkpoints is configured
+	 * via {@link ConfigConstants#CHECKPOINTS_DIRECTORY_KEY}.
+	 *
+	 * @param cleanupMode Externalized checkpoint cleanup behaviour.
+	 */
+	@PublicEvolving
+	public void enableExternalizedCheckpoints(ExternalizedCheckpointCleanup cleanupMode) {
+		this.externalizedCheckpointCleanup = checkNotNull(cleanupMode);
+	}
+
+	/**
+	 * Returns whether checkpoints should be persisted externally.
+	 *
+	 * @return <code>true</code> if checkpoints should be externalized.
+	 */
+	@PublicEvolving
+	public boolean isExternalizedCheckpointsEnabled() {
+		return externalizedCheckpointCleanup != null;
+	}
+
+	/**
+	 * Returns the cleanup behaviour for externalized checkpoints.
+	 *
+	 * @return The cleanup behaviour for externalized checkpoints or
+	 * <code>null</code> if none is configured.
+	 */
+	@PublicEvolving
+	public ExternalizedCheckpointCleanup getExternalizedCheckpointCleanup() {
+		return externalizedCheckpointCleanup;
+	}
+
+	/**
+	 * Cleanup behaviour for externalized checkpoints when the job is cancelled.
+	 */
+	@PublicEvolving
+	public enum ExternalizedCheckpointCleanup {
+
+		/**
+		 * Delete externalized checkpoints on job cancellation.
+		 *
+		 * <p>All checkpoint state will be deleted when you cancel the owning
+		 * job, both the meta data and actual program state. Therefore, you
+		 * cannot resume from externalized checkpoints after the job has been
+		 * cancelled.
+		 *
+		 * <p>Note that checkpoint state is always kept if the job terminates
+		 * with state {@link JobStatus#FAILED}.
+		 */
+		DELETE_ON_CANCELLATION(true),
+
+		/**
+		 * Retain externalized checkpoints on job cancellation.
+		 *
+		 * <p>All checkpoint state is kept when you cancel the owning job. You
+		 * have to manually delete both the checkpoint meta data and actual
+		 * program state after cancelling the job.
+		 *
+		 * <p>Note that checkpoint state is always kept if the job terminates
+		 * with state {@link JobStatus#FAILED}.
+		 */
+		RETAIN_ON_CANCELLATION(false);
+
+		private final boolean deleteOnCancellation;
+
+		ExternalizedCheckpointCleanup(boolean deleteOnCancellation) {
+			this.deleteOnCancellation = deleteOnCancellation;
+		}
+
+		/**
+		 * Returns whether persistent checkpoints shall be discarded on
+		 * cancellation of the job.
+		 *
+		 * @return <code>true</code> if persistent checkpoints shall be discarded
+		 * on cancellation of the job.
+		 */
+		public boolean deleteOnCancellation() {
+			return deleteOnCancellation;
+		}
 	}
 }

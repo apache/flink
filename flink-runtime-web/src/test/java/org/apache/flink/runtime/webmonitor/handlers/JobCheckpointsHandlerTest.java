@@ -106,6 +106,11 @@ public class JobCheckpointsHandlerTest {
 			}
 
 			@Override
+			public String getExternalPath() {
+				return null;
+			}
+
+			@Override
 			public long getMinDuration() {
 				return 1;
 			}

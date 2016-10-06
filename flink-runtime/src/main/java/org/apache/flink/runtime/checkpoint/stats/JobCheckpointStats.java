@@ -47,6 +47,13 @@ public interface JobCheckpointStats {
 	 */
 	long getCount();
 
+	/**
+	 * Returns the most recent external path of a checkpoint.
+	 *
+	 * @return External checkpoint path or <code>null</code> if none available.
+	 */
+	String getExternalPath();
+
 	// ------------------------------------------------------------------------
 	// Duration
 	// ------------------------------------------------------------------------
