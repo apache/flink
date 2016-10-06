@@ -35,18 +35,20 @@ import scala.collection.mutable
 
 class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
 
+  // batch windows are not supported yet
   @Test(expected = classOf[ValidationException])
   def testInvalidBatchWindow(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     val data = new mutable.MutableList[(Long, Int, String)]
-    val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val ds = env.fromCollection(data)
+    val table = ds.toTable(tEnv, 'long, 'int, 'string)
 
     table
       .groupBy('string)
-      .window(Session withGap 10.rows as 'string)
+      .window(Session withGap 100.milli as 'string)
   }
+
 
   @Test(expected = classOf[TableException])
   def testInvalidRowtime1(): Unit = {
@@ -54,6 +56,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     val data = new mutable.MutableList[(Long, Int, String)]
     val stream = env.fromCollection(data)
+    // rowtime attribute must not be a field name
     val table = stream.toTable(tEnv, 'rowtime, 'int, 'string)
 
     table
@@ -73,7 +76,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
     table
       .groupBy('string)
       .window(Tumble over 50.milli)
-      .select('string, 'int.count as 'rowtime)
+      .select('string, 'int.count as 'rowtime) // rowtime attribute must not be an alias
   }
 
   @Test(expected = classOf[ValidationException])
@@ -84,7 +87,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
-    table.as('rowtime, 'myint, 'mystring)
+    table.as('rowtime, 'myint, 'mystring) // rowtime attribute must not be an alias
   }
 
   @Test(expected = classOf[ValidationException])
@@ -97,6 +100,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
 
     table
       .groupBy('string)
+      // only rowtime is a valid time attribute in a stream environment
       .window(Tumble over 50.milli on 'string)
       .select('string, 'int.count)
   }
@@ -111,7 +115,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
 
     table
       .groupBy('string)
-      .window(Tumble over "WRONG")
+      .window(Tumble over "WRONG") // string is not a valid interval
       .select('string, 'int.count)
   }
 
@@ -125,7 +129,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
 
     table
       .groupBy('string)
-      .window(Slide over "WRONG" every "WRONG")
+      .window(Slide over "WRONG" every "WRONG") // string is not a valid interval
       .select('string, 'int.count)
   }
 
@@ -139,7 +143,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
 
     table
       .groupBy('string)
-      .window(Slide over 12.rows every "WRONG")
+      .window(Slide over 12.rows every "WRONG") // string is not a valid interval
       .select('string, 'int.count)
   }
 
@@ -153,7 +157,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
 
     table
       .groupBy('string)
-      .window(Session withGap 10.rows)
+      .window(Session withGap 10.rows) // row interval is not valid for session windows
       .select('string, 'int.count)
   }
 
@@ -167,7 +171,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
 
     table
       .groupBy('string)
-      .window(Session withGap 10.rows as 1 + 1)
+      .window(Session withGap 100.milli as 1 + 1) // expression instead of a symbol
       .select('string, 'int.count)
   }
 
@@ -181,7 +185,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
 
     table
       .groupBy('string)
-      .window(Session withGap 10.rows as 'string)
+      .window(Session withGap 100.milli as 'string) // field name "string" is already present
       .select('string, 'int.count)
   }
 
@@ -723,7 +727,7 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
-  def testWindowStartEnd(): Unit = {
+  def testTumbleWindowStartEnd(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -755,6 +759,82 @@ class GroupWindowITCase extends StreamingMultipleProgramsTestBase {
       "Hello world,1,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02",
       "Hello,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testSlideWindowStartEnd(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val data = new mutable.MutableList[(Long, Int, String)]
+    data.+=((1L, 1, "Hi"))
+    data.+=((2L, 2, "Hello"))
+    data.+=((4L, 2, "Hello"))
+    data.+=((8L, 3, "Hello world"))
+    data.+=((16L, 3, "Hello world"))
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+
+    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+
+    val windowedTable = table
+      .groupBy('string)
+      .window(Slide over 10.milli every 5.milli on 'rowtime as 'w)
+      .select('string, 'int.count, 'w.start, 'w.end)
+
+    val results = windowedTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "Hello world,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01",
+      "Hello world,1,1970-01-01 00:00:00.005,1970-01-01 00:00:00.015",
+      "Hello world,1,1970-01-01 00:00:00.01,1970-01-01 00:00:00.02",
+      "Hello world,1,1970-01-01 00:00:00.015,1970-01-01 00:00:00.025",
+      "Hello,2,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005",
+      "Hello,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01",
+      "Hi,1,1969-12-31 23:59:59.995,1970-01-01 00:00:00.005",
+      "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testSessionWindowStartEnd(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val data = new mutable.MutableList[(Long, Int, String)]
+    data.+=((1L, 1, "Hi"))
+    data.+=((2L, 2, "Hello"))
+    data.+=((4L, 2, "Hello"))
+    data.+=((8L, 3, "Hello world"))
+    data.+=((16L, 3, "Hello world"))
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+
+    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+
+    val windowedTable = table
+      .groupBy('string)
+      .window(Session withGap 3.milli on 'rowtime as 'w)
+      .select('string, 'int.count, 'w.start, 'w.end)
+
+    val results = windowedTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "Hello world,1,1970-01-01 00:00:00.008,1970-01-01 00:00:00.011",
+      "Hello world,1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.019",
+      "Hello,2,1970-01-01 00:00:00.002,1970-01-01 00:00:00.007",
+      "Hi,1,1970-01-01 00:00:00.001,1970-01-01 00:00:00.004")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
