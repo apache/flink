@@ -167,7 +167,8 @@ class SlideWithSize(size: Expression) {
   def this(size: String) = this(ExpressionParser.parseExpression(size))
 
   /**
-    * Specifies the window's slide. The slide determines how much windows overlap.
+    * Specifies the window's slide. The slide determines the interval in which windows are created.
+    * Thus it also determines how much windows overlap.
     *
     * For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
     * 15 minutes worth of elements are grouped every 3 minutes.
@@ -178,7 +179,8 @@ class SlideWithSize(size: Expression) {
   def every(slide: Expression): SlidingWindow = new SlidingWindow(size, slide)
 
   /**
-    * Specifies the window's slide. The slide determines how much windows overlap.
+    * Specifies the window's slide. The slide determines the interval in which windows are created.
+    * Thus it also determines how much windows overlap.
     *
     * For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
     * 15 minutes worth of elements are grouped every 3 minutes.

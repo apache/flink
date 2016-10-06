@@ -38,7 +38,7 @@ public class Slide {
 	 * Defines the size of a sliding window. In a sliding window elements are assigned to
 	 * windows of fixed length equal to window size, as in tumbling windows, but in this case,
 	 * windows can be overlapping. Thus, an element can be assigned to multiple windows.
-	 * The slide/overlap can be specified on the result of this method.
+	 * The slide can be specified on the result of this method.
 	 *
 	 * For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
 	 * 15 minutes worth of elements are grouped every 3 minutes.
