@@ -18,44 +18,252 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+
+import java.io.Serializable;
+
 /**
  * The configuration of a checkpoint, such as whether
  * <ul>
- *     <li>The checkpoint is a savepoint</li>
- *     <li>The checkpoint must be full, or may be incremental</li>
- *     <li>The checkpoint format must be the common (cross backend) format, or may be state-backend specific</li>
+ *     <li>The checkpoint should be persisted</li>
+ *     <li>The checkpoint must be full, or may be incremental (not yet implemented)</li>
+ *     <li>The checkpoint format must be the common (cross backend) format,
+ *     or may be state-backend specific (not yet implemented)</li>
+ *     <li>when the checkpoint should be garbage collected</li>
  * </ul>
  */
-public class CheckpointProperties {
+public class CheckpointProperties implements Serializable {
 
-	private final boolean isSavepoint;
+	private static final long serialVersionUID = -8835900655844879469L;
 
-	private CheckpointProperties(boolean isSavepoint) {
-		this.isSavepoint = isSavepoint;
+	private final boolean forced;
+
+	private final boolean externalize;
+
+	private final boolean discardSubsumed;
+	private final boolean discardFinished;
+	private final boolean discardCancelled;
+	private final boolean discardFailed;
+	private final boolean discardSuspended;
+
+	CheckpointProperties(
+			boolean forced,
+			boolean externalize,
+			boolean discardSubsumed,
+			boolean discardFinished,
+			boolean discardCancelled,
+			boolean discardFailed,
+			boolean discardSuspended) {
+
+		this.forced = forced;
+		this.externalize = externalize;
+		this.discardSubsumed = discardSubsumed;
+		this.discardFinished = discardFinished;
+		this.discardCancelled = discardCancelled;
+		this.discardFailed = discardFailed;
+		this.discardSuspended = discardSuspended;
+
+		// Not persisted, but needs manual clean up
+		if (!externalize && !(discardSubsumed && discardFinished && discardCancelled
+				&& discardFailed && discardSuspended)) {
+			throw new IllegalStateException("CheckpointProperties say to *not* persist the " +
+					"checkpoint, but the checkpoint requires manual cleanup.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
 
-	public boolean isSavepoint() {
-		return isSavepoint;
+	/**
+	 * Returns whether the checkpoint should be forced.
+	 *
+	 * <p>Forced checkpoints ignore the configured maximum number of concurrent
+	 * checkpoints and minimum time between checkpoints. Furthermore, they are
+	 * not subsumed by more recent checkpoints as long as they are pending.
+	 *
+	 * @return <code>true</code> if the checkpoint should be forced;
+	 * <code>false</code> otherwise.
+	 *
+	 * @see CheckpointCoordinator
+	 * @see PendingCheckpoint
+	 */
+	public boolean forceCheckpoint() {
+		return forced;
+	}
+
+	/**
+	 * Returns whether the checkpoint should be persisted externally.
+	 *
+	 * @return <code>true</code> if the checkpoint should be persisted
+	 * externally; <code>false</code> otherwise.
+	 *
+	 * @see PendingCheckpoint
+	 */
+	public boolean externalizeCheckpoint() {
+		return externalize;
 	}
 
 	// ------------------------------------------------------------------------
+	// Garbage collection behaviour
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns whether the checkpoint should be discarded when it is subsumed.
+	 *
+	 * <p>A checkpoint is subsumed when the maximum number of retained
+	 * checkpoints is reached and a more recent checkpoint completes..
+	 *
+	 * @return <code>true</code> if the checkpoint should be discarded when it
+	 * is subsumed; <code>false</code> otherwise.
+	 *
+	 * @see CompletedCheckpointStore
+	 */
+	public boolean discardOnSubsumed() {
+		return discardSubsumed;
+	}
+
+	/**
+	 * Returns whether the checkpoint should be discarded when the owning job
+	 * reaches the {@link JobStatus#FINISHED} state.
+	 *
+	 * @return <code>true</code> if the checkpoint should be discarded when the
+	 * owning job reaches the {@link JobStatus#FINISHED} state; <code>false</code>
+	 * otherwise.
+	 *
+	 * @see CompletedCheckpointStore
+	 */
+	public boolean discardOnJobFinished() {
+		return discardFinished;
+	}
+
+	/**
+	 * Returns whether the checkpoint should be discarded when the owning job
+	 * reaches the {@link JobStatus#CANCELED} state.
+	 *
+	 * @return <code>true</code> if the checkpoint should be discarded when the
+	 * owning job reaches the {@link JobStatus#CANCELED} state; <code>false</code>
+	 * otherwise.
+	 *
+	 * @see CompletedCheckpointStore
+	 */
+	public boolean discardOnJobCancelled() {
+		return discardCancelled;
+	}
+
+	/**
+	 * Returns whether the checkpoint should be discarded when the owning job
+	 * reaches the {@link JobStatus#FAILED} state.
+	 *
+	 * @return <code>true</code> if the checkpoint should be discarded when the
+	 * owning job reaches the {@link JobStatus#FAILED} state; <code>false</code>
+	 * otherwise.
+	 *
+	 * @see CompletedCheckpointStore
+	 */
+	public boolean discardOnJobFailed() {
+		return discardFailed;
+	}
+
+	/**
+	 * Returns whether the checkpoint should be discarded when the owning job
+	 * reaches the {@link JobStatus#SUSPENDED} state.
+	 *
+	 * @return <code>true</code> if the checkpoint should be discarded when the
+	 * owning job reaches the {@link JobStatus#SUSPENDED} state; <code>false</code>
+	 * otherwise.
+	 *
+	 * @see CompletedCheckpointStore
+	 */
+	public boolean discardOnJobSuspended() {
+		return discardSuspended;
+	}
+
+	// ------------------------------------------------------------------------
+
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		CheckpointProperties that = (CheckpointProperties) o;
+		return forced == that.forced &&
+				externalize == that.externalize &&
+				discardSubsumed == that.discardSubsumed &&
+				discardFinished == that.discardFinished &&
+				discardCancelled == that.discardCancelled &&
+				discardFailed == that.discardFailed &&
+				discardSuspended == that.discardSuspended;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = (forced ? 1 : 0);
+		result = 31 * result + (externalize ? 1 : 0);
+		result = 31 * result + (discardSubsumed ? 1 : 0);
+		result = 31 * result + (discardFinished ? 1 : 0);
+		result = 31 * result + (discardCancelled ? 1 : 0);
+		result = 31 * result + (discardFailed ? 1 : 0);
+		result = 31 * result + (discardSuspended ? 1 : 0);
+		return result;
+	}
 
 	@Override
 	public String toString() {
-		return "CheckpointProperties {" +
-				"isSavepoint=" + isSavepoint +
+		return "CheckpointProperties{" +
+				"forced=" + forced +
+				", externalize=" + externalizeCheckpoint() +
+				", discardSubsumed=" + discardSubsumed +
+				", discardFinished=" + discardFinished +
+				", discardCancelled=" + discardCancelled +
+				", discardFailed=" + discardFailed +
+				", discardSuspended=" + discardSuspended +
 				'}';
 	}
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Creates the checkpoint properties for a (manually triggered) savepoint.
+	 *
+	 * <p>Savepoints are forced and persisted externally. They have to be
+	 * garbage collected manually.
+	 *
+	 * @return Checkpoint properties for a (manually triggered) savepoint.
+	 */
 	public static CheckpointProperties forStandardSavepoint() {
-		return new CheckpointProperties(true);
+		return new CheckpointProperties(true, true, false, false, false, false, false);
 	}
 
+	/**
+	 * Creates the checkpoint properties for a regular checkpoint.
+	 *
+	 * <p>Regular checkpoints are not forced and not persisted externally. They
+	 * are garbage collected automatically.
+	 *
+	 * @return Checkpoint properties for a regular checkpoint.
+	 */
 	public static CheckpointProperties forStandardCheckpoint() {
-		return new CheckpointProperties(false);
+		return new CheckpointProperties(false, false, true, true, true, true, true);
+	}
+
+	/**
+	 * Creates the checkpoint properties for an external checkpoint.
+	 *
+	 * <p>External checkpoints are not forced, but persisted externally. They
+	 * are garbage collected automatically, except when the owning job
+	 * terminates in state {@link JobStatus#FAILED}. The user is required to
+	 * configure the clean up behaviour on job cancellation.
+	 *
+	 * @param deleteOnCancellation Flag indicating whether to discard on cancellation.
+	 *
+	 * @return Checkpoint properties for an external checkpoint.
+	 */
+	public static CheckpointProperties forExternalizedCheckpoint(boolean deleteOnCancellation) {
+		return new CheckpointProperties(false, true, true, true, deleteOnCancellation, false, true);
 	}
 }

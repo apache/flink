@@ -25,7 +25,6 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.{ResourceID, ResourceIDRetrievable}
@@ -119,7 +118,6 @@ class LocalFlinkMiniCluster(
     leaderElectionService,
     submittedJobGraphStore,
     checkpointRecoveryFactory,
-    savepointStore,
     jobRecoveryTimeout,
     metricsRegistry) = JobManager.createJobManagerComponents(config, createLeaderElectionService())
 
@@ -143,7 +141,6 @@ class LocalFlinkMiniCluster(
         leaderElectionService,
         submittedJobGraphStore,
         checkpointRecoveryFactory,
-        savepointStore,
         jobRecoveryTimeout,
         metricsRegistry),
       jobManagerName)
@@ -248,7 +245,6 @@ class LocalFlinkMiniCluster(
     leaderElectionService: LeaderElectionService,
     submittedJobGraphStore: SubmittedJobGraphStore,
     checkpointRecoveryFactory: CheckpointRecoveryFactory,
-    savepointStore: SavepointStore,
     jobRecoveryTimeout: FiniteDuration,
     metricsRegistry: Option[MetricRegistry]): Props = {
 
@@ -265,7 +261,6 @@ class LocalFlinkMiniCluster(
       leaderElectionService,
       submittedJobGraphStore,
       checkpointRecoveryFactory,
-      savepointStore,
       jobRecoveryTimeout,
       metricsRegistry)
   }

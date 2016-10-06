@@ -28,7 +28,6 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
@@ -40,9 +39,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
-
 import org.slf4j.Logger;
-
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
@@ -71,7 +68,6 @@ public class ExecutionGraphBuilder {
 			Executor executor,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
-			SavepointStore savepointStore,
 			Time timeout,
 			RestartStrategy restartStrategy,
 			MetricGroup metrics,
@@ -82,7 +78,7 @@ public class ExecutionGraphBuilder {
 		final ExecutionContext executionContext = ExecutionContext$.MODULE$.fromExecutor(executor);
 		
 		return buildGraph(prior, jobGraph, jobManagerConfig, executionContext,
-				classLoader, recoveryFactory, savepointStore, timeout, restartStrategy,
+				classLoader, recoveryFactory, timeout, restartStrategy,
 				metrics, parallelismForAutoMax, log);
 	}
 
@@ -98,7 +94,6 @@ public class ExecutionGraphBuilder {
 			ExecutionContext executionContext,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
-			SavepointStore savepointStore,
 			Time timeout,
 			RestartStrategy restartStrategy,
 			MetricGroup metrics,
@@ -183,7 +178,6 @@ public class ExecutionGraphBuilder {
 		// configure the state checkpointing
 		JobSnapshottingSettings snapshotSettings = jobGraph.getSnapshotSettings();
 		if (snapshotSettings != null) {
-
 			List<ExecutionJobVertex> triggerVertices = 
 					idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);
 
@@ -220,17 +214,22 @@ public class ExecutionGraphBuilder {
 				checkpointStatsTracker = new SimpleCheckpointStatsTracker(historySize, ackVertices, metrics);
 			}
 
+			/** The default directory for externalized checkpoints. */
+			String externalizedCheckpointsDir = jobManagerConfig.getString(
+					ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
+
 			executionGraph.enableSnapshotCheckpointing(
 					snapshotSettings.getCheckpointInterval(),
 					snapshotSettings.getCheckpointTimeout(),
 					snapshotSettings.getMinPauseBetweenCheckpoints(),
 					snapshotSettings.getMaxConcurrentCheckpoints(),
+					snapshotSettings.getExternalizedCheckpointSettings(),
 					triggerVertices,
 					ackVertices,
 					confirmVertices,
 					checkpointIdCounter,
 					completedCheckpoints,
-					savepointStore,
+					externalizedCheckpointsDir,
 					checkpointStatsTracker);
 		}
 

@@ -355,7 +355,6 @@ public class StreamConfig implements Serializable {
 			return DEFAULT_CHECKPOINTING_MODE; 
 		}
 	}
-	
 
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
 		try {

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.io.{File, IOException}
-import java.net.{BindException, InetAddress, InetSocketAddress, ServerSocket, UnknownHostException}
 import java.lang.management.ManagementFactory
+import java.net.{BindException, InetAddress, InetSocketAddress, ServerSocket, UnknownHostException}
 import java.util.UUID
 import java.util.concurrent.{ExecutorService, TimeUnit, TimeoutException}
 import javax.management.ObjectName
@@ -34,23 +34,23 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration, HighAvailabilityOptions}
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.metrics.{Gauge, MetricGroup}
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup
+import org.apache.flink.metrics.{Gauge, MetricGroup}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
-import org.apache.flink.runtime.checkpoint.savepoint.{SavepointLoader, SavepointStore, SavepointStoreFactory}
-import org.apache.flink.runtime.checkpoint.stats.{CheckpointStatsTracker, DisabledCheckpointStatsTracker, SimpleCheckpointStatsTracker}
+import org.apache.flink.runtime.checkpoint.savepoint.{SavepointLoader, SavepointStore}
 import org.apache.flink.runtime.client._
-import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.concurrent.BiFunction
+import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
-import org.apache.flink.runtime.executiongraph.{ExecutionGraphBuilder, ExecutionGraph, ExecutionJobVertex, StatusListenerMessenger}
+import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionGraphBuilder, ExecutionJobVertex, StatusListenerMessenger}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
 import org.apache.flink.runtime.io.network.PartitionState
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
@@ -66,15 +66,14 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendSta
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, AccumulatorResultStringsFound, AccumulatorResultsErroneous, AccumulatorResultsFound, RequestAccumulatorResults, RequestAccumulatorResultsStringified}
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint, DeclineCheckpoint}
-import org.apache.flink.runtime.messages.webmonitor.InfoMessage
-import org.apache.flink.runtime.messages.webmonitor._
-import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.runtime.messages.webmonitor.{InfoMessage, _}
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
+import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry, MetricRegistryConfiguration}
 import org.apache.flink.runtime.process.ProcessReaper
-import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
 import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, NotifyKvStateRegistered, NotifyKvStateUnregistered}
-import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
+import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
 import org.apache.flink.runtime.security.SecurityContext
+import org.apache.flink.runtime.security.SecurityContext.{FlinkSecuredRunner, SecurityConfiguration}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -128,7 +127,6 @@ class JobManager(
     protected val leaderElectionService: LeaderElectionService,
     protected val submittedJobGraphs : SubmittedJobGraphStore,
     protected val checkpointRecoveryFactory : CheckpointRecoveryFactory,
-    protected val savepointStore: SavepointStore,
     protected val jobRecoveryTimeout: FiniteDuration,
     protected val metricsRegistry: Option[FlinkMetricRegistry])
   extends FlinkActor
@@ -177,6 +175,13 @@ class JobManager(
    */
   val webMonitorPort : Int = flinkConfiguration.getInteger(
     ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
+
+  /** The default directory for savepoints. */
+  val defaultSavepointDir: String = ConfigurationUtil.getStringWithDeprecatedKeys(
+    flinkConfiguration,
+    ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+    null,
+    ConfigConstants.SAVEPOINT_FS_DIRECTORY_KEY)
 
   /** The resource manager actor responsible for allocating and managing task manager resources. */
   var currentResourceManager: Option[ActorRef] = None
@@ -239,14 +244,6 @@ class JobManager(
       _.getActorGateway().tell(
         Disconnect("JobManager is shutting down"),
         new AkkaActorGateway(self, leaderSessionID.orNull))
-    }
-
-    try {
-      savepointStore.shutdown()
-    } catch {
-      case e: Exception =>
-        log.error("Could not shut down savepoint store.", e)
-        throw new RuntimeException("Could not stop the  savepoint store store.", e)
     }
 
     try {
@@ -695,7 +692,7 @@ class JobManager(
     case kvStateMsg : KvStateMessage =>
       handleKvStateMessage(kvStateMsg)
 
-    case TriggerSavepoint(jobId) =>
+    case TriggerSavepoint(jobId, savepointDirectory) =>
       currentJobs.get(jobId) match {
         case Some((graph, _)) =>
           val checkpointCoordinator = graph.getCheckpointCoordinator()
@@ -703,31 +700,46 @@ class JobManager(
           if (checkpointCoordinator != null) {
             // Immutable copy for the future
             val senderRef = sender()
+            try {
+              val targetDirectory : String = savepointDirectory.getOrElse(
+                flinkConfiguration.getString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, null))
 
-            future {
-              try {
-                // Do this async, because checkpoint coordinator operations can
-                // contain blocking calls to the state backend or ZooKeeper.
-                val savepointFuture = checkpointCoordinator.triggerSavepoint(
-                  System.currentTimeMillis())
-
-                savepointFuture.onComplete {
-                  // Success, respond with the savepoint path
-                  case scala.util.Success(savepointPath) =>
-                    senderRef ! TriggerSavepointSuccess(jobId, savepointPath)
-
-                  // Failure, respond with the cause
-                  case scala.util.Failure(t) =>
-                    senderRef ! TriggerSavepointFailure(
-                      jobId,
-                      new Exception("Failed to complete savepoint", t))
-                }(context.dispatcher)
-              } catch {
-                case e: Exception =>
-                  senderRef ! TriggerSavepointFailure(jobId, new Exception(
-                    "Failed to trigger savepoint", e))
+              if (targetDirectory == null) {
+                throw new IllegalStateException("No savepoint directory configured. " +
+                  "You can either specify a directory when triggering this savepoint or " +
+                  "configure a cluster-wide default via key '" +
+                  ConfigConstants.SAVEPOINT_DIRECTORY_KEY + "'.")
               }
-            }(context.dispatcher)
+
+              // Do this async, because checkpoint coordinator operations can
+              // contain blocking calls to the state backend or ZooKeeper.
+              val savepointFuture = checkpointCoordinator.triggerSavepoint(
+                System.currentTimeMillis(),
+                targetDirectory)
+
+              savepointFuture.handleAsync[Void](
+                new BiFunction[CompletedCheckpoint, Throwable, Void] {
+                  override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
+                    if (success != null) {
+                      if (success.getExternalPath != null) {
+                        senderRef ! TriggerSavepointSuccess(jobId, success.getExternalPath)
+                      } else {
+                        senderRef ! TriggerSavepointFailure(
+                          jobId, new Exception("Savepoint has not been persisted."))
+                      }
+                    } else {
+                      senderRef ! TriggerSavepointFailure(
+                        jobId, new Exception("Failed to complete savepoint", cause))
+                    }
+                    null
+                  }
+                },
+                context.dispatcher)
+            } catch {
+              case e: Exception =>
+                senderRef ! TriggerSavepointFailure(jobId, new Exception(
+                  "Failed to trigger savepoint", e))
+            }
           } else {
             sender() ! TriggerSavepointFailure(jobId, new IllegalStateException(
               "Checkpointing disabled. You can enable it via the execution environment of " +
@@ -744,12 +756,15 @@ class JobManager(
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
 
-          val savepoint = savepointStore.loadSavepoint(savepointPath)
+          val savepoint = SavepointStore.loadSavepoint(savepointPath)
 
           log.debug(s"$savepoint")
 
-          // Dispose the savepoint
-          savepointStore.disposeSavepoint(savepointPath)
+          // Dispose checkpoint state
+          savepoint.dispose()
+
+          // Remove the header file
+          SavepointStore.removeSavepoint(savepointPath)
 
           senderRef ! DisposeSavepointSuccess
         } catch {
@@ -1150,7 +1165,6 @@ class JobManager(
           executionContext,
           userCodeLoader,
           checkpointRecoveryFactory,
-          savepointStore,
           Time.of(timeout.length, timeout.unit),
           restartStrategy,
           jobMetrics,
@@ -1218,7 +1232,7 @@ class JobManager(
 
                   // load the savepoint as a checkpoint into the system
                   val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
-                    jobId, executionGraph.getAllVertices, savepointStore, savepointPath)
+                    jobId, executionGraph.getAllVertices, savepointPath)
 
                   executionGraph.getCheckpointCoordinator.getCheckpointStore
                     .addCheckpoint(savepoint)
@@ -2420,7 +2434,6 @@ object JobManager {
     LeaderElectionService,
     SubmittedJobGraphStore,
     CheckpointRecoveryFactory,
-    SavepointStore,
     FiniteDuration, // timeout for job recovery
     Option[FlinkMetricRegistry]
    ) = {
@@ -2497,8 +2510,6 @@ object JobManager {
             new ZooKeeperCheckpointRecoveryFactory(client, configuration))
       }
 
-    val savepointStore = SavepointStoreFactory.createFromConfig(configuration)
-
     val jobRecoveryTimeoutStr = configuration.getValue(HighAvailabilityOptions.HA_JOB_DELAY)
 
     val jobRecoveryTimeout = if (jobRecoveryTimeoutStr == null || jobRecoveryTimeoutStr.isEmpty) {
@@ -2531,7 +2542,6 @@ object JobManager {
       leaderElectionService,
       submittedJobGraphs,
       checkpointRecoveryFactory,
-      savepointStore,
       jobRecoveryTimeout,
       metricRegistry)
   }
@@ -2595,8 +2605,7 @@ object JobManager {
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
-    savepointStore,
-    jobRecoveryTimeout, 
+    jobRecoveryTimeout,
     metricsRegistry) = createJobManagerComponents(
       configuration,
       None)
@@ -2622,7 +2631,6 @@ object JobManager {
       leaderElectionService,
       submittedJobGraphs,
       checkpointRecoveryFactory,
-      savepointStore,
       jobRecoveryTimeout,
       metricsRegistry)
 
@@ -2657,7 +2665,6 @@ object JobManager {
     leaderElectionService: LeaderElectionService,
     submittedJobGraphStore: SubmittedJobGraphStore,
     checkpointRecoveryFactory: CheckpointRecoveryFactory,
-    savepointStore: SavepointStore,
     jobRecoveryTimeout: FiniteDuration,
     metricsRegistry: Option[FlinkMetricRegistry]): Props = {
 
@@ -2674,7 +2681,6 @@ object JobManager {
       leaderElectionService,
       submittedJobGraphStore,
       checkpointRecoveryFactory,
-      savepointStore,
       jobRecoveryTimeout,
       metricsRegistry)
   }

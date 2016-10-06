@@ -130,6 +130,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 
 		metrics.gauge("lastCheckpointSize", new CheckpointSizeGauge());
 		metrics.gauge("lastCheckpointDuration", new CheckpointDurationGauge());
+		metrics.gauge("lastCheckpointExternalPath", new CheckpointExternalPathGauge());
 	}
 
 	@Override
@@ -278,6 +279,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 						// Need to clone in order to have a consistent snapshot.
 						// We can safely update it afterwards.
 						(List<CheckpointStats>) history.clone(),
+						latestCompletedCheckpoint.getExternalPath(),
 						overallCount,
 						overallMinDuration,
 						overallMaxDuration,
@@ -349,6 +351,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		// General
 		private final List<CheckpointStats> recentHistory;
 		private final long count;
+		private final String externalPath;
 
 		// Duration
 		private final long minDuration;
@@ -362,6 +365,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 
 		public JobCheckpointStatsSnapshot(
 				List<CheckpointStats> recentHistory,
+				String externalPath,
 				long count,
 				long minDuration,
 				long maxDuration,
@@ -372,6 +376,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 
 			this.recentHistory = recentHistory;
 			this.count = count;
+			this.externalPath = externalPath;
 
 			this.minDuration = minDuration;
 			this.maxDuration = maxDuration;
@@ -390,6 +395,11 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		@Override
 		public long getCount() {
 			return count;
+		}
+
+		@Override
+		public String getExternalPath() {
+			return externalPath;
 		}
 
 		@Override
@@ -438,6 +448,19 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		@Override
 		public Long getValue() {
 			return latestCompletedCheckpoint == null ? -1 : latestCompletedCheckpoint.getDuration();
+		}
+	}
+
+	private class CheckpointExternalPathGauge implements Gauge<String> {
+
+		@Override
+		public String getValue() {
+			CompletedCheckpoint checkpoint = latestCompletedCheckpoint;
+			if (checkpoint != null && checkpoint.getExternalPath() != null) {
+				return checkpoint.getExternalPath();
+			} else {
+				return "n/a";
+			}
 		}
 	}
 }

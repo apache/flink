@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -27,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStateHandles;
@@ -57,8 +57,6 @@ import static org.mockito.Mockito.when;
  * Tests concerning the restoring of state from a checkpoint to the task executions.
  */
 public class CheckpointStateRestoreTest {
-
-	private static final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
 	@Test
 	public void testSetState() {
@@ -101,12 +99,13 @@ public class CheckpointStateRestoreTest {
 					200000L,
 					0,
 					Integer.MAX_VALUE,
+					ExternalizedCheckpointSettings.none(),
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[0],
 					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1, cl),
-					new HeapSavepointStore(),
+					new StandaloneCompletedCheckpointStore(1),
+					null,
 					new DisabledCheckpointStatsTracker());
 
 			// create ourselves a checkpoint with state
@@ -199,12 +198,13 @@ public class CheckpointStateRestoreTest {
 					200000L,
 					0,
 					Integer.MAX_VALUE,
+					ExternalizedCheckpointSettings.none(),
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 					new ExecutionVertex[0],
 					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1, cl),
-					new HeapSavepointStore(),
+					new StandaloneCompletedCheckpointStore(1),
+					null,
 					new DisabledCheckpointStatsTracker());
 
 			// create ourselves a checkpoint with state
@@ -252,12 +252,13 @@ public class CheckpointStateRestoreTest {
 					200000L,
 					0,
 					Integer.MAX_VALUE,
+					ExternalizedCheckpointSettings.none(),
 					new ExecutionVertex[] { mock(ExecutionVertex.class) },
 					new ExecutionVertex[] { mock(ExecutionVertex.class) },
 					new ExecutionVertex[0],
 					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1, cl),
-					new HeapSavepointStore(),
+					new StandaloneCompletedCheckpointStore(1),
+					null,
 					new DisabledCheckpointStatsTracker());
 
 			try {

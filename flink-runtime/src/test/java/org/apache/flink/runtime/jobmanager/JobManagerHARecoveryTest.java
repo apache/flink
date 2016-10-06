@@ -37,7 +37,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.savepoint.HeapSavepointStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
@@ -168,7 +168,6 @@ public class JobManagerHARecoveryTest {
 					myLeaderElectionService,
 					mySubmittedJobGraphStore,
 					checkpointStateFactory,
-					new HeapSavepointStore(),
 					jobRecoveryTimeout,
 					Option.apply(null));
 
@@ -205,7 +204,8 @@ public class JobManagerHARecoveryTest {
 					100,
 					10 * 60 * 1000,
 					0,
-					1));
+					1,
+					ExternalizedCheckpointSettings.none()));
 
 			BlockingStatefulInvokable.initializeStaticHelpers(slots);
 
@@ -294,7 +294,6 @@ public class JobManagerHARecoveryTest {
 	 */
 	static class MyCheckpointStore implements CompletedCheckpointStore {
 
-
 		private final ArrayDeque<CompletedCheckpoint> checkpoints = new ArrayDeque<>(2);
 
 		private final ArrayDeque<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
@@ -309,7 +308,7 @@ public class JobManagerHARecoveryTest {
 		public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 			checkpoints.addLast(checkpoint);
 			if (checkpoints.size() > 1) {
-				checkpoints.removeFirst().discardState();
+				checkpoints.removeFirst().subsume();
 			}
 		}
 
@@ -319,15 +318,14 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
-		public void shutdown() throws Exception {
-			checkpoints.clear();
-			suspended.clear();
-		}
-
-		@Override
-		public void suspend() throws Exception {
-			suspended.addAll(checkpoints);
-			checkpoints.clear();
+		public void shutdown(JobStatus jobStatus) throws Exception {
+			if (jobStatus.isGloballyTerminalState()) {
+				checkpoints.clear();
+				suspended.clear();
+			} else {
+				suspended.addAll(checkpoints);
+				checkpoints.clear();
+			}
 		}
 
 		@Override

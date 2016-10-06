@@ -35,7 +35,6 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -353,12 +353,13 @@ public class ExecutionGraph {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
+			ExternalizedCheckpointSettings externalizeSettings,
 			List<ExecutionJobVertex> verticesToTrigger,
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
-			SavepointStore savepointStore,
+			String checkpointDir,
 			CheckpointStatsTracker statsTracker) {
 
 		// simple sanity checks
@@ -389,12 +390,13 @@ public class ExecutionGraph {
 				checkpointTimeout,
 				minPauseBetweenCheckpoints,
 				maxConcurrentCheckpoints,
+				externalizeSettings,
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
 				checkpointIDCounter,
 				checkpointStore,
-				savepointStore,
+				checkpointDir,
 				checkpointStatsTracker);
 
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
@@ -414,7 +416,7 @@ public class ExecutionGraph {
 		}
 
 		if (checkpointCoordinator != null) {
-			checkpointCoordinator.suspend();
+			checkpointCoordinator.shutdown(state);
 			checkpointCoordinator = null;
 			checkpointStatsTracker = null;
 		}
@@ -1076,15 +1078,8 @@ public class ExecutionGraph {
 			CheckpointCoordinator coord = this.checkpointCoordinator;
 			this.checkpointCoordinator = null;
 			if (coord != null) {
-				if (state.isGloballyTerminalState()) {
-					coord.shutdown();
-				} else {
-					coord.suspend();
-				}
+				coord.shutdown(state);
 			}
-
-			// We don't clean the checkpoint stats tracker, because we want
-			// it to be available after the job has terminated.
 		} catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
 		}
