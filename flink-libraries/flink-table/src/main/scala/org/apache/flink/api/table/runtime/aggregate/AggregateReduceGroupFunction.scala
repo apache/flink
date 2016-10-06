@@ -22,7 +22,6 @@ import java.lang.Iterable
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.{Collector, Preconditions}
 
 import scala.collection.JavaConversions._
@@ -86,13 +85,13 @@ class AggregateReduceGroupFunction(
     })
 
     // Set group keys value to final output.
-    groupKeysMapping.map {
+    groupKeysMapping.foreach {
       case (after, previous) =>
         output.setField(after, last.productElement(previous))
     }
 
     // Evaluate final aggregate value and set to output.
-    aggregateMapping.map {
+    aggregateMapping.foreach {
       case (after, previous) =>
         output.setField(after, aggregates(previous).evaluate(aggregateBuffer, aggContext))
     }

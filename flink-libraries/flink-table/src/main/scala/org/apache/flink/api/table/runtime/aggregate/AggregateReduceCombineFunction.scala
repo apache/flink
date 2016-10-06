@@ -23,7 +23,6 @@ import java.lang.Iterable
 import org.apache.flink.api.common.functions.{CombineFunction, RichGroupReduceFunction}
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.{Collector, Preconditions}
 
 import scala.collection.JavaConversions._
@@ -89,13 +88,13 @@ class AggregateReduceCombineFunction(
     })
 
     // Set group keys value to final output.
-    groupKeysMapping.map {
+    groupKeysMapping.foreach {
       case (after, previous) =>
         output.setField(after, last.productElement(previous))
     }
 
     // Evaluate final aggregate value and set to output.
-    aggregateMapping.map {
+    aggregateMapping.foreach {
       case (after, previous) =>
         output.setField(after, aggregates(previous).evaluate(aggregateBuffer, aggContext))
     }
@@ -123,7 +122,7 @@ class AggregateReduceCombineFunction(
     })
 
     // Set group keys to aggregateBuffer.
-    for (i <- 0 until groupKeysMapping.length) {
+    for (i <- groupKeysMapping.indices) {
       aggregateBuffer.setField(i, last.productElement(i))
     }
 
