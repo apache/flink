@@ -20,8 +20,8 @@ package org.apache.flink.api.scala.table
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.expressions._
 
@@ -375,14 +375,14 @@ trait ImplicitExpressionOperations {
     */
   def milli = toMilliInterval(expr, 1)
 
-  // row type
+  // row interval type
 
   /**
-    * Creates a number defining an amount of rows.
+    * Creates an interval of rows.
     *
-    * @return number of rows
+    * @return interval of rows
     */
-  def rows = expr
+  def rows = toRowInterval(expr)
 }
 
 /**

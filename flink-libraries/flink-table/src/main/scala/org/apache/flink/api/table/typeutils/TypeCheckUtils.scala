@@ -30,7 +30,7 @@ object TypeCheckUtils {
   def isAdvanced(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: BasicTypeInfo[_] => false
     case _: SqlTimeTypeInfo[_] => false
-    case _: IntervalTypeInfo[_] => false
+    case _: TimeIntervalTypeInfo[_] => false
     case _ => true
   }
 
@@ -53,7 +53,7 @@ object TypeCheckUtils {
     dataType.isInstanceOf[SqlTimeTypeInfo[_]]
 
   def isTimeInterval(dataType: TypeInformation[_]): Boolean =
-    dataType.isInstanceOf[IntervalTypeInfo[_]]
+    dataType.isInstanceOf[TimeIntervalTypeInfo[_]]
 
   def isString(dataType: TypeInformation[_]): Boolean = dataType == STRING_TYPE_INFO
 

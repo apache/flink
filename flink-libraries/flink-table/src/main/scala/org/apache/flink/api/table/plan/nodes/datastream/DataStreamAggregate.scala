@@ -31,10 +31,9 @@ import org.apache.flink.api.table.plan.nodes.datastream.DataStreamAggregate.{cre
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.api.table.runtime.aggregate.{AggregateAllWindowFunction, AggregateUtil, AggregateWindowFunction}
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
-import org.apache.flink.api.table.typeutils.{IntervalTypeInfo, RowTypeInfo, TypeCheckUtils, TypeConverter}
+import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, RowTypeInfo, TimeIntervalTypeInfo, TypeConverter}
 import org.apache.flink.api.table.{FlinkTypeFactory, Row, StreamTableEnvironment}
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream, KeyedStream, WindowedStream}
-import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
@@ -258,15 +257,12 @@ object DataStreamAggregate {
   }
 
   def asTime(expr: Expression): Time = expr match {
-    case Literal(value: Long, IntervalTypeInfo.INTERVAL_MILLIS) => Time.milliseconds(value)
+    case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) => Time.milliseconds(value)
     case _ => throw new IllegalArgumentException()
   }
 
   def asCount(expr: Expression): Long = expr match {
-    case Literal(value: Long, BasicTypeInfo.LONG_TYPE_INFO) =>
-      value
-    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      value
+    case Literal(value: Long, RowIntervalTypeInfo.INTERVAL_ROWS) => value
     case _ => throw new IllegalArgumentException()
   }
 }

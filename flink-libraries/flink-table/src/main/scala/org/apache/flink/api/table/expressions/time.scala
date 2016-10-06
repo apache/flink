@@ -29,7 +29,7 @@ import org.apache.flink.api.table.FlinkRelBuilder
 import org.apache.flink.api.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.api.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.api.table.typeutils.TypeCheckUtils.isTimeInterval
-import org.apache.flink.api.table.typeutils.{IntervalTypeInfo, TypeCheckUtils}
+import org.apache.flink.api.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
 import org.apache.flink.api.table.validate.{ValidationResult, ValidationFailure, ValidationSuccess}
 
 import scala.collection.JavaConversions._
@@ -52,8 +52,8 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
            | SymbolExpression(TimeIntervalUnit.DAY)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
-          || temporal.resultType == IntervalTypeInfo.INTERVAL_MILLIS
-          || temporal.resultType == IntervalTypeInfo.INTERVAL_MONTHS =>
+          || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS
+          || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         ValidationSuccess
 
       case SymbolExpression(TimeIntervalUnit.HOUR)
@@ -61,7 +61,7 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
            | SymbolExpression(TimeIntervalUnit.SECOND)
         if temporal.resultType == SqlTimeTypeInfo.TIME
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
-          || temporal.resultType == IntervalTypeInfo.INTERVAL_MILLIS =>
+          || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS =>
         ValidationSuccess
 
       case _ =>

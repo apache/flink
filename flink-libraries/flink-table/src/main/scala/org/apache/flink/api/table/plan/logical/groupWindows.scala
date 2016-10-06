@@ -21,7 +21,7 @@ package org.apache.flink.api.table.plan.logical
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.{StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.typeutils.{IntervalTypeInfo, TypeCoercion}
+import org.apache.flink.api.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
 import org.apache.flink.api.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 abstract class EventTimeGroupWindow(
@@ -59,13 +59,13 @@ abstract class ProcessingTimeGroupWindow(name: Option[Expression]) extends Logic
 
 object TumblingGroupWindow {
   def validate(tableEnv: TableEnvironment, size: Expression): ValidationResult = size match {
-    case Literal(_, IntervalTypeInfo.INTERVAL_MILLIS) =>
+    case Literal(_, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
       ValidationSuccess
-    case Literal(_, BasicTypeInfo.LONG_TYPE_INFO) | Literal(_, BasicTypeInfo.INT_TYPE_INFO) =>
+    case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) =>
       ValidationSuccess
     case _ =>
-      ValidationFailure(
-        "Tumbling window expects size literal of type Interval of Milliseconds or Long/Integer.")
+      ValidationFailure("Tumbling window expects size literal of type Interval of Milliseconds " +
+        "or Interval of Rows.")
   }
 }
 
@@ -103,7 +103,7 @@ case class EventTimeTumblingGroupWindow(
     super.validate(tableEnv)
       .orElse(TumblingGroupWindow.validate(tableEnv, size))
       .orElse(size match {
-        case Literal(_, BasicTypeInfo.INT_TYPE_INFO | BasicTypeInfo.LONG_TYPE_INFO) =>
+        case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) =>
           ValidationFailure(
             "Event-time grouping windows on row intervals are currently not supported.")
         case _ =>
@@ -125,23 +125,23 @@ object SlidingGroupWindow {
     : ValidationResult = {
 
     val checkedSize = size match {
-      case Literal(_, IntervalTypeInfo.INTERVAL_MILLIS) =>
+      case Literal(_, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         ValidationSuccess
-      case Literal(_, BasicTypeInfo.INT_TYPE_INFO | BasicTypeInfo.LONG_TYPE_INFO) =>
+      case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) =>
         ValidationSuccess
       case _ =>
-        ValidationFailure(
-          "Sliding window expects size literal of type Interval of Milliseconds or Long/Integer.")
+        ValidationFailure("Sliding window expects size literal of type Interval of " +
+          "Milliseconds or Interval of Rows.")
     }
 
     val checkedSlide = slide match {
-      case Literal(_, IntervalTypeInfo.INTERVAL_MILLIS) =>
+      case Literal(_, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
         ValidationSuccess
-      case Literal(_, BasicTypeInfo.INT_TYPE_INFO | BasicTypeInfo.LONG_TYPE_INFO) =>
+      case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) =>
         ValidationSuccess
       case _ =>
-        ValidationFailure(
-          "Sliding window expects slide literal of type Interval of Milliseconds or Long/Integer.")
+        ValidationFailure("Sliding window expects slide literal of type Interval of " +
+          "Milliseconds or Interval of Rows.")
     }
 
     checkedSize
@@ -192,7 +192,7 @@ case class EventTimeSlidingGroupWindow(
     super.validate(tableEnv)
       .orElse(SlidingGroupWindow.validate(tableEnv, size, slide))
       .orElse(size match {
-        case Literal(_, BasicTypeInfo.INT_TYPE_INFO | BasicTypeInfo.LONG_TYPE_INFO) =>
+        case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) =>
           ValidationFailure(
             "Event-time grouping windows on row intervals are currently not supported.")
         case _ =>
@@ -209,7 +209,7 @@ case class EventTimeSlidingGroupWindow(
 object SessionGroupWindow {
 
   def validate(tableEnv: TableEnvironment, gap: Expression): ValidationResult = gap match {
-    case Literal(timeInterval: Long, IntervalTypeInfo.INTERVAL_MILLIS) =>
+    case Literal(timeInterval: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
       ValidationSuccess
     case _ =>
       ValidationFailure(
