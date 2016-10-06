@@ -20,7 +20,24 @@ package org.apache.flink.api.table.plan.logical
 
 import org.apache.flink.api.table.expressions.Expression
 
+/**
+  * A class implementing this interface can resolve the expressions of its parameters and
+  * return a new instance with resolved parameters. This is necessary if expression are nested in
+  * a not supported structure. By default, the validation of a logical node can resolve common
+  * structures like `Expression`, `Option[Expression]`, `Traversable[Expression]`.
+  *
+  * See also [[LogicalNode.expressionPostOrderTransform(scala.PartialFunction)]].
+  *
+  * @tparam T class which expression parameters need to be resolved
+  */
 trait Resolvable[T <: AnyRef] {
 
+  /**
+    * An implementing class can resolve its expressions by applying the given resolver
+    * function on its parameters.
+    *
+    * @param resolver function that can resolve an expression
+    * @return class with resolved expression parameters
+    */
   def resolveExpressions(resolver: (Expression) => Expression): T
 }

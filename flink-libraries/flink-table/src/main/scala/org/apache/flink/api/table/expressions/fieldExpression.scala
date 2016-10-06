@@ -125,6 +125,10 @@ case class RowtimeAttribute() extends Attribute {
 
   override private[flink] def name: String = "rowtime"
 
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    throw new UnsupportedOperationException("A rowtime attribute can not be used solely.")
+  }
+
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.LONG_TYPE_INFO
 }
 

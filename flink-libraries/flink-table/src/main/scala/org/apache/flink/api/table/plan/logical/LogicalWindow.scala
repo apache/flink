@@ -23,6 +23,7 @@ import org.apache.flink.api.table.expressions.{Expression, WindowReference}
 import org.apache.flink.api.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 abstract class LogicalWindow(val alias: Option[Expression]) extends Resolvable[LogicalWindow] {
+
   def resolveExpressions(resolver: (Expression) => Expression): LogicalWindow = this
 
   def validate(tableEnv: TableEnvironment): ValidationResult = alias match {

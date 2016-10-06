@@ -36,17 +36,13 @@ abstract class EventTimeGroupWindow(
     }
 
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      val valid = time match {
+      time match {
         case RowtimeAttribute() =>
           ValidationSuccess
         case _ =>
           ValidationFailure("Event-time window expects a 'rowtime' time field.")
       }
-      if (valid.isFailure) {
-        return valid
-      }
-    }
-    if (!TypeCoercion.canCast(time.resultType, BasicTypeInfo.LONG_TYPE_INFO)) {
+    } else if (!TypeCoercion.canCast(time.resultType, BasicTypeInfo.LONG_TYPE_INFO)) {
       ValidationFailure(s"Event-time window expects a time field that can be safely cast " +
         s"to Long, but is ${time.resultType}")
     } else {
@@ -238,5 +234,5 @@ case class EventTimeSessionGroupWindow(
   override def validate(tableEnv: TableEnvironment): ValidationResult =
     super.validate(tableEnv).orElse(SessionGroupWindow.validate(tableEnv, gap))
 
-  override def toString: String = s"ProcessingTimeSessionGroupWindow($name, $timeField, $gap)"
+  override def toString: String = s"EventTimeSessionGroupWindow($name, $timeField, $gap)"
 }

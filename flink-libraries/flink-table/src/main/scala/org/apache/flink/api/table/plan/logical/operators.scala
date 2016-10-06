@@ -60,7 +60,7 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
 
     def checkName(name: String): Unit = {
       if (names.contains(name)) {
-        throw ValidationException(s"Duplicate field name $name.")
+        failValidation(s"Duplicate field name $name.")
       } else if (tableEnv.isInstanceOf[StreamTableEnvironment] && name == "rowtime") {
         failValidation("'rowtime' cannot be used as field name in a streaming environment.")
       } else {
@@ -517,15 +517,19 @@ case class WindowAggregate(
     }
   }
 
+  // resolve references of this operator's parameters
   override def resolveReference(
       tableEnv: TableEnvironment,
       name: String)
     : Option[NamedExpression] = tableEnv match {
+    // resolve reference to rowtime attribute in a streaming environment
     case _: StreamTableEnvironment if name == "rowtime" =>
       Some(RowtimeAttribute())
     case _ =>
       window.alias match {
+        // resolve reference to this window's alias
         case Some(UnresolvedFieldReference(alias)) if name == alias =>
+          // check if reference can already be resolved by input fields
           val found = super.resolveReference(tableEnv, name)
           if (found.isDefined) {
             failValidation(s"Reference $name is ambiguous.")
@@ -533,6 +537,7 @@ case class WindowAggregate(
             Some(WindowReference(name))
           }
         case _ =>
+          // resolve references as usual
           super.resolveReference(tableEnv, name)
       }
   }
