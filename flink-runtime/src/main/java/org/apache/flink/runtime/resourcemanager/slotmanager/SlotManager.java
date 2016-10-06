@@ -115,7 +115,7 @@ public abstract class SlotManager {
 		final AllocationID allocationId = request.getAllocationId();
 		if (isRequestDuplicated(request)) {
 			LOG.warn("Duplicated slot request, AllocationID:{}", allocationId);
-			return null;
+			return new RMSlotRequestRegistered(allocationId);
 		}
 
 		// try to fulfil the request with current free slots
@@ -154,6 +154,10 @@ public abstract class SlotManager {
 		allocationMap.removeAllocation(slotID);
 		final Map<SlotID, ResourceSlot> slots = registeredSlots.get(resourceID);
 		ResourceSlot freeSlot = slots.get(slotID);
+		if (freeSlot == null) {
+			throw new IllegalStateException("Slot was not registered with SlotManager but " +
+				"TaskManager reported it to be available.");
+		}
 		handleFreeSlot(freeSlot);
 	}
 
@@ -172,7 +176,7 @@ public abstract class SlotManager {
 	 * @param originalRequest The original slot request
 	 * @param slotId          The target SlotID
 	 */
-	public void handleSlotRequestFailedAtTaskManager(final SlotRequest originalRequest, final SlotID slotId) {
+	void handleSlotRequestFailedAtTaskManager(final SlotRequest originalRequest, final SlotID slotId) {
 		final AllocationID originalAllocationId = originalRequest.getAllocationId();
 		LOG.info("Slot request failed at TaskManager, SlotID:{}, AllocationID:{}, JobID:{}",
 			slotId, originalAllocationId, originalRequest.getJobId());
@@ -210,10 +214,13 @@ public abstract class SlotManager {
 			ResourceID resourceID,
 			TaskExecutorRegistration registration,
 			SlotReport slotReport) {
+
 		if (taskManagers.get(resourceID) != null) {
 			notifyTaskManagerFailure(resourceID);
 		}
+		
 		this.taskManagers.put(resourceID, registration);
+
 		for (SlotStatus slotStatus : slotReport.getSlotsStatus()) {
 			final SlotID slotId = slotStatus.getSlotID();
 
@@ -330,9 +337,9 @@ public abstract class SlotManager {
 	}
 
 	/**
-	 * Try to register slot, and tell if this slot is newly registered.
+	 * Registers a new slot with the SlotManager.
 	 *
-	 * @param slot The ResourceSlot which will be checked and registered
+	 * @param slot The ResourceSlot which will be registered
 	 */
 	private void registerNewSlot(final ResourceSlot slot) {
 		final SlotID slotId = slot.getSlotId();

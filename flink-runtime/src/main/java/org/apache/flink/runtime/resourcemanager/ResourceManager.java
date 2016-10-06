@@ -270,7 +270,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 					WorkerRegistration oldRegistration = taskExecutors.remove(resourceID);
 					if (oldRegistration != null) {
 						// TODO :: suggest old taskExecutor to stop itself
-						slotManager.notifyTaskManagerFailure(resourceID);
+						log.info("Replacing old instance of worker for ResourceID {}", resourceID);
 					}
 					WorkerType newWorker = workerStarted(resourceID);
 					WorkerRegistration<WorkerType> registration =
