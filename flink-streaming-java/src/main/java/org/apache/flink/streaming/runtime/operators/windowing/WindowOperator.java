@@ -230,6 +230,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			mergingWindowsByKey = new HashMap<>();
 		}
+
+		// re-register the restored timers (if any)
+		if (processingTimeTimersQueue.size() > 0) {
+			nextTimer = getTimerService().registerTimer(processingTimeTimersQueue.peek().timestamp, this);
+		}
 	}
 
 	@Override
@@ -880,10 +885,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			Timer<K, W> timer = new Timer<>(timestamp, key, window);
 			processingTimeTimersQueue.add(timer);
 			processingTimeTimers.add(timer);
-		}
-
-		if (numProcessingTimeTimers > 0) {
-			nextTimer = getTimerService().registerTimer(processingTimeTimersQueue.peek().timestamp, this);
 		}
 	}
 
