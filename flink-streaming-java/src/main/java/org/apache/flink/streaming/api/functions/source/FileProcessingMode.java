@@ -20,12 +20,15 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Specifies when the computation of the {@link ContinuousFileMonitoringFunction}
- * will be triggered.
+ * The mode in which the {@link ContinuousFileMonitoringFunction} operates.
+ * This can be either {@link #PROCESS_ONCE} or {@link #PROCESS_CONTINUOUSLY}.
  */
 @PublicEvolving
 public enum FileProcessingMode {
 
-	PROCESS_ONCE,				// Processes the current content of a file/path only ONCE, and stops monitoring.
-	PROCESS_CONTINUOUSLY		// Reprocesses the whole file when new data is appended.
+	/** Processes the current contents of the path and exits. */
+	PROCESS_ONCE,
+
+	/** Periodically scans the path for new data. */
+	PROCESS_CONTINUOUSLY
 }
