@@ -60,14 +60,14 @@ public class ResourceManagerHATest {
 			new TestingResourceManager(rpcService, highAvailabilityServices);
 		resourceManager.start();
 		// before grant leadership, resourceManager's leaderId is null
-		Assert.assertNull(resourceManager.getLeaderSessionID());
+		Assert.assertEquals(new UUID(0,0), resourceManager.getLeaderSessionID());
 		final UUID leaderId = UUID.randomUUID();
 		leaderElectionService.isLeader(leaderId);
 		// after grant leadership, resourceManager's leaderId has value
 		Assert.assertEquals(leaderId, resourceManager.getLeaderSessionID());
 		// then revoke leadership, resourceManager's leaderId is null again
 		leaderElectionService.notLeader();
-		Assert.assertNull(resourceManager.getLeaderSessionID());
+		Assert.assertEquals(new UUID(0,0), resourceManager.getLeaderSessionID());
 	}
 
 	private static abstract class TestingResourceManagerGatewayProxy implements MainThreadExecutable, StartStoppable, RpcGateway {

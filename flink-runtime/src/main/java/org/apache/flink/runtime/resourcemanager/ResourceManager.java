@@ -81,29 +81,37 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		extends RpcEndpoint<ResourceManagerGateway>
 		implements LeaderContender {
 
-	/** The exit code with which the process is stopped in case of a fatal error */
+	/** The exit code with which the process is stopped in case of a fatal error. */
 	protected static final int EXIT_CODE_FATAL_ERROR = -13;
 
+	/** All currently registered JobMasterGateways scoped by JobID. */
 	private final Map<JobID, JobMasterGateway> jobMasterGateways;
 
+	/** LeaderListeners for all registered JobMasters. */
 	private final Map<JobID, JobMasterLeaderListener> jobMasterLeaderRetrievalListeners;
 
+	/** All currently registered TaskExecutors with there framework specific worker information. */
 	private final Map<ResourceID, WorkerRegistration<WorkerType>> taskExecutors;
 
+	/** High availability services for leader retrieval and election. */
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	/** The factory to construct the SlotManager */
+	/** The factory to construct the SlotManager. */
 	private final SlotManagerFactory slotManagerFactory;
 
 	/** The SlotManager created by the slotManagerFactory when the ResourceManager is started. */
 	private SlotManager slotManager;
 
+	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
 
+	/** ResourceManager's leader session id which is updated on leader election. */
 	private UUID leaderSessionID;
 
+	/** All registered listeners for status updates of the ResourceManager. */
 	private Map<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
+	/** Default timeout for messages */
 	private final Time timeout = Time.seconds(5);
 
 	public ResourceManager(
@@ -116,6 +124,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.jobMasterGateways = new HashMap<>();
 		this.jobMasterLeaderRetrievalListeners = new HashMap<>();
 		this.taskExecutors = new HashMap<>();
+		this.leaderSessionID = new UUID(0, 0);
 		infoMessageListeners = new HashMap<>();
 	}
 
@@ -381,7 +390,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				jobMasterGateways.clear();
 				taskExecutors.clear();
 				slotManager.clearState();
-				leaderSessionID = null;
+				leaderSessionID = new UUID(0, 0);
 			}
 		});
 	}

@@ -189,7 +189,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	@RpcMethod
 	public TMSlotRequestReply requestSlot(SlotID slotID, AllocationID allocationID, UUID resourceManagerLeaderID) {
 		if (!resourceManagerConnection.getTargetLeaderId().equals(resourceManagerLeaderID)) {
-
 			return new TMSlotRequestRejected(
 				resourceManagerConnection.getRegistrationId(), getResourceID(), allocationID);
 		}

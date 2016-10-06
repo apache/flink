@@ -61,8 +61,10 @@ public interface ResourceManagerGateway extends RpcGateway {
 	/**
 	 * Requests a slot from the resource manager.
 	 *
-	 * @param slotRequest Slot request
-	 * @return Future slot assignment
+	 * @param jobMasterLeaderID leader id of the JobMaster
+	 * @param resourceManagerLeaderID leader if of the ResourceMaster
+	 * @param slotRequest The slot to request
+	 * @return The confirmation that the slot gets allocated
 	 */
 	Future<RMSlotRequestReply> requestSlot(
 		UUID jobMasterLeaderID,
@@ -90,7 +92,12 @@ public interface ResourceManagerGateway extends RpcGateway {
 
 	/**
 	 * Sent by the TaskExecutor to notify the ResourceManager that a slot has become available.
-	 * @return
+	 *
+	 * @param resourceManagerLeaderId The ResourceManager leader id
+	 * @param resourceID The ResourceID of the TaskExecutor
+	 * @param instanceID The InstanceID of the TaskExecutor
+	 * @param slotID The SlotID of the freed slot
+	 * @return The confirmation by the ResourceManager
 	 */
 	Future<SlotAvailableReply> notifySlotAvailable(
 		UUID resourceManagerLeaderId,
