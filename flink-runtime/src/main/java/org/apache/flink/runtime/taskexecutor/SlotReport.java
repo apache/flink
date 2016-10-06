@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -37,20 +36,20 @@ public class SlotReport implements Serializable {
 	/** The slots status of the TaskManager */
 	private final List<SlotStatus> slotsStatus;
 
-	/** The resource id which identifies the TaskManager */
-	private final ResourceID resourceID;
+	public SlotReport() {
+		this(Collections.<SlotStatus>emptyList());
+	}
 
-	public SlotReport(final List<SlotStatus> slotsStatus, final ResourceID resourceID) {
+	public SlotReport(SlotStatus slotStatus) {
+		this(Collections.singletonList(slotStatus));
+	}
+
+	public SlotReport(final List<SlotStatus> slotsStatus) {
 		this.slotsStatus = checkNotNull(slotsStatus);
-		this.resourceID = checkNotNull(resourceID);
 	}
 
 	public List<SlotStatus> getSlotsStatus() {
 		return slotsStatus;
-	}
-
-	public ResourceID getResourceID() {
-		return resourceID;
 	}
 
 }

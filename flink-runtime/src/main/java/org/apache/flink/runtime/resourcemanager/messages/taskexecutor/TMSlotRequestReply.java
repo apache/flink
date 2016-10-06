@@ -16,36 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.registration;
+package org.apache.flink.runtime.resourcemanager.messages.taskexecutor;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 
 import java.io.Serializable;
 
 /**
- * This class is responsible for grouping the TaskExecutorGateway and the InstanceID
- * of a registered task executor.
+ * Acknowledgment by the TaskExecutor for a SlotRequest from the ResourceManager
  */
-public class TaskExecutorRegistration implements Serializable {
+public abstract class TMSlotRequestReply implements Serializable {
 
-	private static final long serialVersionUID = -2062957799469434614L;
+	private static final long serialVersionUID = 42;
 
 	private final InstanceID instanceID;
 
-	private TaskExecutorGateway taskExecutorGateway;
+	private final ResourceID resourceID;
 
-	public TaskExecutorRegistration(TaskExecutorGateway taskExecutorGateway) {
-		this.instanceID = new InstanceID();
-		this.taskExecutorGateway = taskExecutorGateway;
+	private final AllocationID allocationID;
+
+	protected TMSlotRequestReply(InstanceID instanceID, ResourceID resourceID, AllocationID allocationID) {
+		this.instanceID = instanceID;
+		this.resourceID = resourceID;
+		this.allocationID = allocationID;
 	}
 
 	public InstanceID getInstanceID() {
 		return instanceID;
 	}
 
-	public TaskExecutorGateway getTaskExecutorGateway() {
-		return taskExecutorGateway;
+	public ResourceID getResourceID() {
+		return resourceID;
+	}
+
+	public AllocationID getAllocationID() {
+		return allocationID;
 	}
 
 }
