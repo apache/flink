@@ -156,10 +156,10 @@ public class MetricFetcherTest extends TestLogger {
 			assertEquals("0.99", store.jobManager.metrics.get("abc.hist_p99"));
 			assertEquals("0.999", store.jobManager.metrics.get("abc.hist_p999"));
 
-			assertEquals("x", store.taskManagers.get(tmID.toString()).metrics.get("abc.gauge"));
-			assertEquals("5.0", store.jobs.get(jobID.toString()).metrics.get("abc.jc"));
-			assertEquals("2", store.jobs.get(jobID.toString()).tasks.get("taskid").metrics.get("2.abc.tc"));
-			assertEquals("1", store.jobs.get(jobID.toString()).tasks.get("taskid").metrics.get("2.opname.abc.oc"));
+			assertEquals("x", store.getTaskManagerMetricStore(tmID.toString()).metrics.get("abc.gauge"));
+			assertEquals("5.0", store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
+			assertEquals("2", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.abc.tc"));
+			assertEquals("1", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.opname.abc.oc"));
 		}
 	}
 
