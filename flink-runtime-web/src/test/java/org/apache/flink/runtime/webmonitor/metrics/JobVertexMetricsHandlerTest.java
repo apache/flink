@@ -44,11 +44,11 @@ public class JobVertexMetricsHandlerTest extends TestLogger {
 		pathParams.put(PARAMETER_JOB_ID, "jobid");
 		pathParams.put(PARAMETER_VERTEX_ID, "taskid");
 
-		Map<String, Object> metrics = handler.getMapFor(pathParams, store);
+		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 
-		assertEquals(3L, metrics.get("8.abc.metric4"));
+		assertEquals("3", metrics.get("8.abc.metric4"));
 
-		assertEquals(4L, metrics.get("8.opname.abc.metric5"));
+		assertEquals("4", metrics.get("8.opname.abc.metric5"));
 	}
 
 	@Test
@@ -60,7 +60,7 @@ public class JobVertexMetricsHandlerTest extends TestLogger {
 
 		Map<String, String> pathParams = new HashMap<>();
 
-		Map<String, Object> metrics = handler.getMapFor(pathParams, store);
+		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 
 		assertNull(metrics);
 	}
