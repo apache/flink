@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -57,53 +59,25 @@ public class ZooKeeperUtils {
 	 * @return {@link CuratorFramework} instance
 	 */
 	public static CuratorFramework startCuratorFramework(Configuration configuration) {
-		String zkQuorum = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY,
-				null,
-				ConfigConstants.ZOOKEEPER_QUORUM_KEY);
+		String zkQuorum = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM);
 
-		if (zkQuorum == null || zkQuorum.equals("")) {
+		if (zkQuorum == null || StringUtils.isBlank(zkQuorum)) {
 			throw new RuntimeException("No valid ZooKeeper quorum has been specified. " +
 					"You can specify the quorum via the configuration key '" +
-					ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY + "'.");
+					HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM.key() + "'.");
 		}
 
-		int sessionTimeout = ConfigurationUtil.getIntegerWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_SESSION_TIMEOUT,
-				ConfigConstants.DEFAULT_ZOOKEEPER_SESSION_TIMEOUT,
-				ConfigConstants.ZOOKEEPER_SESSION_TIMEOUT);
+		int sessionTimeout = configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT);
 
-		int connectionTimeout = ConfigurationUtil.getIntegerWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_CONNECTION_TIMEOUT,
-				ConfigConstants.DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT,
-				ConfigConstants.ZOOKEEPER_CONNECTION_TIMEOUT);
+		int connectionTimeout = configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT);
 
-		int retryWait = ConfigurationUtil.getIntegerWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_RETRY_WAIT,
-				ConfigConstants.DEFAULT_ZOOKEEPER_RETRY_WAIT,
-				ConfigConstants.ZOOKEEPER_RETRY_WAIT);
+		int retryWait = configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT);
 
-		int maxRetryAttempts = ConfigurationUtil.getIntegerWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS,
-				ConfigConstants.DEFAULT_ZOOKEEPER_MAX_RETRY_ATTEMPTS,
-				ConfigConstants.ZOOKEEPER_MAX_RETRY_ATTEMPTS);
+		int maxRetryAttempts = configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_MAX_RETRY_ATTEMPTS);
 
-		String root = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_DIR_KEY,
-				ConfigConstants.DEFAULT_ZOOKEEPER_DIR_KEY,
-				ConfigConstants.ZOOKEEPER_DIR_KEY);
+		String root = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT);
 
-		String namespace = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_NAMESPACE_KEY,
-				ConfigConstants.DEFAULT_ZOOKEEPER_NAMESPACE_KEY,
-				ConfigConstants.ZOOKEEPER_NAMESPACE_KEY);
+		String namespace = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 
 		String rootWithNamespace = generateZookeeperPath(root, namespace);
 
@@ -138,13 +112,9 @@ public class ZooKeeperUtils {
 	public static String getZooKeeperEnsemble(Configuration flinkConf)
 			throws IllegalConfigurationException {
 
-		String zkQuorum = ConfigurationUtil.getStringWithDeprecatedKeys(
-				flinkConf,
-				ConfigConstants.HA_ZOOKEEPER_QUORUM_KEY,
-				"",
-				ConfigConstants.ZOOKEEPER_QUORUM_KEY);
+		String zkQuorum = flinkConf.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM);
 
-		if (zkQuorum == null || zkQuorum.equals("")) {
+		if (zkQuorum == null || StringUtils.isBlank(zkQuorum)) {
 			throw new IllegalConfigurationException("No ZooKeeper quorum specified in config.");
 		}
 
@@ -317,15 +287,11 @@ public class ZooKeeperUtils {
 			Configuration configuration,
 			String prefix) throws IOException {
 
-		String rootPath = ConfigurationUtil.getStringWithDeprecatedKeys(
-				configuration,
-				ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH,
-				"",
-				ConfigConstants.ZOOKEEPER_RECOVERY_PATH);
+		String rootPath = configuration.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
 
-		if (rootPath.equals("")) {
-			throw new IllegalConfigurationException("Missing recovery path. Specify via " +
-				"configuration key '" + ConfigConstants.HA_ZOOKEEPER_STORAGE_PATH + "'.");
+		if (rootPath == null || StringUtils.isBlank(rootPath)) {
+			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
+					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
 		} else {
 			return new FileSystemStateStorageHelper<T>(rootPath, prefix);
 		}
